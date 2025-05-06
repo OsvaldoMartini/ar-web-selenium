@@ -9,10 +9,13 @@ import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
+import com.google.common.base.Strings;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -22,11 +25,16 @@ public class ARControlPanel extends Application {
 
     private static final PerformMessage performMessage;
     private static final ARPropertyManager arPropertyManager;
-    private static String defaultConfigurationFileName = ARConstants.CURRENT_PATH + ARConstants.FILE_NAME_CONFIGURATION;
+    private static final ARLicenseScene arLicenseScene;
+    private static String defaultConfigurationFileName = ARConstants.USER_PATH + ARConstants.FILE_NAME_CONFIGURATION;
+
+    private static final CountDownLatch configurationLatch = new CountDownLatch(1);
+    private static final AtomicBoolean isConfiguring = new AtomicBoolean(false);
 
     static {
         performMessage = PerformMessage.getInstance();
         arPropertyManager = ARPropertyManager.getInstance();
+        arLicenseScene = ARLicenseScene.getInstance();
     }
 
     private static boolean isEnabledLicence = true;
@@ -57,10 +65,23 @@ public class ARControlPanel extends Application {
             } catch (Exception ignore) {
 
             }
-            ;
             arPropertyManager.setConfigurationFileName(defaultConfigurationFileName);
             arPropertyManager.loadProperties();
             ARLogger.getInstance(ARControlPanel.class).fine("Configuration file path: " + defaultConfigurationFileName);
+        }
+
+        // Wait for the configuration window to be closed if it was shown
+        if (isConfiguring.get()) {
+            try {
+                configurationLatch.await();
+                ARLogger.getInstance(ARControlPanel.class)
+                        .fine("Configuration window closed, continuing main execution.");
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                ARLogger.getInstance(ARControlPanel.class)
+                        .severe("Main thread interrupted while waiting for configuration. " + e);
+                return; // Or handle interruption as needed
+            }
         }
 
         arPropertyManager.setProperty(ARPropertyEnum.VERSION.getValue(), "ARS Web v4.0f Beta Test");
@@ -77,46 +98,56 @@ public class ARControlPanel extends Application {
         }
 
         if (isEnabledLicence) {
+
+            String licensePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_LICENSE);
+            if (Strings.isNullOrEmpty(licensePath)) {
+                licensePath = System.getProperty("user.dir");
+            }
+
             AtomicReference<LicenceVal> license = new AtomicReference<>();
+
             try {
-                license.set(LicenseManager.checkLicenseFile());
-            } catch (Exception e) {
+                license.set(LicenseManager.checkLicenseFile(licensePath));
+            } catch (Exception error) {
                 performMessage.errorMessage(
                         "Error reading/writing to the file!",
-                        "File Name:",
-                        "Please verify that you have permission to read/write to the Desktop.",
-                        null,
-                        null,
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please verify that you have permission to read/write.!</span>",
+                        "<span style='color: #E65100; font-weight: bold;'>Attempted to read/write:</span> <span style='font-weight: bold;'>"
+                                + licensePath + "</span>",
+                        "<span style='font-style: italic;'>Please ensure the application has the necessary write permissions for the specified directory</span>",
+                        "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
                         0);
             }
             try {
                 if (license.get().isMissing()) {
                     // If the license is not active, launch the license activation app
                     //                    Application.launch(LicenseActivationApp.class, args);
+                    String finalLicensePath = licensePath;
                     Platform.runLater(() -> {
-                        new ARLicenseScene().showModal();
+                        arLicenseScene.showModal();
 
                         try {
-                            license.set(LicenseManager.checkLicenseFile());
+                            license.set(LicenseManager.checkLicenseFile(finalLicensePath));
                             if (license.get().isActive()) {
                                 ARMainScene primaryStage = new ARMainScene();
                                 primaryStage.show();
                             } else {
                                 licenseMessages(license.get());
                             }
-                        } catch (Exception e) {
+                        } catch (Exception error) {
                             performMessage.errorMessage(
                                     "Error reading/writing to the file!",
-                                    "File Name:",
-                                    "Please verify that you have permission to read/write to the Desktop.",
-                                    null,
-                                    null,
+                                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please verify that you have permission to read/write.!</span>",
+                                    "<span style='color: #E65100; font-weight: bold;'>Attempted to read/write:</span> <span style='font-weight: bold;'>"
+                                            + finalLicensePath + "</span>",
+                                    "<span style='font-style: italic;'>Please ensure the application has the necessary write permissions for the specified directory</span>",
+                                    "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
                                     0);
                         }
                     });
 
                 } else {
-                    license.set(LicenseManager.checkLicenseFile());
+                    license.set(LicenseManager.checkLicenseFile(licensePath));
                     if (license.get().isActive()) {
                         Platform.runLater(() -> {
                             ARMainScene primaryStage = new ARMainScene();
@@ -127,13 +158,12 @@ public class ARControlPanel extends Application {
                     }
                 }
             } catch (Exception error) {
-                String pathDB = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_DB);
                 performMessage.errorMessage(
-                        "Access Database Error",
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to open or access the database!</span>",
-                        "<span style='color: #E65100; font-weight: bold;'>Database path:</span> <span style='font-weight: bold;'>"
-                                + pathDB + "</span>",
-                        "<span style='font-style: italic;'>Please ensure the file exists and the application has the necessary read/write permissions.</span>",
+                        "Error reading/writing to the file!",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please verify that you have permission to read/write.!</span>",
+                        "<span style='color: #E65100; font-weight: bold;'>Attempted to read/write:</span> <span style='font-weight: bold;'>"
+                                + licensePath + "</span>",
+                        "<span style='font-style: italic;'>Please ensure the application has the necessary write permissions for the specified directory</span>",
                         "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
                         0);
 
@@ -146,17 +176,38 @@ public class ARControlPanel extends Application {
         }
     }
 
-    private static void licenseMessages(LicenceVal licenceVal) {
+    private static void licenseMessages(LicenceVal licenseStatus) {
+        String msgValid = "The license file is valid and the application is authorized for use.";
+        String msgNextStep = "You can now proceed with normal application usage.";
+
+        String msgColor = "#0277BD";
+        String msgColorExp = "#000080";
+        if (!licenseStatus.equals(LicenceVal.VALID)) {
+            msgValid = "The license file is not valid and the application is not authorized for use.";
+            msgNextStep = "Application access is restricted. Please obtain a valid license to continue.";
+            msgColor = "#C62828"; // Soft, elegant red tone
+            msgColorExp = "#C62828";
+        }
+
         performMessage.showCustomModalDialogDragWin11(
-                "The license not valid!",
-                "License Status:",
-                "<span style='color: #000080; font-weight: bold;'>" + licenceVal.toString() + "</span>",
-                "Please contact support to renew your license.",
-                "Expiration :<span style='color: #000080; font-weight: bold;'>"
+                "License Status Verification",
+                "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>License status has been successfully verified.</span>",
+                "<span style='color: " + msgColor + "; font-weight: bold;'>" + msgValid + "</span>",
+                "<span style='color: #E65100; font-weight: bold;'>Current license status:</span> <span style='font-weight: bold;'>"
+                        + licenseStatus.getStaus() + "</span>",
+                "Expiration: <span style='color: " + msgColorExp + "; font-weight: bold;'>"
                         + arPropertyManager.getProperty(ARPropertyEnum.EXPIRATION) + "</span>",
-                true,
+                false,
                 "OK",
                 null,
                 0);
+    }
+
+    // Method to signal that the configuration window is being shown
+    public static void setConfiguring(boolean configuring) {
+        isConfiguring.set(configuring);
+        if (!configuring) {
+            configurationLatch.countDown(); // Decrement the latch when configuration is done
+        }
     }
 }

@@ -38,6 +38,30 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 public class ARSaveClonePane extends ARPane {
 
+    protected static volatile ARSaveClonePane instance;
+
+    // Private constructor to prevent instantiation
+    private ARSaveClonePane() {
+        // Initialize if necessary
+        super();
+    }
+
+    public static ARSaveClonePane getInstance() {
+        if (instance == null) {
+            synchronized (ARSaveClonePane.class) {
+                if (instance == null) {
+                    instance = new ARSaveClonePane();
+                }
+            }
+        }
+        return instance;
+    }
+
+    public void initialize(BotJobLoadDTO selecBotJobDTO, List<BotJobLoadDTO> botJobList) {
+        this.selecBotJobDTO = selecBotJobDTO;
+        this.botJobList = botJobList;
+    }
+
     private static final PerformMessage performMessage;
     private static final PerformDataBase performDataBase;
 
@@ -66,11 +90,6 @@ public class ARSaveClonePane extends ARPane {
     private Button saveButton;
 
     private Pane mainPane;
-
-    public ARSaveClonePane(BotJobLoadDTO selecBotJobDTO, List<BotJobLoadDTO> botJobList) {
-        this.selecBotJobDTO = selecBotJobDTO;
-        this.botJobList = botJobList;
-    }
 
     @Override
     public Pane getPaneReference() {

@@ -27,6 +27,7 @@ import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import java.awt.*;
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.sql.Connection;
 import java.util.*;
@@ -342,10 +343,6 @@ public class ARViewBotJobPane extends ARPane {
 
         createBATButton = createPathButton();
 
-        createBATButton.setOnMouseClicked(e -> {
-            //            refreshBlocks(false);
-        });
-
         this.webSiteInfoLabel = new Label(
                 "Web-site Id: " + this.botJobLoad.getHomeBankingId() + " Bot Job Id: " + this.botJobLoad.getId());
         this.webSiteInfoLabel.setStyle(
@@ -419,7 +416,7 @@ public class ARViewBotJobPane extends ARPane {
 
     private Button createPathButton() {
         Button button = builder.buildButton(
-                "", ARConstants.SPACE_L, ARConstants.ICON_REFRESH, ARConstants.SPACE_M, new Insets(3D));
+                "", ARConstants.SPACE_L, ARConstants.ICON_BURN, ARConstants.SPACE_M, new Insets(3D));
         button.setMaxWidth(ARConstants.SPACE_L);
         AnchorPane.setRightAnchor(button, 0D);
         return button;
@@ -509,6 +506,29 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     public void initUIBehaviour() {
+
+        createBATButton.setOnMouseClicked(e -> {
+            ARPropertyManager managerProps = arPropertyManager;
+            String enginePath = managerProps.getProperty(ARPropertyEnum.PATH_ENGINE) + "\\AR_Web_Engine.jar";
+            String excelPath = managerProps.getProperty(ARPropertyEnum.PATH_EXCEL);
+            excelPath = excelPath + "\\" + this.botJobLoad.getName() + ".xlsx";
+            if (!new File(excelPath).exists()) {
+                performMessage.errorMessage(
+                        "Action Required: Prepare Excel Data",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Crucial Step: Prepare Excel Data Before Launch!</span>",
+                        "<span style='color: #2E7D32; font-weight: bold;'>To successfully initiate the bot job, the Excel data file must be generated and compiled *first*.</span>",
+                        "<span style='font-style: italic;'>Ensure this preparation is complete before attempting to launch the automation process.</span>",
+                        null,
+                        0);
+
+                return;
+            }
+
+            String configPath = System.getProperty("ARWebConfig");
+
+            createBatFile(this.botJobLoad, excelPath, enginePath, configPath);
+        });
+
         refreshButton.setOnMouseClicked(e -> {
             this.botJobLoadList = performDataBase.loadCompleteJobs(this.botJobLoad.getId());
             String jsonData = gson.toJson(payloadEmpty);
@@ -860,6 +880,46 @@ public class ARViewBotJobPane extends ARPane {
             }
             isComponentBoxVisible = !isComponentBoxVisible;
         });
+    }
+
+    public void createBatFile(BotJobLoadDTO botJobLoad, String excelFilePath, String enginePath, String configPath) {
+        String batFileName =
+                "execute_Website_" + botJobLoad.getHomeBankingId() + "_Botjob_" + botJobLoad.getId() + ".bat";
+
+        String basePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        String batFilePath = basePath + File.separator + batFileName; // Corrected path
+
+        String javaCommand = "java.exe -jar \"" + enginePath + "\" execute/j "
+                + botJobLoad.getHomeBankingId() + " " + botJobLoad.getId() + " \"" + excelFilePath + "\" -c \""
+                + configPath + "\"";
+
+        try (FileWriter writer = new FileWriter(batFilePath)) {
+            writer.write(javaCommand);
+
+            performMessage.showCustomModalDialogDragWin11(
+                    "BAT File Creation",
+                    "<span style='color: #00695C; font-weight: bold; font-size: 1.1em;'>BAT file created at:</span>",
+                    "<span style='color: #2E7D32; font-weight: bold;'></span> <span style='font-weight: bold;'>"
+                            + basePath + "</span>", // changed color
+                    "<span style='color: #00695C; font-weight: bold; font-size: 1.1em;'>BAT file name:</span>",
+                    "<span style='color: #2E7D32; font-weight: bold;'></span> <span style='font-weight: bold;'>"
+                            + batFileName + "</span>", // changed color
+                    false,
+                    "OK",
+                    null,
+                    0);
+
+            System.out.println("BAT file created at: " + batFilePath);
+        } catch (IOException error) {
+            System.err.println("Error creating BAT file: " + error.getMessage());
+            performMessage.errorMessage(
+                    "BAT File Creation Error",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to create file:</span>",
+                    "<span style='font-weight: bold;'>" + batFilePath + "</span>.", // Filename on a new line
+                    "<span style='color: #E65100; font-weight: bold;'>Please verify the application has the necessary write permissions for the directory.</span>",
+                    "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
+                    0);
+        }
     }
 
     private void callScannerTool() {

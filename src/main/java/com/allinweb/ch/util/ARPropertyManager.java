@@ -1,10 +1,13 @@
 package com.allinweb.ch.util;
 
+import com.allinweb.ch.ARControlPanel;
+import com.allinweb.ch.component.scene.ARConfigurationScene;
 import com.allinweb.ch.facade.PerformMessage;
 import com.google.common.base.Strings;
 import java.io.*;
 import java.util.Properties;
 import java.util.logging.Level;
+import javafx.application.Platform;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -28,10 +31,11 @@ public class ARPropertyManager {
     }
 
     private static final PerformMessage performMessage;
-
+    private static final ARConfigurationScene arConfigurationScene;
     // Static block to initialize
     static {
         performMessage = PerformMessage.getInstance();
+        arConfigurationScene = ARConfigurationScene.getInstance();
     }
 
     private static final String lock = "locked";
@@ -55,7 +59,7 @@ public class ARPropertyManager {
                 String extReference = this.properties.getProperty(ARPropertyEnum.WEBDRIVER_EXT_REFERENCE.getValue());
                 System.out.println("LOG_LEVEL = " + logLevel + "   ConfigFile=" + configurationFileName);
 
-                String logPath = getProperty(ARPropertyEnum.FOLDER_PATH_LOG);
+                String logPath = getProperty(ARPropertyEnum.PATH_LOG);
                 if (logPath == null || logPath.isBlank()) {
                     performMessage.errorMessage(
                             "Configuration Warning: Log Path Missing",
@@ -92,32 +96,38 @@ public class ARPropertyManager {
                 configurationFile.delete();
                 try {
                     configurationFile.createNewFile();
-                    loadProperties();
-                    setProperty(ARPropertyEnum.FOLDER_PATH_EXCEL.getValue(), "C:/ARWeb/Excel");
-                    setProperty(ARPropertyEnum.FOLDER_PATH_LOG.getValue(), "C:/ARWeb/Logs");
-                    setProperty(ARPropertyEnum.FOLDER_PATH_EXPORT.getValue(), "C:/ARWeb/Export");
-                    //                setProperty(ARPropertyEnum.FILE_NAME_EXPORT.getValue(), "");
+                    setProperty(ARPropertyEnum.PATH_LICENSE.getValue(), ARConstants.USER_PATH);
+
+                    setProperty(ARPropertyEnum.PATH_EXCEL.getValue(), "C:\\ARWeb\\ARWeb\\Excel");
+                    setProperty(ARPropertyEnum.PATH_LOG.getValue(), "C:\\ARWeb\\ARWeb\\Logs");
+                    setProperty(ARPropertyEnum.PATH_EXPORT.getValue(), "C:\\ARWeb\\ARWeb\\Export");
+                    setProperty(ARPropertyEnum.PATH_REPORT.getValue(), "C:\\ARWeb\\ARWeb\\Reports");
+                    setProperty(ARPropertyEnum.PATH_DB.getValue(), "C:\\ARWeb\\ARWeb");
+                    setProperty(ARPropertyEnum.PATH_PRIORITY.getValue(), "C:\\ARWeb\\ARWeb");
+
+                    setProperty(ARPropertyEnum.PATH_JAVA.getValue(), ARConstants.USER_PATH + ARConstants.PATH_JAVA);
                     setProperty(
-                            ARPropertyEnum.FOLDER_PATH_JAVA.getValue(),
-                            ARConstants.CURRENT_PATH + ARConstants.DEFAULT_PATH_JAVA);
-                    setProperty(
-                            ARPropertyEnum.FOLDER_PATH_JAVA_FX.getValue(),
-                            ARConstants.CURRENT_PATH + ARConstants.DEFAULT_PATH_JAVA_FX);
+                            ARPropertyEnum.PATH_JAVA_FX.getValue(), ARConstants.USER_PATH + ARConstants.PATH_JAVA_FX);
                     setProperty(ARPropertyEnum.DATABASE_TYPE.getValue(), "Access");
                     setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), "54525");
-                    setProperty(ARPropertyEnum.FOLDER_PATH_DB.getValue(), "C:/ARWeb");
-                    setProperty(ARPropertyEnum.FOLDER_PATH_REPORT.getValue(), "C:/ARWeb/Reports");
-                    setProperty(ARPropertyEnum.PATH_ENGINE.getValue(), ARConstants.CURRENT_PATH);
-                    setProperty(ARPropertyEnum.PATH_WEBDRIVER.getValue(), "");
-                    setProperty(ARPropertyEnum.LOG_LEVEL.getValue(), Level.ALL.getName());
-                    setProperty(ARPropertyEnum.BROWSER.getValue(), ARConstants.CHROME);
+                    setProperty(ARPropertyEnum.PATH_ENGINE.getValue(), ARConstants.USER_PATH);
+                    setProperty(ARPropertyEnum.PATH_WEBDRIVER.getValue(), ARConstants.USER_PATH + "\\driver");
+                    setProperty(ARPropertyEnum.LOG_LEVEL.getValue(), Level.INFO.getName());
+                    setProperty(ARPropertyEnum.BROWSER.getValue(), ARConstants.EDGE);
                     setProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC.getValue(), "60");
                     setProperty(ARPropertyEnum.WEBDRIVER_INTERACTION_TIMEOUT_SEC.getValue(), "60");
-                    setProperty(ARPropertyEnum.DEFAULT_INSTRUCTION_STOP_SECONDS.getValue(), "15");
+                    setProperty(ARPropertyEnum.INSTRUCTION_STOP_SECONDS.getValue(), "15");
 
                     setProperty(
                             ARPropertyEnum.WEBDRIVER_EXT_REFERENCE.getValue(),
                             "test-id='web-banking-payment-core.payment-details.external-reference'");
+                    loadProperties();
+
+                    ARControlPanel.setConfiguring(true);
+                    Platform.runLater(() -> {
+                        arConfigurationScene.showModal();
+                    });
+
                 } catch (IOException ex) {
                     performMessage.errorMessage(
                             "File Creation Error",

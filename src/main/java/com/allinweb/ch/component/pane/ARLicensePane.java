@@ -2,13 +2,24 @@ package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.control.ARComponentBuilder;
+import com.allinweb.ch.facade.PerformMessage;
+import com.allinweb.ch.licence.LicenceVal;
 import com.allinweb.ch.licence.LicenseManager;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
+import com.allinweb.ch.util.ARPropertyEnum;
+import com.allinweb.ch.util.ARPropertyManager;
+import com.google.common.base.Strings;
+import com.sun.jna.Native;
+import com.sun.jna.Pointer;
+import com.sun.jna.platform.win32.KnownFolders;
+import com.sun.jna.platform.win32.Shell32;
+import com.sun.jna.ptr.PointerByReference;
+import java.io.File;
+import java.io.IOException;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
@@ -21,11 +32,44 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.stage.DirectoryChooser;
+import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
 public class ARLicensePane extends ARPane {
 
+    protected static volatile ARLicensePane instance;
+
+    // Private constructor to prevent instantiation
+    private ARLicensePane() {
+        // Initialize if necessary
+        super();
+    }
+
+    public static ARLicensePane getInstance() {
+        if (instance == null) {
+            synchronized (ARLicensePane.class) {
+                if (instance == null) {
+                    instance = new ARLicensePane();
+                }
+            }
+        }
+        return instance;
+    }
+
+    public void initialize() {
+        // Set initial directory to Desktop
+        defineDesktopFolder();
+    }
+
+    private static final ARPropertyManager arPropertyManager;
+    private static final PerformMessage performMessage;
     private static final ARComponentBuilder builder = new ARComponentBuilder();
+
+    static {
+        arPropertyManager = ARPropertyManager.getInstance();
+        performMessage = PerformMessage.getInstance();
+    }
 
     private Button btnLicense; // Declare the License button
 
@@ -37,6 +81,11 @@ public class ARLicensePane extends ARPane {
     private RadioButton rbRequestLicense;
     private RadioButton rbActivateLicense;
     private TextField tfLicenseOwner;
+
+    private Button uploadButton;
+    private TextField filePathField;
+
+    private String fileFolder;
 
     @Override
     public Pane getPaneReference() {
@@ -119,7 +168,66 @@ public class ARLicensePane extends ARPane {
         rbActivateLicense = new RadioButton("Activate with License");
         rbActivateLicense.setToggleGroup(toggleGroup);
 
-        HBox radioButtonsBox = new HBox(10, rbRequestLicense, rbActivateLicense);
+        filePathField = new TextField();
+        uploadButton = new Button("Request target Directory");
+
+        // Add event handlers to log the state change to the console
+        rbRequestLicense.setOnAction(event -> {
+            if (rbRequestLicense.isSelected()) {
+                uploadButton.setText("Request target Directory");
+                filePathField.setText("");
+                defineDesktopFolder();
+            }
+        });
+
+        rbActivateLicense.setOnAction(event -> {
+            if (rbActivateLicense.isSelected()) {
+                uploadButton.setText("Upload Response License File");
+                filePathField.setText("");
+                defineDesktopFolder();
+            }
+        });
+
+        uploadButton.setOnAction(e -> {
+            Stage stage = (Stage) uploadButton.getScene().getWindow();
+            File startingPoint = new File(fileFolder);
+            String chosenPath;
+            if (rbRequestLicense.isSelected()) {
+                chosenPath = openDirectoryChooserFor(startingPoint, stage);
+                filePathField.setText(chosenPath);
+            } else {
+
+                FileChooser fileChooser = new FileChooser();
+                fileChooser.setTitle("Open Request AR Web File");
+                fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("All Files", "*.*"));
+
+                if (startingPoint.exists() && startingPoint.isDirectory()) {
+                    fileChooser.setInitialDirectory(startingPoint);
+                }
+
+                File file = fileChooser.showOpenDialog(stage);
+
+                if (file != null) {
+                    filePathField.setText(file.getAbsolutePath());
+                }
+
+                if (file != null) {
+                    if (file.getName().endsWith(".response")) {
+                        filePathField.setText(file.getAbsolutePath());
+                    } else {
+                        performMessage.errorMessage(
+                                "Invalid file selected!",
+                                "Must have a '.response' extension.",
+                                "File selected:",
+                                file.getName(),
+                                null,
+                                0);
+                    }
+                }
+            }
+        });
+
+        HBox radioButtonsBox = new HBox(10, rbRequestLicense, rbActivateLicense, uploadButton, filePathField);
         radioButtonsBox.setPadding(new Insets(10));
 
         taLicenseAgreement.setWrapText(true);
@@ -176,28 +284,181 @@ public class ARLicensePane extends ARPane {
         // Actions for Proceed button
         btnProceed.setOnAction(event -> {
             if (!cbAgree.isSelected()) {
-                LicenseManager.showAlert(Alert.AlertType.ERROR, "Please agree to the terms to proceed.");
+                performMessage.errorMessage(
+                        "License Aggreement!",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please read and agrred with our license terms!</span>",
+                        "<span style='color: #E65100; font-weight: bold;'>Acknowledge and accept the license agreement to proceed with the installation.</span>",
+                        "<span style='font-style: italic;'>This software is governed by legal terms and conditions. Your use constitutes acceptance of these terms.</span>",
+                        null,
+                        0);
+
             } else
                 try {
                     if (tfLicenseOwner.getText().isEmpty()) {
-                        LicenseManager.showAlert(Alert.AlertType.ERROR, "The 'Licensed to' field is required.");
+                        performMessage.errorMessage(
+                                "Mandatory field is missing!",
+                                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please provide the \"User License\" field information!</span>",
+                                "<span style='color: #E65100; font-weight: bold;'>You must accept the User License Agreement to continue with the installation.</span>",
+                                "<span style='font-style: italic;'>By proceeding, you confirm that you understand and agree to the terms of the User License.</span>",
+                                null,
+                                0);
                     } else {
                         if (rbRequestLicense.isSelected()) {
-                            LicenseManager.generateRequestFile(tfLicenseOwner.getText());
-                            LicenseManager.showAlert(
-                                    Alert.AlertType.INFORMATION, "Request file generated successfully.");
-                        } else if (rbActivateLicense.isSelected() && LicenseManager.importResponseFile()) {
-                            LicenseManager.showAlert(
-                                    Alert.AlertType.INFORMATION, "Licence activated! You can close this Message!");
-                        } else {
-                            LicenseManager.showAlert(
-                                    Alert.AlertType.ERROR, "Response file not found or could not be processed.");
+                            if (!Strings.isNullOrEmpty(filePathField.getText().trim())) {
+                                fileFolder = filePathField.getText().trim();
+                            }
+                            LicenseManager.generateRequestFile(
+                                    fileFolder, tfLicenseOwner.getText().trim());
+                            performMessage.showCustomModalDialogDragWin11(
+                                    "Request File Generated Successfully!",
+                                    "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>The request file for license generation has been successfully created.</span>",
+                                    "<span style='color: #0277BD; font-weight: bold;'>Please send this request file to your provider to receive the User License.</span>",
+                                    "<span style='font-style: italic;'>This request file contains encrypted system information required for license activation.</span>",
+                                    "<span style='color: #E65100; font-weight: bold;'>Request file path:</span> <span style='font-weight: bold;'>"
+                                            + fileFolder + "</span>",
+                                    false,
+                                    "OK",
+                                    null,
+                                    0);
+
+                        } else if (rbActivateLicense.isSelected()) {
+
+                            if (!Strings.isNullOrEmpty(filePathField.getText().trim())) {
+                                fileFolder = filePathField.getText().trim();
+                            } else {
+                                fileFolder += "\\ARWeb 1.1.0.response";
+                            }
+
+                            if (LicenseManager.importResponseFile(fileFolder)) {
+
+                                String licensePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_LICENSE);
+                                if (Strings.isNullOrEmpty(licensePath)) {
+                                    licensePath = System.getProperty("user.dir");
+                                }
+
+                                if (checkLicense(licensePath)) {
+                                    performMessage.showCustomModalDialogDragWin11(
+                                            "License Activated!",
+                                            "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>Your license has been successfully activated.</span>",
+                                            "<span style='color: #0277BD; font-weight: bold;'>You may now use the application without restrictions.</span>",
+                                            "<span style='font-style: italic;'>You can close this message and continue.</span>",
+                                            "<span style='color: #E65100; font-weight: bold;'>License path:</span> <span style='font-weight: bold;'>"
+                                                    + licensePath + "</span>",
+                                            false,
+                                            "OK",
+                                            null,
+                                            0);
+                                }
+
+                            } else {
+
+                                performMessage.errorMessage(
+                                        "License Activation Failed!",
+                                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Response file not found or could not be processed.</span>",
+                                        "<span style='color: #0277BD; font-weight: bold;'>Please make sure the response file is available and try again.</span>",
+                                        "<span style='font-style: italic;'>Ensure the file was received from your provider and has not been modified.</span>",
+                                        "<span style='color: #E65100; font-weight: bold;'>Expected license path:</span> <span style='font-weight: bold;'>"
+                                                + fileFolder + "</span>",
+                                        0);
+                            }
                         }
                     }
                 } catch (Exception error) {
-                    // TODO Auto-generated catch block
-                    LicenseManager.showAlert(Alert.AlertType.ERROR, "An error occurred: " + error.getMessage());
+                    performMessage.errorMessage(
+                            "License Activation Error",
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>An error occurred during the license activation or verification process.</span>",
+                            "<span style='font-weight: bold;'>" + fileFolder + "</span>.",
+                            "<span style='color: #E65100; font-weight: bold;'>Please ensure the response file is valid and accessible, and that the application has the required permissions.</span>",
+                            "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
+                            0);
                 }
         });
+    }
+
+    private boolean checkLicense(String licensePath) throws Exception {
+        LicenceVal licenseStatus = LicenseManager.checkLicenseFile(licensePath);
+
+        String msgValid = "The license file is valid and the application is authorized for use.";
+        String msgNextStep = "You can now proceed with normal application usage.";
+
+        String msgColor = "#0277BD";
+        if (!licenseStatus.equals(LicenceVal.VALID)) {
+            msgValid = "The license file is not valid and the application is not authorized for use.";
+            msgNextStep = "Application access is restricted. Please obtain a valid license to continue.";
+            msgColor = "#C62828"; // Soft, elegant red tone
+
+            performMessage.showCustomModalDialogDragWin11(
+                    "License Status Verification",
+                    "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>License status has been successfully verified.</span>",
+                    "<span style='color: " + msgColor + "; font-weight: bold;'>" + msgValid + "</span>",
+                    "<span style='font-style: italic;'>" + msgNextStep + "</span>",
+                    "<span style='color: #E65100; font-weight: bold;'>Current license status:</span> <span style='font-weight: bold;'>"
+                            + licenseStatus.getStaus() + "</span>",
+                    false,
+                    "OK",
+                    null,
+                    0);
+            return false;
+        }
+        return true;
+    }
+
+    private String openDirectoryChooserFor(File startingDirectory, Stage ownerStage) {
+        DirectoryChooser chooser = new DirectoryChooser();
+        chooser.setInitialDirectory(startingDirectory);
+
+        // Make sure the dialog is shown in front of the provided stage
+        File chosenPath = chooser.showDialog(ownerStage);
+        return chosenPath != null ? chosenPath.getAbsolutePath() : null;
+    }
+
+    private void defineDesktopFolder() {
+        try {
+            // Use SHGetKnownFolderPath to get Desktop path
+            PointerByReference ppszPath = new PointerByReference();
+            if (Shell32.INSTANCE
+                            .SHGetKnownFolderPath(KnownFolders.FOLDERID_Desktop, 0, null, ppszPath)
+                            .intValue()
+                    != 0) {
+                //                performMessage.errorMessage(
+                //                        "Error reading/writing to the file!",
+                //                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please
+                // verify that you have the necessary permissions to read and write to the specified directory.</span>",
+                //                        "<span style='color: #E65100; font-weight: bold;'>Attempted to access the
+                // following location:</span> <span style='font-weight: bold;'>Desktop</span>",
+                //                        "<span style='color: #E65100; font-style: italic; font-weight: bold;'>The
+                // request for the License file path was defined at:</span>",
+                //                        "<span style='color: #1A237E; font-style: italic; font-weight: bold;
+                // font-size: 1.05em;'>Desktop Folder</span>",
+                //                        0);
+
+                throw new IOException("Failed to get desktop directory.");
+            }
+
+            // Convert pointer to string
+            String desktopPath = ppszPath.getValue().getWideString(0);
+            Native.free(Pointer.nativeValue(ppszPath.getValue()));
+
+            File desktopDir = new File(desktopPath);
+            if (desktopDir.exists() && desktopDir.isDirectory()) {
+                fileFolder = desktopDir.getAbsolutePath();
+            }
+        } catch (Exception ex) {
+            if (Strings.isNullOrEmpty(fileFolder)) {
+                fileFolder = arPropertyManager.getProperty(ARPropertyEnum.PATH_LICENSE);
+                if (Strings.isNullOrEmpty(fileFolder)) {
+                    fileFolder = System.getProperty("user.dir");
+                }
+            }
+
+            performMessage.errorMessage(
+                    "Error reading/writing to the file!",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please verify that you have the necessary permissions to read and write to the specified directory.</span>",
+                    "<span style='color: #E65100; font-weight: bold;'>Attempted to access the following location:</span> <span style='font-weight: bold;'>Desktop</span>",
+                    "<span style='color: #E65100; font-style: italic; font-weight: bold;'>The request for the License file path was defined at:</span>",
+                    "<span style='color: #1A237E; font-style: italic; font-weight: bold; font-size: 1.05em;'>"
+                            + fileFolder + "</span>",
+                    0);
+        }
     }
 }

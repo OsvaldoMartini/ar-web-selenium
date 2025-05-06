@@ -59,12 +59,14 @@ public class ARExcelFilePane extends ARPane {
         return instance;
     }
 
+    private Stage modalStage;
     private BlockDetailsDTO blockExcelDTO;
     private String sessionId;
 
-    public void initialize(String sessionId, BlockDetailsDTO blockExcelDTO) {
+    public void initialize(String sessionId, BlockDetailsDTO blockExcelDTO, Stage modalStage) {
         this.sessionId = sessionId;
         this.blockExcelDTO = blockExcelDTO;
+        this.modalStage = modalStage;
 
         if (titleLabel != null) {
             titleLabel.setText("Block name: #" + this.blockExcelDTO.getBlockOrderNumber() + "-"
@@ -281,7 +283,7 @@ public class ARExcelFilePane extends ARPane {
 
     @Override
     public void initUIBehaviour() {
-        pathExportButton.setOnMouseClicked(e -> openChooserFor(pathExport, true));
+        pathExportButton.setOnMouseClicked(e -> openChooserFor(pathExport, modalStage, true));
         pathDeleteButton.setOnMouseClicked(e -> {
             pathExport.setText("");
             fileExport.setText("");
@@ -412,10 +414,18 @@ public class ARExcelFilePane extends ARPane {
         return button;
     }
 
-    private void openChooserFor(TextField field, boolean isDirectory) {
-        File startingPoint = new File(System.getProperty("user.dir"));
-        String chosenPath = isDirectory ? openDirectoryChooserFor(startingPoint) : openFileChooserFor(startingPoint);
-        field.setText(chosenPath);
+    private void openChooserFor(TextField field, Stage ownerStage, boolean isDirectory) {
+        String folderBase = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        if (Strings.isNullOrEmpty(folderBase)) {
+            folderBase = System.getProperty("user.dir");
+        }
+
+        File startingPoint = new File(folderBase);
+        String chosenPath =
+                isDirectory ? openDirectoryChooserFor(startingPoint, ownerStage) : openFileChooserFor(startingPoint);
+        if (!Strings.isNullOrEmpty(chosenPath)) {
+            field.setText(chosenPath);
+        }
     }
 
     private String openDirectoryChooserFor(File startingDirectory) {
@@ -423,6 +433,15 @@ public class ARExcelFilePane extends ARPane {
         chooser.setInitialDirectory(startingDirectory);
         File chosenPath = chooser.showDialog(new Stage());
         return chosenPath.getAbsolutePath();
+    }
+
+    private String openDirectoryChooserFor(File startingDirectory, Stage ownerStage) {
+        DirectoryChooser chooser = new DirectoryChooser();
+        chooser.setInitialDirectory(startingDirectory);
+
+        // Make sure the dialog is shown in front of the provided stage
+        File chosenPath = chooser.showDialog(ownerStage);
+        return chosenPath != null ? chosenPath.getAbsolutePath() : null;
     }
 
     private String openFileChooserFor(File startingDirectory) {

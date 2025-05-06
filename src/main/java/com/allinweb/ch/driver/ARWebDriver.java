@@ -219,7 +219,7 @@ public class ARWebDriver {
         }
 
         //        if (driver == null) {
-        String logFolder = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_LOG);
+        String logFolder = arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG);
         try {
             switch (browserType) {
                 case ARConstants.CHROME -> {

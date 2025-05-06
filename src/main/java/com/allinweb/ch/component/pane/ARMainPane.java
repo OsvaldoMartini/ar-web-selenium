@@ -11,14 +11,15 @@ import com.allinweb.ch.component.scene.ARSaveCloneScene;
 import com.allinweb.ch.component.scene.ARViewBotJobScene;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.driver.ARWebDriver;
-import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.facade.PerformPreLoad;
+import com.allinweb.ch.licence.LicenceVal;
+import com.allinweb.ch.licence.LicenseManager;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
+import com.google.common.base.Strings;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -38,17 +39,15 @@ import org.openqa.selenium.WebDriver;
 public class ARMainPane extends ARPane {
 
     //    private static final ARSharedResources dbResource;
+    private static final ARInfoScene arInfoScene;
     private static final ARPropertyManager arPropertyManager;
     private static final PerformDataBase performDataBase;
     private static final PerformMessage performMessage;
-    private static final PerformActions performActions;
     private static final ARConfigurationScene arConfigurationScene;
     private static final ARViewBotJobScene arViewBotJobScene;
     private static final ARNewBotJobScene arNewBotJobScene;
     private static final ARWebDriver arWebDriver;
-    private static final PerformPreLoad performPreLoad;
 
-    private static String previousDB;
     private ObservableList<BotJobLoadDTO> botJobList = FXCollections.observableArrayList();
 
     @Getter
@@ -61,16 +60,15 @@ public class ARMainPane extends ARPane {
 
     // Static block to initialize
     static {
-        //        dbResource = PerformDataBase.;
+        arInfoScene = ARInfoScene.getInstance();
+        //        //        dbResource = PerformDataBase.;
         arPropertyManager = ARPropertyManager.getInstance();
         arNewBotJobScene = ARNewBotJobScene.getInstance();
         performDataBase = PerformDataBase.getInstance();
         performMessage = PerformMessage.getInstance();
-        performActions = PerformActions.getInstance();
         arConfigurationScene = ARConfigurationScene.getInstance();
         arViewBotJobScene = ARViewBotJobScene.getInstance();
         arWebDriver = ARWebDriver.getInstance();
-        performPreLoad = PerformPreLoad.getInstance();
     }
 
     private static final ARComponentBuilder builder = new ARComponentBuilder();
@@ -204,6 +202,10 @@ public class ARMainPane extends ARPane {
         });
 
         cloneBotJobButton.setOnMouseClicked(e -> {
+            if (!checkLicense()) {
+                return;
+            }
+
             var selecBotJobDTO = viewBotJobListView.getSelectionModel().getSelectedItem();
             if (selecBotJobDTO != null) {
                 new ARSaveCloneScene(selecBotJobDTO, performDataBase.loadAllBotJobs()).showModal();
@@ -225,13 +227,19 @@ public class ARMainPane extends ARPane {
                     FXCollections.observableArrayList(performDataBase.loadAllBotJobs());
             viewBotJobListView.setItems(botJobList);
         });
-        infoButton.setOnMouseClicked(e -> new ARInfoScene().showModal());
+        infoButton.setOnMouseClicked(e -> {
+            arInfoScene.showModal();
+        });
         exitButton.setOnMouseClicked(e -> {
             //            Platform.exit();
             closeWebDrivers();
         });
 
         editBotJobButton.setOnMouseClicked(e -> {
+            if (!checkLicense()) {
+                return;
+            }
+
             BotJobLoadDTO selecBotJobDTO =
                     viewBotJobListView.getSelectionModel().getSelectedItem();
 
@@ -257,96 +265,97 @@ public class ARMainPane extends ARPane {
         });
 
         launchBotJobButton.setOnMouseClicked(e -> {
-            {
-                var selecBotJobDTO = viewBotJobListView.getSelectionModel().getSelectedItem();
-                if (selecBotJobDTO != null) {
-                    String enginePath =
-                            arPropertyManager.getProperty(ARPropertyEnum.PATH_ENGINE) + "\\AR_Web_Engine.jar";
-                    String excelPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
-                    excelPath = excelPath + "\\" + selecBotJobDTO.getName() + ".xlsx";
-                    if (!new File(excelPath).exists()) {
-                        performMessage.errorMessage(
-                                "Action Required: Prepare Excel Data",
-                                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Crucial Step: Prepare Excel Data Before Launch!</span>",
-                                "<span style='color: #2E7D32; font-weight: bold;'>To successfully initiate the bot job, the Excel data file must be generated and compiled *first*.</span>",
-                                "<span style='font-style: italic;'>Ensure this preparation is complete before attempting to launch the automation process.</span>",
-                                null,
-                                0);
+            if (!checkLicense()) {
+                return;
+            }
 
-                        return;
-                    }
+            var selecBotJobDTO = viewBotJobListView.getSelectionModel().getSelectedItem();
+            if (selecBotJobDTO != null) {
+                String enginePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_ENGINE) + "\\AR_Web_Engine.jar";
+                String excelPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
+                excelPath = excelPath + "\\" + selecBotJobDTO.getName() + ".xlsx";
+                if (!new File(excelPath).exists()) {
+                    performMessage.errorMessage(
+                            "Action Required: Prepare Excel Data",
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Crucial Step: Prepare Excel Data Before Launch!</span>",
+                            "<span style='color: #2E7D32; font-weight: bold;'>To successfully initiate the bot job, the Excel data file must be generated and compiled *first*.</span>",
+                            "<span style='font-style: italic;'>Ensure this preparation is complete before attempting to launch the automation process.</span>",
+                            null,
+                            0);
 
-                    String version = System.getProperty("java.version");
-                    System.out.println("Detected Java Version: " + version);
+                    return;
+                }
 
-                    int majorVersion = getMajorJavaVersion(version);
-                    if (majorVersion >= 17) {
-                        System.out.println("✅ Java 17 or higher is installed.");
-                    } else {
-                        performMessage.errorMessage(
-                                "Compatibility Issue: Incompatible Java Version",
-                                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: Your Java version is lower than the required 17!</span>",
-                                "<span style='color: #2E7D32; font-weight: bold;'>Attempting to execute the Engine with this older version may lead to unexpected behavior or failures.</span>",
-                                "<span style='font-style: italic;'>Please upgrade your Java installation to version 17 or higher for optimal performance and stability.</span>",
-                                null,
-                                0);
-                    }
-                    String webDriverPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
-                    if (!(new File(webDriverPath)).exists()) {
-                        performMessage.errorMessage(
-                                "Action Required: Missing WebDriver",
-                                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: The WebDriver file is missing!</span>",
-                                "<span style='color: #2E7D32; font-weight: bold;'>To execute automated browser interactions, the WebDriver is absolutely essential.</span>",
-                                "<span style='font-style: italic;'>Please download the correct WebDriver for your browser and ensure it is accessible by the application.</span>",
-                                null,
-                                0);
-                        return;
-                    }
+                String version = System.getProperty("java.version");
+                System.out.println("Detected Java Version: " + version);
 
-                    //    ".\\java\\bin\\java.exe",
-                    String[] command = new String[] {
-                        "cmd.exe",
-                        "/c",
-                        "java.exe",
-                        "-jar",
-                        "\"" + enginePath + "\"",
-                        "execute/j",
-                        String.valueOf(selecBotJobDTO.getHomeBankingLoadDTO().getId()),
-                        String.valueOf(selecBotJobDTO.getId()),
-                        "\"" + excelPath + "\"",
-                        "-c",
-                        arPropertyManager.getConfigurationFileName()
-                    };
-                    ProcessBuilder processBuilder = new ProcessBuilder(command);
-                    processBuilder.directory(new File(ARConstants.USER_PATH));
-                    String logPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG);
-                    File output = new File(logPath + "\\engine_debug_log_output.log");
-                    File error = new File(logPath + "\\engine_debug_log_error.log");
-                    File input = new File(logPath + "\\engine_debug_log_input.log");
-                    List<File> files = new ArrayList<>();
-                    files.add(output);
-                    files.add(error);
-                    files.add(input);
-                    for (File file : files) {
-                        if (!file.exists()) {
-                            try {
-                                file.createNewFile();
-                            } catch (IOException ex) {
-                                ARLogger.getInstance(ARMainPane.class).fine("Error : " + ex);
-                            }
+                int majorVersion = getMajorJavaVersion(version);
+                if (majorVersion >= 17) {
+                    System.out.println("✅ Java 17 or higher is installed.");
+                } else {
+                    performMessage.errorMessage(
+                            "Compatibility Issue: Incompatible Java Version",
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: Your Java version is lower than the required 17!</span>",
+                            "<span style='color: #2E7D32; font-weight: bold;'>Attempting to execute the Engine with this older version may lead to unexpected behavior or failures.</span>",
+                            "<span style='font-style: italic;'>Please upgrade your Java installation to version 17 or higher for optimal performance and stability.</span>",
+                            null,
+                            0);
+                }
+                String webDriverPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
+                if (!(new File(webDriverPath)).exists()) {
+                    performMessage.errorMessage(
+                            "Action Required: Missing WebDriver",
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: The WebDriver file is missing!</span>",
+                            "<span style='color: #2E7D32; font-weight: bold;'>To execute automated browser interactions, the WebDriver is absolutely essential.</span>",
+                            "<span style='font-style: italic;'>Please download the correct WebDriver for your browser and ensure it is accessible by the application.</span>",
+                            null,
+                            0);
+                    return;
+                }
+
+                //    ".\\java\\bin\\java.exe",
+                String[] command = new String[] {
+                    "cmd.exe",
+                    "/c",
+                    "java.exe",
+                    "-jar",
+                    "\"" + enginePath + "\"",
+                    "execute/j",
+                    String.valueOf(selecBotJobDTO.getHomeBankingLoadDTO().getId()),
+                    String.valueOf(selecBotJobDTO.getId()),
+                    "\"" + excelPath + "\"",
+                    "-c",
+                    arPropertyManager.getConfigurationFileName()
+                };
+                ProcessBuilder processBuilder = new ProcessBuilder(command);
+                processBuilder.directory(new File(ARConstants.USER_PATH));
+                String logPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG);
+                File output = new File(logPath + "\\engine_debug_log_output.log");
+                File error = new File(logPath + "\\engine_debug_log_error.log");
+                File input = new File(logPath + "\\engine_debug_log_input.log");
+                List<File> files = new ArrayList<>();
+                files.add(output);
+                files.add(error);
+                files.add(input);
+                for (File file : files) {
+                    if (!file.exists()) {
+                        try {
+                            file.createNewFile();
+                        } catch (IOException ex) {
+                            ARLogger.getInstance(ARMainPane.class).fine("Error : " + ex);
                         }
                     }
-                    processBuilder.redirectOutput(output);
-                    processBuilder.redirectError(error);
-                    processBuilder.redirectInput(input);
-                    try {
-                        processBuilder.start();
-                    } catch (IOException ex) {
-                        ARLogger.getInstance(ARMainPane.class).fine("Error : " + ex);
-                    }
-                } else {
-                    performMessage.errorMessage("Select a Bot Job", "There is NOT a Job Selected", null, null, null, 0);
                 }
+                processBuilder.redirectOutput(output);
+                processBuilder.redirectError(error);
+                processBuilder.redirectInput(input);
+                try {
+                    processBuilder.start();
+                } catch (IOException ex) {
+                    ARLogger.getInstance(ARMainPane.class).fine("Error : " + ex);
+                }
+            } else {
+                performMessage.errorMessage("Select a Bot Job", "There is NOT a Job Selected", null, null, null, 0);
             }
         });
     }
@@ -450,6 +459,45 @@ public class ARMainPane extends ARPane {
         } else {
             String[] parts = version.split("\\.");
             return Integer.parseInt(parts[0]); // e.g., "17.0.1" -> 17
+        }
+    }
+
+    private boolean checkLicense() {
+        try {
+            String licensePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_LICENSE);
+            if (Strings.isNullOrEmpty(licensePath)) {
+                licensePath = System.getProperty("user.dir");
+            }
+
+            LicenceVal licenseStatus = LicenseManager.checkLicenseFile(licensePath);
+
+            String msgValid = "The license file is valid and the application is authorized for use.";
+            String msgNextStep = "You can now proceed with normal application usage.";
+
+            String msgColor = "#0277BD";
+            if (!licenseStatus.equals(LicenceVal.VALID)) {
+                msgValid = "The license file is not valid and the application is not authorized for use.";
+                msgNextStep = "Application access is restricted. Please obtain a valid license to continue.";
+                msgColor = "#C62828"; // Soft, elegant red tone
+
+                performMessage.showCustomModalDialogDragWin11(
+                        "License Status Verification",
+                        "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>License status has been successfully verified.</span>",
+                        "<span style='color: " + msgColor + "; font-weight: bold;'>" + msgValid + "</span>",
+                        "<span style='font-style: italic;'>" + msgNextStep + "</span>",
+                        "<span style='color: #E65100; font-weight: bold;'>Current license status:</span> <span style='font-weight: bold;'>"
+                                + licenseStatus.getStaus() + "</span>",
+                        false,
+                        "OK",
+                        null,
+                        0);
+                return false;
+            }
+            return true;
+        } catch (Exception error) {
+            ARLogger.getInstance(ARMainPane.class)
+                    .severe("Cannot read/validate the License path/file. Error: " + error.getMessage());
+            return false;
         }
     }
 }

@@ -6,7 +6,6 @@ import java.io.InputStream;
 import java.net.ServerSocket;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
-import java.security.KeyStore;
 import javax.websocket.server.ServerContainer;
 import org.eclipse.jetty.server.HttpConnectionFactory;
 import org.eclipse.jetty.server.Server;
@@ -25,28 +24,32 @@ public class WebSocketServer {
             throw new Exception("Port " + port + " is already in use.");
         }
 
-        jettyServer = new Server();
+        try {
+            jettyServer = new Server();
 
-        // Setup SSL connector
-        ServerConnector sslConnector = createSslConnector(jettyServer, port);
-        jettyServer.addConnector(sslConnector);
+            // Setup SSL connector
+            ServerConnector sslConnector = createSslConnector(jettyServer, port);
+            jettyServer.addConnector(sslConnector);
 
-        // Setup context
-        ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
-        context.setContextPath("/");
-        jettyServer.setHandler(context);
+            // Setup context
+            ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
+            context.setContextPath("/");
+            jettyServer.setHandler(context);
 
-        // Initialize WebSocket support
-        ServerContainer wsContainer = WebSocketServerContainerInitializer.configureContext(context);
-        wsContainer.setDefaultMaxSessionIdleTimeout(0);
-        wsContainer.addEndpoint(SimpleWebSocketServer2.class);
+            // Initialize WebSocket support
+            ServerContainer wsContainer = WebSocketServerContainerInitializer.configureContext(context);
+            wsContainer.setDefaultMaxSessionIdleTimeout(0);
+            wsContainer.addEndpoint(SimpleWebSocketServer.class);
 
-        // Start server
-        jettyServer.start();
-        System.out.println("WebSocket server started at wss://localhost:" + port + "/websocket");
+            // Start server
+            jettyServer.start();
+            System.out.println("WebSocket server started at wss://localhost:" + port + "/websocket");
 
-        // Keep server running
-        jettyServer.join();
+            // Keep server running
+            jettyServer.join();
+        } catch (Exception error) {
+            error.printStackTrace();
+        }
     }
 
     private static ServerConnector createSslConnector(Server server, int port) throws Exception {
@@ -68,10 +71,7 @@ public class WebSocketServer {
         sslContextFactory.setProtocol("TLSv1.2");
 
         ServerConnector sslConnector = new ServerConnector(
-                server,
-                new SslConnectionFactory(sslContextFactory, "http/1.1"),
-                new HttpConnectionFactory()
-        );
+                server, new SslConnectionFactory(sslContextFactory, "http/1.1"), new HttpConnectionFactory());
         sslConnector.setPort(port);
         sslConnector.setIdleTimeout(30000);
 

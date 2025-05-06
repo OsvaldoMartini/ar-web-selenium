@@ -52,7 +52,7 @@ public class ARExcelFileScene extends ARScene {
 
     @Override
     public IARPane buildPane() {
-        arExcelFilePane.initialize(sessionId, blockExcelDTO);
+        arExcelFilePane.initialize(sessionId, blockExcelDTO, modalStage);
         return arExcelFilePane;
     }
 
@@ -87,7 +87,7 @@ public class ARExcelFileScene extends ARScene {
                 return;
             }
         } else {
-            arExcelFilePane.initialize(sessionId, blockExcelDTO);
+            arExcelFilePane.initialize(sessionId, blockExcelDTO, modalStage);
             modalStage.setTitle(getTitle()); // Update title if it might have changed
         }
         //        modalStage.show(); // Block until this window is closed

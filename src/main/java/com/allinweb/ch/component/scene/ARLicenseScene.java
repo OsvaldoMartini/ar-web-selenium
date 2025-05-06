@@ -3,12 +3,41 @@ package com.allinweb.ch.component.scene;
 import com.allinweb.ch.component.pane.ARLicensePane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
+import com.allinweb.ch.util.ARLogger;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 
 public class ARLicenseScene extends ARScene {
+    protected static volatile ARLicenseScene instance;
+
+    // Private constructor to prevent instantiation
+    private ARLicenseScene() {
+        // Initialize if necessary
+        super();
+    }
+
+    public static ARLicenseScene getInstance() {
+        if (instance == null) {
+            synchronized (ARLicenseScene.class) {
+                if (instance == null) {
+                    arLicensePane.initialize();
+                    instance = new ARLicenseScene();
+                }
+            }
+        }
+        return instance;
+    }
+
+    private Stage modalStage;
+    private Scene modalScene;
+
+    private static final ARLicensePane arLicensePane;
+
+    static {
+        arLicensePane = ARLicensePane.getInstance();
+    }
 
     private static final Double SCENE_HEIGHT = 400D;
     private static final Double SCENE_WIDTH = 800D;
@@ -16,7 +45,7 @@ public class ARLicenseScene extends ARScene {
 
     @Override
     public IARPane buildPane() {
-        return new ARLicensePane();
+        return arLicensePane;
     }
 
     @Override
@@ -59,22 +88,33 @@ public class ARLicenseScene extends ARScene {
     }
 
     public void showModal() {
-        Stage modalStage = new Stage();
-        IARPane pane = buildPane();
-        if (pane != null) {
-            Scene scene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
-            modalStage.setScene(scene);
-            modalStage.setTitle(getTitle());
-            modalStage.initModality(Modality.APPLICATION_MODAL); // Make it modal
+        if (modalStage == null) {
+            modalStage = new Stage();
+            IARPane pane = buildPane();
+            if (pane != null) {
+                modalScene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
+                modalStage.setScene(modalScene);
+                modalStage.setTitle(getTitle());
+                modalStage.initModality(Modality.WINDOW_MODAL); // Changed to NONE
+                modalStage.setAlwaysOnTop(true); // Set always on top
 
-            // Set the onCloseRequest handler for the modal stage
-            modalStage.setOnCloseRequest(event -> {
-                System.out.println("Handle Close (Modal Stage): Exiting Threads from Modal");
-                cleanupAndClose(modalStage);
-                event.consume(); // Prevent default close behavior if needed
-            });
+                // Set the onCloseRequest handler for the modal stage
+                modalStage.setOnCloseRequest(event -> {
+                    System.out.println("Handle Close (Modal Stage): Exiting Threads from Modal");
+                    cleanupAndClose(modalStage);
+                    event.consume(); // Prevent default close behavior if needed
+                });
 
-            modalStage.showAndWait(); // Block until this window is closed
+            } else {
+                // Handle the case where pane creation failed
+                ARLogger.getInstance(ARLicenseScene.class).severe("Failed to build pane for modal.");
+                return;
+            }
+        } else {
+            arLicensePane.initialize();
+            modalStage.setTitle(getTitle()); // Update title if it might have changed
         }
+        //        modalStage.show(); // Block until this window is closed
+        modalStage.showAndWait(); // Block until this window is closed
     }
 }

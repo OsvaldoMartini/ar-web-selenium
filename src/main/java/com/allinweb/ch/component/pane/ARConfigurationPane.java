@@ -11,7 +11,10 @@ import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
+import com.allinweb.ch.licence.LicenceVal;
+import com.allinweb.ch.licence.LicenseManager;
 import com.allinweb.ch.util.ARConstants;
+import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ErrorMessage;
@@ -59,7 +62,11 @@ public class ARConfigurationPane extends ARPane {
         return instance;
     }
 
-    public void initialize() {}
+    private Stage modalStage;
+
+    public void initialize(Stage modalStage) {
+        this.modalStage = modalStage;
+    }
 
     private static final ARComponentBuilder builder = new ARComponentBuilder();
 
@@ -88,6 +95,7 @@ public class ARConfigurationPane extends ARPane {
     // UI Components
     Label title;
     Label pathExcelLabel;
+    Label pathLicenseLabel;
     //    Label pathExportLabel;
     //    Label fileExportLabel;
     Label pathLogLabel;
@@ -110,6 +118,7 @@ public class ARConfigurationPane extends ARPane {
     Label pathWebDriverLabel;
 
     TextField pathExcel;
+    TextField pathLicense;
     //    TextField pathExport;
     //    TextField fileExport;
     TextField pathLog;
@@ -133,6 +142,7 @@ public class ARConfigurationPane extends ARPane {
             FXCollections.observableArrayList(ARConstants.ACCESS, ARConstants.POSTGRES, ARConstants.SQLSERVER);
 
     Button pathExcelButton;
+    Button pathLicenseButton;
     //    Button pathExportButton;
     Button pathLogButton;
     Button pathJavaButton;
@@ -212,6 +222,11 @@ public class ARConfigurationPane extends ARPane {
         // Add homeBankingListView to a VBox if needed (optional, not mandatory for height adjustment)
         VBox homeBankingContainer = new VBox(homeBankingListView);
         //        homeBankingContainer.setSpacing(2); // O
+
+        pathLicenseLabel = new Label("License Path:");
+        pathLicense = createPathTextField(ARPropertyEnum.PATH_LICENSE);
+        pathLicenseButton = createPathButton();
+        AnchorPane licenseGroup = new AnchorPane(pathLicense, pathLicenseButton);
 
         pathExcelLabel = new Label("Excel Path:");
         pathExcel = createPathTextField(ARPropertyEnum.PATH_EXCEL);
@@ -418,6 +433,8 @@ public class ARConfigurationPane extends ARPane {
         AnchorPane driverGroup = new AnchorPane(pathWebDriver, pathWebDriverButton);
 
         pathGroup = new VBox(
+                pathLicenseLabel,
+                licenseGroup,
                 pathExcelLabel,
                 excelGroup,
                 //                gridPaneExport,
@@ -482,21 +499,26 @@ public class ARConfigurationPane extends ARPane {
         //                        .subtract(ARConstants.SPACE_M * 2)
         //                        .subtract(ARConstants.SPACE_L * 2));
         addHomeBankingButton.setOnMouseClicked(e -> {
+            if (!checkLicense()) {
+                return;
+            }
             arNewHomeBankingScene.initialize(homeBankingList);
             arNewHomeBankingScene.showModal();
         });
 
-        pathExcelButton.setOnMouseClicked(e -> openChooserFor(pathExcel, true));
+        pathLicenseButton.setOnMouseClicked(e -> openChooserFor(pathLicense, modalStage, true));
+        pathExcelButton.setOnMouseClicked(e -> openChooserFor(pathExcel, modalStage, true));
         //        pathExportButton.setOnMouseClicked(e -> openChooserFor(pathExport, true));
-        pathLogButton.setOnMouseClicked(e -> openChooserFor(pathLog, true));
+        pathLogButton.setOnMouseClicked(e -> openChooserFor(pathLog, modalStage, true));
         // pathExtRefButton.setOnMouseClicked(e -> openChooserFor(pathExtRef, true));
-        pathJavaButton.setOnMouseClicked(e -> openChooserFor(pathJava, true));
-        pathDBButton.setOnMouseClicked(e -> openChooserFor(pathDB, true));
-        pathReportButton.setOnMouseClicked(e -> openChooserFor(pathReport, true));
-        pathPriorityButton.setOnMouseClicked(e -> openChooserFor(pathPriority, true));
-        pathJavaFXButton.setOnMouseClicked(e -> openChooserFor(pathJavaFX, true));
-        pathEngineButton.setOnMouseClicked(e -> openChooserFor(pathEngine, true));
-        pathWebDriverButton.setOnMouseClicked(e -> openChooserFor(pathWebDriver, false));
+        pathJavaButton.setOnMouseClicked(e -> openChooserFor(pathJava, modalStage, true));
+        pathDBButton.setOnMouseClicked(e -> openChooserFor(pathDB, modalStage, true));
+        pathReportButton.setOnMouseClicked(e -> openChooserFor(pathReport, modalStage, true));
+        pathPriorityButton.setOnMouseClicked(e -> openChooserFor(pathPriority, modalStage, true));
+        pathJavaFXButton.setOnMouseClicked(e -> openChooserFor(pathJavaFX, modalStage, true));
+        pathEngineButton.setOnMouseClicked(e -> openChooserFor(pathEngine, modalStage, true));
+        pathWebDriverButton.setOnMouseClicked(e -> openChooserFor(pathWebDriver, modalStage, false));
+
         browserChoiceBox.setValue(arPropertyManager.getProperty(ARPropertyEnum.BROWSER));
 
         if (arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE) == null) {
@@ -604,6 +626,11 @@ public class ARConfigurationPane extends ARPane {
 
     private void saveConfigurations() {
         boolean validfields = true;
+        if (Strings.isNullOrEmpty(pathLicense.getText())) {
+            new ARAlertScene(Alert.AlertType.ERROR, "Field Blank", "License Path must be filed!", ButtonType.OK);
+            validfields = false;
+        }
+
         if (Strings.isNullOrEmpty(pathExcel.getText())) {
             new ARAlertScene(Alert.AlertType.ERROR, "Field Blank", "Excel Path must be filed!", ButtonType.OK);
             validfields = false;
@@ -661,20 +688,34 @@ public class ARConfigurationPane extends ARPane {
         if (validfields) {
 
             arPropertyManager.setProperty(ARPropertyEnum.BROWSER.getValue(), browserChoiceBox.getValue());
-            ARPropertyManager.getInstance()
-                    .setProperty(ARPropertyEnum.DATABASE_TYPE.getValue(), databaseChoiceBox.getValue());
-            arPropertyManager.setProperty(ARPropertyEnum.PATH_DB.getValue(), pathDB.getText());
-            ARPropertyManager.getInstance().setProperty(ARPropertyEnum.PATH_EXCEL.getValue(), pathExcel.getText());
+
+            arPropertyManager.setProperty(ARPropertyEnum.DATABASE_TYPE.getValue(), databaseChoiceBox.getValue());
+
+            arPropertyManager.setProperty(
+                    ARPropertyEnum.PATH_DB.getValue(), pathDB.getText().trim());
+
+            arPropertyManager.setProperty(
+                    ARPropertyEnum.PATH_LICENSE.getValue(),
+                    pathLicense.getText().trim());
+
+            arPropertyManager.setProperty(
+                    ARPropertyEnum.PATH_EXCEL.getValue(), pathExcel.getText().trim());
 
             arPropertyManager.setProperty(ARPropertyEnum.PATH_JAVA.getValue(), pathJava.getText());
-            ARPropertyManager.getInstance().setProperty(ARPropertyEnum.PATH_JAVA_FX.getValue(), pathJavaFX.getText());
-            arPropertyManager.setProperty(ARPropertyEnum.PATH_LOG.getValue(), pathLog.getText());
-            ARPropertyManager.getInstance()
-                    .setProperty(ARPropertyEnum.PATH_PRIORITY.getValue(), pathPriority.getText());
-            ARPropertyManager.getInstance().setProperty(ARPropertyEnum.PATH_REPORT.getValue(), pathReport.getText());
-            arPropertyManager.setProperty(ARPropertyEnum.PATH_ENGINE.getValue(), pathEngine.getText());
-            ARPropertyManager.getInstance()
-                    .setProperty(ARPropertyEnum.PATH_WEBDRIVER.getValue(), pathWebDriver.getText());
+            arPropertyManager.setProperty(
+                    ARPropertyEnum.PATH_JAVA_FX.getValue(), pathJavaFX.getText().trim());
+            arPropertyManager.setProperty(
+                    ARPropertyEnum.PATH_LOG.getValue(), pathLog.getText().trim());
+            arPropertyManager.setProperty(
+                    ARPropertyEnum.PATH_PRIORITY.getValue(),
+                    pathPriority.getText().trim());
+            arPropertyManager.setProperty(
+                    ARPropertyEnum.PATH_REPORT.getValue(), pathReport.getText().trim());
+            arPropertyManager.setProperty(
+                    ARPropertyEnum.PATH_ENGINE.getValue(), pathEngine.getText().trim());
+            arPropertyManager.setProperty(
+                    ARPropertyEnum.PATH_WEBDRIVER.getValue(),
+                    pathWebDriver.getText().trim());
 
             homeBankingList.clear();
             homeBankingList.addAll(performDataBase.loadAllHomeBanking());
@@ -691,11 +732,14 @@ public class ARConfigurationPane extends ARPane {
     }
 
     private void deleteAllDB() {
+        if (!checkLicense()) {
+            return;
+        }
+
         String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
 
         Label newInstruction = new Label("DELETE ALL JOB DETAILS\nDatabase Selected: \"" + dataBaseType + "\"");
         newInstruction.setStyle("-fx-font-size: 18px; -fx-text-fill: red;");
-        ;
 
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION, null, ButtonType.YES, ButtonType.NO);
         alert.setHeaderText("Are you sure you want to DELETE ALL JOB TABLES ROWS (\"" + dataBaseType + "\")?");
@@ -746,10 +790,18 @@ public class ARConfigurationPane extends ARPane {
         return button;
     }
 
-    private void openChooserFor(TextField field, boolean isDirectory) {
-        File startingPoint = new File(System.getProperty("user.dir"));
-        String chosenPath = isDirectory ? openDirectoryChooserFor(startingPoint) : openFileChooserFor(startingPoint);
-        field.setText(chosenPath);
+    private void openChooserFor(TextField field, Stage ownerStage, boolean isDirectory) {
+        String folderBase = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        if (Strings.isNullOrEmpty(folderBase)) {
+            folderBase = System.getProperty("user.dir");
+        }
+
+        File startingPoint = new File(folderBase);
+        String chosenPath =
+                isDirectory ? openDirectoryChooserFor(startingPoint, ownerStage) : openFileChooserFor(startingPoint);
+        if (!Strings.isNullOrEmpty(chosenPath)) {
+            field.setText(chosenPath);
+        }
     }
 
     private String openDirectoryChooserFor(File startingDirectory) {
@@ -764,6 +816,15 @@ public class ARConfigurationPane extends ARPane {
         chooser.setInitialDirectory(startingDirectory);
         File chosenPath = chooser.showOpenDialog(new Stage());
         return chosenPath.getAbsolutePath();
+    }
+
+    private String openDirectoryChooserFor(File startingDirectory, Stage ownerStage) {
+        DirectoryChooser chooser = new DirectoryChooser();
+        chooser.setInitialDirectory(startingDirectory);
+
+        // Make sure the dialog is shown in front of the provided stage
+        File chosenPath = chooser.showDialog(ownerStage);
+        return chosenPath != null ? chosenPath.getAbsolutePath() : null;
     }
 
     private void showAlertTimer(
@@ -837,6 +898,45 @@ public class ARConfigurationPane extends ARPane {
         if (executorService != null) {
             remainingSeconds = SECONDS;
             executorService.shutdown();
+        }
+    }
+
+    private boolean checkLicense() {
+        try {
+            String licensePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_LICENSE);
+            if (Strings.isNullOrEmpty(licensePath)) {
+                licensePath = System.getProperty("user.dir");
+            }
+
+            LicenceVal licenseStatus = LicenseManager.checkLicenseFile(licensePath);
+
+            String msgValid = "The license file is valid and the application is authorized for use.";
+            String msgNextStep = "You can now proceed with normal application usage.";
+
+            String msgColor = "#0277BD";
+            if (!licenseStatus.equals(LicenceVal.VALID)) {
+                msgValid = "The license file is not valid and the application is not authorized for use.";
+                msgNextStep = "Application access is restricted. Please obtain a valid license to continue.";
+                msgColor = "#C62828"; // Soft, elegant red tone
+
+                performMessage.showCustomModalDialogDragWin11(
+                        "License Status Verification",
+                        "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>License status has been successfully verified.</span>",
+                        "<span style='color: " + msgColor + "; font-weight: bold;'>" + msgValid + "</span>",
+                        "<span style='font-style: italic;'>" + msgNextStep + "</span>",
+                        "<span style='color: #E65100; font-weight: bold;'>Current license status:</span> <span style='font-weight: bold;'>"
+                                + licenseStatus.getStaus() + "</span>",
+                        false,
+                        "OK",
+                        null,
+                        0);
+                return false;
+            }
+            return true;
+        } catch (Exception error) {
+            ARLogger.getInstance(ARMainPane.class)
+                    .severe("Cannot read/validate the License path/file. Error: " + error.getMessage());
+            return false;
         }
     }
 }

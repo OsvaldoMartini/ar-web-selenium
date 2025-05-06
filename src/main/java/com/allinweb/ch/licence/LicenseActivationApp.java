@@ -1,5 +1,12 @@
 package com.allinweb.ch.licence;
 
+import com.allinweb.ch.facade.PerformMessage;
+import com.sun.jna.Native;
+import com.sun.jna.Pointer;
+import com.sun.jna.platform.win32.KnownFolders;
+import com.sun.jna.platform.win32.Shell32;
+import com.sun.jna.ptr.PointerByReference;
+import java.io.IOException;
 import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
@@ -9,11 +16,40 @@ import javafx.stage.Stage;
 
 public class LicenseActivationApp extends Application {
 
+    private static final PerformMessage performMessage;
+
+    static {
+        performMessage = PerformMessage.getInstance();
+    }
+
+    private String fileFolder;
+
     @Override
     public void start(Stage primaryStage) throws Exception {
+        String licensePath = System.getProperty("user.dir");
+        LicenceVal licenseStatus = LicenseManager.checkLicenseFile(licensePath);
 
-        LicenseManager.showAlert(
-                Alert.AlertType.INFORMATION, LicenseManager.checkLicenseFile().getStaus() + "\n\nPress OK to proceed.");
+        String msgValid = "The license file is valid and the application is authorized for use.";
+        String msgNextStep = "You can now proceed with normal application usage.";
+
+        String msgColor = "#0277BD";
+        if (!licenseStatus.equals(LicenceVal.VALID)) {
+            msgValid = "The license file is not valid and the application is not authorized for use.";
+            msgNextStep = "Application access is restricted. Please obtain a valid license to continue.";
+            msgColor = "#C62828"; // Soft, elegant red tone
+        }
+
+        performMessage.showCustomModalDialogDragWin11(
+                "License Status Verification",
+                "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>License status has been successfully verified.</span>",
+                "<span style='color: " + msgColor + "; font-weight: bold;'>" + msgValid + "</span>",
+                "<span style='font-style: italic;'>" + msgNextStep + "</span>",
+                "<span style='color: #E65100; font-weight: bold;'>Current license status:</span> <span style='font-weight: bold;'>"
+                        + licenseStatus.getStaus() + "</span>",
+                false,
+                "OK",
+                null,
+                0);
 
         // Header label for the application
         Label headerLabel = new Label("AR Web Activation software required");
@@ -75,26 +111,73 @@ public class LicenseActivationApp extends Application {
         // Actions for Proceed button
         btnProceed.setOnAction(event -> {
             if (!cbAgree.isSelected()) {
-                LicenseManager.showAlert(Alert.AlertType.ERROR, "Please agree to the terms to proceed.");
+                performMessage.errorMessage(
+                        "License Aggreement!",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please read and agrred with our license terms!</span>",
+                        "<span style='color: #E65100; font-weight: bold;'>Acknowledge and accept the license agreement to proceed with the installation.</span>",
+                        "<span style='font-style: italic;'>This software is governed by legal terms and conditions. Your use constitutes acceptance of these terms.</span>",
+                        null,
+                        0);
             } else
                 try {
-                    if (tfLicenseOwner.getText().isEmpty() && !LicenseManager.importResponseFile()) {
-                        LicenseManager.showAlert(Alert.AlertType.ERROR, "The 'Licensed to' field is required.");
+                    if (tfLicenseOwner.getText().isEmpty() && !LicenseManager.importResponseFile(licensePath)) {
+                        performMessage.errorMessage(
+                                "Mandatory field is missing!",
+                                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please provide the \"User License\" field information!</span>",
+                                "<span style='color: #E65100; font-weight: bold;'>You must accept the User License Agreement to continue with the installation.</span>",
+                                "<span style='font-style: italic;'>By proceeding, you confirm that you understand and agree to the terms of the User License.</span>",
+                                null,
+                                0);
                     } else {
                         try {
                             if (rbRequestLicense.isSelected()) {
-                                LicenseManager.generateRequestFile(tfLicenseOwner.getText());
-                                LicenseManager.showAlert(
-                                        Alert.AlertType.INFORMATION, "Request file generated successfully.");
-                            } else if (rbActivateLicense.isSelected() && LicenseManager.importResponseFile()) {
-                                LicenseManager.showAlert(
-                                        Alert.AlertType.INFORMATION, "Licence activated! You can close this Message!");
+                                String desktopDir = getDesktopDir();
+
+                                LicenseManager.generateRequestFile(
+                                        desktopDir, tfLicenseOwner.getText().trim());
+                                performMessage.showCustomModalDialogDragWin11(
+                                        "Request File Generated Successfully!",
+                                        "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>The request file for license generation has been successfully created.</span>",
+                                        "<span style='color: #0277BD; font-weight: bold;'>Please send this request file to your provider to receive the User License.</span>",
+                                        "<span style='font-style: italic;'>This request file contains encrypted system information required for license activation.</span>",
+                                        "<span style='color: #E65100; font-weight: bold;'>License path:</span> <span style='font-weight: bold;'>"
+                                                + licensePath + "</span>",
+                                        false,
+                                        "OK",
+                                        null,
+                                        0);
+                            } else if (rbActivateLicense.isSelected()
+                                    && LicenseManager.importResponseFile(licensePath)) {
+                                performMessage.showCustomModalDialogDragWin11(
+                                        "License Activated!",
+                                        "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>Your license has been successfully activated.</span>",
+                                        "<span style='color: #0277BD; font-weight: bold;'>You may now use the application without restrictions.</span>",
+                                        "<span style='font-style: italic;'>You can close this message and continue.</span>",
+                                        "<span style='color: #E65100; font-weight: bold;'>License path:</span> <span style='font-weight: bold;'>"
+                                                + licensePath + "</span>",
+                                        false,
+                                        "OK",
+                                        null,
+                                        0);
                             } else {
-                                LicenseManager.showAlert(
-                                        Alert.AlertType.ERROR, "Response file not found or could not be processed.");
+
+                                performMessage.errorMessage(
+                                        "License Activation Failed!",
+                                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Response file not found or could not be processed.</span>",
+                                        "<span style='color: #0277BD; font-weight: bold;'>Please make sure the response file is available and try again.</span>",
+                                        "<span style='font-style: italic;'>Ensure the file was received from your provider and has not been modified.</span>",
+                                        "<span style='color: #E65100; font-weight: bold;'>Expected license path:</span> <span style='font-weight: bold;'>"
+                                                + licensePath + "</span>",
+                                        0);
                             }
-                        } catch (Exception erro) {
-                            LicenseManager.showAlert(Alert.AlertType.ERROR, "An error occurred: " + erro.getMessage());
+                        } catch (Exception error) {
+                            performMessage.errorMessage(
+                                    "License Activation Error",
+                                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>An error occurred during the license activation or verification process.</span>",
+                                    "<span style='font-weight: bold;'>" + licensePath + "</span>.",
+                                    "<span style='color: #E65100; font-weight: bold;'>Please ensure the response file is valid and accessible, and that the application has the required permissions.</span>",
+                                    "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
+                                    0);
                         }
                     }
                 } catch (Exception e) {
@@ -126,7 +209,12 @@ public class LicenseActivationApp extends Application {
     }
 
     public static void main(String[] args) throws Exception {
-        if (!LicenseManager.checkLicenseFile().isActive()) {
+        String licensePath = System.getProperty("user.dir");
+        if (args.length > 0) {
+            licensePath = args[0];
+        }
+
+        if (!LicenseManager.checkLicenseFile(licensePath).isActive()) {
             launch(args);
         } else {
             System.out.println("AR Web agree licence terms are activate.\n\nPress OK to proceed.");
@@ -134,5 +222,29 @@ public class LicenseActivationApp extends Application {
             // applicazione se la
             // condizione  falsa
         }
+    }
+
+    private static String getDesktopDir() throws IOException {
+        PointerByReference ppszPath = new PointerByReference();
+        if (Shell32.INSTANCE
+                        .SHGetKnownFolderPath(KnownFolders.FOLDERID_Desktop, 0, null, ppszPath)
+                        .intValue()
+                != 0) {
+
+            performMessage.errorMessage(
+                    "Error reading/writing to the file!",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please verify that you have the necessary permissions to read and write to the specified directory.</span>",
+                    "<span style='color: #E65100; font-weight: bold;'>Attempted to access the following location:</span> <span style='font-weight: bold;'>Desktop</span>",
+                    "<span style='color: #E65100; font-style: italic; font-weight: bold;'>The request for the License file path was defined at:</span>",
+                    "<span style='color: #1A237E; font-style: italic; font-weight: bold; font-size: 1.05em;'>Desktop Folder</span>",
+                    0);
+            return null;
+            //            throw new IOException("Failed to get desktop directory.");
+        }
+
+        // Convert pointer to string
+        String desktopPath = ppszPath.getValue().getWideString(0);
+        Native.free(Pointer.nativeValue(ppszPath.getValue()));
+        return desktopPath;
     }
 }

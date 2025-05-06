@@ -13,6 +13,27 @@ import javafx.scene.layout.VBox;
 
 public class ARInfoPane extends ARPane {
 
+    protected static volatile ARInfoPane instance;
+
+    // Private constructor to prevent instantiation
+    private ARInfoPane() {
+        // Initialize if necessary
+        super();
+    }
+
+    public static ARInfoPane getInstance() {
+        if (instance == null) {
+            synchronized (ARInfoPane.class) {
+                if (instance == null) {
+                    instance = new ARInfoPane();
+                }
+            }
+        }
+        return instance;
+    }
+
+    public void initialize() {}
+
     private Label applicationNameLabel;
     private Label compileDateLabel;
     private Label expirationDateLabel;
@@ -24,9 +45,11 @@ public class ARInfoPane extends ARPane {
     private Pane mainPane;
 
     private static final ARPropertyManager arPropertyManager;
+    private static final ARLicenseScene arLicenseScene;
 
     static {
         arPropertyManager = ARPropertyManager.getInstance();
+        arLicenseScene = ARLicenseScene.getInstance();
     }
 
     @Override
@@ -78,6 +101,6 @@ public class ARInfoPane extends ARPane {
     @Override
     public void initUIBehaviour() {
         // Additional behavior for the button can be added here if needed
-        btnLicense.setOnMouseClicked(e -> new ARLicenseScene().showModal());
+        btnLicense.setOnMouseClicked(e -> arLicenseScene.showModal());
     }
 }

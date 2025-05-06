@@ -63,12 +63,14 @@ public class SimpleWebSocketServer {
     //    private static ARNewCommandScene arNewCommandScene;
     private static final PerformDataBase performDataBase;
     private static final PerformMessage performMessage;
+    private static ARExcelFileScene arExcelFileScene;
 
     // Static block to initialize
     static {
         //        arNewCommandScene = ARNewCommandScene.getInstance();
         performDataBase = PerformDataBase.getInstance();
         performMessage = PerformMessage.getInstance();
+        arExcelFileScene = ARExcelFileScene.getInstance();
     }
 
     private final Gson gson = new Gson();
@@ -820,8 +822,8 @@ public class SimpleWebSocketServer {
     private void excelFileBlock(String sessionId, BlockDetailsDTO blockExcelDTO) {
         // Ensure JavaFX UI updates are done on the JavaFX Application Thread
         Platform.runLater(() -> {
-            ARExcelFileScene excelFileScene = new ARExcelFileScene(sessionId, blockExcelDTO);
-            excelFileScene.showModal();
+            arExcelFileScene.initialize(sessionId, blockExcelDTO);
+            arExcelFileScene.showModal();
         });
     }
 

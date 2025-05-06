@@ -7,7 +7,7 @@
         System.setProperty("webdriver.chrome.verboseLogging", "true");
         System.setProperty("webdriver.chrome.logfile", logFolder + "\\_chrome_browser.log");
 
-        //                        options.setBinary(ARConstants.CURRENT_PATH + "\\chrome\\chrome.exe");
+        //                        options.setBinary(ARConstants.USER_PATH + "\\chrome\\chrome.exe");
         options.setBinary(webDriverPath);
         //                                                options.setBinary("C:/Program
         // Files/Google/Chrome/Application/chrome.exe");

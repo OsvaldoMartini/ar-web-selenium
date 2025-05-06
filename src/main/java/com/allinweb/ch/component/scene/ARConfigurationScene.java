@@ -1,13 +1,16 @@
 package com.allinweb.ch.component.scene;
 
+import com.allinweb.ch.ARControlPanel;
 import com.allinweb.ch.component.pane.ARConfigurationPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.util.ARLogger;
 import java.time.format.DateTimeFormatter;
+import javafx.event.EventHandler;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 
 public class ARConfigurationScene extends ARScene {
 
@@ -48,6 +51,7 @@ public class ARConfigurationScene extends ARScene {
 
     @Override
     public IARPane buildPane() {
+        arConfigurationPane.initialize(modalStage);
         return arConfigurationPane;
     }
 
@@ -76,17 +80,26 @@ public class ARConfigurationScene extends ARScene {
                 modalStage.setTitle(getTitle());
                 modalStage.initModality(Modality.WINDOW_MODAL); // Changed to NONE
                 modalStage.setAlwaysOnTop(true); // Set always on top
+
+                // Set an event handler for when the window is closed (via the X button)
+                modalStage.setOnCloseRequest(new EventHandler<WindowEvent>() {
+                    @Override
+                    public void handle(WindowEvent event) {
+                        ARControlPanel.setConfiguring(false); // Signal that the configuration is done
+                    }
+                });
             } else {
                 // Handle the case where pane creation failed
                 ARLogger.getInstance(ARNewCommandScene.class).severe("Failed to build pane for modal.");
                 return;
             }
         } else {
-            arConfigurationPane.initialize();
+            arConfigurationPane.initialize(modalStage);
             modalStage.setTitle(getTitle()); // Update title if it might have changed
         }
         //        modalStage.show(); // Block until this window is closed
         modalStage.showAndWait(); // Block until this window is closed
+        ARControlPanel.setConfiguring(false);
     }
 
     public void initialize() {}

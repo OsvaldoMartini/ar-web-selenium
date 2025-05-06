@@ -4,12 +4,41 @@ import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.pane.ARSaveClonePane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
+import com.allinweb.ch.util.ARLogger;
 import java.util.List;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 
 public class ARSaveCloneScene extends ARScene {
+
+    protected static volatile ARSaveCloneScene instance;
+
+    // Private constructor to prevent instantiation
+    private ARSaveCloneScene() {
+        // Initialize if necessary
+        super();
+    }
+
+    public static ARSaveCloneScene getInstance() {
+        if (instance == null) {
+            synchronized (ARSaveCloneScene.class) {
+                if (instance == null) {
+                    instance = new ARSaveCloneScene();
+                }
+            }
+        }
+        return instance;
+    }
+
+    private Stage modalStage;
+    private Scene modalScene;
+
+    private static final ARSaveClonePane arSaveClonePane;
+
+    static {
+        arSaveClonePane = ARSaveClonePane.getInstance();
+    }
 
     private static final Double SCENE_HEIGHT = 300D;
     private static final Double SCENE_WIDTH = 300D;
@@ -25,7 +54,8 @@ public class ARSaveCloneScene extends ARScene {
 
     @Override
     public IARPane buildPane() {
-        return new ARSaveClonePane(selecBotJobDTO, botJobList);
+        arSaveClonePane.initialize(selecBotJobDTO, botJobList);
+        return arSaveClonePane;
     }
 
     @Override
@@ -44,14 +74,25 @@ public class ARSaveCloneScene extends ARScene {
     }
 
     public void showModal() {
-        Stage modalStage = new Stage();
-        IARPane pane = buildPane();
-        if (pane != null) {
-            Scene scene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
-            modalStage.setScene(scene);
-            modalStage.setTitle(getTitle());
-            modalStage.initModality(Modality.WINDOW_MODAL); // Make it modal
-            modalStage.showAndWait(); // Block until this window is closed
+        if (modalStage == null) {
+            modalStage = new Stage();
+            IARPane pane = buildPane();
+            if (pane != null) {
+                modalScene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
+                modalStage.setScene(modalScene);
+                modalStage.setTitle(getTitle());
+                modalStage.initModality(Modality.WINDOW_MODAL); // Changed to NONE
+                modalStage.setAlwaysOnTop(true); // Set always on top
+            } else {
+                // Handle the case where pane creation failed
+                ARLogger.getInstance(ARSaveCloneScene.class).severe("Failed to build pane for modal.");
+                return;
+            }
+        } else {
+            arSaveClonePane.initialize(selecBotJobDTO, botJobList);
+            modalStage.setTitle(getTitle()); // Update title if it might have changed
         }
+        //        modalStage.show(); // Block until this window is closed
+        modalStage.showAndWait(); // Block until this window is closed
     }
 }
