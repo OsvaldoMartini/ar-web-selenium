@@ -1,4 +1,4 @@
-package com.allinweb.ch.licence;
+package com.allinweb.ch.license;
 
 import java.net.InetAddress;
 import java.net.NetworkInterface;

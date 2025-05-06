@@ -1,4 +1,4 @@
-package com.allinweb.ch.licence;
+package com.allinweb.ch.license;
 
 public enum LicenceVal {
     // Definisci le possibili costanti per l'enumerazione

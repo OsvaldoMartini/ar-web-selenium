@@ -1,4 +1,4 @@
-package com.allinweb.ch.licence;
+package com.allinweb.ch.license;
 
 import com.allinweb.ch.facade.PerformMessage;
 import com.google.common.base.Strings;
