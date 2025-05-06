@@ -1,16 +1,14 @@
 package com.allinweb.ch.component.scene;
 
-import com.allinweb.ch.ARControlPanel;
 import com.allinweb.ch.component.pane.ARConfigurationPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.util.ARLogger;
 import java.time.format.DateTimeFormatter;
-import javafx.event.EventHandler;
+import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
-import javafx.stage.WindowEvent;
 
 public class ARConfigurationScene extends ARScene {
 
@@ -70,6 +68,14 @@ public class ARConfigurationScene extends ARScene {
         return TITLE;
     }
 
+    private void cleanupAndClose(Stage stage) {
+        System.out.println("Cleanup and Close: Exiting Threads");
+        // Interrupt running threads
+        threadList.forEach(this::interruptThread);
+        // Add any other cleanup logic here (e.g., WebDriver quit)
+        stage.close();
+    }
+
     public void showModal() {
         if (modalStage == null) {
             modalStage = new Stage();
@@ -80,17 +86,32 @@ public class ARConfigurationScene extends ARScene {
                 modalStage.setTitle(getTitle());
                 modalStage.initModality(Modality.WINDOW_MODAL); // Changed to NONE
                 modalStage.setAlwaysOnTop(true); // Set always on top
+                modalStage.toFront();
+                // Reset alwaysOnTop after showing so it behaves normally afterward
+                modalStage.setAlwaysOnTop(false);
 
-                // Set an event handler for when the window is closed (via the X button)
-                modalStage.setOnCloseRequest(new EventHandler<WindowEvent>() {
-                    @Override
-                    public void handle(WindowEvent event) {
-                        ARControlPanel.setConfiguring(false); // Signal that the configuration is done
-                    }
+                // Once shown, reset AlwaysOnTop to false so it behaves normally
+                modalStage.setOnShown(event -> {
+                    Platform.runLater(() -> modalStage.setAlwaysOnTop(false));
                 });
+
+                // Set the onCloseRequest handler for the modal stage
+                modalStage.setOnCloseRequest(event -> {
+                    System.out.println("Handle Close (Modal Stage): Exiting Threads from Modal");
+                    cleanupAndClose(modalStage);
+                    event.consume(); // Prevent default close behavior if needed
+                });
+
+                //                // Set an event handler for when the window is closed (via the X button)
+                //                modalStage.setOnCloseRequest(new EventHandler<WindowEvent>() {
+                //                    @Override
+                //                    public void handle(WindowEvent event) {
+                //                        ARMainScene.setConfiguring(false); // Signal that the configuration is done
+                //                    }
+                //                });
             } else {
                 // Handle the case where pane creation failed
-                ARLogger.getInstance(ARNewCommandScene.class).severe("Failed to build pane for modal.");
+                ARLogger.getInstance(ARConfigurationScene.class).severe("Failed to build pane for modal.");
                 return;
             }
         } else {
@@ -99,7 +120,6 @@ public class ARConfigurationScene extends ARScene {
         }
         //        modalStage.show(); // Block until this window is closed
         modalStage.showAndWait(); // Block until this window is closed
-        ARControlPanel.setConfiguring(false);
     }
 
     public void initialize() {}

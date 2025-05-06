@@ -238,6 +238,14 @@ public class ARViewBotJobScene extends ARScene {
                 modalStage.setTitle(getTitle());
                 modalStage.initModality(Modality.WINDOW_MODAL); // Changed to NONE
                 modalStage.setAlwaysOnTop(true); // Set always on top
+                modalStage.toFront();
+                // Reset alwaysOnTop after showing so it behaves normally afterward
+                modalStage.setAlwaysOnTop(false);
+
+                // Once shown, reset AlwaysOnTop to false so it behaves normally
+                modalStage.setOnShown(event -> {
+                    Platform.runLater(() -> modalStage.setAlwaysOnTop(false));
+                });
             } else {
                 // Handle the case where pane creation failed
                 ARLogger.getInstance(ARViewBotJobScene.class).severe("Failed to build pane for modal.");

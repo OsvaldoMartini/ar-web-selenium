@@ -84,7 +84,7 @@ public class ARInfoScene extends ARScene {
 
             } else {
                 // Handle the case where pane creation failed
-                ARLogger.getInstance(ARNewCommandScene.class).severe("Failed to build pane for modal.");
+                ARLogger.getInstance(ARInfoScene.class).severe("Failed to build pane for modal.");
                 return;
             }
         } else {

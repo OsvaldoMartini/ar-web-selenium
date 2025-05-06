@@ -1,5 +1,6 @@
 package com.allinweb.ch;
 
+import com.allinweb.ch.component.scene.ARConfigurationScene;
 import com.allinweb.ch.component.scene.ARLicenseScene;
 import com.allinweb.ch.component.scene.ARMainScene;
 import com.allinweb.ch.facade.PerformMessage;
@@ -10,12 +11,12 @@ import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -27,14 +28,14 @@ public class ARControlPanel extends Application {
     private static final ARPropertyManager arPropertyManager;
     private static final ARLicenseScene arLicenseScene;
     private static String defaultConfigurationFileName = ARConstants.USER_PATH + ARConstants.FILE_NAME_CONFIGURATION;
+    private static final ARConfigurationScene arConfigurationScene;
 
-    private static final CountDownLatch configurationLatch = new CountDownLatch(1);
-    private static final AtomicBoolean isConfiguring = new AtomicBoolean(false);
-
+    // Static block to initialize
     static {
         performMessage = PerformMessage.getInstance();
         arPropertyManager = ARPropertyManager.getInstance();
         arLicenseScene = ARLicenseScene.getInstance();
+        arConfigurationScene = ARConfigurationScene.getInstance();
     }
 
     private static boolean isEnabledLicence = true;
@@ -57,7 +58,19 @@ public class ARControlPanel extends Application {
             }
             // Prevention if  System.setProperty(...) has no permission access
             arPropertyManager.setConfigurationFileName(configurationValue);
-            arPropertyManager.loadProperties();
+
+            File configurationFile = new File(configurationValue);
+            try (FileInputStream conf = new FileInputStream(configurationFile)) {
+                arPropertyManager.loadProperties(conf);
+                licenseControl();
+            } catch (Exception error) {
+                arPropertyManager.createDefaultProperties(configurationFile, error);
+                Platform.runLater(() -> {
+                    arConfigurationScene.showModal();
+                    licenseControl();
+                });
+            }
+
             ARLogger.getInstance(ARControlPanel.class).fine("Configuration file path: " + configurationValue);
         } else {
             try {
@@ -66,22 +79,19 @@ public class ARControlPanel extends Application {
 
             }
             arPropertyManager.setConfigurationFileName(defaultConfigurationFileName);
-            arPropertyManager.loadProperties();
-            ARLogger.getInstance(ARControlPanel.class).fine("Configuration file path: " + defaultConfigurationFileName);
-        }
-
-        // Wait for the configuration window to be closed if it was shown
-        if (isConfiguring.get()) {
-            try {
-                configurationLatch.await();
-                ARLogger.getInstance(ARControlPanel.class)
-                        .fine("Configuration window closed, continuing main execution.");
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                ARLogger.getInstance(ARControlPanel.class)
-                        .severe("Main thread interrupted while waiting for configuration. " + e);
-                return; // Or handle interruption as needed
+            File configurationFile = new File(defaultConfigurationFileName);
+            try (FileInputStream conf = new FileInputStream(configurationFile)) {
+                arPropertyManager.loadProperties(conf);
+                licenseControl();
+            } catch (Exception error) {
+                arPropertyManager.createDefaultProperties(configurationFile, error);
+                Platform.runLater(() -> {
+                    arConfigurationScene.showModal();
+                    licenseControl();
+                });
             }
+
+            ARLogger.getInstance(ARControlPanel.class).fine("Configuration file path: " + defaultConfigurationFileName);
         }
 
         arPropertyManager.setProperty(ARPropertyEnum.VERSION.getValue(), "ARS Web v4.0f Beta Test");
@@ -96,7 +106,9 @@ public class ARControlPanel extends Application {
             System.out.println("Fixed Port : " + 54525);
             arPropertyManager.setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), String.valueOf(54525));
         }
+    }
 
+    private static void licenseControl() {
         if (isEnabledLicence) {
 
             String licensePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_LICENSE);
@@ -201,13 +213,5 @@ public class ARControlPanel extends Application {
                 "OK",
                 null,
                 0);
-    }
-
-    // Method to signal that the configuration window is being shown
-    public static void setConfiguring(boolean configuring) {
-        isConfiguring.set(configuring);
-        if (!configuring) {
-            configurationLatch.countDown(); // Decrement the latch when configuration is done
-        }
     }
 }

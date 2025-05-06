@@ -5,6 +5,7 @@ import com.allinweb.ch.component.pane.ARExcelFilePane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.util.ARLogger;
+import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -81,9 +82,17 @@ public class ARExcelFileScene extends ARScene {
                 modalStage.setTitle(getTitle());
                 modalStage.initModality(Modality.WINDOW_MODAL); // Changed to NONE
                 modalStage.setAlwaysOnTop(true); // Set always on top
+                modalStage.toFront();
+                // Reset alwaysOnTop after showing so it behaves normally afterward
+                modalStage.setAlwaysOnTop(false);
+
+                // Once shown, reset AlwaysOnTop to false so it behaves normally
+                modalStage.setOnShown(event -> {
+                    Platform.runLater(() -> modalStage.setAlwaysOnTop(false));
+                });
             } else {
                 // Handle the case where pane creation failed
-                ARLogger.getInstance(ARNewCommandScene.class).severe("Failed to build pane for modal.");
+                ARLogger.getInstance(ARExcelFileScene.class).severe("Failed to build pane for modal.");
                 return;
             }
         } else {
