@@ -5,6 +5,7 @@ import com.allinweb.ch.component.pane.ARNewHomeBankingPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.util.ARLogger;
+import javafx.application.Platform;
 import javafx.collections.ObservableList;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
@@ -60,6 +61,14 @@ public class ARNewHomeBankingScene extends ARScene {
                 modalStage.setTitle(getTitle());
                 modalStage.initModality(Modality.NONE); // Changed to NONE
                 modalStage.setAlwaysOnTop(true); // Set always on top
+                modalStage.toFront();
+                // Reset alwaysOnTop after showing so it behaves normally afterward
+                modalStage.setAlwaysOnTop(false);
+
+                // Once shown, reset AlwaysOnTop to false so it behaves normally
+                modalStage.setOnShown(event -> {
+                    Platform.runLater(() -> modalStage.setAlwaysOnTop(false));
+                });
             } else {
                 // Handle the case where pane creation failed
                 ARLogger.getInstance(ARNewCommandScene.class).severe("Failed to build pane for modal.");

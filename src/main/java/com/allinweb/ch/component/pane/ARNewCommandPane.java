@@ -72,12 +72,14 @@ public class ARNewCommandPane extends ARPane {
     private static final SimpleWebSocketServer simpleWebSocketServer;
     private static final PerformDataBase performDataBase;
     private static final PerformMessage performMessage;
+    private static final ARElementValueScene arElementValueScene;
 
     // Static block to initialize
     static {
         simpleWebSocketServer = SimpleWebSocketServer.getInstance();
         performMessage = PerformMessage.getInstance();
         performDataBase = PerformDataBase.getInstance();
+        arElementValueScene = ARElementValueScene.getInstance();
     }
 
     private List<String> allowedActions = Arrays.asList(
@@ -937,7 +939,7 @@ public class ARNewCommandPane extends ARPane {
             } else {
                 comboBoxInstruc.getSelectionModel().selectFirst();
                 comboBoxWebFields.getSelectionModel().selectFirst();
-                reloadComboVars(comboBoxWebFields.getValue().getInstructionId());
+                reloadComboVars(comboBoxWebFields.getValue().getInstructionId(), false, -1);
                 comboBoxVars.getSelectionModel().selectFirst();
                 comboBoxOperator.getSelectionModel().selectFirst();
 
@@ -949,7 +951,7 @@ public class ARNewCommandPane extends ARPane {
         } else {
             comboBoxInstruc.getSelectionModel().selectFirst();
             comboBoxWebFields.getSelectionModel().selectFirst();
-            reloadComboVars(comboBoxWebFields.getValue().getInstructionId());
+            reloadComboVars(comboBoxWebFields.getValue().getInstructionId(), false, -1);
             comboBoxVars.getSelectionModel().selectFirst();
             comboBoxOperator.getSelectionModel().selectFirst();
 
@@ -1213,7 +1215,7 @@ public class ARNewCommandPane extends ARPane {
                     ComboBoxImage newValue) {
                 if (newValue != null) {
                     if (!firstLoad) {
-                        reloadComboVars(newValue.getInstructionId());
+                        reloadComboVars(newValue.getInstructionId(), false, -1);
                         comboBoxVars.getSelectionModel().selectFirst();
                         recallMessages(comboBoxInstruc.getValue().getValue());
                     }
@@ -1234,16 +1236,17 @@ public class ARNewCommandPane extends ARPane {
                 ARLogger.getInstance(ARNewCommandPane.class)
                         .info("creating variable for instruction Name "
                                 + rowMoveDTO.getUpdatedRows().get(0).getInstructionName());
-                ARElementValueScene elementValueScene = new ARElementValueScene(
+                arElementValueScene.initialize(
                         rowMoveDTO,
-                        //                        rowMoveDTO.getUpdatedRows().get(0).getInstructionId(),
-                        //                        rowMoveDTO.getUpdatedRows().get(0).getInstructionName()
+                        comboBoxVars.getValue().getVarId(),
+                        comboBoxVars.getValue().getValue(),
                         comboBoxWebFields.getValue().getInstructionId(),
                         comboBoxWebFields.getValue().getText(),
                         comboBoxWebFields.getValue().getValue(),
                         comboBoxInstruc.getValue().getValue());
-                elementValueScene.showModal();
-                reloadComboVars(comboBoxWebFields.getValue().getInstructionId());
+                arElementValueScene.showModal();
+
+                reloadComboVars(comboBoxWebFields.getValue().getInstructionId(), false, -1);
                 // Set ComboBox to first item
                 comboBoxVars.getSelectionModel().selectFirst();
                 if (!firstLoad) {
@@ -1254,15 +1257,18 @@ public class ARNewCommandPane extends ARPane {
                 ARLogger.getInstance(ARNewCommandPane.class)
                         .info("creating variable for instruction Name "
                                 + comboBoxWebFields.getValue().getText());
-                ARElementValueScene elementValueScene = new ARElementValueScene(
+
+                arElementValueScene.initialize(
                         rowMoveDTO,
+                        comboBoxVars.getValue().getVarId(),
+                        comboBoxVars.getValue().getValue(),
                         comboBoxWebFields.getValue().getInstructionId(),
                         comboBoxWebFields.getValue().getText(),
                         comboBoxWebFields.getValue().getValue(),
                         comboBoxInstruc.getValue().getValue());
-                elementValueScene.showModal();
+                arElementValueScene.showModal();
             }
-            reloadComboVars(comboBoxWebFields.getValue().getInstructionId());
+            reloadComboVars(comboBoxWebFields.getValue().getInstructionId(), false, -1);
             // Set ComboBox to first item
             comboBoxVars.getSelectionModel().selectFirst();
             if (comboBoxVars.getValue() != null) {
@@ -1275,6 +1281,20 @@ public class ARNewCommandPane extends ARPane {
             if (newValue != null) {
                 if (!firstLoad) {
                     recallMessages(comboBoxInstruc.getValue().getValue());
+                    if (comboBoxVars.getValue() != null
+                            && comboBoxVars.getValue().getVarId() > -1) {
+                        arElementValueScene.setTableRowById(
+                                comboBoxVars.getValue().getVarId());
+                    } else {
+                        arElementValueScene.initialize(
+                                rowMoveDTO,
+                                comboBoxVars.getValue().getVarId(),
+                                comboBoxVars.getValue().getValue(),
+                                comboBoxWebFields.getValue().getInstructionId(),
+                                comboBoxWebFields.getValue().getText(),
+                                comboBoxWebFields.getValue().getValue(),
+                                comboBoxInstruc.getValue().getValue());
+                    }
                 }
             }
         });
@@ -1284,6 +1304,20 @@ public class ARNewCommandPane extends ARPane {
             if (newValue != null) {
                 if (!firstLoad) {
                     recallMessages(comboBoxInstruc.getValue().getValue());
+                    if (comboBoxVars.getValue() != null
+                            && comboBoxVars.getValue().getVarId() > -1) {
+                        arElementValueScene.setTableRowById(
+                                comboBoxVars.getValue().getVarId());
+                    } else {
+                        arElementValueScene.initialize(
+                                rowMoveDTO,
+                                comboBoxVars.getValue().getVarId(),
+                                comboBoxVars.getValue().getValue(),
+                                comboBoxWebFields.getValue().getInstructionId(),
+                                comboBoxWebFields.getValue().getText(),
+                                comboBoxWebFields.getValue().getValue(),
+                                comboBoxInstruc.getValue().getValue());
+                    }
                 }
             }
         });
@@ -2017,7 +2051,7 @@ public class ARNewCommandPane extends ARPane {
         }
     }
 
-    private void reloadComboVars(int instructionId) {
+    public void reloadComboVars(int instructionId, boolean selectLast, int variableId) {
         variablesItems.clear();
         variablesList = performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId);
 
@@ -2034,8 +2068,29 @@ public class ARNewCommandPane extends ARPane {
                             -1))
                     .collect(Collectors.toList());
             variablesItems.addAll(variablesNames);
+
+            if (selectLast && variableId == -1) {
+                comboBoxVars.getSelectionModel().selectLast();
+            } else if (selectLast && variableId > -1) {
+                int indexGeneric = -1;
+                for (int i = 0; i < variablesItems.size(); i++) {
+                    if (variablesItems.get(i).getVarId().equals(variableId)) {
+                        comboBoxVars.getSelectionModel().select(i);
+                        indexGeneric = i;
+                        break;
+                    }
+                }
+
+                if (indexGeneric == -1) {
+                    comboBoxVars.getSelectionModel().selectFirst();
+                }
+            }
+
         } else {
             variablesItems.add(new ComboBoxVars("no variables added", "", -1, -1, -1, -1, null, -1));
+            if (selectLast) {
+                comboBoxVars.getSelectionModel().selectFirst();
+            }
         }
     }
 
@@ -2445,7 +2500,7 @@ public class ARNewCommandPane extends ARPane {
                 }
             }
 
-            reloadComboVars(instrunctionId);
+            reloadComboVars(instrunctionId, false, -1);
 
             if (indexGeneric == -1) {
                 comboBoxWebFields.getSelectionModel().selectFirst();

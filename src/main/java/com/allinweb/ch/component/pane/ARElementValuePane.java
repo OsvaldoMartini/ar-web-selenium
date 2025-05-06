@@ -43,7 +43,10 @@ public class ARElementValuePane extends ARPane {
     private ObservableList<VariableUserDTO> variablesList = FXCollections.observableArrayList();
     private TableView<VariableUserDTO> tableView = new TableView<>();
     private RowMoveDTO rowMoveDTO;
+    private int varId;
+    private String varValue;
     private int instructionId;
+
     private String instructionName;
     private String varName;
     private String instructionType;
@@ -57,24 +60,60 @@ public class ARElementValuePane extends ARPane {
     TextField usedVarsField;
     CheckBox stringCheckBox;
     CheckBox numericCheckBox;
+    Label numberFormatLabel;
+    ComboBox<String> numberFormatComboBox;
     Button updateButton;
     Button deleteButton;
 
     private static final PerformDataBase performDataBase;
     private static final PerformMessage performMessage;
+    private static final ARNewCommandPane arNewCommandPane;
+
     // Static block to initialize
     static {
         performDataBase = PerformDataBase.getInstance();
         performMessage = PerformMessage.getInstance();
+        arNewCommandPane = ARNewCommandPane.getInstance();
     }
 
     public void initialize(
-            RowMoveDTO rowMoveDTO, int instructionId, String instructionName, String varName, String instructionType) {
+            RowMoveDTO rowMoveDTO,
+            int varId,
+            String varValue,
+            int instructionId,
+            String instructionName,
+            String varName,
+            String instructionType) {
         this.rowMoveDTO = rowMoveDTO;
+        this.varId = varId;
+        this.varValue = varValue;
         this.instructionId = instructionId;
         this.instructionName = instructionName;
         this.varName = varName;
         this.instructionType = instructionType;
+
+        this.variablesList = performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId);
+
+        if (this.varId > -1) {
+            selectRowById(varId);
+        }
+
+        if (idField != null && this.varId == -1) {
+            idField.clear();
+            idField.setText(String.valueOf(varId));
+            parentField.setText(instructionName);
+            nameField.setText(varName);
+        }
+
+        if (valueField != null) {
+            if (instructionType.equals("GET")) {
+                valueField.setStyle("-fx-control-inner-background: #c9cbce;");
+                // valueField.setDisable(true);
+            } else {
+                valueField.setStyle("-fx-control-inner-background: FFDA33;");
+                valueField.setText(varValue);
+            }
+        }
     }
 
     @Override
@@ -85,8 +124,6 @@ public class ARElementValuePane extends ARPane {
     @Override
     public void initUIComponents() {
 
-        this.variablesList = performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId);
-
         // Create labels
         Label idLabel = new Label("ID:");
         Label parentLabel = new Label("Parent:");
@@ -94,11 +131,12 @@ public class ARElementValuePane extends ARPane {
         Label typeLabel = new Label("Type");
         Label valueLabel = new Label("Value");
         Label jobsLabel = new Label("Used Variables:");
+        numberFormatLabel = new Label("Currency Format:");
 
         // Create text fields
         idField = new TextField();
         idField.setEditable(false);
-        idField.setText(String.valueOf(instructionId));
+        idField.setText(String.valueOf(varId));
         idField.setStyle("-fx-control-inner-background: D3D3D3; -fx-pref-width: 50px;");
         idField.setPrefHeight(30);
 
@@ -115,9 +153,10 @@ public class ARElementValuePane extends ARPane {
         valueField = new TextField();
         if (instructionType.equals("GET")) {
             valueField.setStyle("-fx-control-inner-background: #c9cbce;");
-            valueField.setDisable(true);
+            // valueField.setDisable(true);
         } else {
             valueField.setStyle("-fx-control-inner-background: FFDA33;");
+            valueField.setText(varValue);
         }
 
         usedVarsField = new TextField();
@@ -130,16 +169,29 @@ public class ARElementValuePane extends ARPane {
         stringCheckBox = new CheckBox("$String");
         numericCheckBox = new CheckBox("#Numeric");
 
+        // Create ComboBox for number format
+        numberFormatComboBox = new ComboBox<>();
+        numberFormatComboBox.getItems().addAll("European", "American");
+        numberFormatComboBox.setDisable(true); // Initially disabled, enabled only for #Numeric
+
         // Ensure only one checkbox can be selected at a time
         stringCheckBox.selectedProperty().addListener((obs, oldValue, newValue) -> {
             if (newValue) {
                 numericCheckBox.setSelected(false);
+                numberFormatLabel.setDisable(true);
+                numberFormatComboBox.setDisable(true);
             }
         });
 
         numericCheckBox.selectedProperty().addListener((obs, oldValue, newValue) -> {
             if (newValue) {
                 stringCheckBox.setSelected(false);
+                numberFormatLabel.setDisable(false);
+                numberFormatComboBox.setDisable(false);
+            } else {
+                numberFormatLabel.setDisable(true);
+                numberFormatComboBox.setDisable(true);
+                numberFormatComboBox.setValue(null); // Clear selection when numeric is unchecked
             }
         });
 
@@ -148,11 +200,18 @@ public class ARElementValuePane extends ARPane {
         submitButton.setOnAction(event -> {
             String selectedType =
                     stringCheckBox.isSelected() ? "$String" : numericCheckBox.isSelected() ? "#Numeric" : "";
+            String selectedNumberFormat = numericCheckBox.isSelected() ? numberFormatComboBox.getValue() : null;
 
             String valueVar = Strings.isNullOrEmpty(valueField.getText()) ? "$EMPTY" : valueField.getText();
 
             VariableUserDTO user = new VariableUserDTO(
-                    -1, selectedType, nameField.getText().trim(), valueVar, rowMoveDTO.getBotJobId(), instructionId);
+                    -1,
+                    selectedType,
+                    nameField.getText().trim(),
+                    valueVar,
+                    rowMoveDTO.getBotJobId(),
+                    instructionId,
+                    selectedNumberFormat);
 
             if (nameExists(nameField.getText().trim())) {
                 performMessage.errorMessage(
@@ -175,21 +234,27 @@ public class ARElementValuePane extends ARPane {
             performDataBase.saveUserData(user);
             this.variablesList.clear();
             this.variablesList = performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId);
+            arNewCommandPane.reloadComboVars(instructionId, true, -1);
         });
 
         // Create update button
         updateButton = new Button("Update");
         updateButton.setOnAction(event -> {
-            int id = Strings.isNullOrEmpty(idField.getText()) ? -1 : Integer.parseInt(idField.getText());
+            VariableUserDTO selectedUser = tableView.getSelectionModel().getSelectedItem();
+
             String selectedType =
                     stringCheckBox.isSelected() ? "$String" : numericCheckBox.isSelected() ? "#Numeric" : "";
 
             String valueVar = Strings.isNullOrEmpty(valueField.getText()) ? "$EMPTY" : valueField.getText();
 
-            VariableUserDTO user = new VariableUserDTO(
-                    id, selectedType, nameField.getText(), valueVar, rowMoveDTO.getBotJobId(), instructionId);
-            performDataBase.updateUserData(id, user);
+            selectedUser.setType(selectedType);
+            selectedUser.setName(nameField.getText().trim());
+            selectedUser.setValue(valueVar.trim());
+
+            performDataBase.updateUserData(selectedUser.getId(), selectedUser);
+
             this.variablesList = performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId);
+            arNewCommandPane.reloadComboVars(instructionId, true, varId);
         });
         updateButton.setDisable(true);
 
@@ -211,6 +276,7 @@ public class ARElementValuePane extends ARPane {
 
             performDataBase.deleteUserData(id);
             this.variablesList = performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId);
+            arNewCommandPane.reloadComboVars(instructionId, true, -1);
         });
         deleteButton.setDisable(true);
 
@@ -236,6 +302,9 @@ public class ARElementValuePane extends ARPane {
         gridPane.add(typeLabel, 0, 4);
         HBox typeBox = new HBox(10, stringCheckBox, numericCheckBox); // Create an HBox to hold the checkboxes
         gridPane.add(typeBox, 1, 4);
+
+        gridPane.add(numberFormatLabel, 0, 5);
+        gridPane.add(numberFormatComboBox, 1, 5);
 
         gridPane.add(jobsLabel, 0, 7);
         gridPane.add(usedVarsField, 1, 7);
@@ -273,23 +342,11 @@ public class ARElementValuePane extends ARPane {
                 // Get the selected UserDTO object
                 VariableUserDTO selectedUser = tableView.getSelectionModel().getSelectedItem();
 
-                // Set the values of the selected row to the text fields
-                idField.setText(String.valueOf(selectedUser.getId()));
-                nameField.setText(selectedUser.getName());
-                String valueVar = selectedUser.getValue().equalsIgnoreCase("$EMPTY") ? "" : selectedUser.getValue();
-                valueField.setText(valueVar);
-                usedVarsField.setText(selectedUser.getUsedVars()); // Update the hidden field
+                fillFields(selectedUser);
 
-                // Update the checkboxes based on the selected user's type
-                if (selectedUser.getType().equals("$String")) {
-                    stringCheckBox.setSelected(true);
-                    numericCheckBox.setSelected(false);
-                } else if (selectedUser.getType().equals("#Numeric")) {
-                    stringCheckBox.setSelected(false);
-                    numericCheckBox.setSelected(true);
-                }
                 deleteButton.setDisable(false);
                 updateButton.setDisable(false);
+
             } else {
                 // If no row is selected, clear the text fields and checkboxes
                 clearData();
@@ -325,6 +382,9 @@ public class ARElementValuePane extends ARPane {
         usedVarsField.clear();
         stringCheckBox.setSelected(false);
         numericCheckBox.setSelected(false);
+        numberFormatComboBox.setValue(null);
+        numberFormatLabel.setDisable(true);
+        numberFormatComboBox.setDisable(true);
         deleteButton.setDisable(true);
         updateButton.setDisable(true);
     }
@@ -400,5 +460,65 @@ public class ARElementValuePane extends ARPane {
                 System.out.println(e.getMessage());
             }
         }
+    }
+
+    public void selectRowById(int idToFind) {
+        if (this.variablesList.isEmpty()) {
+            this.variablesList = performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId);
+        }
+
+        if (tableView == null) {
+            System.err.println("TableView not initialized.");
+            return;
+        }
+
+        ObservableList<VariableUserDTO> items = tableView.getItems();
+        if (items == null || items.isEmpty()) {
+            System.out.println("TableView is empty.");
+            return;
+        }
+
+        // Iterate through the items in the TableView's list
+        for (int i = 0; i < items.size(); i++) {
+            VariableUserDTO userDTO = items.get(i);
+            if (userDTO.getId() == idToFind) {
+                // If the ID matches, select the row at the current index
+                tableView.getSelectionModel().clearAndSelect(i);
+
+                // Optionally, scroll the selected row into view
+                tableView.scrollTo(i);
+
+                fillFields(userDTO);
+
+                return; // Exit the method once the row is found and selected
+            }
+        }
+
+        // If the loop completes without finding the ID
+        System.out.println("Variable with ID " + idToFind + " not found in the TableView.");
+    }
+
+    private void fillFields(VariableUserDTO userDTO) {
+        // Set the values of the selected row to the text fields
+        idField.setText(String.valueOf(userDTO.getId()));
+        parentField.setText("(" + userDTO.getParentId() + ")" + userDTO.getName());
+        nameField.setText(userDTO.getName());
+        String valueVar = userDTO.getValue().equalsIgnoreCase("$EMPTY") ? "" : userDTO.getValue();
+        valueField.setText(valueVar);
+        usedVarsField.setText(userDTO.getUsedVars()); // Update the hidden field
+
+        // Update the checkboxes based on the selected user's type
+        if (userDTO.getType().equals("$String")) {
+            stringCheckBox.setSelected(true);
+            numericCheckBox.setSelected(false);
+        } else if (userDTO.getType().equals("#Numeric")) {
+            stringCheckBox.setSelected(false);
+            numericCheckBox.setSelected(true);
+        }
+
+        this.varId = userDTO.getId();
+        this.varValue = userDTO.getValue();
+        this.instructionId = userDTO.getParentId();
+        this.instructionName = "(" + userDTO.getParentId() + ")" + userDTO.getName();
     }
 }
