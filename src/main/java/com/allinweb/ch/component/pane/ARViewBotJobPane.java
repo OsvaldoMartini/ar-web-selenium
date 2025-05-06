@@ -1008,58 +1008,29 @@ public class ARViewBotJobPane extends ARPane {
                 .severe("ERROR Calling openScannerButton -> Cause: " + error.getMessage());
 
         // Display the error message to the user
+        String browser = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
+        String webDriverPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
+
         if (error.getMessage().contains("no such window: target window already closed")
                 || error.getMessage().contains("web view not found")) {
             performMessage.errorMessage(
                     "Error Calling SCAN",
-                    "Web Browser was closed before the Scanner Tool",
-                    "Close and Re-Open the Scanner Tool",
-                    null,
-                    null,
+                    "<span style='font-style: italic;'>Web Browser was closed before the Scanner Tool!</span>",
+                    "<span style='color: #E65100; font-weight: bold;'>WebDriver path:</span> <span style='font-weight: bold;'>"
+                            + webDriverPath + "</span>",
+                    "<span style='font-style: italic;'>Please close and Re-Open the Scanner Tool.</span>",
+                    "<span style='font-style: italic;'>Details: " + "Web Browser was closed before the Scanner Tool"
+                            + "</span>",
                     0);
         } else {
 
             //            "invalid session id"
 
             if (!error.getMessage().contains("Current browser version")) {
-                String[] lines = error.getMessage().split("\n");
-
-                String msg1 = null;
-                String msg2 = null;
-                String msg3 = null;
-                String msg4 = null;
-
-                for (String line : lines) {
-                    // Exclude unnecessary lines
-                    if (line.contains("Host info")
-                            || line.contains("Build info")
-                            || line.contains("System info")
-                            || line.contains("Command")) {
-                        continue;
-                    }
-
-                    String message = line.contains("Message: ")
-                            ? line.substring(line.indexOf("Message: ") + "Message: ".length())
-                                    .trim()
-                            : line.trim();
-
-                    if (!message.isEmpty()) {
-                        if (msg1 == null) {
-                            msg1 = message;
-                        } else if (msg2 == null) {
-                            msg2 = message;
-                        } else if (msg3 == null) {
-                            msg3 = message;
-                        } else if (msg4 == null) {
-                            msg4 = message;
-                        }
-                    }
-                }
-
-                ARLogger.getInstance(ARViewBotJobPane.class).severe("Error Open URL: \n" + msg1 + "\n" + msg2);
+                ARLogger.getInstance(ARViewBotJobPane.class).severe("Error Open URL: " + error.getMessage());
 
                 //                performMessage.errorMessage("Error Open URL", msg1, msg2, msg3, msg4, 0);
-                String webDriverPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
+
                 if (error.getMessage().contains("session deleted as the browser has closed the connection")
                         || error.getMessage().contains("Expected condition failed: waiting for com")) {
                     performMessage.errorMessage(
@@ -1073,15 +1044,36 @@ public class ARViewBotJobPane extends ARPane {
                             0);
                 } else {
                     performMessage.errorMessage(
-                            "Access WebDriver",
-                            "<span style='font-style: italic;'>The WebDriver data directory is probably already in use.</span>",
-                            "<span style='color: #E65100; font-weight: bold;'>WebDriver path:</span> <span style='font-weight: bold;'>"
-                                    + webDriverPath + "</span>",
-                            "<span style='font-style: italic;'>Details: "
-                                    + "Please close all possible Browser Instances" + "</span>",
-                            "<span style='font-style: italic;'>Check/close all instances of the installer first.</span>",
+                            "WebDriver Access Issue",
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to access WebDriver.</span>",
+                            //                        "<span style='font-style: italic;'>It appears the WebDriver data
+                            // directory might be locked by another process.</span>",
+                            "<span style='font-weight: bold;'>Please ensure the following:</span>",
+                            "<ul>" + "   <li>No other instances of the browser or WebDriver are currently running.</li>"
+                                    + "   <li>The specified WebDriver path is correct and accessible: <span style='font-weight: bold;'>"
+                                    + webDriverPath + "</span></li>"
+                                    + "   <li>The configured browser is: <span style='font-weight: bold;'>"
+                                    + browser + "</span></li>" + "</ul>",
+                            "<span style='font-style: italic;'>If the issue persists, try closing all related browser processes and restarting the application.</span>",
                             0);
                 }
+            } else {
+                ARLogger.getInstance(ARViewBotJobPane.class).severe("Error Open URL: " + error.getMessage());
+
+                performMessage.errorMessage(
+                        "WebDriver Version Incompatibility",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>WebDriver version might be incompatible.</span>",
+                        //                        "<span style='font-style: italic;'>The current WebDriver version may
+                        // not be compatible with the installed browser.</span>",
+                        "<span style='font-weight: bold;'>Please verify the following:</span>",
+                        "<ul>" + "   <li>The installed browser version: <span style='font-weight: bold;'>"
+                                + browser + "</span></li>"
+                                + "   <li>The WebDriver path: <span style='font-weight: bold;'>"
+                                + webDriverPath + "</span></li>"
+                                + "   <li>Ensure the WebDriver version is the correct one for your browser version.</li>"
+                                + "</ul>",
+                        "<span style='font-style: italic;'>Refer to your browser's documentation or the WebDriver's release notes for compatibility information.</span>",
+                        0);
             }
         }
 

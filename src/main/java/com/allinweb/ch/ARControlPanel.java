@@ -15,6 +15,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
@@ -96,6 +98,7 @@ public class ARControlPanel extends Application {
 
         arPropertyManager.setProperty(ARPropertyEnum.VERSION.getValue(), "ARS Web v4.0f Beta Test");
         arPropertyManager.setProperty(ARPropertyEnum.BUILD.getValue(), "Build: 16-04-2025");
+        arPropertyManager.setProperty(ARPropertyEnum.EXPIRATION.getValue(), getTodayDate());
 
         try (ServerSocket serverSocket = new ServerSocket(0)) { // Port 0 = auto-assign
             int availablePort = serverSocket.getLocalPort();
@@ -213,5 +216,12 @@ public class ARControlPanel extends Application {
                 "OK",
                 null,
                 0);
+    }
+
+    public static String getTodayDate() {
+        LocalDate today = LocalDate.now();
+        LocalDate yesterday = today.minusDays(1);
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+        return yesterday.format(formatter);
     }
 }

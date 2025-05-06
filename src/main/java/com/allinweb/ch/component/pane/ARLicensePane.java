@@ -169,7 +169,14 @@ public class ARLicensePane extends ARPane {
         rbActivateLicense.setToggleGroup(toggleGroup);
 
         filePathField = new TextField();
+        //        filePathField.setPrefWidth(300);
+        // Set Hgrow for the filePathField so it expands
+        HBox.setHgrow(filePathField, Priority.ALWAYS);
+
         uploadButton = new Button("Request target Directory");
+        uploadButton.setPrefWidth(200);
+        uploadButton.setStyle(
+                "-fx-background-color: linear-gradient(#29abe2, #007bff); -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5;");
 
         // Add event handlers to log the state change to the console
         rbRequestLicense.setOnAction(event -> {
