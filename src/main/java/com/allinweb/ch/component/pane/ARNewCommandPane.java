@@ -2,7 +2,9 @@ package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.builder.WebElementIcon;
 import com.allinweb.ch.component.model.BlockLoadDTO;
+import com.allinweb.ch.component.model.BlockOptions;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
+import com.allinweb.ch.component.model.FormatOption;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.model.VariableUserDTO;
@@ -187,21 +189,21 @@ public class ARNewCommandPane extends ARPane {
     private ComboBox<ComboBoxVars> comboBoxVars;
     private ObservableList<ComboBoxVars> variablesItems = FXCollections.observableArrayList();
 
-    private ComboBox<ComboBoxVars> comboBoxTimes;
-    private ObservableList<ComboBoxVars> timesItems = FXCollections.observableArrayList();
+    private ComboBox<FormatOption> comboBoxTimes;
+    private ObservableList<FormatOption> timesItems = FXCollections.observableArrayList();
 
-    private ComboBox<ComboBoxVars> comboBoxLoops;
-    private ObservableList<ComboBoxVars> loopsItems = FXCollections.observableArrayList();
+    private ComboBox<FormatOption> comboBoxLoops;
+    private ObservableList<FormatOption> loopsItems = FXCollections.observableArrayList();
 
     private ComboBox<ComboBoxImage> comboBoxWebFields;
     private ObservableList<ComboBoxVars> webPageItems;
     private ObservableList<ComboBoxImage> filteredPageItems = FXCollections.observableArrayList();
 
-    private ComboBox<ComboBoxVars> comboBoxAllBlocks;
-    private ObservableList<ComboBoxVars> allBlocksItems = FXCollections.observableArrayList();
+    private ComboBox<BlockOptions> comboBoxAllBlocks;
+    private ObservableList<BlockOptions> allBlocksItems = FXCollections.observableArrayList();
 
-    private ComboBox<ComboBoxVars> comboBoxBlocks;
-    private ObservableList<ComboBoxVars> blocksItems = FXCollections.observableArrayList();
+    private ComboBox<BlockOptions> comboBoxBlocks;
+    private ObservableList<BlockOptions> blocksItems = FXCollections.observableArrayList();
 
     private ComboBox<ComboBoxOperator> comboBoxOperator;
     private ObservableList<ComboBoxOperator> operatorsItems = FXCollections.observableArrayList();
@@ -305,7 +307,7 @@ public class ARNewCommandPane extends ARPane {
             loadAllBlockItems(blockLoadList);
             //            }
         } else {
-            allBlocksItems.add(new ComboBoxVars("#1 Default Block", "Default Block", 1, 1, -1, -1, null, -1));
+            allBlocksItems.add(new BlockOptions("#1 Default Block", "Default Block", 1, 1));
         }
 
         if (loadeAllCompleted) {
@@ -416,85 +418,83 @@ public class ARNewCommandPane extends ARPane {
 
         textFlow.getChildren().addAll(regularText1, variableText1, variableText2, variableText3);
 
-        timesItems.add(new ComboBoxVars("5s", "5", -1, -1, -1, -1, null, -1));
-        timesItems.add(new ComboBoxVars("10s", "10", -1, -1, -1, -1, null, -1));
-        timesItems.add(new ComboBoxVars("20s", "20", -1, -1, -1, -1, null, -1));
-        timesItems.add(new ComboBoxVars("30s", "30", -1, -1, -1, -1, null, -1));
-        timesItems.add(new ComboBoxVars("40s", "40", -1, -1, -1, -1, null, -1));
-        timesItems.add(new ComboBoxVars("50s", "50", -1, -1, -1, -1, null, -1));
-        timesItems.add(new ComboBoxVars("60s", "60", -1, -1, -1, -1, null, -1));
+        timesItems.add(new FormatOption("5s", "5"));
+        timesItems.add(new FormatOption("10s", "10"));
+        timesItems.add(new FormatOption("20s", "20"));
+        timesItems.add(new FormatOption("30s", "30"));
+        timesItems.add(new FormatOption("40s", "40"));
+        timesItems.add(new FormatOption("50s", "50"));
+        timesItems.add(new FormatOption("60s", "60"));
 
         comboBoxTimes = new ComboBox<>(timesItems);
         comboBoxTimes.setPrefWidth(50);
         // Set cell factory to display images and text
         comboBoxTimes.setButtonCell(new ListCell<>() {
             @Override
-            protected void updateItem(ComboBoxVars item, boolean empty) {
+            protected void updateItem(FormatOption item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
                     setText(null);
                     setGraphic(null);
-                    setTextFill(Color.BLACK); // Ensure text is black
                 } else {
                     setText(item.getText());
-                    setTextFill(Color.BLACK); // Ensure text is black
+                    setTextFill(Color.BLACK);
                 }
             }
         });
+
+        // Set cell factory for dropdown list rendering
         comboBoxTimes.setCellFactory(param -> new ListCell<>() {
             @Override
-            protected void updateItem(ComboBoxVars item, boolean empty) {
+            protected void updateItem(FormatOption item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
                     setText(null);
                     setGraphic(null);
-                    setTextFill(Color.BLACK); // Ensure text is black
                 } else {
                     setText(item.getText());
-                    setTextFill(Color.BLACK); // Ensure text is black
+                    setTextFill(Color.BLACK);
                 }
 
-                // Add hover effect
                 setOnMouseEntered(e -> setStyle("-fx-background-color: lightgray;"));
                 setOnMouseExited(e -> setStyle("-fx-background-color: none;"));
             }
         });
 
-        loopsItems.add(new ComboBoxVars("5 x", "5", -1, -1, -1, -1, null, -1));
-        loopsItems.add(new ComboBoxVars("10 x", "10", -1, -1, -1, -1, null, -1));
-        loopsItems.add(new ComboBoxVars("20 x", "20", -1, -1, -1, -1, null, -1));
-        loopsItems.add(new ComboBoxVars("30 x", "30", -1, -1, -1, -1, null, -1));
+        loopsItems.add(new FormatOption("5 x", "5"));
+        loopsItems.add(new FormatOption("10 x", "10"));
+        loopsItems.add(new FormatOption("20 x", "20"));
+        loopsItems.add(new FormatOption("30 x", "30"));
         comboBoxLoops = new ComboBox<>(loopsItems);
         comboBoxLoops.setPrefWidth(60);
-        // Set cell factory to display images and text
+        // Set button cell to display selected item properly
         comboBoxLoops.setButtonCell(new ListCell<>() {
             @Override
-            protected void updateItem(ComboBoxVars item, boolean empty) {
+            protected void updateItem(FormatOption item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
                     setText(null);
                     setGraphic(null);
-                    setTextFill(Color.BLACK); // Ensure text is black
                 } else {
                     setText(item.getText());
-                    setTextFill(Color.BLACK); // Ensure text is black
+                    setTextFill(Color.BLACK);
                 }
             }
         });
+
+        // Set cell factory for dropdown list rendering
         comboBoxLoops.setCellFactory(param -> new ListCell<>() {
             @Override
-            protected void updateItem(ComboBoxVars item, boolean empty) {
+            protected void updateItem(FormatOption item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
                     setText(null);
                     setGraphic(null);
-                    setTextFill(Color.BLACK); // Ensure text is black
                 } else {
                     setText(item.getText());
-                    setTextFill(Color.BLACK); // Ensure text is black
+                    setTextFill(Color.BLACK);
                 }
 
-                // Add hover effect
                 setOnMouseEntered(e -> setStyle("-fx-background-color: lightgray;"));
                 setOnMouseExited(e -> setStyle("-fx-background-color: none;"));
             }
@@ -627,32 +627,31 @@ public class ARNewCommandPane extends ARPane {
 
         comboBoxBlocks = new ComboBox<>(blocksItems);
         if (blocksItems.size() == 0) {
-            blocksItems.add(new ComboBoxVars("no blocks added", "", -1, -1, -1, -1, null, -1));
+            blocksItems.add(new BlockOptions("no blocks added", "", -1, -1));
         }
         comboBoxBlocks.setPrefWidth(buttonWidth);
         comboBoxBlocks.getSelectionModel().selectFirst();
         comboBoxBlocks.setButtonCell(new ListCell<>() {
             @Override
-            protected void updateItem(ComboBoxVars item, boolean empty) {
+            protected void updateItem(BlockOptions item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
                     setText(null);
                     setGraphic(null);
-                    setTextFill(Color.BLACK); // Ensure text is black
                 } else {
                     setText(item.getText());
                     setTextFill(Color.BLACK); // Ensure text is black
                 }
             }
         });
+
         comboBoxBlocks.setCellFactory(param -> new ListCell<>() {
             @Override
-            protected void updateItem(ComboBoxVars item, boolean empty) {
+            protected void updateItem(BlockOptions item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
                     setText(null);
                     setGraphic(null);
-                    setTextFill(Color.BLACK); // Ensure text is black
                 } else {
                     setText(item.getText());
                     setTextFill(Color.BLACK); // Ensure text is black
@@ -663,6 +662,7 @@ public class ARNewCommandPane extends ARPane {
                 setOnMouseExited(e -> setStyle("-fx-background-color: none;"));
             }
         });
+
         comboBoxBlocks.getSelectionModel().selectFirst();
 
         comboBoxWebFields = new ComboBox<>(filteredPageItems);
@@ -714,26 +714,25 @@ public class ARNewCommandPane extends ARPane {
         comboBoxAllBlocks.setPrefWidth(50);
         comboBoxAllBlocks.setButtonCell(new ListCell<>() {
             @Override
-            protected void updateItem(ComboBoxVars item, boolean empty) {
+            protected void updateItem(BlockOptions item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
                     setText(null);
                     setGraphic(null);
-                    setTextFill(Color.BLACK); // Ensure text is black
                 } else {
                     setText(item.getText());
                     setTextFill(Color.BLACK); // Ensure text is black
                 }
             }
         });
+
         comboBoxAllBlocks.setCellFactory(param -> new ListCell<>() {
             @Override
-            protected void updateItem(ComboBoxVars item, boolean empty) {
+            protected void updateItem(BlockOptions item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
                     setText(null);
                     setGraphic(null);
-                    setTextFill(Color.BLACK); // Ensure text is black
                 } else {
                     setText(item.getText());
                     setTextFill(Color.BLACK); // Ensure text is black
@@ -967,7 +966,7 @@ public class ARNewCommandPane extends ARPane {
             int targetBlockId = rowMoveDTO.getBlockId();
 
             // Iterate through items in comboBoxAllBlocks
-            for (ComboBoxVars item : comboBoxAllBlocks.getItems()) {
+            for (BlockOptions item : comboBoxAllBlocks.getItems()) {
                 if (item.getBlockId() != null && item.getBlockId() == targetBlockId) {
                     comboBoxAllBlocks.getSelectionModel().select(item); // Select the matching item
                 }
@@ -1054,7 +1053,7 @@ public class ARNewCommandPane extends ARPane {
                     String outsideBlock = allBlocksItems.stream()
                             .filter(f -> f.getBlockId()
                                     .equals(comboBoxWebFields.getValue().getBlockId()))
-                            .map(ComboBoxVars::getText)
+                            .map(BlockOptions::getText)
                             .findFirst()
                             .orElse(null);
 
@@ -2065,7 +2064,8 @@ public class ARNewCommandPane extends ARPane {
                             variable.getParentId(),
                             variable.getId(),
                             null,
-                            -1))
+                            -1,
+                            variable.getLocalFormat()))
                     .collect(Collectors.toList());
             variablesItems.addAll(variablesNames);
 
@@ -2087,7 +2087,7 @@ public class ARNewCommandPane extends ARPane {
             }
 
         } else {
-            variablesItems.add(new ComboBoxVars("no variables added", "", -1, -1, -1, -1, null, -1));
+            variablesItems.add(new ComboBoxVars("no variables added", "", -1, -1, -1, -1, null, -1, null));
             if (selectLast) {
                 comboBoxVars.getSelectionModel().selectFirst();
             }
@@ -2134,15 +2134,11 @@ public class ARNewCommandPane extends ARPane {
         if (blockLoadDTOList.size() > 1) {
             for (BlockLoadDTO block : blockLoadDTOList) {
                 if (block.getId() != blockToAvoid)
-                    blocksItems.add(new ComboBoxVars(
+                    blocksItems.add(new BlockOptions(
                             block.getBlockOrderNumber() + "# " + block.getName(),
                             block.getName(),
                             block.getBlockOrderNumber(),
-                            block.getId(),
-                            -1,
-                            -1,
-                            null,
-                            -1));
+                            block.getId()));
             }
         }
     }
@@ -2150,18 +2146,14 @@ public class ARNewCommandPane extends ARPane {
     private void loadAllBlockItems(List<BlockLoadDTO> blockLoadDTOList) {
         allBlocksItems.clear();
         if (blockLoadDTOList.size() > 1) {
-            allBlocksItems.add(new ComboBoxVars("Select the Block", "", -1, -1, -1, -1, null, -1));
+            allBlocksItems.add(new BlockOptions("Select the Block", "", -1, -1));
         }
         for (BlockLoadDTO block : blockLoadDTOList) {
-            allBlocksItems.add(new ComboBoxVars(
+            allBlocksItems.add(new BlockOptions(
                     block.getBlockOrderNumber() + "# " + block.getName().trim(),
                     block.getName().trim(),
                     block.getBlockOrderNumber(),
-                    block.getId(),
-                    -1,
-                    -1,
-                    null,
-                    -1));
+                    block.getId()));
         }
     }
 

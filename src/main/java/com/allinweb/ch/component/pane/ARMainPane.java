@@ -111,6 +111,7 @@ public class ARMainPane extends ARPane {
             String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
 
             File dbFile = new File(dbPath + ARConstants.FILE_NAME_DB);
+            performDataBase.updateTableAccess(dbUrl, dbFile);
             if (!dbFile.exists()) {
                 performDataBase.initializeMainDatabaseAccess(dbUrl, dbFile);
             } else {

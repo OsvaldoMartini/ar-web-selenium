@@ -3331,6 +3331,7 @@ public class ARScannedElementPane extends ARPane {
                         String parentField = null;
                         String parentFieldLoop = null;
                         String variableField = null;
+                        String localFormat = null;
                         String fieldName = null;
                         int parentId = currentInstruction.getParentId();
 
@@ -3586,6 +3587,8 @@ public class ARScannedElementPane extends ARPane {
                             parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
                             variableField =
                                     performActions.getInstructionVariableField(currentInstruction, variablesLoaded);
+                            localFormat =
+                                    performActions.getInstructionVariableFormat(currentInstruction, variablesLoaded);
                             if (variableField == null) {
                                 variableField = "Not Variable defined";
                             }
@@ -3944,6 +3947,12 @@ public class ARScannedElementPane extends ARPane {
                                         success = false;
                                     } else {
                                         success = true;
+                                        if (!Strings.isNullOrEmpty(localFormat)) {
+                                            String valueTo = mapOperators.get(variableField);
+                                            valueTo = performActions.removeAllCurrencySymbols(valueTo);
+                                            valueTo = performActions.formatLocalNumber(valueTo, localFormat);
+                                            mapOperators.put(variableField, valueTo);
+                                        }
                                     }
                                 }
 
@@ -4084,7 +4093,6 @@ public class ARScannedElementPane extends ARPane {
                                                 mapOperators.get(variableField).trim());
                                         if (excelFieldName != null
                                                 && excelFieldName.toLowerCase().endsWith(".csv")) {
-                                            mapExport = performActions.removeCurrencySymbols(mapExport);
                                             writerExport.writeMapToCSV(mapExport, excelFieldName, "|");
                                         } else {
                                             writerExport.insertFieldNameAndValueLastColumn(mapExport, exportIndex - 1);
@@ -5015,9 +5023,9 @@ public class ARScannedElementPane extends ARPane {
     private void loadAllBlockItems(List<BlockLoadDTO> blockLoadDTOList) {
         blocksItems.clear();
         if (blockLoadDTOList.size() > 0) {
-            blocksItems.add(new ComboBoxVars("Execute All Blocks", "", -1, -1, -1, -1, null, -1));
+            blocksItems.add(new ComboBoxVars("Execute All Blocks", "", -1, -1, -1, -1, null, -1, null));
         } else {
-            blocksItems.add(new ComboBoxVars("#1 Default Block", "Default Block", 1, 1, -1, -1, null, -1));
+            blocksItems.add(new ComboBoxVars("#1 Default Block", "Default Block", 1, 1, -1, -1, null, -1, null));
         }
         for (BlockLoadDTO block : blockLoadDTOList) {
             blocksItems.add(new ComboBoxVars(
@@ -5028,7 +5036,8 @@ public class ARScannedElementPane extends ARPane {
                     -1,
                     -1,
                     null,
-                    -1));
+                    -1,
+                    null));
         }
     }
 

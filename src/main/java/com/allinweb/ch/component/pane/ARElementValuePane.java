@@ -1,5 +1,6 @@
 package com.allinweb.ch.component.pane;
 
+import com.allinweb.ch.component.model.FormatOption;
 import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.model.VariableUserDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
@@ -16,6 +17,7 @@ import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
 
 public class ARElementValuePane extends ARPane {
 
@@ -61,7 +63,7 @@ public class ARElementValuePane extends ARPane {
     CheckBox stringCheckBox;
     CheckBox numericCheckBox;
     Label numberFormatLabel;
-    ComboBox<String> numberFormatComboBox;
+    ComboBox<FormatOption> comboBoxLocalFormat;
     Button updateButton;
     Button deleteButton;
 
@@ -170,16 +172,50 @@ public class ARElementValuePane extends ARPane {
         numericCheckBox = new CheckBox("#Numeric");
 
         // Create ComboBox for number format
-        numberFormatComboBox = new ComboBox<>();
-        numberFormatComboBox.getItems().addAll("European", "American");
-        numberFormatComboBox.setDisable(true); // Initially disabled, enabled only for #Numeric
+        comboBoxLocalFormat = new ComboBox<>();
+        comboBoxLocalFormat
+                .getItems()
+                .addAll(new FormatOption("American (9,999.99)", "US"), new FormatOption("European (9.999,99)", "EU"));
+        comboBoxLocalFormat.setDisable(true);
+        comboBoxLocalFormat.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(FormatOption item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                } else {
+                    setText(item.getText());
+                    setTextFill(Color.BLACK); // Ensure text is black
+                }
+            }
+        });
+
+        comboBoxLocalFormat.setCellFactory(param -> new ListCell<>() {
+            @Override
+            protected void updateItem(FormatOption item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                } else {
+                    setText(item.getText());
+                    setTextFill(Color.BLACK); // Ensure text is black
+                }
+
+                // Add hover effect
+                setOnMouseEntered(e -> setStyle("-fx-background-color: lightgray;"));
+                setOnMouseExited(e -> setStyle("-fx-background-color: none;"));
+            }
+        });
+        comboBoxLocalFormat.getSelectionModel().selectFirst();
 
         // Ensure only one checkbox can be selected at a time
         stringCheckBox.selectedProperty().addListener((obs, oldValue, newValue) -> {
             if (newValue) {
                 numericCheckBox.setSelected(false);
                 numberFormatLabel.setDisable(true);
-                numberFormatComboBox.setDisable(true);
+                comboBoxLocalFormat.setDisable(true);
             }
         });
 
@@ -187,11 +223,10 @@ public class ARElementValuePane extends ARPane {
             if (newValue) {
                 stringCheckBox.setSelected(false);
                 numberFormatLabel.setDisable(false);
-                numberFormatComboBox.setDisable(false);
+                comboBoxLocalFormat.setDisable(false);
             } else {
                 numberFormatLabel.setDisable(true);
-                numberFormatComboBox.setDisable(true);
-                numberFormatComboBox.setValue(null); // Clear selection when numeric is unchecked
+                comboBoxLocalFormat.setDisable(true);
             }
         });
 
@@ -200,9 +235,16 @@ public class ARElementValuePane extends ARPane {
         submitButton.setOnAction(event -> {
             String selectedType =
                     stringCheckBox.isSelected() ? "$String" : numericCheckBox.isSelected() ? "#Numeric" : "";
-            String selectedNumberFormat = numericCheckBox.isSelected() ? numberFormatComboBox.getValue() : null;
 
             String valueVar = Strings.isNullOrEmpty(valueField.getText()) ? "$EMPTY" : valueField.getText();
+
+            String localFormat = "";
+            if (numericCheckBox.isSelected()) {
+                FormatOption selected = comboBoxLocalFormat.getValue();
+                if (selected != null) {
+                    localFormat = selected.getValue(); // "US" or "EU"
+                }
+            }
 
             VariableUserDTO user = new VariableUserDTO(
                     -1,
@@ -211,7 +253,8 @@ public class ARElementValuePane extends ARPane {
                     valueVar,
                     rowMoveDTO.getBotJobId(),
                     instructionId,
-                    selectedNumberFormat);
+                    localFormat,
+                    "");
 
             if (nameExists(nameField.getText().trim())) {
                 performMessage.errorMessage(
@@ -250,7 +293,14 @@ public class ARElementValuePane extends ARPane {
             selectedUser.setType(selectedType);
             selectedUser.setName(nameField.getText().trim());
             selectedUser.setValue(valueVar.trim());
-
+            String localFormat = "";
+            if (numericCheckBox.isSelected()) {
+                FormatOption selected = comboBoxLocalFormat.getValue();
+                if (selected != null) {
+                    localFormat = selected.getValue(); // "US" or "EU"
+                }
+            }
+            selectedUser.setLocalFormat(localFormat);
             performDataBase.updateUserData(selectedUser.getId(), selectedUser);
 
             this.variablesList = performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId);
@@ -304,7 +354,7 @@ public class ARElementValuePane extends ARPane {
         gridPane.add(typeBox, 1, 4);
 
         gridPane.add(numberFormatLabel, 0, 5);
-        gridPane.add(numberFormatComboBox, 1, 5);
+        gridPane.add(comboBoxLocalFormat, 1, 5);
 
         gridPane.add(jobsLabel, 0, 7);
         gridPane.add(usedVarsField, 1, 7);
@@ -333,7 +383,10 @@ public class ARElementValuePane extends ARPane {
         TableColumn<VariableUserDTO, String> valueColumn = new TableColumn<>("Value");
         valueColumn.setCellValueFactory(new PropertyValueFactory<>("value"));
 
-        tableView.getColumns().addAll(idColumn, typeColumn, nameColumn, valueColumn);
+        TableColumn<VariableUserDTO, String> localFormatColumn = new TableColumn<>("Local Format");
+        localFormatColumn.setCellValueFactory(new PropertyValueFactory<>("localFormat"));
+
+        tableView.getColumns().addAll(idColumn, typeColumn, nameColumn, valueColumn, localFormatColumn);
         tableView.setItems(variablesList);
 
         // Add listener to TableView selection
@@ -382,9 +435,9 @@ public class ARElementValuePane extends ARPane {
         usedVarsField.clear();
         stringCheckBox.setSelected(false);
         numericCheckBox.setSelected(false);
-        numberFormatComboBox.setValue(null);
+        comboBoxLocalFormat.setValue(null);
         numberFormatLabel.setDisable(true);
-        numberFormatComboBox.setDisable(true);
+        comboBoxLocalFormat.setDisable(true);
         deleteButton.setDisable(true);
         updateButton.setDisable(true);
     }
@@ -505,15 +558,26 @@ public class ARElementValuePane extends ARPane {
         nameField.setText(userDTO.getName());
         String valueVar = userDTO.getValue().equalsIgnoreCase("$EMPTY") ? "" : userDTO.getValue();
         valueField.setText(valueVar);
+
+        // Update the checkboxes based on the selected user's type
+        if (!Strings.isNullOrEmpty(userDTO.getLocalFormat())
+                && userDTO.getLocalFormat().equals("EU")) {
+            comboBoxLocalFormat.getSelectionModel().selectLast();
+        } else {
+            comboBoxLocalFormat.getSelectionModel().selectFirst();
+        }
+
         usedVarsField.setText(userDTO.getUsedVars()); // Update the hidden field
 
         // Update the checkboxes based on the selected user's type
         if (userDTO.getType().equals("$String")) {
             stringCheckBox.setSelected(true);
             numericCheckBox.setSelected(false);
+            comboBoxLocalFormat.setDisable(true);
         } else if (userDTO.getType().equals("#Numeric")) {
             stringCheckBox.setSelected(false);
             numericCheckBox.setSelected(true);
+            comboBoxLocalFormat.setDisable(false);
         }
 
         this.varId = userDTO.getId();
