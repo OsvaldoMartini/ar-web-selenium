@@ -41,8 +41,8 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 ; You might have other tasks here, keep them if needed.
 
 [Files]
-Source: "C:\ARWeb\ARWeb-Scanner\AR_Web_Engine.jar"; DestDir: "{app}\"; Flags: ignoreversion
-Source: "C:\ARWeb\ARWeb-Scanner\AR_Web_Scanner.jar"; DestDir: "{app}\"; Flags: ignoreversion
+Source: "C:\ARWeb\ARWeb-Scanner\AR_Web_Engine.jar"; DestDir: "{app}\ARWeb-Scanner\"; Flags: ignoreversion
+Source: "C:\ARWeb\ARWeb-Scanner\AR_Web_Scanner.jar"; DestDir: "{app}\ARWeb-Scanner\"; Flags: ignoreversion
 ; Source: "C:\ARWeb\ARWeb-Scanner\ARWeb.lic"; DestDir: "{app}\ARWeb-Scanner\"; Flags: ignoreversion
 ; Source: "C:\ARWeb\ARWeb-Scanner\exec_launcher.bat"; DestDir: "{app}\ARWeb-Scanner\"; Flags: ignoreversion
 ; Source: "C:\ARWeb\ARWeb-Scanner\edgedriver-versions\*"; DestDir: "{app}\ARWeb-Scanner\edgedriver-versions\"; Flags: ignoreversion
@@ -53,8 +53,8 @@ Source: "C:\ARWeb\ARWeb-Scanner\AR_Web_Scanner.jar"; DestDir: "{app}\"; Flags: i
 ; Source: "C:\ARWeb\ARWeb-Scanner\java\include\*"; DestDir: "{app}\ARWeb-Scanner\java\include\"; Flags: ignoreversion
 ; Source: "C:\ARWeb\ARWeb-Scanner\java\jmods\*"; DestDir: "{app}\ARWeb-Scanner\java\jmods\"; Flags: ignoreversion
 Source: "C:\ARWeb\ARWeb-Scanner\javaFX\*"; DestDir: "{app}\ARWeb-Scanner\javaFX\"; Flags: ignoreversion
-; Source: "C:\ARWeb\ARWeb-Scanner\javaFX\bin\*"; DestDir: "{app}\ARWeb-Scanner\javaFX\bin\"; Flags: ignoreversion
-; Source: "C:\ARWeb\ARWeb-Scanner\javaFX\lib\*"; DestDir: "{app}\ARWeb-Scanner\javaFX\lib\"; Flags: ignoreversion
+Source: "C:\ARWeb\ARWeb-Scanner\javaFX\bin\*"; DestDir: "{app}\ARWeb-Scanner\javaFX\bin\"; Flags: ignoreversion
+Source: "C:\ARWeb\ARWeb-Scanner\javaFX\lib\*"; DestDir: "{app}\ARWeb-Scanner\javaFX\lib\"; Flags: ignoreversion
 ; Source: "C:\ARWeb\ARWeb-Scanner\lang\*"; DestDir: "{app}\ARWeb-Scanner\lang\"; Flags: ignoreversion
 ; Source: "C:\ARWeb\ARWeb-Scanner\config\*"; DestDir: "{app}\ARWeb-Scanner\config\"; Flags: ignoreversion
 ; Source: "C:\ARWeb\ARWeb\database.mdb"; DestDir: "{app}\ARWeb\"; Flags: ignoreversion

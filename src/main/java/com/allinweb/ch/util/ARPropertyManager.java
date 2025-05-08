@@ -70,18 +70,20 @@ public class ARPropertyManager {
                         0);
             }
 
-            logPath = "C:\\ARWeb\\ARWeb\\Logs";
-            setProperty(ARPropertyEnum.PATH_LOG.getValue(), logPath);
-            File logDirectory = new File(logPath);
-            if (!logDirectory.exists() && !logDirectory.mkdirs()) {
-                performMessage.errorMessage(
-                        "Error: Log Directory Creation Failed",
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to create log directory!</span>",
-                        "<span style='color: #E65100; font-weight: bold;'>Attempted location:</span> <span style='font-weight: bold;'>"
-                                + logPath + "</span>",
-                        "<span style='font-style: italic;'>Please ensure the application has the necessary permissions to create directories at the specified path. Check the path for validity.</span>",
-                        null,
-                        0);
+            if (logPath == null || logPath.isBlank()) {
+                logPath = "C:\\ARWeb\\ARWeb\\Logs";
+                setProperty(ARPropertyEnum.PATH_LOG.getValue(), logPath);
+                File logDirectory = new File(logPath);
+                if (!logDirectory.exists() && !logDirectory.mkdirs()) {
+                    performMessage.errorMessage(
+                            "Error: Log Directory Creation Failed",
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to create log directory!</span>",
+                            "<span style='color: #E65100; font-weight: bold;'>Attempted location:</span> <span style='font-weight: bold;'>"
+                                    + logPath + "</span>",
+                            "<span style='font-style: italic;'>Please ensure the application has the necessary permissions to create directories at the specified path. Check the path for validity.</span>",
+                            null,
+                            0);
+                }
             }
 
             String dataBasePath = getProperty(ARPropertyEnum.PATH_DB);
@@ -95,18 +97,20 @@ public class ARPropertyManager {
                         0);
             }
 
-            dataBasePath = "C:\\ARWeb\\ARWeb";
-            setProperty(ARPropertyEnum.PATH_DB.getValue(), dataBasePath);
-            File dbDirectory = new File(dataBasePath);
-            if (!dbDirectory.exists() && !dbDirectory.mkdirs()) {
-                performMessage.errorMessage(
-                        "Error: Database Directory Creation Failed",
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to create database directory!</span>",
-                        "<span style='color: #E65100; font-weight: bold;'>Attempted location:</span> <span style='font-weight: bold;'>"
-                                + dataBasePath + "</span>",
-                        "<span style='font-style: italic;'>Please ensure the application has the necessary permissions to create directories at the specified path. Check the path for validity.</span>",
-                        null,
-                        0);
+            if (dataBasePath == null || dataBasePath.isBlank()) {
+                dataBasePath = "C:\\ARWeb\\ARWeb";
+                setProperty(ARPropertyEnum.PATH_DB.getValue(), dataBasePath);
+                File dbDirectory = new File(dataBasePath);
+                if (!dbDirectory.exists() && !dbDirectory.mkdirs()) {
+                    performMessage.errorMessage(
+                            "Error: Database Directory Creation Failed",
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to create database directory!</span>",
+                            "<span style='color: #E65100; font-weight: bold;'>Attempted location:</span> <span style='font-weight: bold;'>"
+                                    + dataBasePath + "</span>",
+                            "<span style='font-style: italic;'>Please ensure the application has the necessary permissions to create directories at the specified path. Check the path for validity.</span>",
+                            null,
+                            0);
+                }
             }
 
             missingMandatoryPats();
