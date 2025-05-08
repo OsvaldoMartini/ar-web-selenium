@@ -5,6 +5,11 @@ import com.allinweb.ch.component.scene.ARLicenseScene;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.AnchorPane;
@@ -59,12 +64,52 @@ public class ARInfoPane extends ARPane {
 
     @Override
     public void initUIComponents() {
-        // Initialize labels with their corresponding text
-        applicationNameLabel = new Label(arPropertyManager.getProperty(ARPropertyEnum.VERSION));
-        compileDateLabel = new Label(arPropertyManager.getProperty(ARPropertyEnum.BUILD));
-        expirationDateLabel = new Label("Expiration :" + arPropertyManager.getProperty(ARPropertyEnum.EXPIRATION));
-        copyrightLabel = new Label("Copyright Allinweb AG");
-        rightsReservedLabel = new Label("All rights reserved");
+        Label applicationNameLabel = new Label(arPropertyManager.getProperty(ARPropertyEnum.VERSION));
+        Label compileDateLabel = new Label("Build: " + arPropertyManager.getProperty(ARPropertyEnum.BUILD));
+
+        String expirationStr = arPropertyManager.getProperty(ARPropertyEnum.EXPIRATION);
+        Label expirationDateLabel = new Label("Expiration: " + expirationStr);
+
+        Label copyrightLabel = new Label("© Allinweb AG");
+        Label rightsReservedLabel = new Label("All rights reserved");
+
+        // Styles
+        String baseLabelStyle = "-fx-font-size: 13px; -fx-text-fill: #2d3436;";
+        String versionStyle = "-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #0984e3;";
+        String footerStyle = "-fx-text-fill: #636e72;";
+
+        // Apply version and other static styles
+        applicationNameLabel.setStyle(versionStyle);
+        compileDateLabel.setStyle(baseLabelStyle);
+        copyrightLabel.setStyle(baseLabelStyle + footerStyle);
+        rightsReservedLabel.setStyle(baseLabelStyle + footerStyle);
+
+        // Handle expiration color dynamically
+        try {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+            LocalDate expirationDate = LocalDate.parse(expirationStr, formatter);
+            LocalDate today = LocalDate.now();
+            long daysLeft = ChronoUnit.DAYS.between(today, expirationDate);
+
+            String expirationColor = daysLeft > 30 ? "#218c52" : "#c0392b"; // Dark green or dark red
+            expirationDateLabel.setStyle(
+                    baseLabelStyle + "-fx-font-weight: bold; -fx-text-fill: " + expirationColor + ";");
+
+        } catch (Exception e) {
+            // Fallback in case of invalid format
+            expirationDateLabel.setStyle(baseLabelStyle + "-fx-text-fill: #d63031;");
+            expirationDateLabel.setText("Expiration: Invalid date");
+        }
+
+        // VBox container
+        VBox versionInfoBox = new VBox(
+                5, applicationNameLabel, compileDateLabel, expirationDateLabel, copyrightLabel, rightsReservedLabel);
+        versionInfoBox.setPadding(new Insets(12));
+        versionInfoBox.setAlignment(Pos.CENTER_LEFT);
+        versionInfoBox.setStyle("-fx-background-color: #f1f2f6; " + "-fx-border-color: #dcdde1; "
+                + "-fx-border-width: 1; "
+                + "-fx-border-radius: 6; "
+                + "-fx-background-radius: 6;");
 
         // Initialize the License button
         btnLicense = new Button("License");

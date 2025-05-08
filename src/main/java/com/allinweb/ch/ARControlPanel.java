@@ -66,7 +66,7 @@ public class ARControlPanel extends Application {
                 arPropertyManager.loadProperties(conf);
                 licenseControl();
             } catch (Exception error) {
-                arPropertyManager.createDefaultProperties(configurationFile, error);
+                arPropertyManager.createDefaultProperties(configurationFile);
                 Platform.runLater(() -> {
                     arConfigurationScene.showModal();
                     licenseControl();
@@ -86,7 +86,7 @@ public class ARControlPanel extends Application {
                 arPropertyManager.loadProperties(conf);
                 licenseControl();
             } catch (Exception error) {
-                arPropertyManager.createDefaultProperties(configurationFile, error);
+                arPropertyManager.createDefaultProperties(configurationFile);
                 Platform.runLater(() -> {
                     arConfigurationScene.showModal();
                     licenseControl();
@@ -96,9 +96,8 @@ public class ARControlPanel extends Application {
             ARLogger.getInstance(ARControlPanel.class).fine("Configuration file path: " + defaultConfigurationFileName);
         }
 
-        arPropertyManager.setProperty(ARPropertyEnum.VERSION.getValue(), "ARS Web v4.0f Beta Test");
-        arPropertyManager.setProperty(ARPropertyEnum.BUILD.getValue(), "Build: 16-04-2025");
-        arPropertyManager.setProperty(ARPropertyEnum.EXPIRATION.getValue(), getTodayDate());
+        arPropertyManager.setProperty(ARPropertyEnum.VERSION.getValue(), "AR Web v4.0f Beta Test");
+        arPropertyManager.setProperty(ARPropertyEnum.BUILD.getValue(), "Build: " + getTodaysDate(0));
 
         try (ServerSocket serverSocket = new ServerSocket(0)) { // Port 0 = auto-assign
             int availablePort = serverSocket.getLocalPort();
@@ -112,11 +111,13 @@ public class ARControlPanel extends Application {
     }
 
     private static void licenseControl() {
+        arPropertyManager.setProperty(ARPropertyEnum.EXPIRATION.getValue(), getTodaysDate(-1));
         if (isEnabledLicence) {
 
             String licensePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_LICENSE);
             if (Strings.isNullOrEmpty(licensePath)) {
                 licensePath = System.getProperty("user.dir");
+                arPropertyManager.setProperty(ARPropertyEnum.PATH_LICENSE.getValue(), licensePath);
             }
 
             AtomicReference<LicenceVal> license = new AtomicReference<>();
@@ -137,9 +138,9 @@ public class ARControlPanel extends Application {
                 if (license.get().isMissing()) {
                     // If the license is not active, launch the license activation app
                     //                    Application.launch(LicenseActivationApp.class, args);
-                    String finalLicensePath = licensePath;
                     Platform.runLater(() -> {
                         arLicenseScene.showModal();
+                        String finalLicensePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_LICENSE);
 
                         try {
                             license.set(LicenseManager.checkLicenseFile(finalLicensePath));
@@ -218,9 +219,9 @@ public class ARControlPanel extends Application {
                 0);
     }
 
-    public static String getTodayDate() {
+    public static String getTodaysDate(int day) {
         LocalDate today = LocalDate.now();
-        LocalDate yesterday = today.minusDays(1);
+        LocalDate yesterday = today.minusDays(day);
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
         return yesterday.format(formatter);
     }

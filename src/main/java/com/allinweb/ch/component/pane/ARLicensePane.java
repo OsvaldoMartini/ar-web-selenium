@@ -80,6 +80,7 @@ public class ARLicensePane extends ARPane {
 
     private RadioButton rbRequestLicense;
     private RadioButton rbActivateLicense;
+    private RadioButton rbUseExistentLicense;
     private TextField tfLicenseOwner;
 
     private Button uploadButton;
@@ -168,9 +169,10 @@ public class ARLicensePane extends ARPane {
         rbActivateLicense = new RadioButton("Activate with License");
         rbActivateLicense.setToggleGroup(toggleGroup);
 
+        rbUseExistentLicense = new RadioButton("Use Existing License");
+        rbUseExistentLicense.setToggleGroup(toggleGroup);
+
         filePathField = new TextField();
-        //        filePathField.setPrefWidth(300);
-        // Set Hgrow for the filePathField so it expands
         HBox.setHgrow(filePathField, Priority.ALWAYS);
 
         uploadButton = new Button("Request target Directory");
@@ -178,11 +180,76 @@ public class ARLicensePane extends ARPane {
         uploadButton.setStyle(
                 "-fx-background-color: linear-gradient(#29abe2, #007bff); -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5;");
 
+        VBox radioButtonsVBox = new VBox(10, rbRequestLicense, rbActivateLicense, rbUseExistentLicense);
+        radioButtonsVBox.setPadding(new Insets(10));
+        radioButtonsVBox.setAlignment(Pos.TOP_LEFT);
+
+        HBox filePathBox = new HBox(10, filePathField);
+        //        filePathBox.setPadding(new Insets(10));
+        //        filePathBox.setAlignment(Pos.TOP_LEFT);
+
+        HBox uploadButtonBox = new HBox(10, uploadButton);
+        //        uploadButtonBox.setPadding(new Insets(10));
+        //        uploadButtonBox.setAlignment(Pos.TOP_LEFT);
+
+        VBox vertButton = new VBox(10, uploadButtonBox, filePathBox);
+        vertButton.setPadding(new Insets(10));
+        vertButton.setAlignment(Pos.TOP_LEFT);
+
+        HBox.setHgrow(filePathBox, Priority.ALWAYS); // Make the text field grow
+        HBox.setHgrow(vertButton, Priority.ALWAYS);
+
+        // HBox to hold both VBoxes side by side
+        HBox radioAndUploadBox = new HBox(30, radioButtonsVBox, vertButton);
+        radioAndUploadBox.setPadding(new Insets(10));
+        radioAndUploadBox.setAlignment(Pos.TOP_LEFT);
+
+        //        HBox radioButtonsBox = new HBox(10, rbRequestLicense, rbActivateLicense, rbUseExistentLicense,
+        // uploadButton, filePathField);
+        //        radioButtonsBox.setPadding(new Insets(10));
+
+        taLicenseAgreement.setWrapText(true);
+        taLicenseAgreement.setEditable(false);
+
+        tfLicenseOwner = new TextField();
+        tfLicenseOwner.setPromptText("Licensed to (Owner of the license, min 6 chars)");
+
+        // Checkbox to agree
+        cbAgree = new CheckBox("Agree");
+        cbAgree.setPadding(new Insets(10));
+
+        // Button to proceed
+        btnProceed = builder.buildButton("Proceed");
+        btnProceed.setDisable(true);
+
+        btnClose = builder.buildButton("Close");
+
+        HBox actionButtonsBox = new HBox(10, btnProceed, btnClose);
+        actionButtonsBox.setPadding(new Insets(10));
+        VBox mainLayout = new VBox(
+                10, headerContainer, radioAndUploadBox, taLicenseAgreement, tfLicenseOwner, cbAgree, actionButtonsBox);
+
+        mainLayout.setPadding(new Insets(10));
+        mainLayout.setFillWidth(true); // Ensure components stretch horizontally
+
+        VBox.setVgrow(taLicenseAgreement, Priority.ALWAYS);
+
+        AnchorPane.setTopAnchor(mainLayout, ARConstants.SPACE_M);
+        AnchorPane.setBottomAnchor(mainLayout, ARConstants.SPACE_M);
+        AnchorPane.setLeftAnchor(mainLayout, ARConstants.SPACE_M);
+        AnchorPane.setRightAnchor(mainLayout, ARConstants.SPACE_M);
+
+        mainPane = new AnchorPane(mainLayout);
+    }
+
+    @Override
+    public void initUIBehaviour() {
         // Add event handlers to log the state change to the console
         rbRequestLicense.setOnAction(event -> {
             if (rbRequestLicense.isSelected()) {
                 uploadButton.setText("Request target Directory");
                 filePathField.setText("");
+                tfLicenseOwner.setDisable(false);
                 defineDesktopFolder();
             }
         });
@@ -191,6 +258,16 @@ public class ARLicensePane extends ARPane {
             if (rbActivateLicense.isSelected()) {
                 uploadButton.setText("Upload Response License File");
                 filePathField.setText("");
+                tfLicenseOwner.setDisable(false);
+                defineDesktopFolder();
+            }
+        });
+
+        rbUseExistentLicense.setOnAction(event -> {
+            if (rbUseExistentLicense.isSelected()) {
+                uploadButton.setText("Locate Existing License");
+                filePathField.setText("");
+                tfLicenseOwner.setDisable(true);
                 defineDesktopFolder();
             }
         });
@@ -219,64 +296,24 @@ public class ARLicensePane extends ARPane {
                 }
 
                 if (file != null) {
-                    if (file.getName().endsWith(".response")) {
-                        filePathField.setText(file.getAbsolutePath());
+                    if (rbActivateLicense.isSelected()) {
+                        if (file.getName().endsWith(".response")) {
+                            filePathField.setText(file.getAbsolutePath());
+                        } else {
+                            performMessage.errorMessage(
+                                    "Invalid file selected!",
+                                    "Must have a '.response' extension.",
+                                    "File selected:",
+                                    file.getName(),
+                                    null,
+                                    0);
+                        }
                     } else {
-                        performMessage.errorMessage(
-                                "Invalid file selected!",
-                                "Must have a '.response' extension.",
-                                "File selected:",
-                                file.getName(),
-                                null,
-                                0);
+                        filePathField.setText(file.getAbsolutePath());
                     }
                 }
             }
         });
-
-        HBox radioButtonsBox = new HBox(10, rbRequestLicense, rbActivateLicense, uploadButton, filePathField);
-        radioButtonsBox.setPadding(new Insets(10));
-
-        taLicenseAgreement.setWrapText(true);
-        taLicenseAgreement.setEditable(false);
-
-        tfLicenseOwner = new TextField();
-        tfLicenseOwner.setPromptText("Licensed to (Owner of the license, min 6 chars)");
-
-        // Checkbox to agree
-        cbAgree = new CheckBox("Agree");
-        cbAgree.setPadding(new Insets(10));
-
-        // Button to proceed
-        btnProceed = builder.buildButton("Proceed");
-        btnProceed.setDisable(true);
-
-        btnClose = builder.buildButton("Close");
-
-        // Enable the proceed button only if the checkbox is checked
-        cbAgree.setOnAction(event -> btnProceed.setDisable(!cbAgree.isSelected()));
-
-        HBox actionButtonsBox = new HBox(10, btnProceed, btnClose);
-        actionButtonsBox.setPadding(new Insets(10));
-
-        VBox mainLayout = new VBox(
-                10, headerContainer, radioButtonsBox, taLicenseAgreement, tfLicenseOwner, cbAgree, actionButtonsBox);
-        mainLayout.setPadding(new Insets(10));
-        mainLayout.setFillWidth(true); // Ensure components stretch horizontally
-
-        VBox.setVgrow(taLicenseAgreement, Priority.ALWAYS);
-
-        AnchorPane.setTopAnchor(mainLayout, ARConstants.SPACE_M);
-        AnchorPane.setBottomAnchor(mainLayout, ARConstants.SPACE_M);
-        AnchorPane.setLeftAnchor(mainLayout, ARConstants.SPACE_M);
-        AnchorPane.setRightAnchor(mainLayout, ARConstants.SPACE_M);
-
-        mainPane = new AnchorPane(mainLayout);
-    }
-
-    @Override
-    public void initUIBehaviour() {
-        // Additional behavior for the button can be added here if needed
         // Enable the proceed button only if the checkbox is checked
         cbAgree.setOnAction(event -> btnProceed.setDisable(!cbAgree.isSelected()));
 
@@ -301,12 +338,12 @@ public class ARLicensePane extends ARPane {
 
             } else
                 try {
-                    if (tfLicenseOwner.getText().isEmpty()) {
+                    if (tfLicenseOwner.getText().isEmpty() && (!rbUseExistentLicense.isSelected())) {
                         performMessage.errorMessage(
                                 "Mandatory field is missing!",
                                 "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please provide the \"User License\" field information!</span>",
-                                "<span style='color: #E65100; font-weight: bold;'>You must accept the User License Agreement to continue with the installation.</span>",
-                                "<span style='font-style: italic;'>By proceeding, you confirm that you understand and agree to the terms of the User License.</span>",
+                                null,
+                                null,
                                 null,
                                 0);
                     } else {
@@ -367,6 +404,35 @@ public class ARLicensePane extends ARPane {
                                         "<span style='color: #E65100; font-weight: bold;'>Expected license path:</span> <span style='font-weight: bold;'>"
                                                 + fileFolder + "</span>",
                                         0);
+                            }
+                        } else if (rbUseExistentLicense.isSelected()) {
+                            if (Strings.isNullOrEmpty(filePathField.getText().trim())) {
+                                performMessage.errorMessage(
+                                        "Mandatory field is missing!",
+                                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please provide the \"License Location path\" field information!</span>",
+                                        null,
+                                        null,
+                                        null,
+                                        0);
+                            } else {
+                                String licensePath = filePathField.getText().trim();
+                                licensePath = licensePath.substring(0, licensePath.lastIndexOf("\\"));
+
+                                if (checkLicense(licensePath)) {
+                                    performMessage.showCustomModalDialogDragWin11(
+                                            "The License has been located!",
+                                            "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>Your license has been successfully located.</span>",
+                                            "<span style='color: #0277BD; font-weight: bold;'>You may now use the application without restrictions.</span>",
+                                            "<span style='font-style: italic;'>You can close this message and continue.</span>",
+                                            "<span style='color: #E65100; font-weight: bold;'>License path:</span> <span style='font-weight: bold;'>"
+                                                    + filePathField.getText().trim() + "</span>",
+                                            false,
+                                            "OK",
+                                            null,
+                                            0);
+
+                                    arPropertyManager.setProperty(ARPropertyEnum.PATH_LICENSE.getValue(), licensePath);
+                                }
                             }
                         }
                     }

@@ -40,7 +40,7 @@ public class ARLicenseScene extends ARScene {
         arLicensePane = ARLicensePane.getInstance();
     }
 
-    private static final Double SCENE_HEIGHT = 400D;
+    private static final Double SCENE_HEIGHT = 550D;
     private static final Double SCENE_WIDTH = 800D;
     private static final String TITLE = "Activation Software Required";
 

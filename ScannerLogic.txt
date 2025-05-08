@@ -297,6 +297,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 				String parentField = null;
 				String parentFieldLoop = null;
 				String variableField = null;
+				String localFormat = null;
 				String fieldName = null;
 				int parentId = currentInstruction.getParentId();
 
@@ -552,6 +553,8 @@ if (extractedData.getNumberOfDataRows() > 0) {
 					parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
 					variableField =
 							performActions.getInstructionVariableField(currentInstruction, variablesLoaded);
+					localFormat =
+							performActions.getInstructionVariableFormat(currentInstruction, variablesLoaded);
 					if (variableField == null) {
 						variableField = "Not Variable defined";
 					}
@@ -910,6 +913,12 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								success = false;
 							} else {
 								success = true;
+								if (!Strings.isNullOrEmpty(localFormat)) {
+									String valueTo = mapOperators.get(variableField);
+									valueTo = performActions.removeAllCurrencySymbols(valueTo);
+									valueTo = performActions.formatLocalNumber(valueTo, localFormat);
+									mapOperators.put(variableField, valueTo);
+								}
 							}
 						}
 
@@ -1050,7 +1059,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 										mapOperators.get(variableField).trim());
 								if (excelFieldName != null
 										&& excelFieldName.toLowerCase().endsWith(".csv")) {
-									writerExport.writeMapToCSV(mapExport, excelFieldName);
+									writerExport.writeMapToCSV(mapExport, excelFieldName, "|");
 								} else {
 									writerExport.insertFieldNameAndValueLastColumn(mapExport, exportIndex - 1);
 								}
