@@ -162,11 +162,11 @@ public class ARLicensePane extends ARPane {
         // ToggleGroup for exclusive RadioButton selection
         ToggleGroup toggleGroup = new ToggleGroup();
 
-        rbRequestLicense = new RadioButton("Request License");
+        rbRequestLicense = new RadioButton("Request New License");
         rbRequestLicense.setToggleGroup(toggleGroup);
         rbRequestLicense.setSelected(true);
 
-        rbActivateLicense = new RadioButton("Activate with License");
+        rbActivateLicense = new RadioButton("Activate Response File");
         rbActivateLicense.setToggleGroup(toggleGroup);
 
         rbUseExistentLicense = new RadioButton("Use Existing License");
@@ -176,7 +176,7 @@ public class ARLicensePane extends ARPane {
         HBox.setHgrow(filePathField, Priority.ALWAYS);
 
         uploadButton = new Button("Request target Directory");
-        uploadButton.setPrefWidth(200);
+        uploadButton.setPrefWidth(300);
         uploadButton.setStyle(
                 "-fx-background-color: linear-gradient(#29abe2, #007bff); -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5;");
 
@@ -247,7 +247,7 @@ public class ARLicensePane extends ARPane {
         // Add event handlers to log the state change to the console
         rbRequestLicense.setOnAction(event -> {
             if (rbRequestLicense.isSelected()) {
-                uploadButton.setText("Request target Directory");
+                uploadButton.setText("Change Destination Folder (Desktop)");
                 filePathField.setText("");
                 tfLicenseOwner.setDisable(false);
                 defineDesktopFolder();
@@ -256,7 +256,7 @@ public class ARLicensePane extends ARPane {
 
         rbActivateLicense.setOnAction(event -> {
             if (rbActivateLicense.isSelected()) {
-                uploadButton.setText("Upload Response License File");
+                uploadButton.setText("Locate Response File (Desktop)");
                 filePathField.setText("");
                 tfLicenseOwner.setDisable(false);
                 defineDesktopFolder();

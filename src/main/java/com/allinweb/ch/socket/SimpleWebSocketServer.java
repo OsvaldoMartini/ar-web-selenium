@@ -276,7 +276,22 @@ public class SimpleWebSocketServer {
                     String jsonData = gson.toJson(elementSplitDTO);
                     sendMessageJson(homeBankingId, sessionIdToSend, jsonData, null);
                     //                    broadcastMessageToAll(jsonData);
-                    performMessage.outputJsonElementDTO(elementSplitDTO.getDetails());
+                    List<String> excludeList = List.of("optional", "blockMarked", "editMode");
+                    performMessage.outputJsonElementDTO(elementSplitDTO.getDetails(), excludeList, "elementDTO");
+                    excludeList = List.of(
+                            "optional",
+                            "blockMarked",
+                            "editMode",
+                            "id",
+                            "attributeData",
+                            "typeElement",
+                            "customXPath",
+                            "shadowRoot",
+                            "nestedShadow",
+                            "searchAttributeValue",
+                            "attributeType",
+                            "attributeValue");
+                    performMessage.outputJsonElementDTO(elementSplitDTO.getDetails(), excludeList, "AI-ElementDTO");
                 }
 
                 alreadySentMgsSocket = true;
