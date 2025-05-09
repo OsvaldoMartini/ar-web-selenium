@@ -61,7 +61,7 @@ public class ARElementValueScene extends ARScene {
     }
 
     private static final Double SCENE_HEIGHT = 600D;
-    private static final Double SCENE_WIDTH = 500D;
+    private static final Double SCENE_WIDTH = 600D;
     private static final String TITLE = "New Variables";
     private RowMoveDTO rowMoveDTO;
     private int varId;

@@ -179,7 +179,24 @@ public class ARElementValuePane extends ARPane {
         comboBoxLocalFormat
                 .getItems()
                 .addAll(new FormatOption("American (9,999.99)", "US"), new FormatOption("European (9.999,99)", "EU"));
-        comboBoxLocalFormat.setDisable(true);
+
+        comboBoxLocalFormat.setCellFactory(param -> new ListCell<>() {
+            @Override
+            protected void updateItem(FormatOption item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                } else {
+                    setText(item.getText());
+                    setTextFill(Color.BLACK);
+                }
+
+                setOnMouseEntered(e -> setStyle("-fx-background-color: lightgray;"));
+                setOnMouseExited(e -> setStyle("-fx-background-color: none;"));
+            }
+        });
+
         comboBoxLocalFormat.setButtonCell(new ListCell<>() {
             @Override
             protected void updateItem(FormatOption item, boolean empty) {
@@ -189,10 +206,13 @@ public class ARElementValuePane extends ARPane {
                     setGraphic(null);
                 } else {
                     setText(item.getText());
-                    setTextFill(Color.BLACK); // Ensure text is black
+                    setTextFill(Color.BLACK);
                 }
             }
         });
+        comboBoxLocalFormat.setDisable(true);
+        comboBoxLocalFormat.setPrefWidth(200);
+        comboBoxLocalFormat.getSelectionModel().selectFirst();
 
         // Create ComboBox for number format
         comboBoxCSVColumns = new ComboBox<>();
@@ -414,26 +434,42 @@ public class ARElementValuePane extends ARPane {
         tableView = new TableView<>();
         TableColumn<VariableUserDTO, String> idColumn = new TableColumn<>("ID");
         idColumn.setCellValueFactory(new PropertyValueFactory<>("id"));
+        applyColumnStyle(idColumn);
 
         TableColumn<VariableUserDTO, String> typeColumn = new TableColumn<>("Type");
         typeColumn.setCellValueFactory(new PropertyValueFactory<>("type"));
+        //        applyColumnStyle(typeColumn);
 
         TableColumn<VariableUserDTO, String> nameColumn = new TableColumn<>("Name");
         nameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
+        //        applyColumnStyle(nameColumn);
 
         TableColumn<VariableUserDTO, String> valueColumn = new TableColumn<>("Value");
         valueColumn.setCellValueFactory(new PropertyValueFactory<>("value"));
+        //        applyColumnStyle(valueColumn);
 
         TableColumn<VariableUserDTO, String> localFormatColumn = new TableColumn<>("Local Format");
         localFormatColumn.setCellValueFactory(new PropertyValueFactory<>("localFormat"));
+        //        applyColumnStyle(localFormatColumn);
 
         TableColumn<VariableUserDTO, String> delimiterColumn = new TableColumn<>("CSV Delimiter");
         delimiterColumn.setCellValueFactory(new PropertyValueFactory<>("delimiter"));
+        //        applyColumnStyle(delimiterColumn);
 
-        tableView.getColumns().addAll(idColumn, typeColumn, nameColumn, valueColumn, localFormatColumn);
+        List<TableColumn<VariableUserDTO, String>> columns =
+                List.of(idColumn, typeColumn, nameColumn, valueColumn, localFormatColumn, delimiterColumn);
+        tableView.getColumns().addAll(columns);
         tableView.setItems(variablesList);
 
+        //        @SuppressWarnings("unchecked")
+
         // Add listener to TableView selection
+        //            tableView
+        //                    .getColumns()
+        //                    .addAll(idColumn, typeColumn, nameColumn, valueColumn, localFormatColumn,
+        // delimiterColumn);
+        //            tableView.setItems(variablesList);
+
         tableView.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
             if (newSelection != null) {
                 // Get the selected UserDTO object
@@ -479,7 +515,6 @@ public class ARElementValuePane extends ARPane {
         usedVarsField.clear();
         stringCheckBox.setSelected(false);
         numericCheckBox.setSelected(false);
-        comboBoxLocalFormat.setValue(null);
         numberFormatLabel.setDisable(true);
         comboBoxLocalFormat.setDisable(true);
         deleteButton.setDisable(true);
@@ -637,4 +672,23 @@ public class ARElementValuePane extends ARPane {
         this.instructionId = userDTO.getParentId();
         this.instructionName = "(" + userDTO.getParentId() + ")" + userDTO.getName();
     }
+
+    //    private void applyColumnStyle(TableColumn<VariableUserDTO, String> column) {
+    //        column.setCellFactory(tc -> {
+    //            TableCell<VariableUserDTO, String> cell = new TableCell<VariableUserDTO, String>() {
+    //                @Override
+    //                protected void updateItem(String item, boolean empty) {
+    //                    super.updateItem(item, empty);
+    //                    if (empty || item == null) {
+    //                        setText(null);
+    //                        setStyle(""); // Clear previous styles
+    //                    } else {
+    //                        setText(item);
+    //                        setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+    //                    }
+    //                }
+    //            };
+    //            return cell;
+    //        });
+    //    }
 }
