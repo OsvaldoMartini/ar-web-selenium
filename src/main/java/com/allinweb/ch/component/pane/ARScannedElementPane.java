@@ -3332,6 +3332,7 @@ public class ARScannedElementPane extends ARPane {
                         String parentFieldLoop = null;
                         String variableField = null;
                         String localFormat = null;
+                        String delimiterCSV = null;
                         String fieldName = null;
                         int parentId = currentInstruction.getParentId();
 
@@ -3609,6 +3610,8 @@ public class ARScannedElementPane extends ARPane {
                             parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
                             variableField =
                                     performActions.getInstructionVariableField(currentInstruction, variablesLoaded);
+                            delimiterCSV =
+                                    performActions.getInstructionVariableDelimiter(currentInstruction, variablesLoaded);
                             if (variableField == null) {
                                 variableField = "Not Variable defined";
                             }
@@ -4093,7 +4096,10 @@ public class ARScannedElementPane extends ARPane {
                                                 mapOperators.get(variableField).trim());
                                         if (excelFieldName != null
                                                 && excelFieldName.toLowerCase().endsWith(".csv")) {
-                                            writerExport.writeMapToCSV(mapExport, excelFieldName, "|");
+                                            if (Strings.isNullOrEmpty(delimiterCSV)) {
+                                                delimiterCSV = ",";
+                                            }
+                                            writerExport.writeMapToCSV(mapExport, excelFieldName, delimiterCSV);
                                         } else {
                                             writerExport.insertFieldNameAndValueLastColumn(mapExport, exportIndex - 1);
                                         }

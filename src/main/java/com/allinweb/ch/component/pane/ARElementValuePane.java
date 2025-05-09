@@ -63,7 +63,9 @@ public class ARElementValuePane extends ARPane {
     CheckBox stringCheckBox;
     CheckBox numericCheckBox;
     Label numberFormatLabel;
+    Label delimeterCSVLabel;
     ComboBox<FormatOption> comboBoxLocalFormat;
+    ComboBox<FormatOption> comboBoxCSVColumns;
     Button updateButton;
     Button deleteButton;
 
@@ -134,6 +136,7 @@ public class ARElementValuePane extends ARPane {
         Label valueLabel = new Label("Value");
         Label jobsLabel = new Label("Used Variables:");
         numberFormatLabel = new Label("Currency Format:");
+        delimeterCSVLabel = new Label("CSV Delimiter:");
 
         // Create text fields
         idField = new TextField();
@@ -191,7 +194,26 @@ public class ARElementValuePane extends ARPane {
             }
         });
 
-        comboBoxLocalFormat.setCellFactory(param -> new ListCell<>() {
+        // Create ComboBox for number format
+        comboBoxCSVColumns = new ComboBox<>();
+        comboBoxCSVColumns
+                .getItems()
+                .addAll(new FormatOption("Comma: \",\"", ","), new FormatOption("Pipe \"|\"", "|"));
+        comboBoxCSVColumns.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(FormatOption item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                } else {
+                    setText(item.getText());
+                    setTextFill(Color.BLACK); // Ensure text is black
+                }
+            }
+        });
+
+        comboBoxCSVColumns.setCellFactory(param -> new ListCell<>() {
             @Override
             protected void updateItem(FormatOption item, boolean empty) {
                 super.updateItem(item, empty);
@@ -208,7 +230,7 @@ public class ARElementValuePane extends ARPane {
                 setOnMouseExited(e -> setStyle("-fx-background-color: none;"));
             }
         });
-        comboBoxLocalFormat.getSelectionModel().selectFirst();
+        comboBoxCSVColumns.getSelectionModel().selectFirst();
 
         // Ensure only one checkbox can be selected at a time
         stringCheckBox.selectedProperty().addListener((obs, oldValue, newValue) -> {
@@ -246,6 +268,12 @@ public class ARElementValuePane extends ARPane {
                 }
             }
 
+            String delimiter = "";
+            FormatOption selected = comboBoxCSVColumns.getValue();
+            if (selected != null) {
+                delimiter = selected.getValue(); // "US" or "EU"
+            }
+
             VariableUserDTO user = new VariableUserDTO(
                     -1,
                     selectedType,
@@ -254,6 +282,7 @@ public class ARElementValuePane extends ARPane {
                     rowMoveDTO.getBotJobId(),
                     instructionId,
                     localFormat,
+                    delimiter,
                     "");
 
             if (nameExists(nameField.getText().trim())) {
@@ -293,6 +322,7 @@ public class ARElementValuePane extends ARPane {
             selectedUser.setType(selectedType);
             selectedUser.setName(nameField.getText().trim());
             selectedUser.setValue(valueVar.trim());
+
             String localFormat = "";
             if (numericCheckBox.isSelected()) {
                 FormatOption selected = comboBoxLocalFormat.getValue();
@@ -301,6 +331,14 @@ public class ARElementValuePane extends ARPane {
                 }
             }
             selectedUser.setLocalFormat(localFormat);
+
+            String delimiter = "";
+            FormatOption selected = comboBoxCSVColumns.getValue();
+            if (selected != null) {
+                delimiter = selected.getValue(); // "US" or "EU"
+            }
+            selectedUser.setDelimiter(delimiter);
+
             performDataBase.updateUserData(selectedUser.getId(), selectedUser);
 
             this.variablesList = performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId);
@@ -356,10 +394,13 @@ public class ARElementValuePane extends ARPane {
         gridPane.add(numberFormatLabel, 0, 5);
         gridPane.add(comboBoxLocalFormat, 1, 5);
 
-        gridPane.add(jobsLabel, 0, 7);
-        gridPane.add(usedVarsField, 1, 7);
+        gridPane.add(delimeterCSVLabel, 0, 6);
+        gridPane.add(comboBoxCSVColumns, 1, 6);
 
-        HBox buttonsBox = new HBox(10, submitButton, updateButton, deleteButton);
+        gridPane.add(jobsLabel, 0, 8);
+        gridPane.add(usedVarsField, 1, 8);
+
+        HBox buttonsBox = new HBox(11, submitButton, updateButton, deleteButton);
         buttonsBox.setAlignment(Pos.CENTER);
         buttonsBox.setSpacing(10); // Horizontal spacing between buttons
 
