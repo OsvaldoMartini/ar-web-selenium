@@ -9,6 +9,7 @@ import com.allinweb.ch.facade.PerformMessage;
 import com.google.common.base.Strings;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.Optional;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -18,6 +19,7 @@ import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
+import javafx.util.Callback;
 
 public class ARElementValuePane extends ARPane {
 
@@ -434,41 +436,46 @@ public class ARElementValuePane extends ARPane {
         tableView = new TableView<>();
         TableColumn<VariableUserDTO, String> idColumn = new TableColumn<>("ID");
         idColumn.setCellValueFactory(new PropertyValueFactory<>("id"));
-        applyColumnStyle(idColumn);
+        applyBoldColumnStyle(idColumn);
 
         TableColumn<VariableUserDTO, String> typeColumn = new TableColumn<>("Type");
         typeColumn.setCellValueFactory(new PropertyValueFactory<>("type"));
-        //        applyColumnStyle(typeColumn);
+        applyBoldColumnStyle(typeColumn);
 
         TableColumn<VariableUserDTO, String> nameColumn = new TableColumn<>("Name");
         nameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
-        //        applyColumnStyle(nameColumn);
+        applyBoldColumnStyle(nameColumn);
 
         TableColumn<VariableUserDTO, String> valueColumn = new TableColumn<>("Value");
         valueColumn.setCellValueFactory(new PropertyValueFactory<>("value"));
-        //        applyColumnStyle(valueColumn);
+        applyBoldColumnStyle(valueColumn);
 
         TableColumn<VariableUserDTO, String> localFormatColumn = new TableColumn<>("Local Format");
         localFormatColumn.setCellValueFactory(new PropertyValueFactory<>("localFormat"));
-        //        applyColumnStyle(localFormatColumn);
+        applyBoldColumnStyle(localFormatColumn);
 
         TableColumn<VariableUserDTO, String> delimiterColumn = new TableColumn<>("CSV Delimiter");
         delimiterColumn.setCellValueFactory(new PropertyValueFactory<>("delimiter"));
-        //        applyColumnStyle(delimiterColumn);
+        applyStyledColumn(delimiterColumn, item -> {
+            if (",".equals(item)) {
+                return "Comma \",\"";
+            } else if ("|".equals(item)) {
+                return "Pipe \"|\"";
+            } else {
+                return String.valueOf(item);
+            }
+        });
 
         List<TableColumn<VariableUserDTO, String>> columns =
                 List.of(idColumn, typeColumn, nameColumn, valueColumn, localFormatColumn, delimiterColumn);
         tableView.getColumns().addAll(columns);
         tableView.setItems(variablesList);
 
-        //        @SuppressWarnings("unchecked")
-
         // Add listener to TableView selection
-        //            tableView
-        //                    .getColumns()
-        //                    .addAll(idColumn, typeColumn, nameColumn, valueColumn, localFormatColumn,
-        // delimiterColumn);
-        //            tableView.setItems(variablesList);
+        //        tableView
+        //                .getColumns()
+        //                .addAll(idColumn, typeColumn, nameColumn, valueColumn, localFormatColumn, delimiterColumn);
+        //        tableView.setItems(variablesList);
 
         tableView.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
             if (newSelection != null) {
@@ -673,22 +680,39 @@ public class ARElementValuePane extends ARPane {
         this.instructionName = "(" + userDTO.getParentId() + ")" + userDTO.getName();
     }
 
-    //    private void applyColumnStyle(TableColumn<VariableUserDTO, String> column) {
-    //        column.setCellFactory(tc -> {
-    //            TableCell<VariableUserDTO, String> cell = new TableCell<VariableUserDTO, String>() {
-    //                @Override
-    //                protected void updateItem(String item, boolean empty) {
-    //                    super.updateItem(item, empty);
-    //                    if (empty || item == null) {
-    //                        setText(null);
-    //                        setStyle(""); // Clear previous styles
-    //                    } else {
-    //                        setText(item);
-    //                        setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
-    //                    }
-    //                }
-    //            };
-    //            return cell;
-    //        });
-    //    }
+    private <S, T> void applyBoldColumnStyle(TableColumn<S, T> column) {
+        column.setCellFactory(tc -> new TableCell<S, T>() {
+            @Override
+            protected void updateItem(T item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    if (item.equals(",")) {
+                        setText("Comma \",\"");
+                    } else if (item.equals("|")) {
+                        setText("Pipe \"|\"");
+                    } else {
+                        setText(String.valueOf(item)); // Convert any type to String for display
+                    }
+                    setStyle("-fx-font-weight: bold;");
+                }
+            }
+        });
+    }
+
+    private <S, T> void applyStyledColumn(TableColumn<S, T> column, Callback<T, String> renderFunction) {
+        column.setCellFactory(tc -> new TableCell<S, T>() {
+            @Override
+            protected void updateItem(T item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(renderFunction.call(item));
+                    setStyle("-fx-font-weight: bold;");
+                }
+            }
+        });
+    }
 }
