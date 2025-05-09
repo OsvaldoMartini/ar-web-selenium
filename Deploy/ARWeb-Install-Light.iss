@@ -92,31 +92,36 @@ begin
 end;
 
 
-procedure UpdateConfigFile(NewBasePath: String; AppNewPath: String);
+procedure UpdateConfigFile(originFilePath: String; toBeReplaced: String; AppNewPath: String; newWords: String; alsoColon: Boolean);
 var
-  ConfigFile: String;
   Lines: TArrayOfString;
   i: Integer;
 begin
-  ConfigFile := ExpandConstant('{app}\ARWeb\ARWeb.config');
+  // originFile := ExpandConstant('{app}\ARWeb\ARWeb.config');
   AppNewPath := MyStringReplace(AppNewPath, '\', '|');
-  AppNewPath := MyStringReplace(AppNewPath, '|', '\\');
-  AppNewPath := MyStringReplace(AppNewPath, ':', '|');
-  AppNewPath := MyStringReplace(AppNewPath, '|', '\:') + '\\';
-  if LoadStringsFromFile(ConfigFile, Lines) then
+  AppNewPath := MyStringReplace(AppNewPath, '|', newWords);
+  if alsoColon then
+  begin
+    AppNewPath := MyStringReplace(AppNewPath, ':', '|');
+    AppNewPath := MyStringReplace(AppNewPath, '|', '\:') + newWords;
+  end else
+  begin
+      AppNewPath := AppNewPath + newWords;
+  end;  
+  if LoadStringsFromFile(originFilePath, Lines) then
   begin
     for i := 0 to GetArrayLength(Lines) - 1 do
     begin
       Log('Before: ' + Lines[i]);
-      Lines[i] := MyStringReplace(Lines[i], 'C\:\\ARWeb\\', AppNewPath);
+      Lines[i] := MyStringReplace(Lines[i], toBeReplaced, AppNewPath);
       Log('After: ' + Lines[i]);
     end;
-    SaveStringsToFile(ConfigFile, Lines, False);
-    MsgBox('The File : "' + ConfigFile + '" has been updated', mbInformation, MB_OK); 
+    SaveStringsToFile(originFilePath, Lines, False);
+    MsgBox('The File : "' + originFilePath + '" has been updated', mbInformation, MB_OK); 
   end
   else
   begin
-    MsgBox('Failed to load ARWeb.config from ' + ConfigFile, mbError, MB_OK);
+    MsgBox('Failed to load ARWeb.config from ' + originFilePath, mbError, MB_OK);
   end;
 end;
 
@@ -136,6 +141,7 @@ begin
     if SameText(AppNewPath, ExpectedPath) then
       // MsgBox('Paths match!', mbInformation, MB_OK)
     else
-      UpdateConfigFile(ExpandConstant('{app}\ARWeb\ARWeb.config'), AppNewPath);
+      UpdateConfigFile(ExpandConstant('{app}\ARWeb\ARWeb.config'), 'C\:\\ARWeb\\', AppNewPath, '\\', true);
+      UpdateConfigFile(ExpandConstant('{app}\ARWeb-Scanner\exec_launcher.bat'), 'C:\ARWeb\', AppNewPath, '\', false);
   end;
 end;
