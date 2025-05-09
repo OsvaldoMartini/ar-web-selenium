@@ -427,6 +427,9 @@ public class ARElementValuePane extends ARPane {
         TableColumn<VariableUserDTO, String> localFormatColumn = new TableColumn<>("Local Format");
         localFormatColumn.setCellValueFactory(new PropertyValueFactory<>("localFormat"));
 
+        TableColumn<VariableUserDTO, String> delimiterColumn = new TableColumn<>("CSV Delimiter");
+        delimiterColumn.setCellValueFactory(new PropertyValueFactory<>("delimiter"));
+
         tableView.getColumns().addAll(idColumn, typeColumn, nameColumn, valueColumn, localFormatColumn);
         tableView.setItems(variablesList);
 
@@ -606,6 +609,14 @@ public class ARElementValuePane extends ARPane {
             comboBoxLocalFormat.getSelectionModel().selectLast();
         } else {
             comboBoxLocalFormat.getSelectionModel().selectFirst();
+        }
+
+        // Update the checkboxes based on the selected user's type
+        if (!Strings.isNullOrEmpty(userDTO.getDelimiter())
+                && userDTO.getDelimiter().equals("|")) {
+            comboBoxCSVColumns.getSelectionModel().selectLast();
+        } else {
+            comboBoxCSVColumns.getSelectionModel().selectFirst();
         }
 
         usedVarsField.setText(userDTO.getUsedVars()); // Update the hidden field
