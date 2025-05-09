@@ -117,11 +117,14 @@ begin
       Log('After: ' + Lines[i]);
     end;
     SaveStringsToFile(originFilePath, Lines, False);
-    MsgBox('The File : "' + originFilePath + '" has been updated', mbInformation, MB_OK); 
+    if alsoColon then
+    begin
+      MsgBox('The File :' + #13#10 + '"ARWeb.config"' + + #13#10 + 'has been updated!'  + #13#10 + 'New path:'  + #13#10 + AppNewPath, mbInformation, MB_OK); 
+    end;
   end
   else
   begin
-    MsgBox('Failed to load ARWeb.config from ' + originFilePath, mbError, MB_OK);
+    MsgBox('Failed to load:' + #13#10 + originFilePath, mbError, MB_OK);
   end;
 end;
 
