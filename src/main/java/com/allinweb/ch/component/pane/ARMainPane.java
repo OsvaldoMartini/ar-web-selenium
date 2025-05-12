@@ -38,6 +38,8 @@ import org.openqa.selenium.WebDriver;
 
 public class ARMainPane extends ARPane {
 
+    private static final String OPENAI_ENDPOINT = "https://api.openai.com/v1/chat/completions";
+    
     //    private static final ARSharedResources dbResource;
     private static final ARInfoScene arInfoScene;
     private static final ARPropertyManager arPropertyManager;
@@ -83,6 +85,10 @@ public class ARMainPane extends ARPane {
     Button editBotJobButton;
     Button launchBotJobButton;
     Button exitButton;
+    Button aiButton;
+
+    TextArea aiTextArea;
+
     HBox buttonPane;
     VBox panelPane;
 
@@ -154,7 +160,18 @@ public class ARMainPane extends ARPane {
         exitButton = builder.buildButton(
                 "Exit", ARConstants.SPACE_L, ARConstants.ICON_CROSS, ARConstants.SPACE_M, new Insets(8, 10, 8, 10));
 
+        // 🔹 AI Button and TextArea
+        aiButton = builder.buildButton(
+                "", ARConstants.SPACE_M, ARConstants.ICON_AI, ARConstants.SPACE_M, new Insets(8, 10, 8, 10));
+        aiTextArea = new TextArea();
+        aiTextArea.setPromptText("AI Tool");
+        aiTextArea.setWrapText(true);
+        aiTextArea.setVisible(false);
+        aiTextArea.setManaged(false); // ensures space is not reserved when hidden
+        aiTextArea.setPrefRowCount(4);
+
         buttonPane = new HBox(
+                aiButton,
                 newBotJobButton,
                 cloneBotJobButton,
                 configureButton,
@@ -162,26 +179,30 @@ public class ARMainPane extends ARPane {
                 launchBotJobButton,
                 editBotJobButton,
                 exitButton);
-        buttonPane.maxHeight(ARConstants.SPACE_L);
+
+        buttonPane.setAlignment(Pos.TOP_CENTER);
+        buttonPane.setSpacing(5); // optional
         AnchorPane.setTopAnchor(buttonPane, ARConstants.SPACE_ZERO);
         AnchorPane.setLeftAnchor(buttonPane, ARConstants.SPACE_ZERO);
         AnchorPane.setRightAnchor(buttonPane, ARConstants.SPACE_ZERO);
-        buttonPane.setAlignment(Pos.TOP_CENTER);
 
         initHeader();
 
-        //        ObservableList<BotJobLoadDTO> botJobList =
-        // PerformDataBase..getEntityList(BotJobDTO.class);
         botJobList.addAll(performDataBase.loadAllBotJobs());
+
         viewBotJobListView.setItems(botJobList);
         viewBotJobListView.setCellFactory(new ARCellFactory<>(
                 BotJobListCell.class, arViewBotJobScene, arWebDriver, botJobList, webDriverList)::call);
-        arNewBotJobScene.initialize(arViewBotJobScene, arWebDriver, botJobList, webDriverList);
-        //        viewBotJobListView.setMaxSize(800D, 580D);
 
+        arNewBotJobScene.initialize(arViewBotJobScene, arWebDriver, botJobList, webDriverList);
         arWebDriver.initialize(webDriverList);
 
-        panelPane = new VBox(buttonPane, header, viewBotJobListView);
+        // 🔹 Wrap buttonPane + aiTextArea
+        VBox topSection = new VBox(buttonPane, aiTextArea);
+        VBox.setMargin(aiTextArea, new Insets(5, 10, 5, 10));
+
+        // 🔹 Panel with everything
+        panelPane = new VBox(topSection, header, viewBotJobListView);
         VBox.setMargin(viewBotJobListView, new Insets(0, 10D, 10D, 10D));
         VBox.setVgrow(viewBotJobListView, Priority.ALWAYS);
         HBox.setHgrow(viewBotJobListView, Priority.ALWAYS);
@@ -194,6 +215,12 @@ public class ARMainPane extends ARPane {
 
     @Override
     public void initUIBehaviour() {
+        aiButton.setOnAction(e -> {
+            boolean visible = aiTextArea.isVisible();
+            aiTextArea.setVisible(!visible);
+            aiTextArea.setManaged(!visible);
+        });
+
         newBotJobButton.setOnMouseClicked(e -> {
             arNewBotJobScene.initialize(arViewBotJobScene, arWebDriver, botJobList, webDriverList);
             arNewBotJobScene.showModal();
