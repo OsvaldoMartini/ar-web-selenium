@@ -249,12 +249,15 @@ public class ARNewCommandScene extends ARScene {
                 ARLogger.getInstance(ARNewCommandScene.class).severe("Failed to build pane for modal.");
                 return;
             }
-        } else {
-            arNewCommandPane.initialize(rowMoveDTO);
-            modalStage.setTitle(getTitle()); // Update title if it might have changed
         }
-        modalStage.show(); // Block until this window is closed
-        //        modalStage.showAndWait(); // Block until this window is closed
+
+        arNewCommandPane.initialize(rowMoveDTO);
+        modalStage.setTitle(getTitle()); // Update title if it might have changed
+
+        // Check if the stage is already showing
+        if (!modalStage.isShowing()) {
+            modalStage.showAndWait(); // Show and wait only if not already showing
+        }
     }
 
     public void closeModal() {

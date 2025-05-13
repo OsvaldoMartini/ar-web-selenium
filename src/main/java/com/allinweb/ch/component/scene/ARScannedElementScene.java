@@ -13,6 +13,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import javafx.application.Platform;
+import javafx.scene.Scene;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import lombok.Getter;
@@ -54,6 +56,9 @@ public class ARScannedElementScene extends ARScene {
 
     private ExecutorService executorWebSocket;
     private ExecutorService executorServicePreLaunch;
+
+    private Stage modalStage;
+    private Scene modalScene;
 
     private static final ARScannedElementPane arScannedElementPane;
     private static final ARWebDriver arWebDriver;
@@ -163,6 +168,46 @@ public class ARScannedElementScene extends ARScene {
             executorService.shutdownNow();
             Thread.currentThread().interrupt();
             ARLogger.getInstance(ARWebDriver.class).severe("ExecutorService did not terminate\n" + e.getMessage());
+        }
+    }
+
+    public void showModal() {
+        if (modalStage == null) {
+            modalStage = new Stage();
+            IARPane pane = buildPane();
+            if (pane != null) {
+                modalScene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
+                modalStage.setScene(modalScene);
+                modalStage.setTitle(getTitle());
+                modalStage.initModality(Modality.WINDOW_MODAL); // Changed to NONE
+                modalStage.setAlwaysOnTop(true); // Set always on top
+                modalStage.toFront();
+                // Reset alwaysOnTop after showing so it behaves normally afterward
+                modalStage.setAlwaysOnTop(false);
+
+                // Once shown, reset AlwaysOnTop to false so it behaves normally
+                modalStage.setOnShown(event -> {
+                    Platform.runLater(() -> modalStage.setAlwaysOnTop(false));
+                });
+            } else {
+                // Handle the case where pane creation failed
+                ARLogger.getInstance(ARViewBotJobScene.class).severe("Failed to build pane for modal.");
+                return;
+            }
+        }
+
+        arScannedElementPane.initialize(
+                arWebDriver,
+                homeBankingLoadDTO,
+                botJobLoadDTO,
+                blockLoadDTO,
+                executorWebSocket,
+                executorServicePreLaunch);
+        modalStage.setTitle(getTitle());
+
+        // Check if the stage is already showing
+        if (!modalStage.isShowing()) {
+            modalStage.showAndWait(); // Show and wait only if not already showing
         }
     }
 

@@ -120,13 +120,15 @@ public class ARElementValueScene extends ARScene {
                 ARLogger.getInstance(ARElementValueScene.class).severe("Failed to build pane for modal.");
                 return;
             }
-        } else {
-            arElementValuePane.initialize(
-                    rowMoveDTO, varId, varValue, instructionId, instructionName, varName, instructionType);
-            modalStage.setTitle(getTitle()); // Update title if it might have changed
         }
-        //        modalStage.show(); // Block until this window is closed
-        modalStage.showAndWait(); // Block until this window is closed
+        arElementValuePane.initialize(
+                rowMoveDTO, varId, varValue, instructionId, instructionName, varName, instructionType);
+        modalStage.setTitle(getTitle()); // Update title if it might have changed
+
+        // Check if the stage is already showing
+        if (!modalStage.isShowing()) {
+            modalStage.showAndWait(); // Show and wait only if not already showing
+        }
     }
 
     public void setTableRowById(Integer varId) {

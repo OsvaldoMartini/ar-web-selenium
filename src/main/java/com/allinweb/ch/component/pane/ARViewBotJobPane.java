@@ -973,10 +973,9 @@ public class ARViewBotJobPane extends ARPane {
 
                     activeSessions = simpleWebSocketServer.getAllSessions();
                     // Call the ARScannedElementScene here
-                    ARScannedElementScene scene =
-                            arScannedElementScene.initialize(homeBankingLoadDTO, this.botJobLoad, this.blockLoad);
+                    arScannedElementScene.initialize(homeBankingLoadDTO, this.botJobLoad, this.blockLoad);
 
-                    scene.show(); // Make sure the scene is shown
+                    arScannedElementScene.showModal(); // Make sure the scene is shown
                 } catch (Exception ex) {
                     handleExceptionScan(ex);
                 }

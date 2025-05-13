@@ -16,7 +16,7 @@ public abstract class ARScene implements IARScene {
 
     private Image icon;
     protected Stage stage; // Make stage protected to allow access in subclass
-    private Scene scene;
+    private Scene scene; // Keep a reference to the scene
     protected final List<Thread> threadList = new ArrayList<>();
     // Flag to track if the close request handler has been set
     protected boolean isCloseHandlerSet = false;
@@ -65,9 +65,11 @@ public abstract class ARScene implements IARScene {
     }
 
     public void createScene() {
-        IARPane mainPane = buildPane();
-        if (mainPane != null) {
-            scene = new Scene(mainPane.createPane(), getSceneWidth(), getSceneHeight());
+        if (scene == null) { // Only create a new scene if one doesn't exist
+            IARPane mainPane = buildPane();
+            if (mainPane != null) {
+                scene = new Scene(mainPane.createPane(), getSceneWidth(), getSceneHeight());
+            }
         }
     }
 
@@ -78,7 +80,7 @@ public abstract class ARScene implements IARScene {
             if (stage != null) {
                 stage.setTitle(getTitle());
                 stage.getIcons().add(icon);
-                stage.setScene(scene);
+                stage.setScene(scene); // Use the existing or newly created scene
                 stage.setAlwaysOnTop(true);
                 stage.show(); // Show the stage
                 stage.toFront();

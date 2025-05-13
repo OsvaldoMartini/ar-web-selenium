@@ -39,7 +39,7 @@ import org.openqa.selenium.WebDriver;
 public class ARMainPane extends ARPane {
 
     private static final String OPENAI_ENDPOINT = "https://api.openai.com/v1/chat/completions";
-    
+
     //    private static final ARSharedResources dbResource;
     private static final ARInfoScene arInfoScene;
     private static final ARPropertyManager arPropertyManager;

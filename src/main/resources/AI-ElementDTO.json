@@ -1,0 +1,189 @@
+[
+  {
+    "tagName": "input",
+    "xPath": "/html/body/iam-loginapp[1]/div[2]/div[4]/div[2]/div[1]/div[1]/div[1]/div[1]/iam-auth-password[1]/iam-page[1]/iam-card[1]/div[1]/div[2]/div[2]/iam-form[1]/form[1]/iam-input-row[1]/iam-row-with-label[1]/div[1]/div[1]/input[1]",
+    "someText": "User number",
+    "attribId": "username",
+    "attribName": "username",
+    "coordinates": "684.50,586.00",
+    "iFrameXPath": "",
+    "shadowHost": "",
+    "cssSelector": "input#username.iam-form-control.ng-untouched.ng-pristine.ng-invalid"
+  },
+  {
+    "tagName": "input",
+    "xPath": "/html/body/iam-loginapp[1]/div[2]/div[4]/div[2]/div[1]/div[1]/div[1]/div[1]/iam-auth-password[1]/iam-page[1]/iam-card[1]/div[1]/div[2]/div[2]/iam-form[1]/form[1]/iam-input-row[2]/iam-row-with-label[1]/div[1]/div[1]/input[1]",
+    "someText": "Password",
+    "attribId": "password",
+    "attribName": "password",
+    "coordinates": "684.50,686.00",
+    "iFrameXPath": "",
+    "shadowHost": "",
+    "cssSelector": "input#password.iam-form-control.ng-untouched.ng-pristine.ng-invalid"
+  },
+  {
+    "tagName": "input",
+    "xPath": "/html/body/iam-loginapp[1]/div[2]/div[4]/div[2]/div[1]/div[1]/div[1]/div[1]/iam-auth-password[1]/iam-page[1]/iam-card[1]/div[1]/div[2]/div[2]/iam-form[1]/form[1]/input[1]",
+    "someText": "CSRFT759",
+    "attribId": "",
+    "attribName": "CSRFT759",
+    "coordinates": "0.00,0.00",
+    "iFrameXPath": "",
+    "shadowHost": "",
+    "cssSelector": "input"
+  },
+  {
+    "tagName": "button",
+    "xPath": "/html/body/iam-loginapp[1]/div[2]/div[4]/div[2]/div[1]/div[1]/div[1]/div[1]/iam-auth-password[1]/iam-page[1]/iam-card[1]/div[1]/div[2]/div[2]/iam-form[1]/form[1]/iam-button-row[1]/div[1]/iam-button[1]/button[1]",
+    "someText": "Send",
+    "attribId": "loginButton",
+    "attribName": "",
+    "coordinates": "684.50,790.00",
+    "iFrameXPath": "",
+    "shadowHost": "",
+    "cssSelector": "button#loginButton.iam-btn.iam-btn-block-level-sm-down.iam-float-right.iam-btn-outline-primary"
+  },
+  {
+    "tagName": "a",
+    "xPath": "/html/body/iam-loginapp[1]/div[1]/div[1]/div[1]/div[2]/a[1]",
+    "someText": "Help",
+    "attribId": "",
+    "attribName": "",
+    "coordinates": "1836.92,31.00",
+    "iFrameXPath": "",
+    "shadowHost": "",
+    "cssSelector": "a"
+  },
+  {
+    "tagName": "a",
+    "xPath": "/html/body/iam-loginapp[1]/div[2]/div[4]/div[2]/div[1]/div[1]/div[1]/div[1]/iam-auth-password[1]/iam-page[1]/iam-card[1]/div[1]/div[2]/iam-maintenance-message[1]/div[1]/iam-text-message[1]/div[1]/p[1]/span[2]/span[1]/strong[2]/a[1]",
+    "someText": "here",
+    "attribId": "",
+    "attribName": "",
+    "coordinates": "881.03,406.00",
+    "iFrameXPath": "",
+    "shadowHost": "",
+    "cssSelector": "a"
+  },
+  {
+    "tagName": "a",
+    "xPath": "/html/body/iam-loginapp[1]/div[2]/div[4]/div[2]/div[1]/div[1]/div[1]/div[1]/iam-auth-password[1]/iam-page[1]/iam-card[1]/div[1]/div[2]/iam-maintenance-message[1]/div[1]/iam-text-message[1]/div[1]/p[1]/span[2]/span[1]/strong[3]/a[1]",
+    "someText": "activities",
+    "attribId": "",
+    "attribName": "",
+    "coordinates": "700.50,430.00",
+    "iFrameXPath": "",
+    "shadowHost": "",
+    "cssSelector": "a"
+  },
+  {
+    "tagName": "a",
+    "xPath": "/html/body/iam-loginapp[1]/div[2]/div[4]/div[2]/div[1]/div[1]/div[1]/div[1]/iam-auth-password[1]/iam-page[1]/iam-card[1]/div[1]/div[2]/iam-maintenance-message[1]/div[1]/iam-text-message[1]/div[1]/p[2]/span[1]/span[1]/strong[1]/a[1]",
+    "someText": "BancaStato",
+    "attribId": "",
+    "attribName": "",
+    "coordinates": "797.00,475.00",
+    "iFrameXPath": "",
+    "shadowHost": "",
+    "cssSelector": "a"
+  },
+  {
+    "tagName": "a",
+    "xPath": "/html/body/iam-loginapp[1]/div[2]/div[4]/div[2]/div[1]/div[1]/div[1]/div[1]/iam-auth-password[1]/iam-page[1]/iam-card[1]/div[1]/div[2]/div[2]/iam-form[1]/form[1]/div[1]/a[1]",
+    "someText": "Forgotten password?",
+    "attribId": "",
+    "attribName": "",
+    "coordinates": "684.50,747.00",
+    "iFrameXPath": "",
+    "shadowHost": "",
+    "cssSelector": "a.iam-general-link"
+  },
+  {
+    "tagName": "a",
+    "xPath": "/html/body/iam-loginapp[1]/div[2]/div[4]/div[2]/div[1]/div[1]/div[1]/div[1]/iam-auth-password[1]/iam-page[1]/iam-card[1]/div[1]/div[2]/div[2]/iam-form[1]/form[1]/a[1]",
+    "someText": "Access problems?",
+    "attribId": "access-problems",
+    "attribName": "",
+    "coordinates": "684.50,851.00",
+    "iFrameXPath": "",
+    "shadowHost": "",
+    "cssSelector": "a#access-problems.iam-general-link"
+  },
+  {
+    "tagName": "a",
+    "xPath": "/html/body/iam-loginapp[1]/div[2]/div[4]/div[2]/div[1]/footer[1]/div[1]/a[1]",
+    "someText": "Contact",
+    "attribId": "",
+    "attribName": "",
+    "coordinates": "721.06,968.00",
+    "iFrameXPath": "",
+    "shadowHost": "",
+    "cssSelector": "a"
+  },
+  {
+    "tagName": "a",
+    "xPath": "/html/body/iam-loginapp[1]/div[2]/div[4]/div[2]/div[1]/footer[1]/div[1]/a[2]",
+    "someText": "Processing Time",
+    "attribId": "",
+    "attribName": "",
+    "coordinates": "794.05,968.00",
+    "iFrameXPath": "",
+    "shadowHost": "",
+    "cssSelector": "a"
+  },
+  {
+    "tagName": "a",
+    "xPath": "/html/body/iam-loginapp[1]/div[2]/div[4]/div[2]/div[1]/footer[1]/div[1]/a[3]",
+    "someText": "Minimum Requisite",
+    "attribId": "",
+    "attribName": "",
+    "coordinates": "919.27,968.00",
+    "iFrameXPath": "",
+    "shadowHost": "",
+    "cssSelector": "a"
+  },
+  {
+    "tagName": "a",
+    "xPath": "/html/body/iam-loginapp[1]/div[2]/div[4]/div[2]/div[1]/footer[1]/div[1]/a[4]",
+    "someText": "Security",
+    "attribId": "",
+    "attribName": "",
+    "coordinates": "1064.42,968.00",
+    "iFrameXPath": "",
+    "shadowHost": "",
+    "cssSelector": "a"
+  },
+  {
+    "tagName": "a",
+    "xPath": "/html/body/iam-loginapp[1]/div[2]/div[4]/div[2]/div[1]/footer[1]/div[1]/a[5]",
+    "someText": "Legal Disclaimer",
+    "attribId": "",
+    "attribName": "",
+    "coordinates": "912.98,968.00",
+    "iFrameXPath": "",
+    "shadowHost": "",
+    "cssSelector": "a"
+  },
+  {
+    "tagName": "label",
+    "xPath": "/html/body/iam-loginapp[1]/div[2]/div[4]/div[2]/div[1]/div[1]/div[1]/div[1]/iam-auth-password[1]/iam-page[1]/iam-card[1]/div[1]/div[2]/div[2]/iam-form[1]/form[1]/iam-input-row[1]/iam-row-with-label[1]/div[1]/label[1]",
+    "someText": "User number",
+    "attribId": "",
+    "attribName": "",
+    "coordinates": "684.50,550.00",
+    "iFrameXPath": "",
+    "shadowHost": "",
+    "cssSelector": "label.iam-col-12.iam-col-md-5.iam-col-form-label"
+  },
+  {
+    "tagName": "label",
+    "xPath": "/html/body/iam-loginapp[1]/div[2]/div[4]/div[2]/div[1]/div[1]/div[1]/div[1]/iam-auth-password[1]/iam-page[1]/iam-card[1]/div[1]/div[2]/div[2]/iam-form[1]/form[1]/iam-input-row[2]/iam-row-with-label[1]/div[1]/label[1]",
+    "someText": "Password",
+    "attribId": "",
+    "attribName": "",
+    "coordinates": "684.50,650.00",
+    "iFrameXPath": "",
+    "shadowHost": "",
+    "cssSelector": "label.iam-col-12.iam-col-md-5.iam-col-form-label"
+  }
+]
