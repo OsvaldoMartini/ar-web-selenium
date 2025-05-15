@@ -112,9 +112,9 @@ public class ARViewBotJobScene extends ARScene {
             portSocket = Integer.parseInt(port);
         }
 
-        arNewCommandScene.connectWebSocketClient(portSocket, "new-command-scene-" + botJobLoad.getId());
+        arNewCommandScene.connectWebSocketClient(portSocket, "new-command-scene"); // + botJobLoad.getId());
 
-        connectWebSocketClient(portSocket, "bot-job-scene-" + botJobLoad.getId());
+        connectWebSocketClient(portSocket, "bot-job-scene"); // + botJobLoad.getId());
     }
 
     private void reloadList() {

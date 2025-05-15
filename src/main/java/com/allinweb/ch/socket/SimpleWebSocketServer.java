@@ -272,7 +272,7 @@ public class SimpleWebSocketServer {
                 homeBankingId = elementSplitDTO.getHomeBankingId() != null ? elementSplitDTO.getHomeBankingId() : -1;
                 sessionIdToSend = elementSplitDTO.getSessionId();
 
-                if (sessionIdToSend.equals("scannerGrid-" + homeBankingId)) {
+                if (sessionIdToSend.equals("scannerGrid")) {
                     String jsonData = gson.toJson(elementSplitDTO);
                     sendMessageJson(homeBankingId, sessionIdToSend, jsonData, null);
                     //                    broadcastMessageToAll(jsonData);
@@ -789,8 +789,7 @@ public class SimpleWebSocketServer {
             if (!rowMoveDTO.getType().equals("INSERT_BEFORE_ELSEIF")
                     && !rowMoveDTO.getType().equals("INSERT_AFTER_ELSEIF")) {
 
-                sendMessageJson(
-                        "new-command-scene-" + rowMoveDTO.getBotJobId(), gson.toJson(rowMoveDTO)); // Sending as details
+                sendMessageJson("new-command-scene", gson.toJson(rowMoveDTO)); // Sending as details
 
                 //                this.webPageItems = performDataBase.loadWebPageFields(rowMoveDTO.getBotJobId());
 

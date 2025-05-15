@@ -94,7 +94,7 @@ public class PerformPreLoad {
   window.destination = destination;
   window.operationId = operationId;
   window.homeBankingId = homeBankingId;
-  window.sessionId = `${sessionId}-${homeBankingId}`;
+  window.sessionId = `${sessionId}`; //-${homeBankingId}`;
   // var elementInfoSubmit = new Map();
 
   function connectWebSocket() {
@@ -1794,7 +1794,7 @@ public class PerformPreLoad {
 //    if (wSocket && wSocket.readyState === WebSocket.OPEN) {
 //      const message = {
 //        type: "CLOSE_BROWSER",
-//        sessionId: `scannerReceiver-${window.homeBankingId}`,
+//        sessionId: `scannerReceiver`, //-${window.homeBankingId}`,
 //        operationId: "closeBrowser",
 //        homeBankingId: window.homeBankingId,
 //        details: window.allElementInfo, // Send allElementInfo

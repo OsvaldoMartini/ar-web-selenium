@@ -190,6 +190,7 @@ public class ARScannedElementPane extends ARPane {
                 File truststoreTempFile = copyResourceToTempFile("truststore.jks", "truststore", ".jks");
                 System.setProperty("javax.net.ssl.trustStore", truststoreTempFile.getAbsolutePath());
                 System.setProperty("javax.net.ssl.trustStorePassword", truststorePassword);
+
             } catch (Exception erroTemp) {
 
             }
@@ -198,7 +199,9 @@ public class ARScannedElementPane extends ARPane {
                 container.connectToServer(this, new URI(uri));
                 latch.await();
                 startKeepAlivePings();
+                isConnectWebSocket = true;
             } catch (Exception e) {
+                isConnectWebSocket = false;
                 System.err.println("WebSocket connection failed: " + e.getMessage());
                 e.printStackTrace();
             }
@@ -614,7 +617,7 @@ public class ARScannedElementPane extends ARPane {
                             }
                             sendMessageJson(
                                     homeBanking.getId(),
-                                    "botJobTasks-" + currentBotJobId,
+                                    "botJobTasks", // + currentBotJobId,
                                     jsonData,
                                     "updateInstructions");
 
@@ -1165,6 +1168,7 @@ public class ARScannedElementPane extends ARPane {
     private List<VariableLoadDTO> variablesLoaded;
 
     private int portSocket = 54525;
+    private boolean isConnectWebSocket = false;
 
     private String[] defaultSearch;
     private boolean searchHiddenFields;
@@ -1240,7 +1244,9 @@ public class ARScannedElementPane extends ARPane {
             portSocket = Integer.parseInt(port);
         }
 
-        connectWebSocketClient(portSocket, "scannerReceiver-" + homeBanking.getId());
+        if (!isConnectWebSocket) {
+            connectWebSocketClient(portSocket, "scannerReceiver");
+        }
 
         searchHiddenFields = false;
 
@@ -1284,9 +1290,9 @@ public class ARScannedElementPane extends ARPane {
 
         updateSceneTitleWithCurrentURL(homeBanking.getUrl());
 
-        if (!initializeWebView()) {
-            return;
-        }
+        //        if (!initializeWebView()) {
+        //            return;
+        //        }
 
         if (componentBox != null) {
             componentBox.getChildren().clear();
@@ -1312,12 +1318,8 @@ public class ARScannedElementPane extends ARPane {
         jsonData = "[]";
 
         // sessionIdFromJava
-        sessionIdFromJava = "scannerGrid-"
-                + this.homeBanking
-                        .getId(); // (SENDER: scannerTool) -> scannerGrid /  (SENDER: insertTool) -> botJobTasks /
-
-        // Default
-        // session
+        // (SENDER: scannerTool) -> scannerGrid /  (SENDER: insertTool) -> botJobTasks /
+        sessionIdFromJava = "scannerGrid"; // + this.homeBanking.getId();
         buildWebView(
                 webEngine,
                 jsonData,
@@ -1408,6 +1410,10 @@ public class ARScannedElementPane extends ARPane {
 
     @Override
     public void initUIComponents() {
+
+        if (!initializeWebView()) {
+            return;
+        }
 
         addCompBoxWebView();
 
@@ -1568,11 +1574,10 @@ public class ARScannedElementPane extends ARPane {
 
                 var processDTO = new ElementSplitDTO();
                 processDTO.setHomeBankingId(homeBanking.getId());
-                processDTO.setSessionId("scannerGrid-" + homeBanking.getId());
+                processDTO.setSessionId("scannerGrid"); // + homeBanking.getId());
                 processDTO.setOperationId("searchTerms");
                 processDTO.setDetails(new ElementDTO[0]);
-                sendMessageJson(
-                        homeBanking.getId(), "scannerGrid-" + homeBanking.getId(), gson.toJson(processDTO), null);
+                sendMessageJson(homeBanking.getId(), "scannerGrid", gson.toJson(processDTO), null);
 
                 Platform.runLater(() -> {
                     countdownTextField.setText("Pre-Launch status: Ready");
@@ -1988,7 +1993,7 @@ public class ARScannedElementPane extends ARPane {
                 // String[] dataArrayClone = {"*"};
                 int finalPort = portSocket;
                 String socketSessionId = "scannerTool";
-                String destinationId = "scannerGrid-" + homeBanking.getId();
+                String destinationId = "scannerGrid"; // + homeBanking.getId();
                 Platform.runLater(() -> periodicPickOneCloneThread(
                         performActions.getCurrentDriver(),
                         false,
@@ -2080,7 +2085,7 @@ public class ARScannedElementPane extends ARPane {
 
             var processDTO = new ElementSplitDTO();
             processDTO.setHomeBankingId(homeBanking.getId());
-            processDTO.setSessionId("scannerGrid-" + homeBanking.getId());
+            processDTO.setSessionId("scannerGrid");
             processDTO.setOperationId("clonedElement");
 
             List<ElementDTO> detailsList = new ArrayList<>();
@@ -2118,7 +2123,7 @@ public class ARScannedElementPane extends ARPane {
                 detailsArray[x].setId(x + 1);
             }
 
-            sendMessageJson(homeBanking.getId(), "scannerGrid-" + homeBanking.getId(), gson.toJson(processDTO), null);
+            sendMessageJson(homeBanking.getId(), "scannerGrid", gson.toJson(processDTO), null);
         }
     }
 
@@ -2365,7 +2370,7 @@ public class ARScannedElementPane extends ARPane {
 
         int finalPort = portSocket;
         String socketSessionId = "scannerTool";
-        String destinationId = "scannerGrid-" + homeBanking.getId();
+        String destinationId = "scannerGrid";
 
         periodicSearchThread(
                 performActions.getCurrentDriver(),
@@ -3037,7 +3042,7 @@ public class ARScannedElementPane extends ARPane {
         // Execute All Blocks starting from executeSpecificBlock if Defined
         int botJobId = this.botJobLoad.getId();
         int executeSpecificBlock = comboBoxBlocks.getValue().getInstructionId();
-        sessionRowStatus = "botJobTasks-" + botJobId;
+        sessionRowStatus = "botJobTasks"; // + botJobId;
 
         mapOperators = new HashMap<>();
         mapExport = new LinkedHashMap<>();

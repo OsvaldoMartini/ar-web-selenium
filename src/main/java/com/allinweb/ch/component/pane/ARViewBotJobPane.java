@@ -194,10 +194,39 @@ public class ARViewBotJobPane extends ARPane {
             }
         }
 
-        sessionId = "botJobTasks-" + this.botJobLoad.getId();
-        if (Strings.isNullOrEmpty(previousBotTasks) || !previousBotTasks.equals(sessionId)) {
-            builViewComponent();
+        if (simpleWebSocketServer.getAllSessions().size() > 0) {
+            refreshGrids();
         }
+    }
+
+    private void refreshGrids() {
+        this.botJobLoadList = performDataBase.loadCompleteJobs(this.botJobLoad.getId());
+        String jsonData = gson.toJson(payloadEmpty);
+
+        if (this.botJobLoadList.size() > 0) {
+            List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
+            if (blockLoopInstructions.size() > 0) {
+                jsonData = gson.toJson(blockLoopInstructions);
+            }
+        }
+
+        simpleWebSocketServer.sendMessageJson(
+                this.botJobLoad.getHomeBankingId(), "botJobTasks", jsonData, "updateInstructions");
+
+        this.botJobLoadComp = performDataBase.loadComponentsComplete(this.botJobLoad.getHomeBankingId());
+        jsonData = gson.toJson(payloadEmpty);
+        if (!botJobLoadComp.isEmpty()) {
+            List<InstructionLoadDTO> instructions = performDataBase.buildJsonViewData(botJobLoadComp);
+            if (instructions.size() > 0) {
+                jsonData = gson.toJson(instructions);
+            }
+        }
+
+        simpleWebSocketServer.sendMessageJson(
+                this.botJobLoad.getHomeBankingId(), "componentTasks", jsonData, "componentsUpdate");
+
+        //        simpleWebSocketServer.broadcastMessageToAll(
+        //                this.botJobLoad.getHomeBankingId(), "componentTasks", jsonData, "componentsUpdate");
     }
 
     private void builViewComponent() {
@@ -220,7 +249,7 @@ public class ARViewBotJobPane extends ARPane {
         webEngineTasks.javaScriptEnabledProperty().set(true);
 
         // (SENDER: insertTool) -> botJobTasks
-        sessionId = "botJobTasks-" + this.botJobLoad.getId();
+        sessionId = "botJobTasks"; // + this.botJobLoad.getId();
         buildWebView(
                 webEngineTasks,
                 jsonData,
@@ -249,7 +278,7 @@ public class ARViewBotJobPane extends ARPane {
         webEngineComp.javaScriptEnabledProperty().set(true);
 
         // (SENDER: insertTool) -> botJobTasks -> componentTasks
-        sessionId = "componentTasks-" + this.botJobLoad.getId();
+        sessionId = "componentTasks"; // + this.botJobLoad.getId();
         buildWebView(
                 webEngineComp,
                 jsonData,
@@ -264,6 +293,11 @@ public class ARViewBotJobPane extends ARPane {
 
     @Override
     public void initUIComponents() {
+        sessionId = "botJobTasks"; // + this.botJobLoad.getId();
+        if (Strings.isNullOrEmpty(previousBotTasks) || !previousBotTasks.equals(sessionId)) {
+            builViewComponent();
+        }
+
         this.refreshButton = builder.buildButton(
                 "Refresh", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
         this.openScannerButton = builder.buildButton(
@@ -529,52 +563,7 @@ public class ARViewBotJobPane extends ARPane {
         });
 
         refreshButton.setOnMouseClicked(e -> {
-            this.botJobLoadList = performDataBase.loadCompleteJobs(this.botJobLoad.getId());
-            String jsonData = gson.toJson(payloadEmpty);
-
-            if (this.botJobLoadList.size() > 0) {
-                List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
-                if (blockLoopInstructions.size() > 0) {
-                    jsonData = gson.toJson(blockLoopInstructions);
-                }
-            }
-
-            String sessionTasks = "botJobTasks-" + this.botJobLoad.getId();
-            //            buildWebView(
-            //                    webEngineTasks,
-            //                    jsonData,
-            //                    portInitial,
-            //                    sessionTasks,
-            //                    this.botJobLoad.getHomeBankingId(),
-            //                    this.botJobLoad.getId(),
-            //                    this.botJobLoad.getName());
-
-            //            componentBox.getChildren().clear();
-            //            componentBox = new HBox(new Node[] {this.webViewTasks});
-            //            componentBox.requestLayout();
-            //            botJobContainer.requestLayout();
-
-            simpleWebSocketServer.sendMessageJson(
-                    this.botJobLoad.getHomeBankingId(), sessionTasks, jsonData, "updateInstructions");
-
-            this.botJobLoadComp = performDataBase.loadComponentsComplete(this.botJobLoad.getHomeBankingId());
-            jsonData = gson.toJson(payloadEmpty);
-            if (!botJobLoadComp.isEmpty()) {
-                List<InstructionLoadDTO> instructions = performDataBase.buildJsonViewData(botJobLoadComp);
-                if (instructions.size() > 0) {
-                    jsonData = gson.toJson(instructions);
-                }
-            }
-
-            simpleWebSocketServer.broadcastMessageToAll(
-                    this.botJobLoad.getHomeBankingId(), "componentTasks", jsonData, "componentsUpdate");
-            //            sendMessageJson(sessionIdToSend, jsonData, "componentsUpdate");
-
-            //            stopWebSocketServer();
-            //            Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
-            //            stage.close();
-            //
-            //            new ARViewBotJobScene(this.botJobLoad).showModal();
+            refreshGrids();
         });
         //        saveAsBotJobButton.setOnMouseClicked(e -> new ARSaveBotJobAsScene(this.botJobLoad.getId()).show());
         this.botJobNameLabel.visibleProperty().bind(this.isEditingBotJob.not());
