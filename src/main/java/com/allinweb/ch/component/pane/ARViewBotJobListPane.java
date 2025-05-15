@@ -20,30 +20,48 @@ import org.openqa.selenium.WebDriver;
 
 public class ARViewBotJobListPane extends ARPane {
 
+    protected static volatile ARViewBotJobListPane instance;
+
+    // Private constructor to prevent instantiation
+    private ARViewBotJobListPane() {
+        // Initialize if necessary
+        super();
+    }
+
+    public static ARViewBotJobListPane getInstance() {
+        if (instance == null) {
+            synchronized (ARViewBotJobListPane.class) {
+                if (instance == null) {
+                    instance = new ARViewBotJobListPane();
+                }
+            }
+        }
+        return instance;
+    }
+
     // UI components
     private final GridPane header = new GridPane();
     private ListView<BotJobLoadDTO> uiBotJobList;
 
-    private final ARViewBotJobScene arViewBotJobScene;
-    private final ARWebDriver arWebDriver;
-    private final PerformDataBase performDataBase;
-    private final PerformActions performActions;
-    private final PerformMessage performMessage;
-    ObservableList<WebDriver> webDriverList;
+    private ARViewBotJobScene arViewBotJobScene;
+    private ARWebDriver arWebDriver;
+    private ObservableList<WebDriver> webDriverList;
+
+    private static final PerformDataBase performDataBase;
+    private static final PerformActions performActions;
+    private static final PerformMessage performMessage;
+
+    static {
+        performDataBase = PerformDataBase.getInstance();
+        performActions = PerformActions.getInstance();
+        performMessage = PerformMessage.getInstance();
+    }
 
     // Constructor for Dependency Injection
-    public ARViewBotJobListPane(
-            ARViewBotJobScene arViewBotJobScene,
-            ARWebDriver arWebDriver,
-            PerformDataBase performDataBase,
-            PerformActions performActions,
-            PerformMessage performMessage,
-            ObservableList<WebDriver> webDriverList) {
+    public void initialize(
+            ARViewBotJobScene arViewBotJobScene, ARWebDriver arWebDriver, ObservableList<WebDriver> webDriverList) {
         this.arViewBotJobScene = arViewBotJobScene;
         this.arWebDriver = arWebDriver;
-        this.performDataBase = performDataBase;
-        this.performActions = performActions;
-        this.performMessage = performMessage;
         this.webDriverList = webDriverList;
         initUIComponents();
     }

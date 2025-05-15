@@ -52,6 +52,9 @@ public class ARNewHomeBankingScene extends ARScene {
     }
 
     public void showModal() {
+
+        arNewHomeBankingPane.initialize(homeBankingList);
+
         if (modalStage == null) {
             modalStage = new Stage();
             IARPane pane = buildPane();
@@ -75,7 +78,7 @@ public class ARNewHomeBankingScene extends ARScene {
                 return;
             }
         }
-        arNewHomeBankingPane.initialize(homeBankingList);
+
         modalStage.setTitle(getTitle()); // Update title if it might have changed
 
         // Check if the stage is already showing
@@ -86,7 +89,7 @@ public class ARNewHomeBankingScene extends ARScene {
 
     @Override
     public IARPane buildPane() {
-        arNewHomeBankingPane.initialize(homeBankingList);
+        //        arNewHomeBankingPane.initialize(homeBankingList);
         return arNewHomeBankingPane;
     }
 

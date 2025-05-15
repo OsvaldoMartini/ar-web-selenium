@@ -161,8 +161,8 @@ public class ARMainPane extends ARPane {
                 "Exit", ARConstants.SPACE_L, ARConstants.ICON_CROSS, ARConstants.SPACE_M, new Insets(8, 10, 8, 10));
 
         // 🔹 AI Button and TextArea
-        aiButton = builder.buildButton(
-                "", ARConstants.SPACE_M, ARConstants.ICON_AI, ARConstants.SPACE_M, new Insets(8, 10, 8, 10));
+        aiButton = builder.buildButton("AI", ARConstants.SPACE_M, new Insets(8, 10, 8, 10));
+
         aiTextArea = new TextArea();
         aiTextArea.setPromptText("AI Tool");
         aiTextArea.setWrapText(true);

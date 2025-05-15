@@ -204,8 +204,7 @@ public class ARViewBotJobScene extends ARScene {
 
     @Override
     public IARPane buildPane() {
-        arViewBotJobPane.initialize(this, this.botLoadJob, botJobList);
-
+        //        arViewBotJobPane.initialize(this, this.botLoadJob, botJobList);
         return arViewBotJobPane;
     }
 
@@ -229,6 +228,9 @@ public class ARViewBotJobScene extends ARScene {
     }
 
     public void showModal() {
+
+        arViewBotJobPane.initialize(this, this.botLoadJob, botJobList);
+
         if (modalStage == null) {
             modalStage = new Stage();
             IARPane pane = buildPane();
@@ -253,7 +255,6 @@ public class ARViewBotJobScene extends ARScene {
             }
         }
 
-        arViewBotJobPane.initialize(this, this.botLoadJob, botJobList);
         modalStage.setTitle(getTitle());
 
         // Check if the stage is already showing

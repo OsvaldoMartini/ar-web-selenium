@@ -64,6 +64,9 @@ public class ARInfoScene extends ARScene {
     }
 
     public void showModal() {
+
+        arInfoPane.initialize();
+
         if (modalStage == null) {
             modalStage = new Stage();
             IARPane pane = buildPane();
@@ -88,7 +91,6 @@ public class ARInfoScene extends ARScene {
                 return;
             }
         }
-        arInfoPane.initialize();
         modalStage.setTitle(getTitle()); // Update title if it might have changed
         // Check if the stage is already showing
         if (!modalStage.isShowing()) {

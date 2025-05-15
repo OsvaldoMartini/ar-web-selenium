@@ -66,7 +66,7 @@ public class ARNewBotJobScene extends ARScene {
     @Override
     public IARPane buildPane() {
         // Create ARNewBotJobPane without passing ListView here
-        arNewBotJobPane.initialize(arViewBotJobScene, arWebDriver, botJobList);
+        //        arNewBotJobPane.initialize(arViewBotJobScene, arWebDriver, botJobList);
         return arNewBotJobPane;
     }
 
@@ -86,6 +86,9 @@ public class ARNewBotJobScene extends ARScene {
     }
 
     public void showModal() {
+
+        arNewBotJobPane.initialize(arViewBotJobScene, arWebDriver, botJobList);
+
         if (modalStage == null) {
             modalStage = new Stage();
             IARPane pane = buildPane();
@@ -109,7 +112,7 @@ public class ARNewBotJobScene extends ARScene {
                 return;
             }
         }
-        arNewBotJobPane.initialize(arViewBotJobScene, arWebDriver, botJobList);
+
         modalStage.setTitle(getTitle()); // Update title if it might have changed
 
         // Check if the stage is already showing

@@ -20,7 +20,6 @@ import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformCloneLoad;
-import com.allinweb.ch.facade.PerformCloseBrowser;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.facade.PerformPreLoad;
@@ -59,8 +58,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import javafx.animation.KeyFrame;
-import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -81,10 +78,8 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
-import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Pair;
-import javax.net.ssl.*;
 import javax.websocket.ClientEndpoint;
 import javax.websocket.ContainerProvider;
 import javax.websocket.OnClose;
@@ -1087,11 +1082,6 @@ public class ARScannedElementPane extends ARPane {
     private final AtomicBoolean isJobRunning = new AtomicBoolean(false);
     private BooleanProperty interceptBotJob = new SimpleBooleanProperty(false);
 
-    private static final int SECONDS = 3; // Total seconds for the countdown
-    private int remainingSeconds = SECONDS;
-    private Timeline timeline;
-    private Alert alertToShow;
-
     private static TargetElement targetSelected = new TargetElement();
 
     private static File baseLogFile = null;
@@ -1122,10 +1112,12 @@ public class ARScannedElementPane extends ARPane {
 
     // UI COMPONENTS
     private HBox topPane;
-    private AnchorPane contentPane;
+    private VBox verticalBox;
+    private AnchorPane mainPane;
 
     private final WebView webView = new WebView();
     private WebEngine webEngine;
+    private VBox elements2VBox;
     private HBox componentBox;
 
     private Button cloneElementsButton;
@@ -1199,7 +1191,7 @@ public class ARScannedElementPane extends ARPane {
     private static final PerformActions performActions;
     private static final PerformMessage performMessage;
     private static final PerformPreLoad performPreLoad;
-    private static final PerformCloseBrowser performCloseBrowser;
+    //    private static final PerformCloseBrowser performCloseBrowser;
 
     private static final ARNewHomeBankingScene arNewHomeBankingScene;
 
@@ -1211,7 +1203,7 @@ public class ARScannedElementPane extends ARPane {
         performActions = PerformActions.getInstance();
         performMessage = PerformMessage.getInstance();
         performPreLoad = PerformPreLoad.getInstance();
-        performCloseBrowser = PerformCloseBrowser.getInstance();
+        //        performCloseBrowser = PerformCloseBrowser.getInstance();
 
         performCloneLoad = PerformCloneLoad.getInstance();
         arPriorities = ARPriorities.getInstance();
@@ -1289,39 +1281,31 @@ public class ARScannedElementPane extends ARPane {
         this.blockLoad = blockLoadDTO;
         performActions.initialize(arPriorities);
         performActions.setCurrentDriver(currentARWebDriver.getCurrentDriver());
+
+        updateSceneTitleWithCurrentURL(homeBanking.getUrl());
+
+        if (!initializeWebView()) {
+            return;
+        }
+
+        if (componentBox != null) {
+            componentBox.getChildren().clear();
+            componentBox.getChildren().addAll(this.webView);
+            //            contentPane.getChildren().clear();
+            //            contentPane.getChildren().addAll(topPane, verticalBox);
+            componentBox.requestLayout();
+            elements2VBox.requestLayout();
+            verticalBox.requestLayout();
+            mainPane.requestLayout();
+        }
     }
 
     @Override
     public Pane getPaneReference() {
-        return new AnchorPane(topPane, contentPane);
+        return mainPane;
     }
 
-    @Override
-    public void initUIComponents() {
-        // Create a label to display the countdown
-        Label countdownLabel = new Label(String.valueOf(remainingSeconds));
-        countdownLabel.setStyle("-fx-font-size: 24px;");
-        //        countdownLabel.setVisible(false);
-        // Create a stack pane to hold the label
-        StackPane stackPane = new StackPane(countdownLabel);
-        stackPane.setPadding(new Insets(20));
-        // Create a dialog for the alert
-        alertToShow = new Alert(Alert.AlertType.INFORMATION);
-        alertToShow.setTitle("Countdown Alert");
-        alertToShow.setHeaderText("Count Down");
-        alertToShow.initModality(Modality.WINDOW_MODAL);
-        // Set the content of the alert
-        alertToShow.getDialogPane().setContent(stackPane);
-        // Create a timeline to update the countdown
-        timeline = new Timeline(new KeyFrame(javafx.util.Duration.seconds(1), event -> {
-            remainingSeconds--;
-            countdownLabel.setText(String.valueOf(remainingSeconds));
-            if (remainingSeconds <= 0) {
-                timeline.stop(); // Stop the timeline when countdown finishes
-                alertToShow.close(); // Close the alert dialog
-            }
-        }));
-
+    private boolean initializeWebView() {
         webEngine = webView.getEngine();
         webEngine.javaScriptEnabledProperty().set(true);
 
@@ -1342,15 +1326,6 @@ public class ARScannedElementPane extends ARPane {
                 homeBanking.getId(),
                 this.botJobLoad.getId(),
                 this.botJobLoad.getName());
-
-        componentBox = new HBox(this.webView);
-
-        HBox.setHgrow(this.webView, Priority.ALWAYS);
-        VBox.setVgrow(this.webView, Priority.ALWAYS);
-
-        //        if (performActions.getCurrentDriver() == null) {
-        //            arWebDriver = new ARWebDriver(); // Initialize WebDriver
-        //        }
 
         if (isBrowserClosed(performActions.getCurrentDriver()) && performActions.getCurrentDriver() != null) {
             performActions.getCurrentDriver().quit();
@@ -1383,7 +1358,7 @@ public class ARScannedElementPane extends ARPane {
                     "<span style='font-style: italic;'>Please download the correct WebDriver for your browser and ensure it is accessible by the application.</span>",
                     null,
                     0);
-            return;
+            return false;
         }
         String browserType = arPropertyManager.getProperty(ARPropertyEnum.BROWSER);
         currentARWebDriver.openDriver(
@@ -1413,22 +1388,37 @@ public class ARScannedElementPane extends ARPane {
         //                "scannerGrid",
         //                "searchTerms");
 
-        Platform.runLater(() -> {
-            performCloseBrowser.dynamicCloseBrowser(
-                    performActions.getCurrentDriver(),
-                    portSocket,
-                    "closeBrowser",
-                    "scannerGrid",
-                    "closeBrowser",
-                    homeBanking.getId(),
-                    homeBanking.getUrl());
-        });
+        //        Platform.runLater(() -> {
+        //            performCloseBrowser.dynamicCloseBrowser(
+        //                    performActions.getCurrentDriver(),
+        //                    portSocket,
+        //                    "closeBrowser",
+        //                    "scannerGrid",
+        //                    "closeBrowser",
+        //                    homeBanking.getId(),
+        //                    homeBanking.getUrl());
+        //        });
 
         performActions.getIframeElementsMap();
 
         handleWindowHandlesChange();
 
+        return true;
+    }
+
+    @Override
+    public void initUIComponents() {
+
+        addCompBoxWebView();
+
         buildUIComponents();
+    }
+
+    private void addCompBoxWebView() {
+        componentBox = new HBox(this.webView);
+
+        HBox.setHgrow(this.webView, Priority.ALWAYS);
+        VBox.setVgrow(this.webView, Priority.ALWAYS);
     }
 
     private void buildWebView(
@@ -1457,8 +1447,7 @@ public class ARScannedElementPane extends ARPane {
 
     private void buildUIComponents() {
         topPane = componentBuilder.createTopPanel(ARConstants.SPACE_L, ARConstants.SPACE_SM);
-        contentPane =
-                componentBuilder.createContentPanel(ARConstants.SPACE_L, ARConstants.SPACE_XL, ARConstants.SPACE_SM);
+        mainPane = componentBuilder.createContentPanel(ARConstants.SPACE_L, ARConstants.SPACE_XL, ARConstants.SPACE_SM);
 
         cloneElementsButton = componentBuilder.buildButton(
                 "Clone", ARConstants.SPACE_L, ARConstants.ICON_TICK, ARConstants.SPACE_SM, new Insets(5));
@@ -1561,16 +1550,16 @@ public class ARScannedElementPane extends ARPane {
 
             }
 
-            Platform.runLater(() -> {
-                performCloseBrowser.dynamicCloseBrowser(
-                        performActions.getCurrentDriver(),
-                        portSocket,
-                        "closeBrowser",
-                        "scannerGrid",
-                        "closeBrowser",
-                        homeBanking.getId(),
-                        homeBanking.getUrl());
-            });
+            //            Platform.runLater(() -> {
+            //                performCloseBrowser.dynamicCloseBrowser(
+            //                        performActions.getCurrentDriver(),
+            //                        portSocket,
+            //                        "closeBrowser",
+            //                        "scannerGrid",
+            //                        "closeBrowser",
+            //                        homeBanking.getId(),
+            //                        homeBanking.getUrl());
+            //            });
         });
 
         cleanListButton.setOnAction(e -> {
@@ -1676,7 +1665,7 @@ public class ARScannedElementPane extends ARPane {
 
             topPane.getChildren().add(gridPaneTop); // Add gridPaneTop to topPane
 
-            VBox verticalBox = new VBox();
+            verticalBox = new VBox();
             verticalBox.setSpacing(10);
             verticalBox.setPadding(new Insets(10));
             VBox.setVgrow(verticalBox, Priority.ALWAYS);
@@ -1792,7 +1781,7 @@ public class ARScannedElementPane extends ARPane {
             stackLabelOthers.getChildren().addAll(othersBox);
 
             stackLabelOthers.setAlignment(Pos.CENTER);
-            VBox elements2VBox = new VBox(stackLabelOthers, componentBox);
+            elements2VBox = new VBox(stackLabelOthers, componentBox);
             HBox.setHgrow(elements2VBox, Priority.ALWAYS);
             boxListViews.getChildren().addAll(elements2VBox, textFieldVBox);
 
@@ -1805,10 +1794,10 @@ public class ARScannedElementPane extends ARPane {
             HBox.setMargin(refreshBlocksButton, new Insets(0, 3, 0, 0)); // Right margin of 3 pixels
             blockAndUrl.getChildren().addAll(comboBoxBlocks, refreshBlocksButton, currentURLBox);
 
-            verticalBox.getChildren().addAll(blockAndUrl, boxListViews);
+            verticalBox.getChildren().addAll(topPane, blockAndUrl, boxListViews);
             VBox.setVgrow(verticalBox, Priority.ALWAYS);
 
-            contentPane.getChildren().addAll(topPane, verticalBox);
+            mainPane.getChildren().addAll(verticalBox);
 
             AnchorPane.setTopAnchor(verticalBox, 0.0);
             AnchorPane.setBottomAnchor(verticalBox, 0.0);
@@ -4599,7 +4588,7 @@ public class ARScannedElementPane extends ARPane {
         coordsTextField.setText("");
         countdownTextField.setText("Pre-Launch status: Ready");
         countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
-        contentPane.requestLayout();
+        mainPane.requestLayout();
     }
 
     public static List<InstructionLoadDTO> getUnexecutedInstructions(
@@ -4938,7 +4927,7 @@ public class ARScannedElementPane extends ARPane {
     private void Close() {
         ARLogger.getInstance(ARScannedElementPane.class).finer("ARScannedElementPane Close()");
         Platform.runLater(() -> {
-            Stage stage = (Stage) contentPane.getScene().getWindow();
+            Stage stage = (Stage) mainPane.getScene().getWindow();
             stage.close();
         });
     }

@@ -80,13 +80,13 @@ public class ARScannedElementScene extends ARScene {
 
     @Override
     public IARPane buildPane() {
-        arScannedElementPane.initialize(
-                arWebDriver,
-                homeBankingLoadDTO,
-                botJobLoadDTO,
-                blockLoadDTO,
-                executorWebSocket,
-                executorServicePreLaunch);
+        //        arScannedElementPane.initialize(
+        //                arWebDriver,
+        //                homeBankingLoadDTO,
+        //                botJobLoadDTO,
+        //                blockLoadDTO,
+        //                executorWebSocket,
+        //                executorServicePreLaunch);
         return arScannedElementPane;
     }
 
@@ -172,6 +172,15 @@ public class ARScannedElementScene extends ARScene {
     }
 
     public void showModal() {
+
+        arScannedElementPane.initialize(
+                arWebDriver,
+                homeBankingLoadDTO,
+                botJobLoadDTO,
+                blockLoadDTO,
+                executorWebSocket,
+                executorServicePreLaunch);
+
         if (modalStage == null) {
             modalStage = new Stage();
             IARPane pane = buildPane();
@@ -196,13 +205,6 @@ public class ARScannedElementScene extends ARScene {
             }
         }
 
-        arScannedElementPane.initialize(
-                arWebDriver,
-                homeBankingLoadDTO,
-                botJobLoadDTO,
-                blockLoadDTO,
-                executorWebSocket,
-                executorServicePreLaunch);
         modalStage.setTitle(getTitle());
 
         // Check if the stage is already showing

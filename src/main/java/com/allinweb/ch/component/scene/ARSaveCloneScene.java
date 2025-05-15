@@ -55,7 +55,7 @@ public class ARSaveCloneScene extends ARScene {
 
     @Override
     public IARPane buildPane() {
-        arSaveClonePane.initialize(selecBotJobDTO, botJobList);
+        //        arSaveClonePane.initialize(selecBotJobDTO, botJobList);
         return arSaveClonePane;
     }
 
@@ -75,6 +75,9 @@ public class ARSaveCloneScene extends ARScene {
     }
 
     public void showModal() {
+
+        arSaveClonePane.initialize(selecBotJobDTO, botJobList);
+
         if (modalStage == null) {
             modalStage = new Stage();
             IARPane pane = buildPane();
@@ -98,7 +101,7 @@ public class ARSaveCloneScene extends ARScene {
                 return;
             }
         }
-        arSaveClonePane.initialize(selecBotJobDTO, botJobList);
+
         modalStage.setTitle(getTitle()); // Update title if it might have changed
 
         // Check if the stage is already showing

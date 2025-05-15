@@ -195,7 +195,7 @@ public class ARViewBotJobPane extends ARPane {
         }
 
         sessionId = "botJobTasks-" + this.botJobLoad.getId();
-        if (!Strings.isNullOrEmpty(previousBotTasks) && !previousBotTasks.equals(sessionId)) {
+        if (Strings.isNullOrEmpty(previousBotTasks) || !previousBotTasks.equals(sessionId)) {
             builViewComponent();
         }
     }
@@ -382,7 +382,6 @@ public class ARViewBotJobPane extends ARPane {
         this.botJobLoadList = performDataBase.loadCompleteJobs(this.botJobLoad.getId());
         createExcelDataFile(botJobLoad, botJobLoadList);
 
-        builViewComponent();
         componentBox = new HBox(new Node[] {this.webViewTasks});
         firstLoad = false;
 

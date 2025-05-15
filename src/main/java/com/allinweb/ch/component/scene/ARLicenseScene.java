@@ -89,6 +89,9 @@ public class ARLicenseScene extends ARScene {
     }
 
     public void showModal() {
+
+        arLicensePane.initialize();
+
         if (modalStage == null) {
             modalStage = new Stage();
             IARPane pane = buildPane();
@@ -121,7 +124,6 @@ public class ARLicenseScene extends ARScene {
             }
         }
 
-        arLicensePane.initialize();
         modalStage.setTitle(getTitle()); // Update title if it might have changed
         // Check if the stage is already showing
         if (!modalStage.isShowing()) {

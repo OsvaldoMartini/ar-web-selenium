@@ -77,6 +77,9 @@ public class ARConfigurationScene extends ARScene {
     }
 
     public void showModal() {
+
+        arConfigurationPane.initialize(modalStage);
+
         if (modalStage == null) {
             modalStage = new Stage();
             IARPane pane = buildPane();
@@ -115,8 +118,6 @@ public class ARConfigurationScene extends ARScene {
                 return;
             }
         }
-
-        arConfigurationPane.initialize(modalStage);
         modalStage.setTitle(getTitle()); // Update title if it might have changed
 
         // Check if the stage is already showing

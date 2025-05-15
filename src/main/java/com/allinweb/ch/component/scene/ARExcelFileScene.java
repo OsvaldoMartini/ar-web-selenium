@@ -73,6 +73,9 @@ public class ARExcelFileScene extends ARScene {
     }
 
     public void showModal() {
+
+        arExcelFilePane.initialize(sessionId, blockExcelDTO, modalStage);
+
         if (modalStage == null) {
             modalStage = new Stage();
             IARPane pane = buildPane();
@@ -96,8 +99,6 @@ public class ARExcelFileScene extends ARScene {
                 return;
             }
         }
-
-        arExcelFilePane.initialize(sessionId, blockExcelDTO, modalStage);
         modalStage.setTitle(getTitle()); // Update title if it might have changed
 
         // Check if the stage is already showing

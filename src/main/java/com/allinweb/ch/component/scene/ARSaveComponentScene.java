@@ -52,6 +52,9 @@ public class ARSaveComponentScene extends ARScene {
     }
 
     public void showModal() {
+
+        arSaveComponentPane.initialize(blockDetailsDTO);
+
         if (modalStage == null) {
             modalStage = new Stage();
             IARPane pane = buildPane();
@@ -76,7 +79,6 @@ public class ARSaveComponentScene extends ARScene {
             }
         }
 
-        arSaveComponentPane.initialize(blockDetailsDTO);
         modalStage.setTitle(getTitle());
 
         // Check if the stage is already showing
@@ -87,7 +89,7 @@ public class ARSaveComponentScene extends ARScene {
 
     @Override
     public IARPane buildPane() {
-        arSaveComponentPane.initialize(blockDetailsDTO);
+        //        arSaveComponentPane.initialize(blockDetailsDTO);
         return arSaveComponentPane;
     }
 

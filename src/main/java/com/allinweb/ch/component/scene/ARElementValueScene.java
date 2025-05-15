@@ -94,6 +94,10 @@ public class ARElementValueScene extends ARScene {
     }
 
     public void showModal() {
+
+        arElementValuePane.initialize(
+                rowMoveDTO, varId, varValue, instructionId, instructionName, varName, instructionType);
+
         if (modalStage == null) {
             modalStage = new Stage();
             IARPane pane = buildPane();
@@ -121,8 +125,6 @@ public class ARElementValueScene extends ARScene {
                 return;
             }
         }
-        arElementValuePane.initialize(
-                rowMoveDTO, varId, varValue, instructionId, instructionName, varName, instructionType);
         modalStage.setTitle(getTitle()); // Update title if it might have changed
 
         // Check if the stage is already showing

@@ -227,6 +227,9 @@ public class ARNewCommandScene extends ARScene {
     }
 
     public void showModal() {
+
+        arNewCommandPane.initialize(rowMoveDTO);
+
         if (modalStage == null) {
             modalStage = new Stage();
             IARPane pane = buildPane();
@@ -251,7 +254,6 @@ public class ARNewCommandScene extends ARScene {
             }
         }
 
-        arNewCommandPane.initialize(rowMoveDTO);
         modalStage.setTitle(getTitle()); // Update title if it might have changed
 
         // Check if the stage is already showing
