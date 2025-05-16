@@ -238,7 +238,7 @@ public class SimpleWebSocketServer {
                 homeBankingId = elementSplitDTO.getHomeBankingId() != null ? elementSplitDTO.getHomeBankingId() : -1;
                 sessionIdToSend = elementSplitDTO.getSessionId();
 
-                if (sessionIdToSend.equals("scannerReceiver-" + homeBankingId)) {
+                if (sessionIdToSend.equals("scannerReceiver")) {
                     elementSplitDTO.setOperationId("closeBrowser");
                     String jsonData = gson.toJson(elementSplitDTO);
                     sendMessageJson(homeBankingId, sessionIdToSend, jsonData, "closeBrowser");
@@ -274,7 +274,7 @@ public class SimpleWebSocketServer {
 
                 if (sessionIdToSend.equals("scannerGrid")) {
                     String jsonData = gson.toJson(elementSplitDTO);
-                    sendMessageJson(homeBankingId, sessionIdToSend, jsonData, null);
+                    sendMessageJson(homeBankingId, sessionIdToSend, jsonData, "addPickOne");
                     //                    broadcastMessageToAll(jsonData);
                     List<String> excludeList = List.of("optional", "blockMarked", "editMode");
                     performMessage.outputJsonElementDTO(elementSplitDTO.getDetails(), excludeList, "elementDTO");
@@ -311,7 +311,7 @@ public class SimpleWebSocketServer {
                 //                botJobIdTask = processDTO.getBotJobId();
 
                 if (processDTO.getDetails() != null && processDTO.getDetails().length > 0) {
-                    sendMessageJson("scannerReceiver-" + homeBankingId, gson.toJson(processDTO)); // Sending as details
+                    sendMessageJson("scannerReceiver", gson.toJson(processDTO)); // Sending as details
                 }
                 alreadySentMgsSocket = true;
                 break;

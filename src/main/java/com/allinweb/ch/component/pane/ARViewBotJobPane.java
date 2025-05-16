@@ -162,8 +162,6 @@ public class ARViewBotJobPane extends ARPane {
         this.botJobLoad = botJobLoad;
         this.botJobList = botJobList;
 
-        setPayloadEmpty();
-
         // Initialize database IF IS ACCESS TO BE USED
         variablesList = FXCollections.observableArrayList();
         webPageItems = FXCollections.observableArrayList();
@@ -230,6 +228,8 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     private void builViewComponent() {
+        setPayloadEmpty();
+
         String jsonData = gson.toJson(payloadEmpty);
 
         // Load blocks based on the BotJobLoadDTO instead of blockDTOObservableList

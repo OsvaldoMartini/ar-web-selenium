@@ -11,6 +11,7 @@ import com.allinweb.ch.component.model.ElementSplitDTO;
 import com.allinweb.ch.component.model.HomeBankingLoadDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
+import com.allinweb.ch.component.model.PayloadJson;
 import com.allinweb.ch.component.model.RowStatus;
 import com.allinweb.ch.component.model.VariableLoadDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
@@ -1133,7 +1134,6 @@ public class ARScannedElementPane extends ARPane {
     private Button rightButton;
     private Button cleanListButton;
     private Button turnOnOffButton;
-    private Button includeAllSelected;
     private Button searchButton;
 
     private CheckBox checkCloneElement;
@@ -1180,6 +1180,7 @@ public class ARScannedElementPane extends ARPane {
     private String sessionRowStatus;
     private String jsonStatus;
     private RowStatus rowStatus = new RowStatus();
+    private PayloadJson payloadEmpty;
 
     private static String[] lstAllPaths;
 
@@ -1295,6 +1296,14 @@ public class ARScannedElementPane extends ARPane {
         //        }
 
         if (componentBox != null) {
+            Platform.runLater(() -> refreshBlocks(false));
+
+            Platform.runLater(() -> refreshGrids());
+
+            if (!openWebDriver(false)) {
+                return;
+            }
+
             componentBox.getChildren().clear();
             componentBox.getChildren().addAll(this.webView);
             //            contentPane.getChildren().clear();
@@ -1311,11 +1320,19 @@ public class ARScannedElementPane extends ARPane {
         return mainPane;
     }
 
+    private void refreshGrids() {
+        String jsonData = gson.toJson(payloadEmpty);
+        simpleWebSocketServer.sendMessageJson(
+                this.botJobLoad.getHomeBankingId(), "scannerGrid", jsonData, "searchTerms");
+    }
+
     private boolean initializeWebView() {
+        setPayloadEmpty();
+
         webEngine = webView.getEngine();
         webEngine.javaScriptEnabledProperty().set(true);
 
-        jsonData = "[]";
+        String jsonData = gson.toJson(payloadEmpty);
 
         // sessionIdFromJava
         // (SENDER: scannerTool) -> scannerGrid /  (SENDER: insertTool) -> botJobTasks /
@@ -1351,33 +1368,9 @@ public class ARScannedElementPane extends ARPane {
                     null,
                     0);
         }
-        String webDriverPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
-        if (!(new File(webDriverPath)).exists()) {
-            performMessage.errorMessage(
-                    "Action Required: Missing WebDriver",
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: The WebDriver file is missing!</span>",
-                    "<span style='color: #2E7D32; font-weight: bold;'>To execute automated browser interactions, the WebDriver is absolutely essential.</span>",
-                    "<span style='font-style: italic;'>Please download the correct WebDriver for your browser and ensure it is accessible by the application.</span>",
-                    null,
-                    0);
+
+        if (!openWebDriver(true)) {
             return false;
-        }
-        String browserType = arPropertyManager.getProperty(ARPropertyEnum.BROWSER);
-        currentARWebDriver.openDriver(
-                browserType,
-                webDriverPath,
-                homeBanking.getUrl(),
-                homeBanking.getOptionsConfig(),
-                defaultSearch,
-                searchHiddenFields,
-                portSocket);
-
-        performActions.initialize(arPriorities);
-        performActions.setCurrentDriver(currentARWebDriver.getCurrentDriver());
-
-        try {
-            performActions.onHoldInSeconds(3);
-        } catch (Exception ignore) {
         }
         // "scannerTool", "scannerGrid", "searchTerms"
         //        performPreLoad.dynamicLoadElementsDTO(
@@ -1404,6 +1397,47 @@ public class ARScannedElementPane extends ARPane {
         performActions.getIframeElementsMap();
 
         handleWindowHandlesChange();
+
+        return true;
+    }
+
+    private boolean openWebDriver(boolean firstLoad) {
+
+        String webDriverPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
+        if (!(new File(webDriverPath)).exists()) {
+            performMessage.errorMessage(
+                    "Action Required: Missing WebDriver",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: The WebDriver file is missing!</span>",
+                    "<span style='color: #2E7D32; font-weight: bold;'>To execute automated browser interactions, the WebDriver is absolutely essential.</span>",
+                    "<span style='font-style: italic;'>Please download the correct WebDriver for your browser and ensure it is accessible by the application.</span>",
+                    null,
+                    0);
+            return false;
+        }
+        String browserType = arPropertyManager.getProperty(ARPropertyEnum.BROWSER);
+
+        if (firstLoad) {
+            currentARWebDriver.openDriver(
+                    browserType,
+                    webDriverPath,
+                    homeBanking.getUrl(),
+                    homeBanking.getOptionsConfig(),
+                    defaultSearch,
+                    searchHiddenFields,
+                    portSocket);
+
+            performActions.initialize(arPriorities);
+            performActions.setCurrentDriver(currentARWebDriver.getCurrentDriver());
+        } else {
+            if (currentARWebDriver.getCurrentDriver() != null) {
+                currentARWebDriver.getCurrentDriver().get(homeBanking.getUrl());
+            }
+        }
+
+        try {
+            performActions.onHoldInSeconds(3);
+        } catch (Exception ignore) {
+        }
 
         return true;
     }
@@ -1462,10 +1496,6 @@ public class ARScannedElementPane extends ARPane {
 
         turnOnOffButton = new Button("Search Hidden Fields: Off");
         turnOnOffButton.setStyle("-fx-background-color: grey; -fx-text-fill: white;");
-
-        includeAllSelected = new Button("Include All Below to the Job");
-        includeAllSelected.setStyle("-fx-background-color: green; -fx-text-fill: white;");
-        includeAllSelected.setVisible(false);
 
         refreshWebPageButton = componentBuilder.buildButton(
                 "Refresh Web Page", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
@@ -2123,7 +2153,7 @@ public class ARScannedElementPane extends ARPane {
                 detailsArray[x].setId(x + 1);
             }
 
-            sendMessageJson(homeBanking.getId(), "scannerGrid", gson.toJson(processDTO), null);
+            sendMessageJson(homeBanking.getId(), "scannerGrid", gson.toJson(processDTO), "clonedElement");
         }
     }
 
@@ -5195,5 +5225,16 @@ public class ARScannedElementPane extends ARPane {
             String[] parts = version.split("\\.");
             return Integer.parseInt(parts[0]); // e.g., "17.0.1" -> 17
         }
+    }
+
+    private void setPayloadEmpty() {
+        this.botJobLoadList = new ArrayList<>();
+        BotJobLoadDTO botJobDTO = new BotJobLoadDTO();
+        botJobDTO.setId(this.botJobLoad.getId() != null ? this.botJobLoad.getId() : 0);
+        botJobDTO.setName(this.botJobLoad.getName() != null ? this.botJobLoad.getName() : "Bot Job Name Default");
+        botJobDTO.setBlockLoadDTOList(new ArrayList<>());
+        this.botJobLoadList.add(botJobDTO);
+
+        this.payloadEmpty = new PayloadJson(this.botJobLoad.getId(), this.botJobLoad.getName(), 0);
     }
 }
