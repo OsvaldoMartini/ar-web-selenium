@@ -1434,10 +1434,10 @@ public class ARScannedElementPane extends ARPane {
             }
         }
 
-        try {
-            performActions.onHoldInSeconds(3);
-        } catch (Exception ignore) {
-        }
+        //        try {
+        //            performActions.onHoldInSeconds(3);
+        //        } catch (Exception ignore) {
+        //        }
 
         return true;
     }
