@@ -70,7 +70,7 @@ public class ARNewBotJobPane extends ARPane {
 
     private Button createBotJobButton;
 
-    private VBox container;
+    private VBox mainPane;
 
     private ChoiceBox<HomeBankingLoadDTO> homeBankingChoiceBox;
 
@@ -91,7 +91,7 @@ public class ARNewBotJobPane extends ARPane {
 
     @Override
     public Pane getPaneReference() {
-        return new AnchorPane(container);
+        return mainPane;
     }
 
     @Override
@@ -137,7 +137,7 @@ public class ARNewBotJobPane extends ARPane {
         homeBankingList.addAll(performDataBase.loadAllHomeBanking());
         homeBankingChoiceBox = new ChoiceBox<>(homeBankingList);
 
-        container = new VBox(
+        mainPane = new VBox(
                 labelBotJobName,
                 botJobName,
                 labelBotJobDescription,
@@ -145,12 +145,12 @@ public class ARNewBotJobPane extends ARPane {
                 labelHomeBanking,
                 homeBankingChoiceBox,
                 createBotJobButton);
-        container.setSpacing(10);
+        mainPane.setSpacing(10);
 
-        AnchorPane.setTopAnchor(container, ARConstants.SPACE_M);
-        AnchorPane.setBottomAnchor(container, ARConstants.SPACE_M);
-        AnchorPane.setLeftAnchor(container, ARConstants.SPACE_M);
-        AnchorPane.setRightAnchor(container, ARConstants.SPACE_M);
+        AnchorPane.setTopAnchor(mainPane, ARConstants.SPACE_M);
+        AnchorPane.setBottomAnchor(mainPane, ARConstants.SPACE_M);
+        AnchorPane.setLeftAnchor(mainPane, ARConstants.SPACE_M);
+        AnchorPane.setRightAnchor(mainPane, ARConstants.SPACE_M);
     }
 
     @Override
