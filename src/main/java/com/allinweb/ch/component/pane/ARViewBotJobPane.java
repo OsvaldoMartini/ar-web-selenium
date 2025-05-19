@@ -140,7 +140,9 @@ public class ARViewBotJobPane extends ARPane {
     Label botJobDescriptionLabel;
     private TextField botJobNameTextField;
     private TextField botJobDescriptionTextField;
-    VBox botJobContainer;
+    private VBox botJobContainer;
+
+    private Pane mainPane;
 
     ListView<ComponentBlockDTO> componentList;
 
@@ -432,20 +434,24 @@ public class ARViewBotJobPane extends ARPane {
 
         //        batCreate.setVisible(false);
         // Create botJobContainer AFTER defining compBox
-        this.botJobContainer =
+        botJobContainer =
                 new VBox(new Node[] {leftGridPane, batCreate, botJobNameGroup, botJobDescriptionGroup, componentBox});
 
         // Allow botJobContainer to grow vertically as well
         // Ensure botJobContainer and webView grow properly
-        VBox.setVgrow(this.botJobContainer, Priority.ALWAYS);
+        VBox.setVgrow(botJobContainer, Priority.ALWAYS);
 
         VBox.setVgrow(this.componentBox, Priority.ALWAYS);
         HBox.setHgrow(this.componentBox, Priority.ALWAYS);
 
-        AnchorPane.setTopAnchor(this.botJobContainer, ARConstants.SPACE_M);
-        AnchorPane.setBottomAnchor(this.botJobContainer, ARConstants.SPACE_M);
-        AnchorPane.setLeftAnchor(this.botJobContainer, ARConstants.SPACE_M);
-        AnchorPane.setRightAnchor(this.botJobContainer, ARConstants.SPACE_M);
+        // Use AnchorPane to ensure the VBox resizes with the window
+        mainPane = new AnchorPane(botJobContainer);
+        //        mainPane.getStylesheets().add(css);
+
+        AnchorPane.setTopAnchor(botJobContainer, ARConstants.SPACE_M);
+        AnchorPane.setBottomAnchor(botJobContainer, ARConstants.SPACE_M);
+        AnchorPane.setLeftAnchor(botJobContainer, ARConstants.SPACE_M);
+        AnchorPane.setRightAnchor(botJobContainer, ARConstants.SPACE_M);
     }
 
     private Button createPathButton() {
@@ -1059,9 +1065,8 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     public Pane getPaneReference() {
-        AnchorPane acAnchorPane = new AnchorPane(new Node[] {this.botJobContainer});
-        acAnchorPane.setUserData(this);
-        return acAnchorPane;
+        //        mainPane.setUserData(this);
+        return mainPane;
     }
 
     private void initComponentButton() {
