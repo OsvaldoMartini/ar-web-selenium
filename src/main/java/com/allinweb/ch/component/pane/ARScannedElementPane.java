@@ -1416,6 +1416,16 @@ public class ARScannedElementPane extends ARPane {
         }
         String browserType = arPropertyManager.getProperty(ARPropertyEnum.BROWSER);
 
+        if (!firstLoad
+                && isBrowserClosed(performActions.getCurrentDriver())
+                && performActions.getCurrentDriver() != null) {
+            performActions.getCurrentDriver().quit();
+            performActions.setCurrentDriver(null);
+            currentARWebDriver.getCurrentDriver().quit();
+            currentARWebDriver.setCurrentDriver(null);
+            firstLoad = true;
+        }
+
         if (firstLoad) {
             currentARWebDriver.openDriver(
                     browserType,
@@ -1429,6 +1439,7 @@ public class ARScannedElementPane extends ARPane {
             performActions.initialize(arPriorities);
             performActions.setCurrentDriver(currentARWebDriver.getCurrentDriver());
         } else {
+
             if (currentARWebDriver.getCurrentDriver() != null) {
                 currentARWebDriver.getCurrentDriver().get(homeBanking.getUrl());
             }
@@ -1607,7 +1618,7 @@ public class ARScannedElementPane extends ARPane {
                 processDTO.setSessionId("scannerGrid"); // + homeBanking.getId());
                 processDTO.setOperationId("searchTerms");
                 processDTO.setDetails(new ElementDTO[0]);
-                sendMessageJson(homeBanking.getId(), "scannerGrid", gson.toJson(processDTO), null);
+                sendMessageJson(homeBanking.getId(), "scannerGrid", gson.toJson(processDTO), "searchTerms");
 
                 Platform.runLater(() -> {
                     countdownTextField.setText("Pre-Launch status: Ready");

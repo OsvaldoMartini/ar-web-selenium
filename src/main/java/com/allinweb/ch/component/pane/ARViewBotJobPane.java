@@ -430,6 +430,7 @@ public class ARViewBotJobPane extends ARPane {
         HBox batCreate = new HBox(10, createBATButton, webSiteInfoLabel); // Put labels in an HBox
         //        batCreate.setAlignment(Pos.CENTER); // Align the labels in the center of the HBox
 
+        //        batCreate.setVisible(false);
         // Create botJobContainer AFTER defining compBox
         this.botJobContainer =
                 new VBox(new Node[] {leftGridPane, batCreate, botJobNameGroup, botJobDescriptionGroup, componentBox});
