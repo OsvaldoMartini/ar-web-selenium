@@ -283,7 +283,7 @@ public class ARNewCommandScene extends ARScene {
 
     public void connectWebSocketClient(int portSocket, String sessionId) {
         executorWebSocket.submit(() -> {
-            String uri = "wss://localhost:" + portSocket + "/websocket?sessionId=" + sessionId;
+            String uri = "ws://localhost:" + portSocket + "/websocket?sessionId=" + sessionId;
             WebSocketContainer container = ContainerProvider.getWebSocketContainer();
 
             try {

@@ -602,34 +602,38 @@ public class ARElementValuePane extends ARPane {
     }
 
     public void selectRowById(int idToFind) {
-        if (this.variablesList.isEmpty()) {
-            this.variablesList = performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId);
-        }
+        if (rowMoveDTO != null && rowMoveDTO.getBotJobId() != null) {
 
-        if (tableView == null) {
-            System.err.println("TableView not initialized.");
-            return;
-        }
+            if (this.variablesList.isEmpty()) {
+                this.variablesList =
+                        performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId);
+            }
 
-        ObservableList<VariableUserDTO> items = tableView.getItems();
-        if (items == null || items.isEmpty()) {
-            System.out.println("TableView is empty.");
-            return;
-        }
+            if (tableView == null) {
+                System.err.println("TableView not initialized.");
+                return;
+            }
 
-        // Iterate through the items in the TableView's list
-        for (int i = 0; i < items.size(); i++) {
-            VariableUserDTO userDTO = items.get(i);
-            if (userDTO.getId() == idToFind) {
-                // If the ID matches, select the row at the current index
-                tableView.getSelectionModel().clearAndSelect(i);
+            ObservableList<VariableUserDTO> items = tableView.getItems();
+            if (items == null || items.isEmpty()) {
+                System.out.println("TableView is empty.");
+                return;
+            }
 
-                // Optionally, scroll the selected row into view
-                tableView.scrollTo(i);
+            // Iterate through the items in the TableView's list
+            for (int i = 0; i < items.size(); i++) {
+                VariableUserDTO userDTO = items.get(i);
+                if (userDTO.getId() == idToFind) {
+                    // If the ID matches, select the row at the current index
+                    tableView.getSelectionModel().clearAndSelect(i);
 
-                fillFields(userDTO);
+                    // Optionally, scroll the selected row into view
+                    tableView.scrollTo(i);
 
-                return; // Exit the method once the row is found and selected
+                    fillFields(userDTO);
+
+                    return; // Exit the method once the row is found and selected
+                }
             }
         }
 

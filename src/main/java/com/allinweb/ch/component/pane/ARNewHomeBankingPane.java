@@ -129,17 +129,19 @@ public class ARNewHomeBankingPane extends ARPane {
         // Create submit button
         Button submitButton = new Button("Insert");
         submitButton.setOnAction(event -> {
-            if (!isValidUrl(urlField.getText().trim())) {
-                performMessage.errorMessage(
-                        "Invalid URL",
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'> URL Validation Failed</span>",
-                        "<span style='font-weight: bold;'>The provided URL is not valid</span>.",
-                        "<span style='color: #E65100; font-weight: bold;'>"
-                                + urlField.getText().trim() + "</span>",
-                        "<span style='font-style: italic;'>Details: Please check the format and try again.</span>",
-                        0);
-                return;
-            }
+            //            if (!isValidUrl(urlField.getText().trim())) {
+            //                performMessage.errorMessage(
+            //                        "Invalid URL",
+            //                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'> URL
+            // Validation Failed</span>",
+            //                        "<span style='font-weight: bold;'>The provided URL is not valid</span>.",
+            //                        "<span style='color: #E65100; font-weight: bold;'>"
+            //                                + urlField.getText().trim() + "</span>",
+            //                        "<span style='font-style: italic;'>Details: Please check the format and try
+            // again.</span>",
+            //                        0);
+            //                return;
+            //            }
 
             DatabaseUserDTO user = new DatabaseUserDTO(
                     null,
@@ -173,17 +175,19 @@ public class ARNewHomeBankingPane extends ARPane {
         // Create update button
         Button updateButton = new Button("Update");
         updateButton.setOnAction(event -> {
-            if (!isValidUrl(urlField.getText().trim())) {
-                performMessage.errorMessage(
-                        "Invalid URL",
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'> URL Validation Failed</span>",
-                        "<span style='font-weight: bold;'>The provided URL is not valid</span>.",
-                        "<span style='color: #E65100; font-weight: bold;'>"
-                                + urlField.getText().trim() + "</span>",
-                        "<span style='font-style: italic;'>Details: Please check the format and try again.</span>",
-                        0);
-                return;
-            }
+            //            if (!isValidUrl(urlField.getText().trim())) {
+            //                performMessage.errorMessage(
+            //                        "Invalid URL",
+            //                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'> URL
+            // Validation Failed</span>",
+            //                        "<span style='font-weight: bold;'>The provided URL is not valid</span>.",
+            //                        "<span style='color: #E65100; font-weight: bold;'>"
+            //                                + urlField.getText().trim() + "</span>",
+            //                        "<span style='font-style: italic;'>Details: Please check the format and try
+            // again.</span>",
+            //                        0);
+            //                return;
+            //            }
 
             String id = idField.getText();
             DatabaseUserDTO user = new DatabaseUserDTO(

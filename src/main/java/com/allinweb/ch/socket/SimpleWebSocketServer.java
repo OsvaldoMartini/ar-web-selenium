@@ -468,7 +468,11 @@ public class SimpleWebSocketServer {
 
                 injectStepAfterOrBefore(sessionIdToSend, insertBeforeDTO);
 
-                alreadySentMgsSocket = true;
+                if (type.equals("INSERT_AFTER_ELSEIF") || type.equals("INSERT_BEFORE_ELSEIF")) {
+                    alreadySentMgsSocket = false;
+                } else {
+                    alreadySentMgsSocket = true;
+                }
 
                 break;
             case "BLOCK_EXCEL_FILE":

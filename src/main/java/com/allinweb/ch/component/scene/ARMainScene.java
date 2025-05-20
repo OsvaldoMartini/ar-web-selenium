@@ -147,7 +147,7 @@ public class ARMainScene extends ARScene {
 
         // Start Jetty server
         jettyServer.start();
-        System.out.println("WebSocket server started at wss://localhost:" + port + "/websocket");
+        System.out.println("WebSocket server started at ws://localhost:" + port + "/websocket");
 
         // Keep server running
         jettyServer.join();
