@@ -179,22 +179,22 @@ public class ARScannedElementPane extends ARPane {
             String uri = "ws://localhost:" + portSocket + "/websocket?sessionId=" + sessionId;
             WebSocketContainer container = ContainerProvider.getWebSocketContainer();
 
-            try {
-                // Load keystore from resources and copy to a temp file
-                String keystorePassword = "Martini!383940";
-                File keystoreTempFile = copyResourceToTempFile("keystore.jks", "keystore", ".jks");
-                System.setProperty("javax.net.ssl.keyStore", keystoreTempFile.getAbsolutePath());
-                System.setProperty("javax.net.ssl.keyStorePassword", keystorePassword);
-
-                // Load truststore from resources and copy to a temp file
-                String truststorePassword = "Martini!383940";
-                File truststoreTempFile = copyResourceToTempFile("truststore.jks", "truststore", ".jks");
-                System.setProperty("javax.net.ssl.trustStore", truststoreTempFile.getAbsolutePath());
-                System.setProperty("javax.net.ssl.trustStorePassword", truststorePassword);
-
-            } catch (Exception erroTemp) {
-
-            }
+            //            try {
+            //                // Load keystore from resources and copy to a temp file
+            //                String keystorePassword = "Martini!383940";
+            //                File keystoreTempFile = copyResourceToTempFile("keystore.jks", "keystore", ".jks");
+            //                System.setProperty("javax.net.ssl.keyStore", keystoreTempFile.getAbsolutePath());
+            //                System.setProperty("javax.net.ssl.keyStorePassword", keystorePassword);
+            //
+            //                // Load truststore from resources and copy to a temp file
+            //                String truststorePassword = "Martini!383940";
+            //                File truststoreTempFile = copyResourceToTempFile("truststore.jks", "truststore", ".jks");
+            //                System.setProperty("javax.net.ssl.trustStore", truststoreTempFile.getAbsolutePath());
+            //                System.setProperty("javax.net.ssl.trustStorePassword", truststorePassword);
+            //
+            //            } catch (Exception erroTemp) {
+            //
+            //            }
 
             try {
                 container.connectToServer(this, new URI(uri));
