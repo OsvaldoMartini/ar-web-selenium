@@ -16,7 +16,6 @@ import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import javax.websocket.server.ServerContainer;
 import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainerInitializer;
 import org.openqa.selenium.WebDriver;
@@ -114,95 +113,32 @@ public class ARMainScene extends ARScene {
     }
 
     public static void startWebSocketServer(int port) throws Exception {
+        // Check if the port is available
         if (isPortInUse(port)) {
             throw new Exception("Port " + port + " is already in use.");
         }
 
-        jettyServer = new Server();
-
-        // Use non-secure connector
-        ServerConnector connector = new ServerConnector(jettyServer);
-        connector.setPort(port);
-        jettyServer.addConnector(connector);
-
+        // Set up Jetty server to run WebSocket endpoint
+        jettyServer = new Server(port); // Server listens on port 8080
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath("/");
         jettyServer.setHandler(context);
 
+        // Initialize WebSocket container
         wsContainer = WebSocketServerContainerInitializer.configureContext(context);
         wsContainer.setDefaultMaxSessionIdleTimeout(0);
-        wsContainer.addEndpoint(SimpleWebSocketServer.class);
+        //        wsContainer.addEndpoint(WebSocketStompServer.class);
+        wsContainer.addEndpoint(SimpleWebSocketServer.class); // Register SimpleWebSocketServer
 
+        // Start Jetty server
         jettyServer.start();
-        System.out.println("WebSocket server started at ws://localhost:" + port + "/websocket");
+        System.out.println("Server started at ws://localhost:" + port + "/websocket");
 
-        jettyServer.join();
+        //        // Example: Retrieve all active sessions
+        //        activeSessions = simpleWebSocketServer.getAllSessions();
+        System.out.println(
+                "Active sessions: " + simpleWebSocketServer.getAllSessions().size());
     }
-
-    //    public static void startWebSocketServer(int port) throws Exception {
-    //        // Check if the port is available
-    //        if (isPortInUse(port)) {
-    //            throw new Exception("Port " + port + " is already in use.");
-    //        }
-    //
-    //        // Set up Jetty server to run WebSocket endpoint
-    //        jettyServer = new Server();
-    //
-    //        // Use non-secure connector
-    //        ServerConnector connector = new ServerConnector(jettyServer);
-    //        connector.setPort(port);
-    //        jettyServer.addConnector(connector);
-    //
-    //        // Add a connector that uses SSL
-    //        //        ServerConnector sslConnector = createSslConnector(jettyServer, port);
-    //        //        jettyServer.addConnector(sslConnector);
-    //
-    //        ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
-    //        context.setContextPath("/");
-    //        jettyServer.setHandler(context);
-    //
-    //        // Initialize WebSocket container
-    //        wsContainer = WebSocketServerContainerInitializer.configureContext(context);
-    //        wsContainer.setDefaultMaxSessionIdleTimeout(0);
-    //        //        wsContainer.addEndpoint(WebSocketStompServer.class);
-    //        wsContainer.addEndpoint(SimpleWebSocketServer.class); // Register SimpleWebSocketServer
-    //
-    //        // Start Jetty server
-    //        jettyServer.start();
-    //        System.out.println("WebSocket server started at ws://localhost:" + port + "/websocket");
-    //
-    //        // Keep server running
-    //        jettyServer.join();
-    //
-    //        System.out.println(
-    //                "Active sessions: " + simpleWebSocketServer.getAllSessions().size());
-    //    }
-
-    //    private static ServerConnector createSslConnector(Server server, int port) throws Exception {
-    //        // Load keystore from resources and copy to temp file
-    //        InputStream keyStoreStream = WebSocketServer.class.getResourceAsStream("/keystore.jks");
-    //        if (keyStoreStream == null) {
-    //            throw new FileNotFoundException("Keystore not found in classpath at /keystore.jks");
-    //        }
-    //
-    //        File tempKeyStore = File.createTempFile("keystore", ".jks");
-    //        Files.copy(keyStoreStream, tempKeyStore.toPath(), StandardCopyOption.REPLACE_EXISTING);
-    //        tempKeyStore.deleteOnExit();
-    //
-    //        SslContextFactory.Server sslContextFactory = new SslContextFactory.Server();
-    //        sslContextFactory.setKeyStorePath(tempKeyStore.getAbsolutePath());
-    //        sslContextFactory.setKeyStorePassword("Martini!383940");
-    //        sslContextFactory.setKeyStoreType("JKS");
-    //        sslContextFactory.setWantClientAuth(false);
-    //        sslContextFactory.setProtocol("TLSv1.2");
-    //
-    //        ServerConnector sslConnector = new ServerConnector(
-    //                server, new SslConnectionFactory(sslContextFactory, "http/1.1"), new HttpConnectionFactory());
-    //        sslConnector.setPort(port);
-    //        sslConnector.setIdleTimeout(30000);
-    //
-    //        return sslConnector;
-    //    }
 
     // Method to check if the port is already in use
     private static boolean isPortInUse(int port) {

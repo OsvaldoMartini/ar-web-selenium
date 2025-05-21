@@ -10,20 +10,12 @@ import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformDataBase;
-import com.allinweb.ch.socket.WebSocketTestClient;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.URI;
-import java.net.URL;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -338,22 +330,6 @@ public class ARViewBotJobScene extends ARScene {
             String uri = "ws://localhost:" + portSocket + "/websocket?sessionId=" + sessionId;
             WebSocketContainer container = ContainerProvider.getWebSocketContainer();
 
-            //            try {
-            //                // Load keystore from resources and copy to a temp file
-            //                String keystorePassword = "Martini!383940";
-            //                File keystoreTempFile = copyResourceToTempFile("keystore.jks", "keystore", ".jks");
-            //                System.setProperty("javax.net.ssl.keyStore", keystoreTempFile.getAbsolutePath());
-            //                System.setProperty("javax.net.ssl.keyStorePassword", keystorePassword);
-            //
-            //                // Load truststore from resources and copy to a temp file
-            //                String truststorePassword = "Martini!383940";
-            //                File truststoreTempFile = copyResourceToTempFile("truststore.jks", "truststore", ".jks");
-            //                System.setProperty("javax.net.ssl.trustStore", truststoreTempFile.getAbsolutePath());
-            //                System.setProperty("javax.net.ssl.trustStorePassword", truststorePassword);
-            //            } catch (Exception erroTemp) {
-            //
-            //            }
-
             try {
                 container.connectToServer(this, new URI(uri));
                 latch.await();
@@ -363,27 +339,5 @@ public class ARViewBotJobScene extends ARScene {
                 e.printStackTrace();
             }
         });
-    }
-
-    private static File copyResourceToTempFile(String resourceName, String prefix, String suffix) throws IOException {
-        URL resourceUrl = WebSocketTestClient.class.getClassLoader().getResource(resourceName);
-        if (resourceUrl == null) {
-            throw new FileNotFoundException("Resource not found: " + resourceName);
-        }
-
-        File tempFile = Files.createTempFile(prefix, suffix).toFile();
-        tempFile.deleteOnExit();
-
-        try (InputStream in = resourceUrl.openStream();
-                OutputStream out = new FileOutputStream(tempFile)) {
-
-            byte[] buffer = new byte[8192];
-            int bytesRead;
-            while ((bytesRead = in.read(buffer)) != -1) {
-                out.write(buffer, 0, bytesRead);
-            }
-        }
-
-        return tempFile;
     }
 }
