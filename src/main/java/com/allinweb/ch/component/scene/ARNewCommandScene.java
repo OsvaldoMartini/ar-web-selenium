@@ -1,6 +1,5 @@
 package com.allinweb.ch.component.scene;
 
-import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.pane.ARNewCommandPane;
 import com.allinweb.ch.component.pane.base.IARPane;
@@ -30,6 +29,8 @@ import javax.websocket.OnMessage;
 import javax.websocket.OnOpen;
 import javax.websocket.Session;
 import javax.websocket.WebSocketContainer;
+import lombok.Getter;
+import lombok.Setter;
 
 @ClientEndpoint
 public class ARNewCommandScene extends ARScene {
@@ -54,6 +55,8 @@ public class ARNewCommandScene extends ARScene {
     }
 
     private final Gson gson = new Gson();
+
+    public boolean isConnectWebSocket = false;
 
     private ExecutorService executorWebSocket = Executors.newSingleThreadExecutor();
     private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
@@ -174,9 +177,10 @@ public class ARNewCommandScene extends ARScene {
     private static final Double SCENE_HEIGHT = 300D;
     private static final Double SCENE_WIDTH = 800D;
     private static final String TITLE = "Add Command";
-    private RowMoveDTO rowMoveDTO;
-    private BotJobLoadDTO botJobLoad;
-    private String sessionId;
+
+    @Getter
+    @Setter
+    public RowMoveDTO rowMoveDTO;
 
     private static final ARNewCommandPane arNewCommandPane;
     private static final PerformDataBase performDataBase;
@@ -194,7 +198,6 @@ public class ARNewCommandScene extends ARScene {
 
     @Override
     public IARPane buildPane() {
-        arNewCommandPane.initialize(rowMoveDTO);
         return arNewCommandPane;
     }
 
@@ -275,15 +278,16 @@ public class ARNewCommandScene extends ARScene {
 
     public void connectWebSocketClient(int portSocket, String sessionId) {
         executorWebSocket.submit(() -> {
-            String uri = "ws://localhost:" + portSocket + "/websocket?sessionId=" + sessionId;
-            WebSocketContainer container = ContainerProvider.getWebSocketContainer();
+            String serverUri = "ws://localhost:" + portSocket + "/websocket?sessionId=" + sessionId;
             try {
-                container.connectToServer(this, new URI(uri));
+                WebSocketContainer container = ContainerProvider.getWebSocketContainer();
+                container.connectToServer(this, new URI(serverUri));
                 latch.await();
                 startKeepAlivePings();
+                isConnectWebSocket = true;
             } catch (Exception e) {
-                System.err.println("WebSocket connection failed: " + e.getMessage());
-                e.printStackTrace();
+                isConnectWebSocket = false;
+                System.err.println("WebSocket connection failed sessionId: " + sessionId + "error: " + e.getMessage());
             }
         });
     }

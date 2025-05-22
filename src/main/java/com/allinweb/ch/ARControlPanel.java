@@ -102,8 +102,7 @@ public class ARControlPanel extends Application {
         try (ServerSocket serverSocket = new ServerSocket(0)) { // Port 0 = auto-assign
             int availablePort = serverSocket.getLocalPort();
             System.out.println("Available port: " + availablePort);
-            ARPropertyManager.getInstance()
-                    .setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), String.valueOf(availablePort));
+            arPropertyManager.setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), String.valueOf(availablePort));
         } catch (IOException e) {
             System.out.println("Fixed Port : " + 54525);
             arPropertyManager.setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), String.valueOf(54525));

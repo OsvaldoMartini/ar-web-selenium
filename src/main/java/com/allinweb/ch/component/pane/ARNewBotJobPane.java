@@ -10,21 +10,20 @@ import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import com.google.common.base.Strings;
-import javafx.animation.KeyFrame;
-import javafx.animation.Timeline;
+import java.awt.*;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
-import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import javafx.stage.Modality;
 import javafx.stage.Stage;
-import javafx.util.Duration;
 import javafx.util.StringConverter;
 
 public class ARNewBotJobPane extends ARPane {
@@ -70,14 +69,9 @@ public class ARNewBotJobPane extends ARPane {
 
     private Button createBotJobButton;
 
-    private VBox mainPane;
+    private Pane mainPane;
 
     private ChoiceBox<HomeBankingLoadDTO> homeBankingChoiceBox;
-
-    private static final int SECONDS = 3; // Total seconds for the countdown
-    private int remainingSeconds = SECONDS;
-    private Timeline timeline;
-    private Alert alertToShow;
 
     private ARViewBotJobScene arViewBotJobScene;
     private ARWebDriver arWebDriver;
@@ -96,33 +90,6 @@ public class ARNewBotJobPane extends ARPane {
 
     @Override
     public void initUIComponents() {
-        // Create a label to display the countdown
-        Label countdownLabel = new Label(String.valueOf(remainingSeconds));
-        countdownLabel.setStyle("-fx-font-size: 24px;");
-        countdownLabel.setVisible(false);
-
-        // Create a stack pane to hold the label
-        StackPane stackPane = new StackPane(countdownLabel);
-        stackPane.setPadding(new Insets(20));
-
-        // Create a dialog for the alert
-        alertToShow = new Alert(Alert.AlertType.INFORMATION);
-        alertToShow.setTitle("Title");
-        alertToShow.setHeaderText("Header Message");
-        alertToShow.setContentText("Main Message");
-        alertToShow.initModality(Modality.WINDOW_MODAL);
-        alertToShow.getDialogPane().setContent(stackPane);
-
-        // Create a timeline to update the countdown
-        timeline = new Timeline(new KeyFrame(Duration.seconds(1), event -> {
-            remainingSeconds--;
-            countdownLabel.setText(String.valueOf(remainingSeconds));
-            if (remainingSeconds <= 0) {
-                timeline.stop(); // Stop the timeline when countdown finishes
-                alertToShow.close(); // Close the alert dialog
-            }
-        }));
-
         labelBotJobName = new Label("Name:");
         botJobName = new TextField();
         labelBotJobDescription = new Label("Description:");
@@ -137,7 +104,8 @@ public class ARNewBotJobPane extends ARPane {
         homeBankingList.addAll(performDataBase.loadAllHomeBanking());
         homeBankingChoiceBox = new ChoiceBox<>(homeBankingList);
 
-        mainPane = new VBox(
+        VBox mainLayout = new VBox(
+                10,
                 labelBotJobName,
                 botJobName,
                 labelBotJobDescription,
@@ -145,12 +113,16 @@ public class ARNewBotJobPane extends ARPane {
                 labelHomeBanking,
                 homeBankingChoiceBox,
                 createBotJobButton);
-        mainPane.setSpacing(10);
 
-        AnchorPane.setTopAnchor(mainPane, ARConstants.SPACE_M);
-        AnchorPane.setBottomAnchor(mainPane, ARConstants.SPACE_M);
-        AnchorPane.setLeftAnchor(mainPane, ARConstants.SPACE_M);
-        AnchorPane.setRightAnchor(mainPane, ARConstants.SPACE_M);
+        mainLayout.setPadding(new Insets(10));
+        mainLayout.setFillWidth(true); // Ensure components stretch horizontally
+
+        AnchorPane.setTopAnchor(mainLayout, ARConstants.SPACE_M);
+        AnchorPane.setBottomAnchor(mainLayout, ARConstants.SPACE_M);
+        AnchorPane.setLeftAnchor(mainLayout, ARConstants.SPACE_M);
+        AnchorPane.setRightAnchor(mainLayout, ARConstants.SPACE_M);
+
+        mainPane = new AnchorPane(mainLayout);
     }
 
     @Override
@@ -186,16 +158,27 @@ public class ARNewBotJobPane extends ARPane {
 
     private void createBotJob() {
         Platform.runLater(() -> {
+            if (Strings.isNullOrEmpty(botJobName.getText().trim())) {
+                performMessage.errorMessage(
+                        "Missing Bot Job Name", // Clearer, more direct title
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>The Bot Job Name cannot be empty.</span>", // Stronger emphasis on the issue
+                        "<span style='color: #000080; font-weight: bold;'>Please enter a name for the Bot Job to proceed.</span>", // Clear instruction
+                        null, // No need for redundant messages
+                        null,
+                        0);
+                return;
+            }
+
             boolean existName = botJobList.stream().anyMatch(f -> f.getName()
                     .equalsIgnoreCase(botJobName.getText().trim()));
 
             if (existName) {
                 performMessage.errorMessage(
-                        "Duplicate Name",
-                        "<span style='color: #000080; font-weight: bold; font-size: 14px;'>Bot Job Name already exists</span>",
+                        "Bot Job Name Already Exists", // Clearer, more direct title
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>The name you have entered is already in use.</span>", // Stronger emphasis on the issue
                         "<span style='color: #000080; font-weight: bold;'>"
                                 + botJobName.getText().trim() + "</span>",
-                        null,
+                        null, // No need for redundant messages
                         null,
                         0);
 
@@ -204,7 +187,13 @@ public class ARNewBotJobPane extends ARPane {
 
             if (homeBankingChoiceBox.getValue() == null
                     || Strings.isNullOrEmpty(homeBankingChoiceBox.getValue().getName())) {
-                showAlert("Website is Empty!", "Select a website!", Alert.AlertType.WARNING);
+                performMessage.errorMessage(
+                        "Missing Website", // Clearer, more direct title
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>The Website cannot be empty.</span>", // Stronger emphasis on the issue
+                        "<span style='color: #000080; font-weight: bold;'>Please select a Website for the Bot Job to proceed.</span>", // Clear instruction
+                        null, // No need for redundant messages
+                        null,
+                        0);
                 return;
             }
 
@@ -240,16 +229,5 @@ public class ARNewBotJobPane extends ARPane {
                 ARLogger.getInstance(Thread.class).severe("Error creating BotJobDTO. Check the Block Creation!");
             }
         });
-    }
-
-    private void showAlert(String title, String message, Alert.AlertType alertType) {
-        alertToShow.setAlertType(alertType);
-        alertToShow.setTitle(title);
-        alertToShow.setHeaderText(message);
-        alertToShow.setContentText("Main Message");
-        remainingSeconds = SECONDS;
-        timeline.setCycleCount(SECONDS);
-        timeline.play();
-        alertToShow.showAndWait();
     }
 }

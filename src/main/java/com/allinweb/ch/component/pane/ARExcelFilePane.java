@@ -347,23 +347,28 @@ public class ARExcelFilePane extends ARPane {
             botJobLoadList = performDataBase.loadCompleteJobs(blockExcelDTO.getBotJobId());
             String jsonData = "[]";
             if (!botJobLoadList.isEmpty()) {
-                List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
+                List<InstructionLoadDTO> blockLoopInstructions =
+                        performDataBase.buildJsonViewData(botJobLoadList, "instruction");
                 jsonData = gson.toJson(blockLoopInstructions);
             }
             simpleWebSocketServer.sendMessageJson(
                     blockExcelDTO.getHomeBankingId(), sessionId, jsonData, "updateInstructions");
 
         } else if ((sessionId != null && sessionId.matches(".*componentTasks.*"))) {
-            botJobLoadList = performDataBase.loadComponentsComplete(blockExcelDTO.getHomeBankingId());
+            botJobLoadList = performDataBase.loadComponentsComplete(
+                    blockExcelDTO.getHomeBankingId(), blockExcelDTO.getBotJobId(), blockExcelDTO.getBotJobName());
             String jsonData = "[]";
             if (!botJobLoadList.isEmpty()) {
-                List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
-                jsonData = gson.toJson(blockLoopInstructions);
+                List<InstructionLoadDTO> instructions =
+                        performDataBase.buildJsonViewData(botJobLoadList, "component_instruction");
+                jsonData = gson.toJson(instructions);
             }
             //            simpleWebSocketServer.sendMessageJson(sessionId, jsonData, "componentsUpdate");
 
-            simpleWebSocketServer.broadcastMessageToAll(
+            simpleWebSocketServer.sendMessageJson(
                     blockExcelDTO.getHomeBankingId(), "componentTasks", jsonData, "componentsUpdate");
+            //            simpleWebSocketServer.broadcastMessageToAll(
+            //                    blockExcelDTO.getHomeBankingId(), "componentTasks", jsonData, "componentsUpdate");
         }
 
         performMessage.showCustomModalDialogDragWin11(

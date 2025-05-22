@@ -101,7 +101,7 @@ public class ARMainScene extends ARScene {
                     try {
                         startWebSocketServer(finalPort);
                     } catch (Exception error) {
-                        ARLogger.getInstance(ARMainPane.class)
+                        ARLogger.getInstance(ARMainScene.class)
                                 .severe("Port : " + finalPort + " error : " + error.getMessage());
 
                         //                        performMessage.errorMessage(

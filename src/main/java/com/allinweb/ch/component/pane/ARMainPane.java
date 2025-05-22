@@ -47,6 +47,7 @@ public class ARMainPane extends ARPane {
     private static final PerformMessage performMessage;
     private static final ARConfigurationScene arConfigurationScene;
     private static final ARViewBotJobScene arViewBotJobScene;
+    private static final ARSaveCloneScene arSaveCloneScene;
     private static final ARNewBotJobScene arNewBotJobScene;
     private static final ARWebDriver arWebDriver;
 
@@ -70,6 +71,7 @@ public class ARMainPane extends ARPane {
         performMessage = PerformMessage.getInstance();
         arConfigurationScene = ARConfigurationScene.getInstance();
         arViewBotJobScene = ARViewBotJobScene.getInstance();
+        arSaveCloneScene = ARSaveCloneScene.getInstance();
         arWebDriver = ARWebDriver.getInstance();
     }
 
@@ -236,7 +238,9 @@ public class ARMainPane extends ARPane {
 
             var selecBotJobDTO = viewBotJobListView.getSelectionModel().getSelectedItem();
             if (selecBotJobDTO != null) {
-                new ARSaveCloneScene(selecBotJobDTO, performDataBase.loadAllBotJobs()).showModal();
+                arSaveCloneScene.initialize(selecBotJobDTO, performDataBase.loadAllBotJobs());
+                arSaveCloneScene.showModal();
+
                 ObservableList<BotJobLoadDTO> botJobList =
                         FXCollections.observableArrayList(performDataBase.loadAllBotJobs());
                 viewBotJobListView.setItems(botJobList);

@@ -42,13 +42,13 @@ public class ARSaveCloneScene extends ARScene {
     }
 
     private static final Double SCENE_HEIGHT = 300D;
-    private static final Double SCENE_WIDTH = 300D;
+    private static final Double SCENE_WIDTH = 800D;
     private static final String TITLE = "Clone Job As";
 
     private BotJobLoadDTO selecBotJobDTO;
     private List<BotJobLoadDTO> botJobList;
 
-    public ARSaveCloneScene(BotJobLoadDTO selecBotJobDTO, List<BotJobLoadDTO> botJobList) {
+    public void initialize(BotJobLoadDTO selecBotJobDTO, List<BotJobLoadDTO> botJobList) {
         this.selecBotJobDTO = selecBotJobDTO;
         this.botJobList = botJobList;
     }

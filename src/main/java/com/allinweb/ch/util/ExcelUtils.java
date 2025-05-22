@@ -104,7 +104,7 @@ public class ExcelUtils {
                 //                                        && instruction.getActions().contains(ARConstants.INSERT));
 
                 List<InstructionLoadDTO> allInstructions =
-                        performDataBase.getInstructionsByBlockId(block.getBotJobId(), block.getId());
+                        performDataBase.getInstructionsByBlockId(block.getBotJobId(), block.getId(), "instruction");
 
                 List<InstructionLoadDTO> instructionList = new ArrayList<>();
 
@@ -192,7 +192,7 @@ public class ExcelUtils {
 
                 // Retrieve all instructions for the block
                 List<InstructionLoadDTO> allInstructions =
-                        performDataBase.getInstructionsByBlockId(block.getBotJobId(), block.getId());
+                        performDataBase.getInstructionsByBlockId(block.getBotJobId(), block.getId(), "instruction");
 
                 // Iterate over the instructions and apply filtering manually
                 for (InstructionLoadDTO instruction : allInstructions) {

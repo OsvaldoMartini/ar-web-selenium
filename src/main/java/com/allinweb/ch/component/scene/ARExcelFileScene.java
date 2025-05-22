@@ -53,7 +53,7 @@ public class ARExcelFileScene extends ARScene {
 
     @Override
     public IARPane buildPane() {
-        arExcelFilePane.initialize(sessionId, blockExcelDTO, modalStage);
+        //        arExcelFilePane.initialize(sessionId, blockExcelDTO, modalStage);
         return arExcelFilePane;
     }
 

@@ -111,7 +111,7 @@ public class SimpleWebSocketServer {
 
         if (sessionId != null) {
             addSession(sessionId, session); // Store the session with the custom ID
-            System.out.println("New connection: Custom Session ID = " + sessionId);
+            System.out.println("New connection: Session ID = " + sessionId);
         } else {
             System.out.println("No session ID provided by client");
         }
@@ -226,6 +226,7 @@ public class SimpleWebSocketServer {
         // Dispatch to the correct method based on the message type
 
         int botJobIdTask = -1;
+        String botJobNameTask = "No Name Defined";
         int homeBankingId = -1;
         String sessionIdToSend = null;
         boolean alreadySentMgsSocket = false;
@@ -633,22 +634,26 @@ public class SimpleWebSocketServer {
         if (!alreadySentMgsSocket && (sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
             this.botJobLoadList = performDataBase.loadCompleteJobs(botJobIdTask);
             String jsonData = "[]";
-            if (botJobLoadList.size() > 0) {
-                List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
+            if (!botJobLoadList.isEmpty()) {
+                List<InstructionLoadDTO> blockLoopInstructions =
+                        performDataBase.buildJsonViewData(botJobLoadList, "instruction");
                 jsonData = gson.toJson(blockLoopInstructions);
             }
             sendMessageJson(homeBankingId, sessionIdToSend, jsonData, "updateInstructions");
 
         } else if (!alreadySentMgsSocket
                 && (sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
-            this.botJobLoadList = performDataBase.loadComponentsComplete(homeBankingId);
+            this.botJobLoadList = performDataBase.loadComponentsComplete(homeBankingId, botJobIdTask, botJobNameTask);
             String jsonData = "[]";
-            if (botJobLoadList.size() > 0) {
-                List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
+            if (!botJobLoadList.isEmpty()) {
+                List<InstructionLoadDTO> blockLoopInstructions =
+                        performDataBase.buildJsonViewData(botJobLoadList, "component_instruction");
                 jsonData = gson.toJson(blockLoopInstructions);
             }
 
-            broadcastMessageToAll(homeBankingId, "componentTasks", jsonData, "componentsUpdate");
+            sendMessageJson(homeBankingId, "componentTasks", jsonData, "componentsUpdate");
+
+            //            broadcastMessageToAll(homeBankingId, "componentTasks", jsonData, "componentsUpdate");
             //            sendMessageJson(sessionIdToSend, jsonData, "componentsUpdate");
         }
     }
@@ -658,8 +663,13 @@ public class SimpleWebSocketServer {
         // Clean up session when it closes
         String sessionId = getSessionIdBySession(session);
         if (sessionId != null) {
-            System.out.println("Connection closed: Session ID = " + sessionId);
+            System.out.println("Connection closed: Session ID = " + sessionId + ", Reason: "
+                    + closeReason.getReasonPhrase() + " (Code: "
+                    + closeReason.getCloseCode() + ")");
             activeSessions.remove(sessionId);
+        } else {
+            System.out.println("Connection closed for unknown session, Reason: " + closeReason.getReasonPhrase()
+                    + " (Code: " + closeReason.getCloseCode() + ")");
         }
     }
 
@@ -851,6 +861,7 @@ public class SimpleWebSocketServer {
         BlockDetailsDTO blockDetailsDTO = blockSplitDTO.getDetails().getNewBlock();
         blockDetailsDTO.setHomeBankingId(blockSplitDTO.getHomeBankingId());
         blockDetailsDTO.setBotJobId(blockSplitDTO.getBotJobId());
+        blockDetailsDTO.setBotJobName(blockSplitDTO.getBotJobName());
         blockDetailsDTO.setSessionId(blockSplitDTO.getSessionId());
         if (blockDetailsDTO.getBlockDescription() == null) {
             blockDetailsDTO.setBlockDescription(blockDetailsDTO.getBlockName() + " description");
@@ -874,8 +885,9 @@ public class SimpleWebSocketServer {
             List<BotJobLoadDTO> botJobLoadList = performDataBase.loadCompleteJobs(blockDetailsDTO.getBotJobId());
 
             String jsonData = "[]";
-            if (botJobLoadList.size() > 0) {
-                List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
+            if (!botJobLoadList.isEmpty()) {
+                List<InstructionLoadDTO> blockLoopInstructions =
+                        performDataBase.buildJsonViewData(botJobLoadList, "instruction");
                 jsonData = gson.toJson(blockLoopInstructions);
             }
             sendMessageJson(

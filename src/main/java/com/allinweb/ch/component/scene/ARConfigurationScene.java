@@ -49,7 +49,7 @@ public class ARConfigurationScene extends ARScene {
 
     @Override
     public IARPane buildPane() {
-        arConfigurationPane.initialize(modalStage);
+        //        arConfigurationPane.initialize(modalStage);
         return arConfigurationPane;
     }
 

@@ -1,6 +1,7 @@
 package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.model.BotJobLoadDTO;
+import com.allinweb.ch.component.model.HomeUrlDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
@@ -18,20 +19,15 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import javafx.animation.KeyFrame;
-import javafx.animation.Timeline;
+import java.util.Optional;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
-import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import javafx.scene.text.Text;
-import javafx.stage.Modality;
 import javafx.stage.Stage;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -62,20 +58,16 @@ public class ARSaveClonePane extends ARPane {
         this.botJobList = botJobList;
     }
 
+    private static final ARPropertyManager arPropertyManager;
     private static final PerformMessage performMessage;
     private static final PerformDataBase performDataBase;
 
     // Static block to initialize
     static {
+        arPropertyManager = ARPropertyManager.getInstance();
         performMessage = PerformMessage.getInstance();
         performDataBase = PerformDataBase.getInstance();
     }
-
-    private static final int SECONDS = 3; // Total seconds for the countdown
-    private int remainingSeconds = SECONDS;
-    private Timeline timeline;
-    private ExecutorService executorService;
-    private Alert alertToShow;
 
     private BotJobLoadDTO selecBotJobDTO;
     private List<BotJobLoadDTO> botJobList;
@@ -83,9 +75,11 @@ public class ARSaveClonePane extends ARPane {
 
     private Label nameLabel;
     private Label descriptionLabel;
+    private Label defaultURLLabel;
 
     private TextField nameField;
     private TextField descriptionField;
+    private TextField newUrl;
 
     private Button saveButton;
 
@@ -98,48 +92,52 @@ public class ARSaveClonePane extends ARPane {
 
     @Override
     public void initUIComponents() {
-        //  Alert Timer Components
-        // Create a label to display the countdown
-        Label countdownLabel = new Label(String.valueOf(remainingSeconds));
-        countdownLabel.setStyle("-fx-font-size: 24px;");
-        countdownLabel.setVisible(false);
-        // Create a stack pane to hold the label
-        StackPane stackPane = new StackPane(countdownLabel);
-        stackPane.setPadding(new Insets(20));
-
-        // Create a dialog for the alert
-        alertToShow = new Alert(Alert.AlertType.INFORMATION);
-        alertToShow.setTitle("Title");
-        alertToShow.setHeaderText("Header Message");
-        alertToShow.setContentText("Main Message");
-        alertToShow.initModality(Modality.WINDOW_MODAL);
-        // Set the content of the alert
-        alertToShow.getDialogPane().setContent(stackPane);
-        // Create a timeline to update the countdown
-        timeline = new Timeline(new KeyFrame(javafx.util.Duration.seconds(1), event -> {
-            remainingSeconds--;
-            countdownLabel.setText(String.valueOf(remainingSeconds));
-            if (remainingSeconds <= 0) {
-                timeline.stop(); // Stop the timeline when countdown finishes
-                alertToShow.close(); // Close the alert dialog
-            }
-        }));
-
+        // Labels
         nameLabel = new Label("Name of new Bot Job:");
         descriptionLabel = new Label("Description:");
+        defaultURLLabel = new Label("URL Bot Job OR INSERT NEW");
+
+        String labelStyle = "-fx-text-fill: blue; -fx-font-weight: bold; -fx-font-size: 14;";
+        nameLabel.setStyle(labelStyle);
+        descriptionLabel.setStyle(labelStyle);
+        defaultURLLabel.setStyle(labelStyle);
+
+        // Text fields
         nameField = new TextField(selecBotJobDTO.getName().trim());
         descriptionField = new TextField("Description");
+        newUrl = new TextField(selecBotJobDTO.getHomeBankingLoadDTO().getUrl());
 
+        nameField.setPrefWidth(400);
+        descriptionField.setPrefWidth(400);
+        newUrl.setPrefWidth(400);
+
+        // Button
         saveButton = new Button("Clone Bot Job");
+        saveButton.setPrefWidth(200);
+        saveButton.setStyle("-fx-font-weight: bold; -fx-background-color: #4CAF50; -fx-text-fill: white;");
 
-        VBox group = new VBox(nameLabel, nameField, descriptionLabel, descriptionField, saveButton);
-        group.setAlignment(Pos.CENTER);
-        AnchorPane.setTopAnchor(group, ARConstants.SPACE_M);
-        AnchorPane.setBottomAnchor(group, ARConstants.SPACE_M);
-        AnchorPane.setLeftAnchor(group, ARConstants.SPACE_M);
-        AnchorPane.setRightAnchor(group, ARConstants.SPACE_M);
+        // VBoxes for each field group
+        VBox nameBox = new VBox(5, nameLabel, nameField);
+        VBox descriptionBox = new VBox(5, descriptionLabel, descriptionField);
+        VBox urlBox = new VBox(5, defaultURLLabel, newUrl);
 
-        mainPane = new AnchorPane(group);
+        // Centered button
+        HBox buttonBox = new HBox(saveButton);
+        buttonBox.setAlignment(Pos.CENTER);
+
+        // Main vertical layout
+        VBox formVBox = new VBox(20); // spacing between sections
+        formVBox.setAlignment(Pos.TOP_LEFT);
+        formVBox.setPadding(new Insets(20));
+        formVBox.getChildren().addAll(nameBox, descriptionBox, urlBox, buttonBox);
+
+        // Anchor the VBox
+        AnchorPane.setTopAnchor(formVBox, ARConstants.SPACE_M);
+        AnchorPane.setBottomAnchor(formVBox, ARConstants.SPACE_M);
+        AnchorPane.setLeftAnchor(formVBox, ARConstants.SPACE_M);
+        AnchorPane.setRightAnchor(formVBox, ARConstants.SPACE_M);
+
+        mainPane = new AnchorPane(formVBox);
     }
 
     @Override
@@ -174,86 +172,172 @@ public class ARSaveClonePane extends ARPane {
                 return;
             }
 
-            ARPropertyManager managerProps = ARPropertyManager.getInstance();
-            String excelPath = managerProps.getProperty(ARPropertyEnum.PATH_EXCEL);
+            String excelPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
             String originalFilePath =
                     excelPath + "\\" + selecBotJobDTO.getName().trim() + ".xlsx";
             String newFilePath = excelPath + "\\" + newBotJobName + ".xlsx";
             boolean excelCreation = duplicateExcelFile(originalFilePath, newFilePath);
             if (!excelCreation) {
-                showAlertTimer(
-                        Alert.AlertType.ERROR,
-                        "Error",
+                performMessage.errorMessage(
                         "Error Duplicating File Excel",
-                        "Excel File Name",
-                        newBotJobName + ".xlsx",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Excel File Name:</span> ❌",
+                        "<span style='color: #E65100; font-weight: bold;'>" + newBotJobName + ".xlsx" + "</span> ",
                         null,
-                        null);
+                        null,
+                        0);
+
                 return;
             }
 
-            int homeBankId = botJobList.get(0).getHomeBankingId();
+            if (!Strings.isNullOrEmpty(newUrl.getText())) {
 
-            try (Connection conn = performDataBase.getConnection()) {
-                int newBotJobId = performDataBase.getMaxId(conn, "bot_job") + 1;
+                Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
+                List<HomeUrlDTO> homeUrlDTOList = performDataBase.loadAllHomeURLByHomeId(
+                        selecBotJobDTO.getHomeBankingLoadDTO().getId());
 
-                if (newBotJobId > -1) {
+                if (!newUrl.getText()
+                        .trim()
+                        .equals(selecBotJobDTO.getHomeBankingLoadDTO().getUrl())) {
 
-                    String[] arrayTables = {"block", "instruction", "reference", "complex_instruction", "variable"};
-                    ErrorMessage errorMessage = performDataBase.duplicateBotJobById(
-                            conn,
-                            homeBankId,
-                            selecBotJobDTO.getId(),
-                            newBotJobId,
-                            newBotJobName,
-                            newDescription,
-                            arrayTables);
+                    // Check if homeURLList contains a HomeUrlDTO with matching id and url
+                    Optional<HomeUrlDTO> matchHomeUrl = homeUrlDTOList.stream()
+                            .filter(homeUrl -> homeUrl.getId() != null
+                                    && selecBotJobDTO.getHomeBankingId().equals(homeUrl.getHomeBankingId())
+                                    && newUrl.getText().trim().equals(homeUrl.getUrl()))
+                            .findFirst();
 
-                    if (errorMessage == null) {
-                        performMessage.showCustomModalDialogDragWin11(
-                                "Success: Bot Job Duplicated",
-                                "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>Bot Job Duplication Successful!</span> ✅",
-                                "<span style='color: #1976D2;'>New Bot Job Details:</span>",
-                                "<span style='font-weight: bold;'>ID:</span> " + newBotJobId + "<br>"
-                                        + "<span style='font-weight: bold;'>Name:</span> '" + newBotJobName + "'",
-                                "<span style='font-style: italic;'>Description: " + newDescription + "</span>",
-                                false,
-                                "OK",
-                                null,
-                                0);
+                    if (matchHomeUrl.isPresent()) {
+                        HomeUrlDTO matchedHomeUrl = matchHomeUrl.get();
+                        // Do something with matchedHomeUrl
+                        System.out.println("Found matching HomeUrlDTO: id=" + matchedHomeUrl.getId() + ", url="
+                                + matchedHomeUrl.getUrl());
+
+                        cloneNewBotJob(matchedHomeUrl, newBotJobName, newDescription, stage);
 
                     } else {
+                        System.out.println("No matching HomeUrlDTO found.");
+                        try (Connection conn = performDataBase.getConnection()) {
+                            int newHomeUrlId = performDataBase.loadNexHomeUrlData() + 1;
 
-                        String errorType = "Database error";
-                        String errorDetail = "Verify  [INSERT] or [UPDATE] or [SELECT]";
+                            ErrorMessage errorMessage = performDataBase.insertHomeUrlChild(
+                                    conn,
+                                    selecBotJobDTO.getHomeBankingId(),
+                                    newUrl.getText().trim(),
+                                    newHomeUrlId);
 
-                        performMessage.errorMessage(
-                                "Error Encountered",
-                                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                                "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> " + errorType,
-                                "<span style='font-style: italic;'>Detail:</span> " + errorDetail,
-                                null,
-                                0);
+                            if (errorMessage != null) {
+                                performMessage.errorMessage(
+                                        "Clone Bot Job Failed",
+                                        errorMessage.getErrorTitle(),
+                                        errorMessage.getErrorHeader(),
+                                        "Verify  [INSERT] or [UPDATE] or [SELECT]",
+                                        null,
+                                        0);
+                            } else {
+
+                                HomeUrlDTO homeUrlDTO = new HomeUrlDTO();
+                                homeUrlDTO.setId(newHomeUrlId);
+                                homeUrlDTO.setHomeBankingId(selecBotJobDTO.getHomeBankingId());
+                                homeUrlDTO.setUrl(newUrl.getText().trim());
+                                cloneNewBotJob(homeUrlDTO, newBotJobName, newDescription, stage);
+                            }
+
+                        } catch (SQLException error) {
+                            System.out.println(error.getMessage());
+                        }
                     }
+
                 } else {
-                    performMessage.errorMessage(
-                            "Access Denied",
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Access Denied!</span> 🔒",
-                            "<span style='color: #E65100;'>Cannot access the file.</span>",
-                            "<span style='font-style: italic;'>Verify if the file is currently open in another application.</span>",
-                            "<span style='font-style: italic;'>Please close the file in other applications and try again.</span>",
-                            0);
+
+                    // Check if homeURLList contains a HomeUrlDTO with matching id and url
+                    Optional<HomeUrlDTO> matchHomeUrl = homeUrlDTOList.stream()
+                            .filter(homeUrl -> homeUrl.getId() != null
+                                    && selecBotJobDTO.getHomeBankingId().equals(homeUrl.getHomeBankingId())
+                                    && newUrl.getText().trim().equals(homeUrl.getUrl()))
+                            .findFirst();
+
+                    if (matchHomeUrl.isPresent()) {
+                        HomeUrlDTO matchedHomeUrl = matchHomeUrl.get();
+                        // Do something with matchedHomeUrl
+                        System.out.println("Found matching HomeUrlDTO: id=" + matchedHomeUrl.getId() + ", url="
+                                + matchedHomeUrl.getUrl());
+
+                        cloneNewBotJob(matchedHomeUrl, newBotJobName, newDescription, stage);
+                    }
                 }
 
-                ARLogger.getInstance(ARSaveClonePane.class).finer("ARSaveClonePane Close()");
-                Platform.runLater(() -> {
-                    Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
-                    stage.close();
-                });
-            } catch (SQLException ex) {
-                System.out.println(ex.getMessage());
+            } else {
+                performMessage.errorMessage(
+                        "URL Field cannot be empty",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>There is NOT a URL defined</span>",
+                        null,
+                        null,
+                        null,
+                        0);
             }
         });
+    }
+
+    private void cloneNewBotJob(HomeUrlDTO homeUrlDTO, String newBotJobName, String newDescription, Stage stage) {
+        try (Connection conn = performDataBase.getConnection()) {
+            int newBotJobId = performDataBase.getMaxId(conn, "bot_job") + 1;
+
+            if (newBotJobId > -1) {
+
+                String[] arrayTables = {"block", "instruction", "reference", "complex_instruction", "variable"};
+                ErrorMessage errorMessage = performDataBase.duplicateBotJobById(
+                        conn,
+                        homeUrlDTO.getHomeBankingId(),
+                        homeUrlDTO.getId(),
+                        selecBotJobDTO.getId(),
+                        newBotJobId,
+                        newBotJobName,
+                        newDescription,
+                        arrayTables);
+
+                if (errorMessage == null) {
+                    performMessage.showCustomModalDialogDragWin11(
+                            "Success: Bot Job Duplicated",
+                            "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>Bot Job Duplication Successful!</span> ✅",
+                            "<span style='color: #1976D2;'>New Bot Job Details:</span>",
+                            "<span style='font-weight: bold;'>ID:</span> " + newBotJobId + "<br>"
+                                    + "<span style='font-weight: bold;'>Name:</span> '" + newBotJobName + "'",
+                            "<span style='font-style: italic;'>Description: " + newDescription + "</span>",
+                            false,
+                            "OK",
+                            null,
+                            0);
+
+                } else {
+
+                    String errorType = "Database error";
+                    String errorDetail = "Verify  [INSERT] or [UPDATE] or [SELECT]";
+
+                    performMessage.errorMessage(
+                            "Error Encountered",
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> " + errorType,
+                            "<span style='font-style: italic;'>Detail:</span> " + errorDetail,
+                            null,
+                            0);
+                }
+            } else {
+                performMessage.errorMessage(
+                        "Access Denied",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Access Denied!</span> 🔒",
+                        "<span style='color: #E65100;'>Cannot access the file.</span>",
+                        "<span style='font-style: italic;'>Verify if the file is currently open in another application.</span>",
+                        "<span style='font-style: italic;'>Please close the file in other applications and try again.</span>",
+                        0);
+            }
+
+            ARLogger.getInstance(ARSaveClonePane.class).finer("ARSaveClonePane Close()");
+            Platform.runLater(() -> {
+                stage.close();
+            });
+        } catch (SQLException ex) {
+            System.out.println(ex.getMessage());
+        }
     }
 
     //    private void clearBotJob(BotJobDTO botJob) {
@@ -300,80 +384,6 @@ public class ARSaveClonePane extends ARPane {
             // Show the error message
             performMessage.errorMessage("Excel File Cloning Error", errorMessage, errorDetails, null, null, 0);
             return false;
-        }
-    }
-
-    private void showAlertTimer(
-            Alert.AlertType alertType,
-            String title,
-            String header,
-            String msg1,
-            String msg2,
-            String msg3,
-            String msg4) {
-        executorService = Executors.newSingleThreadExecutor();
-        alertToShow.setAlertType(alertType);
-        alertToShow.setTitle(title);
-        alertToShow.setHeaderText(header);
-        //        alertToShow.setContentText(content);
-
-        // Remove the border of the DialogPane
-        alertToShow.getDialogPane().setStyle("-fx-border-color: transparent; -fx-border-width: 0;");
-
-        // Create VBox to hold multiple Text elements
-        VBox allMsgVer = new VBox();
-        allMsgVer.setSpacing(10); // Add some spacing between texts
-        allMsgVer.setPadding(new Insets(20));
-
-        Text variableText1Styled = new Text(msg1);
-        Text variableText2Styled = new Text(msg2);
-        Text variableText3Styled = new Text(msg3);
-        Text variableText4Styled = new Text(msg4);
-
-        // Set styles based on alert type
-        if (alertType.equals(Alert.AlertType.ERROR)) {
-            // Change the font color of the title to red
-            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-            variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-            variableText3Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-            variableText4Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-        } else {
-            // Change the font color of the title to red
-            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-            variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: green;");
-            variableText3Styled.setStyle("-fx-font-size: 18px; -fx-fill: green;");
-            variableText4Styled.setStyle("-fx-font-size: 18px; -fx-fill: green;");
-        }
-
-        // Add Text elements to VBox
-        if (msg1 != null && msg2 == null && msg3 == null && msg4 == null) {
-            allMsgVer.getChildren().addAll(variableText1Styled);
-        } else if (msg1 != null && msg2 != null && msg3 == null && msg4 == null) {
-            allMsgVer.getChildren().addAll(variableText1Styled, variableText2Styled);
-        } else if (msg1 != null && msg2 != null && msg3 != null && msg4 == null) {
-            allMsgVer.getChildren().addAll(variableText1Styled, variableText2Styled, variableText3Styled);
-        } else {
-            allMsgVer.getChildren().addAll(variableText1Styled, variableText2Styled, variableText3Styled);
-        }
-
-        // Create a StackPane to hold the VBox
-        StackPane stackPane = new StackPane(allMsgVer);
-        stackPane.setPadding(new Insets(20));
-
-        // Set StackPane content to alert dialog pane
-        alertToShow.getDialogPane().setContent(stackPane);
-
-        executorService.execute(() -> {
-            timeline.setCycleCount(SECONDS); // Run for seconds
-            timeline.play(); // Start the timeline
-
-            // Show the alert on the JavaFX Application Thread
-            javafx.application.Platform.runLater(() -> alertToShow.showAndWait());
-        });
-
-        if (executorService != null) {
-            remainingSeconds = SECONDS;
-            executorService.shutdown();
         }
     }
 }

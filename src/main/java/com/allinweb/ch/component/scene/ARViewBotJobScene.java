@@ -4,6 +4,7 @@ import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.HomeBankingLoadDTO;
+import com.allinweb.ch.component.model.HomeUrlDTO;
 import com.allinweb.ch.component.pane.ARMainPane;
 import com.allinweb.ch.component.pane.ARViewBotJobPane;
 import com.allinweb.ch.component.pane.base.IARPane;
@@ -76,7 +77,9 @@ public class ARViewBotJobScene extends ARScene {
         arViewBotJobPane = ARViewBotJobPane.getInstance();
     }
 
-    private int portSocket = 54525;
+    private int portSocketInitial = 54525;
+    private boolean isConnectWebSocket = false;
+
     private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private static final CountDownLatch latch = new CountDownLatch(1);
     private Session session;
@@ -101,12 +104,16 @@ public class ARViewBotJobScene extends ARScene {
 
         String port = arPropertyManager.getProperty(ARPropertyEnum.PORT_SOCKET);
         if (!Strings.isNullOrEmpty(port)) {
-            portSocket = Integer.parseInt(port);
+            portSocketInitial = Integer.parseInt(port);
         }
 
-        arNewCommandScene.connectWebSocketClient(portSocket, "new-command-scene"); // + botJobLoad.getId());
+        if (!arNewCommandScene.isConnectWebSocket) {
+            arNewCommandScene.connectWebSocketClient(portSocketInitial, "new-command-scene"); // + botJobLoad.getId());
+        }
 
-        connectWebSocketClient(portSocket, "bot-job-scene"); // + botJobLoad.getId());
+        if (!isConnectWebSocket) {
+            connectWebSocketClient(portSocketInitial, "bot-job-scene"); // + botJobLoad.getId());
+        }
     }
 
     private void reloadList() {
@@ -122,10 +129,17 @@ public class ARViewBotJobScene extends ARScene {
 
         this.blockLoadList = performDataBase.loadBlocksByBotJobId(this.botJobLoad.getId());
         //        this.botLoadJobs = performDataBase.loadBotJobWithBlock(this.botJobId);
+
         this.botLoadJob = performDataBase.loadBotJobById(this.botJobLoad.getId());
+
         this.homeBankingLoadDTO = performDataBase.loadHomeBanking(this.botJobLoad.getHomeBankingId());
         if (homeBankingLoadDTO != null) {
             this.botLoadJob.setHomeBankingLoadDTO(homeBankingLoadDTO);
+            HomeUrlDTO homeUrlDTO = findMatchingHomeUrlDTO(botLoadJob);
+            if (homeUrlDTO != null) {
+                this.botLoadJob.setHomeUrlId(homeUrlDTO.getId());
+                this.homeBankingLoadDTO.setUrl(homeUrlDTO.getUrl());
+            }
         }
 
         if (this.botLoadJob.getBlockLoadDTOList() == null) {
@@ -150,6 +164,20 @@ public class ARViewBotJobScene extends ARScene {
                     .info(String.format(
                             "Created a new Block id %d for bot job Id %d", newBlockId, this.botLoadJob.getId()));
         }
+    }
+
+    public HomeUrlDTO findMatchingHomeUrlDTO(BotJobLoadDTO botJobLoadDTO) {
+        Integer targetHomeUrlId = botJobLoadDTO.getHomeUrlId();
+        HomeBankingLoadDTO homeBanking = botJobLoadDTO.getHomeBankingLoadDTO();
+
+        if (homeBanking != null && homeBanking.getHomeUrlDTOS() != null) {
+            return homeBanking.getHomeUrlDTOS().stream()
+                    .filter(dto -> dto.getId().equals(targetHomeUrlId))
+                    .findFirst()
+                    .orElse(null);
+        }
+
+        return null;
     }
 
     private BotJobLoadDTO botLoadJob = null;
@@ -327,16 +355,16 @@ public class ARViewBotJobScene extends ARScene {
 
     public void connectWebSocketClient(int portSocket, String sessionId) {
         executorWebSocket.submit(() -> {
-            String uri = "ws://localhost:" + portSocket + "/websocket?sessionId=" + sessionId;
-            WebSocketContainer container = ContainerProvider.getWebSocketContainer();
-
+            String serverUri = "ws://localhost:" + portSocket + "/websocket?sessionId=" + sessionId;
             try {
-                container.connectToServer(this, new URI(uri));
+                WebSocketContainer container = ContainerProvider.getWebSocketContainer();
+                container.connectToServer(this, new URI(serverUri));
                 latch.await();
                 startKeepAlivePings();
+                isConnectWebSocket = true;
             } catch (Exception e) {
-                System.err.println("WebSocket connection failed: " + e.getMessage());
-                e.printStackTrace();
+                isConnectWebSocket = false;
+                System.err.println("WebSocket connection failed sessionId: " + sessionId + "error: " + e.getMessage());
             }
         });
     }

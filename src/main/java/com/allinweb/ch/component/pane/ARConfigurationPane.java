@@ -934,7 +934,7 @@ public class ARConfigurationPane extends ARPane {
             }
             return true;
         } catch (Exception error) {
-            ARLogger.getInstance(ARMainPane.class)
+            ARLogger.getInstance(ARConfigurationPane.class)
                     .severe("Cannot read/validate the License path/file. Error: " + error.getMessage());
             return false;
         }

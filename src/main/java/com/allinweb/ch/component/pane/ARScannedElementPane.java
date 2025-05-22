@@ -28,23 +28,17 @@ import com.allinweb.ch.persistence.*;
 import com.allinweb.ch.readersAndWriters.ExcelReader;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
 import com.allinweb.ch.socket.SimpleWebSocketServer;
-import com.allinweb.ch.socket.WebSocketTestClient;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.URI;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.sql.*;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
@@ -176,96 +170,19 @@ public class ARScannedElementPane extends ARPane {
 
     public void connectWebSocketClient(int portSocket, String sessionId) {
         executorWebSocket.submit(() -> {
-            String uri = "ws://localhost:" + portSocket + "/websocket?sessionId=" + sessionId;
-            WebSocketContainer container = ContainerProvider.getWebSocketContainer();
-
-            //            try {
-            //                // Load keystore from resources and copy to a temp file
-            //                String keystorePassword = "Martini!383940";
-            //                File keystoreTempFile = copyResourceToTempFile("keystore.jks", "keystore", ".jks");
-            //                System.setProperty("javax.net.ssl.keyStore", keystoreTempFile.getAbsolutePath());
-            //                System.setProperty("javax.net.ssl.keyStorePassword", keystorePassword);
-            //
-            //                // Load truststore from resources and copy to a temp file
-            //                String truststorePassword = "Martini!383940";
-            //                File truststoreTempFile = copyResourceToTempFile("truststore.jks", "truststore", ".jks");
-            //                System.setProperty("javax.net.ssl.trustStore", truststoreTempFile.getAbsolutePath());
-            //                System.setProperty("javax.net.ssl.trustStorePassword", truststorePassword);
-            //
-            //            } catch (Exception erroTemp) {
-            //
-            //            }
-
+            String serverUri = "ws://localhost:" + portSocket + "/websocket?sessionId=" + sessionId;
             try {
-                container.connectToServer(this, new URI(uri));
+                WebSocketContainer container = ContainerProvider.getWebSocketContainer();
+                container.connectToServer(this, new URI(serverUri));
                 latch.await();
                 startKeepAlivePings();
                 isConnectWebSocket = true;
             } catch (Exception e) {
                 isConnectWebSocket = false;
-                System.err.println("WebSocket connection failed: " + e.getMessage());
-                e.printStackTrace();
+                System.err.println("WebSocket connection failed sessionId: " + sessionId + "error: " + e.getMessage());
             }
         });
     }
-
-    private static File copyResourceToTempFile(String resourceName, String prefix, String suffix) throws IOException {
-        URL resourceUrl = WebSocketTestClient.class.getClassLoader().getResource(resourceName);
-        if (resourceUrl == null) {
-            throw new FileNotFoundException("Resource not found: " + resourceName);
-        }
-
-        File tempFile = Files.createTempFile(prefix, suffix).toFile();
-        tempFile.deleteOnExit();
-
-        try (InputStream in = resourceUrl.openStream();
-                OutputStream out = new FileOutputStream(tempFile)) {
-
-            byte[] buffer = new byte[8192];
-            int bytesRead;
-            while ((bytesRead = in.read(buffer)) != -1) {
-                out.write(buffer, 0, bytesRead);
-            }
-        }
-
-        return tempFile;
-    }
-    //
-    //    private SSLContext createSSLContext() {
-    //        try {
-    //            String keystorePassword = "Martini!383940";
-    //            String truststorePassword = "changeit";
-    //
-    //            // Load keystore
-    //            KeyStore keyStore = KeyStore.getInstance("JKS");
-    //            try (InputStream keyStoreStream = getClass().getClassLoader().getResourceAsStream("keystore.jks")) {
-    //                if (keyStoreStream == null) throw new RuntimeException("Cannot find keystore.jks");
-    //                keyStore.load(keyStoreStream, keystorePassword.toCharArray());
-    //            }
-    //
-    //            // Load truststore
-    //            KeyStore trustStore = KeyStore.getInstance("JKS");
-    //            try (InputStream trustStoreStream = getClass().getClassLoader().getResourceAsStream("cacerts")) {
-    //                if (trustStoreStream == null) throw new RuntimeException("Cannot find cacerts");
-    //                trustStore.load(trustStoreStream, truststorePassword.toCharArray());
-    //            }
-    //
-    //            // Init managers
-    //            TrustManagerFactory trustFactory =
-    //                    TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-    //            trustFactory.init(trustStore);
-    //
-    //            KeyManagerFactory keyFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-    //            keyFactory.init(keyStore, keystorePassword.toCharArray());
-    //
-    //            SSLContext sslContext = SSLContext.getInstance("TLS");
-    //            sslContext.init(keyFactory.getKeyManagers(), trustFactory.getTrustManagers(), new SecureRandom());
-    //
-    //            return sslContext;
-    //        } catch (Exception e) {
-    //            throw new RuntimeException("Failed to initialize SSLContext: " + e.getMessage(), e);
-    //        }
-    //    }
 
     @OnMessage
     public void onMessage(String message) {
@@ -279,13 +196,13 @@ public class ARScannedElementPane extends ARPane {
 
         String type = null;
         String body = null;
-        int homeBankingId = -1;
+        //        int homeBankingId = -1;
         try {
             // Parse the incoming message (assuming JSON format)
             JsonObject jsonObjMSG = JsonParser.parseString(message).getAsJsonObject();
-            homeBankingId = jsonObjMSG.has("homeBankingId")
-                    ? Integer.parseInt(jsonObjMSG.get("homeBankingId").getAsString())
-                    : -1;
+            //            homeBankingId = jsonObjMSG.has("homeBankingId")
+            //                    ? Integer.parseInt(jsonObjMSG.get("homeBankingId").getAsString())
+            //                    : -1;
 
             body = jsonObjMSG.has("body") ? jsonObjMSG.get("body").getAsString() : "unknown";
             if (!body.equalsIgnoreCase("unknown")) {
@@ -380,7 +297,7 @@ public class ARScannedElementPane extends ARPane {
             //            preTestCoordinates(targetInsertOne);
 
             List<InstructionLoadDTO> listInstr =
-                    performDataBase.getInstructionsByBlockId(botJobLoad.getId(), currentBlockId);
+                    performDataBase.getInstructionsByBlockId(botJobLoad.getId(), currentBlockId, "instruction");
 
             int nextOrder = listInstr.size() + 1;
 
@@ -406,7 +323,7 @@ public class ARScannedElementPane extends ARPane {
         validateBlockDB("Default Block", this.botJobLoad.getId());
         if (currentBlockId > 0) {
             List<InstructionLoadDTO> listInstr =
-                    performDataBase.getInstructionsByBlockId(botJobLoad.getId(), currentBlockId);
+                    performDataBase.getInstructionsByBlockId(botJobLoad.getId(), currentBlockId, "instruction");
 
             int nextOrder = listInstr.size() + 1;
 
@@ -613,7 +530,7 @@ public class ARScannedElementPane extends ARPane {
                             String jsonData = "[]";
                             if (!botJobLoadList.isEmpty()) {
                                 List<InstructionLoadDTO> blockLoopInstructions =
-                                        performDataBase.buildJsonViewData(botJobLoadList);
+                                        performDataBase.buildJsonViewData(botJobLoadList, "instruction");
                                 jsonData = gson.toJson(blockLoopInstructions);
                             }
                             sendMessageJson(
@@ -1167,7 +1084,7 @@ public class ARScannedElementPane extends ARPane {
     private Map<String, String> mapExport;
     private List<VariableLoadDTO> variablesLoaded;
 
-    private int portSocket = 54525;
+    private int portSocketInitial = 54525;
     private boolean isConnectWebSocket = false;
 
     private String[] defaultSearch;
@@ -1242,11 +1159,11 @@ public class ARScannedElementPane extends ARPane {
 
         String port = arPropertyManager.getProperty(ARPropertyEnum.PORT_SOCKET);
         if (!Strings.isNullOrEmpty(port)) {
-            portSocket = Integer.parseInt(port);
+            portSocketInitial = Integer.parseInt(port);
         }
 
         if (!isConnectWebSocket) {
-            connectWebSocketClient(portSocket, "scannerReceiver");
+            connectWebSocketClient(portSocketInitial, "scannerReceiver");
         }
 
         searchHiddenFields = false;
@@ -1340,7 +1257,7 @@ public class ARScannedElementPane extends ARPane {
         buildWebView(
                 webEngine,
                 jsonData,
-                portSocket,
+                portSocketInitial,
                 sessionIdFromJava,
                 homeBanking.getId(),
                 this.botJobLoad.getId(),
@@ -1378,7 +1295,7 @@ public class ARScannedElementPane extends ARPane {
         //                performActions.getCurrentDriver().getCurrentUrl(),
         //                defaultSearch,
         //                searchHiddenFields,
-        //                portSocket,
+        //                portSocketInitial,
         //                "scannerTool",
         //                "scannerGrid",
         //                "searchTerms");
@@ -1386,7 +1303,7 @@ public class ARScannedElementPane extends ARPane {
         //        Platform.runLater(() -> {
         //            performCloseBrowser.dynamicCloseBrowser(
         //                    performActions.getCurrentDriver(),
-        //                    portSocket,
+        //                    portSocketInitial,
         //                    "closeBrowser",
         //                    "scannerGrid",
         //                    "closeBrowser",
@@ -1434,7 +1351,7 @@ public class ARScannedElementPane extends ARPane {
                     homeBanking.getOptionsConfig(),
                     defaultSearch,
                     searchHiddenFields,
-                    portSocket);
+                    portSocketInitial);
 
             performActions.initialize(arPriorities);
             performActions.setCurrentDriver(currentARWebDriver.getCurrentDriver());
@@ -1600,7 +1517,7 @@ public class ARScannedElementPane extends ARPane {
             //            Platform.runLater(() -> {
             //                performCloseBrowser.dynamicCloseBrowser(
             //                        performActions.getCurrentDriver(),
-            //                        portSocket,
+            //                        portSocketInitial,
             //                        "closeBrowser",
             //                        "scannerGrid",
             //                        "closeBrowser",
@@ -2032,7 +1949,7 @@ public class ARScannedElementPane extends ARPane {
 
             if (checkCloneElement.isSelected()) {
                 // String[] dataArrayClone = {"*"};
-                int finalPort = portSocket;
+                int finalPort = portSocketInitial;
                 String socketSessionId = "scannerTool";
                 String destinationId = "scannerGrid"; // + homeBanking.getId();
                 Platform.runLater(() -> periodicPickOneCloneThread(
@@ -2409,7 +2326,7 @@ public class ARScannedElementPane extends ARPane {
         revertCloneInjections(performActions.getCurrentDriver());
         revertPickInjections(performActions.getCurrentDriver());
 
-        int finalPort = portSocket;
+        int finalPort = portSocketInitial;
         String socketSessionId = "scannerTool";
         String destinationId = "scannerGrid";
 
@@ -5044,9 +4961,11 @@ public class ARScannedElementPane extends ARPane {
 
         try {
             if (!updateRow) {
-                newId = performDataBase.insertInstruction(instructionLoadDTO, currentBotJobId, currentBlockId);
+                newId = performDataBase.insertInstruction(
+                        "botJobTasks", instructionLoadDTO, currentBotJobId, currentBlockId, homeBanking.getId());
             } else {
-                newId = performDataBase.updateInstruction(instructionLoadDTO, currentBotJobId, currentBlockId);
+                newId = performDataBase.updateInstruction(
+                        "botJobTasks", instructionLoadDTO, currentBotJobId, currentBlockId, homeBanking.getId());
             }
 
         } catch (Exception e) {

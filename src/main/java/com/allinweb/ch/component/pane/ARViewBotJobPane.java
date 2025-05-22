@@ -4,6 +4,7 @@ package com.allinweb.ch.component.pane;
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.HomeBankingLoadDTO;
+import com.allinweb.ch.component.model.HomeUrlDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.PayloadJson;
 import com.allinweb.ch.component.model.VariableUserDTO;
@@ -106,6 +107,7 @@ public class ARViewBotJobPane extends ARPane {
     private static final SimpleWebSocketServer simpleWebSocketServer;
     private static final ARPropertyManager arPropertyManager;
     private static final ARScannedElementScene arScannedElementScene;
+    private static final ARNewCommandScene arNewCommandScene;
     private static final ARWebDriver arWebDriver;
     private static final PerformDataBase performDataBase;
     private static final PerformMessage performMessage;
@@ -114,6 +116,7 @@ public class ARViewBotJobPane extends ARPane {
         simpleWebSocketServer = SimpleWebSocketServer.getInstance();
         arPropertyManager = ARPropertyManager.getInstance();
         arScannedElementScene = ARScannedElementScene.getInstance();
+        arNewCommandScene = ARNewCommandScene.getInstance();
         performDataBase = PerformDataBase.getInstance();
         performMessage = PerformMessage.getInstance();
         arWebDriver = ARWebDriver.getInstance();
@@ -174,6 +177,11 @@ public class ARViewBotJobPane extends ARPane {
             this.webPageItems = performDataBase.loadWebPageFields(this.botJobLoad.getId());
         });
 
+        if (arNewCommandScene.getRowMoveDTO() != null) {
+            arNewCommandScene.setRowMoveDTO(null);
+            arNewCommandScene.closeModal();
+        }
+
         if (arScannedElementScene.getBotJobLoadDTO() != null
                 && !arScannedElementScene.getBotJobLoadDTO().getId().equals(this.botJobLoad.getId())) {
             callScannerTool();
@@ -182,7 +190,7 @@ public class ARViewBotJobPane extends ARPane {
         if (this.botJobNameLabel != null) {
             this.webSiteInfoLabel.setText(
                     "Web-site Id: " + this.botJobLoad.getHomeBankingId() + " Bot Job Id: " + this.botJobLoad.getId());
-            this.botJobNameLabel.setText("Block name: " + this.botJobLoad.getName());
+            this.botJobNameLabel.setText("Bot Job name: " + this.botJobLoad.getName());
             this.botJobDescriptionLabel.setText("Description: " + this.botJobLoad.getDescription());
             botJobNameTextField.setText(this.botJobLoad.getName());
             botJobDescriptionTextField.setText(this.botJobLoad.getDescription());
@@ -194,7 +202,7 @@ public class ARViewBotJobPane extends ARPane {
             }
         }
 
-        if (simpleWebSocketServer.getAllSessions().size() > 0) {
+        if (!simpleWebSocketServer.getAllSessions().isEmpty()) {
             refreshGrids();
         }
     }
@@ -203,21 +211,23 @@ public class ARViewBotJobPane extends ARPane {
         this.botJobLoadList = performDataBase.loadCompleteJobs(this.botJobLoad.getId());
         String jsonData = gson.toJson(payloadEmpty);
 
-        if (this.botJobLoadList.size() > 0) {
-            List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
-            if (blockLoopInstructions.size() > 0) {
-                jsonData = gson.toJson(blockLoopInstructions);
+        if (!this.botJobLoadList.isEmpty()) {
+            List<InstructionLoadDTO> instructions = performDataBase.buildJsonViewData(botJobLoadList, "instruction");
+            if (!instructions.isEmpty()) {
+                jsonData = gson.toJson(instructions);
             }
         }
 
         simpleWebSocketServer.sendMessageJson(
                 this.botJobLoad.getHomeBankingId(), "botJobTasks", jsonData, "updateInstructions");
 
-        this.botJobLoadComp = performDataBase.loadComponentsComplete(this.botJobLoad.getHomeBankingId());
+        this.botJobLoadComp = performDataBase.loadComponentsComplete(
+                this.botJobLoad.getHomeBankingId(), this.botJobLoad.getId(), this.botJobLoad.getName());
         jsonData = gson.toJson(payloadEmpty);
         if (!botJobLoadComp.isEmpty()) {
-            List<InstructionLoadDTO> instructions = performDataBase.buildJsonViewData(botJobLoadComp);
-            if (instructions.size() > 0) {
+            List<InstructionLoadDTO> instructions =
+                    performDataBase.buildJsonViewData(botJobLoadComp, "component_instruction");
+            if (!instructions.isEmpty()) {
                 jsonData = gson.toJson(instructions);
             }
         }
@@ -235,13 +245,13 @@ public class ARViewBotJobPane extends ARPane {
         String jsonData = gson.toJson(payloadEmpty);
 
         // Load blocks based on the BotJobLoadDTO instead of blockDTOObservableList
-        if (this.botJobLoadList.size() > 0) {
-            if (this.botJobLoadList.get(0).getBlockLoadDTOList().size() == 0) {
+        if (!this.botJobLoadList.isEmpty()) {
+            if (this.botJobLoadList.get(0).getBlockLoadDTOList().isEmpty()) {
                 this.botJobLoadList = performDataBase.loadCompleteJobs(this.botJobLoad.getId());
             }
 
-            List<InstructionLoadDTO> instructions = performDataBase.buildJsonViewData(botJobLoadList);
-            if (instructions.size() > 0) {
+            List<InstructionLoadDTO> instructions = performDataBase.buildJsonViewData(botJobLoadList, "instruction");
+            if (!instructions.isEmpty()) {
                 performMessage.outputJson(instructions, "botJobTasks-" + this.botJobLoad.getId(), false);
                 jsonData = gson.toJson(instructions);
             }
@@ -261,16 +271,19 @@ public class ARViewBotJobPane extends ARPane {
                 this.botJobLoad.getId(),
                 this.botJobLoad.getName());
 
-        this.botJobLoadComp = performDataBase.loadComponentsComplete(this.botJobLoad.getHomeBankingId());
+        this.botJobLoadComp = performDataBase.loadComponentsComplete(
+                this.botJobLoad.getHomeBankingId(), this.botJobLoad.getId(), this.botJobLoad.getName());
         jsonData = gson.toJson(payloadEmpty);
 
-        if (this.botJobLoadComp.size() > 0) {
-            if (this.botJobLoadComp.get(0).getBlockLoadDTOList().size() == 0) {
-                this.botJobLoadComp = performDataBase.loadComponentsComplete(this.botJobLoad.getHomeBankingId());
+        if (!this.botJobLoadComp.isEmpty()) {
+            if (this.botJobLoadComp.get(0).getBlockLoadDTOList().isEmpty()) {
+                this.botJobLoadComp = performDataBase.loadComponentsComplete(
+                        this.botJobLoad.getHomeBankingId(), this.botJobLoad.getId(), this.botJobLoad.getName());
             }
 
-            List<InstructionLoadDTO> instructions = performDataBase.buildJsonViewData(botJobLoadComp);
-            if (instructions.size() > 0) {
+            List<InstructionLoadDTO> instructions =
+                    performDataBase.buildJsonViewData(botJobLoadComp, "component_instruction");
+            if (!instructions.isEmpty()) {
                 performMessage.outputJson(instructions, "componentTasks-" + this.botJobLoad.getId(), false);
                 jsonData = gson.toJson(instructions);
             }
@@ -947,9 +960,28 @@ public class ARViewBotJobPane extends ARPane {
         });
     }
 
+    public HomeUrlDTO findMatchingHomeUrlDTO(BotJobLoadDTO botJobLoadDTO) {
+        Integer targetHomeUrlId = botJobLoadDTO.getHomeUrlId();
+        HomeBankingLoadDTO homeBanking = botJobLoadDTO.getHomeBankingLoadDTO();
+
+        if (homeBanking != null && homeBanking.getHomeUrlDTOS() != null) {
+            return homeBanking.getHomeUrlDTOS().stream()
+                    .filter(dto -> dto.getId().equals(targetHomeUrlId))
+                    .findFirst()
+                    .orElse(null);
+        }
+
+        return null;
+    }
+
     private void executeScannerTask() {
 
         HomeBankingLoadDTO homeBankingLoadDTO = performDataBase.loadHomeBanking(this.botJobLoad.getHomeBankingId());
+        HomeUrlDTO homeUrlDTO = findMatchingHomeUrlDTO(this.botJobLoad);
+        if (homeUrlDTO != null) {
+            this.botJobLoad.setHomeUrlId(homeUrlDTO.getId());
+            homeBankingLoadDTO.setUrl(homeUrlDTO.getUrl());
+        }
 
         if (this.botJobLoad.getBlockLoadDTOList() != null
                 && this.botJobLoad.getBlockLoadDTOList().size() > 0) {

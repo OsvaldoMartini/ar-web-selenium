@@ -28,11 +28,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
-import javafx.animation.KeyFrame;
-import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
@@ -47,7 +43,6 @@ import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
-import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javax.websocket.Session;
 
@@ -103,18 +98,9 @@ public class ARNewCommandPane extends ARPane {
     // Postgres
     private Connection conn = null;
 
-    private static final int SECONDS = 3; // Total seconds for the countdown
-    private int remainingSeconds = SECONDS;
-    private Timeline timeline;
-    private ExecutorService executorService;
-    private Alert alertToShow;
-
     private RowMoveDTO rowMoveDTO;
     private Pane mainPane;
 
-    //    private HBox labelRow;
-
-    private HBox boxCombos;
     private VBox commandBox;
     private VBox varsBox;
     private VBox webFieldsBox;
@@ -209,7 +195,12 @@ public class ARNewCommandPane extends ARPane {
     private ObservableList<ComboBoxOperator> operatorsItems = FXCollections.observableArrayList();
 
     public void initialize(RowMoveDTO rowMoveDTO) {
-        this.webPageItems = performDataBase.loadWebPageFields(rowMoveDTO.getBotJobId());
+
+        if (rowMoveDTO.getSessionId().equals("componentTasks")) {
+            this.webPageItems = performDataBase.loadCompWebPageFields(rowMoveDTO.getHomeBankingId());
+        } else {
+            this.webPageItems = performDataBase.loadWebPageFields(rowMoveDTO.getBotJobId());
+        }
 
         this.rowMoveDTO = rowMoveDTO;
 
@@ -296,7 +287,12 @@ public class ARNewCommandPane extends ARPane {
                     rowMoveDTO.getBotJobId(), filteredPageItems.get(0).getInstructionId());
         }
 
-        this.blockLoadList = performDataBase.loadBlocksByBotJobId(rowMoveDTO.getBotJobId());
+        if (rowMoveDTO.getSessionId().equals("componentTasks")) {
+            this.blockLoadList = performDataBase.loadCompBlocksByHomeId(
+                    rowMoveDTO.getHomeBankingId(), rowMoveDTO.getBotJobId(), rowMoveDTO.getBotJobName());
+        } else {
+            this.blockLoadList = performDataBase.loadBlocksByBotJobId(rowMoveDTO.getBotJobId());
+        }
 
         if (this.blockLoadList != null && !this.blockLoadList.isEmpty()) {
             //            for (BotJobLoadDTO botJobLoadDTO : this.botJobLoadList) {
@@ -323,34 +319,6 @@ public class ARNewCommandPane extends ARPane {
 
     @Override
     public void initUIComponents() {
-
-        //  Alert Timer Components
-        // Create a label to display the countdown
-        Label countdownLabel = new Label(String.valueOf(remainingSeconds));
-        countdownLabel.setStyle("-fx-font-size: 24px;");
-        countdownLabel.setVisible(false);
-        // Create a stack pane to hold the label
-        StackPane stackPane = new StackPane(countdownLabel);
-        stackPane.setPadding(new Insets(20));
-
-        // Create a dialog for the alert
-        alertToShow = new Alert(Alert.AlertType.INFORMATION);
-        alertToShow.setTitle("Title");
-        alertToShow.setHeaderText("Header Message");
-        alertToShow.setContentText("Main Message");
-        alertToShow.initModality(Modality.WINDOW_MODAL);
-        // Set the content of the alert
-        alertToShow.getDialogPane().setContent(stackPane);
-        // Create a timeline to update the countdown
-        timeline = new Timeline(new KeyFrame(javafx.util.Duration.seconds(1), event -> {
-            remainingSeconds--;
-            countdownLabel.setText(String.valueOf(remainingSeconds));
-            if (remainingSeconds <= 0) {
-                timeline.stop(); // Stop the timeline when countdown finishes
-                alertToShow.close(); // Close the alert dialog
-            }
-        }));
-
         addNewInstructionButton = componentBuilder.buildButton("OK", ARConstants.SPACE_L, Insets.EMPTY);
         addNewInstructionButton.getStyleClass().add("ok-button");
 
@@ -744,7 +712,7 @@ public class ARNewCommandPane extends ARPane {
             }
         });
 
-        setCombosAndLabels();
+        //        setCombosAndLabels();
 
         //        defineTextFlow(comboBoxInstruc.getValue().getValue());
 
@@ -878,6 +846,7 @@ public class ARNewCommandPane extends ARPane {
         AnchorPane.setRightAnchor(vboxAll, 0.0);
 
         loadeAllCompleted = true;
+        setCombosAndLabels();
     }
 
     private void titleDescription() {
@@ -2095,7 +2064,11 @@ public class ARNewCommandPane extends ARPane {
     }
 
     private void updateFields() {
-        this.webPageItems = performDataBase.loadWebPageFields(rowMoveDTO.getBotJobId());
+        if (rowMoveDTO.getSessionId().equals("componentTasks")) {
+            this.webPageItems = performDataBase.loadCompWebPageFields(rowMoveDTO.getHomeBankingId());
+        } else {
+            this.webPageItems = performDataBase.loadWebPageFields(rowMoveDTO.getBotJobId());
+        }
 
         this.filteredPageItems.clear();
         this.filteredPageItems.addAll(this.webPageItems.stream()
@@ -2165,36 +2138,6 @@ public class ARNewCommandPane extends ARPane {
             } catch (SQLException e) {
                 System.out.println(e.getMessage());
             }
-        }
-    }
-
-    private void showAlertTimer(Alert.AlertType alertType, String title, String header, String content) {
-        executorService = Executors.newSingleThreadExecutor();
-        alertToShow.setAlertType(alertType);
-        alertToShow.setTitle(title);
-        alertToShow.setHeaderText(header);
-        alertToShow.setContentText(content);
-
-        // Create a label to display the countdown
-        Label countdownLabel = new Label(content);
-        countdownLabel.setStyle("-fx-font-size: 22px;");
-        countdownLabel.setVisible(true);
-        // Create a stack pane to hold the label
-        StackPane stackPane = new StackPane(countdownLabel);
-        stackPane.setPadding(new Insets(20));
-        alertToShow.getDialogPane().setContent(stackPane);
-
-        executorService.execute(() -> {
-            timeline.setCycleCount(SECONDS); // Run for seconds
-            timeline.play(); // Start the timeline
-
-            // Show the alert on the JavaFX Application Thread
-            javafx.application.Platform.runLater(() -> alertToShow.showAndWait());
-        });
-
-        if (executorService != null) {
-            remainingSeconds = SECONDS;
-            executorService.shutdown();
         }
     }
 
@@ -2381,14 +2324,29 @@ public class ARNewCommandPane extends ARPane {
 
             if (newRowId > 0) {
 
-                this.botJobLoadList = performDataBase.loadCompleteJobs(rowMoveDTO.getBotJobId());
-                String jsonData = "[]";
-                if (botJobLoadList.size() > 0) {
-                    List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
-                    jsonData = gson.toJson(blockLoopInstructions);
+                String tableName = "instruction";
+                if (rowMoveDTO.getSessionId().equals("componentTasks")) {
+                    tableName = "component_instruction";
+                    rowMoveDTO.setOperationId("componentsUpdate");
+                    this.botJobLoadList = performDataBase.loadComponentsComplete(
+                            rowMoveDTO.getHomeBankingId(), rowMoveDTO.getBotJobId(), rowMoveDTO.getBotJobName());
+                } else {
+                    rowMoveDTO.setOperationId("updateInstructions");
+                    this.botJobLoadList = performDataBase.loadCompleteJobs(rowMoveDTO.getBotJobId());
                 }
+
+                String jsonData = "[]";
+                if (!botJobLoadList.isEmpty()) {
+                    List<InstructionLoadDTO> instructions =
+                            performDataBase.buildJsonViewData(botJobLoadList, tableName);
+                    jsonData = gson.toJson(instructions);
+                }
+
                 sendMessageJson(
-                        rowMoveDTO.getHomeBankingId(), rowMoveDTO.getSessionId(), jsonData, "updateInstructions");
+                        rowMoveDTO.getHomeBankingId(),
+                        rowMoveDTO.getSessionId(),
+                        jsonData,
+                        rowMoveDTO.getOperationId());
 
                 if (!rowMoveDTO.getType().equals("EDIT_OPERATION")) {
                     updateFields();

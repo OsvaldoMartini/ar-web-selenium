@@ -73,7 +73,6 @@ public class ARNewHomeBankingPane extends ARPane {
     private static final Pattern URL_PATTERN = Pattern.compile(URL_REGEX, Pattern.CASE_INSENSITIVE);
 
     private Connection conn = null;
-    private ObservableList<DatabaseUserDTO> databaseList = FXCollections.observableArrayList();
     private TableView<DatabaseUserDTO> tableView = new TableView<>();
 
     private List<BankingDTO> dtoList;
@@ -87,8 +86,8 @@ public class ARNewHomeBankingPane extends ARPane {
 
     @Override
     public void initUIComponents() {
-        loadAllHomeBankingBotJob();
-        updateHomeBankList(databaseList);
+        performDataBase.loadAllHomeBankingBotJob();
+        updateHomeBankList(performDataBase.getDatabaseList());
 
         // Create labels
         Label idLabel = new Label("ID:");
@@ -155,7 +154,7 @@ public class ARNewHomeBankingPane extends ARPane {
                 showAlert(
                         Alert.AlertType.ERROR,
                         "Error",
-                        "Env Name Alread Exist",
+                        "Env Name Already Exist",
                         String.format("This '%s' cannot be inserted with same name.\n", nameField.getText()));
                 return;
             }
@@ -168,8 +167,8 @@ public class ARNewHomeBankingPane extends ARPane {
             }
 
             saveUserData(user);
-            loadAllHomeBankingBotJob();
-            updateHomeBankList(databaseList);
+            performDataBase.loadAllHomeBankingBotJob();
+            updateHomeBankList(performDataBase.getDatabaseList());
         });
 
         // Create update button
@@ -198,8 +197,8 @@ public class ARNewHomeBankingPane extends ARPane {
                     searchConfigField.getText(),
                     optionsConfigField.getText());
             updateUserData(id, user);
-            loadAllHomeBankingBotJob();
-            updateHomeBankList(databaseList);
+            performDataBase.loadAllHomeBankingBotJob();
+            updateHomeBankList(performDataBase.getDatabaseList());
         });
 
         Button deleteButton = new Button("Delete");
@@ -217,8 +216,8 @@ public class ARNewHomeBankingPane extends ARPane {
             }
 
             deleteUserData(id);
-            loadAllHomeBankingBotJob();
-            updateHomeBankList(databaseList);
+            performDataBase.loadAllHomeBankingBotJob();
+            updateHomeBankList(performDataBase.getDatabaseList());
         });
 
         Button templateButton = new Button("Template");
@@ -356,7 +355,7 @@ public class ARNewHomeBankingPane extends ARPane {
                         priorityColumn,
                         searchConfigColumn,
                         optionsConfigColumn);
-        tableView.setItems(databaseList);
+        tableView.setItems(performDataBase.getDatabaseList());
 
         tableView.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
             if (newSelection != null) {
@@ -481,7 +480,7 @@ public class ARNewHomeBankingPane extends ARPane {
     }
 
     private boolean nameExists(String name) {
-        for (DatabaseUserDTO dto : databaseList) {
+        for (DatabaseUserDTO dto : performDataBase.getDatabaseList()) {
             if (dto.getName().trim().equalsIgnoreCase(name)) {
                 return true;
             }
@@ -496,68 +495,6 @@ public class ARNewHomeBankingPane extends ARPane {
             dataList.add(new BankingDTO(i + 1, "Name " + i, "URL " + i, "Priority " + i, 5, new ArrayList<>()));
         }
         return dataList;
-    }
-
-    private void loadAllHomeBankingBotJob() {
-        databaseList.clear();
-        String selectSQL =
-                " SELECT bank.ID, bank.Name, Url, bank.priority, COUNT(bot.ID) Jobs, search_config searchConfig, options_config optionsConfig, username, password "
-                        + " FROM home_banking bank "
-                        + " left join bot_job bot on bot.home_banking_id = bank.id "
-                        + " group by bank.ID, bank.Name, bank.Url, bank.priority, bank.search_config, bank.options_config, bank.username, bank.password ";
-        try (Statement stmt = performDataBase.getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
-            while (rs.next()) {
-                String id = rs.getString("ID");
-                String jobs = rs.getString("Jobs");
-                String name = rs.getString("Name");
-                String url = rs.getString("Url");
-                String priority = rs.getString("Priority");
-                String searchConfig = rs.getString("searchConfig");
-                String optionsConfig = rs.getString("optionsConfig");
-                String username = rs.getString("username");
-                String password = rs.getString("password");
-
-                // Create StringBuilder and split using "£"
-                StringBuilder prioritySb = new StringBuilder();
-                StringBuilder searchConfigSb = new StringBuilder();
-                StringBuilder optionsConfigSb = new StringBuilder();
-
-                for (String part : priority.split("£")) {
-                    prioritySb.append(part).append("\n"); // Replacing "£" back with newline
-                }
-
-                for (String part : searchConfig.split("£")) {
-                    searchConfigSb.append(part).append("\n");
-                }
-
-                for (String part : optionsConfig.split("£")) {
-                    optionsConfigSb.append(part).append("\n");
-                }
-
-                // Remove the last extra newline if needed
-                if (prioritySb.length() > 0) prioritySb.setLength(prioritySb.length() - 1);
-                if (searchConfigSb.length() > 0) searchConfigSb.setLength(searchConfigSb.length() - 1);
-                if (optionsConfigSb.length() > 0) optionsConfigSb.setLength(optionsConfigSb.length() - 1);
-
-                databaseList.add(new DatabaseUserDTO(
-                        id,
-                        jobs,
-                        name,
-                        url,
-                        prioritySb.toString(),
-                        searchConfigSb.toString(),
-                        optionsConfigSb.toString(),
-                        username,
-                        password));
-            }
-        } catch (SQLException e) {
-            System.out.println(e.getMessage());
-        }
-
-        //        return databaseList;
-        //        jobUserList.clear();
-        //        loadBotJobData();
     }
 
     private Integer loadNexIdData() {

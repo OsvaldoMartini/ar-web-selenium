@@ -220,8 +220,10 @@ public class ARSaveComponentPane extends ARPane {
                     blockDetailsDTO.setBlockDescription(
                             descriptionTextField.getText().trim());
 
-                    this.savedBlockLoadList =
-                            performDataBase.loadSavedBlocksForBotJob(blockDetailsDTO.getHomeBankingId());
+                    this.savedBlockLoadList = performDataBase.loadSavedBlocksForBotJob(
+                            blockDetailsDTO.getHomeBankingId(),
+                            blockDetailsDTO.getBotJobId(),
+                            blockDetailsDTO.getBotJobName());
 
                     //                    originalLoopInstruction =
                     // performDBSavedBlock.createSavedBlockLoopInstructionsFromBlocksDTO(
@@ -268,19 +270,24 @@ public class ARSaveComponentPane extends ARPane {
 
                         if (errorMessage == null) {
 
-                            List<BotJobLoadDTO> botJobLoadList =
-                                    performDataBase.loadComponentsComplete(blockDetailsDTO.getHomeBankingId());
+                            List<BotJobLoadDTO> botJobLoadList = performDataBase.loadComponentsComplete(
+                                    blockDetailsDTO.getHomeBankingId(),
+                                    blockDetailsDTO.getBotJobId(),
+                                    blockDetailsDTO.getBotJobName());
 
                             String jsonData = "[]";
-                            if (botJobLoadList.size() > 0) {
+                            if (!botJobLoadList.isEmpty()) {
                                 List<InstructionLoadDTO> blockLoopInstructions =
-                                        performDataBase.buildJsonViewData(botJobLoadList);
+                                        performDataBase.buildJsonViewData(botJobLoadList, "component_instruction");
                                 jsonData = gson.toJson(blockLoopInstructions);
                             }
                             // simpleWebSocketServer.sendMessageJson(blockDetailsDTO.getSessionId(), jsonData,
                             // "componentsUpdate");
-                            simpleWebSocketServer.broadcastMessageToAll(
+                            simpleWebSocketServer.sendMessageJson(
                                     blockDetailsDTO.getHomeBankingId(), "componentTasks", jsonData, "componentsUpdate");
+                            //                            simpleWebSocketServer.broadcastMessageToAll(
+                            //                                    blockDetailsDTO.getHomeBankingId(), "componentTasks",
+                            // jsonData, "componentsUpdate");
 
                             //                            showAlertTimer(
                             //                                    Alert.AlertType.INFORMATION,
