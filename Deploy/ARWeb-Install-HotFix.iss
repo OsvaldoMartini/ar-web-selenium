@@ -41,7 +41,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 ; You might have other tasks here, keep them if needed.
 
 [Files]
-; Source: "C:\ARWeb\ARWeb-Scanner\AR_Web_Engine.jar"; DestDir: "{app}\"; Flags: ignoreversion
+Source: "C:\ARWeb\ARWeb-Scanner\AR_Web_Engine.jar"; DestDir: "{app}\"; Flags: ignoreversion
 Source: "C:\ARWeb\ARWeb-Scanner\AR_Web_Scanner.jar"; DestDir: "{app}\"; Flags: ignoreversion
 ; Source: "C:\ARWeb\ARWeb-Scanner\ARWeb.lic"; DestDir: "{app}\ARWeb-Scanner\"; Flags: ignoreversion
 ; Source: "C:\ARWeb\ARWeb-Scanner\exec_launcher.bat"; DestDir: "{app}\ARWeb-Scanner\"; Flags: ignoreversion
