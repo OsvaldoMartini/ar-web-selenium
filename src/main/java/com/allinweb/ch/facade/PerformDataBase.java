@@ -5542,28 +5542,25 @@ public class PerformDataBase {
         String userDB = USERNAME + " - " + PASSWORD;
         ARLogger.getInstance(PerformDataBase.class).info("POSTGRES connection URL: " + postgresDbUrl);
         ARLogger.getInstance(PerformDataBase.class).info("User Details: " + userDB);
-        
-        
+
         final int BATCH_SIZE = 100;
 
-        try (
-                Connection accessConn = DriverManager.getConnection(accessDbUrl);
+        try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
                 Connection postgresConn = DriverManager.getConnection(postgresDbUrl, USERNAME, PASSWORD);
-                Statement accessStmt = accessConn.createStatement();
-        ) {
+                Statement accessStmt = accessConn.createStatement(); ) {
             postgresConn.setAutoCommit(false); // Use manual commit for batch performance
 
-            String selectAccessSQL = "SELECT ID, url, name, priority, search_config, options_config, cookies, driver_session, username, password FROM home_banking";
+            String selectAccessSQL =
+                    "SELECT ID, url, name, priority, search_config, options_config, cookies, driver_session, username, password FROM home_banking";
             ResultSet rs = accessStmt.executeQuery(selectAccessSQL);
 
             String checkSQL = "SELECT id FROM home_banking WHERE url = ?";
-            String insertSQL = "INSERT INTO home_banking (url, name, priority, search_config, options_config, cookies, driver_session, username, password) " +
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            String insertSQL =
+                    "INSERT INTO home_banking (url, name, priority, search_config, options_config, cookies, driver_session, username, password) "
+                            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
-            try (
-                    PreparedStatement checkStmt = postgresConn.prepareStatement(checkSQL);
-                    PreparedStatement insertStmt = postgresConn.prepareStatement(insertSQL)
-            ) {
+            try (PreparedStatement checkStmt = postgresConn.prepareStatement(checkSQL);
+                    PreparedStatement insertStmt = postgresConn.prepareStatement(insertSQL)) {
                 int count = 0;
 
                 while (rs.next()) {
