@@ -5190,29 +5190,6 @@ ORDER BY bot.id ASC;
                     // dbFile.getName()));
                 }
 
-                // ADD HOME_URL_ID COLUMN
-                rs = dbMeta.getColumns(null, null, "bot_job", "home_url_id");
-
-                if (!rs.next()) {
-                    String addHomeUrlIdColumnSQL = "ALTER TABLE bot_job ADD COLUMN home_url_id INTEGER;";
-                    stmt.executeUpdate(addHomeUrlIdColumnSQL);
-
-                    System.out.println(String.format("Database %s has been updated!", dbFile.getName()));
-                    System.out.println(String.format("Updates %s", "bot_job ADD COLUMN home_url_id"));
-                } else {
-                    //                    System.out.println(String.format("Database %s no need updates!",
-                    // dbFile.getName()));
-                }
-
-                //                // TEST FOR DROPPING COLUMNS
-                //                rs = dbMeta.getColumns(null, null, "variable", "local_format");
-                //                if (rs.next()) {
-                //                    // Column exists, so drop it
-                //                    String dropColumnSQL = "ALTER TABLE variable DROP COLUMN local_format;";
-                //                    stmt.executeUpdate(dropColumnSQL);
-                //                }
-
-                //                rs = dbMeta.getTables(null, null, "home_url", new String[]{"TABLE"});
                 boolean homeUrlExists = false;
                 rs = dbMeta.getTables(null, null, null, new String[] {"TABLE"});
 
@@ -5231,6 +5208,39 @@ ORDER BY bot.id ASC;
                     createHomeURLTable(dbUrl, dbFile); // Pass the connection if needed
                 }
 
+                // ADD HOME_URL_ID COLUMN
+                rs = dbMeta.getColumns(null, null, "bot_job", "home_url_id");
+
+                if (!rs.next()) {
+                    String addHomeUrlIdColumnSQL = "ALTER TABLE bot_job ADD COLUMN home_url_id INTEGER;";
+                    stmt.executeUpdate(addHomeUrlIdColumnSQL);
+
+                    String addHomrURLForeignKeySQL = "ALTER TABLE bot_job "
+                            + "ADD CONSTRAINT FK_NewHomeURL FOREIGN KEY (home_url_id) "
+                            + "REFERENCES home_url(id) ON DELETE CASCADE";
+                    stmt.executeUpdate(addHomrURLForeignKeySQL);
+
+                    //                    String upDateSQL = "UPDATE bot_job "
+                    //                            + "SET home_url_id = home_banking_id";
+                    //                    stmt.executeUpdate(upDateSQL);
+
+                    System.out.println(String.format("Database %s has been updated!", dbFile.getName()));
+                    System.out.println(String.format("Updates %s", "bot_job ADD COLUMN home_url_id"));
+                } else {
+                    //                    System.out.println(String.format("Database %s no need updates!",
+                    // dbFile.getName()));
+                }
+
+                //                // TEST FOR DROPPING COLUMNS
+                //                rs = dbMeta.getColumns(null, null, "variable", "local_format");
+                //                if (rs.next()) {
+                //                    // Column exists, so drop it
+                //                    String dropColumnSQL = "ALTER TABLE variable DROP COLUMN local_format;";
+                //                    stmt.executeUpdate(dropColumnSQL);
+                //                }
+
+                //                rs = dbMeta.getTables(null, null, "home_url", new String[]{"TABLE"});
+
                 //                deleteHomeUrl(dbUrl);
                 this.databaseUpds = loadHomeBanking(null);
                 this.homeURLList = loadAllHomeURL();
@@ -5244,7 +5254,7 @@ ORDER BY bot.id ASC;
                 if (botJobLoadList != null
                         && botJobLoadList.size() > 0
                         && botJobLoadList.get(0).getHomeUrlId() == 0) {
-                    updateBotJobHomeUrlId(homeURLList);
+                    //                    updateBotJobHomeUrlId(homeURLList);
                 }
 
                 rs.close();
@@ -5275,21 +5285,24 @@ ORDER BY bot.id ASC;
     }
 
     private ErrorMessage updateBotJobHomeUrlIds(Connection conn, List<HomeUrlDTO> homeURLList) {
-        String blockInsertQuery = "UPDATE bot_job set home_url_id = ? where home_banking_id = ?";
+        // Update bot_job only if the home_url_id to be set exists in the home_url table
+        String blockInsertQuery = "UPDATE bot_job AS bj " + "SET bj.home_url_id = ? "
+                + "WHERE bj.home_banking_id = ? "
+                + "AND EXISTS (SELECT 1 FROM home_url WHERE hom.id = ?);"; // Parameter for home_url.id check
 
         try (PreparedStatement blockStmt = conn.prepareStatement(blockInsertQuery)) {
-
             boolean batchModeEnabled = false;
             for (HomeUrlDTO homeUrl : homeURLList) {
-                int index = 1;
-                blockStmt.setInt(index++, homeUrl.getId());
-                blockStmt.setInt(index++, homeUrl.getHomeBankingId());
+                blockStmt.setInt(1, homeUrl.getId()); // 1st ?: Sets home_url_id in bot_job
+                blockStmt.setInt(2, homeUrl.getHomeBankingId()); // 2nd ?: Sets home_banking_id in bot_job
+                blockStmt.setInt(3, homeUrl.getHomeBankingId()); // 3rd ?: Used in WHERE bj.home_banking_id = ?
+                blockStmt.setInt(4, homeUrl.getId()); // 4th ?: Used in AND EXISTS (SELECT 1 FROM home_url WHERE id = ?)
 
                 blockStmt.addBatch(); // Add the current block to the batch
                 batchModeEnabled = true;
             }
             if (batchModeEnabled) {
-                blockStmt.executeBatch(); // Execute the batch insert
+                blockStmt.executeBatch(); // Execute the batch update
             }
             return null;
         } catch (SQLException error) {
@@ -5310,7 +5323,7 @@ ORDER BY bot.id ASC;
                 stmt.executeUpdate(createURLTableSQL);
 
                 String addURLForeignKeySQL = "ALTER TABLE home_url "
-                        + "ADD CONSTRAINT FK_URL FOREIGN KEY (home_banking_id) "
+                        + "ADD CONSTRAINT FK_UrlNew FOREIGN KEY (home_banking_id) "
                         + "REFERENCES home_banking(id) ON DELETE CASCADE";
                 stmt.executeUpdate(addURLForeignKeySQL);
             }
