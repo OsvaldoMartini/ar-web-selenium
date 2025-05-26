@@ -1326,15 +1326,15 @@ public class ARScannedElementPane extends ARPane {
         //                "scannerGrid",
         //                "searchTerms");
 
-        Platform.runLater(() -> {
-            performCloseBrowser.dynamicCloseBrowser(
-                    performActions.getCurrentDriver(),
-                    portSocket,
-                    "closeBrowser",
-                    "scannerGrid",
-                    "closeBrowser",
-                    homeBanking.getId());
-        });
+        //        Platform.runLater(() -> {
+        //            performCloseBrowser.dynamicCloseBrowser(
+        //                    performActions.getCurrentDriver(),
+        //                    portSocket,
+        //                    "closeBrowser",
+        //                    "scannerGrid",
+        //                    "closeBrowser",
+        //                    homeBanking.getId());
+        //        });
 
         performActions.getIframeElementsMap();
 
@@ -1473,15 +1473,15 @@ public class ARScannedElementPane extends ARPane {
 
             }
 
-            Platform.runLater(() -> {
-                performCloseBrowser.dynamicCloseBrowser(
-                        performActions.getCurrentDriver(),
-                        portSocket,
-                        "closeBrowser",
-                        "scannerGrid",
-                        "closeBrowser",
-                        homeBanking.getId());
-            });
+            //            Platform.runLater(() -> {
+            //                performCloseBrowser.dynamicCloseBrowser(
+            //                        performActions.getCurrentDriver(),
+            //                        portSocket,
+            //                        "closeBrowser",
+            //                        "scannerGrid",
+            //                        "closeBrowser",
+            //                        homeBanking.getId());
+            //            });
         });
 
         cleanListButton.setOnAction(e -> {
