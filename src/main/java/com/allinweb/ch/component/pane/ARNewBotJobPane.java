@@ -201,6 +201,8 @@ public class ARNewBotJobPane extends ARPane {
             createdBotJob.setName(botJobName.getText().trim());
             createdBotJob.setDescription(botJobDescription.getText().trim());
             createdBotJob.setHomeBankingId(homeBankingChoiceBox.getValue().getId());
+            createdBotJob.setHomeUrlId(
+                    homeBankingChoiceBox.getValue().getHomeUrlDTOS().get(0).getId());
 
             int newJobId = performDataBase.createNewBotJob(createdBotJob);
 

@@ -56,6 +56,12 @@ public class ARSaveClonePane extends ARPane {
     public void initialize(BotJobLoadDTO selecBotJobDTO, List<BotJobLoadDTO> botJobList) {
         this.selecBotJobDTO = selecBotJobDTO;
         this.botJobList = botJobList;
+
+        if (nameField != null) {
+            nameField.setText(selecBotJobDTO.getName().trim());
+            descriptionField.setText(selecBotJobDTO.getDescription().trim());
+            newUrl.setText(selecBotJobDTO.getHomeBankingLoadDTO().getUrl());
+        }
     }
 
     private static final ARPropertyManager arPropertyManager;

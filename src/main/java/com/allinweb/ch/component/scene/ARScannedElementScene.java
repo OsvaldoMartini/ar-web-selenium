@@ -101,7 +101,7 @@ public class ARScannedElementScene extends ARScene {
         }
     }
 
-    private void handleCloseRequest(WindowEvent event) {
+    public void handleCloseRequest(WindowEvent event) {
         System.out.println("Handle Close: Exiting Threads and Quitting WebDriver");
 
         // Interrupt running threads
@@ -127,7 +127,7 @@ public class ARScannedElementScene extends ARScene {
     }
 
     // Method to close all WebDriver instances
-    private void closeWebDrivers() {
+    public void closeWebDrivers() {
         for (WebDriver driver : arWebDriver.getWebDriverList()) {
             try {
                 driver.quit();
@@ -181,35 +181,52 @@ public class ARScannedElementScene extends ARScene {
                 executorWebSocket,
                 executorServicePreLaunch);
 
-        if (modalStage == null) {
-            modalStage = new Stage();
-            IARPane pane = buildPane();
-            if (pane != null) {
-                modalScene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
-                modalStage.setScene(modalScene);
-                modalStage.setTitle(getTitle());
-                modalStage.initModality(Modality.WINDOW_MODAL); // Changed to NONE
-                modalStage.setAlwaysOnTop(true); // Set always on top
-                modalStage.toFront();
-                // Reset alwaysOnTop after showing so it behaves normally afterward
-                modalStage.setAlwaysOnTop(false);
+        try {
 
-                // Once shown, reset AlwaysOnTop to false so it behaves normally
-                modalStage.setOnShown(event -> {
-                    Platform.runLater(() -> modalStage.setAlwaysOnTop(false));
-                });
-            } else {
-                // Handle the case where pane creation failed
-                ARLogger.getInstance(ARViewBotJobScene.class).severe("Failed to build pane for modal.");
-                return;
+            if (modalStage == null) {
+                modalStage = new Stage();
+                IARPane pane = buildPane();
+                if (pane != null) {
+                    modalScene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
+                    modalStage.setScene(modalScene);
+                    modalStage.setTitle(getTitle());
+                    modalStage.initModality(Modality.WINDOW_MODAL); // Changed to NONE
+                    modalStage.setAlwaysOnTop(true); // Set always on top
+                    modalStage.toFront();
+                    // Reset alwaysOnTop after showing so it behaves normally afterward
+                    modalStage.setAlwaysOnTop(false);
+
+                    // Once shown, reset AlwaysOnTop to false so it behaves normally
+                    modalStage.setOnShown(event -> {
+                        Platform.runLater(() -> modalStage.setAlwaysOnTop(false));
+                    });
+                } else {
+                    // Handle the case where pane creation failed
+                    ARLogger.getInstance(ARViewBotJobScene.class).severe("Failed to build pane for modal.");
+                    return;
+                }
             }
+
+            modalStage.setTitle(getTitle());
+
+            // Check if the stage is already showing
+            if (!modalStage.isShowing()) {
+                modalStage.showAndWait(); // Show and wait only if not already showing
+            }
+        } catch (Exception error) {
+            closeWebDrivers();
+            closeModal();
         }
+    }
 
-        modalStage.setTitle(getTitle());
-
-        // Check if the stage is already showing
-        if (!modalStage.isShowing()) {
-            modalStage.showAndWait(); // Show and wait only if not already showing
+    public void closeModal() {
+        try {
+            if (modalStage != null) {
+                modalStage.close();
+            }
+            modalStage = null;
+        } catch (Exception error) {
+            System.err.println("Browser Closed Before Web Scanner. Error: " + error.getMessage());
         }
     }
 

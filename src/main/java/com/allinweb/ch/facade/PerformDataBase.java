@@ -1097,14 +1097,15 @@ public class PerformDataBase {
 
         // Build the SQL insert query using PreparedStatement
         String insertSQL =
-                "INSERT INTO bot_job (id, name, description, home_banking_id, active) VALUES (?, ?, ?, ?, ?)";
+                "INSERT INTO bot_job (id, name, description, home_banking_id, home_url_id, active) VALUES (?, ?, ?, ?, ?, ?)";
 
         try (PreparedStatement pstmt = getConnection().prepareStatement(insertSQL)) {
             pstmt.setInt(1, nextId);
             pstmt.setString(2, createdBotJob.getName());
             pstmt.setString(3, createdBotJob.getName() + " description");
             pstmt.setInt(4, createdBotJob.getHomeBankingId());
-            pstmt.setInt(5, 1); // Setting "active" as true
+            pstmt.setInt(5, createdBotJob.getHomeUrlId());
+            pstmt.setInt(6, 1); // Setting "active" as true
 
             pstmt.executeUpdate();
 
@@ -2568,6 +2569,7 @@ ORDER BY bot.id ASC;
                 + "hb.id AS home_banking_id "
                 + "FROM home_banking hb "
                 + "JOIN component_block b ON b.home_banking_id = hb.id "
+                + "JOIN component_instruction ci ON ci.home_banking_id = hb.id and ci.block_id = b.id "
                 + "WHERE  hb.id = "
                 + homeBankingId + " " + "ORDER BY b.block_order_number ASC";
 
@@ -2599,10 +2601,10 @@ ORDER BY bot.id ASC;
                     blockLoadList.add(blockDTO);
                 }
             }
-        } catch (SQLException e) {
+        } catch (SQLException error) {
             ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
-                            "Error loadBlocksForBotJob for botJobId %d\nError: %s", botJobId, e.getMessage()));
+                            "Error loadBlocksForBotJob for botJobId %d\nError: %s", botJobId, error.getMessage()));
         }
 
         return blockLoadList;
@@ -3222,7 +3224,10 @@ ORDER BY bot.id ASC;
 
             while (rs.next()) {
                 HomeBankingLoadDTO homeBanking = new HomeBankingLoadDTO();
-                homeBanking.setId(rs.getInt("id"));
+
+                homeBankingId = rs.getInt("id");
+
+                homeBanking.setId(homeBankingId);
                 homeBanking.setCookies(rs.getString("cookies"));
                 homeBanking.setDriverSession(rs.getString("driver_session"));
                 homeBanking.setName(rs.getString("name"));
@@ -3234,19 +3239,17 @@ ORDER BY bot.id ASC;
                 homeBanking.setUsername(rs.getString("username"));
 
                 // If a specific homeBankingId is requested, load its associated URLs
-                if (homeBankingId != null) {
-                    String selectUrlsSQL = "SELECT * FROM home_url WHERE home_banking_id = " + homeBanking.getId();
-                    ResultSet urlRs = stmt.executeQuery(selectUrlsSQL);
+                String selectUrlsSQL = "SELECT * FROM home_url WHERE home_banking_id = " + homeBanking.getId();
+                ResultSet urlRs = stmt.executeQuery(selectUrlsSQL);
 
-                    List<HomeUrlDTO> homeUrls = new ArrayList<>();
-                    while (urlRs.next()) {
-                        HomeUrlDTO urlDTO = new HomeUrlDTO(
-                                urlRs.getInt("id"), urlRs.getString("url"), urlRs.getInt("home_banking_id"));
-                        homeUrls.add(urlDTO);
-                    }
-
-                    homeBanking.setHomeUrlDTOS(homeUrls);
+                List<HomeUrlDTO> homeUrls = new ArrayList<>();
+                while (urlRs.next()) {
+                    HomeUrlDTO urlDTO =
+                            new HomeUrlDTO(urlRs.getInt("id"), urlRs.getString("url"), urlRs.getInt("home_banking_id"));
+                    homeUrls.add(urlDTO);
                 }
+
+                homeBanking.setHomeUrlDTOS(homeUrls);
 
                 homeBankingList.add(homeBanking);
             }
@@ -5111,6 +5114,81 @@ ORDER BY bot.id ASC;
                     //                    updateBlockOrderNumber(selectAllBlocks(deleteInstructionLoadDTO.getBlockId()),
                     // true);
                 }
+    }
+
+    public void updateDatabaseSchema(String dbUrl, File dbFile) {
+
+        try (Connection conn = DriverManager.getConnection(dbUrl)) {
+            try (Statement stmt = conn.createStatement()) {
+
+                DatabaseMetaData dbMeta = conn.getMetaData();
+
+                // 1. Check if the foreign key constraint already exists
+                boolean fkExists = false;
+                ResultSet rsFK = null;
+                try {
+                    // getImportedKeys(catalog, schema, table)
+                    // For Access, catalog and schema are usually null or empty string.
+                    // "bot_job" is the table that *has* the foreign key.
+                    rsFK = dbMeta.getImportedKeys(null, null, "bot_job");
+
+                    while (rsFK.next()) {
+                        String fkColumnName = rsFK.getString("FKCOLUMN_NAME");
+                        String pkTableName = rsFK.getString("PKTABLE_NAME");
+                        String pkColumnName = rsFK.getString("PKCOLUMN_NAME");
+
+                        // Check if it's the specific foreign key we want
+                        // Matching by foreign key column, referenced table, and referenced primary key column
+                        if ("home_url_id".equalsIgnoreCase(fkColumnName)
+                                && "home_url".equalsIgnoreCase(pkTableName)
+                                && "id".equalsIgnoreCase(pkColumnName)) {
+                            fkExists = true;
+                            // Optional: You can print the FK_NAME if you want to know what Access called it
+                            // String fkName = rsFK.getString("FK_NAME");
+                            // System.out.println(String.format("Foreign key '%s' (home_url_id -> home_url.id) already
+                            // exists.", fkName));
+                            break;
+                        }
+                    }
+                } finally {
+                    if (rsFK != null) {
+                        try {
+                            rsFK.close();
+                        } catch (SQLException e) {
+                            System.err.println("Error closing ResultSet for FK check: " + e.getMessage());
+                        }
+                    }
+                }
+
+                // 2. Add the foreign key constraint only if it doesn't exist
+                if (!fkExists) {
+                    System.out.println(String.format(
+                            "Foreign key 'FK_NewHomeURL' (home_url_id -> home_url.id) not found. Adding it..."));
+                    String addHomrURLForeignKeySQL = "ALTER TABLE bot_job "
+                            + "ADD CONSTRAINT FK_NewHomeURL FOREIGN KEY (home_url_id) "
+                            + "REFERENCES home_url(id) ON DELETE CASCADE";
+                    stmt.executeUpdate(addHomrURLForeignKeySQL);
+                    System.out.println(String.format("Foreign key 'FK_NewHomeURL' added to 'bot_job' table."));
+                    System.out.println(
+                            String.format("Database %s has been updated with the foreign key!", dbFile.getName()));
+                } else {
+                    System.out.println(String.format(
+                            "Database %s no need for foreign key 'FK_NewHomeURL' updates (constraint exists).",
+                            dbFile.getName()));
+                }
+
+                // Ensure the statement is closed
+                if (stmt != null) {
+                    try {
+                        stmt.close();
+                    } catch (SQLException e) {
+                        System.err.println("Error closing Statement: " + e.getMessage());
+                    }
+                }
+            }
+        } catch (SQLException error) {
+            System.out.println("initializeDatabase\nError: " + error.getMessage());
+        }
     }
 
     public void updateTableAccess(String dbUrl, File dbFile) {

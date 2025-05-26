@@ -258,8 +258,13 @@ public class ARNewCommandScene extends ARScene {
     }
 
     public void closeModal() {
-        if (modalStage != null && modalStage.isShowing()) {
-            modalStage.close();
+        try {
+            if (modalStage != null) { // && modalStage.isShowing()) {
+                modalStage.close();
+            }
+            modalStage = null;
+        } catch (Exception error) {
+
         }
     }
 

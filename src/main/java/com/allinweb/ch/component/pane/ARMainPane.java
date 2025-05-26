@@ -127,7 +127,9 @@ public class ARMainPane extends ARPane {
             if (!dbFile.exists()) {
                 performDataBase.initializeMainDatabaseAccess(dbUrl, dbFile);
             } else {
-                performDataBase.updateTableAccess(dbUrl, dbFile);
+                //                performDataBase.updateTableAccess(dbUrl, dbFile);
+                performDataBase.updateDatabaseSchema(dbUrl, dbFile);
+
                 ARLogger.getInstance(ARMainPane.class)
                         .info(String.format("Database '%s' already exists!", dbFile.getName()));
             }

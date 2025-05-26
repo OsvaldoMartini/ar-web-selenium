@@ -1108,6 +1108,7 @@ public class ARScannedElementPane extends ARPane {
 
     private ARWebDriver currentARWebDriver;
 
+    private static final ARScannedElementScene arScannedElementScene;
     private static final PerformCloneLoad performCloneLoad;
     private static final PerformDataBase performDataBase;
     private static final PerformActions performActions;
@@ -1119,6 +1120,7 @@ public class ARScannedElementPane extends ARPane {
 
     // Static block to initialize
     static {
+        arScannedElementScene = ARScannedElementScene.getInstance();
         arPropertyManager = ARPropertyManager.getInstance();
         simpleWebSocketServer = SimpleWebSocketServer.getInstance();
         performDataBase = PerformDataBase.getInstance();
@@ -1218,6 +1220,8 @@ public class ARScannedElementPane extends ARPane {
             Platform.runLater(() -> refreshGrids());
 
             if (!openWebDriver(false)) {
+                arScannedElementScene.closeWebDrivers();
+                arScannedElementScene.closeModal();
                 return;
             }
 
@@ -1287,6 +1291,8 @@ public class ARScannedElementPane extends ARPane {
         }
 
         if (!openWebDriver(true)) {
+            arScannedElementScene.closeWebDrivers();
+            arScannedElementScene.closeModal();
             return false;
         }
         // "scannerTool", "scannerGrid", "searchTerms"
@@ -1344,7 +1350,7 @@ public class ARScannedElementPane extends ARPane {
         }
 
         if (firstLoad) {
-            currentARWebDriver.openDriver(
+            WebDriver returned = currentARWebDriver.openDriver(
                     browserType,
                     webDriverPath,
                     homeBanking.getUrl(),
@@ -1352,6 +1358,10 @@ public class ARScannedElementPane extends ARPane {
                     defaultSearch,
                     searchHiddenFields,
                     portSocketInitial);
+
+            if (returned == null) {
+                return false;
+            }
 
             performActions.initialize(arPriorities);
             performActions.setCurrentDriver(currentARWebDriver.getCurrentDriver());
