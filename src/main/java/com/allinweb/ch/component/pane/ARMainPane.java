@@ -110,11 +110,14 @@ public class ARMainPane extends ARPane {
             if (!performDataBase.doesInstructionTableExist()) {
                 performDataBase.initializeMainDatabasePostgres();
             }
+
+//            performDataBase.dropPostGresSequences();
+            performDataBase.postGresIntegration();
+            performDataBase.importHomeUrlTable();
+
         } else {
             POSTGRES_DB = false;
         }
-
-        performDataBase.postGresIntegration();
 
         if (!POSTGRES_DB) {
             String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);

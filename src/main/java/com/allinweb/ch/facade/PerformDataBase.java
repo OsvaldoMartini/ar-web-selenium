@@ -2117,18 +2117,19 @@ public class PerformDataBase {
         this.botJobLoadList.clear();
         String query =
                 """
-            SELECT bot.id AS bot_job_id, bot.name AS bot_job_name,
-            bot.description AS bot_job_description, bot.priority AS bot_job_priority,
-            bot.home_banking_id, bot.home_url_id,
-            hb.url AS home_banking_url,
-            hb.name AS home_banking_name,
-            hb.priority AS home_banking_priority, hb.search_config,
-            hb.options_config, hb.cookies, hb.driver_session,
-            hb.username, hb.password,
-            bot.active
-            FROM bot_job bot
-            LEFT JOIN home_banking hb ON bot.home_banking_id = hb.id
-            ORDER BY bot.id ASC;
+SELECT bot.id AS bot_job_id, bot.name AS bot_job_name,
+bot.description AS bot_job_description, bot.priority AS bot_job_priority,
+bot.home_banking_id, bot.home_url_id,
+hu.url AS home_banking_url,
+hb.name AS home_banking_name,
+hb.priority AS home_banking_priority, hb.search_config,
+hb.options_config, hb.cookies, hb.driver_session,
+hb.username, hb.password,
+bot.active
+FROM bot_job bot
+LEFT JOIN home_banking hb ON bot.home_banking_id = hb.id
+LEFT JOIN home_url hu ON bot.home_url_id = hu.id and hu.home_banking_id = hb.id
+ORDER BY bot.id ASC;
             """;
 
         try (PreparedStatement pstmt = getConnection().prepareStatement(query)) {
@@ -2170,7 +2171,7 @@ public class PerformDataBase {
             }
         } catch (SQLException error) {
             ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("Error loadAllBotJobs\nError: %s", error.getMessage()));
+                    .severe(String.format("Error loadAllBotJobs Error: %s", error.getMessage()));
         }
 
         return this.botJobLoadList;
@@ -5607,6 +5608,141 @@ public class PerformDataBase {
         }
     }
 
+    public ErrorMessage dropPostGresSequences() {
+        // Build the SQL update statement
+
+        String postgresDbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
+
+        try (Connection postgresConn = DriverManager.getConnection(postgresDbUrl, USERNAME, PASSWORD)) {
+
+            try (Statement stmt = postgresConn.createStatement()) {
+                int rowsAffected = 0;
+
+                rowsAffected += stmt.executeUpdate("DELETE  FROM \"home_url\";");
+                rowsAffected += stmt.executeUpdate("DELETE FROM \"home_banking\";");
+
+                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"home_url_id_seq\";");
+                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"home_banking_id_seq\";");
+
+                // Recreate sequences
+                rowsAffected += stmt.executeUpdate("CREATE SEQUENCE \"home_url_id_seq\" START WITH 1 INCREMENT BY 1;");
+                rowsAffected +=
+                        stmt.executeUpdate("CREATE SEQUENCE \"home_banking_id_seq\" START WITH 1 INCREMENT BY 1;");
+
+                // Uncomment if needed
+                //            rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"instruction_id_seq\";");
+                //            rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"block_id_seq\";");
+                //            rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"bot_job_id_seq\";");
+                //            rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"component_block_id_seq\";");
+                //            rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS
+                // \"component_instruction_id_seq\";");
+                //            rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS
+                // \"component_reference_id_seq\";");
+                //            rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS
+                // \"component_variable_id_seq\";");
+                //            rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"reference_id_seq\";");
+                //            rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"variable_id_seq\";");
+
+                if (rowsAffected > 0) {
+                    ARLogger.getInstance(PerformDataBase.class)
+                            .warning(String.format("Migration DB Scripts - RowsUpdated - %s", rowsAffected));
+                } else {
+                    ARLogger.getInstance(PerformDataBase.class).info("Migration DB Scripts - No Rows were updated");
+                }
+                return null;
+
+            } catch (SQLException error) {
+                ARLogger.getInstance(PerformDataBase.class)
+                        .warning("Migration DB Scripts - Error: " + error.getMessage());
+                return new ErrorMessage(
+                        "Error Drop Tables Migration 2.7f", "Error dropping OLD objects", error.getMessage());
+            }
+
+        } catch (SQLException error) {
+            error.printStackTrace();
+            return new ErrorMessage("Connection Error", "Could not connect to Postgres DB", error.getMessage());
+        }
+    }
+
+    public void importHomeUrlTable() {
+        String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
+
+        String postgresDbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
+        ARLogger.getInstance(PerformDataBase.class).info("POSTGRES connection URL: " + postgresDbUrl);
+
+        final int BATCH_SIZE = 100;
+
+        try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
+                Connection postgresConn = DriverManager.getConnection(postgresDbUrl, USERNAME, PASSWORD);
+                Statement accessStmt = accessConn.createStatement()) {
+
+            postgresConn.setAutoCommit(false); // Enable manual commit for batch performance
+
+            String selectAccessSQL = "SELECT url FROM home_url";
+            try (ResultSet rs = accessStmt.executeQuery(selectAccessSQL)) {
+
+                String findHomeBankingIdSQL = "SELECT id FROM home_banking WHERE url = ?";
+                String checkHomeUrlExistsSQL = "SELECT id FROM home_url WHERE url = ? AND home_banking_id = ?";
+                String insertHomeUrlSQL = "INSERT INTO home_url (url, home_banking_id) VALUES (?, ?)";
+
+                try (PreparedStatement findHomeBankingStmt = postgresConn.prepareStatement(findHomeBankingIdSQL);
+                        PreparedStatement checkStmt = postgresConn.prepareStatement(checkHomeUrlExistsSQL);
+                        PreparedStatement insertStmt = postgresConn.prepareStatement(insertHomeUrlSQL)) {
+
+                    int count = 0;
+
+                    while (rs.next()) {
+                        String url = rs.getString("url");
+
+                        // Get home_banking.id from PostgreSQL using url
+                        findHomeBankingStmt.setString(1, url);
+                        try (ResultSet homeBankingRs = findHomeBankingStmt.executeQuery()) {
+
+                            if (homeBankingRs.next()) {
+                                int homeBankingId = homeBankingRs.getInt("id");
+
+                                // Check if home_url with the same url and home_banking_id already exists
+                                checkStmt.setString(1, url);
+                                checkStmt.setInt(2, homeBankingId);
+                                try (ResultSet checkRs = checkStmt.executeQuery()) {
+
+                                    if (!checkRs.next()) {
+                                        insertStmt.setString(1, url);
+                                        insertStmt.setInt(2, homeBankingId);
+                                        insertStmt.addBatch();
+                                        count++;
+
+                                        if (count % BATCH_SIZE == 0) {
+                                            insertStmt.executeBatch();
+                                            postgresConn.commit();
+                                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                                        }
+                                    } else {
+                                        System.out.println("Skipped (already exists): " + url + " / " + homeBankingId);
+                                    }
+                                }
+
+                            } else {
+                                System.out.println("No matching home_banking entry for url: " + url);
+                            }
+                        }
+                    }
+
+                    insertStmt.executeBatch();
+                    postgresConn.commit();
+                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    ARLogger.getInstance(PerformDataBase.class).info("Inserted records into home_url: " + count);
+                }
+            }
+
+        } catch (SQLException error) {
+            error.printStackTrace();
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to import home_url");
+        }
+    }
+
     public void initializeMainDatabaseAccess(String dbUrl, File dbFile) {
 
         try (Connection conn = DriverManager.getConnection(dbUrl)) {
@@ -5645,13 +5781,19 @@ public class PerformDataBase {
                         + "description TEXT, "
                         + "priority MEMO, "
                         + "active YESNO NOT NULL, "
-                        + "home_banking_id INTEGER);";
+                        + "home_banking_id INTEGER, "
+                        + "home_url_id INTEGER);";
                 stmt.executeUpdate(createBotJobTableSQL);
 
                 String addBotJobForeignKeySQL = "ALTER TABLE bot_job "
                         + "ADD CONSTRAINT FK_BotJob FOREIGN KEY (home_banking_id) "
                         + "REFERENCES home_banking(id) ON DELETE CASCADE";
                 stmt.executeUpdate(addBotJobForeignKeySQL);
+
+                String addHomrURLForeignKeySQL = "ALTER TABLE bot_job "
+                        + "ADD CONSTRAINT FK_HomeUrl FOREIGN KEY (home_url_id) "
+                        + "REFERENCES home_url(id) ON DELETE CASCADE";
+                stmt.executeUpdate(addHomrURLForeignKeySQL);
 
                 // Create block table with a foreign key reference to bot_job
                 String createBlockTableSQL = "CREATE TABLE block ("
@@ -5917,7 +6059,8 @@ public class PerformDataBase {
                         + "description TEXT, "
                         + "priority TEXT, "
                         + "active INTEGER NOT NULL, "
-                        + "home_banking_id INTEGER REFERENCES home_banking(id) ON DELETE CASCADE)";
+                        + "home_banking_id INTEGER REFERENCES home_banking(id) ON DELETE CASCADE, "
+                        + "home_url_id INTEGER REFERENCES home_url(id) ON DELETE CASCADE)";
                 stmt.executeUpdate(createBotJobTableSQL);
 
                 // Create block table with a foreign key reference to bot_job
