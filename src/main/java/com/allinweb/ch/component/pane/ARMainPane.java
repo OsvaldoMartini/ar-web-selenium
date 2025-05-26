@@ -114,15 +114,17 @@ public class ARMainPane extends ARPane {
             POSTGRES_DB = false;
         }
 
+        performDataBase.postGresIntegration();
+
         if (!POSTGRES_DB) {
             String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
             String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
 
             File dbFile = new File(dbPath + ARConstants.FILE_NAME_DB);
-            performDataBase.updateTableAccess(dbUrl, dbFile);
             if (!dbFile.exists()) {
                 performDataBase.initializeMainDatabaseAccess(dbUrl, dbFile);
             } else {
+                performDataBase.updateTableAccess(dbUrl, dbFile);
                 ARLogger.getInstance(ARMainPane.class)
                         .info(String.format("Database '%s' already exists!", dbFile.getName()));
             }

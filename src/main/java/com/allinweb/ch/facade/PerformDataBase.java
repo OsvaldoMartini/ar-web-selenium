@@ -95,7 +95,7 @@ public class PerformDataBase {
     public final String CONNECTION_POSTGRES = "jdbc:postgresql://";
     public final String DB_HOST = "localhost"; // or your PostgreSQL server address
     public final String DB_PORT = "5432"; // default PostgreSQL port
-    public final String DB_NAME = "abr_web"; // your database name
+    public final String DB_NAME = "ar_web"; // your database name
     public final String USERNAME = "postgres"; // your database username
     public final String PASSWORD = "martini"; // your database password
 
@@ -5164,7 +5164,8 @@ public class PerformDataBase {
                     System.out.println(String.format("Database %s has been updated!", dbFile.getName()));
                     System.out.println(String.format("Updates %s", "variable ADD COLUMN local_format"));
                 } else {
-                    System.out.println(String.format("Database %s no need updates!", dbFile.getName()));
+                    //                    System.out.println(String.format("Database %s no need updates!",
+                    // dbFile.getName()));
                 }
 
                 rs = dbMeta.getColumns(null, null, "component_variable", "local_format");
@@ -5182,7 +5183,8 @@ public class PerformDataBase {
                     System.out.println(String.format("Database %s has been updated!", dbFile.getName()));
                     System.out.println(String.format("Updates %s", "component_variable ADD COLUMN local_format"));
                 } else {
-                    System.out.println(String.format("Database %s no need updates!", dbFile.getName()));
+                    //                    System.out.println(String.format("Database %s no need updates!",
+                    // dbFile.getName()));
                 }
 
                 // ADD DELIMITER COLUMN
@@ -5195,7 +5197,8 @@ public class PerformDataBase {
                     System.out.println(String.format("Database %s has been updated!", dbFile.getName()));
                     System.out.println(String.format("Updates %s", "variable ADD COLUMN delimiter"));
                 } else {
-                    System.out.println(String.format("Database %s no need updates!", dbFile.getName()));
+                    //                    System.out.println(String.format("Database %s no need updates!",
+                    // dbFile.getName()));
                 }
 
                 rs = dbMeta.getColumns(null, null, "component_variable", "delimiter");
@@ -5208,7 +5211,8 @@ public class PerformDataBase {
                     System.out.println(String.format("Database %s has been updated!", dbFile.getName()));
                     System.out.println(String.format("Updates %s", "component_variable ADD COLUMN delimiter"));
                 } else {
-                    System.out.println(String.format("Database %s no need updates!", dbFile.getName()));
+                    //                    System.out.println(String.format("Database %s no need updates!",
+                    // dbFile.getName()));
                 }
 
                 // ADD HOME_URL_ID COLUMN
@@ -5221,7 +5225,8 @@ public class PerformDataBase {
                     System.out.println(String.format("Database %s has been updated!", dbFile.getName()));
                     System.out.println(String.format("Updates %s", "bot_job ADD COLUMN home_url_id"));
                 } else {
-                    System.out.println(String.format("Database %s no need updates!", dbFile.getName()));
+                    //                    System.out.println(String.format("Database %s no need updates!",
+                    // dbFile.getName()));
                 }
 
                 //                // TEST FOR DROPPING COLUMNS
@@ -5528,6 +5533,83 @@ public class PerformDataBase {
         return homeURLList;
     }
 
+    public void postGresIntegration() {
+        String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
+
+        String postgresDbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
+        String userDB = USERNAME + " - " + PASSWORD;
+        ARLogger.getInstance(PerformDataBase.class).info("POSTGRES connection URL: " + postgresDbUrl);
+        ARLogger.getInstance(PerformDataBase.class).info("User Details: " + userDB);
+        
+        
+        final int BATCH_SIZE = 100;
+
+        try (
+                Connection accessConn = DriverManager.getConnection(accessDbUrl);
+                Connection postgresConn = DriverManager.getConnection(postgresDbUrl, USERNAME, PASSWORD);
+                Statement accessStmt = accessConn.createStatement();
+        ) {
+            postgresConn.setAutoCommit(false); // Use manual commit for batch performance
+
+            String selectAccessSQL = "SELECT ID, url, name, priority, search_config, options_config, cookies, driver_session, username, password FROM home_banking";
+            ResultSet rs = accessStmt.executeQuery(selectAccessSQL);
+
+            String checkSQL = "SELECT id FROM home_banking WHERE url = ?";
+            String insertSQL = "INSERT INTO home_banking (url, name, priority, search_config, options_config, cookies, driver_session, username, password) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+            try (
+                    PreparedStatement checkStmt = postgresConn.prepareStatement(checkSQL);
+                    PreparedStatement insertStmt = postgresConn.prepareStatement(insertSQL)
+            ) {
+                int count = 0;
+
+                while (rs.next()) {
+                    String url = rs.getString("url");
+
+                    // Check for existence
+                    checkStmt.setString(1, url);
+                    ResultSet checkResult = checkStmt.executeQuery();
+
+                    if (!checkResult.next()) {
+                        // Add to batch
+                        insertStmt.setString(1, url);
+                        insertStmt.setString(2, rs.getString("name"));
+                        insertStmt.setString(3, rs.getString("priority"));
+                        insertStmt.setString(4, rs.getString("search_config"));
+                        insertStmt.setString(5, rs.getString("options_config"));
+                        insertStmt.setString(6, rs.getString("cookies"));
+                        insertStmt.setString(7, rs.getString("driver_session"));
+                        insertStmt.setString(8, rs.getString("username"));
+                        insertStmt.setString(9, rs.getString("password"));
+                        insertStmt.addBatch();
+
+                        count++;
+
+                        if (count % BATCH_SIZE == 0) {
+                            insertStmt.executeBatch();
+                            postgresConn.commit();
+                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                        }
+                    } else {
+                        System.out.println("Skipped (exists): " + url);
+                    }
+                }
+
+                // Final batch
+                insertStmt.executeBatch();
+                postgresConn.commit();
+                System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+            }
+
+            System.out.println("Sync completed.");
+        } catch (SQLException error) {
+            error.printStackTrace();
+        }
+    }
+
     public void initializeMainDatabaseAccess(String dbUrl, File dbFile) {
 
         try (Connection conn = DriverManager.getConnection(dbUrl)) {
@@ -5670,27 +5752,6 @@ public class PerformDataBase {
                         + "ADD CONSTRAINT FK_8 FOREIGN KEY (bot_job_id) "
                         + "REFERENCES bot_job(id) ON DELETE CASCADE";
                 stmt.executeUpdate(addForeignKeySQL8);
-
-                //                String createConfigurationTableSQL = "CREATE TABLE configuration ("
-                //                        + "id INTEGER PRIMARY KEY, "
-                //                        + "pathJava MEMO, "
-                //                        + "logLevel TEXT, "
-                //                        + "pathDB TEXT, "
-                //                        + "interactionTimeoutSec TEXT, "
-                //                        + "pathLog MEMO, "
-                //                        + "defaultInstructionStopSeconds TEXT, "
-                //                        + "pathReport TEXT, "
-                //                        + "browser MEMO, "
-                //                        + "dataBaseType TEXT, "
-                //                        + "pageUpdateTimeoutSec TEXT, "
-                //                        + "pathPriority TEXT, "
-                //                        + "pathEngine TEXT, "
-                //                        + "pathExcel TEXT, "
-                //                        + "pathExport TEXT, "
-                //                        + "socketPort TEXT, "
-                //                        + "blockLimit TEXT, "
-                //                        + "pathJavaFx TEXT)";
-                //                stmt.executeUpdate(createConfigurationTableSQL);
 
                 String createComponentBlockTableSQL = "CREATE TABLE component_block ("
                         + "id INTEGER PRIMARY KEY, "

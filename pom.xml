@@ -42,11 +42,6 @@
             <version>1.1</version>
         </dependency>
 
-<!--        <dependency>-->
-<!--            <groupId>org.glassfish.tyrus.bundles</groupId>-->
-<!--            <artifactId>tyrus-standalone-client</artifactId>-->
-<!--            <version>1.17</version>-->
-<!--        </dependency>-->
 
         <dependency>
             <groupId>org.seleniumhq.selenium</groupId>
@@ -75,12 +70,6 @@
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
             <version>2.10.1</version>
-        </dependency>
-        <!-- https://mvnrepository.com/artifact/org.json/json -->
-        <dependency>
-            <groupId>org.json</groupId>
-            <artifactId>json</artifactId>
-            <version>20250107</version>
         </dependency>
         <dependency>
             <groupId>org.apache.poi</groupId>
@@ -150,7 +139,6 @@
             <artifactId>jna-platform</artifactId>
             <version>5.13.0</version>
         </dependency>
-        
         <dependency>
             <groupId>com.pgvector</groupId>
             <artifactId>pgvector</artifactId>
