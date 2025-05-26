@@ -170,10 +170,11 @@ public class ARMainPane extends ARPane {
                 "Exit", ARConstants.SPACE_L, ARConstants.ICON_CROSS, ARConstants.SPACE_M, new Insets(8, 10, 8, 10));
 
         // 🔹 AI Button and TextArea
-        aiButton = builder.buildButton("AI", ARConstants.SPACE_M, new Insets(8, 10, 8, 10));
+        aiButton = builder.buildButton("AI", ARConstants.SPACE_L, ARConstants.ICON_AI, ARConstants.SPACE_M, new Insets(8, 10, 8, 10));
 
         aiTextArea = new TextArea();
-        aiTextArea.setPromptText("AI Tool");
+        aiTextArea.setPromptText("AI Tool: Upgrade your version to access this premium feature.");
+        aiTextArea.setEditable(false);
         aiTextArea.setWrapText(true);
         aiTextArea.setVisible(false);
         aiTextArea.setManaged(false); // ensures space is not reserved when hidden
