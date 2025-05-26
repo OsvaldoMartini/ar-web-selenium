@@ -2798,36 +2798,6 @@ public class ARScannedElementPane extends ARPane {
         XPATH
     }
 
-    private DatabaseUserDTO loadUserData(int bankId) {
-        String selectSQL =
-                "SELECT bank.ID, bank.Name, Url, bank.priority, COUNT(bot.ID) Jobs, search_config searchConfig, options_config optionsConfig, username, password "
-                        + "                         FROM home_banking bank "
-                        + "                         left join bot_job bot on bot.active = 1 and bot.home_banking_id = bank.id "
-                        + " WHERE bank.id = " + bankId
-                        + "                         group by bank.ID, bank.Name, bank.Url, bank.priority, bank.search_config, bank.options_config, bank.username, bank.password ";
-        try (Statement stmt = performDataBase.getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
-            while (rs.next()) {
-                String id = rs.getString("ID");
-                String jobs = rs.getString("Jobs");
-                String name = rs.getString("Name");
-                String url = rs.getString("Url");
-                String priority = rs.getString("Priority");
-                String searchConfig = rs.getString("searchConfig");
-                String optionsConfig = rs.getString("optionsConfig");
-                String username = rs.getString("username");
-                String password = rs.getString("password");
-                databaseUserDto = new DatabaseUserDTO(
-                        id, jobs, name, url, priority, searchConfig, optionsConfig, username, password);
-            }
-        } catch (SQLException e) {
-            System.out.println(e.getMessage());
-        }
-        return databaseUserDto;
-        //        jobUserList.clear();
-        //        loadBotJobData();
-    }
-
     private void recallJob() {
         if (isJobRunning.compareAndSet(false, true)) { // Try to set to true if currently false
             try {

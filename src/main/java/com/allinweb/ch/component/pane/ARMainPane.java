@@ -111,7 +111,7 @@ public class ARMainPane extends ARPane {
                 performDataBase.initializeMainDatabasePostgres();
             }
 
-//            performDataBase.dropPostGresSequences();
+            //            performDataBase.dropPostGresSequences();
             performDataBase.postGresIntegration();
             performDataBase.importHomeUrlTable();
 

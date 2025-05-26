@@ -212,7 +212,7 @@ public class ARConfigurationPane extends ARPane {
         //        ObservableList<HomeBankingDTO> homeBankingList =
         //                PerformDataBase..getEntityList(HomeBankingDTO.class);
 
-        homeBankingList.addAll(performDataBase.loadAllHomeBanking());
+        homeBankingList.addAll(performDataBase.loadHomeBanking(null));
         homeBankingListView = new ListView<>(homeBankingList);
         homeBankingListView.setCellFactory(new ARCellFactory<>(HomeBankingListCell.class)::call);
 
@@ -718,7 +718,7 @@ public class ARConfigurationPane extends ARPane {
                     pathWebDriver.getText().trim());
 
             homeBankingList.clear();
-            homeBankingList.addAll(performDataBase.loadAllHomeBanking());
+            homeBankingList.addAll(performDataBase.loadHomeBanking(null));
             homeBankingListView = new ListView<>(homeBankingList);
 
             performDataBase.changeDbConnection();

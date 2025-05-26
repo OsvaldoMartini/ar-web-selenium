@@ -101,7 +101,7 @@ public class ARNewBotJobPane extends ARPane {
         //                PerformDataBase..getEntityList(HomeBankingDTO.class);
 
         homeBankingList.clear();
-        homeBankingList.addAll(performDataBase.loadAllHomeBanking());
+        homeBankingList.addAll(performDataBase.loadHomeBanking(null));
         homeBankingChoiceBox = new ChoiceBox<>(homeBankingList);
 
         VBox mainLayout = new VBox(

@@ -132,7 +132,9 @@ public class ARViewBotJobScene extends ARScene {
 
         this.botLoadJob = performDataBase.loadBotJobById(this.botJobLoad.getId());
 
-        this.homeBankingLoadDTO = performDataBase.loadHomeBanking(this.botJobLoad.getHomeBankingId());
+        List<HomeBankingLoadDTO> homeBankingList = performDataBase.loadHomeBanking(this.botJobLoad.getHomeBankingId());
+        this.homeBankingLoadDTO = homeBankingList.isEmpty() ? null : homeBankingList.get(0);
+
         if (homeBankingLoadDTO != null) {
             this.botLoadJob.setHomeBankingLoadDTO(homeBankingLoadDTO);
             HomeUrlDTO homeUrlDTO = findMatchingHomeUrlDTO(botLoadJob);

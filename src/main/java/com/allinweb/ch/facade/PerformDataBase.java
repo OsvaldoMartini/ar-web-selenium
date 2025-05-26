@@ -100,6 +100,9 @@ public class PerformDataBase {
     public final String PASSWORD = "martini"; // your database password
 
     @Getter
+    private List<HomeBankingLoadDTO> databaseUpds;
+
+    @Getter
     private ObservableList<DatabaseUserDTO> databaseList = FXCollections.observableArrayList();
 
     @Getter
@@ -3204,19 +3207,19 @@ ORDER BY bot.id ASC;
         return -1;
     }
 
-    public List<HomeBankingLoadDTO> loadAllHomeBanking() {
+    public List<HomeBankingLoadDTO> loadHomeBanking(Integer homeBankingId) {
         List<HomeBankingLoadDTO> homeBankingList = new ArrayList<>();
 
+        String selectSQL =
+                "SELECT id, cookies, driver_session, name, options_config, password, priority, search_config, url, username "
+                        + "FROM home_banking ";
+        if (homeBankingId != null) {
+            selectSQL += "WHERE id = " + homeBankingId;
+        }
+
         try (Statement stmt = getConnection().createStatement()) {
-
-            // Select the home banking record based on homeBankingId
-            String selectSQL =
-                    "SELECT id, cookies, driver_session, name, options_config, password, priority, search_config, url, username "
-                            + "FROM home_banking ";
-
             ResultSet rs = stmt.executeQuery(selectSQL);
 
-            // Iterate through the result set and create HomeBankingLoadDTO objects
             while (rs.next()) {
                 HomeBankingLoadDTO homeBanking = new HomeBankingLoadDTO();
                 homeBanking.setId(rs.getInt("id"));
@@ -3230,62 +3233,33 @@ ORDER BY bot.id ASC;
                 homeBanking.setUrl(rs.getString("url"));
                 homeBanking.setUsername(rs.getString("username"));
 
-                // Add the object to the list
+                // If a specific homeBankingId is requested, load its associated URLs
+                if (homeBankingId != null) {
+                    String selectUrlsSQL = "SELECT * FROM home_url WHERE home_banking_id = " + homeBanking.getId();
+                    ResultSet urlRs = stmt.executeQuery(selectUrlsSQL);
+
+                    List<HomeUrlDTO> homeUrls = new ArrayList<>();
+                    while (urlRs.next()) {
+                        HomeUrlDTO urlDTO = new HomeUrlDTO(
+                                urlRs.getInt("id"), urlRs.getString("url"), urlRs.getInt("home_banking_id"));
+                        homeUrls.add(urlDTO);
+                    }
+
+                    homeBanking.setHomeUrlDTOS(homeUrls);
+                }
+
                 homeBankingList.add(homeBanking);
             }
 
         } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class).severe("Error selecting ALL home banking records");
+            String message = homeBankingId != null
+                    ? String.format(
+                            "Error selecting home banking record with ID %d. Error: %s", homeBankingId, e.getMessage())
+                    : "Error selecting ALL home banking records";
+            ARLogger.getInstance(PerformDataBase.class).severe(message);
         }
 
         return homeBankingList;
-    }
-
-    public HomeBankingLoadDTO loadHomeBanking(int homeBankingId) {
-        HomeBankingLoadDTO homeBanking = null;
-
-        try (Statement stmt = getConnection().createStatement()) {
-
-            // Select the home_banking record
-            String selectHomeSQL = "SELECT * FROM home_banking WHERE id = " + homeBankingId;
-            ResultSet rs = stmt.executeQuery(selectHomeSQL);
-
-            if (rs.next()) {
-                homeBanking = new HomeBankingLoadDTO();
-                homeBanking.setId(rs.getInt("id"));
-                homeBanking.setCookies(rs.getString("cookies"));
-                homeBanking.setDriverSession(rs.getString("driver_session"));
-                homeBanking.setName(rs.getString("name"));
-                homeBanking.setOptionsConfig(rs.getString("options_config"));
-                homeBanking.setPassword(rs.getString("password"));
-                homeBanking.setPriority(rs.getString("priority"));
-                homeBanking.setSearchConfig(rs.getString("search_config"));
-                homeBanking.setUrl(rs.getString("url"));
-                homeBanking.setUsername(rs.getString("username"));
-            }
-
-            // Now fetch the associated home_url records
-            if (homeBanking != null) {
-                String selectUrlsSQL = "SELECT * FROM home_url WHERE home_banking_id = " + homeBankingId;
-                ResultSet urlRs = stmt.executeQuery(selectUrlsSQL);
-
-                List<HomeUrlDTO> homeUrls = new ArrayList<>();
-                while (urlRs.next()) {
-                    HomeUrlDTO urlDTO =
-                            new HomeUrlDTO(urlRs.getInt("id"), urlRs.getString("url"), urlRs.getInt("home_banking_id"));
-                    homeUrls.add(urlDTO);
-                }
-
-                homeBanking.setHomeUrlDTOS(homeUrls);
-            }
-
-        } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
-                            "Error selecting home banking record with ID %d. Error: %s",
-                            homeBankingId, e.getMessage()));
-        }
-        return homeBanking;
     }
 
     public ObservableList<ComboBoxVars> loadWebPageFields(int botJobId) {
@@ -5258,7 +5232,7 @@ ORDER BY bot.id ASC;
                 }
 
                 //                deleteHomeUrl(dbUrl);
-                this.databaseList = loadAllHomeBankingBotJob();
+                this.databaseUpds = loadHomeBanking(null);
                 this.homeURLList = loadAllHomeURL();
 
                 insertUpdateHomeUrl();
@@ -5379,8 +5353,8 @@ ORDER BY bot.id ASC;
         try (PreparedStatement blockStmt = conn.prepareStatement(blockInsertQuery)) {
 
             boolean batchModeEnabled = false;
-            for (DatabaseUserDTO dbUser : this.databaseList) {
-                Integer dbUserId = dbUser.getId() != null ? Integer.parseInt(dbUser.getId()) : null;
+            for (HomeBankingLoadDTO dbUser : this.databaseUpds) {
+                Integer dbUserId = dbUser.getId() != null ? dbUser.getId() : null;
                 String dbUserUrl = dbUser.getUrl();
 
                 // Check if homeURLList contains a HomeUrlDTO with matching id and url
@@ -5438,10 +5412,31 @@ ORDER BY bot.id ASC;
     public ObservableList<DatabaseUserDTO> loadAllHomeBankingBotJob() {
         databaseList.clear();
         String selectSQL =
-                " SELECT bank.ID, bank.Name, Url, bank.priority, COUNT(bot.ID) Jobs, search_config searchConfig, options_config optionsConfig, username, password "
-                        + " FROM home_banking bank "
-                        + " left join bot_job bot on bot.home_banking_id = bank.id "
-                        + " group by bank.ID, bank.Name, bank.Url, bank.priority, bank.search_config, bank.options_config, bank.username, bank.password ";
+                """
+SELECT
+  bank.ID,
+  bank.Name,
+  hu.url,
+  bank.priority,
+  COUNT(bot.ID) AS Jobs,
+  bank.search_config AS searchConfig,
+  bank.options_config AS optionsConfig,
+  bank.username,
+  bank.password
+FROM home_banking bank
+LEFT JOIN bot_job bot ON bot.home_banking_id = bank.id
+LEFT JOIN home_url hu ON hu.home_banking_id = bank.id
+GROUP BY
+  bank.ID,
+  bank.Name,
+  hu.url,
+  bank.priority,
+  bank.search_config,
+  bank.options_config,
+  bank.username,
+  bank.password;
+                        """;
+
         try (Statement stmt = getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {

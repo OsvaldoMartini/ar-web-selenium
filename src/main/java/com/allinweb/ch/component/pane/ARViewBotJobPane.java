@@ -976,11 +976,13 @@ public class ARViewBotJobPane extends ARPane {
 
     private void executeScannerTask() {
 
-        HomeBankingLoadDTO homeBankingLoadDTO = performDataBase.loadHomeBanking(this.botJobLoad.getHomeBankingId());
+        List<HomeBankingLoadDTO> homeBankingList = performDataBase.loadHomeBanking(this.botJobLoad.getHomeBankingId());
+        HomeBankingLoadDTO homeBanking = homeBankingList.isEmpty() ? null : homeBankingList.get(0);
+
         HomeUrlDTO homeUrlDTO = findMatchingHomeUrlDTO(this.botJobLoad);
         if (homeUrlDTO != null) {
             this.botJobLoad.setHomeUrlId(homeUrlDTO.getId());
-            homeBankingLoadDTO.setUrl(homeUrlDTO.getUrl());
+            homeBanking.setUrl(homeUrlDTO.getUrl());
         }
 
         if (this.botJobLoad.getBlockLoadDTOList() != null
@@ -1000,7 +1002,7 @@ public class ARViewBotJobPane extends ARPane {
 
                     activeSessions = simpleWebSocketServer.getAllSessions();
                     // Call the ARScannedElementScene here
-                    arScannedElementScene.initialize(homeBankingLoadDTO, this.botJobLoad, this.blockLoad);
+                    arScannedElementScene.initialize(homeBanking, this.botJobLoad, this.blockLoad);
 
                     arScannedElementScene.showModal(); // Make sure the scene is shown
                 } catch (Exception ex) {
