@@ -5166,7 +5166,7 @@ ORDER BY bot.id ASC;
                             "Foreign key 'FK_NewHomeURL' (home_url_id -> home_url.id) not found. Adding it..."));
                     String addHomrURLForeignKeySQL = "ALTER TABLE bot_job "
                             + "ADD CONSTRAINT FK_NewHomeURL FOREIGN KEY (home_url_id) "
-                            + "REFERENCES home_url(id) ON DELETE CASCADE";
+                            + "REFERENCES home_url(id) ";
                     stmt.executeUpdate(addHomrURLForeignKeySQL);
                     System.out.println(String.format("Foreign key 'FK_NewHomeURL' added to 'bot_job' table."));
                     System.out.println(
@@ -5188,6 +5188,43 @@ ORDER BY bot.id ASC;
             }
         } catch (SQLException error) {
             System.out.println("initializeDatabase\nError: " + error.getMessage());
+        }
+    }
+
+    public void disableForeignKeyConstraints(String dbUrl) {
+        try (Connection conn = DriverManager.getConnection(dbUrl)) {
+            DatabaseMetaData meta = conn.getMetaData();
+            Statement stmt = conn.createStatement();
+
+            // Loop through all tables
+            ResultSet tables = meta.getTables(null, null, null, new String[] {"TABLE"});
+            while (tables.next()) {
+                String tableName = tables.getString("TABLE_NAME");
+
+                // Get foreign keys for the table
+                ResultSet fks = meta.getImportedKeys(null, null, tableName);
+                while (fks.next()) {
+                    String fkName = fks.getString("FK_NAME");
+
+                    if (fkName != null && !fkName.trim().isEmpty()) {
+                        String dropSQL = String.format("ALTER TABLE [%s] DROP CONSTRAINT [%s]", tableName, fkName);
+                        System.out.println("Dropping FK: " + dropSQL);
+                        try {
+                            stmt.executeUpdate(dropSQL);
+                        } catch (SQLException ex) {
+                            System.err.println("Failed to drop constraint " + fkName + ": " + ex.getMessage());
+                        }
+                    }
+                }
+                fks.close();
+            }
+
+            tables.close();
+            stmt.close();
+            System.out.println("All foreign key constraints removed.");
+
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
     }
 
@@ -5293,10 +5330,10 @@ ORDER BY bot.id ASC;
                     String addHomeUrlIdColumnSQL = "ALTER TABLE bot_job ADD COLUMN home_url_id INTEGER;";
                     stmt.executeUpdate(addHomeUrlIdColumnSQL);
 
-                    String addHomrURLForeignKeySQL = "ALTER TABLE bot_job "
-                            + "ADD CONSTRAINT FK_NewHomeURL FOREIGN KEY (home_url_id) "
-                            + "REFERENCES home_url(id) ON DELETE CASCADE";
-                    stmt.executeUpdate(addHomrURLForeignKeySQL);
+                    //                    String addHomrURLForeignKeySQL = "ALTER TABLE bot_job "
+                    //                            + "ADD CONSTRAINT FK_NewHomeURL FOREIGN KEY (home_url_id) "
+                    //                            + "REFERENCES home_url(id)";
+                    //                    stmt.executeUpdate(addHomrURLForeignKeySQL);
 
                     //                    String upDateSQL = "UPDATE bot_job "
                     //                            + "SET home_url_id = home_banking_id";
@@ -5332,7 +5369,7 @@ ORDER BY bot.id ASC;
                 if (botJobLoadList != null
                         && botJobLoadList.size() > 0
                         && botJobLoadList.get(0).getHomeUrlId() == 0) {
-                    //                    updateBotJobHomeUrlId(homeURLList);
+                    // updateBotJobHomeUrlId(homeURLList);
                 }
 
                 rs.close();
@@ -5366,15 +5403,14 @@ ORDER BY bot.id ASC;
         // Update bot_job only if the home_url_id to be set exists in the home_url table
         String blockInsertQuery = "UPDATE bot_job AS bj " + "SET bj.home_url_id = ? "
                 + "WHERE bj.home_banking_id = ? "
-                + "AND EXISTS (SELECT 1 FROM home_url WHERE hom.id = ?);"; // Parameter for home_url.id check
+                + "AND EXISTS (SELECT 1 FROM home_url WHERE id = ?);"; // Parameter for home_url.id check
 
         try (PreparedStatement blockStmt = conn.prepareStatement(blockInsertQuery)) {
             boolean batchModeEnabled = false;
             for (HomeUrlDTO homeUrl : homeURLList) {
                 blockStmt.setInt(1, homeUrl.getId()); // 1st ?: Sets home_url_id in bot_job
                 blockStmt.setInt(2, homeUrl.getHomeBankingId()); // 2nd ?: Sets home_banking_id in bot_job
-                blockStmt.setInt(3, homeUrl.getHomeBankingId()); // 3rd ?: Used in WHERE bj.home_banking_id = ?
-                blockStmt.setInt(4, homeUrl.getId()); // 4th ?: Used in AND EXISTS (SELECT 1 FROM home_url WHERE id = ?)
+                blockStmt.setInt(3, homeUrl.getId()); // 4th ?: Used in AND EXISTS (SELECT 1 FROM home_url WHERE id = ?)
 
                 blockStmt.addBatch(); // Add the current block to the batch
                 batchModeEnabled = true;
@@ -5400,10 +5436,10 @@ ORDER BY bot.id ASC;
                         + "home_banking_id INTEGER);";
                 stmt.executeUpdate(createURLTableSQL);
 
-                String addURLForeignKeySQL = "ALTER TABLE home_url "
-                        + "ADD CONSTRAINT FK_UrlNew FOREIGN KEY (home_banking_id) "
-                        + "REFERENCES home_banking(id) ON DELETE CASCADE";
-                stmt.executeUpdate(addURLForeignKeySQL);
+                //                String addURLForeignKeySQL = "ALTER TABLE home_url "
+                //                        + "ADD CONSTRAINT FK_UrlNew FOREIGN KEY (home_banking_id) "
+                //                        + "REFERENCES home_banking(id) ";
+                //                stmt.executeUpdate(addURLForeignKeySQL);
             }
             System.out.println(String.format("Database %s has been created!", dbFile.getName()));
         } catch (SQLException error) {
@@ -5857,7 +5893,7 @@ GROUP BY
 
                 String addURLForeignKeySQL = "ALTER TABLE home_url "
                         + "ADD CONSTRAINT FK_URL FOREIGN KEY (home_banking_id) "
-                        + "REFERENCES home_banking(id) ON DELETE CASCADE";
+                        + "REFERENCES home_banking(id) ";
                 stmt.executeUpdate(addURLForeignKeySQL);
 
                 // Create bot_job table with a foreign key reference to home_banking
@@ -5873,12 +5909,12 @@ GROUP BY
 
                 String addBotJobForeignKeySQL = "ALTER TABLE bot_job "
                         + "ADD CONSTRAINT FK_BotJob FOREIGN KEY (home_banking_id) "
-                        + "REFERENCES home_banking(id) ON DELETE CASCADE";
+                        + "REFERENCES home_banking(id) ";
                 stmt.executeUpdate(addBotJobForeignKeySQL);
 
                 String addHomrURLForeignKeySQL = "ALTER TABLE bot_job "
                         + "ADD CONSTRAINT FK_HomeUrl FOREIGN KEY (home_url_id) "
-                        + "REFERENCES home_url(id) ON DELETE CASCADE";
+                        + "REFERENCES home_url(id) ";
                 stmt.executeUpdate(addHomrURLForeignKeySQL);
 
                 // Create block table with a foreign key reference to bot_job
@@ -5896,7 +5932,7 @@ GROUP BY
 
                 String addForeignKeySQL2 = "ALTER TABLE block "
                         + "ADD CONSTRAINT FK_2 FOREIGN KEY (bot_job_id) "
-                        + "REFERENCES bot_job(id) ON DELETE CASCADE";
+                        + "REFERENCES bot_job(id) ";
                 stmt.executeUpdate(addForeignKeySQL2);
 
                 // Create instruction table with foreign key references to block and bot_job
@@ -5931,12 +5967,12 @@ GROUP BY
 
                 String addForeignKeySQL3 = "ALTER TABLE instruction "
                         + "ADD CONSTRAINT FK_3 FOREIGN KEY (block_id) "
-                        + "REFERENCES block(id) ON DELETE CASCADE";
+                        + "REFERENCES block(id) ";
                 stmt.executeUpdate(addForeignKeySQL3);
 
                 String addForeignKeySQL4 = "ALTER TABLE instruction "
                         + "ADD CONSTRAINT FK_4 FOREIGN KEY (bot_job_id) "
-                        + "REFERENCES bot_job(id) ON DELETE CASCADE";
+                        + "REFERENCES bot_job(id) ";
                 stmt.executeUpdate(addForeignKeySQL4);
 
                 String createReferenceTableSQL = "CREATE TABLE reference ("
@@ -5949,12 +5985,12 @@ GROUP BY
 
                 String addForeignKeySQL5 = "ALTER TABLE reference "
                         + "ADD CONSTRAINT FK_5 FOREIGN KEY (instruction_id) "
-                        + "REFERENCES instruction(id) ON DELETE CASCADE";
+                        + "REFERENCES instruction(id) ";
                 stmt.executeUpdate(addForeignKeySQL5);
 
                 String addForeignKeySQL6 = "ALTER TABLE reference "
                         + "ADD CONSTRAINT FK_6 FOREIGN KEY (bot_job_id) "
-                        + "REFERENCES bot_job(id) ON DELETE CASCADE";
+                        + "REFERENCES bot_job(id) ";
                 stmt.executeUpdate(addForeignKeySQL6);
 
                 String createVariableTableSQL = "CREATE TABLE variable ("
@@ -5970,12 +6006,12 @@ GROUP BY
 
                 String addForeignKeySQL7 = "ALTER TABLE variable "
                         + "ADD CONSTRAINT FK_7 FOREIGN KEY (instruction_id) "
-                        + "REFERENCES instruction(id) ON DELETE CASCADE";
+                        + "REFERENCES instruction(id) ";
                 stmt.executeUpdate(addForeignKeySQL7);
 
                 String addForeignKeySQL8 = "ALTER TABLE variable "
                         + "ADD CONSTRAINT FK_8 FOREIGN KEY (bot_job_id) "
-                        + "REFERENCES bot_job(id) ON DELETE CASCADE";
+                        + "REFERENCES bot_job(id) ";
                 stmt.executeUpdate(addForeignKeySQL8);
 
                 String createComponentBlockTableSQL = "CREATE TABLE component_block ("
@@ -5992,7 +6028,7 @@ GROUP BY
 
                 String addForeignKeySQL9 = "ALTER TABLE component_block "
                         + "ADD CONSTRAINT FK_9 FOREIGN KEY (home_banking_id) "
-                        + "REFERENCES home_banking(id) ON DELETE CASCADE";
+                        + "REFERENCES home_banking(id) ";
                 stmt.executeUpdate(addForeignKeySQL9);
 
                 String createComponentInstructionTableSQL = "CREATE TABLE component_instruction ("
@@ -6026,12 +6062,12 @@ GROUP BY
 
                 String addForeignKeySQL10 = "ALTER TABLE component_instruction "
                         + "ADD CONSTRAINT FK_10 FOREIGN KEY (block_id) "
-                        + "REFERENCES component_block(id) ON DELETE CASCADE";
+                        + "REFERENCES component_block(id) ";
                 stmt.executeUpdate(addForeignKeySQL10);
 
                 String addCompBlkHomeForeignKeySQL = "ALTER TABLE component_instruction "
                         + "ADD CONSTRAINT FK_BLKHomeBank FOREIGN KEY (home_banking_id) "
-                        + "REFERENCES home_banking(id) ON DELETE CASCADE";
+                        + "REFERENCES home_banking(id) ";
                 stmt.executeUpdate(addCompBlkHomeForeignKeySQL);
 
                 String createComponentReferenceTableSQL = "CREATE TABLE component_reference ("
@@ -6044,12 +6080,12 @@ GROUP BY
 
                 String addForeignKeySQL11 = "ALTER TABLE component_reference "
                         + "ADD CONSTRAINT FK_11 FOREIGN KEY (instruction_id) "
-                        + "REFERENCES component_instruction(id) ON DELETE CASCADE";
+                        + "REFERENCES component_instruction(id) ";
                 stmt.executeUpdate(addForeignKeySQL11);
 
                 String addCompReferForeignKeySQL = "ALTER TABLE component_reference "
                         + "ADD CONSTRAINT FK_CompRefer FOREIGN KEY (home_banking_id) "
-                        + "REFERENCES home_banking(id) ON DELETE CASCADE";
+                        + "REFERENCES home_banking(id) ";
                 stmt.executeUpdate(addCompReferForeignKeySQL);
 
                 String createComponentVariableTableSQL = "CREATE TABLE component_variable ("
@@ -6065,12 +6101,12 @@ GROUP BY
 
                 String addForeignKeySQL12 = "ALTER TABLE component_variable "
                         + "ADD CONSTRAINT FK_12 FOREIGN KEY (instruction_id) "
-                        + "REFERENCES component_instruction(id) ON DELETE CASCADE";
+                        + "REFERENCES component_instruction(id) ";
                 stmt.executeUpdate(addForeignKeySQL12);
 
                 String addCompVarForeignKeySQL = "ALTER TABLE component_variable "
                         + "ADD CONSTRAINT FK_CompVar FOREIGN KEY (home_banking_id) "
-                        + "REFERENCES home_banking(id) ON DELETE CASCADE";
+                        + "REFERENCES home_banking(id) ";
                 stmt.executeUpdate(addCompVarForeignKeySQL);
             }
             System.out.println(String.format("Database %s has been created!", dbFile.getName()));

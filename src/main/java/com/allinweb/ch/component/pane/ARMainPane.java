@@ -124,15 +124,29 @@ public class ARMainPane extends ARPane {
             String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
 
             File dbFile = new File(dbPath + ARConstants.FILE_NAME_DB);
-            if (!dbFile.exists()) {
-                performDataBase.initializeMainDatabaseAccess(dbUrl, dbFile);
-            } else {
-                //                performDataBase.updateTableAccess(dbUrl, dbFile);
-                performDataBase.updateDatabaseSchema(dbUrl, dbFile);
+            try {
 
-                ARLogger.getInstance(ARMainPane.class)
-                        .info(String.format("Database '%s' already exists!", dbFile.getName()));
+                if (!dbFile.exists()) {
+                    performDataBase.initializeMainDatabaseAccess(dbUrl, dbFile);
+                } else {
+                    //                performDataBase.disableForeignKeyConstraints(dbUrl);
+                    //                performDataBase.updateTableAccess(dbUrl, dbFile);
+                    //                performDataBase.updateDatabaseSchema(dbUrl, dbFile);
+
+                    ARLogger.getInstance(ARMainPane.class)
+                            .info(String.format("Database '%s' already exists!", dbFile.getName()));
+                }
+            } catch (Exception error) {
+                performMessage.errorMessage(
+                        "Configuration Needed", // Using configurationFileName as the title
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: Set the path for the Database!</span>",
+                        "<span style='color: #2E7D32; font-weight: bold;'>The Path for Database is Blank!</span>",
+                        "<span style='font-weight: bold;'>Please configure the application before use.</span>.",
+                        "<span style='font-weight: bold;'>" + dbPath + ARConstants.FILE_NAME_DB + "</span>.",
+                        0);
+                System.exit(0);
             }
+
             //            performDataBase.updatePossibleMigrationColumnsTable(dbUrl, dbFile);
 
         }
@@ -312,7 +326,8 @@ public class ARMainPane extends ARPane {
 
             var selecBotJobDTO = viewBotJobListView.getSelectionModel().getSelectedItem();
             if (selecBotJobDTO != null) {
-                String enginePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_ENGINE) + "\\AR_Web_Engine.jar";
+                String enginePath =
+                        arPropertyManager.getProperty(ARPropertyEnum.PATH_ENGINE); // + "\\AR_Web_Engine.jar";
                 String excelPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
                 excelPath = excelPath + "\\" + selecBotJobDTO.getName() + ".xlsx";
                 if (!new File(excelPath).exists()) {

@@ -96,7 +96,7 @@ public class ARControlPanel extends Application {
             ARLogger.getInstance(ARControlPanel.class).fine("Configuration file path: " + defaultConfigurationFileName);
         }
 
-        arPropertyManager.setProperty(ARPropertyEnum.VERSION.getValue(), "AR Web v4.0f Beta Test");
+        arPropertyManager.setProperty(ARPropertyEnum.VERSION.getValue(), "AR Web v4.1f Beta Test");
         arPropertyManager.setProperty(ARPropertyEnum.BUILD.getValue(), "Build: " + getTodaysDate(0));
 
         try (ServerSocket serverSocket = new ServerSocket(0)) { // Port 0 = auto-assign
