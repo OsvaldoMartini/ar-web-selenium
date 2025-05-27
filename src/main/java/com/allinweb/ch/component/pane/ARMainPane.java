@@ -536,24 +536,30 @@ public class ARMainPane extends ARPane {
                 msgNextStep = "Application access is restricted. Please obtain a valid license to continue.";
                 msgColor = "#C62828"; // Soft, elegant red tone
 
-                performMessage.showCustomModalDialogDragWin11(
-                        "License Status Verification",
-                        "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>License status has been successfully verified.</span>",
-                        "<span style='color: " + msgColor + "; font-weight: bold;'>" + msgValid + "</span>",
-                        "<span style='font-style: italic;'>" + msgNextStep + "</span>",
-                        "<span style='color: #E65100; font-weight: bold;'>Current license status:</span> <span style='font-weight: bold;'>"
-                                + licenseStatus.getStaus() + "</span>",
-                        false,
-                        "OK",
-                        null,
-                        0);
-                return false;
+                ARLogger.getInstance(ARMainPane.class)
+                        .severe("License Status Verification: " + licenseStatus.getStaus());
+
+                //                performMessage.showCustomModalDialogDragWin11(
+                //                        "License Status Verification",
+                //                        "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>License
+                // status has been successfully verified.</span>",
+                //                        "<span style='color: " + msgColor + "; font-weight: bold;'>" + msgValid +
+                // "</span>",
+                //                        "<span style='font-style: italic;'>" + msgNextStep + "</span>",
+                //                        "<span style='color: #E65100; font-weight: bold;'>Current license
+                // status:</span> <span style='font-weight: bold;'>"
+                //                                + licenseStatus.getStaus() + "</span>",
+                //                        false,
+                //                        "OK",
+                //                        null,
+                //                        0);
+                return true;
             }
             return true;
         } catch (Exception error) {
             ARLogger.getInstance(ARMainPane.class)
                     .severe("Cannot read/validate the License path/file. Error: " + error.getMessage());
-            return false;
+            return true;
         }
     }
 }
