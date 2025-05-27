@@ -260,7 +260,7 @@ public class ARMainPane extends ARPane {
                 var selecBotJobDTO = viewBotJobListView.getSelectionModel().getSelectedItem();
                 if (selecBotJobDTO != null) {
                     String enginePath =
-                            arPropertyManager.getProperty(ARPropertyEnum.PATH_ENGINE) + "\\AR_Web_Engine.jar";
+                            arPropertyManager.getProperty(ARPropertyEnum.PATH_ENGINE); // + "\\AR_Web_Engine.jar";
                     String excelPath = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_EXCEL);
                     excelPath = excelPath + "\\" + selecBotJobDTO.getName() + ".xlsx";
                     if (!new File(excelPath).exists()) {

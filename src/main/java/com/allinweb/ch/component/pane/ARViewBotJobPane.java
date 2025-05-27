@@ -690,7 +690,7 @@ public class ARViewBotJobPane extends ARPane {
         });
         this.launchBotJobButton.setOnMouseClicked((e) -> {
             ARPropertyManager managerProps = arPropertyManager;
-            String enginePath = managerProps.getProperty(ARPropertyEnum.PATH_ENGINE) + "\\AR_Web_Engine.jar";
+            String enginePath = managerProps.getProperty(ARPropertyEnum.PATH_ENGINE); // + "\\AR_Web_Engine.jar";
             String excelPath = managerProps.getProperty(ARPropertyEnum.FOLDER_PATH_EXCEL);
             excelPath = excelPath + "\\" + this.botJobLoad.getName() + ".xlsx";
             if (!new File(excelPath).exists()) {

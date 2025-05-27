@@ -476,7 +476,7 @@ public class ARConfigurationPane extends ARPane {
         pathReportButton.setOnMouseClicked(e -> openChooserFor(pathReport, true));
         pathPriorityButton.setOnMouseClicked(e -> openChooserFor(pathPriority, true));
         pathJavaFXButton.setOnMouseClicked(e -> openChooserFor(pathJavaFX, true));
-        pathEngineButton.setOnMouseClicked(e -> openChooserFor(pathEngine, true));
+        pathEngineButton.setOnMouseClicked(e -> openChooserFor(pathEngine, false));
         pathWebDriverButton.setOnMouseClicked(e -> openChooserFor(pathWebDriver, false));
         browserChoiceBox.setValue(arPropertyManager.getProperty(ARPropertyEnum.BROWSER));
 
