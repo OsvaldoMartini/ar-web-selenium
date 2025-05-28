@@ -40,7 +40,7 @@ public class ARControlPanel extends Application {
         arConfigurationScene = ARConfigurationScene.getInstance();
     }
 
-    private static boolean isEnabledLicence = false;
+    private static boolean isEnabledLicence = true;
 
     @Override
     public void start(Stage stage) throws Exception {
