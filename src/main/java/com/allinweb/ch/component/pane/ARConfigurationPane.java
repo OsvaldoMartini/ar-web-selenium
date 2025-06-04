@@ -62,10 +62,15 @@ public class ARConfigurationPane extends ARPane {
         return instance;
     }
 
+    private ListView<BotJobLoadDTO> viewBotJobListView;
+    private ObservableList<BotJobLoadDTO> botJobList;
     private Stage modalStage;
 
-    public void initialize(Stage modalStage) {
+    public void initialize(
+            Stage modalStage, ListView<BotJobLoadDTO> viewBotJobListView, ObservableList<BotJobLoadDTO> botJobList) {
         this.modalStage = modalStage;
+        this.viewBotJobListView = viewBotJobListView;
+        this.botJobList = botJobList;
     }
 
     private static final ARComponentBuilder builder = new ARComponentBuilder();
@@ -101,14 +106,16 @@ public class ARConfigurationPane extends ARPane {
     Label pathLogLabel;
     Label sizeLogLabel;
     Label reduceSearchLabel;
-    Label pathJavaLabel;
+
+    Label dbUrlLabel;
+    Label dbUserLabel;
+    Label dbPwdLabel;
+
     Label pathDBLabel;
     Label databaseLabel;
-    //    Label socketPortLabel;
-    //    Label blockLimitLabel;
+
     Label pathReportLabel;
     Label pathPriorityLabel;
-    Label pathJavaFXLabel;
     Label pathEngineLabel;
     Label browserLabel;
     Label reloadDBLabel;
@@ -119,18 +126,15 @@ public class ARConfigurationPane extends ARPane {
 
     TextField pathExcel;
     TextField pathLicense;
-    //    TextField pathExport;
-    //    TextField fileExport;
     TextField pathLog;
-    TextField sizeLog;
-    TextField reduceSearch;
-    TextField pathJava;
     TextField pathDB;
-    TextField socketPort;
-    //    TextField blockLimit;
     TextField pathReport;
     TextField pathPriority;
-    TextField pathJavaFX;
+
+    TextField dbUrl;
+    TextField dbUser;
+    TextField dbPwd;
+
     TextField pathEngine;
     TextField pathWebDriver;
 
@@ -145,11 +149,11 @@ public class ARConfigurationPane extends ARPane {
     Button pathLicenseButton;
     //    Button pathExportButton;
     Button pathLogButton;
-    Button pathJavaButton;
+
     Button pathDBButton;
     Button pathReportButton;
     Button pathPriorityButton;
-    Button pathJavaFXButton;
+
     Button pathEngineButton;
     Button pathWebDriverButton;
 
@@ -233,42 +237,6 @@ public class ARConfigurationPane extends ARPane {
         pathExcelButton = createPathButton();
         AnchorPane excelGroup = new AnchorPane(pathExcel, pathExcelButton);
 
-        //        pathExportLabel = new Label("Export Path:");
-        //        pathExport = createPathTextField(ARPropertyEnum.PATH_EXPORT);
-        //        pathExportButton = createPathButton();
-        //        fileExportLabel = new Label("File Name");
-        //        fileExport = createPathTextField(ARPropertyEnum.FILE_NAME_EXPORT);
-        //        AnchorPane exportGroup = new AnchorPane(pathExport, pathExportButton);
-
-        //        GridPane gridPaneExport = new GridPane();
-        //        //        gridPaneLog.setVgap(10);
-        //        gridPaneExport.setHgap(10);
-        //        // Set column constraints for pathLog (80%), sizeLog (15%), and pathLogButton (5%)
-        //        ColumnConstraints colExp1 = new ColumnConstraints();
-        //        colExp1.setPercentWidth(65);
-        //
-        //        ColumnConstraints colExp2 = new ColumnConstraints();
-        //        colExp2.setPercentWidth(30);
-        //
-        //        ColumnConstraints colExp3 = new ColumnConstraints();
-        //        colExp3.setPercentWidth(5);
-        //
-        //        gridPaneExport.getColumnConstraints().addAll(colExp1, colExp2, colExp3);
-
-        //        // Add labels in the first row
-        //        gridPaneExport.add(pathExportLabel, 0, 0);
-        //        gridPaneExport.add(fileExportLabel, 1, 0);
-        //
-        //        // Add text fields in the second row
-        //        gridPaneExport.add(pathExport, 0, 1);
-        //        gridPaneExport.add(fileExport, 1, 1);
-        //
-        //        // Add button in the second row, third column
-        //        gridPaneExport.add(pathExportButton, 2, 1);
-        //
-        //        // Set margin for pathLogButton to create spacing from right border
-        //        GridPane.setMargin(pathExportButton, new Insets(0, 0, 0, 5));
-
         // LOGs
         pathLogLabel = new Label("Log Path:");
         pathLog = createPathTextField(ARPropertyEnum.PATH_LOG);
@@ -298,7 +266,7 @@ public class ARConfigurationPane extends ARPane {
         GridPane.setMargin(pathLogButton, new Insets(0, 0, 0, 5));
 
         // DB Type
-        pathDBLabel = new Label("Database Path:");
+        pathDBLabel = new Label("Access Database Path:");
         pathDB = createPathTextField(ARPropertyEnum.PATH_DB);
         pathDBButton = createPathButton();
 
@@ -402,10 +370,8 @@ public class ARConfigurationPane extends ARPane {
         gridPaneButton.add(addHomeBankingButton, 5, 1);
 
         //        AnchorPane logGroup = new AnchorPane(pathLog, sizeLog, pathLogButton);
-        pathJavaLabel = new Label("Java Path:");
-        pathJava = createPathTextField(ARPropertyEnum.PATH_JAVA);
-        pathJavaButton = createPathButton();
-        AnchorPane javaGroup = new AnchorPane(pathJava, pathJavaButton);
+        dbUrlLabel = new Label("Database URL:");
+        dbUrl = createPathTextField(ARPropertyEnum.DB_URL);
 
         pathReportLabel = new Label("Report Path:");
         pathReport = createPathTextField(ARPropertyEnum.PATH_REPORT);
@@ -417,10 +383,26 @@ public class ARConfigurationPane extends ARPane {
         pathPriorityButton = createPathButton();
         AnchorPane priorityGroup = new AnchorPane(pathPriority, pathPriorityButton);
 
-        pathJavaFXLabel = new Label("JavaFX Path:");
-        pathJavaFX = createPathTextField(ARPropertyEnum.PATH_JAVA_FX);
-        pathJavaFXButton = createPathButton();
-        AnchorPane javaFXGroup = new AnchorPane(pathJavaFX, pathJavaFXButton);
+        dbUserLabel = new Label("Database User)");
+        dbPwdLabel = new Label("Database Password)");
+        dbUser = createPathTextField(ARPropertyEnum.DB_USER);
+        dbPwd = createPathTextField(ARPropertyEnum.DB_PWD);
+        //        AnchorPane dbUserPwdGroup = new AnchorPane(dbUser, dbPwd);
+
+        GridPane dbUserPwdGroup = new GridPane();
+        dbUserPwdGroup.setHgap(10);
+        dbUserPwdGroup.setVgap(5);
+
+        ColumnConstraints colDbUser = new ColumnConstraints();
+        colDbUser.setPercentWidth(50);
+        ColumnConstraints colDbPwd = new ColumnConstraints();
+        colDbPwd.setPercentWidth(50);
+        dbUserPwdGroup.getColumnConstraints().addAll(colDbUser, colDbPwd);
+
+        dbUserPwdGroup.add(dbUserLabel, 0, 0);
+        dbUserPwdGroup.add(dbPwdLabel, 1, 0);
+        dbUserPwdGroup.add(dbUser, 0, 1);
+        dbUserPwdGroup.add(dbPwd, 1, 1);
 
         pathEngineLabel = new Label("Engine Path:");
         pathEngine = createPathTextField(ARPropertyEnum.PATH_ENGINE);
@@ -444,14 +426,13 @@ public class ARConfigurationPane extends ARPane {
                 reportGroup,
                 pathPriorityLabel,
                 priorityGroup,
-                pathJavaLabel,
-                javaGroup,
-                pathJavaFXLabel,
-                javaFXGroup,
                 pathEngineLabel,
                 engineGroup,
                 pathWebDriverLabel,
                 driverGroup,
+                dbUrlLabel,
+                dbUrl,
+                dbUserPwdGroup,
                 gridPaneButton,
                 homeBankingContainer);
 
@@ -464,6 +445,19 @@ public class ARConfigurationPane extends ARPane {
 
     @Override
     public void initUIBehaviour() {
+
+        // Add listener to databaseChoiceBox
+        databaseChoiceBox.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+            if (ARConstants.ACCESS.equals(newVal)) {
+                pathDB.setDisable(false);
+                dbUser.setDisable(true);
+                dbPwd.setDisable(true);
+            } else {
+                pathDB.setDisable(true);
+                dbUser.setDisable(false);
+                dbPwd.setDisable(false);
+            }
+        });
 
         try (Connection conn = performDataBase.getConnection()) {
             List<BotJobLoadDTO> botJobLoadList = performDataBase.loadAllBotJobs();
@@ -508,14 +502,11 @@ public class ARConfigurationPane extends ARPane {
 
         pathLicenseButton.setOnMouseClicked(e -> openChooserFor(pathLicense, modalStage, true));
         pathExcelButton.setOnMouseClicked(e -> openChooserFor(pathExcel, modalStage, true));
-        //        pathExportButton.setOnMouseClicked(e -> openChooserFor(pathExport, true));
         pathLogButton.setOnMouseClicked(e -> openChooserFor(pathLog, modalStage, true));
-        // pathExtRefButton.setOnMouseClicked(e -> openChooserFor(pathExtRef, true));
-        pathJavaButton.setOnMouseClicked(e -> openChooserFor(pathJava, modalStage, true));
         pathDBButton.setOnMouseClicked(e -> openChooserFor(pathDB, modalStage, true));
         pathReportButton.setOnMouseClicked(e -> openChooserFor(pathReport, modalStage, true));
         pathPriorityButton.setOnMouseClicked(e -> openChooserFor(pathPriority, modalStage, true));
-        pathJavaFXButton.setOnMouseClicked(e -> openChooserFor(pathJavaFX, modalStage, true));
+
         pathEngineButton.setOnMouseClicked(e -> openChooserFor(pathEngine, modalStage, false));
         pathWebDriverButton.setOnMouseClicked(e -> openChooserFor(pathWebDriver, modalStage, false));
 
@@ -651,7 +642,7 @@ public class ARConfigurationPane extends ARPane {
             validfields = false;
         }
 
-        if (Strings.isNullOrEmpty(pathJava.getText())) {
+        if (Strings.isNullOrEmpty(dbUrl.getText())) {
             new ARAlertScene(Alert.AlertType.ERROR, "Field Blank", "Java Path must be filed!", ButtonType.OK);
             validfields = false;
         }
@@ -670,8 +661,14 @@ public class ARConfigurationPane extends ARPane {
             validfields = false;
         }
 
-        if (Strings.isNullOrEmpty(pathJavaFX.getText())) {
-            new ARAlertScene(Alert.AlertType.ERROR, "Field Blank", "JavaFX Path must be filed!", ButtonType.OK);
+        if (Strings.isNullOrEmpty(dbUser.getText())) {
+            new ARAlertScene(Alert.AlertType.ERROR, "Field Blank", "Database \"User\" must be filed!", ButtonType.OK);
+            validfields = false;
+        }
+
+        if (Strings.isNullOrEmpty(dbPwd.getText())) {
+            new ARAlertScene(
+                    Alert.AlertType.ERROR, "Field Blank", "Database \"Password\" must be filed!", ButtonType.OK);
             validfields = false;
         }
 
@@ -689,11 +686,6 @@ public class ARConfigurationPane extends ARPane {
 
             arPropertyManager.setProperty(ARPropertyEnum.BROWSER.getValue(), browserChoiceBox.getValue());
 
-            arPropertyManager.setProperty(ARPropertyEnum.DATABASE_TYPE.getValue(), databaseChoiceBox.getValue());
-
-            arPropertyManager.setProperty(
-                    ARPropertyEnum.PATH_DB.getValue(), pathDB.getText().trim());
-
             arPropertyManager.setProperty(
                     ARPropertyEnum.PATH_LICENSE.getValue(),
                     pathLicense.getText().trim());
@@ -701,9 +693,6 @@ public class ARConfigurationPane extends ARPane {
             arPropertyManager.setProperty(
                     ARPropertyEnum.PATH_EXCEL.getValue(), pathExcel.getText().trim());
 
-            arPropertyManager.setProperty(ARPropertyEnum.PATH_JAVA.getValue(), pathJava.getText());
-            arPropertyManager.setProperty(
-                    ARPropertyEnum.PATH_JAVA_FX.getValue(), pathJavaFX.getText().trim());
             arPropertyManager.setProperty(
                     ARPropertyEnum.PATH_LOG.getValue(), pathLog.getText().trim());
             arPropertyManager.setProperty(
@@ -717,11 +706,47 @@ public class ARConfigurationPane extends ARPane {
                     ARPropertyEnum.PATH_WEBDRIVER.getValue(),
                     pathWebDriver.getText().trim());
 
+            try {
+                performDataBase.testConnection(
+                        databaseChoiceBox.getValue(),
+                        pathDB.getText().trim(),
+                        dbUrl.getText(),
+                        dbUser.getText().trim(),
+                        dbPwd.getText().trim());
+            } catch (Exception error) {
+                ARLogger.getInstance(PerformDataBase.class).severe("testConnection Error: " + error.getMessage());
+                performMessage.errorMessage(
+                        "Database connection Failed",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>An error occurred during the Database connection.</span>",
+                        "<span style='font-weight: bold;'>" + databaseChoiceBox.getValue() + "</span>.",
+                        "<span style='color: #E65100; font-weight: bold;'>Please ensure the Database connections are correct.</span>",
+                        "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
+                        0);
+
+                return;
+            }
+
+            arPropertyManager.setProperty(ARPropertyEnum.DATABASE_TYPE.getValue(), databaseChoiceBox.getValue());
+
+            arPropertyManager.setProperty(
+                    ARPropertyEnum.PATH_DB.getValue(), pathDB.getText().trim());
+
+            arPropertyManager.setProperty(ARPropertyEnum.DB_URL.getValue(), dbUrl.getText());
+
+            arPropertyManager.setProperty(
+                    ARPropertyEnum.DB_USER.getValue(), dbUser.getText().trim());
+
+            arPropertyManager.setProperty(
+                    ARPropertyEnum.DB_PWD.getValue(), dbPwd.getText().trim());
+
+            performDataBase.changeDbConnection();
+
             homeBankingList.clear();
             homeBankingList.addAll(performDataBase.loadHomeBanking(null));
             homeBankingListView = new ListView<>(homeBankingList);
 
-            performDataBase.changeDbConnection();
+            botJobList = FXCollections.observableArrayList(performDataBase.loadAllBotJobs());
+            viewBotJobListView.setItems(botJobList);
 
             new ARAlertScene(
                     Alert.AlertType.INFORMATION,

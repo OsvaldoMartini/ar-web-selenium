@@ -7,7 +7,10 @@ import com.allinweb.ch.component.pane.ARScannedElementPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.driver.ARWebDriver;
+import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.util.ARLogger;
+import com.allinweb.ch.util.ARPropertyEnum;
+import com.allinweb.ch.util.ARPropertyManager;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -62,10 +65,14 @@ public class ARScannedElementScene extends ARScene {
 
     private static final ARScannedElementPane arScannedElementPane;
     private static final ARWebDriver arWebDriver;
+    private static final ARPropertyManager arPropertyManager;
+    private static final PerformMessage performMessage;
 
     static {
         arScannedElementPane = ARScannedElementPane.getInstance();
         arWebDriver = ARWebDriver.getInstance();
+        arPropertyManager = ARPropertyManager.getInstance();
+        performMessage = PerformMessage.getInstance();
     }
 
     public ARScannedElementScene initialize(
@@ -216,6 +223,28 @@ public class ARScannedElementScene extends ARScene {
         } catch (Exception error) {
             closeWebDrivers();
             closeModal();
+
+            String browser = arPropertyManager.getProperty(ARPropertyEnum.BROWSER);
+            String webDriverPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
+            int lastSlashIndex = webDriverPath.lastIndexOf('\\');
+            String directoryPath = webDriverPath.substring(0, lastSlashIndex + 1); // includes the last backslash
+            String fileName = webDriverPath.substring(lastSlashIndex + 1);
+
+            performMessage.errorMessage(
+                    "WebDriver Version Incompatibility",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>WebDriver version might be incompatible.</span>",
+                    "<span style='font-weight: bold;'>Please verify the following:</span>",
+                    "<ul>"
+                            + "   <li>The installed browser version: <span style='color: #008b8b ; font-weight: bold;'>"
+                            + browser + "</span></li>"
+                            + "   <li>The WebDriver path:<br><span style='color: #008b8b ; font-weight: bold;'>"
+                            + directoryPath + "</span></li>"
+                            + "<li>The WebDriver file:<br><span style='color: #008b8b ; font-weight: bold;'>"
+                            + fileName + "</span></li>"
+                            + "   <li>Ensure the WebDriver version is the correct one for your browser version.</li>"
+                            + "</ul>",
+                    "<span style='font-style: italic;'>Refer to your browser's documentation or the WebDriver's release notes for compatibility information.</span>",
+                    0);
         }
     }
 

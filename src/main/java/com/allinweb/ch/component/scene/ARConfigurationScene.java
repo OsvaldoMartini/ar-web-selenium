@@ -1,12 +1,15 @@
 package com.allinweb.ch.component.scene;
 
+import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.pane.ARConfigurationPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.util.ARLogger;
 import java.time.format.DateTimeFormatter;
 import javafx.application.Platform;
+import javafx.collections.ObservableList;
 import javafx.scene.Scene;
+import javafx.scene.control.ListView;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 
@@ -40,12 +43,15 @@ public class ARConfigurationScene extends ARScene {
         arConfigurationPane = ARConfigurationPane.getInstance();
     }
 
+    // Private constructor to prevent instantiation
     private static final Double SCENE_HEIGHT = 700D;
     private static final Double SCENE_WIDTH = 800D;
     private static final String TITLE = "Configuration";
     // Static final variable to hold the singleton instance
     private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
-    // Private constructor to prevent instantiation
+
+    private ListView<BotJobLoadDTO> viewBotJobListView;
+    private ObservableList<BotJobLoadDTO> botJobList;
 
     @Override
     public IARPane buildPane() {
@@ -78,7 +84,7 @@ public class ARConfigurationScene extends ARScene {
 
     public void showModal() {
 
-        arConfigurationPane.initialize(modalStage);
+        arConfigurationPane.initialize(modalStage, viewBotJobListView, botJobList);
 
         if (modalStage == null) {
             modalStage = new Stage();
@@ -126,5 +132,8 @@ public class ARConfigurationScene extends ARScene {
         }
     }
 
-    public void initialize() {}
+    public void initialize(ListView<BotJobLoadDTO> viewBotJobListView, ObservableList<BotJobLoadDTO> botJobList) {
+        this.viewBotJobListView = viewBotJobListView;
+        this.botJobList = botJobList;
+    }
 }

@@ -9,6 +9,8 @@ import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import lombok.Getter;
+import lombok.Setter;
 
 public class ARElementValueScene extends ARScene {
 
@@ -63,7 +65,11 @@ public class ARElementValueScene extends ARScene {
     private static final Double SCENE_HEIGHT = 600D;
     private static final Double SCENE_WIDTH = 600D;
     private static final String TITLE = "New Variables";
-    private RowMoveDTO rowMoveDTO;
+
+    @Getter
+    @Setter
+    public RowMoveDTO rowMoveDTO;
+
     private int varId;
     private String varValue;
     private int instructionId;
@@ -130,6 +136,17 @@ public class ARElementValueScene extends ARScene {
         // Check if the stage is already showing
         if (!modalStage.isShowing()) {
             modalStage.showAndWait(); // Show and wait only if not already showing
+        }
+    }
+
+    public void closeModal() {
+        try {
+            if (modalStage != null) { // && modalStage.isShowing()) {
+                modalStage.close();
+            }
+            modalStage = null;
+        } catch (Exception error) {
+
         }
     }
 

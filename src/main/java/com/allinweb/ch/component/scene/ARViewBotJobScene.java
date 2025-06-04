@@ -172,8 +172,8 @@ public class ARViewBotJobScene extends ARScene {
         Integer targetHomeUrlId = botJobLoadDTO.getHomeUrlId();
         HomeBankingLoadDTO homeBanking = botJobLoadDTO.getHomeBankingLoadDTO();
 
-        if (homeBanking != null && homeBanking.getHomeUrlDTOS() != null) {
-            return homeBanking.getHomeUrlDTOS().stream()
+        if (homeBanking != null && homeBanking.getHomeUrlDTOs() != null) {
+            return homeBanking.getHomeUrlDTOs().stream()
                     .filter(dto -> dto.getId().equals(targetHomeUrlId))
                     .findFirst()
                     .orElse(null);

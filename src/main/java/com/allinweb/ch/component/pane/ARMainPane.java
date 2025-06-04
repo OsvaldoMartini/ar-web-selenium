@@ -130,8 +130,8 @@ public class ARMainPane extends ARPane {
                     performDataBase.initializeMainDatabaseAccess(dbUrl, dbFile);
                 } else {
                     //                performDataBase.disableForeignKeyConstraints(dbUrl);
-                    //                performDataBase.updateTableAccess(dbUrl, dbFile);
-                    //                performDataBase.updateDatabaseSchema(dbUrl, dbFile);
+                    //                                    performDataBase.updateTableAccess(dbUrl, dbFile);
+                    //                                    performDataBase.updateDatabaseSchema(dbUrl, dbFile);
 
                     ARLogger.getInstance(ARMainPane.class)
                             .info(String.format("Database '%s' already exists!", dbFile.getName()));
@@ -276,6 +276,7 @@ public class ARMainPane extends ARPane {
         });
 
         configureButton.setOnMouseClicked(e -> {
+            arConfigurationScene.initialize(viewBotJobListView, botJobList);
             arConfigurationScene.showModal();
             performDataBase.changeDbConnection();
             ObservableList<BotJobLoadDTO> botJobList =

@@ -108,6 +108,7 @@ public class ARViewBotJobPane extends ARPane {
     private static final ARPropertyManager arPropertyManager;
     private static final ARScannedElementScene arScannedElementScene;
     private static final ARNewCommandScene arNewCommandScene;
+    private static final ARElementValueScene arElementValueScene;
     private static final ARWebDriver arWebDriver;
     private static final PerformDataBase performDataBase;
     private static final PerformMessage performMessage;
@@ -117,6 +118,7 @@ public class ARViewBotJobPane extends ARPane {
         arPropertyManager = ARPropertyManager.getInstance();
         arScannedElementScene = ARScannedElementScene.getInstance();
         arNewCommandScene = ARNewCommandScene.getInstance();
+        arElementValueScene = ARElementValueScene.getInstance();
         performDataBase = PerformDataBase.getInstance();
         performMessage = PerformMessage.getInstance();
         arWebDriver = ARWebDriver.getInstance();
@@ -180,6 +182,11 @@ public class ARViewBotJobPane extends ARPane {
         if (arNewCommandScene.getRowMoveDTO() != null) {
             arNewCommandScene.setRowMoveDTO(null);
             arNewCommandScene.closeModal();
+        }
+
+        if (arElementValueScene.getRowMoveDTO() != null) {
+            arElementValueScene.setRowMoveDTO(null);
+            arElementValueScene.closeModal();
         }
 
         if (arScannedElementScene.getBotJobLoadDTO() != null
@@ -964,8 +971,8 @@ public class ARViewBotJobPane extends ARPane {
         Integer targetHomeUrlId = botJobLoadDTO.getHomeUrlId();
         HomeBankingLoadDTO homeBanking = botJobLoadDTO.getHomeBankingLoadDTO();
 
-        if (homeBanking != null && homeBanking.getHomeUrlDTOS() != null) {
-            return homeBanking.getHomeUrlDTOS().stream()
+        if (homeBanking != null && homeBanking.getHomeUrlDTOs() != null) {
+            return homeBanking.getHomeUrlDTOs().stream()
                     .filter(dto -> dto.getId().equals(targetHomeUrlId))
                     .findFirst()
                     .orElse(null);
@@ -1020,7 +1027,7 @@ public class ARViewBotJobPane extends ARPane {
                 .severe("ERROR Calling openScannerButton -> Cause: " + error.getMessage());
 
         // Display the error message to the user
-        String browser = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
+        String browser = arPropertyManager.getProperty(ARPropertyEnum.BROWSER);
         String webDriverPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
 
         if (error.getMessage().contains("no such window: target window already closed")
@@ -1072,16 +1079,21 @@ public class ARViewBotJobPane extends ARPane {
             } else {
                 ARLogger.getInstance(ARViewBotJobPane.class).severe("Error Open URL: " + error.getMessage());
 
+                int lastSlashIndex = webDriverPath.lastIndexOf('\\');
+                String directoryPath = webDriverPath.substring(0, lastSlashIndex + 1); // includes the last backslash
+                String fileName = webDriverPath.substring(lastSlashIndex + 1);
+
                 performMessage.errorMessage(
                         "WebDriver Version Incompatibility",
                         "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>WebDriver version might be incompatible.</span>",
-                        //                        "<span style='font-style: italic;'>The current WebDriver version may
-                        // not be compatible with the installed browser.</span>",
                         "<span style='font-weight: bold;'>Please verify the following:</span>",
-                        "<ul>" + "   <li>The installed browser version: <span style='font-weight: bold;'>"
+                        "<ul>"
+                                + "   <li>The installed browser version: <span style='color: #008b8b ; font-weight: bold;'>"
                                 + browser + "</span></li>"
-                                + "   <li>The WebDriver path: <span style='font-weight: bold;'>"
-                                + webDriverPath + "</span></li>"
+                                + "   <li>The WebDriver path:<br><span style='color: #008b8b ; font-weight: bold;'>"
+                                + directoryPath + "</span></li>"
+                                + "<li>The WebDriver file:<br><span style='color: #008b8b ; font-weight: bold;'>"
+                                + fileName + "</span></li>"
                                 + "   <li>Ensure the WebDriver version is the correct one for your browser version.</li>"
                                 + "</ul>",
                         "<span style='font-style: italic;'>Refer to your browser's documentation or the WebDriver's release notes for compatibility information.</span>",

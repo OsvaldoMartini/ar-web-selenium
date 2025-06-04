@@ -255,7 +255,7 @@ public class SimpleWebSocketServer {
                 homeBankingId = elementSplitDTO.getHomeBankingId() != null ? elementSplitDTO.getHomeBankingId() : -1;
                 sessionIdToSend = elementSplitDTO.getSessionId();
 
-                if (sessionIdToSend.equals("scannerTool-" + homeBankingId)) {
+                if (sessionIdToSend.equals("scannerTool")) {
                     elementSplitDTO.setOperationId("highlight");
                     String jsonData = gson.toJson(elementSplitDTO);
                     sendMessageJson(homeBankingId, sessionIdToSend, jsonData, null);

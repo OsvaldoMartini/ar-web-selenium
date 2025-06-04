@@ -92,12 +92,6 @@ public class PerformDataBase {
 
     // Postgres
     public boolean POSTGRES_DB = false;
-    public final String CONNECTION_POSTGRES = "jdbc:postgresql://";
-    public final String DB_HOST = "localhost"; // or your PostgreSQL server address
-    public final String DB_PORT = "5432"; // default PostgreSQL port
-    public final String DB_NAME = "ar_web"; // your database name
-    public final String USERNAME = "postgres"; // your database username
-    public final String PASSWORD = "martini"; // your database password
 
     @Getter
     private List<HomeBankingLoadDTO> databaseUpds;
@@ -151,6 +145,21 @@ public class PerformDataBase {
         return openConnections;
     }
 
+    public void testConnection(String dataBaseType, String dbAccessPath, String dbUrl, String userDB, String userPwd)
+            throws SQLException {
+        if (dataBaseType != null && !dataBaseType.equalsIgnoreCase("POSTGRES")) {
+
+            String dbAccessUrl = CONNECTION_TYPE + dbAccessPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+            ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + dbUrl);
+            DriverManager.getConnection(dbAccessUrl);
+        } else {
+
+            String userData = userDB + " - " + userPwd;
+
+            DriverManager.getConnection(dbUrl, userDB, userPwd);
+        }
+    }
+
     public void changeDbConnection() {
         String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
         //        if (Strings.isNullOrEmpty(previousDB) || (previousDB != null && !previousDB.equals(dataBaseType))) {
@@ -161,7 +170,8 @@ public class PerformDataBase {
         if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
             POSTGRES_DB = true;
 
-            createTableOpenAIVector();
+            //            createTableOpenAIVector();
+            //            createTableLLama2AIVector();
             if (!doesInstructionTableExist()) {
                 initializeMainDatabasePostgres();
             }
@@ -210,11 +220,15 @@ public class PerformDataBase {
                     conn = DriverManager.getConnection(dbUrl);
                     conn.setReadOnly(false);
                 } else {
-                    String dbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
-                    String userDB = USERNAME + " - " + PASSWORD;
+                    String dbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
+                    String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
+                    String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
+
+                    String userData = userDB + " - " + userPwd;
+
                     ARLogger.getInstance(PerformDataBase.class).info("POSTGRES connection URL: " + dbUrl);
-                    ARLogger.getInstance(PerformDataBase.class).info("User Details: " + userDB);
-                    conn = DriverManager.getConnection(dbUrl, USERNAME, PASSWORD);
+                    ARLogger.getInstance(PerformDataBase.class).info("User Details: " + userData);
+                    conn = DriverManager.getConnection(dbUrl, userDB, userPwd);
                     conn.setReadOnly(false);
                 }
                 // Increment the open connection counter
@@ -226,6 +240,16 @@ public class PerformDataBase {
             }
         } catch (SQLException error) {
             ARLogger.getInstance(PerformDataBase.class).severe("getConnection Error: " + error.getMessage());
+            String database = POSTGRES_DB ? "Postgress" : "Access";
+            performMessage.errorMessage(
+                    "Database connection Failed",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>An error occurred during the Database connection.</span>",
+                    "<span style='font-weight: bold;'>" + database + "</span>.",
+                    "<span style='color: #E65100; font-weight: bold;'>Please ensure the Database connections are correct.</span>",
+                    "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
+                    0);
+
+            return null;
         }
 
         //        changeDbConnection(previousDB);
@@ -3210,48 +3234,62 @@ ORDER BY bot.id ASC;
     }
 
     public List<HomeBankingLoadDTO> loadHomeBanking(Integer homeBankingId) {
-        List<HomeBankingLoadDTO> homeBankingList = new ArrayList<>();
+        Map<Integer, HomeBankingLoadDTO> homeBankingMap = new HashMap<>();
 
-        String selectSQL =
-                "SELECT id, cookies, driver_session, name, options_config, password, priority, search_config, url, username "
-                        + "FROM home_banking ";
+        StringBuilder selectSQLBuilder = new StringBuilder();
+        selectSQLBuilder.append("SELECT hb.id AS hb_id, hb.cookies, hb.driver_session, hb.name, hb.options_config, ");
+        selectSQLBuilder.append("hb.password, hb.priority, hb.search_config, hb.url AS hb_url, hb.username, ");
+        selectSQLBuilder.append("hu.id AS hu_id, hu.url AS hu_url, hu.home_banking_id ");
+        selectSQLBuilder.append("FROM home_banking hb ");
+        selectSQLBuilder.append("LEFT JOIN home_url hu ON hb.id = hu.home_banking_id ");
+
         if (homeBankingId != null) {
-            selectSQL += "WHERE id = " + homeBankingId;
+            selectSQLBuilder.append("WHERE hb.id = ? "); // Add a space before WHERE
         }
+        selectSQLBuilder.append("ORDER BY hb.id, hu.id");
 
-        try (Statement stmt = getConnection().createStatement()) {
-            ResultSet rs = stmt.executeQuery(selectSQL);
+        try (Connection conn = getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(selectSQLBuilder.toString())) {
+
+            if (homeBankingId != null) {
+                pstmt.setInt(1, homeBankingId);
+            }
+
+            ResultSet rs = pstmt.executeQuery();
 
             while (rs.next()) {
-                HomeBankingLoadDTO homeBanking = new HomeBankingLoadDTO();
+                Integer currentHomeBankingId = rs.getInt("hb_id");
 
-                homeBankingId = rs.getInt("id");
-
-                homeBanking.setId(homeBankingId);
-                homeBanking.setCookies(rs.getString("cookies"));
-                homeBanking.setDriverSession(rs.getString("driver_session"));
-                homeBanking.setName(rs.getString("name"));
-                homeBanking.setOptionsConfig(rs.getString("options_config"));
-                homeBanking.setPassword(rs.getString("password"));
-                homeBanking.setPriority(rs.getString("priority"));
-                homeBanking.setSearchConfig(rs.getString("search_config"));
-                homeBanking.setUrl(rs.getString("url"));
-                homeBanking.setUsername(rs.getString("username"));
-
-                // If a specific homeBankingId is requested, load its associated URLs
-                String selectUrlsSQL = "SELECT * FROM home_url WHERE home_banking_id = " + homeBanking.getId();
-                ResultSet urlRs = stmt.executeQuery(selectUrlsSQL);
-
-                List<HomeUrlDTO> homeUrls = new ArrayList<>();
-                while (urlRs.next()) {
-                    HomeUrlDTO urlDTO =
-                            new HomeUrlDTO(urlRs.getInt("id"), urlRs.getString("url"), urlRs.getInt("home_banking_id"));
-                    homeUrls.add(urlDTO);
+                HomeBankingLoadDTO homeBanking = homeBankingMap.get(currentHomeBankingId);
+                if (homeBanking == null) {
+                    homeBanking =
+                            new HomeBankingLoadDTO(); // This will use the @NoArgsConstructor and the list will be null
+                    // OR, if you implement the full constructor, use it:
+                    // new HomeBankingLoadDTO(id, url, name, etc.)
+                    homeBanking.setId(currentHomeBankingId);
+                    homeBanking.setCookies(rs.getString("cookies"));
+                    homeBanking.setDriverSession(rs.getString("driver_session"));
+                    homeBanking.setName(rs.getString("name"));
+                    homeBanking.setOptionsConfig(rs.getString("options_config"));
+                    homeBanking.setPassword(rs.getString("password"));
+                    homeBanking.setPriority(rs.getString("priority"));
+                    homeBanking.setSearchConfig(rs.getString("search_config"));
+                    homeBanking.setUrl(rs.getString("hb_url"));
+                    homeBanking.setUsername(rs.getString("username"));
+                    homeBanking.setHomeUrlDTOs(
+                            new ArrayList<>()); // <--- IMPORTANT: Initialize the list here if not done in constructor
+                    homeBankingMap.put(currentHomeBankingId, homeBanking);
                 }
 
-                homeBanking.setHomeUrlDTOS(homeUrls);
-
-                homeBankingList.add(homeBanking);
+                int homeUrlId = rs.getInt("hu_id");
+                if (!rs.wasNull()) {
+                    String homeUrlUrl = rs.getString("hu_url");
+                    int homeUrlHomeBankingId = rs.getInt("home_banking_id");
+                    HomeUrlDTO urlDTO = new HomeUrlDTO(homeUrlId, homeUrlUrl, homeUrlHomeBankingId);
+                    homeBanking.getHomeUrlDTOs().add(urlDTO); // Access the list via getter and add
+                    // OR if you added the addHomeUrlDTO method in HomeBankingLoadDTO:
+                    // homeBanking.addHomeUrlDTO(urlDTO);
+                }
             }
 
         } catch (SQLException e) {
@@ -3262,7 +3300,7 @@ ORDER BY bot.id ASC;
             ARLogger.getInstance(PerformDataBase.class).severe(message);
         }
 
-        return homeBankingList;
+        return new ArrayList<>(homeBankingMap.values());
     }
 
     public ObservableList<ComboBoxVars> loadWebPageFields(int botJobId) {
@@ -5369,7 +5407,7 @@ ORDER BY bot.id ASC;
                 if (botJobLoadList != null
                         && botJobLoadList.size() > 0
                         && botJobLoadList.get(0).getHomeUrlId() == 0) {
-                    // updateBotJobHomeUrlId(homeURLList);
+                    updateBotJobHomeUrlId(homeURLList);
                 }
 
                 rs.close();
@@ -5661,15 +5699,19 @@ GROUP BY
         String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
         ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
 
-        String postgresDbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
-        String userDB = USERNAME + " - " + PASSWORD;
+        String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
+        String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
+        String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
+
+        String userData = userDB + " - " + userPwd;
+
         ARLogger.getInstance(PerformDataBase.class).info("POSTGRES connection URL: " + postgresDbUrl);
-        ARLogger.getInstance(PerformDataBase.class).info("User Details: " + userDB);
+        ARLogger.getInstance(PerformDataBase.class).info("User Details: " + userData);
 
         final int BATCH_SIZE = 100;
 
         try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
-                Connection postgresConn = DriverManager.getConnection(postgresDbUrl, USERNAME, PASSWORD);
+                Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
                 Statement accessStmt = accessConn.createStatement(); ) {
             postgresConn.setAutoCommit(false); // Use manual commit for batch performance
 
@@ -5733,9 +5775,11 @@ GROUP BY
     public ErrorMessage dropPostGresSequences() {
         // Build the SQL update statement
 
-        String postgresDbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
+        String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
+        String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
+        String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
 
-        try (Connection postgresConn = DriverManager.getConnection(postgresDbUrl, USERNAME, PASSWORD)) {
+        try (Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd)) {
 
             try (Statement stmt = postgresConn.createStatement()) {
                 int rowsAffected = 0;
@@ -5791,13 +5835,18 @@ GROUP BY
         String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
         ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
 
-        String postgresDbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
-        ARLogger.getInstance(PerformDataBase.class).info("POSTGRES connection URL: " + postgresDbUrl);
+        String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
+        String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
+        String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
 
+        String userData = userDB + " - " + userPwd;
+
+        ARLogger.getInstance(PerformDataBase.class).info("POSTGRES connection URL: " + postgresDbUrl);
+        ARLogger.getInstance(PerformDataBase.class).info("User Details: " + userData);
         final int BATCH_SIZE = 100;
 
         try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
-                Connection postgresConn = DriverManager.getConnection(postgresDbUrl, USERNAME, PASSWORD);
+                Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
                 Statement accessStmt = accessConn.createStatement()) {
 
             postgresConn.setAutoCommit(false); // Enable manual commit for batch performance
@@ -6117,13 +6166,38 @@ GROUP BY
 
     public boolean doesInstructionTableExist() {
         try (Connection conn = getConnection()) {
-            try (ResultSet rs = conn.getMetaData().getTables(null, null, "instruction", null)) {
-                return rs.next(); // Returns true if the table exists
+            if (conn != null && conn != null && conn.getMetaData() != null) {
+                try (ResultSet rs = conn.getMetaData().getTables(null, null, "instruction", null)) {
+                    return rs.next(); // Returns true if the table exists
+                }
             }
         } catch (SQLException error) {
             System.out.println("Error checking table existence: " + error.getMessage());
         }
+
         return false; // Default return if an exception occurs or the table does not exist
+    }
+
+    public void createTableLLama2AIVector() {
+
+        try (Connection conn = getConnection()) {
+            try (Statement stmt = conn.createStatement()) {
+
+                String createTableVectorOpenAI =
+                        """
+                        CREATE TABLE web_elements_llama2 (
+                          id SERIAL PRIMARY KEY,
+                          element_name TEXT,
+                          element_type TEXT,
+                          embedding VECTOR(4096) -- size of OpenAI embedding vector
+                        );
+                        """;
+                stmt.executeUpdate(createTableVectorOpenAI);
+            }
+            System.out.println("Database %s has been created!");
+        } catch (SQLException error) {
+            System.out.println("initializeDatabase\nError: " + error.getMessage());
+        }
     }
 
     public void createTableOpenAIVector() {
@@ -6133,11 +6207,11 @@ GROUP BY
 
                 String createTableVectorOpenAI =
                         """
-                        CREATE TABLE web_elements (
+                        CREATE TABLE web_elements_openai (
                           id SERIAL PRIMARY KEY,
                           element_name TEXT,
                           element_type TEXT,
-                          embedding VECTOR(1536) -- size of OpenAI embedding vector
+                          embedding vector(1536) -- size of OpenAI embedding vector
                         );
                         """;
                 stmt.executeUpdate(createTableVectorOpenAI);

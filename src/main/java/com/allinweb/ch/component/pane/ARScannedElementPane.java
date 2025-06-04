@@ -286,6 +286,16 @@ public class ARScannedElementPane extends ARPane {
                     break;
             }
         } catch (Exception error) {
+            if (error.getMessage().contains("invalid session id")) {
+                performMessage.errorMessage(
+                        "Browser is Closed",
+                        "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>To perform this action, please</span> ✅",
+                        "<span style='color: #1976D2;'>reopen the browser via the Scanner:</span>",
+                        "<span style='font-weight: bold;'>Click the \"Scanner\" button in the previous window</span>",
+                        null,
+                        0);
+            }
+
             System.err.println("Closed processing message: " + error.getMessage());
         }
     }

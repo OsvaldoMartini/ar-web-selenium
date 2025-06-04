@@ -216,8 +216,6 @@ public class ARWebDriver {
 
         ARLogger.getInstance(ARWebDriver.class).fine("Going to call WebDriver for \n" + url);
 
-        ARPropertyManager managerProps = arPropertyManager;
-
         if (Strings.isNullOrEmpty(webDriverPath)) {
             ARLogger.getInstance(ARWebDriver.class).fine("URL IS EMPTY");
         }
