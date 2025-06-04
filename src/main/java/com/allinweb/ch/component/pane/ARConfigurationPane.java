@@ -111,7 +111,7 @@ public class ARConfigurationPane extends ARPane {
     Label dbUserLabel;
     Label dbPwdLabel;
 
-    Label pathDBLabel;
+    Label pathAccessDBLabel;
     Label databaseLabel;
 
     Label pathReportLabel;
@@ -127,7 +127,7 @@ public class ARConfigurationPane extends ARPane {
     TextField pathExcel;
     TextField pathLicense;
     TextField pathLog;
-    TextField pathDB;
+    TextField pathAccessDB;
     TextField pathReport;
     TextField pathPriority;
 
@@ -150,7 +150,7 @@ public class ARConfigurationPane extends ARPane {
     //    Button pathExportButton;
     Button pathLogButton;
 
-    Button pathDBButton;
+    Button pathAccessDBButton;
     Button pathReportButton;
     Button pathPriorityButton;
 
@@ -266,9 +266,9 @@ public class ARConfigurationPane extends ARPane {
         GridPane.setMargin(pathLogButton, new Insets(0, 0, 0, 5));
 
         // DB Type
-        pathDBLabel = new Label("Access Database Path:");
-        pathDB = createPathTextField(ARPropertyEnum.PATH_DB);
-        pathDBButton = createPathButton();
+        pathAccessDBLabel = new Label("Access Database Path:");
+        pathAccessDB = createPathTextField(ARPropertyEnum.PATH_DB);
+        pathAccessDBButton = createPathButton();
 
         GridPane gridPaneDB = new GridPane();
         gridPaneDB.setHgap(10);
@@ -286,21 +286,21 @@ public class ARConfigurationPane extends ARPane {
         gridPaneDB.getColumnConstraints().addAll(col1DB, col2DB);
 
         // Add labels in the first row
-        gridPaneDB.add(pathDBLabel, 0, 0);
+        gridPaneDB.add(pathAccessDBLabel, 0, 0);
         //        gridPaneDB.add(socketPortLabel, 1, 0);
         //        gridPaneDB.add(blockLimitLabel, 2, 0);
 
         // Add text fields in the second row
-        gridPaneDB.add(pathDB, 0, 1);
+        gridPaneDB.add(pathAccessDB, 0, 1);
         //        gridPaneDB.add(databaseChoiceBox, 1, 1);
         //        gridPaneDB.add(socketPort, 1, 1);
         //        gridPaneDB.add(blockLimit, 2, 1);
 
         // Add button in the second row, third column
-        gridPaneDB.add(pathDBButton, 1, 1);
+        gridPaneDB.add(pathAccessDBButton, 1, 1);
 
         // Set margin for pathDBButton to create spacing from right border
-        GridPane.setMargin(pathDBButton, new Insets(0, 0, 0, 5));
+        GridPane.setMargin(pathAccessDBButton, new Insets(0, 0, 0, 5));
 
         GridPane gridPaneButton = new GridPane();
         gridPaneButton.setHgap(2);
@@ -449,11 +449,13 @@ public class ARConfigurationPane extends ARPane {
         // Add listener to databaseChoiceBox
         databaseChoiceBox.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
             if (ARConstants.ACCESS.equals(newVal)) {
-                pathDB.setDisable(false);
+                pathAccessDB.setDisable(false);
+                dbUrl.setDisable(true);
                 dbUser.setDisable(true);
                 dbPwd.setDisable(true);
             } else {
-                pathDB.setDisable(true);
+                pathAccessDB.setDisable(true);
+                dbUrl.setDisable(false);
                 dbUser.setDisable(false);
                 dbPwd.setDisable(false);
             }
@@ -503,7 +505,7 @@ public class ARConfigurationPane extends ARPane {
         pathLicenseButton.setOnMouseClicked(e -> openChooserFor(pathLicense, modalStage, true));
         pathExcelButton.setOnMouseClicked(e -> openChooserFor(pathExcel, modalStage, true));
         pathLogButton.setOnMouseClicked(e -> openChooserFor(pathLog, modalStage, true));
-        pathDBButton.setOnMouseClicked(e -> openChooserFor(pathDB, modalStage, true));
+        pathAccessDBButton.setOnMouseClicked(e -> openChooserFor(pathAccessDB, modalStage, true));
         pathReportButton.setOnMouseClicked(e -> openChooserFor(pathReport, modalStage, true));
         pathPriorityButton.setOnMouseClicked(e -> openChooserFor(pathPriority, modalStage, true));
 
@@ -647,7 +649,7 @@ public class ARConfigurationPane extends ARPane {
             validfields = false;
         }
 
-        if (Strings.isNullOrEmpty(pathDB.getText())) {
+        if (Strings.isNullOrEmpty(pathAccessDB.getText())) {
             new ARAlertScene(Alert.AlertType.ERROR, "Field Blank", "Database Path must be filed!", ButtonType.OK);
             validfields = false;
         }
@@ -709,7 +711,7 @@ public class ARConfigurationPane extends ARPane {
             try {
                 performDataBase.testConnection(
                         databaseChoiceBox.getValue(),
-                        pathDB.getText().trim(),
+                        pathAccessDB.getText().trim(),
                         dbUrl.getText(),
                         dbUser.getText().trim(),
                         dbPwd.getText().trim());
@@ -729,7 +731,7 @@ public class ARConfigurationPane extends ARPane {
             arPropertyManager.setProperty(ARPropertyEnum.DATABASE_TYPE.getValue(), databaseChoiceBox.getValue());
 
             arPropertyManager.setProperty(
-                    ARPropertyEnum.PATH_DB.getValue(), pathDB.getText().trim());
+                    ARPropertyEnum.PATH_DB.getValue(), pathAccessDB.getText().trim());
 
             arPropertyManager.setProperty(ARPropertyEnum.DB_URL.getValue(), dbUrl.getText());
 
