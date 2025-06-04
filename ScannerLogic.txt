@@ -14,7 +14,7 @@ clearFields();
 // Execute All Blocks starting from executeSpecificBlock if Defined
 int botJobId = this.botJobLoad.getId();
 int executeSpecificBlock = comboBoxBlocks.getValue().getInstructionId();
-sessionRowStatus = "botJobTasks-" + botJobId;
+sessionRowStatus = "botJobTasks"; // + botJobId;
 
 mapOperators = new HashMap<>();
 mapExport = new LinkedHashMap<>();
@@ -298,6 +298,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 				String parentFieldLoop = null;
 				String variableField = null;
 				String localFormat = null;
+				String delimiterCSV = null;
 				String fieldName = null;
 				int parentId = currentInstruction.getParentId();
 
@@ -575,6 +576,8 @@ if (extractedData.getNumberOfDataRows() > 0) {
 					parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
 					variableField =
 							performActions.getInstructionVariableField(currentInstruction, variablesLoaded);
+					delimiterCSV =
+							performActions.getInstructionVariableDelimiter(currentInstruction, variablesLoaded);
 					if (variableField == null) {
 						variableField = "Not Variable defined";
 					}
@@ -1059,7 +1062,10 @@ if (extractedData.getNumberOfDataRows() > 0) {
 										mapOperators.get(variableField).trim());
 								if (excelFieldName != null
 										&& excelFieldName.toLowerCase().endsWith(".csv")) {
-									writerExport.writeMapToCSV(mapExport, excelFieldName, "|");
+									if (Strings.isNullOrEmpty(delimiterCSV)) {
+										delimiterCSV = ",";
+									}
+									writerExport.writeMapToCSV(mapExport, excelFieldName, delimiterCSV);
 								} else {
 									writerExport.insertFieldNameAndValueLastColumn(mapExport, exportIndex - 1);
 								}
