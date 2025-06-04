@@ -285,6 +285,17 @@ public class ARViewBotJobScene extends ARScene {
         }
     }
 
+    public void closeModal() {
+        try {
+            if (modalStage != null) { // && modalStage.isShowing()) {
+                modalStage.close();
+            }
+            modalStage = null;
+        } catch (Exception error) {
+
+        }
+    }
+
     public void destroyPanel() {
         arViewBotJobPane.destroy();
     }

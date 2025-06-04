@@ -146,16 +146,15 @@ public class PerformDataBase {
     }
 
     public void testConnection(String dataBaseType, String dbAccessPath, String dbUrl, String userDB, String userPwd)
-            throws SQLException {
+            throws SQLException, ClassNotFoundException {
         if (dataBaseType != null && !dataBaseType.equalsIgnoreCase("POSTGRES")) {
 
             String dbAccessUrl = CONNECTION_TYPE + dbAccessPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
             ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + dbUrl);
+            Class.forName("net.ucanaccess.jdbc.UcanaccessDriver");
             DriverManager.getConnection(dbAccessUrl);
         } else {
-
-            String userData = userDB + " - " + userPwd;
-
+            Class.forName("org.postgresql.Driver");
             DriverManager.getConnection(dbUrl, userDB, userPwd);
         }
     }
@@ -217,6 +216,7 @@ public class PerformDataBase {
                     String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
                     String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
                     ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + dbUrl);
+                    Class.forName("net.ucanaccess.jdbc.UcanaccessDriver");
                     conn = DriverManager.getConnection(dbUrl);
                     conn.setReadOnly(false);
                 } else {
@@ -228,6 +228,7 @@ public class PerformDataBase {
 
                     ARLogger.getInstance(PerformDataBase.class).info("POSTGRES connection URL: " + dbUrl);
                     ARLogger.getInstance(PerformDataBase.class).info("User Details: " + userData);
+                    Class.forName("org.postgresql.Driver");
                     conn = DriverManager.getConnection(dbUrl, userDB, userPwd);
                     conn.setReadOnly(false);
                 }
@@ -250,6 +251,8 @@ public class PerformDataBase {
                     0);
 
             return null;
+        } catch (ClassNotFoundException error) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Drive DB Class not Found Error: " + error.getMessage());
         }
 
         //        changeDbConnection(previousDB);

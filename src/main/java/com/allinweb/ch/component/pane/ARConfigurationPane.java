@@ -7,7 +7,11 @@ import com.allinweb.ch.component.model.HomeBankingLoadDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARAlertScene;
+import com.allinweb.ch.component.scene.ARElementValueScene;
+import com.allinweb.ch.component.scene.ARNewCommandScene;
 import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
+import com.allinweb.ch.component.scene.ARScannedElementScene;
+import com.allinweb.ch.component.scene.ARViewBotJobScene;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
@@ -86,8 +90,18 @@ public class ARConfigurationPane extends ARPane {
     private static final PerformMessage performMessage;
     private static final PerformDataBase performDataBase;
 
+    private static final ARScannedElementScene arScannedElementScene;
+    private static final ARViewBotJobScene arViewBotJobScene;
+    private static final ARNewCommandScene arNewCommandScene;
+    private static final ARElementValueScene arElementValueScene;
+
     // Static block to initialize
     static {
+        arScannedElementScene = ARScannedElementScene.getInstance();
+        arNewCommandScene = ARNewCommandScene.getInstance();
+        arElementValueScene = ARElementValueScene.getInstance();
+        arViewBotJobScene = ARViewBotJobScene.getInstance();
+
         arPropertyManager = ARPropertyManager.getInstance();
         performMessage = PerformMessage.getInstance();
         performDataBase = PerformDataBase.getInstance();
@@ -726,6 +740,28 @@ public class ARConfigurationPane extends ARPane {
                         0);
 
                 return;
+            }
+
+            if (arScannedElementScene != null) {
+                arScannedElementScene.closeModal();
+            }
+
+            if (arViewBotJobScene != null) {
+                arViewBotJobScene.closeModal();
+            }
+
+            if (arViewBotJobScene != null) {
+                arViewBotJobScene.closeModal();
+            }
+
+            if (arNewCommandScene.getRowMoveDTO() != null) {
+                arNewCommandScene.setRowMoveDTO(null);
+                arNewCommandScene.closeModal();
+            }
+
+            if (arElementValueScene.getRowMoveDTO() != null) {
+                arElementValueScene.setRowMoveDTO(null);
+                arElementValueScene.closeModal();
             }
 
             arPropertyManager.setProperty(ARPropertyEnum.DATABASE_TYPE.getValue(), databaseChoiceBox.getValue());
