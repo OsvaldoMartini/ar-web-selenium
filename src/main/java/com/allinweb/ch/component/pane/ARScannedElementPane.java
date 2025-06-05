@@ -27,7 +27,7 @@ import com.allinweb.ch.facade.PerformPreLoad;
 import com.allinweb.ch.persistence.*;
 import com.allinweb.ch.readersAndWriters.ExcelReader;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
-import com.allinweb.ch.socket.SimpleWebSocketServer;
+import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
@@ -179,7 +179,7 @@ public class ARScannedElementPane extends ARPane {
                 isConnectWebSocket = true;
             } catch (Exception e) {
                 isConnectWebSocket = false;
-                System.err.println("WebSocket connection failed sessionId: " + sessionId + "error: " + e.getMessage());
+                System.err.println("WebSocket connection failed sessionId: " + sessionId + " error: " + e.getMessage());
             }
         });
     }
@@ -261,10 +261,12 @@ public class ARScannedElementPane extends ARPane {
                     stepsInsertOneDTO(targetSelected);
                     break;
                 case "SEND_ALL_ELEMENTS_DTO":
+                    sendAll = true;
                     checkRunningProcess();
                     // Extract the "body" field from the JsonObject
                     processDTO = gson.fromJson(jsonObjMSG, ElementSplitDTO.class);
                     stepsInsertManyDTO(processDTO);
+                    sendAll = false;
                     break;
                 case "TEST_CLICK_DTO":
                 case "TEST_INPUT_DTO":
@@ -532,36 +534,27 @@ public class ARScannedElementPane extends ARPane {
                 }
                 try {
 
-                    Platform.runLater(() -> {
-                        boolean saved = performDataBase.insertReferences(queue, instruction.getId());
-                        if (saved) {
-
-                            botJobLoadList = performDataBase.loadCompleteJobs(currentBotJobId);
-                            String jsonData = "[]";
-                            if (!botJobLoadList.isEmpty()) {
-                                List<InstructionLoadDTO> blockLoopInstructions =
-                                        performDataBase.buildJsonViewData(botJobLoadList, "instruction");
-                                jsonData = gson.toJson(blockLoopInstructions);
-                            }
-                            sendMessageJson(
-                                    homeBanking.getId(),
-                                    "botJobTasks", // + currentBotJobId,
-                                    jsonData,
-                                    "updateInstructions");
-
-                        } else {
-
-                            performMessage.errorMessage(
-                                    "Web Instruction Analysis",
-                                    "<span style='color: #FFA000; font-weight: bold; font-size: 1.1em;'>Potential Issue with Web Instruction</span> ⚠️",
-                                    "<span style='color: #E65100;'>Instruction:</span> <span style='font-weight: bold;'>\""
-                                            + instruction.getName() + "\"</span>",
-                                    "<span style='color: #757575;'>Added with " + queue.size()
-                                            + " reference locators.</span>",
-                                    "<span style='font-style: italic;'>Warning: The engine might not process this element correctly due to insufficient identifiable attributes. Consider adding more specific locators.</span>",
-                                    0);
+                    //                    Platform.runLater(() -> {
+                    try {
+                        performDataBase.insertReferences(queue, instruction.getId());
+                        if (!sendAll) {
+                            updateBotJobTasks(currentBotJobId);
                         }
-                    });
+                    } catch (SQLException error) {
+                        ARLogger.getInstance(PerformDataBase.class)
+                                .severe("Cannot Insert References. Error: " + error.getMessage());
+                        performMessage.errorMessage(
+                                "Web Instruction Analysis",
+                                "<span style='color: #FFA000; font-weight: bold; font-size: 1.1em;'>Potential Issue with Web Instruction</span> ⚠️",
+                                "<span style='color: #E65100;'>Instruction:</span> <span style='font-weight: bold;'>\""
+                                        + instruction.getName() + "\"</span>",
+                                "<span style='color: #757575;'>Added with " + queue.size()
+                                        + " reference locators.</span>",
+                                "<span style='font-style: italic;'>Warning: The engine might not process this element correctly due to insufficient identifiable attributes. Consider adding more specific locators.</span>",
+                                0);
+                    }
+
+                    //                    });
                 } catch (Exception ex) {
                     ARLogger.getInstance(Task.class).severe("Error Adding Instruction elements");
                 }
@@ -573,6 +566,21 @@ public class ARScannedElementPane extends ARPane {
         ARLogger.getInstance(ARScannedElementPane.class).fine("Before thread execution");
         new Thread(handleEvent).start();
         ARLogger.getInstance(ARScannedElementPane.class).fine("After thread execution");
+    }
+
+    private void updateBotJobTasks(int currentBotJobId) {
+        botJobLoadList = performDataBase.loadCompleteJobs(currentBotJobId);
+        String jsonData = "[]";
+        if (!botJobLoadList.isEmpty()) {
+            List<InstructionLoadDTO> blockLoopInstructions =
+                    performDataBase.buildJsonViewData(botJobLoadList, "instruction");
+            jsonData = gson.toJson(blockLoopInstructions);
+        }
+        webSocketSessionManager.sendMessageJson(
+                homeBanking.getId(),
+                "botJobTasks", // + currentBotJobId,
+                jsonData,
+                "updateInstructions");
     }
 
     private void testingActions(TargetElement targetTest, String testType) {
@@ -1035,6 +1043,7 @@ public class ARScannedElementPane extends ARPane {
     private List<BotJobLoadDTO> botJobLoadList = new ArrayList<>();
     private List<BlockLoadDTO> blockLoadList = new ArrayList<>();
     private HomeBankingLoadDTO homeBanking;
+    private boolean sendAll;
 
     private ComboBox<ComboBoxVars> comboBoxBlocks;
     private final ObservableList<ComboBoxVars> blocksItems = FXCollections.observableArrayList();
@@ -1114,7 +1123,7 @@ public class ARScannedElementPane extends ARPane {
     // Very important sequence on initiation
     private static final ARPropertyManager arPropertyManager;
     private static final ARPriorities arPriorities;
-    private static final SimpleWebSocketServer simpleWebSocketServer;
+    private static final WebSocketSessionManager webSocketSessionManager;
 
     private ARWebDriver currentARWebDriver;
 
@@ -1132,7 +1141,7 @@ public class ARScannedElementPane extends ARPane {
     static {
         arScannedElementScene = ARScannedElementScene.getInstance();
         arPropertyManager = ARPropertyManager.getInstance();
-        simpleWebSocketServer = SimpleWebSocketServer.getInstance();
+        webSocketSessionManager = WebSocketSessionManager.getInstance();
         performDataBase = PerformDataBase.getInstance();
         performActions = PerformActions.getInstance();
         performMessage = PerformMessage.getInstance();
@@ -1253,7 +1262,7 @@ public class ARScannedElementPane extends ARPane {
 
     private void refreshGrids() {
         String jsonData = gson.toJson(payloadEmpty);
-        simpleWebSocketServer.sendMessageJson(
+        webSocketSessionManager.sendMessageJson(
                 this.botJobLoad.getHomeBankingId(), "scannerGrid", jsonData, "searchTerms");
     }
 
@@ -1555,7 +1564,8 @@ public class ARScannedElementPane extends ARPane {
                 processDTO.setSessionId("scannerGrid"); // + homeBanking.getId());
                 processDTO.setOperationId("searchTerms");
                 processDTO.setDetails(new ElementDTO[0]);
-                sendMessageJson(homeBanking.getId(), "scannerGrid", gson.toJson(processDTO), "searchTerms");
+                webSocketSessionManager.sendMessageJson(
+                        homeBanking.getId(), "scannerGrid", gson.toJson(processDTO), "searchTerms");
 
                 Platform.runLater(() -> {
                     countdownTextField.setText("Pre-Launch status: Ready");
@@ -2101,7 +2111,8 @@ public class ARScannedElementPane extends ARPane {
                 detailsArray[x].setId(x + 1);
             }
 
-            sendMessageJson(homeBanking.getId(), "scannerGrid", gson.toJson(processDTO), "clonedElement");
+            webSocketSessionManager.sendMessageJson(
+                    homeBanking.getId(), "scannerGrid", gson.toJson(processDTO), "clonedElement");
         }
     }
 
@@ -3282,17 +3293,20 @@ public class ARScannedElementPane extends ARPane {
                             continue;
                         }
 
-                        // sendMessageJson(int homeBankingId, String sessionId, String msg1, String msg2)
+                        // webSocketSessionManager.sendMessageJson(int homeBankingId, String sessionId, String msg1,
+                        // String msg2)
                         if (rowStatus.getInstructionId() == null) {
                             rowStatus.setInstructionId(currentInstruction.getId());
                             rowStatus.setColor("yellow"); // #fcba03 deep carmine yellow
                             jsonStatus = gson.toJson(rowStatus);
-                            sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
+                            webSocketSessionManager.sendMessageJson(
+                                    homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
                         } else {
                             // Previous
                             rowStatus.setColor("green"); // #1d9c06 green
                             jsonStatus = gson.toJson(rowStatus);
-                            sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
+                            webSocketSessionManager.sendMessageJson(
+                                    homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
                             try {
                                 Thread.sleep(300);
                             } catch (Exception e) {
@@ -3301,7 +3315,8 @@ public class ARScannedElementPane extends ARPane {
                             rowStatus.setInstructionId(currentInstruction.getId());
                             rowStatus.setColor("yellow"); // #fcba03 deep carmine yellow
                             jsonStatus = gson.toJson(rowStatus);
-                            sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
+                            webSocketSessionManager.sendMessageJson(
+                                    homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
                         }
 
                         //                        String[] operation =
@@ -4421,7 +4436,7 @@ public class ARScannedElementPane extends ARPane {
             if (!isInterceptBotJob()) {
                 rowStatus.setColor("green"); // #1d9c06 deep carmine green
                 jsonStatus = gson.toJson(rowStatus);
-                sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
+                webSocketSessionManager.sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
 
                 performMessage.showCustomModalDialogDragWin11(
                         "Bot-Job Finished - successfully",
@@ -4436,7 +4451,7 @@ public class ARScannedElementPane extends ARPane {
             } else {
                 rowStatus.setColor("yellow"); // #fcba03 deep carmine yellow
                 jsonStatus = gson.toJson(rowStatus);
-                sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
+                webSocketSessionManager.sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
 
                 performMessage.showCustomModalDialogDragWin11(
                         "Bot-Job Interrupted successfully",
@@ -4468,7 +4483,7 @@ public class ARScannedElementPane extends ARPane {
             if (isInterceptBotJob()) {
                 rowStatus.setColor("yellow"); // #fcba03 deep carmine yellow
                 jsonStatus = gson.toJson(rowStatus);
-                sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
+                webSocketSessionManager.sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
 
                 performMessage.showCustomModalDialogDragWin11(
                         "Bot-Job Interrupted successfully",
@@ -4484,7 +4499,7 @@ public class ARScannedElementPane extends ARPane {
 
                 rowStatus.setColor("red"); // #FF3131 deep carmine red
                 jsonStatus = gson.toJson(rowStatus);
-                sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
+                webSocketSessionManager.sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
 
                 performMessage.errorMessage(
                         "Failed finding element (5 attempts).",
@@ -4497,7 +4512,7 @@ public class ARScannedElementPane extends ARPane {
 
                 rowStatus.setColor("red"); // #FF3131 deep carmine red
                 jsonStatus = gson.toJson(rowStatus);
-                sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
+                webSocketSessionManager.sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
 
                 performMessage.errorMessage(
                         "Process Execution Terminated",
@@ -4997,63 +5012,6 @@ public class ARScannedElementPane extends ARPane {
         button.setMaxWidth(ARConstants.SPACE_L);
         AnchorPane.setRightAnchor(button, 0D);
         return button;
-    }
-
-    //    private void broadcastMessageToAll(String message) {
-    //        synchronized (sessions) {
-    //            for (Session session : sessions) {
-    //                if (session.isOpen()) {
-    //                    sendMessageJson(session, "data_updated", message);
-    //                }
-    //            }
-    //        }
-    //    }
-
-    private void broadcastMessageToAll(String message) {
-        for (Session session : simpleWebSocketServer.getAllSessions().values()) { // Looping correctly
-            if (session.isOpen()) {
-                sendMessageJson(session, message, null);
-            }
-        }
-    }
-
-    public static void sendMessageJson(int homeBankingId, String sessionId, String msg1, String msg2) {
-        Session session = simpleWebSocketServer.getAllSessions().get(sessionId);
-
-        if (session != null && session.isOpen()) {
-            try {
-                JsonObject jsonMessage = new JsonObject();
-                jsonMessage.addProperty("body", msg1);
-                jsonMessage.addProperty("homeBankingId", homeBankingId);
-                jsonMessage.addProperty("sessionId", sessionId);
-                if (msg2 != null && !msg2.isEmpty()) {
-                    jsonMessage.addProperty("operationId", msg2);
-                }
-                session.getBasicRemote().sendText(jsonMessage.toString());
-            } catch (IOException e) {
-                System.err.println("Error sending message to session " + sessionId + ": " + e.getMessage());
-            }
-        } else {
-            System.err.println("Session " + sessionId + " not found or closed.");
-        }
-    }
-
-    private void sendMessageJson(Session session, String msg1, String msg2) {
-        try {
-            // Create a JSON object with the key "body" and the provided message
-            JsonObject jsonMessage = new JsonObject();
-            jsonMessage.addProperty("body", msg1);
-            if (!Strings.isNullOrEmpty(msg2)) {
-                jsonMessage.addProperty("footer", msg2);
-            }
-            // Convert the JSON object to a string
-            String jsonString = jsonMessage.toString();
-
-            // Send the JSON string over WebSocket
-            session.getBasicRemote().sendText(jsonString);
-        } catch (IOException e) {
-            System.err.println("Error sending message to session " + session.getId() + ": " + e.getMessage());
-        }
     }
 
     private static String loadScriptFromResource(String resourcePath) throws IOException {

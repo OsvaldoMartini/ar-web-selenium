@@ -292,7 +292,7 @@ public class ARNewCommandScene extends ARScene {
                 isConnectWebSocket = true;
             } catch (Exception e) {
                 isConnectWebSocket = false;
-                System.err.println("WebSocket connection failed sessionId: " + sessionId + "error: " + e.getMessage());
+                System.err.println("WebSocket connection failed sessionId: " + sessionId + " error: " + e.getMessage());
             }
         });
     }

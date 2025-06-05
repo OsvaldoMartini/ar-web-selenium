@@ -27,8 +27,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import javafx.application.Platform;
 import javax.websocket.CloseReason;
 import javax.websocket.OnClose;
@@ -60,14 +58,14 @@ public class SimpleWebSocketServer {
         return instance;
     }
 
-    //    private static ARNewCommandScene arNewCommandScene;
+    private static WebSocketSessionManager webSocketSessionManager;
     private static final PerformDataBase performDataBase;
     private static final PerformMessage performMessage;
     private static ARExcelFileScene arExcelFileScene;
 
     // Static block to initialize
     static {
-        //        arNewCommandScene = ARNewCommandScene.getInstance();
+        webSocketSessionManager = WebSocketSessionManager.getInstance();
         performDataBase = PerformDataBase.getInstance();
         performMessage = PerformMessage.getInstance();
         arExcelFileScene = ARExcelFileScene.getInstance();
@@ -75,23 +73,6 @@ public class SimpleWebSocketServer {
 
     private final Gson gson = new Gson();
     private List<BotJobLoadDTO> botJobLoadList = new ArrayList<>();
-
-    private static final ConcurrentHashMap<String, Session> activeSessions = new ConcurrentHashMap<>();
-    //    private static Map<String, Session> activeSessions = new ConcurrentHashMap<>();
-
-    // Store active sessions when a new connection is established
-    public void addSession(String sessionId, Session session) {
-        activeSessions.put(sessionId, session);
-    }
-
-    // Remove session when disconnected
-    public void removeSession(String sessionId) {
-        activeSessions.remove(sessionId);
-    }
-
-    public ConcurrentHashMap<String, Session> getAllSessions() {
-        return activeSessions;
-    }
 
     @OnOpen
     public void onOpen(Session session) {
@@ -101,7 +82,7 @@ public class SimpleWebSocketServer {
             sessionId = session.getRequestParameterMap().get("sessionId").get(0);
 
             if (!Strings.isNullOrEmpty(sessionId)) {
-                addSession(sessionId, session);
+                webSocketSessionManager.addSession(sessionId, session);
             } else {
                 //                addSession(generateCustomSessionId(session), session);
             }
@@ -110,7 +91,7 @@ public class SimpleWebSocketServer {
         }
 
         if (sessionId != null) {
-            addSession(sessionId, session); // Store the session with the custom ID
+            webSocketSessionManager.addSession(sessionId, session); // Store the session with the custom ID
             System.out.println("New connection: Session ID = " + sessionId);
         } else {
             System.out.println("No session ID provided by client");
@@ -169,9 +150,9 @@ public class SimpleWebSocketServer {
                     sessionId =
                             session.getRequestParameterMap().get("sessionId").get(0);
                     if (!Strings.isNullOrEmpty(sessionId)) {
-                        if (!activeSessions.containsKey(sessionId)) {
-                            if (!activeSessions.get(sessionId).isOpen()) {
-                                addSession(sessionId, session);
+                        if (!webSocketSessionManager.containsSession(sessionId)) {
+                            if (!webSocketSessionManager.isSessionOpen(sessionId)) {
+                                webSocketSessionManager.addSession(sessionId, session);
                             }
                         }
                     } else {
@@ -187,10 +168,10 @@ public class SimpleWebSocketServer {
             switch (type) {
                 case "broadcast":
                     String broadcastMessage = jsonObjMSG.get("body").getAsString();
-                    broadcastMessageToAll(homeBankingId, broadcastMessage);
+                    webSocketSessionManager.broadcastMessageToAll(homeBankingId, broadcastMessage);
                     break;
                 case "echo":
-                    sendMessageJson(
+                    webSocketSessionManager.sendMessageJson(
                             homeBankingId,
                             sessionId,
                             "echo: " + jsonObjMSG.get("body").getAsString(),
@@ -203,9 +184,11 @@ public class SimpleWebSocketServer {
         } catch (Exception error) {
             System.err.println("Closed processing message: " + error.getMessage());
             if (type != null) {
-                sendMessageJson(homeBankingId, session, type, "Action type : \"" + type + "\"", "cannot be processed");
+                webSocketSessionManager.sendMessageJson(
+                        homeBankingId, session, type, "Action type : \"" + type + "\"", "cannot be processed");
             } else {
-                sendMessageJson(homeBankingId, session, type, "Closed processing message", "No \"type\" definition");
+                webSocketSessionManager.sendMessageJson(
+                        homeBankingId, session, type, "Closed processing message", "No \"type\" definition");
             }
         }
     }
@@ -242,7 +225,7 @@ public class SimpleWebSocketServer {
                 if (sessionIdToSend.equals("scannerReceiver")) {
                     elementSplitDTO.setOperationId("closeBrowser");
                     String jsonData = gson.toJson(elementSplitDTO);
-                    sendMessageJson(homeBankingId, sessionIdToSend, jsonData, "closeBrowser");
+                    webSocketSessionManager.sendMessageJson(homeBankingId, sessionIdToSend, jsonData, "closeBrowser");
                 }
 
                 alreadySentMgsSocket = true;
@@ -258,7 +241,7 @@ public class SimpleWebSocketServer {
                 if (sessionIdToSend.equals("scannerTool")) {
                     elementSplitDTO.setOperationId("highlight");
                     String jsonData = gson.toJson(elementSplitDTO);
-                    sendMessageJson(homeBankingId, sessionIdToSend, jsonData, null);
+                    webSocketSessionManager.sendMessageJson(homeBankingId, sessionIdToSend, jsonData, null);
                 }
 
                 alreadySentMgsSocket = true;
@@ -275,7 +258,7 @@ public class SimpleWebSocketServer {
 
                 if (sessionIdToSend.equals("scannerGrid")) {
                     String jsonData = gson.toJson(elementSplitDTO);
-                    sendMessageJson(homeBankingId, sessionIdToSend, jsonData, "addPickOne");
+                    webSocketSessionManager.sendMessageJson(homeBankingId, sessionIdToSend, jsonData, "addPickOne");
                     //                    broadcastMessageToAll(jsonData);
                     List<String> excludeList = List.of("optional", "blockMarked", "editMode");
                     performMessage.outputJsonElementDTO(elementSplitDTO.getDetails(), excludeList, "elementDTO");
@@ -312,7 +295,8 @@ public class SimpleWebSocketServer {
                 //                botJobIdTask = processDTO.getBotJobId();
 
                 if (processDTO.getDetails() != null && processDTO.getDetails().length > 0) {
-                    sendMessageJson("scannerReceiver", gson.toJson(processDTO)); // Sending as details
+                    webSocketSessionManager.sendMessageJson(
+                            "scannerReceiver", gson.toJson(processDTO)); // Sending as details
                 }
                 alreadySentMgsSocket = true;
                 break;
@@ -327,7 +311,7 @@ public class SimpleWebSocketServer {
                 sessionIdToSend = received.getSessionId();
                 botJobIdTask = received.getBotJobId();
 
-                sendMessageJson(homeBankingId, session, "Martini", jsonData, null);
+                webSocketSessionManager.sendMessageJson(homeBankingId, session, "Martini", jsonData, null);
 
                 alreadySentMgsSocket = true;
                 break;
@@ -627,7 +611,8 @@ public class SimpleWebSocketServer {
                 break;
 
             default:
-                sendMessageJson(homeBankingId, session, type, "Action type : \"" + type + "\"", "cannot be processed");
+                webSocketSessionManager.sendMessageJson(
+                        homeBankingId, session, type, "Action type : \"" + type + "\"", "cannot be processed");
                 break;
         }
 
@@ -639,7 +624,7 @@ public class SimpleWebSocketServer {
                         performDataBase.buildJsonViewData(botJobLoadList, "instruction");
                 jsonData = gson.toJson(blockLoopInstructions);
             }
-            sendMessageJson(homeBankingId, sessionIdToSend, jsonData, "updateInstructions");
+            webSocketSessionManager.sendMessageJson(homeBankingId, sessionIdToSend, jsonData, "updateInstructions");
 
         } else if (!alreadySentMgsSocket
                 && (sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
@@ -651,7 +636,7 @@ public class SimpleWebSocketServer {
                 jsonData = gson.toJson(blockLoopInstructions);
             }
 
-            sendMessageJson(homeBankingId, "componentTasks", jsonData, "componentsUpdate");
+            webSocketSessionManager.sendMessageJson(homeBankingId, "componentTasks", jsonData, "componentsUpdate");
 
             //            broadcastMessageToAll(homeBankingId, "componentTasks", jsonData, "componentsUpdate");
             //            sendMessageJson(sessionIdToSend, jsonData, "componentsUpdate");
@@ -661,107 +646,15 @@ public class SimpleWebSocketServer {
     @OnClose
     public void onClose(Session session, CloseReason closeReason) {
         // Clean up session when it closes
-        String sessionId = getSessionIdBySession(session);
+        String sessionId = webSocketSessionManager.getSessionIdBySession(session);
         if (sessionId != null) {
             System.out.println("Connection closed: Session ID = " + sessionId + ", Reason: "
                     + closeReason.getReasonPhrase() + " (Code: "
                     + closeReason.getCloseCode() + ")");
-            activeSessions.remove(sessionId);
+            webSocketSessionManager.removeSession(sessionId);
         } else {
             System.out.println("Connection closed for unknown session, Reason: " + closeReason.getReasonPhrase()
                     + " (Code: " + closeReason.getCloseCode() + ")");
-        }
-    }
-
-    // Method to get the session ID based on the session object
-    private String getSessionIdBySession(Session session) {
-        return activeSessions.entrySet().stream()
-                .filter(entry -> entry.getValue().equals(session))
-                .map(Map.Entry::getKey)
-                .findFirst()
-                .orElse(null);
-    }
-
-    private void broadcastMessageToAll(int homeBankingId, String message) {
-        for (Session session : getAllSessions().values()) { // Looping correctly
-            if (session.isOpen()) {
-                sendMessageJson(homeBankingId, session, "Broad-All", message, null);
-            }
-        }
-    }
-
-    public void broadcastMessageToAll(int homeBankingId, String broadTo, String body, String operationId) {
-        for (Map.Entry<String, Session> entry : activeSessions.entrySet()) {
-            String sessionKey = entry.getKey();
-            Session session = entry.getValue();
-
-            // Ensure session is open before sending
-            if (session.isOpen() && sessionKey.contains(broadTo)) {
-                try {
-                    sendMessageJson(homeBankingId, session, entry.getKey(), body, operationId);
-                } catch (Exception e) {
-                    System.err.println("Failed to send message to session: " + sessionKey);
-                    e.printStackTrace();
-                }
-            }
-        }
-    }
-
-    // Method to send a message to a specific session ID
-    public void sendMessageJson(String sessionId, String message) {
-        Session session = getAllSessions().get(sessionId);
-
-        if (session != null && session.isOpen()) {
-            try {
-                session.getBasicRemote().sendText(message);
-            } catch (IOException e) {
-                System.err.println("Error sending message to session " + sessionId + ": " + e.getMessage());
-            }
-        } else {
-            removeSession(sessionId);
-            System.err.println("Session " + sessionId + " not found or closed.");
-        }
-    }
-
-    private static void sendMessageJson(
-            int homeBankingId, Session session, String sessionId, String body, String operationId) {
-        if (session != null && session.isOpen()) {
-            try {
-                JsonObject jsonMessage = new JsonObject();
-                jsonMessage.addProperty("homeBankingId", homeBankingId);
-                jsonMessage.addProperty("sessionId", sessionId);
-                jsonMessage.addProperty("body", body);
-                if (operationId != null && !operationId.isEmpty()) {
-                    jsonMessage.addProperty("operationId", operationId);
-                }
-                session.getBasicRemote().sendText(jsonMessage.toString());
-            } catch (IOException e) {
-                System.err.println("Error sending message to session " + sessionId + ": " + e.getMessage());
-            }
-        } else {
-            System.err.println("Session " + sessionId + " not found or closed.");
-        }
-    }
-
-    // Method to send a message to a specific session ID
-    public void sendMessageJson(int homeBankingId, String sessionId, String body, String operationId) {
-        Session session = getAllSessions().get(sessionId);
-
-        if (session != null && session.isOpen()) {
-            try {
-                JsonObject jsonMessage = new JsonObject();
-                jsonMessage.addProperty("body", body);
-                jsonMessage.addProperty("sessionId", sessionId);
-                jsonMessage.addProperty("homeBankingId", homeBankingId);
-                if (operationId != null && !operationId.isEmpty()) {
-                    jsonMessage.addProperty("operationId", operationId);
-                }
-                session.getBasicRemote().sendText(jsonMessage.toString());
-            } catch (IOException e) {
-                System.err.println("Error sending message to session " + sessionId + ": " + e.getMessage());
-            }
-        } else {
-            System.err.println("Session " + sessionId + " not found or closed.");
         }
     }
 
@@ -803,7 +696,8 @@ public class SimpleWebSocketServer {
             if (!rowMoveDTO.getType().equals("INSERT_BEFORE_ELSEIF")
                     && !rowMoveDTO.getType().equals("INSERT_AFTER_ELSEIF")) {
 
-                sendMessageJson("new-command-scene", gson.toJson(rowMoveDTO)); // Sending as details
+                webSocketSessionManager.sendMessageJson(
+                        "new-command-scene", gson.toJson(rowMoveDTO)); // Sending as details
 
                 //                this.webPageItems = performDataBase.loadWebPageFields(rowMoveDTO.getBotJobId());
 
@@ -890,7 +784,7 @@ public class SimpleWebSocketServer {
                         performDataBase.buildJsonViewData(botJobLoadList, "instruction");
                 jsonData = gson.toJson(blockLoopInstructions);
             }
-            sendMessageJson(
+            webSocketSessionManager.sendMessageJson(
                     blockDetailsDTO.getHomeBankingId(), blockDetailsDTO.getSessionId(), jsonData, "updateInstructions");
 
         } else {

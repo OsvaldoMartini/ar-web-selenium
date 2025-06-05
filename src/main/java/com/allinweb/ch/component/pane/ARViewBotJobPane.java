@@ -16,7 +16,7 @@ import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.ComponentBlockDTO;
-import com.allinweb.ch.socket.SimpleWebSocketServer;
+import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;
@@ -57,7 +57,6 @@ import javafx.scene.text.FontWeight;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import javafx.stage.Stage;
-import javax.websocket.Session;
 
 public class ARViewBotJobPane extends ARPane {
 
@@ -81,7 +80,6 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     // Set to hold all active WebSocket sessions
-    private static Map<String, Session> activeSessions;
     private int portInitial;
     private String sessionId;
     private Gson gson = new Gson();
@@ -104,7 +102,7 @@ public class ARViewBotJobPane extends ARPane {
     private BlockLoadDTO blockLoad;
     private List<BlockLoadDTO> blockLoadList;
 
-    private static final SimpleWebSocketServer simpleWebSocketServer;
+    private static final WebSocketSessionManager webSocketSessionManager;
     private static final ARPropertyManager arPropertyManager;
     private static final ARScannedElementScene arScannedElementScene;
     private static final ARNewCommandScene arNewCommandScene;
@@ -114,7 +112,7 @@ public class ARViewBotJobPane extends ARPane {
     private static final PerformMessage performMessage;
 
     static {
-        simpleWebSocketServer = SimpleWebSocketServer.getInstance();
+        webSocketSessionManager = WebSocketSessionManager.getInstance();
         arPropertyManager = ARPropertyManager.getInstance();
         arScannedElementScene = ARScannedElementScene.getInstance();
         arNewCommandScene = ARNewCommandScene.getInstance();
@@ -209,7 +207,7 @@ public class ARViewBotJobPane extends ARPane {
             }
         }
 
-        if (!simpleWebSocketServer.getAllSessions().isEmpty()) {
+        if (!webSocketSessionManager.getAllSessions().isEmpty()) {
             refreshGrids();
         }
     }
@@ -225,7 +223,7 @@ public class ARViewBotJobPane extends ARPane {
             }
         }
 
-        simpleWebSocketServer.sendMessageJson(
+        webSocketSessionManager.sendMessageJson(
                 this.botJobLoad.getHomeBankingId(), "botJobTasks", jsonData, "updateInstructions");
 
         this.botJobLoadComp = performDataBase.loadComponentsComplete(
@@ -239,10 +237,10 @@ public class ARViewBotJobPane extends ARPane {
             }
         }
 
-        simpleWebSocketServer.sendMessageJson(
+        webSocketSessionManager.sendMessageJson(
                 this.botJobLoad.getHomeBankingId(), "componentTasks", jsonData, "componentsUpdate");
 
-        //        simpleWebSocketServer.broadcastMessageToAll(
+        //        webSocketSessionManager.broadcastMessageToAll(
         //                this.botJobLoad.getHomeBankingId(), "componentTasks", jsonData, "componentsUpdate");
     }
 
@@ -1007,7 +1005,6 @@ public class ARViewBotJobPane extends ARPane {
             Platform.runLater(() -> {
                 try {
 
-                    activeSessions = simpleWebSocketServer.getAllSessions();
                     // Call the ARScannedElementScene here
                     arScannedElementScene.initialize(homeBanking, this.botJobLoad, this.blockLoad);
 

@@ -11,7 +11,7 @@ import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.*;
-import com.allinweb.ch.socket.SimpleWebSocketServer;
+import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ErrorMessage;
@@ -86,14 +86,14 @@ public class ARSaveComponentPane extends ARPane {
     private List<ComponentInstructionDTO> originalLoopInstruction;
     private List<ComponentReferenceDTO> originalReferences;
 
-    private static final SimpleWebSocketServer simpleWebSocketServer;
+    private static final WebSocketSessionManager webSocketSessionManager;
     private static final PerformMessage performMessage;
     private static final PerformActions performAction;
     private static final PerformDataBase performDataBase;
     //    private static final PerformDBSavedBlock performDBSavedBlock;
     // Static block to initialize
     static {
-        simpleWebSocketServer = SimpleWebSocketServer.getInstance();
+        webSocketSessionManager = WebSocketSessionManager.getInstance();
         performMessage = PerformMessage.getInstance();
         performAction = PerformActions.getInstance();
         performDataBase = PerformDataBase.getInstance();
@@ -283,9 +283,9 @@ public class ARSaveComponentPane extends ARPane {
                             }
                             // simpleWebSocketServer.sendMessageJson(blockDetailsDTO.getSessionId(), jsonData,
                             // "componentsUpdate");
-                            simpleWebSocketServer.sendMessageJson(
+                            webSocketSessionManager.sendMessageJson(
                                     blockDetailsDTO.getHomeBankingId(), "componentTasks", jsonData, "componentsUpdate");
-                            //                            simpleWebSocketServer.broadcastMessageToAll(
+                            //                            webSocketSessionManager.broadcastMessageToAll(
                             //                                    blockDetailsDTO.getHomeBankingId(), "componentTasks",
                             // jsonData, "componentsUpdate");
 
@@ -867,27 +867,4 @@ public class ARSaveComponentPane extends ARPane {
             executorService.shutdown();
         }
     }
-
-    //    // Method to send a message to a specific session ID
-    //    public static void sendMessageJson(String sessionId, String msg1, String msg2) {
-    //        activeSessions = simpleWebSocketServer.getAllSessions();
-    //        Session session = activeSessions.get(sessionId);
-    //
-    //        if (session != null && session.isOpen()) {
-    //            try {
-    //                JsonObject jsonMessage = new JsonObject();
-    //                jsonMessage.addProperty("body", msg1);
-    //                jsonMessage.addProperty("sessionId", sessionId); jsonMessage.addProperty("homeBankingId",
-    // homeBankingId);
-    //                if (msg2 != null && !msg2.isEmpty()) {
-    //                    jsonMessage.addProperty("operationId", msg2);
-    //                }
-    //                session.getBasicRemote().sendText(jsonMessage.toString());
-    //            } catch (IOException e) {
-    //                System.err.println("Error sending message to session " + sessionId + ": " + e.getMessage());
-    //            }
-    //        } else {
-    //            System.err.println("Session " + sessionId + " not found or closed.");
-    //        }
-    //    }
 }

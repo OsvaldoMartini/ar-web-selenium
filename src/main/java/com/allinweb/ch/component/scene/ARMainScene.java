@@ -4,6 +4,7 @@ import com.allinweb.ch.component.pane.ARMainPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.socket.SimpleWebSocketServer;
+import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
@@ -31,11 +32,11 @@ public class ARMainScene extends ARScene {
 
     private ObservableList<WebDriver> webDriverList = FXCollections.observableArrayList();
     private static final ARPropertyManager arPropertyManager;
-    private static final SimpleWebSocketServer simpleWebSocketServer;
+    private static final WebSocketSessionManager webSocketSessionManager;
 
     static {
         arPropertyManager = ARPropertyManager.getInstance();
-        simpleWebSocketServer = SimpleWebSocketServer.getInstance();
+        webSocketSessionManager = WebSocketSessionManager.getInstance();
     }
 
     public ARMainScene() {
@@ -88,7 +89,17 @@ public class ARMainScene extends ARScene {
     }
 
     private static void initiateJetty() {
+
         int portInitial = 54525;
+        try (ServerSocket serverSocket = new ServerSocket(0)) { // Port 0 = auto-assign
+            portInitial = serverSocket.getLocalPort();
+            System.out.println("Available port: " + portInitial);
+            arPropertyManager.setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), String.valueOf(portInitial));
+        } catch (IOException e) {
+            System.out.println("Fixed Port : " + 54525);
+            arPropertyManager.setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), String.valueOf(54525));
+            portInitial = 54525;
+        }
 
         String portSocket = arPropertyManager.getProperty(ARPropertyEnum.PORT_SOCKET);
         if (portSocket != null) {
@@ -137,7 +148,7 @@ public class ARMainScene extends ARScene {
         //        // Example: Retrieve all active sessions
         //        activeSessions = simpleWebSocketServer.getAllSessions();
         System.out.println(
-                "Active sessions: " + simpleWebSocketServer.getAllSessions().size());
+                "Active sessions: " + webSocketSessionManager.getAllSessions().size());
     }
 
     // Method to check if the port is already in use

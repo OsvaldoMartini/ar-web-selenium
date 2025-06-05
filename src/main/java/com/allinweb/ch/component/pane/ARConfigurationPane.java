@@ -750,10 +750,6 @@ public class ARConfigurationPane extends ARPane {
                 arViewBotJobScene.closeModal();
             }
 
-            if (arViewBotJobScene != null) {
-                arViewBotJobScene.closeModal();
-            }
-
             if (arNewCommandScene.getRowMoveDTO() != null) {
                 arNewCommandScene.setRowMoveDTO(null);
                 arNewCommandScene.closeModal();

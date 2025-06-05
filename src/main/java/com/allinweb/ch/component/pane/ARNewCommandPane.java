@@ -13,7 +13,7 @@ import com.allinweb.ch.component.scene.ARElementValueScene;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.socket.SimpleWebSocketServer;
+import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ComboBoxImage;
@@ -21,8 +21,6 @@ import com.allinweb.ch.util.ComboBoxOperator;
 import com.allinweb.ch.util.ComboBoxVars;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -44,7 +42,6 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
 import javafx.stage.Stage;
-import javax.websocket.Session;
 
 public class ARNewCommandPane extends ARPane {
 
@@ -66,14 +63,14 @@ public class ARNewCommandPane extends ARPane {
         return instance;
     }
 
-    private static final SimpleWebSocketServer simpleWebSocketServer;
+    private static final WebSocketSessionManager webSocketSessionManager;
     private static final PerformDataBase performDataBase;
     private static final PerformMessage performMessage;
     private static final ARElementValueScene arElementValueScene;
 
     // Static block to initialize
     static {
-        simpleWebSocketServer = SimpleWebSocketServer.getInstance();
+        webSocketSessionManager = WebSocketSessionManager.getInstance();
         performMessage = PerformMessage.getInstance();
         performDataBase = PerformDataBase.getInstance();
         arElementValueScene = ARElementValueScene.getInstance();
@@ -2342,7 +2339,7 @@ public class ARNewCommandPane extends ARPane {
                     jsonData = gson.toJson(instructions);
                 }
 
-                sendMessageJson(
+                webSocketSessionManager.sendMessageJson(
                         rowMoveDTO.getHomeBankingId(),
                         rowMoveDTO.getSessionId(),
                         jsonData,
@@ -2362,47 +2359,6 @@ public class ARNewCommandPane extends ARPane {
         }
         //        }
         //        defineTextFlow(comboBoxInstruc.getValue().getValue());
-    }
-
-    public static void sendMessageJson(int homeBankingId, String sessionId, String msg1, String msg2) {
-        Session session = simpleWebSocketServer.getAllSessions().get(sessionId);
-
-        if (session != null && session.isOpen()) {
-            try {
-                JsonObject jsonMessage = new JsonObject();
-                jsonMessage.addProperty("body", msg1);
-                jsonMessage.addProperty("sessionId", sessionId);
-                jsonMessage.addProperty("homeBankingId", homeBankingId);
-                if (msg2 != null && !msg2.isEmpty()) {
-                    jsonMessage.addProperty("operationId", msg2);
-                }
-                session.getBasicRemote().sendText(jsonMessage.toString());
-            } catch (IOException e) {
-                System.err.println("Error sending message to session " + sessionId + ": " + e.getMessage());
-            }
-        } else {
-            System.err.println("Session " + sessionId + " not found or closed.");
-        }
-    }
-
-    private void sendMessageJson(Session session, String msg1, String msg2) {
-        if (session != null && session.isOpen()) {
-            try {
-                // Create a JSON object with the key "body" and the provided message
-                JsonObject jsonMessage = new JsonObject();
-                jsonMessage.addProperty("body", msg1);
-                if (!Strings.isNullOrEmpty(msg2)) {
-                    jsonMessage.addProperty("footer", msg2);
-                }
-                // Convert the JSON object to a string
-                String jsonString = jsonMessage.toString();
-
-                // Send the JSON string over WebSocket
-                session.getBasicRemote().sendText(jsonString);
-            } catch (IOException e) {
-                System.err.println("Error sending message to session " + session.getId() + ": " + e.getMessage());
-            }
-        }
     }
 
     public void setSelectedIndexByValue(String instrValue, String[] operations) {

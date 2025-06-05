@@ -7,7 +7,7 @@ import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.socket.SimpleWebSocketServer;
+import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;
@@ -79,12 +79,12 @@ public class ARExcelFilePane extends ARPane {
     private static final ARPropertyManager arPropertyManager;
     private static final PerformDataBase performDataBase;
     private static final PerformMessage performMessage;
-    private static final SimpleWebSocketServer simpleWebSocketServer;
+    private static final WebSocketSessionManager webSocketSessionManager;
 
     // Static block to initialize
     static {
         arPropertyManager = ARPropertyManager.getInstance();
-        simpleWebSocketServer = SimpleWebSocketServer.getInstance();
+        webSocketSessionManager = WebSocketSessionManager.getInstance();
         performDataBase = PerformDataBase.getInstance();
         performMessage = PerformMessage.getInstance();
     }
@@ -351,7 +351,7 @@ public class ARExcelFilePane extends ARPane {
                         performDataBase.buildJsonViewData(botJobLoadList, "instruction");
                 jsonData = gson.toJson(blockLoopInstructions);
             }
-            simpleWebSocketServer.sendMessageJson(
+            webSocketSessionManager.sendMessageJson(
                     blockExcelDTO.getHomeBankingId(), sessionId, jsonData, "updateInstructions");
 
         } else if ((sessionId != null && sessionId.matches(".*componentTasks.*"))) {
@@ -363,11 +363,11 @@ public class ARExcelFilePane extends ARPane {
                         performDataBase.buildJsonViewData(botJobLoadList, "component_instruction");
                 jsonData = gson.toJson(instructions);
             }
-            //            simpleWebSocketServer.sendMessageJson(sessionId, jsonData, "componentsUpdate");
+            //            webSocketSessionManager.sendMessageJson(sessionId, jsonData, "componentsUpdate");
 
-            simpleWebSocketServer.sendMessageJson(
+            webSocketSessionManager.sendMessageJson(
                     blockExcelDTO.getHomeBankingId(), "componentTasks", jsonData, "componentsUpdate");
-            //            simpleWebSocketServer.broadcastMessageToAll(
+            //            webSocketSessionManager.broadcastMessageToAll(
             //                    blockExcelDTO.getHomeBankingId(), "componentTasks", jsonData, "componentsUpdate");
         }
 

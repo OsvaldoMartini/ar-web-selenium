@@ -13,8 +13,6 @@ import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.IOException;
-import java.net.ServerSocket;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
@@ -98,15 +96,6 @@ public class ARControlPanel extends Application {
 
         arPropertyManager.setProperty(ARPropertyEnum.VERSION.getValue(), "AR Web v4.5f Beta Test");
         arPropertyManager.setProperty(ARPropertyEnum.BUILD.getValue(), "Build: " + getTodaysDate(0));
-
-        try (ServerSocket serverSocket = new ServerSocket(0)) { // Port 0 = auto-assign
-            int availablePort = serverSocket.getLocalPort();
-            System.out.println("Available port: " + availablePort);
-            arPropertyManager.setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), String.valueOf(availablePort));
-        } catch (IOException e) {
-            System.out.println("Fixed Port : " + 54525);
-            arPropertyManager.setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), String.valueOf(54525));
-        }
     }
 
     private static void licenseControl() {
