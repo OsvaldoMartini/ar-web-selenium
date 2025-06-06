@@ -3,6 +3,8 @@ package com.allinweb.ch.component.scene;
 import com.allinweb.ch.component.pane.ARMainPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
+import com.allinweb.ch.socket.ARWebSocketServer;
+import com.allinweb.ch.socket.ARWebSocketServerIP;
 import com.allinweb.ch.socket.SimpleWebSocketServer;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ARLogger;
@@ -33,10 +35,25 @@ public class ARMainScene extends ARScene {
     private ObservableList<WebDriver> webDriverList = FXCollections.observableArrayList();
     private static final ARPropertyManager arPropertyManager;
     private static final WebSocketSessionManager webSocketSessionManager;
+    private static final ARWebSocketServerIP arWebSocketServerIP;
+    private static final ARWebSocketServer arWebSocketServer;
 
     static {
         arPropertyManager = ARPropertyManager.getInstance();
         webSocketSessionManager = WebSocketSessionManager.getInstance();
+        try {
+            arWebSocketServerIP = ARWebSocketServerIP.getInstance();
+        } catch (Exception error) {
+            ARLogger.getInstance(ARMainScene.class).severe("ARWebSocketServerIP with IP failed " + error.getMessage());
+
+            throw new RuntimeException(error);
+        }
+        try {
+            arWebSocketServer = ARWebSocketServer.getInstance();
+        } catch (Exception error) {
+            ARLogger.getInstance(ARMainScene.class).severe("ARWebSocketServer NO IP failed " + error.getMessage());
+            throw new RuntimeException(error);
+        }
     }
 
     public ARMainScene() {
@@ -45,7 +62,7 @@ public class ARMainScene extends ARScene {
 
     @Override
     public IARPane buildPane() {
-        initiateJetty();
+        //        initiateJetty();
         return new ARMainPane(webDriverList);
     }
 
@@ -138,7 +155,6 @@ public class ARMainScene extends ARScene {
         // Initialize WebSocket container
         wsContainer = WebSocketServerContainerInitializer.configureContext(context);
         wsContainer.setDefaultMaxSessionIdleTimeout(0);
-        //        wsContainer.addEndpoint(WebSocketStompServer.class);
         wsContainer.addEndpoint(SimpleWebSocketServer.class); // Register SimpleWebSocketServer
 
         // Start Jetty server
