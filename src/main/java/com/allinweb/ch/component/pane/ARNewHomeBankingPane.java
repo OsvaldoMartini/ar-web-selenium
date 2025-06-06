@@ -27,6 +27,7 @@ import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.*;
+import lombok.Getter;
 
 public class ARNewHomeBankingPane extends ARPane {
 
@@ -49,6 +50,7 @@ public class ARNewHomeBankingPane extends ARPane {
         return instance;
     }
 
+    @Getter
     private ObservableList<HomeBankingLoadDTO> homeBankingList;
 
     public void initialize(ObservableList<HomeBankingLoadDTO> homeBankingList) {
@@ -355,6 +357,7 @@ public class ARNewHomeBankingPane extends ARPane {
                         priorityColumn,
                         searchConfigColumn,
                         optionsConfigColumn);
+
         tableView.setItems(performDataBase.getDatabaseList());
 
         tableView.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
@@ -424,6 +427,12 @@ public class ARNewHomeBankingPane extends ARPane {
 
             homeBankingList.add(homeBanking);
         }
+    }
+
+    public void updateTableBankingView() {
+        performDataBase.loadAllHomeBankingBotJob();
+        updateHomeBankList(performDataBase.getDatabaseList());
+        tableView.setItems(performDataBase.getDatabaseList());
     }
 
     //    private List<BankingDTO> loadFromDB() {

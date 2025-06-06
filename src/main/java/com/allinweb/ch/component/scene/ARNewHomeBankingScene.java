@@ -5,6 +5,7 @@ import com.allinweb.ch.component.pane.ARNewHomeBankingPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.util.ARLogger;
+import java.util.List;
 import javafx.application.Platform;
 import javafx.collections.ObservableList;
 import javafx.scene.Scene;
@@ -49,6 +50,14 @@ public class ARNewHomeBankingScene extends ARScene {
 
     public void initialize(ObservableList<HomeBankingLoadDTO> homeBankingList) {
         this.homeBankingList = homeBankingList;
+
+        if (!isNullOrEmpty(arNewHomeBankingPane.getHomeBankingList())) {
+            arNewHomeBankingPane.updateTableBankingView();
+        }
+    }
+
+    private boolean isNullOrEmpty(List<?> list) {
+        return list == null || list.isEmpty();
     }
 
     public void showModal() {

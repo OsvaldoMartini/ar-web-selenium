@@ -120,4 +120,15 @@ public class ARNewBotJobScene extends ARScene {
             modalStage.showAndWait(); // Show and wait only if not already showing
         }
     }
+
+    public void closeModal() {
+        try {
+            if (modalStage != null) {
+                modalStage.close();
+            }
+            modalStage = null;
+        } catch (Exception error) {
+            System.err.println("Browser Closed Before Web Scanner. Error: " + error.getMessage());
+        }
+    }
 }

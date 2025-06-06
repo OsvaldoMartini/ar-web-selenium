@@ -8,6 +8,7 @@ import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARAlertScene;
 import com.allinweb.ch.component.scene.ARElementValueScene;
+import com.allinweb.ch.component.scene.ARNewBotJobScene;
 import com.allinweb.ch.component.scene.ARNewCommandScene;
 import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
 import com.allinweb.ch.component.scene.ARScannedElementScene;
@@ -94,6 +95,7 @@ public class ARConfigurationPane extends ARPane {
     private static final ARViewBotJobScene arViewBotJobScene;
     private static final ARNewCommandScene arNewCommandScene;
     private static final ARElementValueScene arElementValueScene;
+    private static final ARNewBotJobScene arNewBotJobScene;
 
     // Static block to initialize
     static {
@@ -101,6 +103,7 @@ public class ARConfigurationPane extends ARPane {
         arNewCommandScene = ARNewCommandScene.getInstance();
         arElementValueScene = ARElementValueScene.getInstance();
         arViewBotJobScene = ARViewBotJobScene.getInstance();
+        arNewBotJobScene = ARNewBotJobScene.getInstance();
 
         arPropertyManager = ARPropertyManager.getInstance();
         performMessage = PerformMessage.getInstance();
@@ -742,12 +745,16 @@ public class ARConfigurationPane extends ARPane {
                 return;
             }
 
+            if (arViewBotJobScene != null) {
+                arViewBotJobScene.closeModal();
+            }
+
             if (arScannedElementScene != null) {
                 arScannedElementScene.closeModal();
             }
 
-            if (arViewBotJobScene != null) {
-                arViewBotJobScene.closeModal();
+            if (arNewBotJobScene != null) {
+                arNewBotJobScene.closeModal();
             }
 
             if (arNewCommandScene.getRowMoveDTO() != null) {
@@ -778,6 +785,8 @@ public class ARConfigurationPane extends ARPane {
             homeBankingList.clear();
             homeBankingList.addAll(performDataBase.loadHomeBanking(null));
             homeBankingListView = new ListView<>(homeBankingList);
+
+            arNewHomeBankingScene.initialize(homeBankingList);
 
             botJobList = FXCollections.observableArrayList(performDataBase.loadAllBotJobs());
             viewBotJobListView.setItems(botJobList);
