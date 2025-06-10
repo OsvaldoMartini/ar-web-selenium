@@ -93,6 +93,7 @@ public class ARConstants {
     public static final String ICON_EXCEL = "/excel.png";
     public static final String ICON_EXCEL2 = "/excel2.png";
     public static final String ICON_EXCEL3 = "/excel3.png";
+    public static final String ICON_EXCEL_GOTO = "/excel_goto.png";
     public static final String ICON_EDIT = "/edit.png";
     public static final String ICON_BLOCK = "/brick.png";
     public static final String ICON_COPY = "/copy.png";
@@ -185,6 +186,7 @@ public class ARConstants {
     public static final String ELSE = "ELSE";
     public static final String ENDIF = "ENDIF";
     public static final String GOTO = "GOTO";
+    public static final String EXCEL_GOTO = "EXCEL GOTO";
     public static final String NEXT_ROW = "NEXT ROW";
     public static final String FIND_ALL_CHILD_ELEMENTS = ".//*";
     public static final String NO_VALUE = "NULL";

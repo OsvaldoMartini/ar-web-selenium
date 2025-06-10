@@ -3023,31 +3023,44 @@ public class ARScannedElementPane extends ARPane {
         int exportIndex = 1;
         boolean webElementWork = false;
 
-        if (extractedData.getNumberOfDataRows() > 1) {
-
-            respModal = performMessage.showCustomModalDialogDragWin11(
-                    "Multiple Excel Rows Detected",
-                    "<span style='font-weight: bold;'>Your Excel data file contains multiple rows.</span>",
-                    "By default, each <span style='font-weight: bold; color: #e854c8;'>Automation Test Block (Use Case)</span> will process <span style='font-weight: bold;'> all rows individually.</span>",
-                    "To apply \"" + extractedData.getNumberOfDataRows()
-                            + "\" rows one by one <span style='font-weight: bold;'>across multiple blocks</span>, add the <span style='font-weight: bold; color: #FF4500;'>'ExcelData GOTO'</span> operation to your flow.",
-                    "<span style='font-weight: bold; color: #e854c8;'>ExcelData GOTO</span> ensures each row is processed<span style='font-weight: bold;'>individually</span> across all blocks.",
-                    false,
-                    "Continue",
-                    "Stop all",
-                    0);
-
-            if (respModal.equals(ARConstants.DialogModal.STOP)) {
-                return true;
-            }
-        }
-
         if (extractedData.getNumberOfDataRows() > 0) {
+            List<InstructionLoadDTO> excelDataGoto = performDataBase.loadExcelGotoBlock(homeBanking.getId(), botJobId);
+
+            if (extractedData.getNumberOfDataRows() > 1 && excelDataGoto.isEmpty()) {
+
+                respModal = performMessage.showCustomModalDialogDragWin11(
+                        "Multiple Excel Rows Detected",
+                        "<span style='font-weight: bold;'>Your Excel data file contains multiple rows.</span>",
+                        "By default, each <span style='font-weight: bold; color: #e854c8;'>Automation Test Block (Use Case)</span> will process <span style='font-weight: bold;'> all rows individually.</span>",
+                        "To apply \"" + extractedData.getNumberOfDataRows()
+                                + "\" rows one by one <span style='font-weight: bold;'>across multiple blocks</span>, add the <span style='font-weight: bold; color: #FF4500;'>'ExcelData GOTO'</span> operation to your flow.",
+                        "<span style='font-weight: bold; color: #e854c8;'>ExcelData GOTO</span> ensures each row is processed<span style='font-weight: bold;'>individually</span> across all blocks.",
+                        false,
+                        "Continue",
+                        "Stop all",
+                        0);
+
+                if (respModal.equals(ARConstants.DialogModal.STOP)) {
+
+                    launchBotJobButton.setDisable(false);
+                    performActions.setInterceptBotJob(true);
+                    setInterceptBotJob(true);
+                    isJobRunning.set(false);
+
+                    if (!lastBrowserTab()) {
+                        return false;
+                    }
+                }
+            }
 
             // Execute All Blocks starting from executeSpecificBlock if Defined
             int currentBlock = (executeSpecificBlock > -1) ? executeSpecificBlock - 1 : 0;
-
             int blockInitial = currentBlock;
+
+            if (!excelDataGoto.isEmpty() && !blocksLoaded.isEmpty()) {
+                Integer parentId = excelDataGoto.get(excelDataGoto.size() - 1).getParentId();
+                blockInitial = performActions.getBlockOrderNumber(blocksLoaded, parentId) - 1;
+            }
 
             int xExcelCurrentRow = 0;
             int xExcelDataSize = extractedData.getNumberOfDataRows();
@@ -3416,7 +3429,12 @@ public class ARScannedElementPane extends ARPane {
                             }
 
                             Pair<String, String> msgInstruction = null;
-                            if (actions[0].equalsIgnoreCase(ARConstants.NEXT_ROW)) {
+                            if (actions[0].equalsIgnoreCase(ARConstants.EXCEL_GOTO)) {
+
+                                //                                currentIndex++;
+                                continue instructionLoop;
+
+                            } else if (actions[0].equalsIgnoreCase(ARConstants.NEXT_ROW)) {
                                 // <currentId:blockId:blockOrderNumber:bockName>
                                 xExcelCurrentRow++;
 
@@ -3447,7 +3465,7 @@ public class ARScannedElementPane extends ARPane {
                                         "Excel Data Calling Next Row",
                                         bodyMsg);
 
-                                currentIndex++;
+                                //                                currentIndex++;
                                 continue instructionLoop;
 
                             } else if (actions[0].equalsIgnoreCase(ARConstants.GOTO)) {

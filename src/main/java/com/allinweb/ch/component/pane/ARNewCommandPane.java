@@ -240,6 +240,9 @@ public class ARNewCommandPane extends ARPane {
                     new ComboBoxImage("GOTO", new Image(ARConstants.ICON_GOTO), ARConstants.GOTO, -1, -1, -1));
 
             itemsInstructions.add(new ComboBoxImage(
+                    "Excel GOTO", new Image(ARConstants.ICON_EXCEL_GOTO), ARConstants.EXCEL_GOTO, -1, -1, -1));
+
+            itemsInstructions.add(new ComboBoxImage(
                     "ExcelWrite", new Image(ARConstants.ICON_EXCEL), ARConstants.EXTRACT_FIELD, -1, -1, -1));
 
             itemsInstructions.add(new ComboBoxImage(
@@ -981,6 +984,7 @@ public class ARNewCommandPane extends ARPane {
 
             if (!comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.IF)
                     && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.GOTO)
+                    && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.EXCEL_GOTO)
                     && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.REFRESH_ONLY)
                     && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.REFRESH_LOOP)
                     && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.LOOP)
@@ -999,6 +1003,7 @@ public class ARNewCommandPane extends ARPane {
 
             if (!comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.IF)
                     && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.GOTO)
+                    && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.EXCEL_GOTO)
                     && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.REFRESH_ONLY)
                     && comboBoxInstruc.getSelectionModel().getSelectedIndex() < 0) {
                 performMessage.errorMessage(
@@ -1014,6 +1019,7 @@ public class ARNewCommandPane extends ARPane {
 
             if (!comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.IF)
                     && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.GOTO)
+                    && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.EXCEL_GOTO)
                     && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.REFRESH_ONLY)) {
                 if (comboBoxAllBlocks.getValue() != null
                         && comboBoxWebFields.getValue() != null
@@ -1041,7 +1047,8 @@ public class ARNewCommandPane extends ARPane {
                 }
             }
 
-            if (comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.GOTO)
+            if ((comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.GOTO)
+                            || comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.EXCEL_GOTO))
                     && blocksItems.size() == 1
                     && (comboBoxBlocks.getValue().getBlockId() == -1)) {
 
@@ -1159,6 +1166,32 @@ public class ARNewCommandPane extends ARPane {
                         ARConstants.GOTO,
                         1,
                         comboBoxLoops.getValue().getValue(),
+                        null, // Block Order Number as VarId
+                        comboBoxBlocks.getValue().getBlockId(), // BLOCK ID as Parent Id
+                        this.rowMoveDTO);
+            } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("EXCEL GOTO")) {
+
+                List<InstructionLoadDTO> excelDataGoto =
+                        performDataBase.loadExcelGotoBlock(rowMoveDTO.getHomeBankingId(), rowMoveDTO.getBotJobId());
+
+                if (!excelDataGoto.isEmpty()) {
+                    performMessage.errorMessage(
+                            "Excel  GOTO Detected",
+                            "<span style='font-weight: bold;'>This Bot Job already has an 'Excel GOTO' instruction.</span>",
+                            "<span style='font-weight: bold; color: #e854c8;'>Only one 'Excel GOTO' instruction is necessary per Bot Job.</span>",
+                            " This single instruction is sufficient to process <span style='font-weight: bold;'>all rows individually</span> from your Excel data.",
+                            null,
+                            0);
+
+                    return;
+                }
+
+                insertNewInstruction(
+                        "EXCEL GOTO",
+                        "EXCEL GOTO",
+                        ARConstants.EXCEL_GOTO,
+                        1,
+                        "1",
                         null, // Block Order Number as VarId
                         comboBoxBlocks.getValue().getBlockId(), // BLOCK ID as Parent Id
                         this.rowMoveDTO);
@@ -1419,6 +1452,59 @@ public class ARNewCommandPane extends ARPane {
                 comboBoxesRow.getChildren().addAll(commandBox, blocksBox);
 
                 variableButtonRow = new HBox(10, blankText, loopText, comboBoxLoops, textFlow);
+
+                vboxAll.getChildren()
+                        .addAll(
+                                operationSelected,
+                                // labelRow, // Web Page Label row
+                                comboBoxesRow, // ComboBoxes row
+                                variableButtonRow, // Variable Button row
+                                buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
+                                addNewsBox,
+                                instructionButtonsRow // Add Instruction and Cancel Buttons row
+                                );
+
+                // labelRow.requestLayout();
+                vboxAll.requestLayout();
+                mainPane.requestLayout();
+
+            } catch (Exception ex) {
+                System.out.println(ex.getMessage());
+            }
+
+        } else if (ARConstants.EXCEL_GOTO.equalsIgnoreCase(valueEdit)) {
+            defineTextFlow(comboBoxInstruc.getValue().getValue());
+
+            textFlow.setVisible(true);
+            //                    textFlow.setPrefWidth(buttonWidth + 100);
+
+            //                    botJobVarsLabel.setText("Block Destination");
+            botJobVarsLabel.setVisible(true);
+            webPageLabel.setVisible(false);
+            comboBoxOperator.setVisible(false);
+            comboBoxWebFields.setVisible(false);
+            comboBoxAllBlocks.setVisible(true);
+
+            variableButton.setVisible(false);
+
+            comboBoxVars.setVisible(false);
+            comboBoxBlocks.setVisible(true);
+            comboBoxBlocks.setPrefWidth(buttonWidth);
+            comboBoxTimes.setVisible(false);
+            comboBoxLoops.setVisible(false);
+
+            try {
+                variableButtonRow.getChildren().clear();
+                vboxAll.getChildren().clear();
+
+                // labelRow.getChildren().clear();
+                // labelRow.getChildren().addAll(commandLabel);
+                // labelRow.setAlignment(Pos.BASELINE_LEFT);
+
+                comboBoxesRow.getChildren().clear();
+                comboBoxesRow.getChildren().addAll(commandBox, blocksBox);
+
+                variableButtonRow = new HBox(10, blankText, textFlow);
 
                 vboxAll.getChildren()
                         .addAll(
@@ -1812,6 +1898,37 @@ public class ARNewCommandPane extends ARPane {
                     variableText2.setStyle("-fx-font-size: 14px; -fx-fill: red;");
 
                     regularText3.setText(" Times");
+                    regularText3.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+
+                    regularText1.setVisible(true);
+                    regularText2.setVisible(true);
+                    regularText3.setVisible(true);
+                    regularText4.setVisible(false);
+
+                    variableText1.setVisible(true);
+                    variableText2.setVisible(true);
+                    variableText3.setVisible(false);
+
+                    textFlow.getChildren().clear();
+                    textFlow.getChildren()
+                            .addAll(regularText1, variableText1, regularText2, variableText2, regularText3);
+                    textFlow.requestLayout();
+
+                    break;
+                case ARConstants.EXCEL_GOTO:
+                    regularText1.setText("EXCEL GO TO Block : ");
+                    regularText1.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+
+                    variableText1.setText(comboBoxBlocks.getValue().getText());
+                    variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
+
+                    regularText2.setText(" Limit: ");
+                    regularText2.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+
+                    variableText2.setText("1");
+                    variableText2.setStyle("-fx-font-size: 14px; -fx-fill: red;");
+
+                    regularText3.setText(" Time");
                     regularText3.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
                     regularText1.setVisible(true);

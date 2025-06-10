@@ -3041,6 +3041,15 @@ public class PerformActions {
         return null; // or throw an exception if the block is not found
     }
 
+    public int getBlockOrderNumber(List<BlockLoadDTO> blocksLoaded, Integer parent) {
+        for (BlockLoadDTO block : blocksLoaded) {
+            if (block.getId() != null && block.getId().equals(parent)) {
+                return block.getBlockOrderNumber();
+            }
+        }
+        return -1;
+    }
+
     public Pair<String, String> getInstructionDetailsById(
             List<InstructionLoadDTO> instructionLoadDTOS, InstructionLoadDTO currentInstruction) {
         for (InstructionLoadDTO instParent : instructionLoadDTOS) {
