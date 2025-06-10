@@ -185,6 +185,7 @@ public class ARConstants {
     public static final String ELSE = "ELSE";
     public static final String ENDIF = "ENDIF";
     public static final String GOTO = "GOTO";
+    public static final String NEXT_ROW = "NEXT ROW";
     public static final String FIND_ALL_CHILD_ELEMENTS = ".//*";
     public static final String NO_VALUE = "NULL";
 

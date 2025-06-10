@@ -141,6 +141,7 @@ public class ARNewCommandPane extends ARPane {
 
     private Button variableButton;
 
+    private Button addExcelNextRowButton;
     private Button addPauseButton;
     private Button addWaitButton30;
     private Button addWaitButton15;
@@ -327,6 +328,8 @@ public class ARNewCommandPane extends ARPane {
 
         variableButton.setDisable(variablesDisable);
 
+        addExcelNextRowButton = componentBuilder.buildButton(
+                "Data Next Row", ARConstants.SPACE_L, ARConstants.ICON_EXCEL2, ARConstants.SPACE_M, new Insets(5));
         addPauseButton = componentBuilder.buildButton(
                 "", ARConstants.SPACE_L, ARConstants.ICON_PAUSE, ARConstants.SPACE_M, new Insets(5));
         addWaitButton30 = componentBuilder.buildButton(
@@ -716,6 +719,7 @@ public class ARNewCommandPane extends ARPane {
         buttonBox
                 .getChildren()
                 .addAll(
+                        addExcelNextRowButton,
                         addPauseButton,
                         addWaitButton30,
                         addWaitButton15,
@@ -950,6 +954,8 @@ public class ARNewCommandPane extends ARPane {
 
     @Override
     public void initUIBehaviour() {
+        addExcelNextRowButton.setOnAction(e -> insertNewInstruction(
+                "NEXT ROW", "EXCEL NEXT ROW", ARConstants.NEXT_ROW, 0, "", null, null, rowMoveDTO));
         addPauseButton.setOnAction(
                 e -> insertNewInstruction("PAUSE", "PAUSE Action", ARConstants.PAUSE, 0, "", null, null, rowMoveDTO));
         addWaitButton30.setOnAction(e -> insertNewInstruction(
@@ -2187,7 +2193,8 @@ public class ARNewCommandPane extends ARPane {
         if (actions.equalsIgnoreCase(ARConstants.HOLD)
                 || actions.equalsIgnoreCase(ARConstants.PAUSE)
                 || (actions.equalsIgnoreCase(ARConstants.SCREEN))
-                || actions.equalsIgnoreCase(ARConstants.QUIT)) {
+                || actions.equalsIgnoreCase(ARConstants.QUIT)
+                || actions.equalsIgnoreCase(ARConstants.NEXT_ROW)) {
             regularText1.setText("");
             regularText2.setText("");
             regularText3.setText("");
