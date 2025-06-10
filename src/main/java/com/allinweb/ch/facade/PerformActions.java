@@ -2221,7 +2221,7 @@ public class PerformActions {
             case ARConstants.LIST_OPERATION:
                 return "List Operation " + msgInstruction.getKey();
             case ARConstants.HOLD:
-                return "Hold executed ( " + msgInstruction.getKey() + " )";
+                return "Hold executed " + msgInstruction.getKey();
             case ARConstants.PAUSE:
                 return "Pause action triggered";
             case ARConstants.GOTO:
