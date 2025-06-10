@@ -1176,9 +1176,9 @@ public class ARNewCommandPane extends ARPane {
 
                 if (!excelDataGoto.isEmpty()) {
                     performMessage.errorMessage(
-                            "Excel  GOTO Detected",
-                            "<span style='font-weight: bold;'>This Bot Job already has an 'Excel GOTO' instruction.</span>",
-                            "<span style='font-weight: bold; color: #e854c8;'>Only one 'Excel GOTO' instruction is necessary per Bot Job.</span>",
+                            "Excel GOTO Detected",
+                            "<span style='font-weight: bold;'>This Bot Job already has an </span><span style='font-weight: bold; color: #e854c8;'>'Excel GOTO'</span><span style='font-weight: bold;'> instruction.</span>",
+                            "<span style='font-weight: bold; color: #FF4500;'>Only one  </span><span style='font-weight: bold; color: #e854c8;'>'Excel GOTO'</span><span style='font-weight: bold; color: #FF4500;'> instruction is necessary per Bot Job.</span>",
                             " This single instruction is sufficient to process <span style='font-weight: bold;'>all rows individually</span> from your Excel data.",
                             null,
                             0);

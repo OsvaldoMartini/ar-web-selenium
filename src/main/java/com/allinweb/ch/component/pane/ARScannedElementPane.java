@@ -3033,8 +3033,8 @@ public class ARScannedElementPane extends ARPane {
                         "<span style='font-weight: bold;'>Your Excel data file contains multiple rows.</span>",
                         "By default, each <span style='font-weight: bold; color: #e854c8;'>Automation Test Block (Use Case)</span> will process <span style='font-weight: bold;'> all rows individually.</span>",
                         "To apply \"" + extractedData.getNumberOfDataRows()
-                                + "\" rows one by one <span style='font-weight: bold;'>across multiple blocks</span>, add the <span style='font-weight: bold; color: #FF4500;'>'ExcelData GOTO'</span> operation to your flow.",
-                        "<span style='font-weight: bold; color: #e854c8;'>ExcelData GOTO</span> ensures each row is processed<span style='font-weight: bold;'>individually</span> across all blocks.",
+                                + "\" rows one by one <span style='font-weight: bold;'>across multiple blocks</span>, add the <span style='font-weight: bold; color: #FF4500;'>'Excel GOTO'</span> operation to your flow.",
+                        "<span style='font-weight: bold; color: #e854c8;'>Excel GOTO</span> ensures each row is processed<span style='font-weight: bold;'>individually</span> across all blocks.",
                         false,
                         "Continue",
                         "Stop all",
