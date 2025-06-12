@@ -297,7 +297,13 @@ public class ARNewCommandPane extends ARPane {
 
         if (this.blockLoadList != null && !this.blockLoadList.isEmpty()) {
             //            for (BotJobLoadDTO botJobLoadDTO : this.botJobLoadList) {
-            loadBlockItems(blockLoadList, rowMoveDTO.getBlockId());
+
+            if (rowMoveDTO.getType().equals("EXCEL GOTO")) {
+                loadBlockItems(blockLoadList, -99);
+            } else {
+                loadBlockItems(blockLoadList, rowMoveDTO.getBlockId());
+            }
+
             //            }
 
             //            for (BotJobLoadDTO botJobLoadDTO : this.botJobLoadList) {
@@ -1170,22 +1176,6 @@ public class ARNewCommandPane extends ARPane {
                         comboBoxBlocks.getValue().getBlockId(), // BLOCK ID as Parent Id
                         this.rowMoveDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("EXCEL GOTO")) {
-
-                List<InstructionLoadDTO> excelDataGoto =
-                        performDataBase.loadExcelGotoBlock(rowMoveDTO.getHomeBankingId(), rowMoveDTO.getBotJobId());
-
-                if (!excelDataGoto.isEmpty()) {
-                    performMessage.errorMessage(
-                            "Excel GOTO Detected",
-                            "<span style='font-weight: bold;'>This Bot Job already has an </span><span style='font-weight: bold; color: #e854c8;'>'Excel GOTO'</span><span style='font-weight: bold;'> instruction.</span>",
-                            "<span style='font-weight: bold; color: #FF4500;'>Only one  </span><span style='font-weight: bold; color: #e854c8;'>'Excel GOTO'</span><span style='font-weight: bold; color: #FF4500;'> instruction is necessary per Bot Job.</span>",
-                            " This single instruction is sufficient to process <span style='font-weight: bold;'>all rows individually</span> from your Excel data.",
-                            null,
-                            0);
-
-                    return;
-                }
-
                 insertNewInstruction(
                         "EXCEL GOTO",
                         "EXCEL GOTO",
@@ -2274,13 +2264,51 @@ public class ARNewCommandPane extends ARPane {
         Integer blockId = comboBoxAllBlocks.getValue().getBlockId();
         String blockName = comboBoxAllBlocks.getValue().getText();
 
+        if (actions.equals("EXCEL GOTO")) {
+            blockId = comboBoxBlocks.getValue().getBlockId();
+            blockName = comboBoxBlocks.getValue().getText();
+
+            List<InstructionLoadDTO> excelDataGoto =
+                    performDataBase.loadExcelGotoBlock(rowMoveDTO.getHomeBankingId(), rowMoveDTO.getBotJobId());
+
+            // THIS IS VERY IMPORTANT BECAUSE JUST ALOW ONLY ONE "EXCEL GOTO" PER BOT JOB
+            if (!excelDataGoto.isEmpty()) {
+                rowMoveDTO.setType("EDIT_OPERATION");
+                rowMoveDTO
+                        .getUpdatedRows()
+                        .get(0)
+                        .setInstructionId(excelDataGoto.get(0).getId());
+            } else {
+                rowMoveDTO.setType("INSERT_AFTER");
+            }
+        }
+
         if (!rowMoveDTO.getBlockId().equals(blockId)) {
             blockIdChanged = true;
         } else {
             blockIdChanged = false;
         }
-        rowMoveDTO.setBlockId(blockId);
-        rowMoveDTO.setBlockName(blockName);
+
+        // This prevents if was deleted when in EDIT _OPERATION
+        if (rowMoveDTO.getType().equals("EDIT_OPERATION")) {
+            if (!performDataBase.instructionIdExists(
+                    rowMoveDTO.getUpdatedRows().get(0).getInstructionId())) {
+                rowMoveDTO.setType("INSERT_AFTER");
+            }
+        }
+
+        // This will make the EXCEL GOTO TO BE RELOCATES JUST AS INFO
+        // EXCEL GOTO IS GOING TO BE RENDERED DIFFERENTLY ON GridItems
+        if (rowMoveDTO.getUpdatedRows().get(0).getActions().equals("EXCEL GOTO")) {
+            blockId = rowMoveDTO.getUpdatedRows().get(0).getParentId();
+            rowMoveDTO.setBlockId(blockId);
+            rowMoveDTO.setBlockName(rowMoveDTO.getUpdatedRows().get(0).getBlockName());
+            rowMoveDTO.getUpdatedRows().get(0).setBlockId(blockId);
+        } else {
+            rowMoveDTO.setBlockId(blockId);
+            rowMoveDTO.setBlockName(blockName);
+        }
+
         if (blockId < 0) {
             performMessage.errorMessage("Block Not Selected", "Select the Block!", null, null, null, 0);
             return;

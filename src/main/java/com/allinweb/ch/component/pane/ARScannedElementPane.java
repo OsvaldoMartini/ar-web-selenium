@@ -3031,13 +3031,12 @@ public class ARScannedElementPane extends ARPane {
                 respModal = performMessage.showCustomModalDialogDragWin11(
                         "Multiple Excel Rows Detected",
                         "<span style='font-weight: bold;'>Your Excel data file contains multiple rows.</span>",
-                        "By default, each <span style='font-weight: bold; color: #e854c8;'>Automation Test Block (Use Case)</span> will process <span style='font-weight: bold;'> all rows individually.</span>",
-                        "To apply \"" + extractedData.getNumberOfDataRows()
-                                + "\" rows one by one <span style='font-weight: bold;'>across multiple blocks</span>, add the <span style='font-weight: bold; color: #FF4500;'>'Excel GOTO'</span> operation to your flow.",
-                        "<span style='font-weight: bold; color: #e854c8;'>Excel GOTO</span> ensures each row is processed<span style='font-weight: bold;'>individually</span> across all blocks.",
+                        "By default, each Excel test row <span style='font-weight: bold; color: #e854c8;'>will be processed through all blocks</span>, and after  will jump back to <span style='font-weight: bold;'>first block (Use Case).</span>",
+                        "Add the <span style='font-weight: bold; color: #FF4500;'>'Excel GOTO'</span> operation to your flow to modify the <span style='font-weight: bold;'>default behaviour.</span>",
+                        "The <span style='font-weight: bold; color: #FF4500;'>Excel GOTO</span> allows you to specify which block <span style='font-weight: bold;'>the flow should continue from</span>, after the execution of the first row across all blocks.",
                         false,
                         "Continue",
-                        "Stop all",
+                        "Stop All",
                         0);
 
                 if (respModal.equals(ARConstants.DialogModal.STOP)) {

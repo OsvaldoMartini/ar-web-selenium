@@ -1,5 +1,6 @@
 package com.allinweb.ch.component.scene;
 
+import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.pane.ARNewCommandPane;
 import com.allinweb.ch.component.pane.base.IARPane;
@@ -12,6 +13,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.net.URI;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -222,6 +224,29 @@ public class ARNewCommandScene extends ARScene {
     }
 
     public void showModal() {
+        if (rowMoveDTO.getUpdatedRows().get(0).getActions().equals("EXCEL GOTO")) {
+            List<InstructionLoadDTO> excelDataGoto =
+                    performDataBase.loadExcelGotoBlock(rowMoveDTO.getHomeBankingId(), rowMoveDTO.getBotJobId());
+
+            if (!excelDataGoto.isEmpty()) {
+                rowMoveDTO.setType("EDIT_OPERATION");
+                //                    performMessage.errorMessage(
+                //                            "Excel GOTO Detected",
+                //                            "<span style='font-weight: bold;'>This Bot Job already has an </span><span
+                // style='font-weight: bold; color: #e854c8;'>'Excel GOTO'</span><span style='font-weight: bold;'>
+                // instruction.</span>",
+                //                            "<span style='font-weight: bold; color: #FF4500;'>Only one  </span><span
+                // style='font-weight: bold; color: #e854c8;'>'Excel GOTO'</span><span style='font-weight: bold; color:
+                // #FF4500;'> instruction is necessary per Bot Job.</span>",
+                //                            " This single instruction is sufficient to process <span
+                // style='font-weight:
+                // bold;'>all rows individually</span> from your Excel data.",
+                //                            null,
+                //                            0);
+                //
+                //                    return;
+            }
+        }
 
         arNewCommandPane.initialize(rowMoveDTO);
 

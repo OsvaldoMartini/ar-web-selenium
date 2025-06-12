@@ -2937,6 +2937,25 @@ ORDER BY bot.id ASC;
         }
     }
 
+    public boolean instructionIdExists(int instructionId) {
+        String query = "SELECT COUNT(*) FROM instruction WHERE id = ?";
+        try (Connection connection = getConnection(); // Assuming getConnection() provides a valid Connection
+                PreparedStatement pstmt = connection.prepareStatement(query)) {
+
+            pstmt.setInt(1, instructionId);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1) > 0; // If count is greater than 0, the ID exists
+                }
+            }
+        } catch (SQLException error) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format(
+                            "Error checking for instruction ID %d. Error: %s", instructionId, error.getMessage()));
+        }
+        return false; // Return false if an error occurs or the ID is not found
+    }
+
     private Integer loadNextIdInstructionData() {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq;
         String selectSQL = "SELECT MAX(ID) AS max_id FROM instruction";
