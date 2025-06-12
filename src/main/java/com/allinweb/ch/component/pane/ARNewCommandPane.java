@@ -81,6 +81,7 @@ public class ARNewCommandPane extends ARPane {
             WebElementIcon.GET_VALUE.getValue().toUpperCase(),
             WebElementIcon.CHECK_VALUE.getValue().toUpperCase(),
             WebElementIcon.GOTO.getValue().toUpperCase(),
+            WebElementIcon.EXCEL_GOTO.getValue().toUpperCase(),
             WebElementIcon.EXTRACT_FIELD.getValue().toUpperCase(),
             WebElementIcon.REFRESH_ONLY.getValue().toUpperCase(),
             WebElementIcon.LOOP.getValue().toUpperCase(),
@@ -114,7 +115,7 @@ public class ARNewCommandPane extends ARPane {
     Label botJobVarsLabel;
     Label webPageLabel;
     Label blocksLabel;
-    Label addNewsLabel;
+    Label addBlocksLabel;
 
     TextFlow operationSelected;
     TextFlow textFlow;
@@ -186,8 +187,8 @@ public class ARNewCommandPane extends ARPane {
     private ComboBox<BlockOptions> comboBoxAllBlocks;
     private ObservableList<BlockOptions> allBlocksItems = FXCollections.observableArrayList();
 
-    private ComboBox<BlockOptions> comboBoxBlocks;
-    private ObservableList<BlockOptions> blocksItems = FXCollections.observableArrayList();
+    private ComboBox<BlockOptions> comboBoxBlocksGoto;
+    private ObservableList<BlockOptions> blocksGotoItems = FXCollections.observableArrayList();
 
     private ComboBox<ComboBoxOperator> comboBoxOperator;
     private ObservableList<ComboBoxOperator> operatorsItems = FXCollections.observableArrayList();
@@ -298,7 +299,7 @@ public class ARNewCommandPane extends ARPane {
         if (this.blockLoadList != null && !this.blockLoadList.isEmpty()) {
             //            for (BotJobLoadDTO botJobLoadDTO : this.botJobLoadList) {
 
-            if (rowMoveDTO.getType().equals("EXCEL GOTO")) {
+            if (rowMoveDTO.getUpdatedRows().get(0).getActions().equals("EXCEL GOTO")) {
                 loadBlockItems(blockLoadList, -99);
             } else {
                 loadBlockItems(blockLoadList, rowMoveDTO.getBlockId());
@@ -366,7 +367,7 @@ public class ARNewCommandPane extends ARPane {
         botJobVarsLabel = new Label("Bot-Job Variable");
         webPageLabel = new Label("WebPage Field");
         blocksLabel = new Label("Block Destination");
-        addNewsLabel = new Label("Block to Add the New Instruction");
+        addBlocksLabel = new Label("Block to Add the New Instruction");
 
         timesText = new Text("Times");
         timesText.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
@@ -602,13 +603,13 @@ public class ARNewCommandPane extends ARPane {
             }
         });
 
-        comboBoxBlocks = new ComboBox<>(blocksItems);
-        if (blocksItems.size() == 0) {
-            blocksItems.add(new BlockOptions("no blocks added", "", -1, -1));
+        comboBoxBlocksGoto = new ComboBox<>(blocksGotoItems);
+        if (blocksGotoItems.size() == 0) {
+            blocksGotoItems.add(new BlockOptions("no blocks added", "", -1, -1));
         }
-        comboBoxBlocks.setPrefWidth(buttonWidth);
-        comboBoxBlocks.getSelectionModel().selectFirst();
-        comboBoxBlocks.setButtonCell(new ListCell<>() {
+        comboBoxBlocksGoto.setPrefWidth(buttonWidth);
+        comboBoxBlocksGoto.getSelectionModel().selectFirst();
+        comboBoxBlocksGoto.setButtonCell(new ListCell<>() {
             @Override
             protected void updateItem(BlockOptions item, boolean empty) {
                 super.updateItem(item, empty);
@@ -622,7 +623,7 @@ public class ARNewCommandPane extends ARPane {
             }
         });
 
-        comboBoxBlocks.setCellFactory(param -> new ListCell<>() {
+        comboBoxBlocksGoto.setCellFactory(param -> new ListCell<>() {
             @Override
             protected void updateItem(BlockOptions item, boolean empty) {
                 super.updateItem(item, empty);
@@ -640,7 +641,7 @@ public class ARNewCommandPane extends ARPane {
             }
         });
 
-        comboBoxBlocks.getSelectionModel().selectFirst();
+        comboBoxBlocksGoto.getSelectionModel().selectFirst();
 
         comboBoxWebFields = new ComboBox<>(filteredPageItems);
         comboBoxWebFields.setPrefWidth(50);
@@ -753,14 +754,14 @@ public class ARNewCommandPane extends ARPane {
         comboBoxAllBlocks.setPrefWidth(buttonWidth);
 
         // Handle the visibility of comboBoxBlocks
-        comboBoxBlocks.setVisible(false);
-        comboBoxBlocks.setManaged(false); // Ensure it does not take up space when hidden
+        comboBoxBlocksGoto.setVisible(false);
+        comboBoxBlocksGoto.setManaged(false); // Ensure it does not take up space when hidden
 
         // Create a listener (optional) to toggle visibility dynamically
-        comboBoxBlocks.visibleProperty().addListener((obs, oldValue, newValue) -> {
-            comboBoxBlocks.setManaged(newValue); // Set managed based on visibility
+        comboBoxBlocksGoto.visibleProperty().addListener((obs, oldValue, newValue) -> {
+            comboBoxBlocksGoto.setManaged(newValue); // Set managed based on visibility
             if (newValue) {
-                comboBoxBlocks.setPrefWidth(buttonWidth); // Restore width when visible
+                comboBoxBlocksGoto.setPrefWidth(buttonWidth); // Restore width when visible
             }
         });
 
@@ -775,8 +776,8 @@ public class ARNewCommandPane extends ARPane {
         commandBox = new VBox(commandLabel, comboBoxInstruc);
         varsBox = new VBox(botJobVarsLabel, comboBoxVars);
         webFieldsBox = new VBox(webPageLabel, comboBoxWebFields);
-        addNewsBox = new VBox(addNewsLabel, comboBoxAllBlocks);
-        blocksBox = new VBox(blocksLabel, comboBoxBlocks);
+        addNewsBox = new VBox(addBlocksLabel, comboBoxAllBlocks);
+        blocksBox = new VBox(blocksLabel, comboBoxBlocksGoto);
 
         comboBoxesRow.getChildren().addAll(commandBox, varsBox, webFieldsBox);
 
@@ -909,7 +910,7 @@ public class ARNewCommandPane extends ARPane {
 
             if (allowedActions.contains(actions.toUpperCase())) {
                 firstLoad = true;
-                comboBoxBlocks.getSelectionModel().selectFirst();
+                comboBoxBlocksGoto.getSelectionModel().selectFirst();
                 comboBoxTimes.getSelectionModel().selectFirst();
                 comboBoxLoops.getSelectionModel().selectFirst();
 
@@ -921,7 +922,7 @@ public class ARNewCommandPane extends ARPane {
                 comboBoxVars.getSelectionModel().selectFirst();
                 comboBoxOperator.getSelectionModel().selectFirst();
 
-                comboBoxBlocks.getSelectionModel().selectFirst();
+                comboBoxBlocksGoto.getSelectionModel().selectFirst();
                 comboBoxTimes.getSelectionModel().selectFirst();
                 comboBoxLoops.getSelectionModel().selectFirst();
                 recallMessages(comboBoxInstruc.getValue().getValue());
@@ -933,7 +934,7 @@ public class ARNewCommandPane extends ARPane {
             comboBoxVars.getSelectionModel().selectFirst();
             comboBoxOperator.getSelectionModel().selectFirst();
 
-            comboBoxBlocks.getSelectionModel().selectFirst();
+            comboBoxBlocksGoto.getSelectionModel().selectFirst();
             comboBoxTimes.getSelectionModel().selectFirst();
             comboBoxLoops.getSelectionModel().selectFirst();
 
@@ -1055,8 +1056,8 @@ public class ARNewCommandPane extends ARPane {
 
             if ((comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.GOTO)
                             || comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.EXCEL_GOTO))
-                    && blocksItems.size() == 1
-                    && (comboBoxBlocks.getValue().getBlockId() == -1)) {
+                    && blocksGotoItems.size() == 1
+                    && (comboBoxBlocksGoto.getValue().getBlockId() == -1)) {
 
                 performMessage.errorMessage(
                         "Error", "No Blocks Defined", "It must have ate least Two Blocks defined ", null, null, 0);
@@ -1173,7 +1174,7 @@ public class ARNewCommandPane extends ARPane {
                         1,
                         comboBoxLoops.getValue().getValue(),
                         null, // Block Order Number as VarId
-                        comboBoxBlocks.getValue().getBlockId(), // BLOCK ID as Parent Id
+                        comboBoxBlocksGoto.getValue().getBlockId(), // BLOCK ID as Parent Id
                         this.rowMoveDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("EXCEL GOTO")) {
                 insertNewInstruction(
@@ -1183,7 +1184,7 @@ public class ARNewCommandPane extends ARPane {
                         1,
                         "1",
                         null, // Block Order Number as VarId
-                        comboBoxBlocks.getValue().getBlockId(), // BLOCK ID as Parent Id
+                        comboBoxBlocksGoto.getValue().getBlockId(), // BLOCK ID as Parent Id
                         this.rowMoveDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("IF")) {
                 insertNewInstruction(
@@ -1274,6 +1275,11 @@ public class ARNewCommandPane extends ARPane {
         comboBoxInstruc.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue != null) {
                 if (!firstLoad) {
+                    if (ARConstants.EXCEL_GOTO.equalsIgnoreCase(String.valueOf(newValue.getValue()))) {
+                        loadBlockItems(blockLoadList, -99);
+                    } else {
+                        loadBlockItems(blockLoadList, rowMoveDTO.getBlockId());
+                    }
                     recallMessages(comboBoxInstruc.getValue().getValue());
                     if (comboBoxVars.getValue() != null
                             && comboBoxVars.getValue().getVarId() > -1) {
@@ -1317,7 +1323,7 @@ public class ARNewCommandPane extends ARPane {
         });
 
         // Add a listener to comboBoxBlocks to handle selection changes
-        comboBoxBlocks.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+        comboBoxBlocksGoto.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue != null) {
                 if (!firstLoad) {
                     recallMessages(comboBoxInstruc.getValue().getValue());
@@ -1354,7 +1360,6 @@ public class ARNewCommandPane extends ARPane {
     }
 
     private void recallMessages(String valueEdit) {
-
         // Set the visibility of comboBoxOperator based on the selected value
         if (ARConstants.CHECK_VALUE.equalsIgnoreCase(valueEdit)) {
             defineTextFlow(comboBoxInstruc.getValue().getValue());
@@ -1373,7 +1378,7 @@ public class ARNewCommandPane extends ARPane {
 
             comboBoxVars.setVisible(true);
             comboBoxVars.setPrefWidth(buttonWidth);
-            comboBoxBlocks.setVisible(false);
+            comboBoxBlocksGoto.setVisible(false);
             comboBoxTimes.setVisible(false);
             comboBoxLoops.setVisible(false);
 
@@ -1425,8 +1430,8 @@ public class ARNewCommandPane extends ARPane {
             variableButton.setVisible(false);
 
             comboBoxVars.setVisible(false);
-            comboBoxBlocks.setVisible(true);
-            comboBoxBlocks.setPrefWidth(buttonWidth);
+            comboBoxBlocksGoto.setVisible(true);
+            comboBoxBlocksGoto.setPrefWidth(buttonWidth);
             comboBoxTimes.setVisible(false);
             comboBoxLoops.setVisible(true);
 
@@ -1473,13 +1478,14 @@ public class ARNewCommandPane extends ARPane {
             webPageLabel.setVisible(false);
             comboBoxOperator.setVisible(false);
             comboBoxWebFields.setVisible(false);
+
             comboBoxAllBlocks.setVisible(true);
 
             variableButton.setVisible(false);
 
             comboBoxVars.setVisible(false);
-            comboBoxBlocks.setVisible(true);
-            comboBoxBlocks.setPrefWidth(buttonWidth);
+            comboBoxBlocksGoto.setVisible(true);
+            comboBoxBlocksGoto.setPrefWidth(buttonWidth);
             comboBoxTimes.setVisible(false);
             comboBoxLoops.setVisible(false);
 
@@ -1523,7 +1529,7 @@ public class ARNewCommandPane extends ARPane {
 
             botJobVarsLabel.setVisible(false);
             webPageLabel.setVisible(false);
-            comboBoxBlocks.setVisible(false);
+            comboBoxBlocksGoto.setVisible(false);
             comboBoxOperator.setVisible(false);
             comboBoxWebFields.setVisible(false);
             comboBoxAllBlocks.setVisible(true);
@@ -1582,7 +1588,7 @@ public class ARNewCommandPane extends ARPane {
 
             comboBoxVars.setVisible(false);
             comboBoxVars.setPrefWidth(buttonWidth);
-            comboBoxBlocks.setVisible(false);
+            comboBoxBlocksGoto.setVisible(false);
 
             comboBoxTimes.setVisible(true);
             comboBoxLoops.setVisible(true);
@@ -1637,7 +1643,7 @@ public class ARNewCommandPane extends ARPane {
 
             comboBoxVars.setVisible(false);
             comboBoxVars.setPrefWidth(buttonWidth);
-            comboBoxBlocks.setVisible(false);
+            comboBoxBlocksGoto.setVisible(false);
 
             comboBoxTimes.setVisible(true);
             comboBoxLoops.setVisible(true);
@@ -1683,7 +1689,7 @@ public class ARNewCommandPane extends ARPane {
 
             botJobVarsLabel.setVisible(false);
             webPageLabel.setVisible(false);
-            comboBoxBlocks.setVisible(false);
+            comboBoxBlocksGoto.setVisible(false);
             comboBoxOperator.setVisible(false);
             comboBoxWebFields.setVisible(false);
             comboBoxAllBlocks.setVisible(true);
@@ -1740,7 +1746,7 @@ public class ARNewCommandPane extends ARPane {
 
             comboBoxVars.setVisible(true);
             comboBoxVars.setPrefWidth(buttonWidth);
-            comboBoxBlocks.setVisible(false);
+            comboBoxBlocksGoto.setVisible(false);
 
             comboBoxTimes.setVisible(false);
             comboBoxLoops.setVisible(false);
@@ -1878,7 +1884,7 @@ public class ARNewCommandPane extends ARPane {
                     regularText1.setText("GO TO Block : ");
                     regularText1.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
-                    variableText1.setText(comboBoxBlocks.getValue().getText());
+                    variableText1.setText(comboBoxBlocksGoto.getValue().getText());
                     variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
 
                     regularText2.setText(" Limit: ");
@@ -1909,7 +1915,7 @@ public class ARNewCommandPane extends ARPane {
                     regularText1.setText("EXCEL GO TO Block : ");
                     regularText1.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
-                    variableText1.setText(comboBoxBlocks.getValue().getText());
+                    variableText1.setText(comboBoxBlocksGoto.getValue().getText());
                     variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
 
                     regularText2.setText(" Limit: ");
@@ -2213,16 +2219,20 @@ public class ARNewCommandPane extends ARPane {
     }
 
     private void loadBlockItems(List<BlockLoadDTO> blockLoadDTOList, int blockToAvoid) {
-        blocksItems.clear();
+        blocksGotoItems.clear();
         if (blockLoadDTOList.size() > 1) {
             for (BlockLoadDTO block : blockLoadDTOList) {
                 if (block.getId() != blockToAvoid)
-                    blocksItems.add(new BlockOptions(
+                    blocksGotoItems.add(new BlockOptions(
                             block.getBlockOrderNumber() + "# " + block.getName(),
                             block.getName(),
                             block.getBlockOrderNumber(),
                             block.getId()));
             }
+        }
+        if (comboBoxBlocksGoto != null) {
+            comboBoxBlocksGoto.setItems(blocksGotoItems);
+            comboBoxBlocksGoto.getSelectionModel().selectFirst();
         }
     }
 
@@ -2265,8 +2275,8 @@ public class ARNewCommandPane extends ARPane {
         String blockName = comboBoxAllBlocks.getValue().getText();
 
         if (actions.equals("EXCEL GOTO")) {
-            blockId = comboBoxBlocks.getValue().getBlockId();
-            blockName = comboBoxBlocks.getValue().getText();
+            blockId = comboBoxBlocksGoto.getValue().getBlockId();
+            blockName = comboBoxBlocksGoto.getValue().getText();
 
             List<InstructionLoadDTO> excelDataGoto =
                     performDataBase.loadExcelGotoBlock(rowMoveDTO.getHomeBankingId(), rowMoveDTO.getBotJobId());
@@ -2589,6 +2599,8 @@ public class ARNewCommandPane extends ARPane {
                 comboBoxOperator.getSelectionModel().selectFirst();
             }
             //            }
+
+            indexGeneric = -1;
             if (instrValue.equals("LOOP") || instrValue.equals("REFRESH_LOOP")) {
 
                 for (int i = 0; i < timesItems.size(); i++) {
@@ -2605,6 +2617,65 @@ public class ARNewCommandPane extends ARPane {
 
                 for (int i = 0; i < loopsItems.size(); i++) {
                     if (loopsItems.get(i).getValue().equals(operations[1])) {
+                        comboBoxLoops.getSelectionModel().select(i);
+                        indexGeneric = i;
+                        break;
+                    }
+                }
+
+                if (indexGeneric == -1) {
+                    comboBoxLoops.getSelectionModel().selectFirst();
+                }
+            }
+
+            indexGeneric = -1;
+            if (instrValue.equals("GOTO")) {
+                for (int i = 0; i < blocksGotoItems.size(); i++) {
+                    if (blocksGotoItems.get(i).getValue().equals(operations[0])) {
+                        comboBoxBlocksGoto.getSelectionModel().select(i);
+                        indexGeneric = i;
+                        break;
+                    }
+                }
+
+                if (indexGeneric == -1) {
+                    comboBoxBlocksGoto.getSelectionModel().selectFirst();
+                }
+
+                indexGeneric = -1;
+                for (int i = 0; i < loopsItems.size(); i++) {
+                    if (loopsItems.get(i).getValue().equals(operations[0])) {
+                        comboBoxLoops.getSelectionModel().select(i);
+                        indexGeneric = i;
+                        break;
+                    }
+                }
+
+                if (indexGeneric == -1) {
+                    comboBoxLoops.getSelectionModel().selectFirst();
+                }
+            }
+
+            indexGeneric = -1;
+            if (instrValue.equals("EXCEL GOTO")) {
+                for (int i = 0; i < blocksGotoItems.size(); i++) {
+                    if (blocksGotoItems
+                            .get(i)
+                            .getBlockId()
+                            .equals(rowMoveDTO.getUpdatedRows().get(0).getParentId())) {
+                        comboBoxBlocksGoto.getSelectionModel().select(i);
+                        indexGeneric = i;
+                        break;
+                    }
+                }
+
+                if (indexGeneric == -1) {
+                    comboBoxBlocksGoto.getSelectionModel().selectFirst();
+                }
+
+                indexGeneric = -1;
+                for (int i = 0; i < loopsItems.size(); i++) {
+                    if (loopsItems.get(i).getValue().equals(operations[0])) {
                         comboBoxLoops.getSelectionModel().select(i);
                         indexGeneric = i;
                         break;
