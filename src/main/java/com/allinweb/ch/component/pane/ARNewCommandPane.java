@@ -2274,9 +2274,14 @@ public class ARNewCommandPane extends ARPane {
         Integer blockId = comboBoxAllBlocks.getValue().getBlockId();
         String blockName = comboBoxAllBlocks.getValue().getText();
 
+        // This will make the EXCEL GOTO TO BE RELOCATES JUST AS INFO
+        // EXCEL GOTO IS GOING TO BE RENDERED DIFFERENTLY ON GridItems
         if (actions.equals("EXCEL GOTO")) {
             blockId = comboBoxBlocksGoto.getValue().getBlockId();
             blockName = comboBoxBlocksGoto.getValue().getText();
+            rowMoveDTO.setBlockId(blockId);
+            rowMoveDTO.setBlockName(blockName);
+            rowMoveDTO.getUpdatedRows().get(0).setBlockId(blockId);
 
             List<InstructionLoadDTO> excelDataGoto =
                     performDataBase.loadExcelGotoBlock(rowMoveDTO.getHomeBankingId(), rowMoveDTO.getBotJobId());
@@ -2291,6 +2296,9 @@ public class ARNewCommandPane extends ARPane {
             } else {
                 rowMoveDTO.setType("INSERT_AFTER");
             }
+        }else {
+            rowMoveDTO.setBlockId(blockId);
+            rowMoveDTO.setBlockName(blockName);
         }
 
         if (!rowMoveDTO.getBlockId().equals(blockId)) {
@@ -2305,18 +2313,6 @@ public class ARNewCommandPane extends ARPane {
                     rowMoveDTO.getUpdatedRows().get(0).getInstructionId())) {
                 rowMoveDTO.setType("INSERT_AFTER");
             }
-        }
-
-        // This will make the EXCEL GOTO TO BE RELOCATES JUST AS INFO
-        // EXCEL GOTO IS GOING TO BE RENDERED DIFFERENTLY ON GridItems
-        if (rowMoveDTO.getUpdatedRows().get(0).getActions().equals("EXCEL GOTO")) {
-            blockId = rowMoveDTO.getUpdatedRows().get(0).getParentId();
-            rowMoveDTO.setBlockId(blockId);
-            rowMoveDTO.setBlockName(rowMoveDTO.getUpdatedRows().get(0).getBlockName());
-            rowMoveDTO.getUpdatedRows().get(0).setBlockId(blockId);
-        } else {
-            rowMoveDTO.setBlockId(blockId);
-            rowMoveDTO.setBlockName(blockName);
         }
 
         if (blockId < 0) {
