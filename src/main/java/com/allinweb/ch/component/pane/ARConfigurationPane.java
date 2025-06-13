@@ -159,8 +159,7 @@ public class ARConfigurationPane extends ARPane {
     ChoiceBox<String> databaseChoiceBox = new ChoiceBox<>();
     ObservableList<String> browserList =
             FXCollections.observableArrayList(ARConstants.CHROME, ARConstants.EDGE, ARConstants.FIREFOX);
-    ObservableList<String> databaseList =
-            FXCollections.observableArrayList(ARConstants.ACCESS, ARConstants.POSTGRES, ARConstants.SQLSERVER);
+    ObservableList<String> databaseList = FXCollections.observableArrayList(ARConstants.ACCESS, ARConstants.POSTGRES);
 
     Button pathExcelButton;
     Button pathLicenseButton;

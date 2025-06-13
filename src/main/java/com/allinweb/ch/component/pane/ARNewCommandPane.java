@@ -1323,6 +1323,21 @@ public class ARNewCommandPane extends ARPane {
         });
 
         // Add a listener to comboBoxBlocks to handle selection changes
+        comboBoxAllBlocks.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue != null) {
+                if (!firstLoad) {
+                    if (rowMoveDTO.getUpdatedRows().get(0).getActions().equals("EXCEL GOTO")) {
+                        loadBlockItems(blockLoadList, -99);
+                    } else {
+                        loadBlockItems(blockLoadList, newValue.getBlockId());
+                    }
+
+                    recallMessages(comboBoxInstruc.getValue().getValue());
+                }
+            }
+        });
+
+        // Add a listener to comboBoxBlocksGoto to handle selection changes
         comboBoxBlocksGoto.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue != null) {
                 if (!firstLoad) {
@@ -2296,7 +2311,7 @@ public class ARNewCommandPane extends ARPane {
             } else {
                 rowMoveDTO.setType("INSERT_AFTER");
             }
-        }else {
+        } else {
             rowMoveDTO.setBlockId(blockId);
             rowMoveDTO.setBlockName(blockName);
         }
