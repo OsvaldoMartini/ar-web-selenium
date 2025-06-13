@@ -3242,7 +3242,7 @@ public class ARScannedElementPane extends ARPane {
                     boolean refreshOnly = false;
 
                     while (success && xExcelCurrentRow < extractedData.getNumberOfDataRows() && !stopAll) {
-                        mapExport.clear();
+                        //                        mapExport.clear();
 
                         //                    writerReport.insertBlockSeparation(blockLoad.getName());
 
