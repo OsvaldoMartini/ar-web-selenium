@@ -10,32 +10,32 @@ import javafx.scene.layout.Pane;
 
 public class ARAlertPane extends ARPane {
 
-    private static final ARComponentBuilder builder = new ARComponentBuilder();
+  private static final ARComponentBuilder builder = new ARComponentBuilder();
 
-    private final String message;
+  private final String message;
 
-    // UI components
+  // UI components
 
-    AnchorPane mainPane;
+  AnchorPane mainPane;
 
-    public ARAlertPane(String message) {
-        this.message = message;
-    }
+  public ARAlertPane(String message) {
+    this.message = message;
+  }
 
-    @Override
-    public Pane getPaneReference() {
-        return mainPane;
-    }
+  @Override
+  public Pane getPaneReference() {
+    return mainPane;
+  }
 
-    @Override
-    public void initUIComponents() {
-        Label errorLabel = new Label(message);
-        errorLabel.setAlignment(Pos.CENTER);
-        errorLabel.setWrapText(true);
-        builder.setAnchorPaneAnchors(errorLabel, ARConstants.SPACE_XL);
-        mainPane = new AnchorPane(errorLabel);
-    }
+  @Override
+  public void initUIComponents() {
+    Label errorLabel = new Label(message);
+    errorLabel.setAlignment(Pos.CENTER);
+    errorLabel.setWrapText(true);
+    builder.setAnchorPaneAnchors(errorLabel, ARConstants.SPACE_XL);
+    mainPane = new AnchorPane(errorLabel);
+  }
 
-    @Override
-    public void initUIBehaviour() {}
+  @Override
+  public void initUIBehaviour() {}
 }

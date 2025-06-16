@@ -15,6 +15,11 @@
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>me.friwi</groupId>
+            <artifactId>jcefmaven</artifactId>
+            <version>135.0.20</version>
+        </dependency>
         <!-- Jetty Server -->
         <dependency>
             <groupId>org.eclipse.jetty</groupId>
@@ -233,9 +238,7 @@
                     <java>
                         <removeUnusedImports/>
                         <importOrder/>
-                        <palantirJavaFormat>
-                            <version>2.28.0</version>
-                        </palantirJavaFormat>
+                        <googleJavaFormat/>
                     </java>
                 </configuration>
                 <executions>

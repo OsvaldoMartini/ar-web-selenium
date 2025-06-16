@@ -1,7 +1,7 @@
 package com.allinweb.ch.component.scene.base;
 
 public interface IARScene {
-    String getTitle();
+  String getTitle();
 
-    void show();
+  void show();
 }

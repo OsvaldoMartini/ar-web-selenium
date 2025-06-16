@@ -11,55 +11,56 @@ import org.openqa.selenium.WebDriver;
  * @version 1.0
  */
 public class PerformCloneLoad {
-    protected static volatile PerformCloneLoad instance;
+  protected static volatile PerformCloneLoad instance;
 
-    // Private constructor to prevent instantiation
-    private PerformCloneLoad() {
-        // Initialize if necessary
-    }
+  // Private constructor to prevent instantiation
+  private PerformCloneLoad() {
+    // Initialize if necessary
+  }
 
-    public static PerformCloneLoad getInstance() {
+  public static PerformCloneLoad getInstance() {
+    if (instance == null) {
+      synchronized (PerformCloneLoad.class) {
         if (instance == null) {
-            synchronized (PerformCloneLoad.class) {
-                if (instance == null) {
-                    instance = new PerformCloneLoad();
-                }
-            }
+          instance = new PerformCloneLoad();
         }
-        return instance;
+      }
     }
+    return instance;
+  }
 
-    private static JavascriptExecutor jsExecutor;
+  private static JavascriptExecutor jsExecutor;
 
-    public ErrorMessage dynamicPickOneCloneElementsDTO(
-            WebDriver driver,
-            boolean searchHiddenFields,
-            int port,
-            String sessionId,
-            String destination,
-            String operationId,
-            int homeBankingId,
-            String currentUrl) {
-        try {
-            jsExecutor = (JavascriptExecutor) driver;
-            jsExecutor.executeScript(
-                    jsHoverPickInject,
-                    searchHiddenFields,
-                    port,
-                    sessionId,
-                    destination,
-                    operationId,
-                    homeBankingId,
-                    currentUrl,
-                    currentUrl);
-            return null;
-        } catch (Exception error) {
-            return new ErrorMessage("Error running Scanner", "Dynamic Load ElementsDTO error", error.getMessage());
-        }
+  public ErrorMessage dynamicPickOneCloneElementsDTO(
+      WebDriver driver,
+      boolean searchHiddenFields,
+      int port,
+      String sessionId,
+      String destination,
+      String operationId,
+      int homeBankingId,
+      String currentUrl) {
+    try {
+      jsExecutor = (JavascriptExecutor) driver;
+      jsExecutor.executeScript(
+          jsHoverPickInject,
+          searchHiddenFields,
+          port,
+          sessionId,
+          destination,
+          operationId,
+          homeBankingId,
+          currentUrl,
+          currentUrl);
+      return null;
+    } catch (Exception error) {
+      return new ErrorMessage(
+          "Error running Scanner", "Dynamic Load ElementsDTO error", error.getMessage());
     }
+  }
 
-    private String jsHoverPickInject =
-            """
+  private String jsHoverPickInject =
+      """
 // HOVER PICK IN USE (SENDER: scannerTool) -> scannerGrid
 (function (
   hiddenFields,

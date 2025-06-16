@@ -11,46 +11,47 @@ import org.openqa.selenium.WebDriver;
  * @version 1.0
  */
 public class PerformCloseBrowser {
-    protected static volatile PerformCloseBrowser instance;
+  protected static volatile PerformCloseBrowser instance;
 
-    // Private constructor to prevent instantiation
-    private PerformCloseBrowser() {
-        // Initialize if necessary
-    }
+  // Private constructor to prevent instantiation
+  private PerformCloseBrowser() {
+    // Initialize if necessary
+  }
 
-    public static PerformCloseBrowser getInstance() {
+  public static PerformCloseBrowser getInstance() {
+    if (instance == null) {
+      synchronized (PerformCloseBrowser.class) {
         if (instance == null) {
-            synchronized (PerformCloseBrowser.class) {
-                if (instance == null) {
-                    instance = new PerformCloseBrowser();
-                }
-            }
+          instance = new PerformCloseBrowser();
         }
-        return instance;
+      }
     }
+    return instance;
+  }
 
-    private static JavascriptExecutor jsExecutor;
+  private static JavascriptExecutor jsExecutor;
 
-    public ErrorMessage dynamicCloseBrowser(
-            WebDriver driver,
-            int port,
-            String sessionId,
-            String destination,
-            String operationId,
-            int homeBankingId,
-            String urlTarget) {
-        try {
-            jsExecutor = (JavascriptExecutor) driver;
-            jsExecutor.executeScript(
-                    jsCloseBrowserInject, port, sessionId, destination, operationId, homeBankingId, urlTarget);
-            return null;
-        } catch (Exception error) {
-            return new ErrorMessage("Error running Scanner", "Dynamic Load ElementsDTO error", error.getMessage());
-        }
+  public ErrorMessage dynamicCloseBrowser(
+      WebDriver driver,
+      int port,
+      String sessionId,
+      String destination,
+      String operationId,
+      int homeBankingId,
+      String urlTarget) {
+    try {
+      jsExecutor = (JavascriptExecutor) driver;
+      jsExecutor.executeScript(
+          jsWasmModulesInject, port, sessionId, destination, operationId, homeBankingId, urlTarget);
+      return null;
+    } catch (Exception error) {
+      return new ErrorMessage(
+          "Error running Scanner", "Dynamic Load ElementsDTO error", error.getMessage());
     }
+  }
 
-    private String jsCloseBrowserInject =
-            """
+  private String jsCloseBrowserInject =
+      """
 // CLOSE BROWSER IN USE CSP (SENDER: scannerTool) -> scannerGrid
 (function (
   socketPort,
@@ -366,5 +367,252 @@ public class PerformCloseBrowser {
 //   // "https://www.bloomberg.com/",
 //   // "https://www.bloomberg.com/"
 // );
+""";
+
+  private String jsWasmModulesInject =
+      """
+// CLOSE BROWSER IN USE CSP (SENDER: scannerTool) -> scannerGrid
+(function (
+  socketPort,
+  sessionId,
+  destination,
+  operationId,
+  homeBankingId,
+  targetOriginURL,
+  trustedOriginURL
+) {
+  let pingIntervalId = null;
+  let attempts = 0;
+  let maxAttempts = 100;
+  var wSocket = null;
+  let alreadySent = false;
+
+  window.destination = destination;
+  window.operationId = operationId;
+  window.homeBankingId = homeBankingId;
+  window.sessionId = `${sessionId}`; //-${homeBankingId}`;
+
+
+  function connectWebSocket() {
+    if (attempts >= maxAttempts) {
+      //console.error("Reached maximum reconnection attempts. Stopping.");
+      return;
+    }
+
+    try {
+      //console.log(`Attempt ${attempts + 1} to connect to WebSocket...`);
+      wSocket = new WebSocket(
+        `ws://localhost:${socketPort}/websocket?sessionId=${window.sessionId}`
+      );
+
+      wSocket.onopen = () => {
+        //console.log(`WebSocket connected for session: ${window.sessionId}`);
+        attempts = 0; // Reset attempts on successful connection
+
+        try {
+          const subscriptionMessage = {
+            type: "echo",
+            sessionId: window.sessionId,
+            operationId: "test echo",
+            body: "subscribe",
+          };
+          // Convert the JSON message to a buffer
+          const base64Message = btoa(
+            unescape(encodeURIComponent(JSON.stringify(subscriptionMessage)))
+          );
+          // Convert the buffer to a Base64 string
+          wSocket.send(base64Message);
+          // wSocket.send(JSON.stringify(message));
+          //console.log("Sent SEARCH_TOOL:", subscriptionMessage);
+          //console.log("Sent ENCODED Length:", base64Message.length);
+          //console.log("Sent ENCODED:", base64Message);
+        } catch (sendError) {
+          //console.error("Failed to send subscription message:", sendError);
+        }
+
+        startPing();
+      };
+
+      wSocket.onmessage = (event) => {
+        let receivedMessage = event.data;
+
+        if (receivedMessage.endsWith("\\u0000")) {
+          receivedMessage = receivedMessage.slice(0, -1);
+        }
+
+        if (receivedMessage) {
+          try {
+            const parsedMessage = JSON.parse(receivedMessage);
+            //console.log("WebSocket message received:", parsedMessage);
+
+            const bodyData =
+              typeof parsedMessage.body === "string"
+                ? JSON.parse(parsedMessage.body)
+                : parsedMessage.body;
+
+            if (window.sessionId === bodyData.sessionId) {
+              if (bodyData.operationId === "highlight") {
+                const detailsData = Array.isArray(bodyData.details)
+                  ? bodyData.details
+                  : [];
+
+                //console.log("detailsData", detailsData[0]);
+
+                var hoveredElement = findElementByXPath(detailsData[0].xPath);
+
+                if (!hoveredElement) {
+                  hoveredElement = document.querySelector(
+                    detailsData[0].cssSelector
+                  );
+                }
+
+                if (!hoveredElement) {
+                  var hoveredElement = getElementByCoordinates(
+                    detailsData[0].coordinates
+                  );
+                }
+
+                if (hoveredElement) {
+                  // console.log("hoveredElement", hoveredElement);
+
+                  const currentXPath = detailsData[0].xPath;
+
+                  // Restore style of previous element (if XPath is different)
+                  if (previousXPath && previousXPath !== currentXPath) {
+                    const originalOutline = originalStyles.get(previousXPath);
+                    previousHighlightedElement.style.outline =
+                      originalOutline || "";
+                  }
+
+                  // Save original style using XPath as key
+                  if (!originalStyles.has(currentXPath)) {
+                    originalStyles.set(
+                      currentXPath,
+                      hoveredElement.style.outline
+                    );
+                    hoveredXPathMap.add(currentXPath);
+                  }
+
+                  const originalOutline =
+                    originalStyles.get(currentXPath) || "";
+
+                  // Check if original style already had red
+                  if (originalOutline.includes("#2323FF")) {
+                    hoveredElement.style.outline = "3px solid #FF3131";
+                  } else if (originalOutline.includes("#FF3131")) {
+                    hoveredElement.style.outline = "3px solid #2323FF";
+                  } else {
+                    hoveredElement.style.outline = "3px solid #FF3131";
+                  }
+
+                  previousHighlightedElement = hoveredElement;
+                  previousXPath = currentXPath;
+                } else {
+                  restoreOriginalStyles();
+                }
+              }
+
+              if (
+                parsedMessage.body.includes("cannot be processed") ||
+                (parsedMessage.footer &&
+                  parsedMessage.footer.includes("cannot be processed"))
+              ) {
+                //Handle cannot be processed
+              }
+            }
+          } catch (parseError) {
+            console.log("Non-JSON message received:", receivedMessage);
+          }
+        }
+      };
+
+      wSocket.onerror = (error) => {
+        console.error("WebSocket error:", error);
+      };
+
+      wSocket.onclose = () => {
+        //console.log("WebSocket connection closed");
+
+        if (attempts < maxAttempts) {
+          attempts++;
+          //console.log(`Reconnecting attempt ${attempts}...`);
+          if (!alreadySent) {
+            connectWebSocket(); // Retry connection
+          }
+        } else {
+          //console.log(`${maxAttempts} Attempts to Reconnect with the WebSocket.`);
+        }
+      };
+    } catch (initError) {
+      console.error("Failed to initialize WebSocket:", initError);
+    }
+  }
+
+  // Optionally, expose a cleanup function
+  window.cleanupWebSocket = () => {
+    try {
+      //console.log("Cleaning up WebSocket...");
+      if (wSocket && wSocket.readyState === WebSocket.OPEN) {
+        wSocket.close();
+      }
+      if (pingIntervalId) {
+        clearInterval(pingIntervalId);
+        pingIntervalId = null;
+      }
+    } catch (cleanupError) {
+      //console.error("Error during WebSocket cleanup:", cleanupError);
+    }
+  };
+
+  function startPing() {
+    // Send a ping every 30 seconds (adjust if needed)
+    pingIntervalId = setInterval(() => {
+      if (wSocket && wSocket.readyState === WebSocket.OPEN) {
+        const pingMessage = {
+          type: "ping-close-browser-csp",
+          sessionId: window.sessionId,
+          timestamp: new Date().toISOString(),
+        };
+
+        try {
+          const encodedPing = btoa(
+            unescape(encodeURIComponent(JSON.stringify(pingMessage)))
+          );
+          wSocket.send(encodedPing);
+          //console.log("Ping sent:", pingMessage);
+        } catch (pingError) {
+          //console.error("Ping error:", pingError);
+        }
+      }
+    }, 15000); // 15 seconds
+  }
+
+
+  window.postMessage({ type: "myMessage", data: "some data" }, targetOriginURL);
+
+  window.addEventListener("message", function (event) {
+    if (event.origin !== trustedOriginURL) return; // check the origin
+    //console.log(event.data);
+  });
+
+  connectWebSocket();
+
+let wasmMemory = new WebAssembly.Memory({initial: 256, maximum: 256});
+let wasmExports = null;
+fetch(`http://localhost:${socketPort}/functions.wasm`)
+.then(response => response.arrayBuffer())
+.then(bytes => WebAssembly.instantiate(bytes, {env: {memory: wasmMemory}}))
+.then(obj => { wasmExports = obj.instance.exports; window.wasmExports = wasmExports; console.log('WASM ready'); });
+
+  // window.cloneTerms = null; // Invalidating the function
+})(
+  arguments[0],
+  arguments[1],
+  arguments[2],
+  arguments[3],
+  arguments[4],
+  arguments[5],
+  arguments[6]
+);
 """;
 }

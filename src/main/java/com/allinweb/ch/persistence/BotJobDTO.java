@@ -9,18 +9,18 @@ import lombok.Data;
 @Data
 public class BotJobDTO extends BaseDTO implements Serializable {
 
-    @Column(name = "name", unique = true)
-    private String name;
+  @Column(name = "name", unique = true)
+  private String name;
 
-    @Column(name = "description")
-    private String description;
+  @Column(name = "description")
+  private String description;
 
-    @Column(name = "priority", columnDefinition = "TEXT")
-    private String priority;
+  @Column(name = "priority", columnDefinition = "TEXT")
+  private String priority;
 
-    @Column(name = "home_banking_id")
-    private Integer homeBankingId;
+  @Column(name = "home_banking_id")
+  private Integer homeBankingId;
 
-    @Column(name = "active")
-    private Integer active;
+  @Column(name = "active")
+  private Integer active;
 }

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Simple template</title>
+    <!-- Load the JS file -->
+    <script src="core.js"></script>
+  </head>
+  <body>
+    <script>
+      // Wait until WASM is loaded
+      setTimeout(() => {
+        if (typeof wasmExports !== "undefined" && wasmExports.add) {
+          console.log("Result:", wasmExports.add(5, 10));
+        } else {
+          console.error("wasmExports not ready or 'add' not exported");
+        }
+      }, 3000);
+    </script>
+  </body>
+</html>

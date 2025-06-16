@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class HomeUrlDTO {
-    private Integer id;
-    private String url;
-    private Integer homeBankingId;
+  private Integer id;
+  private String url;
+  private Integer homeBankingId;
 }

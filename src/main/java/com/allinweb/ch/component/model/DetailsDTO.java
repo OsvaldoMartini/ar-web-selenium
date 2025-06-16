@@ -5,7 +5,7 @@ import lombok.Data;
 
 @Data
 public class DetailsDTO {
-    private BlockDetailsDTO originalBlock;
-    private BlockDetailsDTO newBlock;
-    private List<BlockOrderDetailDTO> updatedBlocks;
+  private BlockDetailsDTO originalBlock;
+  private BlockDetailsDTO newBlock;
+  private List<BlockOrderDetailDTO> updatedBlocks;
 }

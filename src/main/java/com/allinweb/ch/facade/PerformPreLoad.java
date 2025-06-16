@@ -14,58 +14,59 @@ import org.openqa.selenium.WebDriver;
  */
 public class PerformPreLoad {
 
-    protected static volatile PerformPreLoad instance;
+  protected static volatile PerformPreLoad instance;
 
-    // Private constructor to prevent instantiation
-    private PerformPreLoad() {
-        // Initialize if necessary
-    }
+  // Private constructor to prevent instantiation
+  private PerformPreLoad() {
+    // Initialize if necessary
+  }
 
-    public static PerformPreLoad getInstance() {
+  public static PerformPreLoad getInstance() {
+    if (instance == null) {
+      synchronized (PerformPreLoad.class) {
         if (instance == null) {
-            synchronized (PerformPreLoad.class) {
-                if (instance == null) {
-                    instance = new PerformPreLoad();
-                }
-            }
+          instance = new PerformPreLoad();
         }
-        return instance;
+      }
     }
+    return instance;
+  }
 
-    private static JavascriptExecutor jsExecutor;
+  private static JavascriptExecutor jsExecutor;
 
-    // "scannerTool", "scannerGrid", "searchTerms"
-    public ErrorMessage dynamicLoadElementsDTO(
-            WebDriver driver,
-            String[] dataArray,
-            boolean searchHiddenFields,
-            int port,
-            String sessionId,
-            String destination,
-            String operationId,
-            int homeBankingId) {
+  // "scannerTool", "scannerGrid", "searchTerms"
+  public ErrorMessage dynamicLoadElementsDTO(
+      WebDriver driver,
+      String[] dataArray,
+      boolean searchHiddenFields,
+      int port,
+      String sessionId,
+      String destination,
+      String operationId,
+      int homeBankingId) {
 
-        List<String> dataList = Arrays.asList(dataArray);
-        try {
-            jsExecutor = (JavascriptExecutor) driver;
-            // "scannerTool", "scannerGrid", "searchTerms"
-            jsExecutor.executeScript(
-                    jsSearchInUse,
-                    dataList,
-                    searchHiddenFields,
-                    port,
-                    sessionId,
-                    destination,
-                    operationId,
-                    homeBankingId);
-            return null;
-        } catch (Exception error) {
-            return new ErrorMessage("Error running Scanner", "Dynamic Load ElementsDTO error", error.getMessage());
-        }
+    List<String> dataList = Arrays.asList(dataArray);
+    try {
+      jsExecutor = (JavascriptExecutor) driver;
+      // "scannerTool", "scannerGrid", "searchTerms"
+      jsExecutor.executeScript(
+          jsSearchInUse,
+          dataList,
+          searchHiddenFields,
+          port,
+          sessionId,
+          destination,
+          operationId,
+          homeBankingId);
+      return null;
+    } catch (Exception error) {
+      return new ErrorMessage(
+          "Error running Scanner", "Dynamic Load ElementsDTO error", error.getMessage());
     }
+  }
 
-    private String jsSearchInUse =
-            """
+  private String jsSearchInUse =
+      """
 // SEARCH IN USE (SENDER: scannerTool) -> scannerGrid
 (function (
   searchTerms,

@@ -11,11 +11,13 @@
 //    @Override
 //    protected void updateItem(InstructionLoadDTO item, boolean empty) {
 //        super.updateItem(item, empty);
-//        boolean isValid = !empty && item != null && item.getActions() != null && item.getBlockId() != null;
+//        boolean isValid = !empty && item != null && item.getActions() != null && item.getBlockId()
+// != null;
 //        Label graphic = new Label();
 //        if (isValid) {
 //            ARLogger.getInstance(BlockLoopInstructionListCell.class).info(item.getActions());
-//            String actionFieldName = item.getActions().split(ARConstants.ACTION_SPECIFICATIONS_SPLITTER)[1];
+//            String actionFieldName =
+// item.getActions().split(ARConstants.ACTION_SPECIFICATIONS_SPLITTER)[1];
 //            graphic.setText(actionFieldName);
 //        }
 //        Platform.runLater(() -> setGraphic(isValid ? graphic : null));

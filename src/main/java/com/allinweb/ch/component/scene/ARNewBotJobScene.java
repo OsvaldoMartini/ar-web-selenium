@@ -15,120 +15,121 @@ import org.openqa.selenium.WebDriver;
 
 public class ARNewBotJobScene extends ARScene {
 
-    protected static volatile ARNewBotJobScene instance;
+  protected static volatile ARNewBotJobScene instance;
 
-    // Private constructor to prevent instantiation
-    private ARNewBotJobScene() {
-        // Initialize if necessary
-        super();
-    }
+  // Private constructor to prevent instantiation
+  private ARNewBotJobScene() {
+    // Initialize if necessary
+    super();
+  }
 
-    public static ARNewBotJobScene getInstance() {
+  public static ARNewBotJobScene getInstance() {
+    if (instance == null) {
+      synchronized (ARNewBotJobScene.class) {
         if (instance == null) {
-            synchronized (ARNewBotJobScene.class) {
-                if (instance == null) {
-                    instance = new ARNewBotJobScene();
-                }
-            }
+          instance = new ARNewBotJobScene();
         }
-        return instance;
+      }
+    }
+    return instance;
+  }
+
+  private Stage modalStage;
+  private Scene modalScene;
+
+  private static ARNewBotJobPane arNewBotJobPane;
+
+  static {
+    arNewBotJobPane = ARNewBotJobPane.getInstance();
+  }
+
+  private static final Double SCENE_HEIGHT = 400D;
+  private static final Double SCENE_WIDTH = 300D;
+  private static final String TITLE = "New Bot Job";
+  //    ListView<BotJobLoadDTO> viewBotJobListView;
+  private ARViewBotJobScene arViewBotJobScene;
+  private ARWebDriver arWebDriver;
+  private ObservableList<BotJobLoadDTO> botJobList;
+  private ObservableList<WebDriver> webDriverList;
+
+  public void initialize(
+      ARViewBotJobScene arViewBotJobScene,
+      ARWebDriver arWebDriver,
+      ObservableList<BotJobLoadDTO> botJobList,
+      ObservableList<WebDriver> webDriverList) {
+    this.arViewBotJobScene = arViewBotJobScene;
+    this.arWebDriver = arWebDriver;
+    this.botJobList = botJobList;
+    this.webDriverList = webDriverList;
+  }
+
+  @Override
+  public IARPane buildPane() {
+    // Create ARNewBotJobPane without passing ListView here
+    //        arNewBotJobPane.initialize(arViewBotJobScene, arWebDriver, botJobList);
+    return arNewBotJobPane;
+  }
+
+  @Override
+  public Double getSceneHeight() {
+    return SCENE_HEIGHT;
+  }
+
+  @Override
+  public Double getSceneWidth() {
+    return SCENE_WIDTH;
+  }
+
+  @Override
+  public String getTitle() {
+    return TITLE;
+  }
+
+  public void showModal() {
+
+    arNewBotJobPane.initialize(arViewBotJobScene, arWebDriver, botJobList);
+
+    if (modalStage == null) {
+      modalStage = new Stage();
+      IARPane pane = buildPane();
+      if (pane != null) {
+        modalScene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
+        modalStage.setScene(modalScene);
+        modalStage.setTitle(getTitle());
+        modalStage.initModality(Modality.WINDOW_MODAL); // Changed to NONE
+        modalStage.setAlwaysOnTop(true); // Set always on top
+        modalStage.toFront();
+        // Reset alwaysOnTop after showing so it behaves normally afterward
+        modalStage.setAlwaysOnTop(false);
+
+        // Once shown, reset AlwaysOnTop to false so it behaves normally
+        modalStage.setOnShown(
+            event -> {
+              Platform.runLater(() -> modalStage.setAlwaysOnTop(false));
+            });
+      } else {
+        // Handle the case where pane creation failed
+        ARLogger.getInstance(ARNewBotJobScene.class).severe("Failed to build pane for modal.");
+        return;
+      }
     }
 
-    private Stage modalStage;
-    private Scene modalScene;
+    modalStage.setTitle(getTitle()); // Update title if it might have changed
 
-    private static ARNewBotJobPane arNewBotJobPane;
-
-    static {
-        arNewBotJobPane = ARNewBotJobPane.getInstance();
+    // Check if the stage is already showing
+    if (!modalStage.isShowing()) {
+      modalStage.showAndWait(); // Show and wait only if not already showing
     }
+  }
 
-    private static final Double SCENE_HEIGHT = 400D;
-    private static final Double SCENE_WIDTH = 300D;
-    private static final String TITLE = "New Bot Job";
-    //    ListView<BotJobLoadDTO> viewBotJobListView;
-    private ARViewBotJobScene arViewBotJobScene;
-    private ARWebDriver arWebDriver;
-    private ObservableList<BotJobLoadDTO> botJobList;
-    private ObservableList<WebDriver> webDriverList;
-
-    public void initialize(
-            ARViewBotJobScene arViewBotJobScene,
-            ARWebDriver arWebDriver,
-            ObservableList<BotJobLoadDTO> botJobList,
-            ObservableList<WebDriver> webDriverList) {
-        this.arViewBotJobScene = arViewBotJobScene;
-        this.arWebDriver = arWebDriver;
-        this.botJobList = botJobList;
-        this.webDriverList = webDriverList;
+  public void closeModal() {
+    try {
+      if (modalStage != null) {
+        modalStage.close();
+      }
+      modalStage = null;
+    } catch (Exception error) {
+      System.err.println("Browser Closed Before Web Scanner. Error: " + error.getMessage());
     }
-
-    @Override
-    public IARPane buildPane() {
-        // Create ARNewBotJobPane without passing ListView here
-        //        arNewBotJobPane.initialize(arViewBotJobScene, arWebDriver, botJobList);
-        return arNewBotJobPane;
-    }
-
-    @Override
-    public Double getSceneHeight() {
-        return SCENE_HEIGHT;
-    }
-
-    @Override
-    public Double getSceneWidth() {
-        return SCENE_WIDTH;
-    }
-
-    @Override
-    public String getTitle() {
-        return TITLE;
-    }
-
-    public void showModal() {
-
-        arNewBotJobPane.initialize(arViewBotJobScene, arWebDriver, botJobList);
-
-        if (modalStage == null) {
-            modalStage = new Stage();
-            IARPane pane = buildPane();
-            if (pane != null) {
-                modalScene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
-                modalStage.setScene(modalScene);
-                modalStage.setTitle(getTitle());
-                modalStage.initModality(Modality.WINDOW_MODAL); // Changed to NONE
-                modalStage.setAlwaysOnTop(true); // Set always on top
-                modalStage.toFront();
-                // Reset alwaysOnTop after showing so it behaves normally afterward
-                modalStage.setAlwaysOnTop(false);
-
-                // Once shown, reset AlwaysOnTop to false so it behaves normally
-                modalStage.setOnShown(event -> {
-                    Platform.runLater(() -> modalStage.setAlwaysOnTop(false));
-                });
-            } else {
-                // Handle the case where pane creation failed
-                ARLogger.getInstance(ARNewBotJobScene.class).severe("Failed to build pane for modal.");
-                return;
-            }
-        }
-
-        modalStage.setTitle(getTitle()); // Update title if it might have changed
-
-        // Check if the stage is already showing
-        if (!modalStage.isShowing()) {
-            modalStage.showAndWait(); // Show and wait only if not already showing
-        }
-    }
-
-    public void closeModal() {
-        try {
-            if (modalStage != null) {
-                modalStage.close();
-            }
-            modalStage = null;
-        } catch (Exception error) {
-            System.err.println("Browser Closed Before Web Scanner. Error: " + error.getMessage());
-        }
-    }
+  }
 }

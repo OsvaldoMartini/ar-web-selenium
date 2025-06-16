@@ -81,9 +81,7 @@
           <java>
             <removeUnusedImports />
             <importOrder />
-            <palantirJavaFormat>
-              <version>2.28.0</version>
-            </palantirJavaFormat>
+            <googleJavaFormat />
           </java>
         </configuration>
       </plugin>
