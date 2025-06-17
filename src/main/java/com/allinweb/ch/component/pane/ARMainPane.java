@@ -104,20 +104,22 @@ public class ARMainPane extends ARPane {
         String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
         performDataBase.initialize(dataBaseType);
 
-        if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
-            POSTGRES_DB = true;
+//        if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
+//            POSTGRES_DB = true;
+//
+//            if (!performDataBase.doesInstructionTableExist()) {
+//                performDataBase.initializeMainDatabasePostgres();
+//            }
+//
+//            //            performDataBase.dropPostGresSequences();
+//            performDataBase.postGresIntegration();
+//            performDataBase.importHomeUrlTable();
+//
+//        } else {
+//            POSTGRES_DB = false;
+//        }
 
-            if (!performDataBase.doesInstructionTableExist()) {
-                performDataBase.initializeMainDatabasePostgres();
-            }
-
-            //            performDataBase.dropPostGresSequences();
-            performDataBase.postGresIntegration();
-            performDataBase.importHomeUrlTable();
-
-        } else {
-            POSTGRES_DB = false;
-        }
+        POSTGRES_DB = false;
 
         if (!POSTGRES_DB) {
             String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
@@ -186,6 +188,7 @@ public class ARMainPane extends ARPane {
         // 🔹 AI Button and TextArea
         aiButton = builder.buildButton(
                 "AI", ARConstants.SPACE_L, ARConstants.ICON_AI, ARConstants.SPACE_M, new Insets(8, 10, 8, 10));
+        aiButton.setVisible(false);
 
         aiTextArea = new TextArea();
         aiTextArea.setPromptText("AI Tool: Upgrade your version to access this premium feature.");

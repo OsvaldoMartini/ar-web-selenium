@@ -159,7 +159,7 @@ public class ARConfigurationPane extends ARPane {
     ChoiceBox<String> databaseChoiceBox = new ChoiceBox<>();
     ObservableList<String> browserList =
             FXCollections.observableArrayList(ARConstants.CHROME, ARConstants.EDGE, ARConstants.FIREFOX);
-    ObservableList<String> databaseList = FXCollections.observableArrayList(ARConstants.ACCESS, ARConstants.POSTGRES);
+    ObservableList<String> databaseList = FXCollections.observableArrayList(ARConstants.ACCESS);
 
     Button pathExcelButton;
     Button pathLicenseButton;
@@ -368,6 +368,7 @@ public class ARConfigurationPane extends ARPane {
 
         browserChoiceBox.setItems(browserList);
         databaseChoiceBox.setItems(databaseList);
+        databaseChoiceBox.setDisable(true);
 
         // Add labels in the first row
         gridPaneButton.add(browserLabel, 0, 0);
