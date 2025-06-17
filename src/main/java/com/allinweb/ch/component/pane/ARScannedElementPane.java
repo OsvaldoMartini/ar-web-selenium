@@ -3069,6 +3069,9 @@ public class ARScannedElementPane extends ARPane {
             int xExcelCurrentRow = 0;
             int xExcelDataSize = extractedData.getNumberOfDataRows();
             mapExportRows = new LinkedHashMap<>();
+            headersExport.clear();
+            columnsCSV.clear();
+            rowsCSV.clear();
 
             while (xExcelCurrentRow <= xExcelDataSize - 1 && !blocksLoaded.isEmpty() && !stopAll) {
 
