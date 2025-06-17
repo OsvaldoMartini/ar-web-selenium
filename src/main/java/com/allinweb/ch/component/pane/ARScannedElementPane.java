@@ -1099,8 +1099,8 @@ public class ARScannedElementPane extends ARPane {
     private TextField searchAttribValueField;
     private TextField coordsTextField;
 
-    private Map<String, String> mapOperators;
-    private Map<String, String> mapExportRows;
+    private Map<String, String> mapOperators = new HashMap<>();
+    private Map<String, String> mapExportRows = new HashMap<>();
     private Set<String> headersExport = new LinkedHashSet<>();
     private List<String> columnsCSV = new ArrayList<>();
     private List<List<String>> rowsCSV = new ArrayList<>();
@@ -3010,7 +3010,6 @@ public class ARScannedElementPane extends ARPane {
         int executeSpecificBlock = comboBoxBlocks.getValue().getInstructionId();
         sessionRowStatus = "botJobTasks"; // + botJobId;
 
-        mapOperators = new HashMap<>();
         variablesLoaded = performDataBase.loadAllVariables(botJobId);
         Map<String, String> mapSavedLocators = new HashMap<>();
 
