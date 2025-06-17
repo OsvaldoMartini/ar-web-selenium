@@ -104,20 +104,20 @@ public class ARMainPane extends ARPane {
         String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
         performDataBase.initialize(dataBaseType);
 
-//        if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
-//            POSTGRES_DB = true;
-//
-//            if (!performDataBase.doesInstructionTableExist()) {
-//                performDataBase.initializeMainDatabasePostgres();
-//            }
-//
-//            //            performDataBase.dropPostGresSequences();
-//            performDataBase.postGresIntegration();
-//            performDataBase.importHomeUrlTable();
-//
-//        } else {
-//            POSTGRES_DB = false;
-//        }
+        //        if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
+        //            POSTGRES_DB = true;
+        //
+        //            if (!performDataBase.doesInstructionTableExist()) {
+        //                performDataBase.initializeMainDatabasePostgres();
+        //            }
+        //
+        //            //            performDataBase.dropPostGresSequences();
+        //            performDataBase.postGresIntegration();
+        //            performDataBase.importHomeUrlTable();
+        //
+        //        } else {
+        //            POSTGRES_DB = false;
+        //        }
 
         POSTGRES_DB = false;
 
