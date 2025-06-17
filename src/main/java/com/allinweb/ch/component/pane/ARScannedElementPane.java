@@ -3074,6 +3074,9 @@ public class ARScannedElementPane extends ARPane {
             rowsCSV.clear();
 
             while (xExcelCurrentRow <= xExcelDataSize - 1 && !blocksLoaded.isEmpty() && !stopAll) {
+                // Clear's Up Any Loop as Per New Line
+                mapLoops.clear();
+                mapRefresh.clear();
 
                 blockLoop:
                 while (currentBlock <= blocksLoaded.size() - 1 && !blocksLoaded.isEmpty() && !stopAll) {
