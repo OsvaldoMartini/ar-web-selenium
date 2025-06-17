@@ -1,7 +1,4 @@
-KEY,Name,Age,Country,Email
-external,Alice,30,USA,alice@example.com
-external,Bob,25,,
-external,Charlie,35,Canada,
-external,Dana,28,UK,dana@example.com
-external,Eve,,,
+KEY|Name|Age|Country|Email
+EXTERNAL|Alice|30|USA|alice@example.com
+EXTERNAL|Bob|25||
 END OF FILE
