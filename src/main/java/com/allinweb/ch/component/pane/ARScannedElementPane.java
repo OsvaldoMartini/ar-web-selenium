@@ -3087,8 +3087,6 @@ public class ARScannedElementPane extends ARPane {
 
                     BlockLoadDTO blockLoad = blocksLoaded.get(currentBlock);
 
-                    excelFieldName = blockLoad.getExportFile();
-
                     String blockName = blocksLoaded.get(currentBlock).getName();
                     int blockOrder = blocksLoaded.get(currentBlock).getBlockOrderNumber();
                     String blockReportName = "#" + blockOrder + " " + blockName;
@@ -3096,7 +3094,12 @@ public class ARScannedElementPane extends ARPane {
                     int blockWait = blocksLoaded.get(currentBlock).getWait() > 0
                             ? blocksLoaded.get(currentBlock).getWait()
                             : 2;
+
                     boolean blockActive = blocksLoaded.get(currentBlock).getActive();
+
+                    if (blockActive) {
+                        excelFieldName = blockLoad.getExportFile();
+                    }
 
                     // It Searches the Block That have finished the Loops to Avoid recursivity
                     if (loopBlockActive.size() > 0) {
@@ -4407,6 +4410,11 @@ public class ARScannedElementPane extends ARPane {
                         mapExportRows = new LinkedHashMap<>();
                     }
                     excelFieldName = "";
+                } else {
+                    //
+                    //                    writerExport.insertFieldNameAndValueLastColumn(mapExportRows, exportIndex -
+                    // 1);
+                    writerExport.insertCSVContentIntoExcel(columnsCSV, rowsCSV, exportIndex - 1);
                 }
             }
         } else { //  if dataExel is NULL
