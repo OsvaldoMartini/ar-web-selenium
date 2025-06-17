@@ -16,7 +16,6 @@ int botJobId = this.botJobLoad.getId();
 int executeSpecificBlock = comboBoxBlocks.getValue().getInstructionId();
 sessionRowStatus = "botJobTasks"; // + botJobId;
 
-mapOperators = new HashMap<>();
 variablesLoaded = performDataBase.loadAllVariables(botJobId);
 Map<String, String> mapSavedLocators = new HashMap<>();
 
@@ -76,6 +75,9 @@ if (extractedData.getNumberOfDataRows() > 0) {
 	int xExcelCurrentRow = 0;
 	int xExcelDataSize = extractedData.getNumberOfDataRows();
 	mapExportRows = new LinkedHashMap<>();
+	headersExport.clear();
+	columnsCSV.clear();
+	rowsCSV.clear();
 
 	while (xExcelCurrentRow <= xExcelDataSize - 1 && !blocksLoaded.isEmpty() && !stopAll) {
 

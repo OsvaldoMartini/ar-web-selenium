@@ -15,8 +15,6 @@ Map<String, String> dataExcel = null;
 // int executeSpecificBlock = comboBoxBlocks.getValue().getVarId();
 String sessionRowStatus = "botJobTasks-" + botJobId;
 
-mapOperators = new HashMap<>();
-mapExport = new LinkedHashMap<>();
 variablesLoaded = performDataBase.loadAllVariables(botJobId);
 Map<String, String> mapSavedLocators = new HashMap<>();
 
@@ -84,6 +82,9 @@ if (extractedData.getNumberOfDataRows() > 0) {
 	int xExcelCurrentRow = 0;
 	int xExcelDataSize = extractedData.getNumberOfDataRows();
 	mapExportRows = new LinkedHashMap<>();
+	headersExport.clear();
+	columnsCSV.clear();
+	rowsCSV.clear();
 
 	while (xExcelCurrentRow <= xExcelDataSize - 1 && !blocksLoaded.isEmpty() && !stopAll) {
 
@@ -1205,7 +1206,8 @@ if (extractedData.getNumberOfDataRows() > 0) {
 													.get(variableField)
 													.trim());
 
-									//                                            addRowFromMap(mapExportRows);
+									//
+									// addRowFromMap(mapExportRows);
 									if (excelFieldName != null
 											&& excelFieldName
 													.toLowerCase()
@@ -1215,12 +1217,14 @@ if (extractedData.getNumberOfDataRows() > 0) {
 										}
 
 										//
-										//                                                String csvContent =
+										//                                                String csvContent
+										// =
 										// getBancaStatoCsvContent(delimiterCSV);
 										//
 										// writeToFile(excelFieldName, csvContent);
 
-										// writerExport.writeMapToCSV(mapExport, excelFieldName, delimiterCSV);
+										// writerExport.writeMapToCSV(mapExport, excelFieldName,
+										// delimiterCSV);
 									} else {
 										//
 										// writerExport.insertFieldNameAndValueLastColumn(
@@ -1448,7 +1452,8 @@ if (extractedData.getNumberOfDataRows() > 0) {
 			excelFieldName = "";
 		} else {
 			//
-			//                    writerExport.insertFieldNameAndValueLastColumn(mapExportRows, exportIndex -
+			//                    writerExport.insertFieldNameAndValueLastColumn(mapExportRows, exportIndex
+			// -
 			// 1);
 			writerExport.insertCSVContentIntoExcel(columnsCSV, rowsCSV, exportIndex - 1);
 		}
