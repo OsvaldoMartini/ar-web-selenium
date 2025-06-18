@@ -2,6 +2,7 @@ package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
+import com.allinweb.ch.component.model.FormatOption;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.control.ARComponentBuilder;
@@ -23,10 +24,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.control.Button;
-import javafx.scene.control.ChoiceBox;
-import javafx.scene.control.Label;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
@@ -34,6 +32,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
@@ -72,6 +71,23 @@ public class ARExcelFilePane extends ARPane {
             titleLabel.setText("Block name: #" + this.blockExcelDTO.getBlockOrderNumber() + "-"
                     + this.blockExcelDTO.getBlockName());
         }
+
+        if (fileExport != null && pathExport != null) {
+            extractPathAndFileName();
+
+            pathExport.setText(directory);
+            fileExport.setText(fileName);
+        }
+
+        if (comboBoxCSVColumns != null && !Strings.isNullOrEmpty(blockExcelDTO.getExportFile())) {
+            // Update the checkboxes based on the selected user's type
+            String[] fileParts = blockExcelDTO.getExportFile().split(":");
+            if (fileParts.length > 2 && fileParts[2].equals("|")) {
+                comboBoxCSVColumns.getSelectionModel().selectLast();
+            } else {
+                comboBoxCSVColumns.getSelectionModel().selectFirst();
+            }
+        }
     }
 
     private final Gson gson = new Gson();
@@ -97,6 +113,7 @@ public class ARExcelFilePane extends ARPane {
     Label pathExportLabel;
     Label fileExportLabel;
     Label fileTypeLabel;
+    Label delimeterCSVLabel;
 
     TextField pathExport;
     TextField fileExport;
@@ -104,6 +121,8 @@ public class ARExcelFilePane extends ARPane {
     ObservableList<String> filetypeList =
             FXCollections.observableArrayList(ARConstants.FILE_FORMAT_EXCEL, ARConstants.FILE_FORMAT_CSV);
     ChoiceBox<String> fileTypeChoiceBox = new ChoiceBox<>();
+
+    ComboBox<FormatOption> comboBoxCSVColumns;
 
     Button pathExportButton;
     Button pathDeleteButton;
@@ -116,6 +135,10 @@ public class ARExcelFilePane extends ARPane {
     AnchorPane mainPane;
 
     double buttonWidth = 200;
+    String excelPath;
+    String directory;
+    String fileName;
+    String delimiter;
 
     @Override
     public Pane getPaneReference() {
@@ -139,33 +162,7 @@ public class ARExcelFilePane extends ARPane {
 
         pathExportLabel = new Label("Export Path:");
 
-        String excelPath = blockExcelDTO.getExportFile() != null
-                        && !blockExcelDTO.getExportFile().isEmpty()
-                ? blockExcelDTO.getExportFile()
-                : "";
-
-        String directory = "";
-        String fileName = "";
-        if (!excelPath.isEmpty()) {
-            try {
-
-                Path path = Paths.get(excelPath);
-                directory = path.getParent() != null ? path.getParent().toString() : ""; // Get the directory path
-                fileName = path.getFileName() != null ? path.getFileName().toString() : ""; // Get the file name
-
-                if (fileName.equalsIgnoreCase("No Excel Export File")) {
-                    fileName = "";
-                }
-
-                ARLogger.getInstance(ARExcelFilePane.class).info("Identified Directory: " + directory);
-                ARLogger.getInstance(ARExcelFilePane.class).info("Identified File Name: " + fileName);
-            } catch (Exception ex) {
-                ARLogger.getInstance(ARExcelFilePane.class).severe("Excel Path  \nError: " + ex.getMessage());
-            }
-
-        } else {
-            ARLogger.getInstance(ARExcelFilePane.class).info("No export file path provided.");
-        }
+        extractPathAndFileName();
 
         pathExport = createPathTextField(directory);
         pathExportButton = createPathButton();
@@ -174,6 +171,7 @@ public class ARExcelFilePane extends ARPane {
         fileExport = createPathTextField(fileName);
         //        AnchorPane exportGroup = new AnchorPane(pathExport, pathExportButton);
         fileTypeLabel = new Label("File Type");
+        delimeterCSVLabel = new Label("Delimiter");
 
         fileTypeChoiceBox.setItems(filetypeList);
 
@@ -183,42 +181,93 @@ public class ARExcelFilePane extends ARPane {
             fileTypeChoiceBox.getSelectionModel().selectLast();
         }
 
+        // Create ComboBox for number format
+        comboBoxCSVColumns = new ComboBox<>();
+        comboBoxCSVColumns
+                .getItems()
+                .addAll(new FormatOption("Comma: \",\"", ","), new FormatOption("Pipe \"|\"", "|"));
+        comboBoxCSVColumns.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(FormatOption item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                } else {
+                    setText(item.getText());
+                    setTextFill(Color.BLACK); // Ensure text is black
+                }
+            }
+        });
+
+        comboBoxCSVColumns.setCellFactory(param -> new ListCell<>() {
+            @Override
+            protected void updateItem(FormatOption item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                } else {
+                    setText(item.getText());
+                    setTextFill(Color.BLACK); // Ensure text is black
+                }
+
+                // Add hover effect
+                setOnMouseEntered(e -> setStyle("-fx-background-color: lightgray;"));
+                setOnMouseExited(e -> setStyle("-fx-background-color: none;"));
+            }
+        });
+
+        if (comboBoxCSVColumns != null && !Strings.isNullOrEmpty(blockExcelDTO.getExportFile())) {
+            // Update the checkboxes based on the selected user's type
+            if (delimiter.equals("|")) {
+                comboBoxCSVColumns.getSelectionModel().selectLast();
+            } else {
+                comboBoxCSVColumns.getSelectionModel().selectFirst();
+            }
+        }
+
         GridPane gridPaneExport = new GridPane();
         //        gridPaneLog.setVgap(10);
         gridPaneExport.setHgap(5);
         // Set column constraints for pathLog (80%), sizeLog (15%), and pathLogButton (5%)
         ColumnConstraints colExp1 = new ColumnConstraints();
-        colExp1.setPercentWidth(50);
+        colExp1.setPercentWidth(40);
 
         ColumnConstraints colExp2 = new ColumnConstraints();
-        colExp2.setPercentWidth(30);
+        colExp2.setPercentWidth(20);
 
         ColumnConstraints colExp3 = new ColumnConstraints();
         colExp3.setPercentWidth(10);
 
         ColumnConstraints colExp4 = new ColumnConstraints();
-        colExp4.setPercentWidth(5);
+        colExp4.setPercentWidth(20);
 
         ColumnConstraints colExp5 = new ColumnConstraints();
         colExp5.setPercentWidth(5);
 
-        gridPaneExport.getColumnConstraints().addAll(colExp1, colExp2, colExp3, colExp4, colExp5);
+        ColumnConstraints colExp6 = new ColumnConstraints();
+        colExp6.setPercentWidth(5);
+
+        gridPaneExport.getColumnConstraints().addAll(colExp1, colExp2, colExp3, colExp4, colExp5, colExp6);
 
         // Add LABELS in the first row
         gridPaneExport.add(pathExportLabel, 0, 0);
         gridPaneExport.add(fileExportLabel, 1, 0);
         gridPaneExport.add(fileTypeLabel, 2, 0);
+        gridPaneExport.add(delimeterCSVLabel, 3, 0);
 
         // Add text FIELDS in the second row
         gridPaneExport.add(pathExport, 0, 1);
         gridPaneExport.add(fileExport, 1, 1);
         gridPaneExport.add(fileTypeChoiceBox, 2, 1);
+        gridPaneExport.add(comboBoxCSVColumns, 3, 1);
 
         // Add button in the second row, third column
-        gridPaneExport.add(pathExportButton, 3, 1);
+        gridPaneExport.add(pathExportButton, 4, 1);
 
         // Add button in the second row, fourth column
-        gridPaneExport.add(pathDeleteButton, 4, 1);
+        gridPaneExport.add(pathDeleteButton, 5, 1);
 
         // Set margin for pathLogButton to create spacing from right border
         GridPane.setMargin(pathExportButton, new Insets(0, 0, 0, 5));
@@ -281,6 +330,44 @@ public class ARExcelFilePane extends ARPane {
         AnchorPane.setRightAnchor(vbox, 0.0);
     }
 
+    private void extractPathAndFileName() {
+        directory = "";
+        fileName = "";
+
+        excelPath = blockExcelDTO.getExportFile() != null
+                        && !blockExcelDTO.getExportFile().isEmpty()
+                ? blockExcelDTO.getExportFile()
+                : "";
+        String[] fileParts = excelPath.split(":");
+        delimiter = ",";
+
+        if (fileParts.length > 2) {
+            delimiter = fileParts[2];
+            excelPath = excelPath.replace(":,", "").replace(":|", "");
+        }
+
+        if (!excelPath.isEmpty()) {
+            try {
+
+                Path path = Paths.get(excelPath);
+                directory = path.getParent() != null ? path.getParent().toString() : ""; // Get the directory path
+                fileName = path.getFileName() != null ? path.getFileName().toString() : ""; // Get the file name
+
+                if (fileName.equalsIgnoreCase("No Excel Export File")) {
+                    fileName = "";
+                }
+
+                ARLogger.getInstance(ARExcelFilePane.class).info("Identified Directory: " + directory);
+                ARLogger.getInstance(ARExcelFilePane.class).info("Identified File Name: " + fileName);
+            } catch (Exception ex) {
+                ARLogger.getInstance(ARExcelFilePane.class).severe("Excel Path  \nError: " + ex.getMessage());
+            }
+
+        } else {
+            ARLogger.getInstance(ARExcelFilePane.class).info("No export file path provided.");
+        }
+    }
+
     @Override
     public void initUIBehaviour() {
         pathExportButton.setOnMouseClicked(e -> openChooserFor(pathExport, modalStage, true));
@@ -304,13 +391,19 @@ public class ARExcelFilePane extends ARPane {
 
         String exportFile = "";
 
+        String delimiter = "|";
+        FormatOption selected = comboBoxCSVColumns.getValue();
+        if (selected != null) {
+            delimiter = selected.getValue(); // "US" or "EU"
+        }
+
         if (Strings.isNullOrEmpty(pathExport.getText())) {
             fileExport.setText("");
         } else {
             String filePath = fileExport.getText().trim();
             fileExport.setText(filePath);
 
-            String fileName = fileExport.getText().trim(); // Get the trimmed input
+            String fileName = fileExport.getText().trim();
 
             if (Strings.isNullOrEmpty(fileName)) {
                 performMessage.errorMessage("File Name  Is Empty!", "Type  the File Name!", null, null, null, 0);
@@ -338,6 +431,8 @@ public class ARExcelFilePane extends ARPane {
         if ((sessionId != null && sessionId.matches(".*componentTasks.*"))) {
             tableTarget = "component_block";
         }
+
+        exportFile = exportFile + ":" + delimiter;
 
         boolean updateBlock = performDataBase.updateBlockExportFile(
                 tableTarget, blockExcelDTO.getBotJobId(), blockExcelDTO.getBlockId(), exportFile);
