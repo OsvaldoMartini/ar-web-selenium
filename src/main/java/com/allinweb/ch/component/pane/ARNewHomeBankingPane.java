@@ -7,6 +7,7 @@ import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.DatabaseUserDTO;
 import com.allinweb.ch.util.ARLogger;
+import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -168,7 +169,39 @@ public class ARNewHomeBankingPane extends ARPane {
                 return;
             }
 
-            saveUserData(user);
+            int newHomeId = saveUserData(user);
+
+            if (newHomeId > -1) {
+                try (Connection conn = performDataBase.getConnection()) {
+                    int newHomeUrlId = performDataBase.loadNexHomeUrlData() + 1;
+
+                    ErrorMessage errorMessage =
+                            performDataBase.insertHomeUrlChild(conn, newHomeId, user.getUrl(), newHomeUrlId);
+
+                    if (errorMessage != null) {
+                        performMessage.errorMessage(
+                                "Clone Bot Job Failed",
+                                errorMessage.getErrorTitle(),
+                                errorMessage.getErrorHeader(),
+                                "Verify  [INSERT] or [UPDATE] or [SELECT]",
+                                null,
+                                0);
+                    } else {
+
+                        performMessage.errorMessage(
+                                "Cannot Create New Environment ",
+                                "Verify  [INSERT] or [UPDATE] or [SELECT]",
+                                null,
+                                null,
+                                null,
+                                0);
+                    }
+
+                } catch (SQLException error) {
+                    System.out.println(error.getMessage());
+                }
+            }
+
             performDataBase.loadAllHomeBankingBotJob();
             updateHomeBankList(performDataBase.getDatabaseList());
         });
@@ -520,7 +553,7 @@ public class ARNewHomeBankingPane extends ARPane {
         return null;
     }
 
-    private void saveUserData(DatabaseUserDTO user) {
+    private int saveUserData(DatabaseUserDTO user) {
         // Generate a Unique-ID
         Integer hashCode = loadNexIdData() + 1;
         //        AlterSeq(hashCode);
@@ -544,7 +577,9 @@ public class ARNewHomeBankingPane extends ARPane {
             System.out.println("Data saved successfully.");
         } catch (SQLException e) {
             System.out.println(e.getMessage());
+            return -1;
         }
+        return hashCode;
     }
 
     private void updateUserData(String id, DatabaseUserDTO user) {
