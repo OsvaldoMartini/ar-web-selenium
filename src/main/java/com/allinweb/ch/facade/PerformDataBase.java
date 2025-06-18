@@ -6762,4 +6762,79 @@ GROUP BY
             System.out.println(error.getMessage());
         }
     }
+
+    public void migrationAccessToAccess() {
+        String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB); // origin
+        String dbPathDest = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB); // destination
+
+        String accessOrigin = CONNECTION_TYPE + dbPath + "database-FABRIZIO-2.mdb" + CONNECTION_PARAMETERS;
+        ARLogger.getInstance(PerformDataBase.class).info("ACCESS Origin URL: " + accessOrigin);
+
+        String accessDest = CONNECTION_TYPE + dbPathDest + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        ARLogger.getInstance(PerformDataBase.class).info("ACCESS Destination URL: " + accessDest);
+
+        final int BATCH_SIZE = 100;
+
+        try (Connection access1 = DriverManager.getConnection(accessOrigin);
+                Connection access2 = DriverManager.getConnection(accessDest);
+                Statement accessStmt = access1.createStatement()) {
+
+            access2.setAutoCommit(false);
+
+            String selectAccessSQL =
+                    "SELECT url, name, priority, search_config, options_config, cookies, driver_session, username, password FROM home_banking";
+            ResultSet rs = accessStmt.executeQuery(selectAccessSQL);
+
+            String checkSQL = "SELECT id FROM home_banking WHERE url = ?";
+            String insertSQL =
+                    "INSERT INTO home_banking (url, name, priority, search_config, options_config, cookies, driver_session, username, password) "
+                            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+            try (PreparedStatement checkStmt = access2.prepareStatement(checkSQL);
+                    PreparedStatement insertStmt = access2.prepareStatement(insertSQL)) {
+
+                int count = 0;
+
+                while (rs.next()) {
+                    String url = rs.getString("url");
+
+                    checkStmt.setString(1, url);
+                    try (ResultSet checkResult = checkStmt.executeQuery()) {
+                        if (!checkResult.next()) {
+                            insertStmt.setString(1, url);
+                            insertStmt.setString(2, rs.getString("name"));
+                            insertStmt.setString(3, rs.getString("priority"));
+                            insertStmt.setString(4, rs.getString("search_config"));
+                            insertStmt.setString(5, rs.getString("options_config"));
+                            insertStmt.setString(6, rs.getString("cookies"));
+                            insertStmt.setString(7, rs.getString("driver_session"));
+                            insertStmt.setString(8, rs.getString("username"));
+                            insertStmt.setString(9, rs.getString("password"));
+                            insertStmt.addBatch();
+
+                            count++;
+
+                            if (count % BATCH_SIZE == 0) {
+                                insertStmt.executeBatch();
+                                access2.commit();
+                                ARLogger.getInstance(getClass()).info("Inserted batch of " + BATCH_SIZE);
+                            }
+                        } else {
+                            ARLogger.getInstance(getClass()).info("Skipped existing: " + url);
+                        }
+                    }
+                }
+
+                // Final batch
+                insertStmt.executeBatch();
+                access2.commit();
+                ARLogger.getInstance(getClass()).info("Inserted final batch of " + (count % BATCH_SIZE));
+            }
+
+            ARLogger.getInstance(getClass()).info("Migration completed.");
+
+        } catch (SQLException error) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Error during migration: " + error);
+        }
+    }
 }

@@ -104,6 +104,9 @@ public class ARMainPane extends ARPane {
         String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
         performDataBase.initialize(dataBaseType);
 
+        //        performDataBase.migrationAccessToAccess();
+        //        System.exit(0);
+
         if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
             POSTGRES_DB = true;
 
