@@ -11,47 +11,46 @@ import org.openqa.selenium.WebDriver;
  * @version 1.0
  */
 public class PerformCloseBrowser {
-  protected static volatile PerformCloseBrowser instance;
+    protected static volatile PerformCloseBrowser instance;
 
-  // Private constructor to prevent instantiation
-  private PerformCloseBrowser() {
-    // Initialize if necessary
-  }
+    // Private constructor to prevent instantiation
+    private PerformCloseBrowser() {
+        // Initialize if necessary
+    }
 
-  public static PerformCloseBrowser getInstance() {
-    if (instance == null) {
-      synchronized (PerformCloseBrowser.class) {
+    public static PerformCloseBrowser getInstance() {
         if (instance == null) {
-          instance = new PerformCloseBrowser();
+            synchronized (PerformCloseBrowser.class) {
+                if (instance == null) {
+                    instance = new PerformCloseBrowser();
+                }
+            }
         }
-      }
+        return instance;
     }
-    return instance;
-  }
 
-  private static JavascriptExecutor jsExecutor;
+    private static JavascriptExecutor jsExecutor;
 
-  public ErrorMessage dynamicCloseBrowser(
-      WebDriver driver,
-      int port,
-      String sessionId,
-      String destination,
-      String operationId,
-      int homeBankingId,
-      String urlTarget) {
-    try {
-      jsExecutor = (JavascriptExecutor) driver;
-      jsExecutor.executeScript(
-          jsWasmModulesInject, port, sessionId, destination, operationId, homeBankingId, urlTarget);
-      return null;
-    } catch (Exception error) {
-      return new ErrorMessage(
-          "Error running Scanner", "Dynamic Load ElementsDTO error", error.getMessage());
+    public ErrorMessage dynamicCloseBrowser(
+            WebDriver driver,
+            int port,
+            String sessionId,
+            String destination,
+            String operationId,
+            int homeBankingId,
+            String urlTarget) {
+        try {
+            jsExecutor = (JavascriptExecutor) driver;
+            jsExecutor.executeScript(
+                    jsWasmModulesInject, port, sessionId, destination, operationId, homeBankingId, urlTarget);
+            return null;
+        } catch (Exception error) {
+            return new ErrorMessage("Error running Scanner", "Dynamic Load ElementsDTO error", error.getMessage());
+        }
     }
-  }
 
-  private String jsCloseBrowserInject =
-      """
+    private String jsCloseBrowserInject =
+            """
 // CLOSE BROWSER IN USE CSP (SENDER: scannerTool) -> scannerGrid
 (function (
   socketPort,
@@ -369,8 +368,8 @@ public class PerformCloseBrowser {
 // );
 """;
 
-  private String jsWasmModulesInject =
-      """
+    private String jsWasmModulesInject =
+            """
 // CLOSE BROWSER IN USE CSP (SENDER: scannerTool) -> scannerGrid
 (function (
   socketPort,

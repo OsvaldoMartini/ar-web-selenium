@@ -8,6 +8,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class AttributeData {
-  private String name;
-  private String value;
+    private String name;
+    private String value;
 }

@@ -5,19 +5,19 @@ import lombok.Data;
 
 @Data
 public class BlockDetailsDTO {
-  private Integer homeBankingId;
-  private Integer blockId;
-  private String blockName;
-  private String blockDescription;
-  private Integer typeId;
-  private Boolean active;
-  private Integer wait;
-  private Integer blockOrderNumber;
-  private Integer botJobId;
-  private String botJobName;
-  private Boolean forceOrder;
-  private String exportFile;
-  private String sessionId;
-  private List<InstructionLoadDTO> updatedInstructions; // For originalBlock
-  private List<InstructionLoadDTO> instructions; // For newBlock
+    private Integer homeBankingId;
+    private Integer blockId;
+    private String blockName;
+    private String blockDescription;
+    private Integer typeId;
+    private Boolean active;
+    private Integer wait;
+    private Integer blockOrderNumber;
+    private Integer botJobId;
+    private String botJobName;
+    private Boolean forceOrder;
+    private String exportFile;
+    private String sessionId;
+    private List<InstructionLoadDTO> updatedInstructions; // For originalBlock
+    private List<InstructionLoadDTO> instructions; // For newBlock
 }

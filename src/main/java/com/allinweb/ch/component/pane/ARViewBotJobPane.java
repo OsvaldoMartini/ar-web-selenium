@@ -62,888 +62,789 @@ import javafx.stage.Stage;
 
 public class ARViewBotJobPane extends ARPane {
 
-  protected static volatile ARViewBotJobPane instance;
+    protected static volatile ARViewBotJobPane instance;
 
-  // Private constructor to prevent instantiation
-  private ARViewBotJobPane() {
-    // Initialize if necessary
-    super();
-  }
-
-  public static ARViewBotJobPane getInstance() {
-    if (instance == null) {
-      synchronized (ARViewBotJobPane.class) {
-        if (instance == null) {
-          instance = new ARViewBotJobPane();
-        }
-      }
+    // Private constructor to prevent instantiation
+    private ARViewBotJobPane() {
+        // Initialize if necessary
+        super();
     }
-    return instance;
-  }
 
-  // Set to hold all active WebSocket sessions
-  private int portInitial;
-  private String sessionId;
-  private Gson gson = new Gson();
+    public static ARViewBotJobPane getInstance() {
+        if (instance == null) {
+            synchronized (ARViewBotJobPane.class) {
+                if (instance == null) {
+                    instance = new ARViewBotJobPane();
+                }
+            }
+        }
+        return instance;
+    }
 
-  private Connection conn = null;
-  private ObservableList<VariableUserDTO> variablesList;
+    // Set to hold all active WebSocket sessions
+    private int portInitial;
+    private String sessionId;
+    private Gson gson = new Gson();
 
-  private ObservableList<ComboBoxVars> webPageItems;
+    private Connection conn = null;
+    private ObservableList<VariableUserDTO> variablesList;
 
-  private static final ARComponentBuilder builder = new ARComponentBuilder();
+    private ObservableList<ComboBoxVars> webPageItems;
 
-  private BotJobLoadDTO botJobLoad;
-  private List<BotJobLoadDTO> botJobLoadList;
-  private List<BotJobLoadDTO> botJobLoadComp;
+    private static final ARComponentBuilder builder = new ARComponentBuilder();
 
-  private PayloadJson payloadEmpty;
-  private boolean firstLoad = true;
-  private String previousBotTasks;
+    private BotJobLoadDTO botJobLoad;
+    private List<BotJobLoadDTO> botJobLoadList;
+    private List<BotJobLoadDTO> botJobLoadComp;
 
-  private BlockLoadDTO blockLoad;
-  private List<BlockLoadDTO> blockLoadList;
+    private PayloadJson payloadEmpty;
+    private boolean firstLoad = true;
+    private String previousBotTasks;
 
-  private static final WebSocketSessionManager webSocketSessionManager;
-  private static final ARPropertyManager arPropertyManager;
-  private static final ARScannedElementScene arScannedElementScene;
-  private static final ARNewCommandScene arNewCommandScene;
-  private static final ARElementValueScene arElementValueScene;
-  private static final ARWebDriver arWebDriver;
-  private static final PerformDataBase performDataBase;
-  private static final PerformMessage performMessage;
+    private BlockLoadDTO blockLoad;
+    private List<BlockLoadDTO> blockLoadList;
 
-  private static ARLogger logger;
+    private static final WebSocketSessionManager webSocketSessionManager;
+    private static final ARPropertyManager arPropertyManager;
+    private static final ARScannedElementScene arScannedElementScene;
+    private static final ARNewCommandScene arNewCommandScene;
+    private static final ARElementValueScene arElementValueScene;
+    private static final ARWebDriver arWebDriver;
+    private static final PerformDataBase performDataBase;
+    private static final PerformMessage performMessage;
 
-  static {
-    webSocketSessionManager = WebSocketSessionManager.getInstance();
-    arPropertyManager = ARPropertyManager.getInstance();
-    arScannedElementScene = ARScannedElementScene.getInstance();
-    arNewCommandScene = ARNewCommandScene.getInstance();
-    arElementValueScene = ARElementValueScene.getInstance();
-    performDataBase = PerformDataBase.getInstance();
-    performMessage = PerformMessage.getInstance();
-    arWebDriver = ARWebDriver.getInstance();
-  }
+    private static ARLogger logger;
 
-  private SimpleBooleanProperty isEditingBotJob = new SimpleBooleanProperty(false);
-  // Define a flag to prevent double clicks
-  private boolean isScannerButtonClicked = false;
+    static {
+        webSocketSessionManager = WebSocketSessionManager.getInstance();
+        arPropertyManager = ARPropertyManager.getInstance();
+        arScannedElementScene = ARScannedElementScene.getInstance();
+        arNewCommandScene = ARNewCommandScene.getInstance();
+        arElementValueScene = ARElementValueScene.getInstance();
+        performDataBase = PerformDataBase.getInstance();
+        performMessage = PerformMessage.getInstance();
+        arWebDriver = ARWebDriver.getInstance();
+    }
 
-  Button refreshButton;
-  Button openScannerButton;
-  Button editBotJobButton;
-  Button launchBotJobButton;
-  Button saveBotJobButton;
-  //    Button saveAsBotJobButton;
-  Button printBotJobButton;
-  Button openExcelFileButton;
-  Button generateExcelButton;
-  Button closeBotJobButton;
-  Button createBATButton;
+    private SimpleBooleanProperty isEditingBotJob = new SimpleBooleanProperty(false);
+    // Define a flag to prevent double clicks
+    private boolean isScannerButtonClicked = false;
 
-  Label webSiteInfoLabel;
-  Label botJobNameLabel;
-  Label botJobDescriptionLabel;
-  private TextField botJobNameTextField;
-  private TextField botJobDescriptionTextField;
-  private VBox botJobContainer;
+    Button refreshButton;
+    Button openScannerButton;
+    Button editBotJobButton;
+    Button launchBotJobButton;
+    Button saveBotJobButton;
+    //    Button saveAsBotJobButton;
+    Button printBotJobButton;
+    Button openExcelFileButton;
+    Button generateExcelButton;
+    Button closeBotJobButton;
+    Button createBATButton;
 
-  private Pane mainPane;
+    Label webSiteInfoLabel;
+    Label botJobNameLabel;
+    Label botJobDescriptionLabel;
+    private TextField botJobNameTextField;
+    private TextField botJobDescriptionTextField;
+    private VBox botJobContainer;
 
-  ListView<ComponentBlockDTO> componentList;
+    private Pane mainPane;
 
-  private HBox componentBox;
+    ListView<ComponentBlockDTO> componentList;
 
-  Button componentButton;
-  private VBox componentContainer;
-  boolean isComponentBoxVisible;
+    private HBox componentBox;
 
-  private WebView webViewTasks = new WebView();
-  private WebEngine webEngineTasks;
-  private WebView webViewComp = new WebView();
-  private WebEngine webEngineComp;
-  private ARScene arScene;
-  private ObservableList<BotJobLoadDTO> botJobList;
+    Button componentButton;
+    private VBox componentContainer;
+    boolean isComponentBoxVisible;
 
-  public void initialize(
-      ARScene arScene, BotJobLoadDTO botJobLoad, ObservableList<BotJobLoadDTO> botJobList) {
-    logger = ARLogger.getInstance(ARViewBotJobPane.class);
+    private WebView webViewTasks = new WebView();
+    private WebEngine webEngineTasks;
+    private WebView webViewComp = new WebView();
+    private WebEngine webEngineComp;
+    private ARScene arScene;
+    private ObservableList<BotJobLoadDTO> botJobList;
 
-    this.arScene = arScene;
-    this.botJobLoad = botJobLoad;
-    this.botJobList = botJobList;
+    public void initialize(ARScene arScene, BotJobLoadDTO botJobLoad, ObservableList<BotJobLoadDTO> botJobList) {
+        logger = ARLogger.getInstance(ARViewBotJobPane.class);
 
-    // Initialize database IF IS ACCESS TO BE USED
-    variablesList = FXCollections.observableArrayList();
-    webPageItems = FXCollections.observableArrayList();
+        this.arScene = arScene;
+        this.botJobLoad = botJobLoad;
+        this.botJobList = botJobList;
 
-    Platform.runLater(
-        () ->
-            this.variablesList =
-                performDataBase.loadAllVariablesByCriteria(this.botJobLoad.getId(), -1));
-    Platform.runLater(
-        () -> {
-          this.webPageItems = performDataBase.loadWebPageFields(this.botJobLoad.getId());
+        // Initialize database IF IS ACCESS TO BE USED
+        variablesList = FXCollections.observableArrayList();
+        webPageItems = FXCollections.observableArrayList();
+
+        Platform.runLater(
+                () -> this.variablesList = performDataBase.loadAllVariablesByCriteria(this.botJobLoad.getId(), -1));
+        Platform.runLater(() -> {
+            this.webPageItems = performDataBase.loadWebPageFields(this.botJobLoad.getId());
         });
 
-    if (arNewCommandScene.getRowMoveDTO() != null) {
-      arNewCommandScene.setRowMoveDTO(null);
-      arNewCommandScene.closeModal();
+        if (arNewCommandScene.getRowMoveDTO() != null) {
+            arNewCommandScene.setRowMoveDTO(null);
+            arNewCommandScene.closeModal();
+        }
+
+        if (arElementValueScene.getRowMoveDTO() != null) {
+            arElementValueScene.setRowMoveDTO(null);
+            arElementValueScene.closeModal();
+        }
+
+        if (arScannedElementScene.getBotJobLoadDTO() != null
+                && !arScannedElementScene.getBotJobLoadDTO().getId().equals(this.botJobLoad.getId())) {
+            callScannerTool();
+        }
+
+        if (this.botJobNameLabel != null) {
+            this.webSiteInfoLabel.setText(
+                    "Web-site Id: " + this.botJobLoad.getHomeBankingId() + " Bot Job Id: " + this.botJobLoad.getId());
+            this.botJobNameLabel.setText("Bot Job name: " + this.botJobLoad.getName());
+            this.botJobDescriptionLabel.setText("Description: " + this.botJobLoad.getDescription());
+            botJobNameTextField.setText(this.botJobLoad.getName());
+            botJobDescriptionTextField.setText(this.botJobLoad.getDescription());
+        }
+        if (Strings.isNullOrEmpty(previousBotTasks)) {
+            String portSocket = arPropertyManager.getProperty(ARPropertyEnum.PORT_SOCKET);
+            if (portSocket != null) {
+                portInitial = Integer.parseInt(portSocket);
+            }
+        }
+
+        if (!webSocketSessionManager.getAllSessions().isEmpty()) {
+            refreshGrids();
+        }
     }
 
-    if (arElementValueScene.getRowMoveDTO() != null) {
-      arElementValueScene.setRowMoveDTO(null);
-      arElementValueScene.closeModal();
-    }
-
-    if (arScannedElementScene.getBotJobLoadDTO() != null
-        && !arScannedElementScene.getBotJobLoadDTO().getId().equals(this.botJobLoad.getId())) {
-      callScannerTool();
-    }
-
-    if (this.botJobNameLabel != null) {
-      this.webSiteInfoLabel.setText(
-          "Web-site Id: "
-              + this.botJobLoad.getHomeBankingId()
-              + " Bot Job Id: "
-              + this.botJobLoad.getId());
-      this.botJobNameLabel.setText("Bot Job name: " + this.botJobLoad.getName());
-      this.botJobDescriptionLabel.setText("Description: " + this.botJobLoad.getDescription());
-      botJobNameTextField.setText(this.botJobLoad.getName());
-      botJobDescriptionTextField.setText(this.botJobLoad.getDescription());
-    }
-    if (Strings.isNullOrEmpty(previousBotTasks)) {
-      String portSocket = arPropertyManager.getProperty(ARPropertyEnum.PORT_SOCKET);
-      if (portSocket != null) {
-        portInitial = Integer.parseInt(portSocket);
-      }
-    }
-
-    if (!webSocketSessionManager.getAllSessions().isEmpty()) {
-      refreshGrids();
-    }
-  }
-
-  private void refreshGrids() {
-    this.botJobLoadList = performDataBase.loadCompleteJobs(this.botJobLoad.getId());
-    String jsonData = gson.toJson(payloadEmpty);
-
-    if (!this.botJobLoadList.isEmpty()) {
-      List<InstructionLoadDTO> instructions =
-          performDataBase.buildJsonViewData(botJobLoadList, "instruction");
-      if (!instructions.isEmpty()) {
-        jsonData = gson.toJson(instructions);
-      }
-    }
-
-    webSocketSessionManager.sendMessageJson(
-        this.botJobLoad.getHomeBankingId(), "botJobTasks", jsonData, "updateInstructions");
-
-    this.botJobLoadComp =
-        performDataBase.loadComponentsComplete(
-            this.botJobLoad.getHomeBankingId(), this.botJobLoad.getId(), this.botJobLoad.getName());
-    jsonData = gson.toJson(payloadEmpty);
-    if (!botJobLoadComp.isEmpty()) {
-      List<InstructionLoadDTO> instructions =
-          performDataBase.buildJsonViewData(botJobLoadComp, "component_instruction");
-      if (!instructions.isEmpty()) {
-        jsonData = gson.toJson(instructions);
-      }
-    }
-
-    webSocketSessionManager.sendMessageJson(
-        this.botJobLoad.getHomeBankingId(), "componentTasks", jsonData, "componentsUpdate");
-
-    //        webSocketSessionManager.broadcastMessageToAll(
-    //                this.botJobLoad.getHomeBankingId(), "componentTasks", jsonData,
-    // "componentsUpdate");
-  }
-
-  private void builViewComponent() {
-    setPayloadEmpty();
-
-    String jsonData = gson.toJson(payloadEmpty);
-
-    // Load blocks based on the BotJobLoadDTO instead of blockDTOObservableList
-    if (!this.botJobLoadList.isEmpty()) {
-      if (this.botJobLoadList.get(0).getBlockLoadDTOList().isEmpty()) {
+    private void refreshGrids() {
         this.botJobLoadList = performDataBase.loadCompleteJobs(this.botJobLoad.getId());
-      }
+        String jsonData = gson.toJson(payloadEmpty);
 
-      List<InstructionLoadDTO> instructions =
-          performDataBase.buildJsonViewData(botJobLoadList, "instruction");
-      if (!instructions.isEmpty()) {
-        performMessage.outputJson(instructions, "botJobTasks-" + this.botJobLoad.getId(), false);
-        jsonData = gson.toJson(instructions);
-      }
+        if (!this.botJobLoadList.isEmpty()) {
+            List<InstructionLoadDTO> instructions = performDataBase.buildJsonViewData(botJobLoadList, "instruction");
+            if (!instructions.isEmpty()) {
+                jsonData = gson.toJson(instructions);
+            }
+        }
+
+        webSocketSessionManager.sendMessageJson(
+                this.botJobLoad.getHomeBankingId(), "botJobTasks", jsonData, "updateInstructions");
+
+        this.botJobLoadComp = performDataBase.loadComponentsComplete(
+                this.botJobLoad.getHomeBankingId(), this.botJobLoad.getId(), this.botJobLoad.getName());
+        jsonData = gson.toJson(payloadEmpty);
+        if (!botJobLoadComp.isEmpty()) {
+            List<InstructionLoadDTO> instructions =
+                    performDataBase.buildJsonViewData(botJobLoadComp, "component_instruction");
+            if (!instructions.isEmpty()) {
+                jsonData = gson.toJson(instructions);
+            }
+        }
+
+        webSocketSessionManager.sendMessageJson(
+                this.botJobLoad.getHomeBankingId(), "componentTasks", jsonData, "componentsUpdate");
+
+        //        webSocketSessionManager.broadcastMessageToAll(
+        //                this.botJobLoad.getHomeBankingId(), "componentTasks", jsonData,
+        // "componentsUpdate");
     }
 
-    int portBotTasks = 8181;
-    File buildDir =
-        new File(
-            getClass().getResource("/build/index2.html").toExternalForm()); // Update with real path
-    try {
-      StaticFileServer.start(portBotTasks, buildDir);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+    private void builViewComponent() {
+        setPayloadEmpty();
 
-    webEngineTasks = webViewTasks.getEngine();
-    webEngineTasks.javaScriptEnabledProperty().set(true);
+        String jsonData = gson.toJson(payloadEmpty);
 
-    // (SENDER: insertTool) -> botJobTasks
-    sessionId = "botJobTasks"; // + this.botJobLoad.getId();
+        // Load blocks based on the BotJobLoadDTO instead of blockDTOObservableList
+        if (!this.botJobLoadList.isEmpty()) {
+            if (this.botJobLoadList.get(0).getBlockLoadDTOList().isEmpty()) {
+                this.botJobLoadList = performDataBase.loadCompleteJobs(this.botJobLoad.getId());
+            }
 
-    int portHttp = startHttpServer(0, "/build/index.html");
-    if (portHttp == -1) {
-      return;
-    }
+            List<InstructionLoadDTO> instructions = performDataBase.buildJsonViewData(botJobLoadList, "instruction");
+            if (!instructions.isEmpty()) {
+                performMessage.outputJson(instructions, "botJobTasks-" + this.botJobLoad.getId(), false);
+                jsonData = gson.toJson(instructions);
+            }
+        }
 
-    buildWebView(
-        webEngineTasks,
-        jsonData,
-        portInitial,
-        sessionId,
-        this.botJobLoad.getHomeBankingId(),
-        this.botJobLoad.getId(),
-        this.botJobLoad.getName(),
-        portHttp);
+        int portBotTasks = 8181;
+        File buildDir =
+                new File(getClass().getResource("/build/index2.html").toExternalForm()); // Update with real path
+        try {
+            StaticFileServer.start(portBotTasks, buildDir);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
-    this.botJobLoadComp =
-        performDataBase.loadComponentsComplete(
-            this.botJobLoad.getHomeBankingId(), this.botJobLoad.getId(), this.botJobLoad.getName());
-    jsonData = gson.toJson(payloadEmpty);
+        webEngineTasks = webViewTasks.getEngine();
+        webEngineTasks.javaScriptEnabledProperty().set(true);
 
-    if (!this.botJobLoadComp.isEmpty()) {
-      if (this.botJobLoadComp.get(0).getBlockLoadDTOList().isEmpty()) {
-        this.botJobLoadComp =
-            performDataBase.loadComponentsComplete(
+        // (SENDER: insertTool) -> botJobTasks
+        sessionId = "botJobTasks"; // + this.botJobLoad.getId();
+
+        int portHttp = startHttpServer(0, "/build/index.html");
+        if (portHttp == -1) {
+            return;
+        }
+
+        buildWebView(
+                webEngineTasks,
+                jsonData,
+                portInitial,
+                sessionId,
                 this.botJobLoad.getHomeBankingId(),
                 this.botJobLoad.getId(),
-                this.botJobLoad.getName());
-      }
+                this.botJobLoad.getName(),
+                portHttp);
 
-      List<InstructionLoadDTO> instructions =
-          performDataBase.buildJsonViewData(botJobLoadComp, "component_instruction");
-      if (!instructions.isEmpty()) {
-        performMessage.outputJson(instructions, "componentTasks-" + this.botJobLoad.getId(), false);
-        jsonData = gson.toJson(instructions);
-      }
-    }
+        this.botJobLoadComp = performDataBase.loadComponentsComplete(
+                this.botJobLoad.getHomeBankingId(), this.botJobLoad.getId(), this.botJobLoad.getName());
+        jsonData = gson.toJson(payloadEmpty);
 
-    webEngineComp = webViewComp.getEngine();
-    webEngineComp.javaScriptEnabledProperty().set(true);
+        if (!this.botJobLoadComp.isEmpty()) {
+            if (this.botJobLoadComp.get(0).getBlockLoadDTOList().isEmpty()) {
+                this.botJobLoadComp = performDataBase.loadComponentsComplete(
+                        this.botJobLoad.getHomeBankingId(), this.botJobLoad.getId(), this.botJobLoad.getName());
+            }
 
-    // (SENDER: insertTool) -> botJobTasks -> componentTasks
-    sessionId = "componentTasks"; // + this.botJobLoad.getId();
-    //        buildWebView(
-    //                webEngineComp,
-    //                jsonData,
-    //                portInitial,
-    //                sessionId,
-    //                this.botJobLoad.getHomeBankingId(),
-    //                this.botJobLoad.getId(),
-    //                this.botJobLoad.getName(),
-    //                portHttp);
-
-    previousBotTasks = sessionId;
-  }
-
-  @Override
-  public void initUIComponents() {
-    sessionId = "botJobTasks"; // + this.botJobLoad.getId();
-    if (Strings.isNullOrEmpty(previousBotTasks) || !previousBotTasks.equals(sessionId)) {
-      builViewComponent();
-    }
-
-    this.refreshButton =
-        builder.buildButton(
-            "Refresh",
-            ARConstants.SPACE_ZERO,
-            "/refresh.png",
-            ARConstants.SPACE_M,
-            new Insets(5.0D));
-    this.openScannerButton =
-        builder.buildButton(
-            "Scanner",
-            ARConstants.SPACE_ZERO,
-            "/open_browser.png",
-            ARConstants.SPACE_M,
-            new Insets(5.0D));
-    this.editBotJobButton =
-        builder.buildButton(
-            "Edit Job", ARConstants.SPACE_ZERO, "/edit.png", ARConstants.SPACE_M, new Insets(5.0D));
-
-    this.launchBotJobButton =
-        builder.buildButton(
-            "Launch", ARConstants.SPACE_ZERO, "/play.png", ARConstants.SPACE_M, new Insets(5.0D));
-    this.saveBotJobButton =
-        builder.buildButton(
-            "Save Job ",
-            ARConstants.SPACE_ZERO,
-            ARConstants.ICON_SAVE,
-            ARConstants.SPACE_M,
-            new Insets(5.0D));
-    this.saveBotJobButton.setDisable(true);
-
-    //        this.saveAsBotJobButton = builder.buildButton(
-    //                "Save As", ARConstants.SPACE_ZERO, ARConstants.ICON_SAVE, ARConstants.SPACE_M,
-    // new
-    // Insets(5.0D));
-    this.printBotJobButton =
-        builder.buildButton(
-            "Print",
-            ARConstants.SPACE_ZERO,
-            ARConstants.ICON_PRINT,
-            ARConstants.SPACE_M,
-            new Insets(5.0D));
-    this.openExcelFileButton =
-        builder.buildButton(
-            "Excel File",
-            ARConstants.SPACE_ZERO,
-            ARConstants.ICON_EXCEL,
-            ARConstants.SPACE_M,
-            new Insets(5.0D));
-    this.generateExcelButton =
-        builder.buildButton(
-            "Generate",
-            ARConstants.SPACE_ZERO,
-            ARConstants.ICON_EXCEL,
-            ARConstants.SPACE_M,
-            new Insets(5.0D));
-    this.closeBotJobButton =
-        builder.buildButton(
-            "Close",
-            ARConstants.SPACE_ZERO,
-            ARConstants.ICON_CROSS,
-            ARConstants.SPACE_M,
-            new Insets(5.0D));
-
-    // Create a GridPane for the left side buttons
-    GridPane leftGridPane = new GridPane();
-    leftGridPane.setVgap(10); // Vertical spacing between elements
-    leftGridPane.setHgap(10); // Horizontal spacing between elements
-
-    // Define a uniform width for the buttons
-    double buttonWidth = 100;
-
-    // Add the top row of buttons
-    refreshButton.setPrefWidth(buttonWidth);
-    leftGridPane.add(refreshButton, 0, 0);
-
-    openScannerButton.setPrefWidth(buttonWidth);
-    leftGridPane.add(openScannerButton, 1, 0);
-
-    saveBotJobButton.setPrefWidth(buttonWidth);
-    leftGridPane.add(saveBotJobButton, 2, 0);
-
-    //        saveAsBotJobButton.setPrefWidth(buttonWidth);
-    //        leftGridPane.add(saveAsBotJobButton, 3, 0);
-
-    editBotJobButton.setPrefWidth(buttonWidth);
-    leftGridPane.add(editBotJobButton, 3, 0);
-
-    launchBotJobButton.setPrefWidth(buttonWidth);
-    leftGridPane.add(launchBotJobButton, 4, 0);
-
-    // Add the bottom row of buttons
-    //        saveBotJobButton.setPrefWidth(buttonWidth);
-    //        leftGridPane.add(saveBotJobButton, 0, 1);
-
-    //        saveAsBotJobButton.setPrefWidth(buttonWidth);
-    //        leftGridPane.add(saveAsBotJobButton, 1, 1);
-
-    openExcelFileButton.setPrefWidth(buttonWidth);
-    leftGridPane.add(openExcelFileButton, 2, 1);
-
-    generateExcelButton.setPrefWidth(buttonWidth);
-    leftGridPane.add(generateExcelButton, 3, 1);
-
-    closeBotJobButton.setPrefWidth(buttonWidth);
-    leftGridPane.add(closeBotJobButton, 4, 1);
-
-    // Center the buttons
-    for (Node node : leftGridPane.getChildren()) {
-      GridPane.setHalignment(node, HPos.CENTER);
-    }
-
-    // Other UI components
-
-    double botJobNameWidth = 450;
-
-    createBATButton = createPathButton();
-
-    this.webSiteInfoLabel =
-        new Label(
-            "Web-site Id: "
-                + this.botJobLoad.getHomeBankingId()
-                + " Bot Job Id: "
-                + this.botJobLoad.getId());
-    this.webSiteInfoLabel.setStyle(
-        "-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: darkgreen;"); // Green dark
-    this.botJobNameLabel = new Label(this.botJobLoad.getName());
-    this.botJobNameLabel.setPrefWidth(botJobNameWidth);
-    this.botJobNameLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;"); // Basic styling
-    this.botJobNameTextField = new TextField(this.botJobLoad.getName());
-    this.botJobNameTextField.setPrefWidth(botJobNameWidth);
-    this.botJobNameTextField.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
-
-    initComponentButton();
-
-    StackPane botJobNameGroup =
-        new StackPane(
-            new Node[] {this.botJobNameLabel, this.botJobNameTextField, this.componentButton});
-    StackPane.setAlignment(this.componentButton, Pos.CENTER_RIGHT);
-    StackPane.setMargin(this.componentButton, new Insets(5.0D, 0.0D, 0.0D, 0.0D));
-
-    this.botJobDescriptionLabel = new Label(this.botJobLoad.getDescription());
-    this.botJobDescriptionLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
-    this.botJobDescriptionLabel.setPrefWidth(botJobNameWidth);
-    this.botJobDescriptionTextField = new TextField(this.botJobLoad.getDescription());
-    this.botJobDescriptionTextField.setPrefWidth(botJobNameWidth);
-    this.botJobDescriptionTextField.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
-
-    StackPane botJobDescriptionGroup =
-        new StackPane(new Node[] {this.botJobDescriptionLabel, this.botJobDescriptionTextField});
-
-    List<InstructionLoadDTO> listForDeletion =
-        performDataBase.getBlockLoopInstructionIdsWithNullBlock(this.botJobLoad.getId());
-    for (InstructionLoadDTO instruction : listForDeletion) {
-      performDataBase.deleteInstruction(this.botJobLoad.getId(), instruction);
-    }
-    performDataBase.deleteNullBlocks(this.botJobLoad.getId());
-    performDataBase.updateBlockOrderNumber(
-        performDataBase.selectAllBlocks(this.botJobLoad.getId()), true);
-
-    this.botJobLoadList = performDataBase.loadCompleteJobs(this.botJobLoad.getId());
-    createExcelDataFile(botJobLoad, botJobLoadList);
-
-    componentBox = new HBox(new Node[] {this.webViewTasks});
-    firstLoad = false;
-
-    // Make webView expand both horizontally and vertically
-    HBox.setHgrow(this.webViewTasks, Priority.ALWAYS);
-    VBox.setVgrow(this.webViewTasks, Priority.ALWAYS); // Ensures vertical growth
-
-    // Prevent componentContainer from growing too much
-    HBox.setHgrow(this.componentContainer, Priority.NEVER);
-
-    // Create the BAT Website vs Bot Job
-    HBox batCreate = new HBox(10, createBATButton, webSiteInfoLabel); // Put labels in an HBox
-    //        batCreate.setAlignment(Pos.CENTER); // Align the labels in the center of the HBox
-
-    //        batCreate.setVisible(false);
-    // Create botJobContainer AFTER defining compBox
-    botJobContainer =
-        new VBox(
-            new Node[] {
-              leftGridPane, batCreate, botJobNameGroup, botJobDescriptionGroup, componentBox
-            });
-
-    // Allow botJobContainer to grow vertically as well
-    // Ensure botJobContainer and webView grow properly
-    VBox.setVgrow(botJobContainer, Priority.ALWAYS);
-
-    VBox.setVgrow(this.componentBox, Priority.ALWAYS);
-    HBox.setHgrow(this.componentBox, Priority.ALWAYS);
-
-    // Use AnchorPane to ensure the VBox resizes with the window
-    mainPane = new AnchorPane(botJobContainer);
-    //        mainPane.getStylesheets().add(css);
-
-    AnchorPane.setTopAnchor(botJobContainer, ARConstants.SPACE_M);
-    AnchorPane.setBottomAnchor(botJobContainer, ARConstants.SPACE_M);
-    AnchorPane.setLeftAnchor(botJobContainer, ARConstants.SPACE_M);
-    AnchorPane.setRightAnchor(botJobContainer, ARConstants.SPACE_M);
-  }
-
-  private Button createPathButton() {
-    Button button =
-        builder.buildButton(
-            "", ARConstants.SPACE_L, ARConstants.ICON_BURN, ARConstants.SPACE_M, new Insets(3D));
-    button.setMaxWidth(ARConstants.SPACE_L);
-    AnchorPane.setRightAnchor(button, 0D);
-    return button;
-  }
-
-  private void createExcelDataFile(BotJobLoadDTO botJobLoad, List<BotJobLoadDTO> botJobList) {
-
-    // Retrieve the updated BotJobDTO
-    //        BotJobDTO botJobUpdated = (BotJobDTO) PerformDataBase..getEntityById(BotJobDTO.class,
-    // botJobId);
-
-    if (botJobLoad != null) {
-
-      List<BlockLoadDTO> blocksLoaded = new ArrayList<>(); // Initialize to null
-      if (botJobList != null && !botJobList.isEmpty() && botJobList.get(0) != null) {
-        List<BlockLoadDTO> tempList = botJobList.get(0).getBlockLoadDTOList();
-        if (tempList != null) {
-          blocksLoaded = tempList;
-        } else {
-          System.out.println("getBlockLoadDTOList() returned null for the first element.");
+            List<InstructionLoadDTO> instructions =
+                    performDataBase.buildJsonViewData(botJobLoadComp, "component_instruction");
+            if (!instructions.isEmpty()) {
+                performMessage.outputJson(instructions, "componentTasks-" + this.botJobLoad.getId(), false);
+                jsonData = gson.toJson(instructions);
+            }
         }
-      }
 
-      List<String> allActions = performDataBase.loadAllActionsPerBlock(blocksLoaded);
+        webEngineComp = webViewComp.getEngine();
+        webEngineComp.javaScriptEnabledProperty().set(true);
 
-      String excelFolderPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
-      String fileName =
-          String.format(
-              "%s/%s%s", excelFolderPath, botJobLoad.getName(), ARConstants.FILE_FORMAT_EXCEL);
+        // (SENDER: insertTool) -> botJobTasks -> componentTasks
+        sessionId = "componentTasks"; // + this.botJobLoad.getId();
+        //        buildWebView(
+        //                webEngineComp,
+        //                jsonData,
+        //                portInitial,
+        //                sessionId,
+        //                this.botJobLoad.getHomeBankingId(),
+        //                this.botJobLoad.getId(),
+        //                this.botJobLoad.getName(),
+        //                portHttp);
 
-      // Create a File object
-      File fileCheck = new File(fileName);
-      if (!fileCheck.exists() && !fileCheck.isDirectory()) {
-
-        // Check if the Excel file already exists
-        ExtractedData extractedData = ExcelUtils.isFileExists(botJobLoad.getName(), allActions);
-
-        if (extractedData == null
-            || (extractedData.getErrorTitle() != null
-                && !extractedData.getErrorTitle().contains("No Actions Provided"))) {
-
-          // Create a task for generating the Excel file
-          Task<Void> excelTask =
-              new Task<>() {
-                @Override
-                protected Void call() throws Exception {
-                  new ExcelUtils().generateExcelFiles(botJobLoad, allActions, extractedData, false);
-                  return null;
-                }
-              };
-
-          new Thread(excelTask).start();
-        }
-      }
-    } else {
-
-      performMessage.errorMessage(
-          "Not Able to Create a Excel File",
-          "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to create a excel file!</span>",
-          "<span style='color: #E65100; font-weight: bold;'>Not Bot Job Found</span>",
-          "<span style='font-style: italic;'>Bot-Job List is empty!</span>",
-          null,
-          0);
+        previousBotTasks = sessionId;
     }
-  }
 
-  private void buildWebView(
-      WebEngine webEngine,
-      String jsonData,
-      int finalPort,
-      String sessionIdFromJava,
-      int homeBanking,
-      int botJobId,
-      String botJobName,
-      int portHttp) {
-    //        webEngine.load(getClass().getResource("/build/index.html").toExternalForm());
+    @Override
+    public void initUIComponents() {
+        sessionId = "botJobTasks"; // + this.botJobLoad.getId();
+        if (Strings.isNullOrEmpty(previousBotTasks) || !previousBotTasks.equals(sessionId)) {
+            builViewComponent();
+        }
 
-    new Timer()
-        .schedule(
-            new TimerTask() {
-              @Override
-              public void run() {
-                Platform.runLater(() -> webEngine.load("http://localhost:" + portHttp));
-              }
-            },
-            3000); // 3-second delay
+        this.refreshButton = builder.buildButton(
+                "Refresh", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
+        this.openScannerButton = builder.buildButton(
+                "Scanner", ARConstants.SPACE_ZERO, "/open_browser.png", ARConstants.SPACE_M, new Insets(5.0D));
+        this.editBotJobButton = builder.buildButton(
+                "Edit Job", ARConstants.SPACE_ZERO, "/edit.png", ARConstants.SPACE_M, new Insets(5.0D));
 
-    webEngine
-        .getLoadWorker()
-        .stateProperty()
-        .addListener(
-            (obs, oldState, newState) -> {
-              System.out.println("WebView load state: " + newState);
-              if (newState == Worker.State.FAILED) {
-                System.out.println("WebView failed to load");
-              }
-            });
+        this.launchBotJobButton = builder.buildButton(
+                "Launch", ARConstants.SPACE_ZERO, "/play.png", ARConstants.SPACE_M, new Insets(5.0D));
+        this.saveBotJobButton = builder.buildButton(
+                "Save Job ", ARConstants.SPACE_ZERO, ARConstants.ICON_SAVE, ARConstants.SPACE_M, new Insets(5.0D));
+        this.saveBotJobButton.setDisable(true);
 
-    webEngine
-        .getLoadWorker()
-        .stateProperty()
-        .addListener(
-            (obs, oldState, newState) -> {
-              if (newState == Worker.State.SUCCEEDED) {
-                // After the page has successfully loaded
-                try {
-                  //                    webEngine.executeScript("setTimeout(function() {
-                  // window.receiveDataFromJava(JSON.stringify("
-                  //                            + jsonData + "), " + finalPort + ", '" +
-                  // sessionIdFromJava + "', " +
-                  // homeBanking + ", "
-                  //                            + botJobId + ", '" + botJobName + "' ) }, 1000)");
-                  webEngine.executeScript(
-                      String.format(
-                          "setTimeout(function() { window.receiveDataFromJava('%s', %d, '%s', %d, %d, '%s'); }, 500);", // Reduced delay for faster interaction, 500ms should be enough
-                          jsonData,
-                          finalPort,
-                          sessionIdFromJava,
-                          homeBanking,
-                          botJobId,
-                          botJobName));
+        //        this.saveAsBotJobButton = builder.buildButton(
+        //                "Save As", ARConstants.SPACE_ZERO, ARConstants.ICON_SAVE, ARConstants.SPACE_M,
+        // new
+        // Insets(5.0D));
+        this.printBotJobButton = builder.buildButton(
+                "Print", ARConstants.SPACE_ZERO, ARConstants.ICON_PRINT, ARConstants.SPACE_M, new Insets(5.0D));
+        this.openExcelFileButton = builder.buildButton(
+                "Excel File", ARConstants.SPACE_ZERO, ARConstants.ICON_EXCEL, ARConstants.SPACE_M, new Insets(5.0D));
+        this.generateExcelButton = builder.buildButton(
+                "Generate", ARConstants.SPACE_ZERO, ARConstants.ICON_EXCEL, ARConstants.SPACE_M, new Insets(5.0D));
+        this.closeBotJobButton = builder.buildButton(
+                "Close", ARConstants.SPACE_ZERO, ARConstants.ICON_CROSS, ARConstants.SPACE_M, new Insets(5.0D));
 
-                  // --- Optional: If you still want to expose Java methods to JS for Wasm control
-                  // ---
-                  // If you uncomment these, ensure WasmBridge is a proper class in your Java
-                  // project
-                  // WasmBridge bridge = new WasmBridge(); // Instantiate your WasmBridge class
-                  // JSObject window = (JSObject) webEngine.executeScript("window");
-                  // window.setMember("javaWasm", new Object() {
-                  //     public int add() {
-                  //         // This method will be called from JavaScript
-                  //         return bridge.addFromWasm("/build/functions.wasm"); // Path to Wasm
-                  // relative to Java app
-                  //     }
-                  // });
+        // Create a GridPane for the left side buttons
+        GridPane leftGridPane = new GridPane();
+        leftGridPane.setVgap(10); // Vertical spacing between elements
+        leftGridPane.setHgap(10); // Horizontal spacing between elements
 
-                } catch (Exception e) {
-                  logger.severe("buildWebView Error: " + e.getMessage());
-                  // Log any errors that occur during JavaScript execution
-                  // You might also want to display an error message in the WebView itself
-                  webEngine.executeScript(
-                      "alert('JavaFX Error: " + e.getMessage().replace("'", "\\'") + "');");
+        // Define a uniform width for the buttons
+        double buttonWidth = 100;
+
+        // Add the top row of buttons
+        refreshButton.setPrefWidth(buttonWidth);
+        leftGridPane.add(refreshButton, 0, 0);
+
+        openScannerButton.setPrefWidth(buttonWidth);
+        leftGridPane.add(openScannerButton, 1, 0);
+
+        saveBotJobButton.setPrefWidth(buttonWidth);
+        leftGridPane.add(saveBotJobButton, 2, 0);
+
+        //        saveAsBotJobButton.setPrefWidth(buttonWidth);
+        //        leftGridPane.add(saveAsBotJobButton, 3, 0);
+
+        editBotJobButton.setPrefWidth(buttonWidth);
+        leftGridPane.add(editBotJobButton, 3, 0);
+
+        launchBotJobButton.setPrefWidth(buttonWidth);
+        leftGridPane.add(launchBotJobButton, 4, 0);
+
+        // Add the bottom row of buttons
+        //        saveBotJobButton.setPrefWidth(buttonWidth);
+        //        leftGridPane.add(saveBotJobButton, 0, 1);
+
+        //        saveAsBotJobButton.setPrefWidth(buttonWidth);
+        //        leftGridPane.add(saveAsBotJobButton, 1, 1);
+
+        openExcelFileButton.setPrefWidth(buttonWidth);
+        leftGridPane.add(openExcelFileButton, 2, 1);
+
+        generateExcelButton.setPrefWidth(buttonWidth);
+        leftGridPane.add(generateExcelButton, 3, 1);
+
+        closeBotJobButton.setPrefWidth(buttonWidth);
+        leftGridPane.add(closeBotJobButton, 4, 1);
+
+        // Center the buttons
+        for (Node node : leftGridPane.getChildren()) {
+            GridPane.setHalignment(node, HPos.CENTER);
+        }
+
+        // Other UI components
+
+        double botJobNameWidth = 450;
+
+        createBATButton = createPathButton();
+
+        this.webSiteInfoLabel = new Label(
+                "Web-site Id: " + this.botJobLoad.getHomeBankingId() + " Bot Job Id: " + this.botJobLoad.getId());
+        this.webSiteInfoLabel.setStyle(
+                "-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: darkgreen;"); // Green dark
+        this.botJobNameLabel = new Label(this.botJobLoad.getName());
+        this.botJobNameLabel.setPrefWidth(botJobNameWidth);
+        this.botJobNameLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;"); // Basic styling
+        this.botJobNameTextField = new TextField(this.botJobLoad.getName());
+        this.botJobNameTextField.setPrefWidth(botJobNameWidth);
+        this.botJobNameTextField.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
+
+        initComponentButton();
+
+        StackPane botJobNameGroup =
+                new StackPane(new Node[] {this.botJobNameLabel, this.botJobNameTextField, this.componentButton});
+        StackPane.setAlignment(this.componentButton, Pos.CENTER_RIGHT);
+        StackPane.setMargin(this.componentButton, new Insets(5.0D, 0.0D, 0.0D, 0.0D));
+
+        this.botJobDescriptionLabel = new Label(this.botJobLoad.getDescription());
+        this.botJobDescriptionLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
+        this.botJobDescriptionLabel.setPrefWidth(botJobNameWidth);
+        this.botJobDescriptionTextField = new TextField(this.botJobLoad.getDescription());
+        this.botJobDescriptionTextField.setPrefWidth(botJobNameWidth);
+        this.botJobDescriptionTextField.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
+
+        StackPane botJobDescriptionGroup =
+                new StackPane(new Node[] {this.botJobDescriptionLabel, this.botJobDescriptionTextField});
+
+        List<InstructionLoadDTO> listForDeletion =
+                performDataBase.getBlockLoopInstructionIdsWithNullBlock(this.botJobLoad.getId());
+        for (InstructionLoadDTO instruction : listForDeletion) {
+            performDataBase.deleteInstruction(this.botJobLoad.getId(), instruction);
+        }
+        performDataBase.deleteNullBlocks(this.botJobLoad.getId());
+        performDataBase.updateBlockOrderNumber(performDataBase.selectAllBlocks(this.botJobLoad.getId()), true);
+
+        this.botJobLoadList = performDataBase.loadCompleteJobs(this.botJobLoad.getId());
+        createExcelDataFile(botJobLoad, botJobLoadList);
+
+        componentBox = new HBox(new Node[] {this.webViewTasks});
+        firstLoad = false;
+
+        // Make webView expand both horizontally and vertically
+        HBox.setHgrow(this.webViewTasks, Priority.ALWAYS);
+        VBox.setVgrow(this.webViewTasks, Priority.ALWAYS); // Ensures vertical growth
+
+        // Prevent componentContainer from growing too much
+        HBox.setHgrow(this.componentContainer, Priority.NEVER);
+
+        // Create the BAT Website vs Bot Job
+        HBox batCreate = new HBox(10, createBATButton, webSiteInfoLabel); // Put labels in an HBox
+        //        batCreate.setAlignment(Pos.CENTER); // Align the labels in the center of the HBox
+
+        //        batCreate.setVisible(false);
+        // Create botJobContainer AFTER defining compBox
+        botJobContainer =
+                new VBox(new Node[] {leftGridPane, batCreate, botJobNameGroup, botJobDescriptionGroup, componentBox});
+
+        // Allow botJobContainer to grow vertically as well
+        // Ensure botJobContainer and webView grow properly
+        VBox.setVgrow(botJobContainer, Priority.ALWAYS);
+
+        VBox.setVgrow(this.componentBox, Priority.ALWAYS);
+        HBox.setHgrow(this.componentBox, Priority.ALWAYS);
+
+        // Use AnchorPane to ensure the VBox resizes with the window
+        mainPane = new AnchorPane(botJobContainer);
+        //        mainPane.getStylesheets().add(css);
+
+        AnchorPane.setTopAnchor(botJobContainer, ARConstants.SPACE_M);
+        AnchorPane.setBottomAnchor(botJobContainer, ARConstants.SPACE_M);
+        AnchorPane.setLeftAnchor(botJobContainer, ARConstants.SPACE_M);
+        AnchorPane.setRightAnchor(botJobContainer, ARConstants.SPACE_M);
+    }
+
+    private Button createPathButton() {
+        Button button = builder.buildButton(
+                "", ARConstants.SPACE_L, ARConstants.ICON_BURN, ARConstants.SPACE_M, new Insets(3D));
+        button.setMaxWidth(ARConstants.SPACE_L);
+        AnchorPane.setRightAnchor(button, 0D);
+        return button;
+    }
+
+    private void createExcelDataFile(BotJobLoadDTO botJobLoad, List<BotJobLoadDTO> botJobList) {
+
+        // Retrieve the updated BotJobDTO
+        //        BotJobDTO botJobUpdated = (BotJobDTO) PerformDataBase..getEntityById(BotJobDTO.class,
+        // botJobId);
+
+        if (botJobLoad != null) {
+
+            List<BlockLoadDTO> blocksLoaded = new ArrayList<>(); // Initialize to null
+            if (botJobList != null && !botJobList.isEmpty() && botJobList.get(0) != null) {
+                List<BlockLoadDTO> tempList = botJobList.get(0).getBlockLoadDTOList();
+                if (tempList != null) {
+                    blocksLoaded = tempList;
+                } else {
+                    System.out.println("getBlockLoadDTOList() returned null for the first element.");
                 }
-              }
-            });
-  }
-
-  public void initUIBehaviour() {
-
-    createBATButton.setOnMouseClicked(
-        e -> {
-          ARPropertyManager managerProps = arPropertyManager;
-          String enginePath =
-              managerProps.getProperty(ARPropertyEnum.PATH_ENGINE); // + "\\AR_Web_Engine.jar";
-          String excelPath = managerProps.getProperty(ARPropertyEnum.PATH_EXCEL);
-          excelPath = excelPath + "\\" + this.botJobLoad.getName() + ".xlsx";
-          if (!new File(excelPath).exists()) {
-            performMessage.errorMessage(
-                "Action Required: Prepare Excel Data",
-                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Crucial Step: Prepare Excel Data Before Launch!</span>",
-                "<span style='color: #2E7D32; font-weight: bold;'>To successfully initiate the bot job, the Excel data file must be generated and compiled *first*.</span>",
-                "<span style='font-style: italic;'>Ensure this preparation is complete before attempting to launch the automation process.</span>",
-                null,
-                0);
-
-            return;
-          }
-
-          String configPath = System.getProperty("ARWebConfig");
-
-          createBatFile(this.botJobLoad, excelPath, enginePath, configPath);
-        });
-
-    refreshButton.setOnMouseClicked(
-        e -> {
-          refreshGrids();
-        });
-    //        saveAsBotJobButton.setOnMouseClicked(e -> new
-    // ARSaveBotJobAsScene(this.botJobLoad.getId()).show());
-    this.botJobNameLabel.visibleProperty().bind(this.isEditingBotJob.not());
-    this.botJobDescriptionLabel.visibleProperty().bind(this.isEditingBotJob.not());
-    this.botJobNameTextField.visibleProperty().bind(this.isEditingBotJob);
-    this.botJobDescriptionTextField.visibleProperty().bind(this.isEditingBotJob);
-    this.editBotJobButton.setOnMouseClicked(
-        (e) -> {
-          this.isEditingBotJob.set(this.isEditingBotJob.not().getValue());
-          this.saveBotJobButton.setDisable(this.isEditingBotJob.not().getValue());
-        });
-    this.saveBotJobButton.setOnMouseClicked(
-        (e) -> {
-          this.isEditingBotJob.set(false);
-          this.isEditingBotJob.set(false);
-          this.botJobNameLabel.setText(this.botJobNameTextField.getText());
-          this.botJobDescriptionLabel.setText(this.botJobDescriptionTextField.getText());
-          this.botJobLoad.setName(this.botJobNameLabel.getText());
-          this.botJobLoad.setDescription(this.botJobDescriptionLabel.getText());
-          this.saveBotJobButton.setDisable(true);
-
-          boolean botJobUpdate =
-              performDataBase.updateBotJobNme(
-                  this.botJobLoad.getId(),
-                  botJobNameTextField.getText(),
-                  botJobDescriptionTextField.getText());
-
-          //            PerformDataBase..updateEntity(this.botJobLoad, BotJobDTO.class);
-
-          // PerformDataBase..changeDbConnection();
-
-          String msgBotJob = botJobUpdate ? "Bot-Job Updated successfully!" : "Bot-Job NOT Update!";
-
-          performMessage.errorMessage(
-              "Update Bot-Job",
-              "<span style='color: #000080; font-weight: bold; font-size: 14px;'>"
-                  + msgBotJob
-                  + "</span>",
-              "<span style='color: #000080; font-weight: bold;'>"
-                  + this.botJobLoad.getName()
-                  + "</span>",
-              null,
-              null,
-              0);
-
-          // Refresh the ListView after adding the new bot job
-          this.botJobList.clear();
-          this.botJobList.addAll(performDataBase.loadAllBotJobs());
-        });
-    this.openScannerButton.setOnMouseClicked(
-        (e) -> {
-          callScannerTool();
-        });
-
-    this.generateExcelButton.setOnMouseClicked(
-        (e) -> {
-          // Cache entities from the database
-          //            PerformDataBase..changeDbConnection(previousDB);
-
-          this.botJobLoadList = performDataBase.loadBotJobAndBlocks(this.botJobLoad.getId());
-
-          // Retrieve the updated BotJobDTO
-          //            BotJobDTO botJobUpdated = (BotJobDTO)
-          //                    PerformDataBase..getEntityById(BotJobDTO.class,
-          // this.botJobLoad.getId());
-
-          //            List<BlockLoadDTO> blockList = this.botJobLoad.getBlockLoadDTOList();
-
-          //            boolean hasInputFields = blockList.stream()
-          //                    .flatMap(
-          //                            block -> block
-          //                                    .getBlockLoopInstructionLoadDTOS()
-          //                                    .stream()) // Flatten all
-          // BlockLoopInstructionLoadDTOs from each block
-          //                    .anyMatch(instruction -> instruction.getActions() != null
-          //                            && instruction.getActions().startsWith("I:"));
-
-          if (this.botJobLoadList.size() > 0) {
-
-            List<BlockLoadDTO> blocksLoaded = botJobLoadList.get(0).getBlockLoadDTOList();
+            }
 
             List<String> allActions = performDataBase.loadAllActionsPerBlock(blocksLoaded);
 
-            // Check if the Excel file already exists
-            ExtractedData extractedData =
-                ExcelUtils.isFileExists(this.botJobLoad.getName(), allActions);
+            String excelFolderPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
+            String fileName =
+                    String.format("%s/%s%s", excelFolderPath, botJobLoad.getName(), ARConstants.FILE_FORMAT_EXCEL);
 
-            if (extractedData != null && extractedData.getErrorMessage() != null) {
+            // Create a File object
+            File fileCheck = new File(fileName);
+            if (!fileCheck.exists() && !fileCheck.isDirectory()) {
 
-              performMessage.errorMessage(
-                  "Excel Error",
-                  "Could Not Execute Excel File",
-                  extractedData.getErrorMessage(),
-                  null,
-                  null,
-                  0);
+                // Check if the Excel file already exists
+                ExtractedData extractedData = ExcelUtils.isFileExists(botJobLoad.getName(), allActions);
 
-              return;
+                if (extractedData == null
+                        || (extractedData.getErrorTitle() != null
+                                && !extractedData.getErrorTitle().contains("No Actions Provided"))) {
+
+                    // Create a task for generating the Excel file
+                    Task<Void> excelTask = new Task<>() {
+                        @Override
+                        protected Void call() throws Exception {
+                            new ExcelUtils().generateExcelFiles(botJobLoad, allActions, extractedData, false);
+                            return null;
+                        }
+                    };
+
+                    new Thread(excelTask).start();
+                }
+            }
+        } else {
+
+            performMessage.errorMessage(
+                    "Not Able to Create a Excel File",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to create a excel file!</span>",
+                    "<span style='color: #E65100; font-weight: bold;'>Not Bot Job Found</span>",
+                    "<span style='font-style: italic;'>Bot-Job List is empty!</span>",
+                    null,
+                    0);
+        }
+    }
+
+    private void buildWebView(
+            WebEngine webEngine,
+            String jsonData,
+            int finalPort,
+            String sessionIdFromJava,
+            int homeBanking,
+            int botJobId,
+            String botJobName,
+            int portHttp) {
+        //        webEngine.load(getClass().getResource("/build/index.html").toExternalForm());
+
+        new Timer()
+                .schedule(
+                        new TimerTask() {
+                            @Override
+                            public void run() {
+                                Platform.runLater(() -> webEngine.load("http://localhost:" + portHttp));
+                            }
+                        },
+                        3000); // 3-second delay
+
+        webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
+            System.out.println("WebView load state: " + newState);
+            if (newState == Worker.State.FAILED) {
+                System.out.println("WebView failed to load");
+            }
+        });
+
+        webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
+            if (newState == Worker.State.SUCCEEDED) {
+                // After the page has successfully loaded
+                try {
+                    //                    webEngine.executeScript("setTimeout(function() {
+                    // window.receiveDataFromJava(JSON.stringify("
+                    //                            + jsonData + "), " + finalPort + ", '" +
+                    // sessionIdFromJava + "', " +
+                    // homeBanking + ", "
+                    //                            + botJobId + ", '" + botJobName + "' ) }, 1000)");
+                    webEngine.executeScript(String.format(
+                            "setTimeout(function() { window.receiveDataFromJava('%s', %d, '%s', %d, %d, '%s'); }, 500);", // Reduced delay for faster interaction, 500ms should be enough
+                            jsonData, finalPort, sessionIdFromJava, homeBanking, botJobId, botJobName));
+
+                    // --- Optional: If you still want to expose Java methods to JS for Wasm control
+                    // ---
+                    // If you uncomment these, ensure WasmBridge is a proper class in your Java
+                    // project
+                    // WasmBridge bridge = new WasmBridge(); // Instantiate your WasmBridge class
+                    // JSObject window = (JSObject) webEngine.executeScript("window");
+                    // window.setMember("javaWasm", new Object() {
+                    //     public int add() {
+                    //         // This method will be called from JavaScript
+                    //         return bridge.addFromWasm("/build/functions.wasm"); // Path to Wasm
+                    // relative to Java app
+                    //     }
+                    // });
+
+                } catch (Exception e) {
+                    logger.severe("buildWebView Error: " + e.getMessage());
+                    // Log any errors that occur during JavaScript execution
+                    // You might also want to display an error message in the WebView itself
+                    webEngine.executeScript(
+                            "alert('JavaFX Error: " + e.getMessage().replace("'", "\\'") + "');");
+                }
+            }
+        });
+    }
+
+    public void initUIBehaviour() {
+
+        createBATButton.setOnMouseClicked(e -> {
+            ARPropertyManager managerProps = arPropertyManager;
+            String enginePath = managerProps.getProperty(ARPropertyEnum.PATH_ENGINE); // + "\\AR_Web_Engine.jar";
+            String excelPath = managerProps.getProperty(ARPropertyEnum.PATH_EXCEL);
+            excelPath = excelPath + "\\" + this.botJobLoad.getName() + ".xlsx";
+            if (!new File(excelPath).exists()) {
+                performMessage.errorMessage(
+                        "Action Required: Prepare Excel Data",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Crucial Step: Prepare Excel Data Before Launch!</span>",
+                        "<span style='color: #2E7D32; font-weight: bold;'>To successfully initiate the bot job, the Excel data file must be generated and compiled *first*.</span>",
+                        "<span style='font-style: italic;'>Ensure this preparation is complete before attempting to launch the automation process.</span>",
+                        null,
+                        0);
+
+                return;
             }
 
-            // Create a task for generating the Excel file
-            Task<Void> excelTask =
-                new Task<>() {
-                  @Override
-                  protected Void call() throws Exception {
-                    new ExcelUtils()
-                        .generateExcelFiles(botJobLoad, allActions, extractedData, true);
-                    return null;
-                  }
-                };
-            String excelFile = this.botJobLoad.getName() + ARConstants.FILE_FORMAT_EXCEL;
+            String configPath = System.getProperty("ARWebConfig");
 
-            if (extractedData != null) {
+            createBatFile(this.botJobLoad, excelPath, enginePath, configPath);
+        });
 
-              // Prepare the combined text container for the dialog
-              // You can add more content to the combinedTextContainer if needed
+        refreshButton.setOnMouseClicked(e -> {
+            refreshGrids();
+        });
+        //        saveAsBotJobButton.setOnMouseClicked(e -> new
+        // ARSaveBotJobAsScene(this.botJobLoad.getId()).show());
+        this.botJobNameLabel.visibleProperty().bind(this.isEditingBotJob.not());
+        this.botJobDescriptionLabel.visibleProperty().bind(this.isEditingBotJob.not());
+        this.botJobNameTextField.visibleProperty().bind(this.isEditingBotJob);
+        this.botJobDescriptionTextField.visibleProperty().bind(this.isEditingBotJob);
+        this.editBotJobButton.setOnMouseClicked((e) -> {
+            this.isEditingBotJob.set(this.isEditingBotJob.not().getValue());
+            this.saveBotJobButton.setDisable(this.isEditingBotJob.not().getValue());
+        });
+        this.saveBotJobButton.setOnMouseClicked((e) -> {
+            this.isEditingBotJob.set(false);
+            this.isEditingBotJob.set(false);
+            this.botJobNameLabel.setText(this.botJobNameTextField.getText());
+            this.botJobDescriptionLabel.setText(this.botJobDescriptionTextField.getText());
+            this.botJobLoad.setName(this.botJobNameLabel.getText());
+            this.botJobLoad.setDescription(this.botJobDescriptionLabel.getText());
+            this.saveBotJobButton.setDisable(true);
 
-              ARConstants.DialogModal respModal =
-                  performMessage.showCustomModalDialogDragWin11(
-                      "Warning: Excel File Already Exists",
-                      "<span style='color: #000080; font-weight: bold; font-size: 14px;'>An Excel file with this name already exists. Do you want to overwrite it?</span>",
-                      "<span style='color: #000080; font-weight: bold;'>" + excelFile + "</span>",
-                      "<span style='color: red; font-weight: bold;'>OVERWRITING WILL DELETE ANY DATA NOT PRESENT IN THE CURRENT JOB.</span>",
-                      "<span style='color: red; font-weight: bold;'>NEW COLUMNS WILL BE ADDED AND VALUE SET AS \"CHANGE ME\".</span>",
-                      true,
-                      "Overwrite",
-                      "Cancel",
-                      0);
+            boolean botJobUpdate = performDataBase.updateBotJobNme(
+                    this.botJobLoad.getId(), botJobNameTextField.getText(), botJobDescriptionTextField.getText());
 
-              if (!respModal.equals(ARConstants.DialogModal.STOP)) {
+            //            PerformDataBase..updateEntity(this.botJobLoad, BotJobDTO.class);
 
-                new Thread(excelTask).start();
+            // PerformDataBase..changeDbConnection();
 
-                performMessage.errorMessage(
-                    "Warning: Excel File Already Exists",
-                    "<span style='color: #000080; font-weight: bold; font-size: 14px;'>Success Excel File Override.</span>",
-                    "<span style='color: #000080; font-weight: bold;'>" + excelFile + "</span>",
+            String msgBotJob = botJobUpdate ? "Bot-Job Updated successfully!" : "Bot-Job NOT Update!";
+
+            performMessage.errorMessage(
+                    "Update Bot-Job",
+                    "<span style='color: #000080; font-weight: bold; font-size: 14px;'>" + msgBotJob + "</span>",
+                    "<span style='color: #000080; font-weight: bold;'>" + this.botJobLoad.getName() + "</span>",
                     null,
                     null,
                     0);
-              }
-            } else {
-              // If file does not exist, start the Excel generation task directly
 
-              new Thread(excelTask).start();
-
-              performMessage.errorMessage(
-                  "Warning: New Excel File Created!",
-                  "<span style='color: #000080; font-weight: bold; font-size: 14px;'>Success Excel File Generated.</span>",
-                  "<span style='color: #000080; font-weight: bold;'>" + excelFile + "</span>",
-                  null,
-                  null,
-                  0);
-            }
-          }
+            // Refresh the ListView after adding the new bot job
+            this.botJobList.clear();
+            this.botJobList.addAll(performDataBase.loadAllBotJobs());
         });
-    this.launchBotJobButton.setOnMouseClicked(
-        (e) -> {
-          ARPropertyManager managerProps = arPropertyManager;
-          String enginePath =
-              managerProps.getProperty(ARPropertyEnum.PATH_ENGINE); // + "\\AR_Web_Engine.jar";
-          String excelPath = managerProps.getProperty(ARPropertyEnum.PATH_EXCEL);
-          excelPath = excelPath + "\\" + this.botJobLoad.getName() + ".xlsx";
-          if (!new File(excelPath).exists()) {
-            performMessage.errorMessage(
-                "Action Required: Prepare Excel Data",
-                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Crucial Step: Prepare Excel Data Before Launch!</span>",
-                "<span style='color: #2E7D32; font-weight: bold;'>To successfully initiate the bot job, the Excel data file must be generated and compiled *first*.</span>",
-                "<span style='font-style: italic;'>Ensure this preparation is complete before attempting to launch the automation process.</span>",
-                null,
-                0);
+        this.openScannerButton.setOnMouseClicked((e) -> {
+            callScannerTool();
+        });
 
-            return;
-          }
+        this.generateExcelButton.setOnMouseClicked((e) -> {
+            // Cache entities from the database
+            //            PerformDataBase..changeDbConnection(previousDB);
 
-          String version = System.getProperty("java.version");
-          System.out.println("Detected Java Version: " + version);
+            this.botJobLoadList = performDataBase.loadBotJobAndBlocks(this.botJobLoad.getId());
 
-          int majorVersion = getMajorJavaVersion(version);
-          if (majorVersion >= 17) {
-            System.out.println("✅ Java 17 or higher is installed.");
-          } else {
-            performMessage.errorMessage(
-                "Compatibility Issue: Incompatible Java Version",
-                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: Your Java version is lower than the required 17!</span>",
-                "<span style='color: #2E7D32; font-weight: bold;'>Attempting to execute the Engine with this older version may lead to unexpected behavior or failures.</span>",
-                "<span style='font-style: italic;'>Please upgrade your Java installation to version 17 or higher for optimal performance and stability.</span>",
-                null,
-                0);
-          }
-          String webDriverPath = managerProps.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
-          if (!(new File(webDriverPath)).exists()) {
-            performMessage.errorMessage(
-                "Action Required: Missing WebDriver",
-                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: The WebDriver file is missing!</span>",
-                "<span style='color: #2E7D32; font-weight: bold;'>To execute automated browser interactions, the WebDriver is absolutely essential.</span>",
-                "<span style='font-style: italic;'>Please download the correct WebDriver for your browser and ensure it is accessible by the application.</span>",
-                null,
-                0);
-            return;
-          }
+            // Retrieve the updated BotJobDTO
+            //            BotJobDTO botJobUpdated = (BotJobDTO)
+            //                    PerformDataBase..getEntityById(BotJobDTO.class,
+            // this.botJobLoad.getId());
 
-          //    ".\\java\\bin\\java.exe",
-          String[] command =
-              new String[] {
+            //            List<BlockLoadDTO> blockList = this.botJobLoad.getBlockLoadDTOList();
+
+            //            boolean hasInputFields = blockList.stream()
+            //                    .flatMap(
+            //                            block -> block
+            //                                    .getBlockLoopInstructionLoadDTOS()
+            //                                    .stream()) // Flatten all
+            // BlockLoopInstructionLoadDTOs from each block
+            //                    .anyMatch(instruction -> instruction.getActions() != null
+            //                            && instruction.getActions().startsWith("I:"));
+
+            if (this.botJobLoadList.size() > 0) {
+
+                List<BlockLoadDTO> blocksLoaded = botJobLoadList.get(0).getBlockLoadDTOList();
+
+                List<String> allActions = performDataBase.loadAllActionsPerBlock(blocksLoaded);
+
+                // Check if the Excel file already exists
+                ExtractedData extractedData = ExcelUtils.isFileExists(this.botJobLoad.getName(), allActions);
+
+                if (extractedData != null && extractedData.getErrorMessage() != null) {
+
+                    performMessage.errorMessage(
+                            "Excel Error",
+                            "Could Not Execute Excel File",
+                            extractedData.getErrorMessage(),
+                            null,
+                            null,
+                            0);
+
+                    return;
+                }
+
+                // Create a task for generating the Excel file
+                Task<Void> excelTask = new Task<>() {
+                    @Override
+                    protected Void call() throws Exception {
+                        new ExcelUtils().generateExcelFiles(botJobLoad, allActions, extractedData, true);
+                        return null;
+                    }
+                };
+                String excelFile = this.botJobLoad.getName() + ARConstants.FILE_FORMAT_EXCEL;
+
+                if (extractedData != null) {
+
+                    // Prepare the combined text container for the dialog
+                    // You can add more content to the combinedTextContainer if needed
+
+                    ARConstants.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
+                            "Warning: Excel File Already Exists",
+                            "<span style='color: #000080; font-weight: bold; font-size: 14px;'>An Excel file with this name already exists. Do you want to overwrite it?</span>",
+                            "<span style='color: #000080; font-weight: bold;'>" + excelFile + "</span>",
+                            "<span style='color: red; font-weight: bold;'>OVERWRITING WILL DELETE ANY DATA NOT PRESENT IN THE CURRENT JOB.</span>",
+                            "<span style='color: red; font-weight: bold;'>NEW COLUMNS WILL BE ADDED AND VALUE SET AS \"CHANGE ME\".</span>",
+                            true,
+                            "Overwrite",
+                            "Cancel",
+                            0);
+
+                    if (!respModal.equals(ARConstants.DialogModal.STOP)) {
+
+                        new Thread(excelTask).start();
+
+                        performMessage.errorMessage(
+                                "Warning: Excel File Already Exists",
+                                "<span style='color: #000080; font-weight: bold; font-size: 14px;'>Success Excel File Override.</span>",
+                                "<span style='color: #000080; font-weight: bold;'>" + excelFile + "</span>",
+                                null,
+                                null,
+                                0);
+                    }
+                } else {
+                    // If file does not exist, start the Excel generation task directly
+
+                    new Thread(excelTask).start();
+
+                    performMessage.errorMessage(
+                            "Warning: New Excel File Created!",
+                            "<span style='color: #000080; font-weight: bold; font-size: 14px;'>Success Excel File Generated.</span>",
+                            "<span style='color: #000080; font-weight: bold;'>" + excelFile + "</span>",
+                            null,
+                            null,
+                            0);
+                }
+            }
+        });
+        this.launchBotJobButton.setOnMouseClicked((e) -> {
+            ARPropertyManager managerProps = arPropertyManager;
+            String enginePath = managerProps.getProperty(ARPropertyEnum.PATH_ENGINE); // + "\\AR_Web_Engine.jar";
+            String excelPath = managerProps.getProperty(ARPropertyEnum.PATH_EXCEL);
+            excelPath = excelPath + "\\" + this.botJobLoad.getName() + ".xlsx";
+            if (!new File(excelPath).exists()) {
+                performMessage.errorMessage(
+                        "Action Required: Prepare Excel Data",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Crucial Step: Prepare Excel Data Before Launch!</span>",
+                        "<span style='color: #2E7D32; font-weight: bold;'>To successfully initiate the bot job, the Excel data file must be generated and compiled *first*.</span>",
+                        "<span style='font-style: italic;'>Ensure this preparation is complete before attempting to launch the automation process.</span>",
+                        null,
+                        0);
+
+                return;
+            }
+
+            String version = System.getProperty("java.version");
+            System.out.println("Detected Java Version: " + version);
+
+            int majorVersion = getMajorJavaVersion(version);
+            if (majorVersion >= 17) {
+                System.out.println("✅ Java 17 or higher is installed.");
+            } else {
+                performMessage.errorMessage(
+                        "Compatibility Issue: Incompatible Java Version",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: Your Java version is lower than the required 17!</span>",
+                        "<span style='color: #2E7D32; font-weight: bold;'>Attempting to execute the Engine with this older version may lead to unexpected behavior or failures.</span>",
+                        "<span style='font-style: italic;'>Please upgrade your Java installation to version 17 or higher for optimal performance and stability.</span>",
+                        null,
+                        0);
+            }
+            String webDriverPath = managerProps.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
+            if (!(new File(webDriverPath)).exists()) {
+                performMessage.errorMessage(
+                        "Action Required: Missing WebDriver",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: The WebDriver file is missing!</span>",
+                        "<span style='color: #2E7D32; font-weight: bold;'>To execute automated browser interactions, the WebDriver is absolutely essential.</span>",
+                        "<span style='font-style: italic;'>Please download the correct WebDriver for your browser and ensure it is accessible by the application.</span>",
+                        null,
+                        0);
+                return;
+            }
+
+            //    ".\\java\\bin\\java.exe",
+            String[] command = new String[] {
                 "cmd.exe",
                 "/c",
                 "java.exe",
@@ -955,467 +856,440 @@ public class ARViewBotJobPane extends ARPane {
                 "\"" + excelPath + "\"",
                 "-c",
                 arPropertyManager.getConfigurationFileName()
-              };
-          ProcessBuilder processBuilder = new ProcessBuilder(command);
-          processBuilder.directory(new File(ARConstants.USER_PATH));
-          String logPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG);
-          File output = new File(logPath + "\\engine_debug_log_output.log");
-          File error = new File(logPath + "\\engine_debug_log_error.log");
-          File input = new File(logPath + "\\engine_debug_log_input.log");
-          List<File> files = new ArrayList<File>();
-          files.add(output);
-          files.add(error);
-          files.add(input);
+            };
+            ProcessBuilder processBuilder = new ProcessBuilder(command);
+            processBuilder.directory(new File(ARConstants.USER_PATH));
+            String logPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG);
+            File output = new File(logPath + "\\engine_debug_log_output.log");
+            File error = new File(logPath + "\\engine_debug_log_error.log");
+            File input = new File(logPath + "\\engine_debug_log_input.log");
+            List<File> files = new ArrayList<File>();
+            files.add(output);
+            files.add(error);
+            files.add(input);
 
-          Iterator<File> var11 = files.iterator();
+            Iterator<File> var11 = files.iterator();
 
-          while (var11.hasNext()) {
-            File file = (File) var11.next();
-            if (!file.exists()) {
-              try {
-                file.createNewFile();
-              } catch (IOException var15) {
-                var15.printStackTrace();
-              }
+            while (var11.hasNext()) {
+                File file = (File) var11.next();
+                if (!file.exists()) {
+                    try {
+                        file.createNewFile();
+                    } catch (IOException var15) {
+                        var15.printStackTrace();
+                    }
+                }
             }
-          }
 
-          processBuilder.redirectOutput(output);
-          processBuilder.redirectError(error);
-          processBuilder.redirectInput(input);
+            processBuilder.redirectOutput(output);
+            processBuilder.redirectError(error);
+            processBuilder.redirectInput(input);
 
-          try {
-            processBuilder.start();
-          } catch (IOException var14) {
-            var14.printStackTrace();
-          }
+            try {
+                processBuilder.start();
+            } catch (IOException var14) {
+                var14.printStackTrace();
+            }
         });
-    this.closeBotJobButton.setOnMouseClicked(
-        (e) -> {
-          //            stopWebSocketServer();
-          logger.finer("Close Bot Job Button");
-          Platform.runLater(
-              () -> {
+        this.closeBotJobButton.setOnMouseClicked((e) -> {
+            //            stopWebSocketServer();
+            logger.finer("Close Bot Job Button");
+            Platform.runLater(() -> {
                 Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
                 stage.close();
-              });
+            });
         });
-    this.openExcelFileButton.setOnMouseClicked(
-        (e) -> {
-          String excelFolderPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
-          String fileName =
-              String.format(
-                  "%s/%s%s",
-                  excelFolderPath, this.botJobLoad.getName(), ARConstants.FILE_FORMAT_EXCEL);
+        this.openExcelFileButton.setOnMouseClicked((e) -> {
+            String excelFolderPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
+            String fileName =
+                    String.format("%s/%s%s", excelFolderPath, this.botJobLoad.getName(), ARConstants.FILE_FORMAT_EXCEL);
 
-          //        List<BlockLoadDTO> blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
+            //        List<BlockLoadDTO> blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
 
-          // Create a File object
-          File fileCheck = new File(fileName);
-          if (!fileCheck.exists() && !fileCheck.isDirectory()) {
-            performMessage.errorMessage(
-                "File Not Found",
-                "<span style='color: #000080; font-weight: bold; font-size: 14px;'>File does not exist:</span>",
-                "<span style='color: #000080; font-weight: bold;'>"
-                    + fileName
-                    + "</span>", // Added fileName here
-                "<span style='font-style: italic;'>Details:</span>",
-                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please ensure the file path is correct and the file is present.</span>",
-                0);
+            // Create a File object
+            File fileCheck = new File(fileName);
+            if (!fileCheck.exists() && !fileCheck.isDirectory()) {
+                performMessage.errorMessage(
+                        "File Not Found",
+                        "<span style='color: #000080; font-weight: bold; font-size: 14px;'>File does not exist:</span>",
+                        "<span style='color: #000080; font-weight: bold;'>"
+                                + fileName
+                                + "</span>", // Added fileName here
+                        "<span style='font-style: italic;'>Details:</span>",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please ensure the file path is correct and the file is present.</span>",
+                        0);
 
-          } else {
+            } else {
 
-            try {
-              String excelFilePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
-              excelFilePath = excelFilePath + "\\" + this.botJobLoad.getName() + ".xlsx";
-              File file = new File(excelFilePath);
-              Desktop.getDesktop().open(file);
-              //                    Runtime.getRuntime().exec("rundll32 url.dll, FileProtocolHandler
-              // " +
-              // excelFilePath);
-            } catch (IOException var3) {
+                try {
+                    String excelFilePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
+                    excelFilePath = excelFilePath + "\\" + this.botJobLoad.getName() + ".xlsx";
+                    File file = new File(excelFilePath);
+                    Desktop.getDesktop().open(file);
+                    //                    Runtime.getRuntime().exec("rundll32 url.dll, FileProtocolHandler
+                    // " +
+                    // excelFilePath);
+                } catch (IOException var3) {
 
-              performMessage.errorMessage(
-                  "Excel File Error",
-                  "<span style='color: #000080; font-weight: bold; font-size: 14px;'>Check All Excel Columns and Values!</span>",
-                  "<span style='color: #000080; font-weight: bold;'></span>",
-                  "<span style='font-style: italic;'>Details:</span>",
-                  "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Error loading Excel Rows.  Maybe it is better to re-generate the file.</span>",
-                  0);
+                    performMessage.errorMessage(
+                            "Excel File Error",
+                            "<span style='color: #000080; font-weight: bold; font-size: 14px;'>Check All Excel Columns and Values!</span>",
+                            "<span style='color: #000080; font-weight: bold;'></span>",
+                            "<span style='font-style: italic;'>Details:</span>",
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Error loading Excel Rows.  Maybe it is better to re-generate the file.</span>",
+                            0);
 
-              return;
+                    return;
+                }
             }
-          }
         });
-    this.componentButton.setOnMouseClicked(
-        (e) -> {
-          if (isComponentBoxVisible) {
-            componentBox.getChildren().clear();
+        this.componentButton.setOnMouseClicked((e) -> {
+            if (isComponentBoxVisible) {
+                componentBox.getChildren().clear();
 
-            componentBox.getChildren().add(this.webViewTasks);
-            componentBox.requestLayout();
-            componentContainer.requestLayout();
-            this.componentContainer.setManaged(false);
+                componentBox.getChildren().add(this.webViewTasks);
+                componentBox.requestLayout();
+                componentContainer.requestLayout();
+                this.componentContainer.setManaged(false);
 
-          } else {
+            } else {
 
-            componentBox.getChildren().clear();
-            componentBox.getChildren().addAll(this.webViewTasks, this.componentContainer);
-            //                componentBox.getChildren().addAll(this.webViewTasks,
-            // this.webViewComp);
+                componentBox.getChildren().clear();
+                componentBox.getChildren().addAll(this.webViewTasks, this.componentContainer);
+                //                componentBox.getChildren().addAll(this.webViewTasks,
+                // this.webViewComp);
 
-            componentBox.requestLayout();
-            componentContainer.requestLayout();
-            this.componentContainer.setVisible(true);
-            this.componentContainer.setManaged(true);
-          }
-          isComponentBoxVisible = !isComponentBoxVisible;
+                componentBox.requestLayout();
+                componentContainer.requestLayout();
+                this.componentContainer.setVisible(true);
+                this.componentContainer.setManaged(true);
+            }
+            isComponentBoxVisible = !isComponentBoxVisible;
         });
-  }
-
-  public void createBatFile(
-      BotJobLoadDTO botJobLoad, String excelFilePath, String enginePath, String configPath) {
-    String batFileName =
-        "execute_Website_"
-            + botJobLoad.getHomeBankingId()
-            + "_Botjob_"
-            + botJobLoad.getId()
-            + ".bat";
-
-    String basePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-    String batFilePath = basePath + File.separator + batFileName; // Corrected path
-
-    String javaCommand =
-        "java.exe -jar \""
-            + enginePath
-            + "\" execute/j "
-            + botJobLoad.getHomeBankingId()
-            + " "
-            + botJobLoad.getId()
-            + " \""
-            + excelFilePath
-            + "\" -c \""
-            + configPath
-            + "\"";
-
-    try (FileWriter writer = new FileWriter(batFilePath)) {
-      writer.write(javaCommand);
-
-      performMessage.showCustomModalDialogDragWin11(
-          "BAT File Creation",
-          "<span style='color: #00695C; font-weight: bold; font-size: 1.1em;'>BAT file created at:</span>",
-          "<span style='color: #2E7D32; font-weight: bold;'></span> <span style='font-weight: bold;'>"
-              + basePath
-              + "</span>", // changed color
-          "<span style='color: #00695C; font-weight: bold; font-size: 1.1em;'>BAT file name:</span>",
-          "<span style='color: #2E7D32; font-weight: bold;'></span> <span style='font-weight: bold;'>"
-              + batFileName
-              + "</span>", // changed color
-          false,
-          "OK",
-          null,
-          0);
-
-      System.out.println("BAT file created at: " + batFilePath);
-    } catch (IOException error) {
-      System.err.println("Error creating BAT file: " + error.getMessage());
-      performMessage.errorMessage(
-          "BAT File Creation Error",
-          "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to create file:</span>",
-          "<span style='font-weight: bold;'>" + batFilePath + "</span>.", // Filename on a new line
-          "<span style='color: #E65100; font-weight: bold;'>Please verify the application has the necessary write permissions for the directory.</span>",
-          "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
-          0);
-    }
-  }
-
-  private void callScannerTool() {
-    if (arPropertyManager.missingMandatoryPats()) {
-      return;
     }
 
-    if (!isScannerButtonClicked) { // Check if the button action was not already triggered
-      isScannerButtonClicked = true; // Set the flag to prevent further clicks
+    public void createBatFile(BotJobLoadDTO botJobLoad, String excelFilePath, String enginePath, String configPath) {
+        String batFileName =
+                "execute_Website_" + botJobLoad.getHomeBankingId() + "_Botjob_" + botJobLoad.getId() + ".bat";
 
-      logger.fine("Calling openScannerButton");
+        String basePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        String batFilePath = basePath + File.separator + batFileName; // Corrected path
 
-      String threadName = "botJob-" + this.botJobLoad.getId();
-      arScene.startNewThread(
-          threadName,
-          () -> {
+        String javaCommand = "java.exe -jar \""
+                + enginePath
+                + "\" execute/j "
+                + botJobLoad.getHomeBankingId()
+                + " "
+                + botJobLoad.getId()
+                + " \""
+                + excelFilePath
+                + "\" -c \""
+                + configPath
+                + "\"";
+
+        try (FileWriter writer = new FileWriter(batFilePath)) {
+            writer.write(javaCommand);
+
+            performMessage.showCustomModalDialogDragWin11(
+                    "BAT File Creation",
+                    "<span style='color: #00695C; font-weight: bold; font-size: 1.1em;'>BAT file created at:</span>",
+                    "<span style='color: #2E7D32; font-weight: bold;'></span> <span style='font-weight: bold;'>"
+                            + basePath
+                            + "</span>", // changed color
+                    "<span style='color: #00695C; font-weight: bold; font-size: 1.1em;'>BAT file name:</span>",
+                    "<span style='color: #2E7D32; font-weight: bold;'></span> <span style='font-weight: bold;'>"
+                            + batFileName
+                            + "</span>", // changed color
+                    false,
+                    "OK",
+                    null,
+                    0);
+
+            System.out.println("BAT file created at: " + batFilePath);
+        } catch (IOException error) {
+            System.err.println("Error creating BAT file: " + error.getMessage());
+            performMessage.errorMessage(
+                    "BAT File Creation Error",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to create file:</span>",
+                    "<span style='font-weight: bold;'>" + batFilePath + "</span>.", // Filename on a new line
+                    "<span style='color: #E65100; font-weight: bold;'>Please verify the application has the necessary write permissions for the directory.</span>",
+                    "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
+                    0);
+        }
+    }
+
+    private void callScannerTool() {
+        if (arPropertyManager.missingMandatoryPats()) {
+            return;
+        }
+
+        if (!isScannerButtonClicked) { // Check if the button action was not already triggered
+            isScannerButtonClicked = true; // Set the flag to prevent further clicks
+
+            logger.fine("Calling openScannerButton");
+
+            String threadName = "botJob-" + this.botJobLoad.getId();
+            arScene.startNewThread(threadName, () -> {
+                executeScannerTask();
+                isScannerButtonClicked = false; // Reset the flag after task completes
+            });
+        }
+    }
+
+    // Method where you start the thread (e.g., in a button's event handler)
+    private void handleStartScanner() {
+        String threadName = "botJob-" + this.botJobLoad.getId(); // Use the ID for the thread name
+        arScene.startNewThread(threadName, () -> {
             executeScannerTask();
-            isScannerButtonClicked = false; // Reset the flag after task completes
-          });
-    }
-  }
-
-  // Method where you start the thread (e.g., in a button's event handler)
-  private void handleStartScanner() {
-    String threadName = "botJob-" + this.botJobLoad.getId(); // Use the ID for the thread name
-    arScene.startNewThread(
-        threadName,
-        () -> {
-          executeScannerTask();
-          Platform.runLater(
-              () -> {
+            Platform.runLater(() -> {
                 // Update UI here, if needed
                 System.out.println("Scanner task completed for " + threadName);
-              });
-        });
-  }
-
-  public HomeUrlDTO findMatchingHomeUrlDTO(BotJobLoadDTO botJobLoadDTO) {
-    Integer targetHomeUrlId = botJobLoadDTO.getHomeUrlId();
-    HomeBankingLoadDTO homeBanking = botJobLoadDTO.getHomeBankingLoadDTO();
-
-    if (homeBanking != null && homeBanking.getHomeUrlDTOs() != null) {
-      return homeBanking.getHomeUrlDTOs().stream()
-          .filter(dto -> dto.getId().equals(targetHomeUrlId))
-          .findFirst()
-          .orElse(null);
-    }
-
-    return null;
-  }
-
-  private void executeScannerTask() {
-
-    List<HomeBankingLoadDTO> homeBankingList =
-        performDataBase.loadHomeBanking(this.botJobLoad.getHomeBankingId());
-    HomeBankingLoadDTO homeBanking = homeBankingList.isEmpty() ? null : homeBankingList.get(0);
-
-    HomeUrlDTO homeUrlDTO = findMatchingHomeUrlDTO(this.botJobLoad);
-    if (homeUrlDTO != null) {
-      this.botJobLoad.setHomeUrlId(homeUrlDTO.getId());
-      homeBanking.setUrl(homeUrlDTO.getUrl());
-    }
-
-    if (this.botJobLoad.getBlockLoadDTOList() != null
-        && this.botJobLoad.getBlockLoadDTOList().size() > 0) {
-      this.blockLoad = this.botJobLoad.getBlockLoadDTOList().get(0);
-    } else {
-
-      this.blockLoadList = performDataBase.loadBlocksByBotJobId(this.botJobLoad.getId());
-      if (this.blockLoadList.size() > 0) {
-        this.blockLoad = blockLoadList.get(0);
-      }
-    }
-
-    try {
-      Platform.runLater(
-          () -> {
-            try {
-
-              // Call the ARScannedElementScene here
-              arScannedElementScene.initialize(homeBanking, this.botJobLoad, this.blockLoad);
-
-              arScannedElementScene.showModal(); // Make sure the scene is shown
-            } catch (Exception ex) {
-              handleExceptionScan(ex);
-            }
-          });
-    } catch (Exception ex) {
-      handleExceptionScan(ex);
-    }
-  }
-
-  private void handleExceptionScan(Exception error) {
-    // Log the exception
-    logger.severe("ERROR Calling openScannerButton -> Cause: " + error.getMessage());
-
-    // Display the error message to the user
-    String browser = arPropertyManager.getProperty(ARPropertyEnum.BROWSER);
-    String webDriverPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
-
-    if (error.getMessage().contains("no such window: target window already closed")
-        || error.getMessage().contains("web view not found")) {
-      performMessage.errorMessage(
-          "Error Calling SCAN",
-          "<span style='font-style: italic;'>Web Browser was closed before the Scanner Tool!</span>",
-          "<span style='color: #E65100; font-weight: bold;'>WebDriver path:</span> <span style='font-weight: bold;'>"
-              + webDriverPath
-              + "</span>",
-          "<span style='font-style: italic;'>Please close and Re-Open the Scanner Tool.</span>",
-          "<span style='font-style: italic;'>Details: "
-              + "Web Browser was closed before the Scanner Tool"
-              + "</span>",
-          0);
-    } else {
-
-      //            "invalid session id"
-
-      if (!error.getMessage().contains("Current browser version")) {
-        logger.severe("Error Open URL: " + error.getMessage());
-
-        //                performMessage.errorMessage("Error Open URL", msg1, msg2, msg3, msg4, 0);
-
-        if (error.getMessage().contains("session deleted as the browser has closed the connection")
-            || error.getMessage().contains("Expected condition failed: waiting for com")) {
-          performMessage.errorMessage(
-              "Interruption Calling SCAN",
-              "<span style='font-style: italic;'>Session deleted as the browser has closed the connection!</span>",
-              "<span style='color: #E65100; font-weight: bold;'>WebDriver path:</span> <span style='font-weight: bold;'>"
-                  + webDriverPath
-                  + "</span>",
-              "<span style='font-style: italic;'>Please close and Re-Open the Scanner Tool.</span>",
-              "<span style='font-style: italic;'>Details: "
-                  + "Web Browser was closed before the Scanner Tool"
-                  + "</span>",
-              0);
-        } else {
-          performMessage.errorMessage(
-              "WebDriver Access Issue",
-              "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to access WebDriver.</span>",
-              //                        "<span style='font-style: italic;'>It appears the WebDriver
-              // data
-              // directory might be locked by another process.</span>",
-              "<span style='font-weight: bold;'>Please ensure the following:</span>",
-              "<ul>"
-                  + "   <li>No other instances of the browser or WebDriver are currently running.</li>"
-                  + "   <li>The specified WebDriver path is correct and accessible: <span style='font-weight: bold;'>"
-                  + webDriverPath
-                  + "</span></li>"
-                  + "   <li>The configured browser is: <span style='font-weight: bold;'>"
-                  + browser
-                  + "</span></li>"
-                  + "</ul>",
-              "<span style='font-style: italic;'>If the issue persists, try closing all related browser processes and restarting the application.</span>",
-              0);
-        }
-      } else {
-        logger.severe("Error Open URL: " + error.getMessage());
-
-        int lastSlashIndex = webDriverPath.lastIndexOf('\\');
-        String directoryPath =
-            webDriverPath.substring(0, lastSlashIndex + 1); // includes the last backslash
-        String fileName = webDriverPath.substring(lastSlashIndex + 1);
-
-        performMessage.errorMessage(
-            "WebDriver Version Incompatibility",
-            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>WebDriver version might be incompatible.</span>",
-            "<span style='font-weight: bold;'>Please verify the following:</span>",
-            "<ul>"
-                + "   <li>The installed browser version: <span style='color: #008b8b ; font-weight: bold;'>"
-                + browser
-                + "</span></li>"
-                + "   <li>The WebDriver path:<br><span style='color: #008b8b ; font-weight: bold;'>"
-                + directoryPath
-                + "</span></li>"
-                + "<li>The WebDriver file:<br><span style='color: #008b8b ; font-weight: bold;'>"
-                + fileName
-                + "</span></li>"
-                + "   <li>Ensure the WebDriver version is the correct one for your browser version.</li>"
-                + "</ul>",
-            "<span style='font-style: italic;'>Refer to your browser's documentation or the WebDriver's release notes for compatibility information.</span>",
-            0);
-      }
-    }
-
-    //        Platform.runLater(() -> {
-    //            JOptionPane.showMessageDialog(
-    //                    null,
-    //                    "An error has occurred Calling SCAN: \nCause: " + ex.getMessage(),
-    //                    "Error calling in SCAN",
-    //                    JOptionPane.ERROR_MESSAGE);
-    //        });
-  }
-
-  public Pane getPaneReference() {
-    //        mainPane.setUserData(this);
-    return mainPane;
-  }
-
-  private void initComponentButton() {
-    this.componentButton =
-        builder.buildButton(
-            "",
-            ARConstants.SPACE_L,
-            "/Cubes.png",
-            ARConstants.SPACE_L + 10.0D,
-            Insets.EMPTY,
-            Background.fill(Color.TRANSPARENT));
-
-    Label componentTitleLabel = new Label("Components");
-    componentTitleLabel.setPadding(new Insets(5.0D));
-    componentTitleLabel.setFont(
-        Font.font(
-            (String) null, FontWeight.BOLD, FontPosture.REGULAR, ARConstants.SPACE_SM + 4.0D));
-
-    Label searchLabel = new Label("Find");
-    searchLabel.setPadding(new Insets(5.0D));
-    searchLabel.setFont(
-        Font.font(
-            (String) null, FontWeight.BOLD, FontPosture.REGULAR, ARConstants.SPACE_SM + 2.0D));
-    TextField searchTextField = new TextField();
-
-    searchTextField
-        .textProperty()
-        .addListener(
-            (observable, oldValue, newValue) -> {
-              //            ObservableList<ComponentBlockDTO> componentBlockDTOS;
-              if (!newValue.equals("")) {
-                System.out.println(newValue + " Text");
-              } else {
-              }
             });
-
-    HBox searchPaneBox = new HBox(new Node[] {searchLabel, searchTextField});
-    searchPaneBox.setMaxHeight(ARConstants.SPACE_XL);
-    searchPaneBox.setSpacing(ARConstants.SPACE_XXS);
-    HBox.setHgrow(searchTextField, Priority.ALWAYS);
-
-    this.componentContainer = new VBox(new Node[] {searchPaneBox, webViewComp});
-    HBox.setHgrow(this.webViewComp, Priority.ALWAYS);
-    VBox.setVgrow(this.webViewComp, Priority.ALWAYS); // Ensures vertical growth
-
-    this.componentContainer.setSpacing(ARConstants.SPACE_XS);
-
-    this.componentContainer.setMaxWidth(800.0D);
-    isComponentBoxVisible = false;
-  }
-
-  public BotJobLoadDTO getBotJobDTO() {
-    return this.botJobLoad;
-  }
-
-  private static int getMajorJavaVersion(String version) {
-    // For Java 9 and above, the version string starts with the major version (e.g., "17.0.1")
-    // For Java 8 and below, it starts with "1." (e.g., "1.8.0_311")
-    if (version.startsWith("1.")) {
-      return Integer.parseInt(version.substring(2, 3)); // e.g., "1.8" -> 8
-    } else {
-      String[] parts = version.split("\\.");
-      return Integer.parseInt(parts[0]); // e.g., "17.0.1" -> 17
+        });
     }
-  }
 
-  public void destroy() {
-    clearPane(getPaneReference());
-    pane = null;
-    scene = null;
-    instance = null;
-  }
+    public HomeUrlDTO findMatchingHomeUrlDTO(BotJobLoadDTO botJobLoadDTO) {
+        Integer targetHomeUrlId = botJobLoadDTO.getHomeUrlId();
+        HomeBankingLoadDTO homeBanking = botJobLoadDTO.getHomeBankingLoadDTO();
 
-  private void setPayloadEmpty() {
-    this.botJobLoadList = new ArrayList<>();
-    BotJobLoadDTO botJobDTO = new BotJobLoadDTO();
-    botJobDTO.setId(this.botJobLoad.getId() != null ? this.botJobLoad.getId() : 0);
-    botJobDTO.setName(
-        this.botJobLoad.getName() != null ? this.botJobLoad.getName() : "Bot Job Name Default");
-    botJobDTO.setBlockLoadDTOList(new ArrayList<>());
-    this.botJobLoadList.add(botJobDTO);
+        if (homeBanking != null && homeBanking.getHomeUrlDTOs() != null) {
+            return homeBanking.getHomeUrlDTOs().stream()
+                    .filter(dto -> dto.getId().equals(targetHomeUrlId))
+                    .findFirst()
+                    .orElse(null);
+        }
 
-    this.payloadEmpty = new PayloadJson(this.botJobLoad.getId(), this.botJobLoad.getName(), 0);
-  }
-
-  public int startHttpServer(int httpPort, String filePath) {
-    // Example of how to start the HTTP server
-    try {
-      return (SimpleHttpServer.start(httpPort, filePath));
-    } catch (Exception e) {
-      // Handle any errors that occur during server startup
-      System.err.println("Failed to start HTTP server on port " + httpPort + ": " + e.getMessage());
-      return -1;
+        return null;
     }
-  }
+
+    private void executeScannerTask() {
+
+        List<HomeBankingLoadDTO> homeBankingList = performDataBase.loadHomeBanking(this.botJobLoad.getHomeBankingId());
+        HomeBankingLoadDTO homeBanking = homeBankingList.isEmpty() ? null : homeBankingList.get(0);
+
+        HomeUrlDTO homeUrlDTO = findMatchingHomeUrlDTO(this.botJobLoad);
+        if (homeUrlDTO != null) {
+            this.botJobLoad.setHomeUrlId(homeUrlDTO.getId());
+            homeBanking.setUrl(homeUrlDTO.getUrl());
+        }
+
+        if (this.botJobLoad.getBlockLoadDTOList() != null
+                && this.botJobLoad.getBlockLoadDTOList().size() > 0) {
+            this.blockLoad = this.botJobLoad.getBlockLoadDTOList().get(0);
+        } else {
+
+            this.blockLoadList = performDataBase.loadBlocksByBotJobId(this.botJobLoad.getId());
+            if (this.blockLoadList.size() > 0) {
+                this.blockLoad = blockLoadList.get(0);
+            }
+        }
+
+        try {
+            Platform.runLater(() -> {
+                try {
+
+                    // Call the ARScannedElementScene here
+                    arScannedElementScene.initialize(homeBanking, this.botJobLoad, this.blockLoad);
+
+                    arScannedElementScene.showModal(); // Make sure the scene is shown
+                } catch (Exception ex) {
+                    handleExceptionScan(ex);
+                }
+            });
+        } catch (Exception ex) {
+            handleExceptionScan(ex);
+        }
+    }
+
+    private void handleExceptionScan(Exception error) {
+        // Log the exception
+        logger.severe("ERROR Calling openScannerButton -> Cause: " + error.getMessage());
+
+        // Display the error message to the user
+        String browser = arPropertyManager.getProperty(ARPropertyEnum.BROWSER);
+        String webDriverPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
+
+        if (error.getMessage().contains("no such window: target window already closed")
+                || error.getMessage().contains("web view not found")) {
+            performMessage.errorMessage(
+                    "Error Calling SCAN",
+                    "<span style='font-style: italic;'>Web Browser was closed before the Scanner Tool!</span>",
+                    "<span style='color: #E65100; font-weight: bold;'>WebDriver path:</span> <span style='font-weight: bold;'>"
+                            + webDriverPath
+                            + "</span>",
+                    "<span style='font-style: italic;'>Please close and Re-Open the Scanner Tool.</span>",
+                    "<span style='font-style: italic;'>Details: "
+                            + "Web Browser was closed before the Scanner Tool"
+                            + "</span>",
+                    0);
+        } else {
+
+            //            "invalid session id"
+
+            if (!error.getMessage().contains("Current browser version")) {
+                logger.severe("Error Open URL: " + error.getMessage());
+
+                //                performMessage.errorMessage("Error Open URL", msg1, msg2, msg3, msg4, 0);
+
+                if (error.getMessage().contains("session deleted as the browser has closed the connection")
+                        || error.getMessage().contains("Expected condition failed: waiting for com")) {
+                    performMessage.errorMessage(
+                            "Interruption Calling SCAN",
+                            "<span style='font-style: italic;'>Session deleted as the browser has closed the connection!</span>",
+                            "<span style='color: #E65100; font-weight: bold;'>WebDriver path:</span> <span style='font-weight: bold;'>"
+                                    + webDriverPath
+                                    + "</span>",
+                            "<span style='font-style: italic;'>Please close and Re-Open the Scanner Tool.</span>",
+                            "<span style='font-style: italic;'>Details: "
+                                    + "Web Browser was closed before the Scanner Tool"
+                                    + "</span>",
+                            0);
+                } else {
+                    performMessage.errorMessage(
+                            "WebDriver Access Issue",
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to access WebDriver.</span>",
+                            //                        "<span style='font-style: italic;'>It appears the WebDriver
+                            // data
+                            // directory might be locked by another process.</span>",
+                            "<span style='font-weight: bold;'>Please ensure the following:</span>",
+                            "<ul>"
+                                    + "   <li>No other instances of the browser or WebDriver are currently running.</li>"
+                                    + "   <li>The specified WebDriver path is correct and accessible: <span style='font-weight: bold;'>"
+                                    + webDriverPath
+                                    + "</span></li>"
+                                    + "   <li>The configured browser is: <span style='font-weight: bold;'>"
+                                    + browser
+                                    + "</span></li>"
+                                    + "</ul>",
+                            "<span style='font-style: italic;'>If the issue persists, try closing all related browser processes and restarting the application.</span>",
+                            0);
+                }
+            } else {
+                logger.severe("Error Open URL: " + error.getMessage());
+
+                int lastSlashIndex = webDriverPath.lastIndexOf('\\');
+                String directoryPath = webDriverPath.substring(0, lastSlashIndex + 1); // includes the last backslash
+                String fileName = webDriverPath.substring(lastSlashIndex + 1);
+
+                performMessage.errorMessage(
+                        "WebDriver Version Incompatibility",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>WebDriver version might be incompatible.</span>",
+                        "<span style='font-weight: bold;'>Please verify the following:</span>",
+                        "<ul>"
+                                + "   <li>The installed browser version: <span style='color: #008b8b ; font-weight: bold;'>"
+                                + browser
+                                + "</span></li>"
+                                + "   <li>The WebDriver path:<br><span style='color: #008b8b ; font-weight: bold;'>"
+                                + directoryPath
+                                + "</span></li>"
+                                + "<li>The WebDriver file:<br><span style='color: #008b8b ; font-weight: bold;'>"
+                                + fileName
+                                + "</span></li>"
+                                + "   <li>Ensure the WebDriver version is the correct one for your browser version.</li>"
+                                + "</ul>",
+                        "<span style='font-style: italic;'>Refer to your browser's documentation or the WebDriver's release notes for compatibility information.</span>",
+                        0);
+            }
+        }
+
+        //        Platform.runLater(() -> {
+        //            JOptionPane.showMessageDialog(
+        //                    null,
+        //                    "An error has occurred Calling SCAN: \nCause: " + ex.getMessage(),
+        //                    "Error calling in SCAN",
+        //                    JOptionPane.ERROR_MESSAGE);
+        //        });
+    }
+
+    public Pane getPaneReference() {
+        //        mainPane.setUserData(this);
+        return mainPane;
+    }
+
+    private void initComponentButton() {
+        this.componentButton = builder.buildButton(
+                "",
+                ARConstants.SPACE_L,
+                "/Cubes.png",
+                ARConstants.SPACE_L + 10.0D,
+                Insets.EMPTY,
+                Background.fill(Color.TRANSPARENT));
+
+        Label componentTitleLabel = new Label("Components");
+        componentTitleLabel.setPadding(new Insets(5.0D));
+        componentTitleLabel.setFont(
+                Font.font((String) null, FontWeight.BOLD, FontPosture.REGULAR, ARConstants.SPACE_SM + 4.0D));
+
+        Label searchLabel = new Label("Find");
+        searchLabel.setPadding(new Insets(5.0D));
+        searchLabel.setFont(
+                Font.font((String) null, FontWeight.BOLD, FontPosture.REGULAR, ARConstants.SPACE_SM + 2.0D));
+        TextField searchTextField = new TextField();
+
+        searchTextField.textProperty().addListener((observable, oldValue, newValue) -> {
+            //            ObservableList<ComponentBlockDTO> componentBlockDTOS;
+            if (!newValue.equals("")) {
+                System.out.println(newValue + " Text");
+            } else {
+            }
+        });
+
+        HBox searchPaneBox = new HBox(new Node[] {searchLabel, searchTextField});
+        searchPaneBox.setMaxHeight(ARConstants.SPACE_XL);
+        searchPaneBox.setSpacing(ARConstants.SPACE_XXS);
+        HBox.setHgrow(searchTextField, Priority.ALWAYS);
+
+        this.componentContainer = new VBox(new Node[] {searchPaneBox, webViewComp});
+        HBox.setHgrow(this.webViewComp, Priority.ALWAYS);
+        VBox.setVgrow(this.webViewComp, Priority.ALWAYS); // Ensures vertical growth
+
+        this.componentContainer.setSpacing(ARConstants.SPACE_XS);
+
+        this.componentContainer.setMaxWidth(800.0D);
+        isComponentBoxVisible = false;
+    }
+
+    public BotJobLoadDTO getBotJobDTO() {
+        return this.botJobLoad;
+    }
+
+    private static int getMajorJavaVersion(String version) {
+        // For Java 9 and above, the version string starts with the major version (e.g., "17.0.1")
+        // For Java 8 and below, it starts with "1." (e.g., "1.8.0_311")
+        if (version.startsWith("1.")) {
+            return Integer.parseInt(version.substring(2, 3)); // e.g., "1.8" -> 8
+        } else {
+            String[] parts = version.split("\\.");
+            return Integer.parseInt(parts[0]); // e.g., "17.0.1" -> 17
+        }
+    }
+
+    public void destroy() {
+        clearPane(getPaneReference());
+        pane = null;
+        scene = null;
+        instance = null;
+    }
+
+    private void setPayloadEmpty() {
+        this.botJobLoadList = new ArrayList<>();
+        BotJobLoadDTO botJobDTO = new BotJobLoadDTO();
+        botJobDTO.setId(this.botJobLoad.getId() != null ? this.botJobLoad.getId() : 0);
+        botJobDTO.setName(this.botJobLoad.getName() != null ? this.botJobLoad.getName() : "Bot Job Name Default");
+        botJobDTO.setBlockLoadDTOList(new ArrayList<>());
+        this.botJobLoadList.add(botJobDTO);
+
+        this.payloadEmpty = new PayloadJson(this.botJobLoad.getId(), this.botJobLoad.getName(), 0);
+    }
+
+    public int startHttpServer(int httpPort, String filePath) {
+        // Example of how to start the HTTP server
+        try {
+            return (SimpleHttpServer.start(httpPort, filePath));
+        } catch (Exception e) {
+            // Handle any errors that occur during server startup
+            System.err.println("Failed to start HTTP server on port " + httpPort + ": " + e.getMessage());
+            return -1;
+        }
+    }
 }

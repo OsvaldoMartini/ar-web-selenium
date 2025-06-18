@@ -1,12 +1,10 @@
 package com.allinweb.ch.socket;
 
+import java.awt.*;
+import javax.swing.*;
 import org.cef.CefApp;
 import org.cef.CefClient;
 import org.cef.browser.CefBrowser;
-import org.cef.handler.CefAppHandlerAdapter;
-
-import javax.swing.*;
-import java.awt.*;
 
 public class JavaCEFExample {
     public static void main(String[] args) {

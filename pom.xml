@@ -238,7 +238,10 @@
                     <java>
                         <removeUnusedImports/>
                         <importOrder/>
-                        <googleJavaFormat/>
+                        <palantirJavaFormat>
+                            <version>2.28.0</version>
+                        </palantirJavaFormat>
+<!--                        <googleJavaFormat/>-->
                     </java>
                 </configuration>
                 <executions>

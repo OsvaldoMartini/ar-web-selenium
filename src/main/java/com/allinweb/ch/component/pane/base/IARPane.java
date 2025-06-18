@@ -5,29 +5,29 @@ import javafx.scene.layout.Pane;
 
 public interface IARPane {
 
-  Pane createPane();
+    Pane createPane();
 
-  Pane getPaneReference();
+    Pane getPaneReference();
 
-  void initUIComponents();
+    void initUIComponents();
 
-  void initUIBehaviour();
+    void initUIBehaviour();
 
-  default void addNodesToPane(Pane panel, Node... toAdd) {
-    // Default implementation can be overridden
-  }
+    default void addNodesToPane(Pane panel, Node... toAdd) {
+        // Default implementation can be overridden
+    }
 
-  default void clearPane(Pane panel) {
-    // Default implementation
-  }
+    default void clearPane(Pane panel) {
+        // Default implementation
+    }
 
-  void clear();
+    void clear();
 
-  default void removeNodesFromPane(Pane panel, Node... toRemove) {
-    // Default implementation
-  }
+    default void removeNodesFromPane(Pane panel, Node... toRemove) {
+        // Default implementation
+    }
 
-  default void removeNodesFromPane(Pane bottomPane) {
-    // Default implementation
-  }
+    default void removeNodesFromPane(Pane bottomPane) {
+        // Default implementation
+    }
 }

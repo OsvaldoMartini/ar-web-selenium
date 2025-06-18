@@ -7,18 +7,18 @@ import lombok.Data;
 @Table(name = "variable")
 @Data
 public class VariableDTO extends BaseDTO {
-  @Column(name = "type")
-  private String type;
+    @Column(name = "type")
+    private String type;
 
-  @Column(name = "name")
-  private String name;
+    @Column(name = "name")
+    private String name;
 
-  @Column(name = "value", columnDefinition = "TEXT")
-  private String value;
+    @Column(name = "value", columnDefinition = "TEXT")
+    private String value;
 
-  @Column(name = "instruction_id")
-  private Integer instructionId;
+    @Column(name = "instruction_id")
+    private Integer instructionId;
 
-  @Column(name = "bot_job_id")
-  private Integer botJobId;
+    @Column(name = "bot_job_id")
+    private Integer botJobId;
 }
