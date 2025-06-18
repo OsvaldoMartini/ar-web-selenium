@@ -33,10 +33,7 @@ import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.sql.*;
@@ -1106,7 +1103,7 @@ public class ARScannedElementPane extends ARPane {
     private List<List<String>> rowsCSV = new ArrayList<>();
     private static final String END_OF_FILE_MARKER = "END OF FILE";
     String excelFieldName;
-    String delimiterCSV;
+    String delimiterCSV = null;
 
     private List<VariableLoadDTO> variablesLoaded;
 
@@ -3673,8 +3670,10 @@ public class ARScannedElementPane extends ARPane {
                                 parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
                                 variableField =
                                         performActions.getInstructionVariableField(currentInstruction, variablesLoaded);
-                                delimiterCSV = performActions.getInstructionVariableDelimiter(
-                                        currentInstruction, variablesLoaded);
+                                if (delimiterCSV == null) {
+                                    delimiterCSV = performActions.getInstructionVariableDelimiter(
+                                            currentInstruction, variablesLoaded);
+                                }
                                 if (variableField == null) {
                                     variableField = "Not Variable defined";
                                 }
@@ -5364,7 +5363,8 @@ public class ARScannedElementPane extends ARPane {
     }
 
     public void writeToFile(String filename, String content) {
-        try (FileWriter writer = new FileWriter(filename)) {
+        try (Writer writer =
+                new BufferedWriter(new OutputStreamWriter(new FileOutputStream(filename), StandardCharsets.UTF_8))) {
             writer.write(content);
             System.out.println("CSV written to file: " + filename);
         } catch (IOException e) {
