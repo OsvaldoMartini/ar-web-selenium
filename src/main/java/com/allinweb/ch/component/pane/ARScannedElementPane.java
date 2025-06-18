@@ -4414,7 +4414,8 @@ public class ARScannedElementPane extends ARPane {
                         mapExportRows = new LinkedHashMap<>();
                     }
                     excelFieldName = "";
-                } else {
+                } else if (excelFieldName != null
+                        && excelFieldName.toLowerCase().endsWith(".xlsx")) {
                     //
                     //                    writerExport.insertFieldNameAndValueLastColumn(mapExportRows, exportIndex -
                     // 1);
