@@ -5932,6 +5932,626 @@ GROUP BY
         }
     }
 
+    public void exportBotJob() {
+        String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
+
+        String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
+        String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
+        String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
+
+        final int BATCH_SIZE = 100;
+
+        try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
+             Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
+             Statement accessStmt = accessConn.createStatement()) {
+
+            postgresConn.setAutoCommit(false);
+
+            String selectAccessSQL = "SELECT bot.name, bot.description, bot.priority, bot.active, bot.home_banking_id , hu.url FROM bot_job bot join home_url hu on hu.home_banking_id = bot.home_banking_id";
+            try (ResultSet rs = accessStmt.executeQuery(selectAccessSQL)) {
+
+                String findHomeUrlSQL = "SELECT id, home_banking_id FROM home_url WHERE url = ?";
+                String checkExistsSQL = "SELECT id FROM bot_job WHERE name = ?";
+                String insertSQL = "INSERT INTO bot_job (name, description, priority, active, home_url_id, home_banking_id) " +
+                        "VALUES (?, ?, ?, ?, ?, ?)";
+
+                try (PreparedStatement findHomeUrlStmt = postgresConn.prepareStatement(findHomeUrlSQL);
+                     PreparedStatement checkStmt = postgresConn.prepareStatement(checkExistsSQL);
+                     PreparedStatement insertStmt = postgresConn.prepareStatement(insertSQL)) {
+
+                    int count = 0;
+
+                    while (rs.next()) {
+                        String name = rs.getString("name");
+                        String description = rs.getString("description");
+                        String priority = rs.getString("priority");
+                        int active = rs.getInt("active");
+                        String url = rs.getString("url");
+
+                        // Lookup home_url_id and home_banking_id by URL
+                        findHomeUrlStmt.setString(1, url);
+                        try (ResultSet homeUrlRs = findHomeUrlStmt.executeQuery()) {
+
+                            if (homeUrlRs.next()) {
+                                int homeUrlId = homeUrlRs.getInt("id");
+                                int homeBankingId = homeUrlRs.getInt("home_banking_id");
+
+                                // Check if the bot_job already exists by name
+                                checkStmt.setString(1, name);
+                                try (ResultSet checkRs = checkStmt.executeQuery()) {
+                                    if (!checkRs.next()) {
+                                        insertStmt.setString(1, name);
+                                        insertStmt.setString(2, description);
+                                        insertStmt.setString(3, priority);
+                                        insertStmt.setInt(4, active);
+                                        insertStmt.setInt(5, homeUrlId);
+                                        insertStmt.setInt(6, homeBankingId);
+                                        insertStmt.addBatch();
+                                        count++;
+
+                                        if (count % BATCH_SIZE == 0) {
+                                            insertStmt.executeBatch();
+                                            postgresConn.commit();
+                                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                                        }
+                                    } else {
+                                        System.out.println("Skipped existing bot_job: " + name);
+                                    }
+                                }
+
+                            } else {
+                                System.out.println("No matching home_url found for: " + url);
+                            }
+                        }
+                    }
+
+                    insertStmt.executeBatch();
+                    postgresConn.commit();
+                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    ARLogger.getInstance(PerformDataBase.class).info("Inserted bot_job records: " + count);
+                }
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to export bot_job");
+        }
+    }
+
+
+    public void exportBlock() {
+        String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
+
+        String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
+        String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
+        String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
+
+        final int BATCH_SIZE = 100;
+
+        // Mapping from old bot_job_id (Access) to new bot_job_id (Postgres)
+        Map<Integer, Integer> botJobIdMap = new HashMap<>();
+        botJobIdMap.put(9, 1);
+        botJobIdMap.put(10, 2);
+        botJobIdMap.put(11, 3);
+        botJobIdMap.put(15, 4);
+        botJobIdMap.put(16, 5);
+        botJobIdMap.put(17, 6);
+        botJobIdMap.put(18, 7);
+
+        try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
+             Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
+             Statement accessStmt = accessConn.createStatement()) {
+
+            postgresConn.setAutoCommit(false);
+
+            String selectAccessSQL = "SELECT block_order_number, name, description, type_id, export_file, active, wait, bot_job_id FROM block";
+            try (ResultSet rs = accessStmt.executeQuery(selectAccessSQL)) {
+
+                String insertSQL = "INSERT INTO block (block_order_number, name, description, type_id, export_file, active, wait, bot_job_id) " +
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+
+                try (PreparedStatement insertStmt = postgresConn.prepareStatement(insertSQL)) {
+
+                    int count = 0;
+
+                    while (rs.next()) {
+                        int blockOrderNumber = rs.getInt("block_order_number");
+                        String name = rs.getString("name");
+                        String description = rs.getString("description");
+                        Integer typeId = rs.getObject("type_id") != null ? rs.getInt("type_id") : null;
+                        String exportFile = rs.getString("export_file");
+                        int active = rs.getInt("active");
+                        Integer wait = rs.getObject("wait") != null ? rs.getInt("wait") : null;
+                        int oldBotJobId = rs.getInt("bot_job_id");
+
+                        // Map old bot_job_id to new
+                        Integer newBotJobId = botJobIdMap.get(oldBotJobId);
+                        if (newBotJobId == null) {
+                            System.out.println("Skipped block with unknown bot_job_id: " + oldBotJobId);
+                            continue;
+                        }
+
+                        insertStmt.setInt(1, blockOrderNumber);
+                        insertStmt.setString(2, name);
+                        insertStmt.setString(3, description);
+
+                        if (typeId != null) {
+                            insertStmt.setInt(4, typeId);
+                        } else {
+                            insertStmt.setNull(4, Types.INTEGER);
+                        }
+
+                        insertStmt.setString(5, exportFile);
+                        insertStmt.setInt(6, active);
+
+                        if (wait != null) {
+                            insertStmt.setInt(7, wait);
+                        } else {
+                            insertStmt.setNull(7, Types.INTEGER);
+                        }
+
+                        insertStmt.setInt(8, newBotJobId);
+
+                        insertStmt.addBatch();
+                        count++;
+
+                        if (count % BATCH_SIZE == 0) {
+                            insertStmt.executeBatch();
+                            postgresConn.commit();
+                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                        }
+                    }
+
+                    insertStmt.executeBatch();
+                    postgresConn.commit();
+                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    ARLogger.getInstance(PerformDataBase.class).info("Inserted block records: " + count);
+                }
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to export block");
+        }
+    }
+
+    public void exportInstructions() {
+        String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
+
+        String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
+        String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
+        String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
+
+        final int BATCH_SIZE = 100;
+
+        Map<Integer, Integer> botJobIdMap = new HashMap<>();
+        botJobIdMap.put(9, 1);
+        botJobIdMap.put(10, 2);
+        botJobIdMap.put(11, 3);
+        botJobIdMap.put(15, 4);
+        botJobIdMap.put(16, 5);
+        botJobIdMap.put(17, 6);
+        botJobIdMap.put(18, 7);
+
+        Map<Integer, Integer> blockIdMap = new HashMap<>();
+        blockIdMap.put(26, 1);
+        blockIdMap.put(27, 2);
+        blockIdMap.put(28, 3);
+        blockIdMap.put(29, 4);
+        blockIdMap.put(30, 5);
+        blockIdMap.put(31, 6);
+        blockIdMap.put(32, 7);
+        blockIdMap.put(33, 8);
+        blockIdMap.put(34, 9);
+        blockIdMap.put(35, 10);
+        blockIdMap.put(36, 11);
+        blockIdMap.put(37, 12);
+        blockIdMap.put(41, 13);
+        blockIdMap.put(42, 14);
+        blockIdMap.put(43, 15);
+        blockIdMap.put(44, 16);
+        blockIdMap.put(45, 17);
+        blockIdMap.put(46, 18);
+
+        Map<Integer, Integer> parentIdMap = new HashMap<>();
+        parentIdMap.put(33, 7);
+        parentIdMap.put(299, 84);
+        parentIdMap.put(233, 48);
+        parentIdMap.put(243, 52);
+        parentIdMap.put(247, 50);
+        parentIdMap.put(282, 69);
+        parentIdMap.put(289, 74);
+        parentIdMap.put(294, 79);
+        parentIdMap.put(298, 83);
+
+        try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
+             Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
+             Statement accessStmt = accessConn.createStatement()) {
+
+            postgresConn.setAutoCommit(false);
+
+            String selectAccessSQL = "SELECT * FROM instruction";
+            try (ResultSet rs = accessStmt.executeQuery(selectAccessSQL)) {
+
+                String insertSQL = "INSERT INTO instruction (" +
+                        "instruction_order_number, actions, name, xpath, coordinates, force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root, css_selector, description, operation, optional, block_marked, default_value, action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr, active, block_id, variable_id, parent_id, bot_job_id) " +
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+                try (PreparedStatement insertStmt = postgresConn.prepareStatement(insertSQL)) {
+
+                    int count = 0;
+
+                    while (rs.next()) {
+                        int originalBotJobId = rs.getInt("bot_job_id");
+                        Integer newBotJobId = botJobIdMap.get(originalBotJobId);
+                        if (newBotJobId == null) {
+                            System.out.println("Skipped instruction with unknown bot_job_id: " + originalBotJobId);
+                            continue;
+                        }
+
+                        int originalBlockId = rs.getInt("block_id");
+                        Integer newBlockId = blockIdMap.get(originalBlockId);
+                        if (newBlockId == null) {
+                            System.out.println("Skipped instruction with unknown block_id: " + originalBlockId);
+                            continue;
+                        }
+
+                        insertStmt.setInt(1, rs.getInt("instruction_order_number"));
+                        insertStmt.setString(2, rs.getString("actions"));
+                        insertStmt.setString(3, rs.getString("name"));
+                        insertStmt.setString(4, rs.getString("xpath"));
+                        insertStmt.setString(5, rs.getString("coordinates"));
+
+                        insertOrNull(insertStmt, 6, rs, "force_coordinates");
+                        insertStmt.setString(7, rs.getString("iframe_xpath"));
+                        insertStmt.setString(8, rs.getString("tag_name"));
+                        insertStmt.setString(9, rs.getString("shadow_host"));
+                        insertStmt.setString(10, rs.getString("shadow_root"));
+                        insertStmt.setString(11, rs.getString("css_selector"));
+                        insertStmt.setString(12, rs.getString("description"));
+                        insertStmt.setString(13, rs.getString("operation"));
+
+                        insertOrNull(insertStmt, 14, rs, "optional");
+                        insertOrNull(insertStmt, 15, rs, "block_marked");
+                        insertStmt.setString(16, rs.getString("default_value"));
+                        insertOrNull(insertStmt, 17, rs, "action_custom_max_wait_sec");
+                        insertOrNull(insertStmt, 18, rs, "on_hold_seconds");
+                        insertOrNull(insertStmt, 19, rs, "codified");
+                        insertOrNull(insertStmt, 20, rs, "export_to_abr");
+
+                        insertStmt.setInt(21, rs.getInt("active"));
+                        insertStmt.setInt(22, newBlockId);
+
+                        insertOrNull(insertStmt, 23, rs, "variable_id");
+
+                        // Replace parent_id using parentIdMap if present
+                        Integer originalParentId = (Integer) rs.getObject("parent_id");
+                        if (originalParentId != null) {
+                            Integer newParentId = parentIdMap.getOrDefault(originalParentId, originalParentId);
+                            insertStmt.setInt(24, newParentId);
+                        } else {
+                            insertStmt.setNull(24, Types.INTEGER);
+                        }
+
+                        insertStmt.setInt(25, newBotJobId);
+
+                        insertStmt.addBatch();
+                        count++;
+
+                        if (count % BATCH_SIZE == 0) {
+                            insertStmt.executeBatch();
+                            postgresConn.commit();
+                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                        }
+                    }
+
+                    insertStmt.executeBatch();
+                    postgresConn.commit();
+                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    ARLogger.getInstance(PerformDataBase.class).info("Inserted instruction records: " + count);
+                }
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to export instructions");
+        }
+    }
+
+
+    public void exportVariables() {
+        String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
+
+        String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
+        String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
+        String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
+
+        final int BATCH_SIZE = 100;
+
+        Map<Integer, Integer> botJobIdMap = new HashMap<>();
+        botJobIdMap.put(9, 1);
+        botJobIdMap.put(10, 2);
+        botJobIdMap.put(11, 3);
+        botJobIdMap.put(15, 4);
+        botJobIdMap.put(16, 5);
+        botJobIdMap.put(17, 6);
+        botJobIdMap.put(18, 7);
+
+        Map<Integer, Integer> instructionIdMap = new HashMap<>();
+        instructionIdMap.put(299, 84);
+        instructionIdMap.put(233, 48);
+        instructionIdMap.put(243, 52);
+        instructionIdMap.put(247, 50);
+        instructionIdMap.put(282, 69);
+        instructionIdMap.put(289, 74);
+        instructionIdMap.put(294, 79);
+        instructionIdMap.put(298, 83);
+
+        try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
+             Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
+             Statement accessStmt = accessConn.createStatement()) {
+
+            postgresConn.setAutoCommit(false);
+
+            String selectAccessSQL = "SELECT * FROM variable";
+            try (ResultSet rs = accessStmt.executeQuery(selectAccessSQL)) {
+
+                String insertSQL = "INSERT INTO variable (type, name, value, local_format, delimiter, instruction_id, bot_job_id) " +
+                        "VALUES (?, ?, ?, ?, ?, ?, ?)";
+
+                try (PreparedStatement insertStmt = postgresConn.prepareStatement(insertSQL)) {
+
+                    int count = 0;
+
+                    while (rs.next()) {
+                        int originalBotJobId = rs.getInt("bot_job_id");
+                        Integer newBotJobId = botJobIdMap.get(originalBotJobId);
+                        if (newBotJobId == null) {
+                            System.out.println("Skipped variable with unknown bot_job_id: " + originalBotJobId);
+                            continue;
+                        }
+
+                        Integer instructionId = rs.getObject("instruction_id") != null ? rs.getInt("instruction_id") : null;
+                        Integer newInstructionId = null;
+
+                        if (instructionId != null) {
+                            newInstructionId = instructionIdMap.get(instructionId);
+                            if (newInstructionId == null) {
+                                System.out.println("Skipped variable with unknown instruction_id: " + instructionId);
+                                continue;
+                            }
+                        }
+
+                        insertStmt.setString(1, rs.getString("type"));
+                        insertStmt.setString(2, rs.getString("name"));
+                        insertStmt.setString(3, rs.getString("value"));
+                        insertStmt.setString(4, rs.getString("local_format"));
+                        insertStmt.setString(5, rs.getString("delimiter"));
+
+                        if (newInstructionId != null) {
+                            insertStmt.setInt(6, newInstructionId);
+                        } else {
+                            insertStmt.setNull(6, Types.INTEGER);
+                        }
+
+                        insertStmt.setInt(7, newBotJobId);
+
+                        insertStmt.addBatch();
+                        count++;
+
+                        if (count % BATCH_SIZE == 0) {
+                            insertStmt.executeBatch();
+                            postgresConn.commit();
+                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                        }
+                    }
+
+                    insertStmt.executeBatch();
+                    postgresConn.commit();
+                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    ARLogger.getInstance(PerformDataBase.class).info("Inserted variable records: " + count);
+                }
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to export variables");
+        }
+    }
+
+    public void exportReferences() {
+        String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
+
+        String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
+        String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
+        String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
+
+        final int BATCH_SIZE = 100;
+
+        Map<Integer, Integer> botJobIdMap = new HashMap<>();
+        botJobIdMap.put(9, 1);
+        botJobIdMap.put(10, 2);
+        botJobIdMap.put(11, 3);
+        botJobIdMap.put(15, 4);
+        botJobIdMap.put(16, 5);
+        botJobIdMap.put(17, 6);
+        botJobIdMap.put(18, 7);
+
+        Map<Integer, Integer> instructionIdMap = new HashMap<>();
+        instructionIdMap.put(171, 1);
+        instructionIdMap.put(172, 2);
+        instructionIdMap.put(173, 3);
+        instructionIdMap.put(174, 4);
+        instructionIdMap.put(175, 5);
+        instructionIdMap.put(176, 6);
+        instructionIdMap.put(177, 7);
+        instructionIdMap.put(179, 8);
+        instructionIdMap.put(180, 9);
+        instructionIdMap.put(183, 10);
+        instructionIdMap.put(184, 11);
+        instructionIdMap.put(189, 12);
+        instructionIdMap.put(190, 13);
+        instructionIdMap.put(191, 14);
+        instructionIdMap.put(192, 15);
+        instructionIdMap.put(193, 16);
+        instructionIdMap.put(194, 17);
+        instructionIdMap.put(195, 18);
+        instructionIdMap.put(196, 19);
+        instructionIdMap.put(197, 20);
+        instructionIdMap.put(198, 21);
+        instructionIdMap.put(199, 22);
+        instructionIdMap.put(200, 23);
+        instructionIdMap.put(201, 24);
+        instructionIdMap.put(202, 25);
+        instructionIdMap.put(204, 26);
+        instructionIdMap.put(205, 27);
+        instructionIdMap.put(206, 28);
+        instructionIdMap.put(212, 30);
+        instructionIdMap.put(213, 31);
+        instructionIdMap.put(214, 32);
+        instructionIdMap.put(215, 33);
+        instructionIdMap.put(216, 35);
+        instructionIdMap.put(218, 36);
+        instructionIdMap.put(219, 37);
+        instructionIdMap.put(220, 51);
+        instructionIdMap.put(221, 52);
+        instructionIdMap.put(222, 40);
+        instructionIdMap.put(223, 41);
+        instructionIdMap.put(224, 42);
+        instructionIdMap.put(225, 43);
+        instructionIdMap.put(226, 44);
+        instructionIdMap.put(227, 45);
+        instructionIdMap.put(228, 46);
+        instructionIdMap.put(229, 47);
+        instructionIdMap.put(230, 48);
+        instructionIdMap.put(232, 49);
+        instructionIdMap.put(233, 50);
+        instructionIdMap.put(234, 53);
+        instructionIdMap.put(235, 60);
+        instructionIdMap.put(236, 61);
+        instructionIdMap.put(243, 62);
+        instructionIdMap.put(244, 63);
+        instructionIdMap.put(245, 64);
+        instructionIdMap.put(247, 65);
+        instructionIdMap.put(248, 66);
+        instructionIdMap.put(249, 67);
+        instructionIdMap.put(250, 68);
+        instructionIdMap.put(251, 69);
+        instructionIdMap.put(255, 70);
+        instructionIdMap.put(257, 71);
+        instructionIdMap.put(258, 72);
+        instructionIdMap.put(259, 73);
+        instructionIdMap.put(260, 74);
+        instructionIdMap.put(261, 75);
+        instructionIdMap.put(262, 76);
+        instructionIdMap.put(263, 77);
+        instructionIdMap.put(281, 78);
+        instructionIdMap.put(282, 79);
+        instructionIdMap.put(283, 80);
+        instructionIdMap.put(284, 81);
+        instructionIdMap.put(287, 83);
+        instructionIdMap.put(288, 56);
+        instructionIdMap.put(289, 57);
+        instructionIdMap.put(290, 58);
+        instructionIdMap.put(291, 82);
+        instructionIdMap.put(292, 59);
+        instructionIdMap.put(293, 54);
+        instructionIdMap.put(294, 84);
+        instructionIdMap.put(295, 85);
+        instructionIdMap.put(296, 86);
+        instructionIdMap.put(297, 87);
+        instructionIdMap.put(298, 88);
+        instructionIdMap.put(299, 89);
+        instructionIdMap.put(300, 90);
+        instructionIdMap.put(301, 91);
+        instructionIdMap.put(302, 92);
+        instructionIdMap.put(303, 93);
+        instructionIdMap.put(304, 94);
+        instructionIdMap.put(341, 29);
+        instructionIdMap.put(349, 95);
+        instructionIdMap.put(351, 38);
+        instructionIdMap.put(352, 34);
+        instructionIdMap.put(353, 39);
+        instructionIdMap.put(421, 55);
+
+        try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
+             Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
+             Statement accessStmt = accessConn.createStatement()) {
+
+            postgresConn.setAutoCommit(false);
+
+            String selectAccessSQL = "SELECT * FROM reference";
+            try (ResultSet rs = accessStmt.executeQuery(selectAccessSQL)) {
+
+                String insertSQL = "INSERT INTO reference (reference_type, value, instruction_id, bot_job_id) VALUES (?, ?, ?, ?)";
+
+                try (PreparedStatement insertStmt = postgresConn.prepareStatement(insertSQL)) {
+                    int count = 0;
+
+                    while (rs.next()) {
+                        int oldInstructionId = rs.getInt("instruction_id");
+                        Integer newInstructionId = instructionIdMap.get(oldInstructionId);
+                        if (newInstructionId == null) {
+                            System.out.println("Skipped reference with unknown instruction_id: " + oldInstructionId);
+                            continue;
+                        }
+
+                        int oldBotJobId = rs.getInt("bot_job_id");
+                        Integer newBotJobId = botJobIdMap.get(oldBotJobId);
+
+                        insertStmt.setString(1, rs.getString("reference_type"));
+                        insertStmt.setString(2, rs.getString("value"));
+                        insertStmt.setInt(3, newInstructionId);
+
+                        if (newBotJobId != null) {
+                            insertStmt.setInt(4, newBotJobId);
+                        } else {
+                            insertStmt.setNull(4, Types.INTEGER);
+                        }
+
+                        insertStmt.addBatch();
+                        count++;
+
+                        if (count % BATCH_SIZE == 0) {
+                            insertStmt.executeBatch();
+                            postgresConn.commit();
+                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                        }
+                    }
+
+                    insertStmt.executeBatch();
+                    postgresConn.commit();
+                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    ARLogger.getInstance(PerformDataBase.class).info("Inserted reference records: " + count);
+                }
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to export reference table");
+        }
+    }
+
+
+    private void insertOrNull(PreparedStatement stmt, int parameterIndex, ResultSet rs, String columnName) throws SQLException {
+        Object value = rs.getObject(columnName);
+        if (value == null) {
+            stmt.setNull(parameterIndex, Types.INTEGER);
+        } else {
+            stmt.setInt(parameterIndex, rs.getInt(columnName));
+        }
+    }
+
     public void initializeMainDatabaseAccess(String dbUrl, File dbFile) {
 
         try (Connection conn = DriverManager.getConnection(dbUrl)) {

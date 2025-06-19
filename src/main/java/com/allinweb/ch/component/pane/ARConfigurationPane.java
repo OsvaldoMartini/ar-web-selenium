@@ -781,6 +781,15 @@ public class ARConfigurationPane extends ARPane {
 
             performDataBase.changeDbConnection();
 
+            //            performDataBase.dropPostGresSequences();
+//            performDataBase.postGresIntegration();
+//            performDataBase.importHomeUrlTable();
+//            performDataBase.exportBotJob();
+//            performDataBase.exportBlock();
+//            performDataBase.exportInstructions();
+//            performDataBase.exportVariables();
+//            performDataBase.exportReferences();
+
             homeBankingList.clear();
             homeBankingList.addAll(performDataBase.loadHomeBanking(null));
             homeBankingListView = new ListView<>(homeBankingList);
