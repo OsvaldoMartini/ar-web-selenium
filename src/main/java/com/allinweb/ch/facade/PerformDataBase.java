@@ -6585,24 +6585,19 @@ GROUP BY
     }
 
     public void exportUpdateInstruction() {
-        String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
-        ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
-
         String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
         String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
         String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
 
         final int BATCH_SIZE = 100;
 
-        try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
-                Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
-                Statement accessStmt = accessConn.createStatement()) {
+        try (Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
+                Statement postgresStmt = postgresConn.createStatement()) {
             postgresConn.setAutoCommit(false);
 
             String selectAccessSQL =
                     "SELECT id, name, parent_id, variable_id FROM instruction WHERE parent_id IS NOT NULL OR variable_id IS NOT NULL ORDER BY id";
-            try (ResultSet rsInstruction = accessStmt.executeQuery(selectAccessSQL)) {
+            try (ResultSet rsInstruction = postgresStmt.executeQuery(selectAccessSQL)) {
 
                 String updateSQL = "UPDATE instruction SET variable_id = ?, parent_id = ? WHERE id = ? ";
 
