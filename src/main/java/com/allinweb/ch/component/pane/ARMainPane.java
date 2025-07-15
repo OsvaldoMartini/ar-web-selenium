@@ -115,13 +115,25 @@ public class ARMainPane extends ARPane {
             }
 
             //            performDataBase.dropPostGresSequences();
-            performDataBase.exportHomeBanking();
-            performDataBase.exportHomeUrl();
-            performDataBase.exportBotJob();
-            performDataBase.exportBlock();
-//            performDataBase.exportInstructions();
-//            performDataBase.exportVariables();
-//            performDataBase.exportReferences();
+            try {
+
+                performDataBase.exportHomeBanking();
+                performDataBase.getNewIdsHomeBank();
+                performDataBase.exportHomeUrl();
+                performDataBase.getNewIdsHomeUrl();
+                performDataBase.exportBotJob();
+                performDataBase.getNewIdsBotJob();
+                performDataBase.exportBlock();
+                performDataBase.getNewIdsBlock();
+                performDataBase.exportInstructions();
+                performDataBase.getNewIdsInstruc();
+                performDataBase.exportVariables();
+                performDataBase.getNewIdsVariable();
+                performDataBase.exportUpdateInstruction();
+                performDataBase.exportReferences();
+            } catch (Exception error) {
+                ARLogger.getInstance(ARMainPane.class).severe("Error Export to Postgres: " + error.getMessage());
+            }
 
         } else {
             POSTGRES_DB = false;
