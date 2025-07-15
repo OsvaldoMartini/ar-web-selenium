@@ -781,9 +781,9 @@ public class ARConfigurationPane extends ARPane {
 
             performDataBase.changeDbConnection();
 
-            //            performDataBase.dropPostGresSequences();
-//            performDataBase.postGresIntegration();
-//            performDataBase.importHomeUrlTable();
+//            performDataBase.dropPostGresSequences();
+//            performDataBase.exportHomeBanking();
+//            performDataBase.exportHomeUrl();
 //            performDataBase.exportBotJob();
 //            performDataBase.exportBlock();
 //            performDataBase.exportInstructions();

@@ -115,8 +115,13 @@ public class ARMainPane extends ARPane {
             }
 
             //            performDataBase.dropPostGresSequences();
-            performDataBase.postGresIntegration();
-            performDataBase.importHomeUrlTable();
+            performDataBase.exportHomeBanking();
+            performDataBase.exportHomeUrl();
+            performDataBase.exportBotJob();
+            performDataBase.exportBlock();
+//            performDataBase.exportInstructions();
+//            performDataBase.exportVariables();
+//            performDataBase.exportReferences();
 
         } else {
             POSTGRES_DB = false;

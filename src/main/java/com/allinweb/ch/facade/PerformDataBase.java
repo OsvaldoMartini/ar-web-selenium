@@ -5712,7 +5712,7 @@ GROUP BY
         return homeURLList;
     }
 
-    public void postGresIntegration() {
+    public void exportHomeBanking() {
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
         String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
         ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
@@ -5848,7 +5848,7 @@ GROUP BY
         }
     }
 
-    public void importHomeUrlTable() {
+    public void exportHomeUrl() {
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
         String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
         ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
@@ -5944,22 +5944,24 @@ GROUP BY
         final int BATCH_SIZE = 100;
 
         try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
-             Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
-             Statement accessStmt = accessConn.createStatement()) {
+                Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
+                Statement accessStmt = accessConn.createStatement()) {
 
             postgresConn.setAutoCommit(false);
 
-            String selectAccessSQL = "SELECT bot.name, bot.description, bot.priority, bot.active, bot.home_banking_id , hu.url FROM bot_job bot join home_url hu on hu.home_banking_id = bot.home_banking_id";
+            String selectAccessSQL =
+                    "SELECT bot.name, bot.description, bot.priority, bot.active, bot.home_banking_id , hu.url FROM bot_job bot join home_url hu on hu.home_banking_id = bot.home_banking_id";
             try (ResultSet rs = accessStmt.executeQuery(selectAccessSQL)) {
 
                 String findHomeUrlSQL = "SELECT id, home_banking_id FROM home_url WHERE url = ?";
                 String checkExistsSQL = "SELECT id FROM bot_job WHERE name = ?";
-                String insertSQL = "INSERT INTO bot_job (name, description, priority, active, home_url_id, home_banking_id) " +
-                        "VALUES (?, ?, ?, ?, ?, ?)";
+                String insertSQL =
+                        "INSERT INTO bot_job (name, description, priority, active, home_url_id, home_banking_id) "
+                                + "VALUES (?, ?, ?, ?, ?, ?)";
 
                 try (PreparedStatement findHomeUrlStmt = postgresConn.prepareStatement(findHomeUrlSQL);
-                     PreparedStatement checkStmt = postgresConn.prepareStatement(checkExistsSQL);
-                     PreparedStatement insertStmt = postgresConn.prepareStatement(insertSQL)) {
+                        PreparedStatement checkStmt = postgresConn.prepareStatement(checkExistsSQL);
+                        PreparedStatement insertStmt = postgresConn.prepareStatement(insertSQL)) {
 
                     int count = 0;
 
@@ -6020,7 +6022,6 @@ GROUP BY
         }
     }
 
-
     public void exportBlock() {
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
         String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
@@ -6043,16 +6044,18 @@ GROUP BY
         botJobIdMap.put(18, 7);
 
         try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
-             Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
-             Statement accessStmt = accessConn.createStatement()) {
+                Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
+                Statement accessStmt = accessConn.createStatement()) {
 
             postgresConn.setAutoCommit(false);
 
-            String selectAccessSQL = "SELECT block_order_number, name, description, type_id, export_file, active, wait, bot_job_id FROM block";
+            String selectAccessSQL =
+                    "SELECT block_order_number, name, description, type_id, export_file, active, wait, bot_job_id FROM block";
             try (ResultSet rs = accessStmt.executeQuery(selectAccessSQL)) {
 
-                String insertSQL = "INSERT INTO block (block_order_number, name, description, type_id, export_file, active, wait, bot_job_id) " +
-                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+                String insertSQL =
+                        "INSERT INTO block (block_order_number, name, description, type_id, export_file, active, wait, bot_job_id) "
+                                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
                 try (PreparedStatement insertStmt = postgresConn.prepareStatement(insertSQL)) {
 
@@ -6164,24 +6167,24 @@ GROUP BY
         parentIdMap.put(299, 84);
         parentIdMap.put(233, 48);
         parentIdMap.put(243, 52);
-        parentIdMap.put(247, 50);
+        parentIdMap.put(247, 55);
         parentIdMap.put(282, 69);
         parentIdMap.put(289, 74);
         parentIdMap.put(294, 79);
         parentIdMap.put(298, 83);
 
         try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
-             Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
-             Statement accessStmt = accessConn.createStatement()) {
+                Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
+                Statement accessStmt = accessConn.createStatement()) {
 
             postgresConn.setAutoCommit(false);
 
             String selectAccessSQL = "SELECT * FROM instruction";
             try (ResultSet rs = accessStmt.executeQuery(selectAccessSQL)) {
 
-                String insertSQL = "INSERT INTO instruction (" +
-                        "instruction_order_number, actions, name, xpath, coordinates, force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root, css_selector, description, operation, optional, block_marked, default_value, action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr, active, block_id, variable_id, parent_id, bot_job_id) " +
-                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                String insertSQL = "INSERT INTO instruction ("
+                        + "instruction_order_number, actions, name, xpath, coordinates, force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root, css_selector, description, operation, optional, block_marked, default_value, action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr, active, block_id, variable_id, parent_id, bot_job_id) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
                 try (PreparedStatement insertStmt = postgresConn.prepareStatement(insertSQL)) {
 
@@ -6264,7 +6267,6 @@ GROUP BY
         }
     }
 
-
     public void exportVariables() {
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
         String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
@@ -6286,26 +6288,114 @@ GROUP BY
         botJobIdMap.put(18, 7);
 
         Map<Integer, Integer> instructionIdMap = new HashMap<>();
-        instructionIdMap.put(299, 84);
+        instructionIdMap.put(171, 1);
+        instructionIdMap.put(172, 2);
+        instructionIdMap.put(173, 3);
+        instructionIdMap.put(174, 4);
+        instructionIdMap.put(175, 5);
+        instructionIdMap.put(176, 6);
+        instructionIdMap.put(177, 7);
+        instructionIdMap.put(179, 8);
+        instructionIdMap.put(180, 9);
+        instructionIdMap.put(183, 10);
+        instructionIdMap.put(184, 11);
+        instructionIdMap.put(189, 12);
+        instructionIdMap.put(190, 13);
+        instructionIdMap.put(191, 14);
+        instructionIdMap.put(192, 15);
+        instructionIdMap.put(193, 16);
+        instructionIdMap.put(194, 17);
+        instructionIdMap.put(195, 18);
+        instructionIdMap.put(196, 19);
+        instructionIdMap.put(197, 20);
+        instructionIdMap.put(198, 21);
+        instructionIdMap.put(199, 22);
+        instructionIdMap.put(200, 23);
+        instructionIdMap.put(201, 24);
+        instructionIdMap.put(202, 25);
+        instructionIdMap.put(204, 26);
+        instructionIdMap.put(205, 27);
+        instructionIdMap.put(206, 28);
+        instructionIdMap.put(212, 29);
+        instructionIdMap.put(213, 30);
+        instructionIdMap.put(214, 31);
+        instructionIdMap.put(215, 32);
+        instructionIdMap.put(216, 33);
+        instructionIdMap.put(218, 34);
+        instructionIdMap.put(219, 35);
+        instructionIdMap.put(220, 36);
+        instructionIdMap.put(221, 37);
+        instructionIdMap.put(222, 38);
+        instructionIdMap.put(223, 39);
+        instructionIdMap.put(224, 40);
+        instructionIdMap.put(225, 41);
+        instructionIdMap.put(226, 42);
+        instructionIdMap.put(227, 43);
+        instructionIdMap.put(228, 44);
+        instructionIdMap.put(229, 45);
+        instructionIdMap.put(230, 46);
+        instructionIdMap.put(232, 47);
         instructionIdMap.put(233, 48);
+        instructionIdMap.put(234, 49);
+        instructionIdMap.put(235, 50);
+        instructionIdMap.put(236, 51);
         instructionIdMap.put(243, 52);
-        instructionIdMap.put(247, 50);
+        instructionIdMap.put(244, 53);
+        instructionIdMap.put(245, 54);
+        instructionIdMap.put(247, 55);
+        instructionIdMap.put(248, 56);
+        instructionIdMap.put(249, 57);
+        instructionIdMap.put(250, 58);
+        instructionIdMap.put(251, 59);
+        instructionIdMap.put(255, 60);
+        instructionIdMap.put(257, 61);
+        instructionIdMap.put(258, 62);
+        instructionIdMap.put(259, 63);
+        instructionIdMap.put(260, 64);
+        instructionIdMap.put(261, 65);
+        instructionIdMap.put(262, 66);
+        instructionIdMap.put(263, 67);
+        instructionIdMap.put(281, 68);
         instructionIdMap.put(282, 69);
+        instructionIdMap.put(283, 70);
+        instructionIdMap.put(284, 71);
+        instructionIdMap.put(287, 72);
+        instructionIdMap.put(288, 73);
         instructionIdMap.put(289, 74);
+        instructionIdMap.put(290, 75);
+        instructionIdMap.put(291, 76);
+        instructionIdMap.put(292, 77);
+        instructionIdMap.put(293, 78);
         instructionIdMap.put(294, 79);
+        instructionIdMap.put(295, 80);
+        instructionIdMap.put(296, 81);
+        instructionIdMap.put(297, 82);
         instructionIdMap.put(298, 83);
+        instructionIdMap.put(299, 84);
+        instructionIdMap.put(300, 85);
+        instructionIdMap.put(301, 86);
+        instructionIdMap.put(302, 87);
+        instructionIdMap.put(303, 88);
+        instructionIdMap.put(304, 89);
+        instructionIdMap.put(341, 90);
+        instructionIdMap.put(349, 91);
+        instructionIdMap.put(351, 92);
+        instructionIdMap.put(352, 93);
+        instructionIdMap.put(353, 94);
+        instructionIdMap.put(421, 95);
 
         try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
-             Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
-             Statement accessStmt = accessConn.createStatement()) {
+                Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
+                Statement accessStmt = accessConn.createStatement()) {
 
             postgresConn.setAutoCommit(false);
 
             String selectAccessSQL = "SELECT * FROM variable";
             try (ResultSet rs = accessStmt.executeQuery(selectAccessSQL)) {
 
-                String insertSQL = "INSERT INTO variable (type, name, value, local_format, delimiter, instruction_id, bot_job_id) " +
-                        "VALUES (?, ?, ?, ?, ?, ?, ?)";
+                String insertSQL =
+                        "INSERT INTO variable (type, name, value, local_format, delimiter, instruction_id, bot_job_id) "
+                                + "VALUES (?, ?, ?, ?, ?, ?, ?)";
 
                 try (PreparedStatement insertStmt = postgresConn.prepareStatement(insertSQL)) {
 
@@ -6319,7 +6409,8 @@ GROUP BY
                             continue;
                         }
 
-                        Integer instructionId = rs.getObject("instruction_id") != null ? rs.getInt("instruction_id") : null;
+                        Integer instructionId =
+                                rs.getObject("instruction_id") != null ? rs.getInt("instruction_id") : null;
                         Integer newInstructionId = null;
 
                         if (instructionId != null) {
@@ -6416,84 +6507,96 @@ GROUP BY
         instructionIdMap.put(204, 26);
         instructionIdMap.put(205, 27);
         instructionIdMap.put(206, 28);
-        instructionIdMap.put(212, 30);
-        instructionIdMap.put(213, 31);
-        instructionIdMap.put(214, 32);
-        instructionIdMap.put(215, 33);
-        instructionIdMap.put(216, 35);
-        instructionIdMap.put(218, 36);
-        instructionIdMap.put(219, 37);
-        instructionIdMap.put(220, 51);
-        instructionIdMap.put(221, 52);
-        instructionIdMap.put(222, 40);
-        instructionIdMap.put(223, 41);
-        instructionIdMap.put(224, 42);
-        instructionIdMap.put(225, 43);
-        instructionIdMap.put(226, 44);
-        instructionIdMap.put(227, 45);
-        instructionIdMap.put(228, 46);
-        instructionIdMap.put(229, 47);
-        instructionIdMap.put(230, 48);
-        instructionIdMap.put(232, 49);
-        instructionIdMap.put(233, 50);
-        instructionIdMap.put(234, 53);
-        instructionIdMap.put(235, 60);
-        instructionIdMap.put(236, 61);
-        instructionIdMap.put(243, 62);
-        instructionIdMap.put(244, 63);
-        instructionIdMap.put(245, 64);
-        instructionIdMap.put(247, 65);
-        instructionIdMap.put(248, 66);
-        instructionIdMap.put(249, 67);
-        instructionIdMap.put(250, 68);
-        instructionIdMap.put(251, 69);
-        instructionIdMap.put(255, 70);
-        instructionIdMap.put(257, 71);
-        instructionIdMap.put(258, 72);
-        instructionIdMap.put(259, 73);
-        instructionIdMap.put(260, 74);
-        instructionIdMap.put(261, 75);
-        instructionIdMap.put(262, 76);
-        instructionIdMap.put(263, 77);
-        instructionIdMap.put(281, 78);
-        instructionIdMap.put(282, 79);
-        instructionIdMap.put(283, 80);
-        instructionIdMap.put(284, 81);
-        instructionIdMap.put(287, 83);
-        instructionIdMap.put(288, 56);
-        instructionIdMap.put(289, 57);
-        instructionIdMap.put(290, 58);
-        instructionIdMap.put(291, 82);
-        instructionIdMap.put(292, 59);
-        instructionIdMap.put(293, 54);
-        instructionIdMap.put(294, 84);
-        instructionIdMap.put(295, 85);
-        instructionIdMap.put(296, 86);
-        instructionIdMap.put(297, 87);
-        instructionIdMap.put(298, 88);
-        instructionIdMap.put(299, 89);
-        instructionIdMap.put(300, 90);
-        instructionIdMap.put(301, 91);
-        instructionIdMap.put(302, 92);
-        instructionIdMap.put(303, 93);
-        instructionIdMap.put(304, 94);
-        instructionIdMap.put(341, 29);
-        instructionIdMap.put(349, 95);
-        instructionIdMap.put(351, 38);
-        instructionIdMap.put(352, 34);
-        instructionIdMap.put(353, 39);
-        instructionIdMap.put(421, 55);
+        instructionIdMap.put(212, 29);
+        instructionIdMap.put(213, 30);
+        instructionIdMap.put(214, 31);
+        instructionIdMap.put(215, 32);
+        instructionIdMap.put(216, 33);
+        instructionIdMap.put(218, 34);
+        instructionIdMap.put(219, 35);
+        instructionIdMap.put(220, 36);
+        instructionIdMap.put(221, 37);
+        instructionIdMap.put(222, 38);
+        instructionIdMap.put(223, 39);
+        instructionIdMap.put(224, 40);
+        instructionIdMap.put(225, 41);
+        instructionIdMap.put(226, 42);
+        instructionIdMap.put(227, 43);
+        instructionIdMap.put(228, 44);
+        instructionIdMap.put(229, 45);
+        instructionIdMap.put(230, 46);
+        instructionIdMap.put(232, 47);
+        instructionIdMap.put(233, 48);
+        instructionIdMap.put(234, 49);
+        instructionIdMap.put(235, 50);
+        instructionIdMap.put(236, 51);
+        instructionIdMap.put(243, 52);
+        instructionIdMap.put(244, 53);
+        instructionIdMap.put(245, 54);
+        instructionIdMap.put(247, 55);
+        instructionIdMap.put(248, 56);
+        instructionIdMap.put(249, 57);
+        instructionIdMap.put(250, 58);
+        instructionIdMap.put(251, 59);
+        instructionIdMap.put(255, 60);
+        instructionIdMap.put(257, 61);
+        instructionIdMap.put(258, 62);
+        instructionIdMap.put(259, 63);
+        instructionIdMap.put(260, 64);
+        instructionIdMap.put(261, 65);
+        instructionIdMap.put(262, 66);
+        instructionIdMap.put(263, 67);
+        instructionIdMap.put(281, 68);
+        instructionIdMap.put(282, 69);
+        instructionIdMap.put(283, 70);
+        instructionIdMap.put(284, 71);
+        instructionIdMap.put(287, 72);
+        instructionIdMap.put(288, 73);
+        instructionIdMap.put(289, 74);
+        instructionIdMap.put(290, 75);
+        instructionIdMap.put(291, 76);
+        instructionIdMap.put(292, 77);
+        instructionIdMap.put(293, 78);
+        instructionIdMap.put(294, 79);
+        instructionIdMap.put(295, 80);
+        instructionIdMap.put(296, 81);
+        instructionIdMap.put(297, 82);
+        instructionIdMap.put(298, 83);
+        instructionIdMap.put(299, 84);
+        instructionIdMap.put(300, 85);
+        instructionIdMap.put(301, 86);
+        instructionIdMap.put(302, 87);
+        instructionIdMap.put(303, 88);
+        instructionIdMap.put(304, 89);
+        instructionIdMap.put(341, 90);
+        instructionIdMap.put(349, 91);
+        instructionIdMap.put(351, 92);
+        instructionIdMap.put(352, 93);
+        instructionIdMap.put(353, 94);
+        instructionIdMap.put(421, 95);
+
+        Map<Integer, Integer> parentIdMap = new HashMap<>();
+        parentIdMap.put(33, 7);
+        parentIdMap.put(299, 84);
+        parentIdMap.put(233, 48);
+        parentIdMap.put(243, 52);
+        parentIdMap.put(247, 55);
+        parentIdMap.put(282, 69);
+        parentIdMap.put(289, 74);
+        parentIdMap.put(294, 79);
+        parentIdMap.put(298, 83);
 
         try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
-             Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
-             Statement accessStmt = accessConn.createStatement()) {
+                Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
+                Statement accessStmt = accessConn.createStatement()) {
 
             postgresConn.setAutoCommit(false);
 
             String selectAccessSQL = "SELECT * FROM reference";
             try (ResultSet rs = accessStmt.executeQuery(selectAccessSQL)) {
 
-                String insertSQL = "INSERT INTO reference (reference_type, value, instruction_id, bot_job_id) VALUES (?, ?, ?, ?)";
+                String insertSQL =
+                        "INSERT INTO reference (reference_type, value, instruction_id, bot_job_id) VALUES (?, ?, ?, ?)";
 
                 try (PreparedStatement insertStmt = postgresConn.prepareStatement(insertSQL)) {
                     int count = 0;
@@ -6542,8 +6645,8 @@ GROUP BY
         }
     }
 
-
-    private void insertOrNull(PreparedStatement stmt, int parameterIndex, ResultSet rs, String columnName) throws SQLException {
+    private void insertOrNull(PreparedStatement stmt, int parameterIndex, ResultSet rs, String columnName)
+            throws SQLException {
         Object value = rs.getObject(columnName);
         if (value == null) {
             stmt.setNull(parameterIndex, Types.INTEGER);
