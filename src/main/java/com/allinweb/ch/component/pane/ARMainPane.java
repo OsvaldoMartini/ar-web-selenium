@@ -117,20 +117,20 @@ public class ARMainPane extends ARPane {
             //            performDataBase.dropPostGresSequences();
             try {
 
-                performDataBase.exportHomeBanking();
-                performDataBase.getNewIdsHomeBank();
-                performDataBase.exportHomeUrl();
-                performDataBase.getNewIdsHomeUrl();
-                performDataBase.exportBotJob();
-                performDataBase.getNewIdsBotJob();
-                performDataBase.exportBlock();
-                performDataBase.getNewIdsBlock();
-                performDataBase.exportInstructions();
-                performDataBase.getNewIdsInstruc();
-                performDataBase.exportVariables();
-                performDataBase.getNewIdsVariable();
-                performDataBase.exportUpdateInstruction();
-                performDataBase.exportReferences();
+                //                performDataBase.exportHomeBanking();
+                //                performDataBase.getNewIdsHomeBank();
+                //                performDataBase.exportHomeUrl();
+                //                performDataBase.getNewIdsHomeUrl();
+                //                performDataBase.exportBotJob();
+                //                performDataBase.getNewIdsBotJob();
+                //                performDataBase.exportBlock();
+                //                performDataBase.getNewIdsBlock();
+                //                performDataBase.exportInstructions();
+                //                performDataBase.getNewIdsInstruc();
+                //                performDataBase.exportVariables();
+                //                performDataBase.getNewIdsVariable();
+                //                performDataBase.exportUpdateInstruction();
+                //                performDataBase.exportReferences();
             } catch (Exception error) {
                 ARLogger.getInstance(ARMainPane.class).severe("Error Export to Postgres: " + error.getMessage());
             }

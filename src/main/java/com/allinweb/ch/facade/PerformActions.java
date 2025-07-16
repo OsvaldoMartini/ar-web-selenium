@@ -253,7 +253,7 @@ public class PerformActions {
                             }
                             return passed;
                         } else {
-
+                            //                            instructionElement.click();
                             instructionElement.clear();
                             clearElement(instructionElement);
                             //                            clearValueAtCoordinates(savedCoordinates);
@@ -850,7 +850,7 @@ public class PerformActions {
         }
 
         int attempts = 0;
-        int maxAttempts = forceCoordinates ? 2 : 5;
+        int maxAttempts = forceCoordinates ? 5 : 30;
 
         while (elementFound == null && attempts < maxAttempts) {
 
@@ -1045,7 +1045,7 @@ public class PerformActions {
                     if (isInterceptBotJob()) {
                         break;
                     }
-                    onHoldInSeconds(2);
+                    onHoldInSeconds(5);
                     ARLogger.getInstance(PerformActions.class)
                             .fine(String.format(
                                     "Re-try %d Locate Web Element TagName \"%s\"",
@@ -1247,33 +1247,31 @@ public class PerformActions {
 
     public boolean clickElement(boolean byPassNotFound, WebElement element) throws Exception {
         UtilsMethods.exceptionIfNullWebElement(element);
-        if (!element.isEnabled()) {
-            //        callErrorMessageNotEnabled(element.getTagName());
-            performMessage.showCustomModalDialog(
-                    "BOT JOB STOP",
-                    String.format("The Element \"%s\" is not Enabled", element.getTagName()),
-                    "Consider Fill Up all the Mandatory Fields!");
-            // throw new TimeoutException();
-            return false;
-        }
-
-        //        try {
-        //            waitForAction.until(ExpectedConditions.visibilityOf(element).andThen(e -> {
-        //                ((JavascriptExecutor) this.currentDriver)
-        //                        .executeScript("arguments[0].scrollIntoView(true);", element);
-        //                return waitForAction.until(ExpectedConditions.elementToBeClickable(element));
-        //            }));
-        //        } catch (Exception e) {
-        //            ARLogger.getInstance(PerformActions.class)
-        //                    .fine(String.format(
-        //                            "Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(),
-        // e.getMessage()));
-        //
-        //            if (!byPassNotFound) {
-        //                performMessage.couldNotFindElement(element.getTagName());
-        //            }
+        //        if (!element.isEnabled()) {
+        //            //        callErrorMessageNotEnabled(element.getTagName());
+        //            performMessage.showCustomModalDialog(
+        //                    "BOT JOB STOP",
+        //                    String.format("The Element \"%s\" is not Enabled", element.getTagName()),
+        //                    "Consider Fill Up all the Mandatory Fields!");
+        //            // throw new TimeoutException();
         //            return false;
         //        }
+
+        try {
+            waitForAction.until(ExpectedConditions.visibilityOf(element).andThen(e -> {
+                ((JavascriptExecutor) this.currentDriver).executeScript("arguments[0].scrollIntoView(true);", element);
+                return waitForAction.until(ExpectedConditions.elementToBeClickable(element));
+            }));
+        } catch (Exception e) {
+            ARLogger.getInstance(PerformActions.class)
+                    .fine(String.format(
+                            "Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
+
+            if (!byPassNotFound) {
+                performMessage.couldNotFindElement(element.getTagName());
+            }
+            return false;
+        }
 
         try {
             element.click();
@@ -1344,6 +1342,14 @@ public class PerformActions {
                 }
 
                 if (dataFieldValue != null) {
+                    // Pause briefly to let JS clearing take effect
+                    Thread.sleep(100); // Consider using WebDriverWait for stability
+                    // Clear using sendKeys with BACK_SPACE (optional but defensive)
+                    element.sendKeys(Keys.chord(Keys.CONTROL, "a"));
+                    element.sendKeys(Keys.BACK_SPACE);
+                    // Pause again if needed (some inputs behave asynchronously)
+                    Thread.sleep(100);
+
                     element.sendKeys(dataFieldValue);
                     // Waits component reaction
                     onHoldInSeconds(1);
