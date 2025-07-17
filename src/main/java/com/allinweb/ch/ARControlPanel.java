@@ -271,30 +271,30 @@ public class ARControlPanel extends Application {
             //            performDataBase.dropPostGresSequences();
             try {
 
-                performDataBase.exportHomeBanking();
-                performDataBase.getNewIdsHomeBank();
-                performDataBase.exportHomeUrl();
-                performDataBase.getNewIdsHomeUrl();
-                performDataBase.exportBotJob();
-                performDataBase.getNewIdsBotJob();
-                performDataBase.exportBlock();
-                performDataBase.getNewIdsBlock();
-                performDataBase.exportInstructions();
-                performDataBase.getNewIdsInstruc();
-                performDataBase.exportVariables();
-                performDataBase.getNewIdsVariable();
-                performDataBase.exportUpdateInstruction();
-                performDataBase.exportReferences();
-
-                // SAVED COMPONENTS
-                performDataBase.exportCompBlock();
-                performDataBase.getNewIdsCompBlock();
-                performDataBase.exportCompInstructions();
-                performDataBase.getNewIdsCompInstruc();
-                performDataBase.exportCompVariables();
-                performDataBase.getNewIdsCompVariable();
-                performDataBase.exportUpdateCompInstruction();
-                performDataBase.exportCompReferences();
+//                performDataBase.exportHomeBanking();
+//                performDataBase.getNewIdsHomeBank();
+//                performDataBase.exportHomeUrl();
+//                performDataBase.getNewIdsHomeUrl();
+//                performDataBase.exportBotJob();
+//                performDataBase.getNewIdsBotJob();
+//                performDataBase.exportBlock();
+//                performDataBase.getNewIdsBlock();
+//                performDataBase.exportInstructions();
+//                performDataBase.getNewIdsInstruc();
+//                performDataBase.exportVariables();
+//                performDataBase.getNewIdsVariable();
+//                performDataBase.exportUpdateInstruction();
+//                performDataBase.exportReferences();
+//
+//                // SAVED COMPONENTS
+//                performDataBase.exportCompBlock();
+//                performDataBase.getNewIdsCompBlock();
+//                performDataBase.exportCompInstructions();
+//                performDataBase.getNewIdsCompInstruc();
+//                performDataBase.exportCompVariables();
+//                performDataBase.getNewIdsCompVariable();
+//                performDataBase.exportUpdateCompInstruction();
+//                performDataBase.exportCompReferences();
 
             } catch (Exception error) {
                 ARLogger.getInstance(ARMainPane.class).severe("Error Export to Postgres: " + error.getMessage());
