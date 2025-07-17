@@ -627,7 +627,13 @@ public class ARViewBotJobPane extends ARPane {
 
             // Refresh the ListView after adding the new bot job
             this.botJobList.clear();
-            this.botJobList.addAll(performDataBase.loadAllBotJobs());
+            if (performDataBase.getConn() != null) {
+                try {
+                    this.botJobList.addAll(performDataBase.loadAllBotJobs(performDataBase.getConn()));
+                } catch (Exception error) {
+                    throw error;
+                }
+            }
         });
         this.openScannerButton.setOnMouseClicked((e) -> {
             callScannerTool();

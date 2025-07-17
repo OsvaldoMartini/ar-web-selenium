@@ -191,7 +191,6 @@ public class ARPropertyManager {
     }
 
     public void createDefaultProperties(File configurationFile) {
-
         performMessage.errorMessage(
                 "Creation of new \"ARWeb.config\" file", // Using configurationFileName as the title
                 "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: Configuration file not found!</span>",

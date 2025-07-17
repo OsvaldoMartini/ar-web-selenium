@@ -1,11 +1,16 @@
 package com.allinweb.ch;
 
+import com.allinweb.ch.component.pane.ARMainPane;
 import com.allinweb.ch.component.scene.ARConfigurationScene;
 import com.allinweb.ch.component.scene.ARLicenseScene;
 import com.allinweb.ch.component.scene.ARMainScene;
+import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.license.LicenceVal;
 import com.allinweb.ch.license.LicenseManager;
+import com.allinweb.ch.socket.ARWebSocketServer;
+import com.allinweb.ch.socket.ARWebSocketServerIP;
+import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;
@@ -26,24 +31,30 @@ public class ARControlPanel extends Application {
 
     private static final PerformMessage performMessage;
     private static final ARPropertyManager arPropertyManager;
+    private static final PerformDataBase performDataBase;
     private static final ARLicenseScene arLicenseScene;
     private static String defaultConfigurationFileName = ARConstants.USER_PATH + ARConstants.FILE_NAME_CONFIGURATION;
     private static final ARConfigurationScene arConfigurationScene;
+    private static final ARMainScene arMainScene;
+    private static WebSocketSessionManager webSocketSessionManager;
+    private static ARWebSocketServerIP arWebSocketServerIP;
+    private static ARWebSocketServer arWebSocketServer; // Static block to initialize
 
-    // Static block to initialize
     static {
+        performDataBase = PerformDataBase.getInstance();
         performMessage = PerformMessage.getInstance();
         arPropertyManager = ARPropertyManager.getInstance();
         arLicenseScene = ARLicenseScene.getInstance();
         arConfigurationScene = ARConfigurationScene.getInstance();
+        arMainScene = ARMainScene.getInstance();
     }
 
     private static boolean isEnabledLicence = false;
 
     @Override
     public void start(Stage stage) throws Exception {
-        ARMainScene primaryStage = new ARMainScene();
-        primaryStage.show();
+        //        ARMainScene primaryStage = new ARMainScene();
+        //        primaryStage.show();
     }
 
     public static void main(String[] args) {
@@ -64,7 +75,9 @@ public class ARControlPanel extends Application {
                 arPropertyManager.loadProperties(conf);
                 licenseControl();
             } catch (Exception error) {
-                arPropertyManager.createDefaultProperties(configurationFile);
+                if (!configurationFile.exists()) {
+                    arPropertyManager.createDefaultProperties(configurationFile);
+                }
                 Platform.runLater(() -> {
                     arConfigurationScene.showModal();
                     licenseControl();
@@ -84,7 +97,9 @@ public class ARControlPanel extends Application {
                 arPropertyManager.loadProperties(conf);
                 licenseControl();
             } catch (Exception error) {
-                arPropertyManager.createDefaultProperties(configurationFile);
+                if (!configurationFile.exists()) {
+                    arPropertyManager.createDefaultProperties(configurationFile);
+                }
                 Platform.runLater(() -> {
                     arConfigurationScene.showModal();
                     licenseControl();
@@ -133,8 +148,10 @@ public class ARControlPanel extends Application {
                         try {
                             license.set(LicenseManager.checkLicenseFile(finalLicensePath));
                             if (license.get().isActive()) {
-                                ARMainScene primaryStage = new ARMainScene();
-                                primaryStage.show();
+                                databaseControl();
+                                webSocketControl();
+
+                                arMainScene.showModal();
                             } else {
                                 licenseMessages(license.get());
                             }
@@ -153,10 +170,11 @@ public class ARControlPanel extends Application {
                 } else {
                     license.set(LicenseManager.checkLicenseFile(licensePath));
                     if (license.get().isActive()) {
-                        Platform.runLater(() -> {
-                            ARMainScene primaryStage = new ARMainScene();
-                            primaryStage.show();
-                        });
+                        databaseControl();
+                        webSocketControl();
+
+                        Platform.runLater(() -> arMainScene.showModal());
+
                     } else {
                         licenseMessages(license.get());
                     }
@@ -174,9 +192,17 @@ public class ARControlPanel extends Application {
                 ARLogger.getInstance(ARControlPanel.class).fine(error.getMessage());
             }
         } else {
+            databaseControl();
             // If the license is disabled, directly proceed with the main application
             // Ensure launch(args) is only called once: JavaFX does not allow calling Application.launch() twice.
-            launch();
+            //            launch();
+            webSocketControl();
+            Platform.runLater(() -> arMainScene.showModal());
+            if (performDataBase.getConn() == null) {
+                Platform.runLater(() -> {
+                    arConfigurationScene.showModal();
+                });
+            }
         }
     }
 
@@ -212,5 +238,134 @@ public class ARControlPanel extends Application {
         LocalDate yesterday = today.minusDays(day);
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
         return yesterday.format(formatter);
+    }
+
+    private static void databaseControl() {
+        String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
+        try {
+            performDataBase.initialize(dataBaseType);
+
+        } catch (Exception error) {
+            ARLogger.getInstance(ARMainPane.class).severe("Error Export to Postgres: " + error.getMessage());
+        }
+
+        //        performDataBase.migrationAccessToAccess();
+        //        System.exit(0);
+
+        if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
+            performDataBase.POSTGRES_DB = true;
+
+            try {
+                if (performDataBase.doesNotInstructionTableExist()) {
+
+                    if (performDataBase.getConn() != null) {
+                        //            createTableOpenAIVector();
+                        //            createTableLLama2AIVector();
+                        performDataBase.initializeMainDatabasePostgres();
+                    }
+                }
+            } catch (Exception error) {
+                ARLogger.getInstance(ARMainPane.class).severe("Error connection with Postgres: " + error.getMessage());
+            }
+
+            //            performDataBase.dropPostGresSequences();
+            try {
+
+                performDataBase.exportHomeBanking();
+                performDataBase.getNewIdsHomeBank();
+                performDataBase.exportHomeUrl();
+                performDataBase.getNewIdsHomeUrl();
+                performDataBase.exportBotJob();
+                performDataBase.getNewIdsBotJob();
+                performDataBase.exportBlock();
+                performDataBase.getNewIdsBlock();
+                performDataBase.exportInstructions();
+                performDataBase.getNewIdsInstruc();
+                performDataBase.exportVariables();
+                performDataBase.getNewIdsVariable();
+                performDataBase.exportUpdateInstruction();
+                performDataBase.exportReferences();
+
+                // SAVED COMPONENTS
+                performDataBase.exportCompBlock();
+                performDataBase.getNewIdsCompBlock();
+                performDataBase.exportCompInstructions();
+                performDataBase.getNewIdsCompInstruc();
+                performDataBase.exportCompVariables();
+                performDataBase.getNewIdsCompVariable();
+                performDataBase.exportUpdateCompInstruction();
+                performDataBase.exportCompReferences();
+
+            } catch (Exception error) {
+                ARLogger.getInstance(ARMainPane.class).severe("Error Export to Postgres: " + error.getMessage());
+            }
+
+        } else {
+            performDataBase.POSTGRES_DB = false;
+        }
+
+        if (!performDataBase.POSTGRES_DB) {
+            String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+
+            File dbFile = new File(dbPath + ARConstants.FILE_NAME_DB);
+            try {
+
+                if (!dbFile.exists() || performDataBase.doesNotInstructionTableExist()) {
+                    if (performDataBase.getConn() != null) {
+                        performDataBase.initializeMainDatabaseAccess(dbFile);
+                    }
+                } else {
+                    //                performDataBase.disableForeignKeyConstraints(dbUrl);
+                    //                                    performDataBase.updateTableAccess(dbUrl, dbFile);
+                    //                                    performDataBase.updateDatabaseSchema(dbUrl, dbFile);
+
+                    ARLogger.getInstance(ARMainPane.class)
+                            .info(String.format("Database '%s' already exists!", dbFile.getName()));
+                }
+            } catch (Exception error) {
+                performMessage.errorMessage(
+                        "Configuration Needed", // Using configurationFileName as the title
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: Set the path for the Database!</span>",
+                        "<span style='color: #2E7D32; font-weight: bold;'>The Path for Database is Blank!</span>",
+                        "<span style='font-weight: bold;'>Please configure the application before use.</span>.",
+                        "<span style='font-weight: bold;'>" + dbPath + ARConstants.FILE_NAME_DB + "</span>.",
+                        0);
+                System.exit(0);
+            }
+
+            //            performDataBase.updatePossibleMigrationColumnsTable(dbUrl, dbFile);
+
+        }
+
+        //        dbResource.setPreviousDB(previousDB);
+
+        //        if (pathDB == null || pathDB.isBlank()) {
+        //            arConfigurationScene.showModal();
+        //            performMessage.errorMessage(
+        //                    "Configuration Needed", // Using configurationFileName as the title
+        //                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: Set the path
+        // for the Database!</span>",
+        //                    "<span style='color: #2E7D32; font-weight: bold;'>The Path for Database is Blank!</span>",
+        //                    "<span style='font-weight: bold;'>Please configure the application before use.</span>.",
+        //                    null,
+        //                    0);
+        //        }
+    }
+
+    private static void webSocketControl() {
+        webSocketSessionManager = WebSocketSessionManager.getInstance();
+        try {
+            arWebSocketServerIP = ARWebSocketServerIP.getInstance();
+        } catch (Exception error) {
+            ARLogger.getInstance(ARMainScene.class).severe("ARWebSocketServerIP with IP failed " + error.getMessage());
+
+            throw new RuntimeException(error);
+        }
+        try {
+            arWebSocketServer = ARWebSocketServer.getInstance();
+        } catch (Exception error) {
+            ARLogger.getInstance(ARMainScene.class).severe("ARWebSocketServer NO IP failed " + error.getMessage());
+            throw new RuntimeException(error);
+        }
     }
 }

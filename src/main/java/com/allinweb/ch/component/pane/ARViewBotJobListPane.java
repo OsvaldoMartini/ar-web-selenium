@@ -73,7 +73,8 @@ public class ARViewBotJobListPane extends ARPane {
 
     @Override
     public void initUIComponents() {
-        ObservableList<BotJobLoadDTO> botJobList = FXCollections.observableArrayList(performDataBase.loadAllBotJobs());
+        ObservableList<BotJobLoadDTO> botJobList =
+                FXCollections.observableArrayList(performDataBase.loadAllBotJobs(performDataBase.getConn()));
         uiBotJobList = new ListView<>(botJobList);
 
         // Setting the cell factory correctly

@@ -232,7 +232,9 @@ public class ARConfigurationPane extends ARPane {
         //        ObservableList<HomeBankingDTO> homeBankingList =
         //                PerformDataBase..getEntityList(HomeBankingDTO.class);
 
-        homeBankingList.addAll(performDataBase.loadHomeBanking(null));
+        if (performDataBase.getConn() != null) {
+            homeBankingList.addAll(performDataBase.loadHomeBanking(null));
+        }
         homeBankingListView = new ListView<>(homeBankingList);
         homeBankingListView.setCellFactory(new ARCellFactory<>(HomeBankingListCell.class)::call);
 
@@ -477,29 +479,31 @@ public class ARConfigurationPane extends ARPane {
             }
         });
 
-        try (Connection conn = performDataBase.getConnection()) {
-            List<BotJobLoadDTO> botJobLoadList = performDataBase.loadAllBotJobs();
+        if (performDataBase.getConn() != null) {
+            try (Connection conn = performDataBase.getConnection()) {
+                List<BotJobLoadDTO> botJobLoadList = performDataBase.loadAllBotJobs(conn);
 
-            List<InstructionLoadDTO> instList = null;
+                List<InstructionLoadDTO> instList = null;
 
-            for (BotJobLoadDTO botJobLoadDTO : botJobLoadList) {
+                for (BotJobLoadDTO botJobLoadDTO : botJobLoadList) {
 
-                instList = performDataBase.instructionsToDuplicate(
-                        conn,
-                        botJobLoadDTO.getHomeBankingId(),
-                        botJobLoadDTO.getId(),
-                        -1,
-                        "instruction",
-                        "block"); // instruction
-                break;
+                    instList = performDataBase.instructionsToDuplicate(
+                            conn,
+                            botJobLoadDTO.getHomeBankingId(),
+                            botJobLoadDTO.getId(),
+                            -1,
+                            "instruction",
+                            "block"); // instruction
+                    break;
+                }
+
+                if ((instList != null && instList.size() > 0) || botJobLoadList.size() == 0) {
+                    migrationDBLabel.setVisible(false);
+                    migrationDBButton.setVisible(false);
+                }
+            } catch (SQLException ignore) {
+                System.out.println("Check if It Was Migrated! - Not Migrate Columns found!");
             }
-
-            if ((instList != null && instList.size() > 0) || botJobLoadList.size() == 0) {
-                migrationDBLabel.setVisible(false);
-                migrationDBButton.setVisible(false);
-            }
-        } catch (SQLException ignore) {
-            System.out.println("Check if It Was Migrated! - Not Migrate Columns found!");
         }
 
         //        homeBankingGroup
@@ -536,7 +540,13 @@ public class ARConfigurationPane extends ARPane {
             databaseChoiceBox.setValue(arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE));
         }
 
-        reloadDBButton.setOnMouseClicked(e -> saveConfigurations());
+        reloadDBButton.setOnMouseClicked(e -> {
+            try {
+                saveConfigurations();
+            } catch (SQLException ex) {
+                throw new RuntimeException(ex);
+            }
+        });
         migrationDBButton.setOnMouseClicked(e -> runMigrateScripts());
         deleteAllDBButton.setOnMouseClicked(e -> deleteAllDB());
     }
@@ -556,7 +566,7 @@ public class ARConfigurationPane extends ARPane {
         if (result.isPresent() && result.get() == ButtonType.YES) {
 
             try (Connection conn = performDataBase.getConnection()) {
-                List<BotJobLoadDTO> botJobLoadList = performDataBase.loadAllBotJobs();
+                List<BotJobLoadDTO> botJobLoadList = performDataBase.loadAllBotJobs(conn);
 
                 String[] tablesMigration = {
                     "block", "block_loop_instruction", "instruction", "instruction_reference", "reference", "variable"
@@ -633,7 +643,7 @@ public class ARConfigurationPane extends ARPane {
         }
     }
 
-    private void saveConfigurations() {
+    private void saveConfigurations() throws SQLException {
         boolean validfields = true;
         if (Strings.isNullOrEmpty(pathLicense.getText())) {
             new ARAlertScene(Alert.AlertType.ERROR, "Field Blank", "License Path must be filed!", ButtonType.OK);
@@ -796,7 +806,12 @@ public class ARConfigurationPane extends ARPane {
 
             arNewHomeBankingScene.initialize(homeBankingList);
 
-            botJobList = FXCollections.observableArrayList(performDataBase.loadAllBotJobs());
+            try {
+                botJobList = FXCollections.observableArrayList(
+                        performDataBase.loadAllBotJobs(performDataBase.getConnection()));
+            } catch (Exception error) {
+                throw error;
+            }
             viewBotJobListView.setItems(botJobList);
 
             new ARAlertScene(

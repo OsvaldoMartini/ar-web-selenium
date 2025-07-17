@@ -38,6 +38,33 @@ import org.openqa.selenium.WebDriver;
 
 public class ARMainPane extends ARPane {
 
+    protected static volatile ARMainPane instance;
+
+    // Private constructor to prevent instantiation
+    private ARMainPane() {
+        // Initialize if necessary
+        super();
+    }
+
+    public static ARMainPane getInstance() {
+        if (instance == null) {
+            synchronized (ARMainPane.class) {
+                if (instance == null) {
+                    instance = new ARMainPane();
+                }
+            }
+        }
+        return instance;
+    }
+
+    public void initialize(ObservableList<WebDriver> webDriverList) {
+        this.webDriverList = webDriverList;
+
+        if (performDataBase.getConn() != null) {
+            botJobList.addAll(performDataBase.loadAllBotJobs(performDataBase.getConn()));
+        }
+    }
+
     private static final String OPENAI_ENDPOINT = "https://api.openai.com/v1/chat/completions";
 
     //    private static final ARSharedResources dbResource;
@@ -98,94 +125,6 @@ public class ARMainPane extends ARPane {
 
     ListView<BotJobLoadDTO> viewBotJobListView = new ListView<>();
 
-    public ARMainPane(ObservableList<WebDriver> webDriverList) {
-        this.webDriverList = webDriverList;
-        String pathDB = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
-        performDataBase.initialize(dataBaseType);
-
-        //        performDataBase.migrationAccessToAccess();
-        //        System.exit(0);
-
-        if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
-            POSTGRES_DB = true;
-
-            if (!performDataBase.doesInstructionTableExist()) {
-                performDataBase.initializeMainDatabasePostgres();
-            }
-
-            //            performDataBase.dropPostGresSequences();
-            try {
-
-                //                performDataBase.exportHomeBanking();
-                //                performDataBase.getNewIdsHomeBank();
-                //                performDataBase.exportHomeUrl();
-                //                performDataBase.getNewIdsHomeUrl();
-                //                performDataBase.exportBotJob();
-                //                performDataBase.getNewIdsBotJob();
-                //                performDataBase.exportBlock();
-                //                performDataBase.getNewIdsBlock();
-                //                performDataBase.exportInstructions();
-                //                performDataBase.getNewIdsInstruc();
-                //                performDataBase.exportVariables();
-                //                performDataBase.getNewIdsVariable();
-                //                performDataBase.exportUpdateInstruction();
-                //                performDataBase.exportReferences();
-            } catch (Exception error) {
-                ARLogger.getInstance(ARMainPane.class).severe("Error Export to Postgres: " + error.getMessage());
-            }
-
-        } else {
-            POSTGRES_DB = false;
-        }
-
-        if (!POSTGRES_DB) {
-            String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-            String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
-
-            File dbFile = new File(dbPath + ARConstants.FILE_NAME_DB);
-            try {
-
-                if (!dbFile.exists()) {
-                    performDataBase.initializeMainDatabaseAccess(dbUrl, dbFile);
-                } else {
-                    //                performDataBase.disableForeignKeyConstraints(dbUrl);
-                    //                                    performDataBase.updateTableAccess(dbUrl, dbFile);
-                    //                                    performDataBase.updateDatabaseSchema(dbUrl, dbFile);
-
-                    ARLogger.getInstance(ARMainPane.class)
-                            .info(String.format("Database '%s' already exists!", dbFile.getName()));
-                }
-            } catch (Exception error) {
-                performMessage.errorMessage(
-                        "Configuration Needed", // Using configurationFileName as the title
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: Set the path for the Database!</span>",
-                        "<span style='color: #2E7D32; font-weight: bold;'>The Path for Database is Blank!</span>",
-                        "<span style='font-weight: bold;'>Please configure the application before use.</span>.",
-                        "<span style='font-weight: bold;'>" + dbPath + ARConstants.FILE_NAME_DB + "</span>.",
-                        0);
-                System.exit(0);
-            }
-
-            //            performDataBase.updatePossibleMigrationColumnsTable(dbUrl, dbFile);
-
-        }
-
-        //        dbResource.setPreviousDB(previousDB);
-
-        //        if (pathDB == null || pathDB.isBlank()) {
-        //            arConfigurationScene.showModal();
-        //            performMessage.errorMessage(
-        //                    "Configuration Needed", // Using configurationFileName as the title
-        //                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: Set the path
-        // for the Database!</span>",
-        //                    "<span style='color: #2E7D32; font-weight: bold;'>The Path for Database is Blank!</span>",
-        //                    "<span style='font-weight: bold;'>Please configure the application before use.</span>.",
-        //                    null,
-        //                    0);
-        //        }
-    }
-
     @Override
     public void initUIComponents() {
         newBotJobButton = builder.buildButton(
@@ -233,12 +172,11 @@ public class ARMainPane extends ARPane {
 
         initHeader();
 
-        botJobList.addAll(performDataBase.loadAllBotJobs());
-
         viewBotJobListView.setItems(botJobList);
         viewBotJobListView.setCellFactory(new ARCellFactory<>(
                 BotJobListCell.class, arViewBotJobScene, arWebDriver, botJobList, webDriverList)::call);
 
+        arConfigurationScene.initialize(viewBotJobListView, botJobList);
         arNewBotJobScene.initialize(arViewBotJobScene, arWebDriver, botJobList, webDriverList);
         arWebDriver.initialize(webDriverList);
 
@@ -270,7 +208,9 @@ public class ARMainPane extends ARPane {
             arNewBotJobScene.initialize(arViewBotJobScene, arWebDriver, botJobList, webDriverList);
             arNewBotJobScene.showModal();
             botJobList.clear();
-            botJobList.addAll(performDataBase.loadAllBotJobs());
+            if (performDataBase.getConn() != null) {
+                botJobList.addAll(performDataBase.loadAllBotJobs(performDataBase.getConn()));
+            }
             viewBotJobListView.setItems(botJobList);
         });
 
@@ -281,14 +221,15 @@ public class ARMainPane extends ARPane {
 
             var selecBotJobDTO = viewBotJobListView.getSelectionModel().getSelectedItem();
             if (selecBotJobDTO != null) {
-                arSaveCloneScene.initialize(selecBotJobDTO, performDataBase.loadAllBotJobs());
-                arSaveCloneScene.showModal();
+                if (performDataBase.getConn() != null) {
+                    arSaveCloneScene.initialize(selecBotJobDTO, botJobList);
+                    arSaveCloneScene.showModal();
 
-                ObservableList<BotJobLoadDTO> botJobList =
-                        FXCollections.observableArrayList(performDataBase.loadAllBotJobs());
-                viewBotJobListView.setItems(botJobList);
-                viewBotJobListView.refresh();
-
+                    ObservableList<BotJobLoadDTO> botJobList = FXCollections.observableArrayList(
+                            performDataBase.loadAllBotJobs(performDataBase.getConn()));
+                    viewBotJobListView.setItems(botJobList);
+                    viewBotJobListView.refresh();
+                }
             } else {
                 performMessage.errorMessage("Select a Bot Job", "There is NOT a Job Selected", null, null, null, 0);
                 return;
@@ -298,10 +239,21 @@ public class ARMainPane extends ARPane {
         configureButton.setOnMouseClicked(e -> {
             arConfigurationScene.initialize(viewBotJobListView, botJobList);
             arConfigurationScene.showModal();
-            performDataBase.changeDbConnection();
-            ObservableList<BotJobLoadDTO> botJobList =
-                    FXCollections.observableArrayList(performDataBase.loadAllBotJobs());
-            viewBotJobListView.setItems(botJobList);
+            try {
+                performDataBase.changeDbConnection();
+            } catch (Exception error) {
+                throw new RuntimeException(error);
+            }
+            if (performDataBase.getConn() != null) {
+                try {
+                    ObservableList<BotJobLoadDTO> botJobList = FXCollections.observableArrayList(
+                            performDataBase.loadAllBotJobs(performDataBase.getConn()));
+
+                    viewBotJobListView.setItems(botJobList);
+                } catch (Exception error) {
+                    throw new RuntimeException(error);
+                }
+            }
         });
         infoButton.setOnMouseClicked(e -> {
             arInfoScene.showModal();
