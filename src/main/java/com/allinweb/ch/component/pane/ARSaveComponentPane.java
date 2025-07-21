@@ -265,8 +265,18 @@ public class ARSaveComponentPane extends ARPane {
                             "component_complex" // 9
                         };
                         // Now you can proceed with duplicating the related tables
-                        ErrorMessage errorMessage =
-                                performDataBase.saveNewComponent(conn, blockDetailsDTO, false, arrayTables);
+                        //                        ErrorMessage errorMessage =
+                        //                        performDataBase.saveNewComponent(conn, blockDetailsDTO, false,
+                        // arrayTables);
+
+                        ErrorMessage errorMessage = performDataBase.createCompBlock(blockDetailsDTO);
+                        //                        performDataBase.getNewIdsCreatedCompBlock();
+                        errorMessage = performDataBase.createCompInstructions(blockDetailsDTO);
+                        //                        performDataBase.getNewIdsCreatedCompInstruc();
+                        errorMessage = performDataBase.createCompVariables(blockDetailsDTO);
+                        //                        performDataBase.getNewIdsCreatedCompVariable();
+                        errorMessage = performDataBase.createUpdateCompInstruction(blockDetailsDTO);
+                        errorMessage = performDataBase.createCompReferences(blockDetailsDTO);
 
                         if (errorMessage == null) {
 
