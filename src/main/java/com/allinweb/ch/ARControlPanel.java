@@ -270,7 +270,7 @@ public class ARControlPanel extends Application {
 
             //            performDataBase.dropPostGresSequences();
             try {
-                // Access to Postgres
+                //                //                 Access to Postgres
                 //                performDataBase.exportHomeBanking();
                 //                performDataBase.getNewIdsHomeBank();
                 //                performDataBase.exportHomeUrl();
@@ -336,7 +336,7 @@ public class ARControlPanel extends Application {
 
             try {
 
-                // Postgres to Access
+                //                //                 Postgres to Access
                 //                performDataBase.exportHomeBankingAccess();
                 //                performDataBase.getNewIdsHomeBankAccess();
                 //                performDataBase.exportHomeUrlAccess();
