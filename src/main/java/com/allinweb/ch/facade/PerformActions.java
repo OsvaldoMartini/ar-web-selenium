@@ -1247,15 +1247,6 @@ public class PerformActions {
 
     public boolean clickElement(boolean byPassNotFound, WebElement element) throws Exception {
         UtilsMethods.exceptionIfNullWebElement(element);
-        //        if (!element.isEnabled()) {
-        //            //        callErrorMessageNotEnabled(element.getTagName());
-        //            performMessage.showCustomModalDialog(
-        //                    "BOT JOB STOP",
-        //                    String.format("The Element \"%s\" is not Enabled", element.getTagName()),
-        //                    "Consider Fill Up all the Mandatory Fields!");
-        //            // throw new TimeoutException();
-        //            return false;
-        //        }
 
         try {
             waitForAction.until(ExpectedConditions.visibilityOf(element).andThen(e -> {
@@ -1270,6 +1261,19 @@ public class PerformActions {
             if (!byPassNotFound) {
                 performMessage.couldNotFindElement(element.getTagName());
             }
+            return false;
+        }
+
+        if (!element.isEnabled()) {
+            //        callErrorMessageNotEnabled(element.getTagName());
+            performMessage.errorMessage(
+                    "BOT JOB STOP - Web Field is not Enabled",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Verify the rules and behavior of your web page.</span>",
+                    "<span style='color: #D32F2F; font-weight: bold;'>Some fields may be conditionally enabled based on other inputs.</span>",
+                    "<span style='color: #E65100; font-weight: bold; font-size: 1.1em;'>Example: Invalid IBAN may block branch autofill.</span>",
+                    "<span style='color: #D32F2F; font-style: italic;'>Details: Re-check the page's logic</span>",
+                    0);
+            // throw new TimeoutException();
             return false;
         }
 
