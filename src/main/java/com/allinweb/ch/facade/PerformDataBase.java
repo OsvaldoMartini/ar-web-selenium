@@ -6557,13 +6557,9 @@ GROUP BY
             String selectAccessSQL = "SELECT id, home_banking_id, url FROM home_url order by id";
             try (ResultSet rsHomeUrl = accessStmt.executeQuery(selectAccessSQL)) {
 
-                String findHomeBankingIdSQL = "SELECT id FROM home_banking WHERE id = ?";
-                String checkHomeUrlExistsSQL = "SELECT id FROM home_url WHERE url = ? AND home_banking_id = ?";
                 String insertHomeUrlSQL = "INSERT INTO home_url (url, home_banking_id) VALUES (?, ?)";
 
-                try (PreparedStatement findHomeBankingStmt = postgresConn.prepareStatement(findHomeBankingIdSQL);
-                        PreparedStatement checkStmt = postgresConn.prepareStatement(checkHomeUrlExistsSQL);
-                        PreparedStatement insertStmt = postgresConn.prepareStatement(insertHomeUrlSQL)) {
+                try (PreparedStatement insertStmt = postgresConn.prepareStatement(insertHomeUrlSQL)) {
 
                     int count = 0;
                     homeUrlMap.clear();
@@ -6586,20 +6582,6 @@ GROUP BY
                             homeUrlMap.put(id, -1);
                         }
 
-                        // Get home_banking.id from PostgreSQL using url
-                        //                        findHomeBankingStmt.setInt(1, homeBankingId);
-                        //                        try (ResultSet homeBankingRs = findHomeBankingStmt.executeQuery()) {
-                        //
-                        //                            if (homeBankingRs.next()) {
-                        //                                homeBankingId = homeBankingRs.getInt("id");
-                        //
-                        //                                // Check if home_url with the same url and home_banking_id
-                        // already exists
-                        //                                checkStmt.setString(1, url);
-                        //                                checkStmt.setInt(2, homeBankingId);
-                        //                                try (ResultSet checkRs = checkStmt.executeQuery()) {
-
-                        //                                    if (!checkRs.next()) {
                         insertStmt.setString(1, url);
                         insertStmt.setInt(2, newHomeBankId);
                         insertStmt.addBatch();
@@ -6610,17 +6592,6 @@ GROUP BY
                             postgresConn.commit();
                             System.out.println("Inserted batch of " + BATCH_SIZE);
                         }
-                        //                                    } else {
-                        //                                        System.out.println("Skipped (already exists): " + url
-                        // + " / " + homeBankingId);
-                        //                                    }
-                        //                                }
-                        //
-                        //                            } else {
-                        //                                System.out.println("No matching home_banking entry for url: "
-                        // + url);
-                        //                            }
-                        //                        }
                     }
 
                     insertStmt.executeBatch();
@@ -6762,7 +6733,7 @@ GROUP BY
             // bot.home_banking_id, hu.url FROM bot_job bot left join home_url hu on hu.id = bot.home_url_id order by
             // bot.id";
             String selectAccessFabrizio =
-                    "SELECT bot.id, bot.name, bot.description, bot.priority, bot.active, bot.home_banking_id, hb.url, hb.name home_name FROM bot_job bot left join home_banking hb on hb.id = bot.home_banking_id order by bot.id";
+                    "SELECT bot.id, bot.name, bot.description, bot.priority, bot.active, bot.home_banking_id, bot.home_url_id FROM bot_job bot order by bot.id";
             try (ResultSet rsBotJob = accessStmt.executeQuery(selectAccessFabrizio)) {
 
                 String findHomeUrlSQL = "SELECT id FROM home_banking WHERE url = ? and name = ?";
@@ -6771,9 +6742,7 @@ GROUP BY
                         "INSERT INTO bot_job (name, description, priority, active, home_url_id, home_banking_id) "
                                 + "VALUES (?, ?, ?, ?, ?, ?)";
 
-                try (PreparedStatement findHomeUrlStmt = postgresConn.prepareStatement(findHomeUrlSQL);
-                        PreparedStatement checkStmt = postgresConn.prepareStatement(checkExistsSQL);
-                        PreparedStatement insertStmt = postgresConn.prepareStatement(insertSQL)) {
+                try (PreparedStatement insertStmt = postgresConn.prepareStatement(insertSQL)) {
 
                     int count = 0;
 
@@ -6795,21 +6764,16 @@ GROUP BY
                             continue;
                         }
 
+                        //                        int oldHomeUrlId = rsBotJob.getInt("home_url_id");
+                        //                        Integer newHomeUrlId = homeBankMap.get(oldHomeUrlId);
+                        //                        if (newHomeUrlId == null) {
+                        //                            System.out.println("Skipped component_block with unknown
+                        // home_banking_id: " + oldHomeUrlId);
+                        //                            continue;
+                        //                        }
+
                         botJobMap.put(id, -1);
 
-                        //                        // Lookup home_url_id and home_banking_id by URL
-                        //                        findHomeUrlStmt.setString(1, url);
-                        //                        findHomeUrlStmt.setString(2, homeName);
-                        //
-                        //                        try (ResultSet homeUrlRs = findHomeUrlStmt.executeQuery()) {
-                        //
-                        //                            if (homeUrlRs.next()) {
-                        //                                int homeBankingId = homeUrlRs.getInt("id");
-                        //
-                        //                                // Check if the bot_job already exists by name
-                        //                                checkStmt.setString(1, name);
-                        //                                try (ResultSet checkRs = checkStmt.executeQuery()) {
-                        //                                    if (!checkRs.next()) {
                         insertStmt.setString(1, name);
                         insertStmt.setString(2, description);
                         insertStmt.setString(3, priority);
@@ -6824,16 +6788,6 @@ GROUP BY
                             postgresConn.commit();
                             System.out.println("Inserted batch of " + BATCH_SIZE);
                         }
-                        //                                    } else {
-                        //                                        System.out.println("Skipped existing bot_job: " +
-                        // name);
-                        //                                    }
-                        //                                }
-                        //
-                        //                            } else {
-                        //                                System.out.println("No matching home_url found for: " + url);
-                        //                            }
-                        //                        }
                     }
 
                     insertStmt.executeBatch();
@@ -6866,7 +6820,7 @@ GROUP BY
             accessConn.setAutoCommit(false);
 
             String selectPostgresSQL =
-                    "SELECT bot.id, bot.name, bot.description, bot.priority, bot.active, bot.home_banking_id, bot.home_url_id FROM bot_job bot";
+                    "SELECT bot.id, bot.name, bot.description, bot.priority, bot.active, bot.home_banking_id, bot.home_url_id FROM bot_job bot order by bot.id";
             try (ResultSet rsBotJob = postgresStmt.executeQuery(selectPostgresSQL)) {
 
                 String insertSQL =
@@ -6905,7 +6859,7 @@ GROUP BY
 
                         botJobMap.put(idBotJob, -1);
 
-                       insertStmt.setString(1, name);
+                        insertStmt.setString(1, name);
                         insertStmt.setString(2, description);
                         insertStmt.setString(3, priority);
                         insertStmt.setInt(4, active);
@@ -6922,7 +6876,6 @@ GROUP BY
                             accessConn.commit();
                             System.out.println("Inserted batch of " + BATCH_SIZE);
                         }
-
                     }
 
                     insertStmt.executeBatch();
