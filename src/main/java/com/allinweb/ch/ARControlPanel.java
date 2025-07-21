@@ -246,7 +246,7 @@ public class ARControlPanel extends Application {
             performDataBase.initialize(dataBaseType);
 
         } catch (Exception error) {
-            ARLogger.getInstance(ARMainPane.class).severe("Error Export to Postgres: " + error.getMessage());
+            ARLogger.getInstance(ARMainPane.class).severe("Error Database Connections: " + error.getMessage());
         }
 
         //        performDataBase.migrationAccessToAccess();
