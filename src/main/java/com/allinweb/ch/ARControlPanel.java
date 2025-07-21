@@ -270,31 +270,31 @@ public class ARControlPanel extends Application {
 
             //            performDataBase.dropPostGresSequences();
             try {
-                // Access to Postgres
-                performDataBase.exportHomeBanking();
-                performDataBase.getNewIdsHomeBank();
+                //                // Access to Postgres
+                //                performDataBase.exportHomeBanking();
+                //                performDataBase.getNewIdsHomeBank();
                 performDataBase.exportHomeUrl();
-                performDataBase.getNewIdsHomeUrl();
-                performDataBase.exportBotJob();
-                performDataBase.getNewIdsBotJob();
-                performDataBase.exportBlock();
-                performDataBase.getNewIdsBlock();
-                performDataBase.exportInstructions();
-                performDataBase.getNewIdsInstruc();
-                performDataBase.exportVariables();
-                performDataBase.getNewIdsVariable();
-                performDataBase.exportUpdateInstruction();
-                performDataBase.exportReferences();
-
-                // SAVED COMPONENTS
-                performDataBase.exportCompBlock();
-                performDataBase.getNewIdsCompBlock();
-                performDataBase.exportCompInstructions();
-                performDataBase.getNewIdsCompInstruc();
-                performDataBase.exportCompVariables();
-                performDataBase.getNewIdsCompVariable();
-                performDataBase.exportUpdateCompInstruction();
-                performDataBase.exportCompReferences();
+                //                performDataBase.getNewIdsHomeUrl();
+                //                performDataBase.exportBotJob();
+                //                performDataBase.getNewIdsBotJob();
+                //                performDataBase.exportBlock();
+                //                performDataBase.getNewIdsBlock();
+                //                performDataBase.exportInstructions();
+                //                performDataBase.getNewIdsInstruc();
+                //                performDataBase.exportVariables();
+                //                performDataBase.getNewIdsVariable();
+                //                performDataBase.exportUpdateInstruction();
+                //                performDataBase.exportReferences();
+                //
+                //                // SAVED COMPONENTS
+                //                performDataBase.exportCompBlock();
+                //                performDataBase.getNewIdsCompBlock();
+                //                performDataBase.exportCompInstructions();
+                //                performDataBase.getNewIdsCompInstruc();
+                //                performDataBase.exportCompVariables();
+                //                performDataBase.getNewIdsCompVariable();
+                //                performDataBase.exportUpdateCompInstruction();
+                //                performDataBase.exportCompReferences();
 
             } catch (Exception error) {
                 ARLogger.getInstance(ARMainPane.class).severe("Error Export to Postgres: " + error.getMessage());
@@ -336,31 +336,31 @@ public class ARControlPanel extends Application {
 
             try {
 
-                //                // Postgres to Access
-                //                performDataBase.exportHomeBankingAccess();
-                //                performDataBase.getNewIdsHomeBankAccess();
-                //                performDataBase.exportHomeUrlAccess();
-                //                performDataBase.getNewIdsHomeUrlAccess();
-                //                performDataBase.exportBotJobAccess();
-                //                performDataBase.getNewIdsBotJobAcces();
-                //                performDataBase.exportBlockAccess();
-                //                performDataBase.getNewIdsBlockAccess();
-                //                performDataBase.exportInstructionsAccess();
-                //                performDataBase.getNewIdsInstrucAccess();
-                //                performDataBase.exportVariablesAccess();
-                //                performDataBase.getNewIdsVariableAccess();
-                //                performDataBase.exportUpdateInstructionAccess();
-                //                performDataBase.exportReferencesAccess();
-                //
-                //                //                // SAVED COMPONENTS
-                //                performDataBase.exportCompBlockAccess();
-                //                performDataBase.getNewIdsCompBlockAccess();
-                //                performDataBase.exportCompInstructionsAccess();
-                //                performDataBase.getNewIdsCompInstrucAccess();
-                //                performDataBase.exportCompVariablesAccess();
-                //                performDataBase.getNewIdsCompVariableAccess();
-                //                performDataBase.exportUpdateCompInstructionAccess();
-                //                performDataBase.exportCompReferencesAccess();
+                // Postgres to Access
+                performDataBase.exportHomeBankingAccess();
+                performDataBase.getNewIdsHomeBankAccess();
+                performDataBase.exportHomeUrlAccess();
+                performDataBase.getNewIdsHomeUrlAccess();
+                performDataBase.exportBotJobAccess();
+                performDataBase.getNewIdsBotJobAcces();
+                performDataBase.exportBlockAccess();
+                performDataBase.getNewIdsBlockAccess();
+                performDataBase.exportInstructionsAccess();
+                performDataBase.getNewIdsInstrucAccess();
+                performDataBase.exportVariablesAccess();
+                performDataBase.getNewIdsVariableAccess();
+                performDataBase.exportUpdateInstructionAccess();
+                performDataBase.exportReferencesAccess();
+
+                // SAVED COMPONENTS
+                performDataBase.exportCompBlockAccess();
+                performDataBase.getNewIdsCompBlockAccess();
+                performDataBase.exportCompInstructionsAccess();
+                performDataBase.getNewIdsCompInstrucAccess();
+                performDataBase.exportCompVariablesAccess();
+                performDataBase.getNewIdsCompVariableAccess();
+                performDataBase.exportUpdateCompInstructionAccess();
+                performDataBase.exportCompReferencesAccess();
 
             } catch (Exception error) {
                 ARLogger.getInstance(ARMainPane.class).severe("Error Export to Postgres: " + error.getMessage());

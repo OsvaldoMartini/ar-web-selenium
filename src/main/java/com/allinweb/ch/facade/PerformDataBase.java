@@ -6587,37 +6587,40 @@ GROUP BY
                         }
 
                         // Get home_banking.id from PostgreSQL using url
-//                        findHomeBankingStmt.setInt(1, homeBankingId);
-//                        try (ResultSet homeBankingRs = findHomeBankingStmt.executeQuery()) {
-//
-//                            if (homeBankingRs.next()) {
-//                                homeBankingId = homeBankingRs.getInt("id");
-//
-//                                // Check if home_url with the same url and home_banking_id already exists
-//                                checkStmt.setString(1, url);
-//                                checkStmt.setInt(2, homeBankingId);
-//                                try (ResultSet checkRs = checkStmt.executeQuery()) {
+                        //                        findHomeBankingStmt.setInt(1, homeBankingId);
+                        //                        try (ResultSet homeBankingRs = findHomeBankingStmt.executeQuery()) {
+                        //
+                        //                            if (homeBankingRs.next()) {
+                        //                                homeBankingId = homeBankingRs.getInt("id");
+                        //
+                        //                                // Check if home_url with the same url and home_banking_id
+                        // already exists
+                        //                                checkStmt.setString(1, url);
+                        //                                checkStmt.setInt(2, homeBankingId);
+                        //                                try (ResultSet checkRs = checkStmt.executeQuery()) {
 
-//                                    if (!checkRs.next()) {
-                                        insertStmt.setString(1, url);
-                                        insertStmt.setInt(2, newHomeBankId);
-                                        insertStmt.addBatch();
-                                        count++;
+                        //                                    if (!checkRs.next()) {
+                        insertStmt.setString(1, url);
+                        insertStmt.setInt(2, newHomeBankId);
+                        insertStmt.addBatch();
+                        count++;
 
-                                        if (count % BATCH_SIZE == 0) {
-                                            insertStmt.executeBatch();
-                                            postgresConn.commit();
-                                            System.out.println("Inserted batch of " + BATCH_SIZE);
-                                        }
-//                                    } else {
-//                                        System.out.println("Skipped (already exists): " + url + " / " + homeBankingId);
-//                                    }
-//                                }
-//
-//                            } else {
-//                                System.out.println("No matching home_banking entry for url: " + url);
-//                            }
-//                        }
+                        if (count % BATCH_SIZE == 0) {
+                            insertStmt.executeBatch();
+                            postgresConn.commit();
+                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                        }
+                        //                                    } else {
+                        //                                        System.out.println("Skipped (already exists): " + url
+                        // + " / " + homeBankingId);
+                        //                                    }
+                        //                                }
+                        //
+                        //                            } else {
+                        //                                System.out.println("No matching home_banking entry for url: "
+                        // + url);
+                        //                            }
+                        //                        }
                     }
 
                     insertStmt.executeBatch();
@@ -6653,7 +6656,7 @@ GROUP BY
 
             accessConn.setAutoCommit(false); // Enable manual commit for batch performance
 
-            String selectPostgresSQL = "SELECT id, url FROM home_url order by id";
+            String selectPostgresSQL = "SELECT id, url, home_banking_id FROM home_url order by id";
             try (ResultSet rsHomeUrl = postgresStmt.executeQuery(selectPostgresSQL)) {
 
                 String findHomeBankingIdSQL = "SELECT id FROM home_banking WHERE url = ?";
@@ -6672,44 +6675,56 @@ GROUP BY
                         int idHomeUrl = rsHomeUrl.getInt("id");
                         String url = rsHomeUrl.getString("url");
 
+                        int oldHomeBankId = rsHomeUrl.getInt("home_banking_id");
+                        // Map old bot_job_id to new
+                        Integer newHomeBankId = homeBankMap.get(oldHomeBankId);
+                        if (newHomeBankId == null) {
+                            System.out.println(
+                                    "Skipped component_block with unknown home_banking_id: " + newHomeBankId);
+                            continue;
+                        }
+
                         if (url != null && !url.trim().isEmpty()) {
                             homeUrlMap.put(idHomeUrl, -1);
                         }
 
                         // Get home_banking.id from PostgreSQL using url
-                        findHomeBankingStmt.setString(1, url);
-                        try (ResultSet homeBankingRs = findHomeBankingStmt.executeQuery()) {
+                        //                        findHomeBankingStmt.setString(1, url);
+                        //                        try (ResultSet homeBankingRs = findHomeBankingStmt.executeQuery()) {
+                        //
+                        //                            if (homeBankingRs.next()) {
+                        //                                int homeBankingId = homeBankingRs.getInt("id");
+                        //
+                        //                                // Check if home_url with the same url and home_banking_id
+                        // already exists
+                        //                                checkStmt.setString(1, url);
+                        //                                checkStmt.setInt(2, homeBankingId);
+                        //                                try (ResultSet checkRs = checkStmt.executeQuery()) {
+                        //
+                        //                                    if (!checkRs.next()) {
+                        insertStmt.setString(1, url);
+                        insertStmt.setInt(2, newHomeBankId);
 
-                            if (homeBankingRs.next()) {
-                                int homeBankingId = homeBankingRs.getInt("id");
+                        insertStmt.setInt(3, idHomeUrl);
 
-                                // Check if home_url with the same url and home_banking_id already exists
-                                checkStmt.setString(1, url);
-                                checkStmt.setInt(2, homeBankingId);
-                                try (ResultSet checkRs = checkStmt.executeQuery()) {
+                        insertStmt.addBatch();
+                        count++;
 
-                                    if (!checkRs.next()) {
-                                        insertStmt.setString(1, url);
-                                        insertStmt.setInt(2, homeBankingId);
-
-                                        insertStmt.setInt(3, idHomeUrl);
-
-                                        insertStmt.addBatch();
-                                        count++;
-
-                                        if (count % BATCH_SIZE == 0) {
-                                            insertStmt.executeBatch();
-                                            accessConn.commit();
-                                            System.out.println("Inserted batch of " + BATCH_SIZE);
-                                        }
-                                    } else {
-                                        System.out.println("Skipped (already exists): " + url + " / " + homeBankingId);
-                                    }
-                                }
-
-                            } else {
-                                System.out.println("No matching home_banking entry for url: " + url);
-                            }
+                        if (count % BATCH_SIZE == 0) {
+                            insertStmt.executeBatch();
+                            accessConn.commit();
+                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                            //                                        }
+                            //                                    } else {
+                            //                                        System.out.println("Skipped (already exists): " +
+                            // url + " / " + homeBankingId);
+                            //                                    }
+                            //                                }
+                            //
+                            //                            } else {
+                            //                                System.out.println("No matching home_banking entry for
+                            // url: " + url);
+                            //                            }
                         }
                     }
 
@@ -6742,8 +6757,10 @@ GROUP BY
 
             postgresConn.setAutoCommit(false);
 
-//            String selectAccessSQL =
-//                    "SELECT bot.id, bot.name, bot.description, bot.priority, bot.active, bot.home_banking_id, hu.url FROM bot_job bot left join home_url hu on hu.id = bot.home_url_id order by bot.id";
+            //            String selectAccessSQL =
+            //                    "SELECT bot.id, bot.name, bot.description, bot.priority, bot.active,
+            // bot.home_banking_id, hu.url FROM bot_job bot left join home_url hu on hu.id = bot.home_url_id order by
+            // bot.id";
             String selectAccessFabrizio =
                     "SELECT bot.id, bot.name, bot.description, bot.priority, bot.active, bot.home_banking_id, hb.url, hb.name home_name FROM bot_job bot left join home_banking hb on hb.id = bot.home_banking_id order by bot.id";
             try (ResultSet rsBotJob = accessStmt.executeQuery(selectAccessFabrizio)) {
@@ -6780,42 +6797,43 @@ GROUP BY
 
                         botJobMap.put(id, -1);
 
-//                        // Lookup home_url_id and home_banking_id by URL
-//                        findHomeUrlStmt.setString(1, url);
-//                        findHomeUrlStmt.setString(2, homeName);
-//
-//                        try (ResultSet homeUrlRs = findHomeUrlStmt.executeQuery()) {
-//
-//                            if (homeUrlRs.next()) {
-//                                int homeBankingId = homeUrlRs.getInt("id");
-//
-//                                // Check if the bot_job already exists by name
-//                                checkStmt.setString(1, name);
-//                                try (ResultSet checkRs = checkStmt.executeQuery()) {
-//                                    if (!checkRs.next()) {
-                                        insertStmt.setString(1, name);
-                                        insertStmt.setString(2, description);
-                                        insertStmt.setString(3, priority);
-                                        insertStmt.setInt(4, active);
-                                        insertStmt.setInt(5, newHomeBankId);
-                                        insertStmt.setInt(6, newHomeBankId);
-                                        insertStmt.addBatch();
-                                        count++;
+                        //                        // Lookup home_url_id and home_banking_id by URL
+                        //                        findHomeUrlStmt.setString(1, url);
+                        //                        findHomeUrlStmt.setString(2, homeName);
+                        //
+                        //                        try (ResultSet homeUrlRs = findHomeUrlStmt.executeQuery()) {
+                        //
+                        //                            if (homeUrlRs.next()) {
+                        //                                int homeBankingId = homeUrlRs.getInt("id");
+                        //
+                        //                                // Check if the bot_job already exists by name
+                        //                                checkStmt.setString(1, name);
+                        //                                try (ResultSet checkRs = checkStmt.executeQuery()) {
+                        //                                    if (!checkRs.next()) {
+                        insertStmt.setString(1, name);
+                        insertStmt.setString(2, description);
+                        insertStmt.setString(3, priority);
+                        insertStmt.setInt(4, active);
+                        insertStmt.setInt(5, newHomeBankId);
+                        insertStmt.setInt(6, newHomeBankId);
+                        insertStmt.addBatch();
+                        count++;
 
-                                        if (count % BATCH_SIZE == 0) {
-                                            insertStmt.executeBatch();
-                                            postgresConn.commit();
-                                            System.out.println("Inserted batch of " + BATCH_SIZE);
-                                        }
-//                                    } else {
-//                                        System.out.println("Skipped existing bot_job: " + name);
-//                                    }
-//                                }
-//
-//                            } else {
-//                                System.out.println("No matching home_url found for: " + url);
-//                            }
-//                        }
+                        if (count % BATCH_SIZE == 0) {
+                            insertStmt.executeBatch();
+                            postgresConn.commit();
+                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                        }
+                        //                                    } else {
+                        //                                        System.out.println("Skipped existing bot_job: " +
+                        // name);
+                        //                                    }
+                        //                                }
+                        //
+                        //                            } else {
+                        //                                System.out.println("No matching home_url found for: " + url);
+                        //                            }
+                        //                        }
                     }
 
                     insertStmt.executeBatch();
