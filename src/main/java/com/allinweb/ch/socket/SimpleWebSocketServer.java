@@ -604,8 +604,7 @@ public class SimpleWebSocketServer {
                     performDataBase.deleteNullBlocks(rollBackBlocksDTO.getBotJobId());
                 } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
                     performDataBase.rollBackBlocksRows("component_instruction", rollBackBlocksDTO);
-                    performDataBase.deleteCompNullBlocks(
-                            rollBackBlocksDTO.getHomeBankingId(), rollBackBlocksDTO.getBotJobId());
+                    performDataBase.deleteCompNullBlocks(rollBackBlocksDTO.getHomeBankingId());
                 }
 
                 break;

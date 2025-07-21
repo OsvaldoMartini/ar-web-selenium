@@ -269,17 +269,22 @@ public class ARSaveComponentPane extends ARPane {
                         //                        performDataBase.saveNewComponent(conn, blockDetailsDTO, false,
                         // arrayTables);
 
+                        performDataBase.deleteCompNullBlocks(blockDetailsDTO.getHomeBankingId());
+
                         ErrorMessage errorMessage = performDataBase.createCompBlock(blockDetailsDTO);
-                        //                        performDataBase.getNewIdsCreatedCompBlock();
-                        errorMessage = performDataBase.createCompInstructions(blockDetailsDTO);
-                        //                        performDataBase.getNewIdsCreatedCompInstruc();
-                        errorMessage = performDataBase.createCompVariables(blockDetailsDTO);
-                        //                        performDataBase.getNewIdsCreatedCompVariable();
-                        errorMessage = performDataBase.createUpdateCompInstruction(blockDetailsDTO);
-                        errorMessage = performDataBase.createCompReferences(blockDetailsDTO);
-
                         if (errorMessage == null) {
-
+                            errorMessage = performDataBase.createCompInstructions(blockDetailsDTO);
+                        }
+                        if (errorMessage == null) {
+                            errorMessage = performDataBase.createCompVariables(blockDetailsDTO);
+                        }
+                        if (errorMessage == null) {
+                            errorMessage = performDataBase.createUpdateCompInstruction(blockDetailsDTO);
+                        }
+                        if (errorMessage == null) {
+                            errorMessage = performDataBase.createCompReferences(blockDetailsDTO);
+                        }
+                        if (errorMessage == null) {
                             List<BotJobLoadDTO> botJobLoadList = performDataBase.loadComponentsComplete(
                                     blockDetailsDTO.getHomeBankingId(),
                                     blockDetailsDTO.getBotJobId(),

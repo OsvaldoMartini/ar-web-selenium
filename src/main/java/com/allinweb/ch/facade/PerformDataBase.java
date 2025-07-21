@@ -713,29 +713,21 @@ public class PerformDataBase {
         }
     }
 
-    public void deleteCompNullBlocks(int homeBanking, int botJobId) {
+    public void deleteCompNullBlocks(int homeBanking) {
         // Validate input
         if (homeBanking <= 0) {
             ARLogger.getInstance(PerformDataBase.class)
-                    .warning("Invalid InstructionLoadDTO provided. Skipping block deletion.");
+                    .warning("Invalid home Banking Id provided. Skipping block deletion.");
             return;
         }
 
         String deleteSQL = "DELETE FROM component_block b " + "WHERE b.home_banking_id = ? "
-                + "AND (b.bot_job_id IS NULL OR b.bot_job_id = ?) "
-                + // Handle NULL botJobId case
-                "AND NOT EXISTS ( "
+                + "AND NOT EXISTS ( "
                 + "    SELECT 1 FROM component_instruction bli "
                 + "    WHERE bli.block_id = b.id );";
 
         try (PreparedStatement stmt = getConnection().prepareStatement(deleteSQL)) {
             stmt.setInt(1, homeBanking);
-
-            if (botJobId > 0) {
-                stmt.setInt(2, botJobId);
-            } else {
-                stmt.setNull(2, Types.INTEGER);
-            }
 
             int rowsAffected = stmt.executeUpdate();
 
@@ -5264,7 +5256,7 @@ ORDER BY bot.id ASC;
         if (deleteCompVariable(deleteInstructionLoad))
             if (deleteCompReferences(deleteInstructionLoad))
                 if (deleteCompInstruction(deleteInstructionLoad)) {
-                    deleteCompNullBlocks(deleteInstructionLoad.getHomeBankingId(), deleteInstructionLoad.getBotJobId());
+                    deleteCompNullBlocks(deleteInstructionLoad.getHomeBankingId());
                     //                    updateBlockOrderNumber(selectAllBlocks(deleteInstructionLoadDTO.getBlockId()),
                     // true);
                 }
