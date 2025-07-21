@@ -1264,16 +1264,41 @@ public class PerformActions {
             return false;
         }
 
+        // Custom visibility and enabled checks
+        if (!element.isDisplayed()) {
+            performMessage.errorMessage(
+                    "BOT JOB STOP - Web Field is not Visible",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Verify the rules and behavior of your web page.</span>",
+                    "<span style='color: #D32F2F; font-weight: bold;'>Some fields may be conditionally enabled based on other inputs.</span>",
+                    "<span style='color: #E65100; font-weight: bold; font-size: 1.1em;'>Element is present but not visible. It may be hidden or overlapped.</span>",
+                    "<span style='color: #D32F2F; font-style: italic;'>Example: Invalid IBAN may block branch autofill.</span>",
+                    0);
+            return false;
+        }
+
         if (!element.isEnabled()) {
             //        callErrorMessageNotEnabled(element.getTagName());
             performMessage.errorMessage(
                     "BOT JOB STOP - Web Field is not Enabled",
                     "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Verify the rules and behavior of your web page.</span>",
                     "<span style='color: #D32F2F; font-weight: bold;'>Some fields may be conditionally enabled based on other inputs.</span>",
-                    "<span style='color: #E65100; font-weight: bold; font-size: 1.1em;'>Example: Invalid IBAN may block branch autofill.</span>",
-                    "<span style='color: #D32F2F; font-style: italic;'>Details: Re-check the page's logic</span>",
+                    "<span style='color: #E65100; font-weight: bold; font-size: 1.1em;'>It is visually present but cannot be clicked.</span>",
+                    "<span style='color: #D32F2F; font-style: italic;'>Example: Invalid IBAN may block branch autofill.</span>",
                     0);
             // throw new TimeoutException();
+            return false;
+        }
+
+        String pointerEvents = element.getCssValue("pointer-events");
+        if ("none".equals(pointerEvents)) {
+            performMessage.errorMessage(
+                    "BOT JOB STOP - Web Field is is not Clickable",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Verify the rules and behavior of your web page.</span>",
+                    "<span style='color: #D32F2F; font-weight: bold;'>Some fields may be conditionally enabled based on other inputs.</span>",
+                    "<span style='color: #E65100; font-weight: bold; font-size: 1.1em;'>It is visually present but cannot be clicked.</span>",
+                    "<span style='color: #D32F2F; font-style: italic;'>Example: Invalid IBAN may block branch autofill.</span>",
+                    0);
+
             return false;
         }
 
