@@ -5803,7 +5803,7 @@ GROUP BY
         return homeURLList;
     }
 
-    public void exportHomeBanking() {
+    public void exportHomeBankingAccess() {
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
         String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
         ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
@@ -5821,7 +5821,91 @@ GROUP BY
 
         try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
                 Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
-                Statement accessStmt = accessConn.createStatement(); ) {
+                Statement postgreStmt = accessConn.createStatement(); ) {
+            postgresConn.setAutoCommit(false); // Use manual commit for batch performance
+
+            String selectPostgresSQL =
+                    "SELECT ID, url, name, priority, search_config, options_config, cookies, driver_session, username, password FROM home_banking order by id";
+            ResultSet rsHomeBank = postgreStmt.executeQuery(selectPostgresSQL);
+
+            String checkSQL = "SELECT id FROM home_banking WHERE url = ?";
+            String insertSQL =
+                    "INSERT INTO home_banking (url, name, priority, search_config, options_config, cookies, driver_session, username, password) "
+                            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+            homeBankMap.clear();
+            try (PreparedStatement checkStmt = accessConn.prepareStatement(checkSQL);
+                    PreparedStatement insertStmt = accessConn.prepareStatement(insertSQL)) {
+                int count = 0;
+
+                while (rsHomeBank.next()) {
+                    int id = rsHomeBank.getInt("id");
+                    String url = rsHomeBank.getString("url");
+
+                    if (url != null && !url.trim().isEmpty()) {
+                        homeBankMap.put(id, -1);
+                    }
+
+                    // Check for existence
+                    checkStmt.setString(1, url);
+                    ResultSet checkResult = checkStmt.executeQuery();
+
+                    if (!checkResult.next()) {
+                        // Add to batch
+                        insertStmt.setString(1, url);
+                        insertStmt.setString(2, rsHomeBank.getString("name"));
+                        insertStmt.setString(3, rsHomeBank.getString("priority"));
+                        insertStmt.setString(4, rsHomeBank.getString("search_config"));
+                        insertStmt.setString(5, rsHomeBank.getString("options_config"));
+                        insertStmt.setString(6, rsHomeBank.getString("cookies"));
+                        insertStmt.setString(7, rsHomeBank.getString("driver_session"));
+                        insertStmt.setString(8, rsHomeBank.getString("username"));
+                        insertStmt.setString(9, rsHomeBank.getString("password"));
+                        insertStmt.addBatch();
+
+                        count++;
+
+                        if (count % BATCH_SIZE == 0) {
+                            insertStmt.executeBatch();
+                            postgresConn.commit();
+                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                        }
+                    } else {
+                        System.out.println("Skipped (exists): " + url);
+                    }
+                }
+
+                // Final batch
+                insertStmt.executeBatch();
+                postgresConn.commit();
+                System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+            }
+
+            System.out.println("Sync completed.");
+        } catch (SQLException error) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Error export HomeBanking");
+        }
+    }
+
+    public void exportHomeBanking() {
+        String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
+
+        String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
+        String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
+        String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
+
+        String userData = userDB + " - " + userPwd;
+
+        ARLogger.getInstance(PerformDataBase.class).info("POSTGRES connection URL: " + postgresDbUrl);
+        ARLogger.getInstance(PerformDataBase.class).info("User Details: " + userData);
+
+        final int BATCH_SIZE = 100;
+
+        try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
+             Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
+             Statement accessStmt = accessConn.createStatement(); ) {
             postgresConn.setAutoCommit(false); // Use manual commit for batch performance
 
             String selectAccessSQL =
@@ -5835,7 +5919,7 @@ GROUP BY
 
             homeBankMap.clear();
             try (PreparedStatement checkStmt = postgresConn.prepareStatement(checkSQL);
-                    PreparedStatement insertStmt = postgresConn.prepareStatement(insertSQL)) {
+                 PreparedStatement insertStmt = postgresConn.prepareStatement(insertSQL)) {
                 int count = 0;
 
                 while (rsHomeBank.next()) {
@@ -5896,6 +5980,33 @@ GROUP BY
         try (Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
                 PreparedStatement stmt = postgresConn.prepareStatement("SELECT id, url FROM home_banking order by id");
                 ResultSet rs = stmt.executeQuery()) {
+
+            List<Integer> keys = new ArrayList<>(homeBankMap.keySet());
+            int index = 0;
+            while (rs.next()) {
+                int id = rs.getInt("id");
+                //                String url = rs.getString("url");
+                int keyAtIndex0 = keys.get(index);
+                homeBankMap.put(keyAtIndex0, id);
+                index++;
+            }
+
+            ARLogger.getInstance(PerformDataBase.class)
+                    .info("Loaded home_banking map with " + homeBankMap.size() + " entries.");
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to load home_banking map from PostgreSQL.");
+        }
+    }
+
+    public void getNewIdsHomeBankAccess() {
+
+        String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+
+        try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
+             PreparedStatement stmt = accessConn.prepareStatement("SELECT id, url FROM home_banking order by id");
+             ResultSet rs = stmt.executeQuery()) {
 
             List<Integer> keys = new ArrayList<>(homeBankMap.keySet());
             int index = 0;
