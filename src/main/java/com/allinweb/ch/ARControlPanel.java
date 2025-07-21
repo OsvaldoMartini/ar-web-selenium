@@ -342,7 +342,7 @@ public class ARControlPanel extends Application {
                 performDataBase.exportHomeUrlAccess();
                 performDataBase.getNewIdsHomeUrlAccess();
                 performDataBase.exportBotJobAccess();
-                performDataBase.getNewIdsBotJobAcces();
+                performDataBase.getNewIdsBotJobAccess();
                 performDataBase.exportBlockAccess();
                 performDataBase.getNewIdsBlockAccess();
                 performDataBase.exportInstructionsAccess();

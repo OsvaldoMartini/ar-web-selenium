@@ -6112,7 +6112,7 @@ GROUP BY
         }
     }
 
-    public void getNewIdsBotJobAcces() {
+    public void getNewIdsBotJobAccess() {
 
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
         String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
@@ -6866,18 +6866,14 @@ GROUP BY
             accessConn.setAutoCommit(false);
 
             String selectPostgresSQL =
-                    "SELECT bot.id, bot.name, bot.description, bot.priority, bot.active, bot.home_banking_id, hu.url FROM bot_job bot left join home_url hu on hu.id = bot.home_url_id order by bot.id";
+                    "SELECT bot.id, bot.name, bot.description, bot.priority, bot.active, bot.home_banking_id, bot.home_url_id FROM bot_job bot";
             try (ResultSet rsBotJob = postgresStmt.executeQuery(selectPostgresSQL)) {
 
-                String findHomeUrlSQL = "SELECT id, home_banking_id FROM home_url WHERE url = ?";
-                String checkExistsSQL = "SELECT id FROM bot_job WHERE name = ?";
                 String insertSQL =
                         "INSERT INTO bot_job (name, description, priority, active, home_url_id, home_banking_id, id) "
                                 + "VALUES (?, ?, ?, ?, ?, ?, ?)";
 
-                try (PreparedStatement findHomeUrlStmt = accessConn.prepareStatement(findHomeUrlSQL);
-                        PreparedStatement checkStmt = accessConn.prepareStatement(checkExistsSQL);
-                        PreparedStatement insertStmt = accessConn.prepareStatement(insertSQL)) {
+                try (PreparedStatement insertStmt = accessConn.prepareStatement(insertSQL)) {
 
                     int count = 0;
 
@@ -6889,48 +6885,44 @@ GROUP BY
                         String description = rsBotJob.getString("description");
                         String priority = rsBotJob.getString("priority");
                         int active = rsBotJob.getInt("active");
-                        String url = rsBotJob.getString("url");
+
+                        int oldHomeBankId = rsBotJob.getInt("home_banking_id");
+                        // Map old bot_job_id to new
+                        Integer newHomeBankId = homeBankMap.get(oldHomeBankId);
+                        if (newHomeBankId == null) {
+                            System.out.println(
+                                    "Skipped component_block with unknown home_banking_id: " + newHomeBankId);
+                            continue;
+                        }
+
+                        int oldHomeUrlId = rsBotJob.getInt("home_url_id");
+                        // Map old bot_job_id to new
+                        Integer newHomeUrlId = homeBankMap.get(oldHomeUrlId);
+                        if (newHomeUrlId == null) {
+                            System.out.println("Skipped component_block with unknown home_banking_id: " + oldHomeUrlId);
+                            continue;
+                        }
 
                         botJobMap.put(idBotJob, -1);
 
-                        // Lookup home_url_id and home_banking_id by URL
-                        findHomeUrlStmt.setString(1, url);
-                        try (ResultSet homeUrlRs = findHomeUrlStmt.executeQuery()) {
+                       insertStmt.setString(1, name);
+                        insertStmt.setString(2, description);
+                        insertStmt.setString(3, priority);
+                        insertStmt.setInt(4, active);
+                        insertStmt.setInt(5, newHomeUrlId);
+                        insertStmt.setInt(6, newHomeBankId);
 
-                            if (homeUrlRs.next()) {
-                                int homeUrlId = homeUrlRs.getInt("id");
-                                int homeBankingId = homeUrlRs.getInt("home_banking_id");
+                        insertStmt.setInt(7, idBotJob);
 
-                                // Check if the bot_job already exists by name
-                                checkStmt.setString(1, name);
-                                try (ResultSet checkRs = checkStmt.executeQuery()) {
-                                    if (!checkRs.next()) {
-                                        insertStmt.setString(1, name);
-                                        insertStmt.setString(2, description);
-                                        insertStmt.setString(3, priority);
-                                        insertStmt.setInt(4, active);
-                                        insertStmt.setInt(5, homeUrlId);
-                                        insertStmt.setInt(6, homeBankingId);
+                        insertStmt.addBatch();
+                        count++;
 
-                                        insertStmt.setInt(7, idBotJob);
-
-                                        insertStmt.addBatch();
-                                        count++;
-
-                                        if (count % BATCH_SIZE == 0) {
-                                            insertStmt.executeBatch();
-                                            accessConn.commit();
-                                            System.out.println("Inserted batch of " + BATCH_SIZE);
-                                        }
-                                    } else {
-                                        System.out.println("Skipped existing bot_job: " + name);
-                                    }
-                                }
-
-                            } else {
-                                System.out.println("No matching home_url found for: " + url);
-                            }
+                        if (count % BATCH_SIZE == 0) {
+                            insertStmt.executeBatch();
+                            accessConn.commit();
+                            System.out.println("Inserted batch of " + BATCH_SIZE);
                         }
+
                     }
 
                     insertStmt.executeBatch();
@@ -6940,7 +6932,7 @@ GROUP BY
                 }
             }
 
-        } catch (SQLException e) {
+        } catch (SQLException error) {
             ARLogger.getInstance(PerformDataBase.class).severe("Failed to export bot_job");
         }
     }
