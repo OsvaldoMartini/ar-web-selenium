@@ -396,8 +396,6 @@ public class ARSaveClonePane extends ARPane {
                         performDataBase.deleteBotJob(botJobId);
                     }
 
-
-
                     String errorType = "Database error";
                     String errorDetail = "Verify  [INSERT] or [UPDATE] or [SELECT]";
 
