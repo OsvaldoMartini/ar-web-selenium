@@ -266,32 +266,38 @@ public class PerformDataBase {
     }
 
     // Handle DELETE_INSTRUCTION message
-    public void deleteInstruction(int botJobId, InstructionLoadDTO deleteInstructionLoadDTO) {
+    public void deleteInstruction(int botJobId, InstructionLoadDTO deleteInstructionLoadDTO, boolean blockDeletion) {
 
         if (deleteInstructionLoadDTO.getParentId() != null) {
             List<ParentOperations> listParents = loadParents(
                     botJobId, deleteInstructionLoadDTO.getInstructionId(), deleteInstructionLoadDTO.getParentId());
             if (!listParents.isEmpty()) {
 
-                List<String> lstMsg = performMessage.distributeMsg(
-                        listParents.stream().map(ParentOperations::getName).collect(Collectors.toList()));
+                if (!blockDeletion) {
 
-                ARConstants.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
-                        "Steps Attached",
-                        "Are you Sure you want to delete?",
-                        lstMsg.get(0),
-                        lstMsg.get(1),
-                        lstMsg.get(2),
-                        false,
-                        "Confirm",
-                        "Cancel",
-                        0);
+                    List<String> lstMsg = performMessage.distributeMsg(
+                            listParents.stream().map(ParentOperations::getName).collect(Collectors.toList()));
 
-                if (respModal.equals(ARConstants.DialogModal.STOP)) {
-                    return;
+                    ARConstants.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
+                            "Steps Attached",
+                            "Are you Sure you want to delete?",
+                            lstMsg.get(0),
+                            lstMsg.get(1),
+                            lstMsg.get(2),
+                            false,
+                            "Confirm",
+                            "Cancel",
+                            0);
+
+                    if (respModal.equals(ARConstants.DialogModal.STOP)) {
+                        return;
+                    }
                 }
 
-                deleteRowParents(deleteInstructionLoadDTO.getBotJobId(), deleteInstructionLoadDTO.getInstructionId());
+                deleteRowParents(
+                        deleteInstructionLoadDTO.getBotJobId(),
+                        deleteInstructionLoadDTO.getBlockId(),
+                        deleteInstructionLoadDTO.getInstructionId());
             }
         }
 
@@ -449,11 +455,68 @@ public class PerformDataBase {
         return parentList;
     }
 
+    public List<ParentOperations> loadParentsComp(int homeBankId, int blockId, int instructionId, int parentId) {
+        List<ParentOperations> parentList = new ArrayList<>();
+
+        try (Statement stmt = getConnection().createStatement()) {
+
+            String selectSQL = MessageFormat.format(
+                    """
+                    SELECT
+                        parent.name as parent_name,
+                        child.name as child_name,
+                        child.parent_id
+                    FROM component_instruction AS child
+                    LEFT JOIN component_instruction AS parent ON child.parent_id = parent.id
+                    WHERE child.id != {0}
+                      AND child.parent_id = {1}
+                      AND child.home_banking_id = {2}
+                      AND child.block_id = {3}
+                    ORDER BY child.id;
+            """,
+                    parentId, instructionId, homeBankId, blockId);
+
+            try (ResultSet rs = stmt.executeQuery(selectSQL)) {
+                while (rs.next()) {
+                    String name = (rs.getString("child_name") + " --> (" + rs.getString("parent_id") + ")-"
+                            + rs.getString("parent_name"));
+
+                    ParentOperations parentOper = new ParentOperations();
+                    parentOper.setName(name);
+                    parentOper.setInstructionId(instructionId);
+                    parentOper.setParentId(rs.getInt("parent_id"));
+
+                    parentList.add(parentOper);
+                }
+            }
+
+            if (!parentList.isEmpty()) {
+                ARLogger.getInstance(PerformDataBase.class)
+                        .info(String.format(
+                                "Loaded parents for instruction ID %d from homeBankId %d and blockId %d",
+                                instructionId, homeBankId, blockId));
+            } else {
+                ARLogger.getInstance(PerformDataBase.class)
+                        .warning(String.format(
+                                "No parents found for instruction ID %d in homeBankId %d and blockId %d.",
+                                instructionId, homeBankId, blockId));
+            }
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format(
+                            "Error loading component parents for instruction ID %d from homeBankId %d and blockId %d. Error: %s",
+                            instructionId, homeBankId, blockId, e.getMessage()));
+        }
+
+        return parentList;
+    }
+
     public boolean deleteCompVariable(InstructionLoadDTO deleteInstructionLoadDTO) {
         // Validate input
         if (deleteInstructionLoadDTO == null || deleteInstructionLoadDTO.getInstructionId() <= 0) {
             ARLogger.getInstance(PerformDataBase.class)
-                    .warning("Invalid InstructionLoadDTO provided. Skipping reference deletion.");
+                    .warning("Invalid Instruction provided. Skipping reference deletion.");
             return false;
         }
 
@@ -597,31 +660,62 @@ public class PerformDataBase {
         return false;
     }
 
-    public boolean deleteRowParents(int botJobId, int parentId) {
+    public boolean deleteRowParents(int botJobId, int blockId, int parentId) {
         // Build the SQL delete statement
         String deleteSQL = MessageFormat.format(
                 """
                 DELETE FROM instruction
                  WHERE parent_id = {0}
                  AND bot_job_id = {1}
+                 AND block_id = {2}
                  """,
-                parentId, botJobId);
+                parentId, botJobId, blockId);
 
         try (Statement stmt = getConnection().createStatement()) {
             int rowsAffected = stmt.executeUpdate(deleteSQL);
             if (rowsAffected > 0) {
                 ARLogger.getInstance(PerformDataBase.class)
                         .info(String.format(
-                                "Deleted %d parents - parent with ID %d - bot job %d.",
-                                rowsAffected, parentId, botJobId));
+                                "Deleted %d parents - parent with ID %d - bot job %d - block %d. ",
+                                rowsAffected, parentId, botJobId, blockId));
             }
             return true;
 
         } catch (SQLException e) {
             ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
-                            "Error deleting parent ID %d from Bot Job ID %d. Error: %s",
-                            parentId, botJobId, e.getMessage()));
+                            "Error deleting parent ID %d from bot job %d block %d. Error: %s",
+                            parentId, botJobId, blockId, e.getMessage()));
+        }
+        return false;
+    }
+
+    public boolean deleteCompRowParents(int homeBankId, int blockId, int parentId) {
+        // Build the SQL delete statement
+        String deleteSQL = MessageFormat.format(
+                """
+                DELETE FROM component_instruction
+                 WHERE parent_id = {0}
+                 AND home_banking_id = {1}
+                 AND block_id = {2}
+                 """,
+                parentId, homeBankId, blockId);
+
+        try (Statement stmt = getConnection().createStatement()) {
+            int rowsAffected = stmt.executeUpdate(deleteSQL);
+            if (rowsAffected > 0) {
+                ARLogger.getInstance(PerformDataBase.class)
+                        .info(String.format(
+                                "Deleted %d parents - parent with ID %d - home bank %d - block %d.",
+                                rowsAffected, parentId, homeBankId, blockId));
+            }
+            return true;
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format(
+                            "Error deleting parent ID %d from home bank %d - block %d. Error: %s",
+                            parentId, homeBankId, blockId, e.getMessage()));
         }
         return false;
     }
@@ -798,20 +892,23 @@ public class PerformDataBase {
                         + (reorderAll ? newOrderNumber : blockOrderDetailDTO.getBlockOrderNumber())
                         + " WHERE id = "
                         + blockOrderDetailDTO.getBlockId()
-                        + " AND bot_job_id = " + blockOrderDetailDTO.getBotJobId();
+                        + " AND home_banking_id = " + blockOrderDetailDTO.getHomeBankId();
 
                 int rowsAffected = stmt.executeUpdate(updateSQL);
 
                 if (rowsAffected > 0) {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .info(String.format(
-                                    "Block Order Number updated blockId: %s, newBlockOrderNumber: %s",
-                                    blockOrderDetailDTO.getBlockId(), newOrderNumber));
+                    //                    ARLogger.getInstance(PerformDataBase.class)
+                    //                            .info(String.format(
+                    //                                    "Block Order Number updated blockId: %s, newBlockOrderNumber:
+                    // %s",
+                    //                                    blockOrderDetailDTO.getBlockId(), newOrderNumber));
                 } else {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .warning(String.format(
-                                    "updateCompBlockOrderNumber - No matching record found to update botJobId: %d blockId: %d",
-                                    blockOrderDetailDTO.getBotJobId(), blockOrderDetailDTO.getBlockId()));
+                    //                    ARLogger.getInstance(PerformDataBase.class)
+                    //                            .warning(String.format(
+                    //                                    "UpdateBlockOrderNumber - No matching record found to update
+                    // botJobId: %d blockId: %d",
+                    //                                    blockOrderDetailDTO.getBotJobId(),
+                    // blockOrderDetailDTO.getBlockId()));
                 }
 
                 newOrderNumber++; // Increment the new order number for the next block
@@ -819,9 +916,49 @@ public class PerformDataBase {
 
         } catch (SQLException e) {
             ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("Error updateCompBlockOrderNumber. Error: %s", e.getMessage()));
+                    .severe(String.format("Error UpdateCompBlockOrderNumber. Error: %s", e.getMessage()));
         }
     }
+
+    //    public void updateCompBlockOrderNumber(List<BlockOrderDetailDTO> blockOrderDetailDTOList, boolean reorderAll)
+    // {
+    //        //         Sort the blockOrderDetailDTOList based on the previous blockOrderNumber in ascending order
+    //        blockOrderDetailDTOList.sort(Comparator.comparingInt(BlockOrderDetailDTO::getBlockOrderNumber));
+    //
+    //        try (Statement stmt = getConnection().createStatement()) {
+    //            int newOrderNumber = 1; // Start reordering from 1
+    //
+    //            for (BlockOrderDetailDTO blockOrderDetailDTO : blockOrderDetailDTOList) {
+    //                // Update each block's block_order_number starting from 1
+    //                String updateSQL = "UPDATE component_block SET block_order_number = "
+    //                        + (reorderAll ? newOrderNumber : blockOrderDetailDTO.getBlockOrderNumber())
+    //                        + " WHERE id = "
+    //                        + blockOrderDetailDTO.getBlockId()
+    //                        + " AND bot_job_id = " + blockOrderDetailDTO.getBotJobId();
+    //
+    //                int rowsAffected = stmt.executeUpdate(updateSQL);
+    //
+    //                if (rowsAffected > 0) {
+    //                    ARLogger.getInstance(PerformDataBase.class)
+    //                            .info(String.format(
+    //                                    "Block Order Number updated blockId: %s, newBlockOrderNumber: %s",
+    //                                    blockOrderDetailDTO.getBlockId(), newOrderNumber));
+    //                } else {
+    //                    ARLogger.getInstance(PerformDataBase.class)
+    //                            .warning(String.format(
+    //                                    "updateCompBlockOrderNumber - No matching record found to update botJobId: %d
+    // blockId: %d",
+    //                                    blockOrderDetailDTO.getBotJobId(), blockOrderDetailDTO.getBlockId()));
+    //                }
+    //
+    //                newOrderNumber++; // Increment the new order number for the next block
+    //            }
+    //
+    //        } catch (SQLException e) {
+    //            ARLogger.getInstance(PerformDataBase.class)
+    //                    .severe(String.format("Error updateCompBlockOrderNumber. Error: %s", e.getMessage()));
+    //        }
+    //    }
 
     public List<BlockOrderDetailDTO> selectAllBlocks(int botJobId) {
         List<BlockOrderDetailDTO> blockOrderDetails = new ArrayList<>();
@@ -855,6 +992,43 @@ public class PerformDataBase {
             ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "Error selecting blocks for botJobId ID %d. Error: %s", botJobId, e.getMessage()));
+        }
+        return blockOrderDetails;
+    }
+
+    public List<BlockOrderDetailDTO> selectCompAllBlocks(int homeBankId, int blockId) {
+        List<BlockOrderDetailDTO> blockOrderDetails = new ArrayList<>();
+        try (Statement stmt = getConnection().createStatement()) {
+
+            // Select blocks based on botJobId, ordered by block_order_number ASC
+            String selectSQL = "SELECT id FROM component_block WHERE home_banking_id = " + homeBankId
+                    + " and block_id = " + blockId + " ORDER BY block_order_number ASC";
+            ResultSet rs = stmt.executeQuery(selectSQL);
+
+            int newOrderNumber = 1;
+            // Iterate through the result set and build BlockOrderDetailDTO list
+            while (rs.next()) {
+                blockId = rs.getInt("id");
+
+                // Create a BlockOrderDetailDTO object with blockId and the new order number
+                BlockOrderDetailDTO blockDetail = BlockOrderDetailDTO.builder()
+                        .homeBankId(homeBankId)
+                        .blockId(blockId)
+                        .blockOrderNumber(newOrderNumber)
+                        .build();
+
+                // Add the block detail to the list
+                blockOrderDetails.add(blockDetail);
+
+                // Increment the order number for the next block
+                newOrderNumber++;
+            }
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format(
+                            "Error selecting blocks for homeBankId %d and bockId %d. Error: %s",
+                            homeBankId, blockId, e.getMessage()));
         }
         return blockOrderDetails;
     }
@@ -1025,7 +1199,7 @@ public class PerformDataBase {
         if (deleteList.size() > 0) {
             for (InstructionLoadDTO deleteDTO : deleteList) {
                 deleteDTO.setHomeBankingId(deleteBlockDTO.getHomeBankingId());
-                deleteInstruction(deleteBlockDTO.getBotJobId(), deleteDTO);
+                deleteInstruction(deleteBlockDTO.getBotJobId(), deleteDTO, true);
                 //                updateOtherBlocks()
             }
         }
@@ -1049,7 +1223,7 @@ public class PerformDataBase {
         if (deleteList.size() > 0) {
             for (InstructionLoadDTO deleteDTO : deleteList) {
                 deleteDTO.setHomeBankingId(deleteBlockDTO.getHomeBankingId());
-                deleteComponent(deleteDTO);
+                deleteComponent(deleteBlockDTO.getHomeBankingId(), deleteBlockDTO.getBlockId(), deleteDTO, true);
                 //                updateOtherBlocks()
             }
         }
@@ -5252,13 +5426,43 @@ ORDER BY bot.id ASC;
     }
 
     // Handle DELETE_INSTRUCTION message
-    public void deleteComponent(InstructionLoadDTO deleteInstructionLoad) {
+    public void deleteComponent(
+            int homeBankId, int blockId, InstructionLoadDTO deleteInstructionLoad, boolean blockDeletion) {
+
+        if (deleteInstructionLoad.getParentId() != null) {
+            List<ParentOperations> listParents = loadParentsComp(
+                    homeBankId, blockId, deleteInstructionLoad.getInstructionId(), deleteInstructionLoad.getParentId());
+            if (!listParents.isEmpty()) {
+
+                if (!blockDeletion) {
+                    List<String> lstMsg = performMessage.distributeMsg(
+                            listParents.stream().map(ParentOperations::getName).collect(Collectors.toList()));
+
+                    ARConstants.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
+                            "Steps Attached",
+                            "Are you Sure you want to delete?",
+                            lstMsg.get(0),
+                            lstMsg.get(1),
+                            lstMsg.get(2),
+                            false,
+                            "Confirm",
+                            "Cancel",
+                            0);
+
+                    if (respModal.equals(ARConstants.DialogModal.STOP)) {
+                        return;
+                    }
+                }
+
+                deleteCompRowParents(homeBankId, blockId, deleteInstructionLoad.getInstructionId());
+            }
+        }
+
         if (deleteCompVariable(deleteInstructionLoad))
             if (deleteCompReferences(deleteInstructionLoad))
                 if (deleteCompInstruction(deleteInstructionLoad)) {
                     deleteCompNullBlocks(deleteInstructionLoad.getHomeBankingId());
-                    //                    updateBlockOrderNumber(selectAllBlocks(deleteInstructionLoadDTO.getBlockId()),
-                    // true);
+                    updateCompBlockOrderNumber(selectCompAllBlocks(homeBankId, blockId), true);
                 }
     }
 
@@ -8075,8 +8279,6 @@ GROUP BY
                         Integer wait = rs.getObject("wait") != null ? rs.getInt("wait") : null;
                         int oldHomeBankId = rs.getInt("home_banking_id");
 
-                        blockMap.put(idCompBlock, -1); // initialize with -1
-
                         // Map old bot_job_id to new
                         Integer newHomeBankId = homeBankMap.get(oldHomeBankId);
                         if (newHomeBankId == null) {
@@ -8084,6 +8286,8 @@ GROUP BY
                                     "Skipped component_block with unknown home_banking_id: " + newHomeBankId);
                             continue;
                         }
+
+                        blockMap.put(idCompBlock, -1); // initialize with -1
 
                         checkStmt.setInt(1, blockOrderNumber);
                         checkStmt.setString(2, name);
@@ -9613,92 +9817,725 @@ GROUP BY
         }
     }
 
-    // CREATED SAVED COMPONENTS
-    public void getNewIdsCreatedCompBlock() {
+    // CLONE BOT JOB
+    public Integer getNewBotBojId(int previousBotJob) {
+        return botJobMap.get(previousBotJob);
+    }
 
-        String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
-        String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
-        String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
+    public ErrorMessage cloneBotJob(
+            HomeUrlDTO homeUrlDTO, int previousBotJob, String newBotJobName, String newDescription)
+            throws SQLException {
 
-        try (Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
-                PreparedStatement stmt = postgresConn.prepareStatement("SELECT id  FROM component_block order by id");
-                ResultSet rs = stmt.executeQuery()) {
+        int newBotJobId = getMaxId(conn, "bot_job") + 1;
 
+        String selectComponentIdsSQL =
+                "SELECT id FROM bot_job WHERE home_banking_id = " + homeUrlDTO.getHomeBankingId() + " ORDER BY id";
+
+        try (Connection conn = getConnection();
+                Statement idStmtBefore = conn.createStatement();
+                Statement idStmtAfter = conn.createStatement()) {
+
+            conn.setAutoCommit(false);
+
+            // Step 1: get current component_block ids before insert
+            List<Integer> blockIdsBefore = new ArrayList<>();
+            try (ResultSet rsIdsBefore = idStmtBefore.executeQuery(selectComponentIdsSQL)) {
+                while (rsIdsBefore.next()) {
+                    blockIdsBefore.add(rsIdsBefore.getInt("id"));
+                }
+            }
+
+            String insertSQL =
+                    "INSERT INTO bot_job (id, name, description, priority, home_banking_id, home_url_id, active) "
+                            + "SELECT ?, ?, ?, priority, home_banking_id, ?, ? FROM bot_job WHERE id = ?";
+
+            botJobMap.clear();
+            botJobMap.put(previousBotJob, -1);
+
+            try (PreparedStatement insertStmt = conn.prepareStatement(insertSQL)) {
+
+                insertStmt.setInt(1, newBotJobId);
+                insertStmt.setString(2, newBotJobName);
+                insertStmt.setString(3, newDescription);
+                insertStmt.setInt(4, homeUrlDTO.getId());
+                insertStmt.setInt(5, 1);
+                insertStmt.setInt(6, previousBotJob);
+
+                insertStmt.addBatch();
+                insertStmt.executeBatch();
+                conn.commit();
+                ARLogger.getInstance(PerformDataBase.class).info("Inserted bot job records: 1");
+            }
+
+            // Step 3: get component_block ids after insert
+            List<Integer> blockIdsAfter = new ArrayList<>();
+            try (ResultSet rsIdsAfter = idStmtAfter.executeQuery(selectComponentIdsSQL)) {
+                while (rsIdsAfter.next()) {
+                    blockIdsAfter.add(rsIdsAfter.getInt("id"));
+                }
+            }
+
+            // Step 4: compute new IDs
+            List<Integer> newComponentIds = new ArrayList<>(blockIdsAfter);
+            newComponentIds.removeAll(blockIdsBefore);
+
+            // You can now use `newComponentIds` as needed
+            System.out.println("Newly inserted bot_job IDs: " + newComponentIds);
+
+            // Step 5: update blockMap with new IDs
+            List<Integer> keys = new ArrayList<>(botJobMap.keySet());
+
+            if (keys.size() != newComponentIds.size()) {
+                System.err.println(
+                        "Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
+            } else {
+                for (int i = 0; i < keys.size(); i++) {
+                    Integer oldId = keys.get(i);
+                    Integer newId = newComponentIds.get(i);
+                    botJobMap.put(oldId, newId);
+                }
+            }
+
+            return null;
+
+        } catch (SQLException error) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to clone bot_job");
+            return new ErrorMessage("Failed to clone bot_job", "bot_job Insertion Failure", error.getMessage());
+        }
+    }
+
+    public ErrorMessage cloneBlock(int previousBotJob) {
+
+        final int BATCH_SIZE = 100;
+        String checkExistsSQL =
+                "SELECT id, block_order_number, name, description, type_id, export_file, active, wait, bot_job_id "
+                        + "FROM block WHERE bot_job_id = ? ORDER BY id";
+
+        String selectComponentIdsSQL = "SELECT id FROM block ORDER BY id";
+
+        try (Connection conn = getConnection();
+                PreparedStatement selectStmt = conn.prepareStatement(checkExistsSQL);
+                Statement idStmtBefore = conn.createStatement();
+                Statement idStmtAfter = conn.createStatement()) {
+
+            conn.setAutoCommit(false);
+
+            // Step 1: get current component_block ids before insert
+            List<Integer> blockIdsBefore = new ArrayList<>();
+            try (ResultSet rsIdsBefore = idStmtBefore.executeQuery(selectComponentIdsSQL)) {
+                while (rsIdsBefore.next()) {
+                    blockIdsBefore.add(rsIdsBefore.getInt("id"));
+                }
+            }
+
+            // Step 2: prepare and execute insert
+            selectStmt.setInt(1, previousBotJob);
+            try (ResultSet rs = selectStmt.executeQuery()) {
+
+                String insertSQL = "INSERT INTO block "
+                        + "(id, block_order_number, name, description, type_id, export_file, active, wait, bot_job_id) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+                blockMap.clear();
+
+                try (PreparedStatement insertStmt = conn.prepareStatement(insertSQL)) {
+
+                    int count = 0;
+
+                    int newBlockId = getMaxId(conn, "block") + 1;
+
+                    while (rs.next()) {
+                        int id = rs.getInt("id");
+                        int blockOrderNumber = rs.getInt("block_order_number");
+                        String name = rs.getString("name");
+                        String description = rs.getString("description");
+                        Integer typeId = rs.getObject("type_id") != null ? rs.getInt("type_id") : null;
+                        String exportFile = rs.getString("export_file");
+                        int active = rs.getInt("active");
+                        Integer wait = rs.getObject("wait") != null ? rs.getInt("wait") : null;
+
+                        int oldBotJobId = rs.getInt("bot_job_id");
+
+                        // Map old bot_job_id to new
+                        Integer newBotJobId = botJobMap.get(oldBotJobId);
+                        if (newBotJobId == null) {
+                            System.out.println("Skipped block with unknown bot_job_id: " + newBotJobId);
+                            continue;
+                        }
+
+                        blockMap.put(id, -1);
+
+                        insertStmt.setInt(1, newBlockId);
+                        insertStmt.setInt(2, blockOrderNumber);
+                        insertStmt.setString(3, name);
+                        insertStmt.setString(4, description);
+                        if (typeId != null) {
+                            insertStmt.setInt(5, typeId);
+                        } else {
+                            insertStmt.setNull(5, Types.INTEGER);
+                        }
+                        insertStmt.setString(6, exportFile);
+                        insertStmt.setInt(7, active);
+                        if (wait != null) {
+                            insertStmt.setInt(8, wait);
+                        } else {
+                            insertStmt.setNull(8, Types.INTEGER);
+                        }
+                        insertStmt.setInt(9, newBotJobId);
+
+                        insertStmt.addBatch();
+                        newBlockId++;
+                        count++;
+
+                        if (count % BATCH_SIZE == 0) {
+                            insertStmt.executeBatch();
+                            conn.commit();
+                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                        }
+                    }
+
+                    insertStmt.executeBatch();
+                    conn.commit();
+                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    ARLogger.getInstance(PerformDataBase.class).info("Inserted block records: " + count);
+                }
+            }
+
+            // Step 3: get component_block ids after insert
+            List<Integer> blockIdsAfter = new ArrayList<>();
+            try (ResultSet rsIdsAfter = idStmtAfter.executeQuery(selectComponentIdsSQL)) {
+                while (rsIdsAfter.next()) {
+                    blockIdsAfter.add(rsIdsAfter.getInt("id"));
+                }
+            }
+
+            // Step 4: compute new IDs
+            List<Integer> newComponentIds = new ArrayList<>(blockIdsAfter);
+            newComponentIds.removeAll(blockIdsBefore);
+
+            // You can now use `newComponentIds` as needed
+            System.out.println("Newly inserted block IDs: " + newComponentIds);
+
+            // Step 5: update blockMap with new IDs
             List<Integer> keys = new ArrayList<>(blockMap.keySet());
-            int index = 0;
-            while (rs.next()) {
-                int id = rs.getInt("id");
-                //                String url = rs.getString("url");
-                int keyAtIndex0 = keys.get(index);
-                blockMap.put(keyAtIndex0, id);
-                index++;
+
+            if (keys.size() != newComponentIds.size()) {
+                System.err.println(
+                        "Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
+            } else {
+                for (int i = 0; i < keys.size(); i++) {
+                    Integer oldId = keys.get(i);
+                    Integer newId = newComponentIds.get(i);
+                    blockMap.put(oldId, newId);
+                }
             }
 
-            ARLogger.getInstance(PerformDataBase.class)
-                    .info("Loaded component_block map with " + blockMap.size() + " entries.");
+            return null;
 
-        } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class).severe("Failed to load component_block map from PostgreSQL.");
+        } catch (SQLException error) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to clone block");
+            return new ErrorMessage("Failed to clone block", "block Insertion Failure", error.getMessage());
         }
     }
 
-    public void getNewIdsCreatedCompInstruc() {
+    public ErrorMessage cloneInstructions(int previousBotJob) {
 
-        String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
-        String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
-        String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
+        final int BATCH_SIZE = 100;
 
-        try (Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
-                PreparedStatement stmt =
-                        postgresConn.prepareStatement("SELECT id  FROM component_instruction order by id");
-                ResultSet rs = stmt.executeQuery()) {
+        String checkExistsSQL = "SELECT * FROM instruction WHERE bot_job_id = ? order by id";
 
+        String selectComponentIdsSQL = "SELECT id FROM instruction ORDER BY id";
+
+        try (Connection conn = getConnection();
+                PreparedStatement selectStmt = conn.prepareStatement(checkExistsSQL);
+                Statement idStmtBefore = conn.createStatement();
+                Statement idStmtAfter = conn.createStatement()) {
+
+            conn.setAutoCommit(false);
+
+            // Step 1: get current component_block ids before insert
+            List<Integer> blockIdsBefore = new ArrayList<>();
+            try (ResultSet rsIdsBefore = idStmtBefore.executeQuery(selectComponentIdsSQL)) {
+                while (rsIdsBefore.next()) {
+                    blockIdsBefore.add(rsIdsBefore.getInt("id"));
+                }
+            }
+
+            // Step 2: prepare and execute insert
+            selectStmt.setInt(1, previousBotJob);
+
+            try (ResultSet rsInstruction = selectStmt.executeQuery()) {
+
+                String insertSQL = "INSERT INTO instruction ("
+                        + "id, instruction_order_number, actions, name, xpath, coordinates, force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root, css_selector, description, operation, optional, block_marked, default_value, action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr, active, block_id, variable_id, parent_id, bot_job_id) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+                instructionMap.clear();
+
+                try (PreparedStatement insertStmt = conn.prepareStatement(insertSQL)) {
+
+                    int count = 0;
+
+                    int newInstructionId = getMaxId(conn, "instruction") + 1;
+
+                    while (rsInstruction.next()) {
+                        int id = rsInstruction.getInt("id");
+
+                        int oldBlockId = rsInstruction.getInt("block_id");
+                        Integer newBlockId = blockMap.get(oldBlockId);
+                        if (newBlockId == null) {
+                            System.out.println("Skipped instruction with unknown block_id: " + oldBlockId);
+                            continue;
+                        }
+
+                        int oldBotJobId = rsInstruction.getInt("bot_job_id");
+                        Integer newBotJobId = botJobMap.get(oldBotJobId);
+                        if (newBotJobId == null) {
+                            System.out.println("Skipped instruction with unknown bot_job_id: " + newBotJobId);
+                            continue;
+                        }
+
+                        instructionMap.put(id, -1);
+
+                        insertStmt.setInt(1, newInstructionId);
+                        insertStmt.setInt(2, rsInstruction.getInt("instruction_order_number"));
+                        insertStmt.setString(3, rsInstruction.getString("actions"));
+                        insertStmt.setString(4, rsInstruction.getString("name"));
+                        insertStmt.setString(5, rsInstruction.getString("xpath"));
+                        insertStmt.setString(6, rsInstruction.getString("coordinates"));
+
+                        insertOrNull(insertStmt, 7, rsInstruction, "force_coordinates");
+                        insertStmt.setString(8, rsInstruction.getString("iframe_xpath"));
+                        insertStmt.setString(9, rsInstruction.getString("tag_name"));
+                        insertStmt.setString(10, rsInstruction.getString("shadow_host"));
+                        insertStmt.setString(11, rsInstruction.getString("shadow_root"));
+                        insertStmt.setString(12, rsInstruction.getString("css_selector"));
+                        insertStmt.setString(13, rsInstruction.getString("description"));
+                        insertStmt.setString(14, rsInstruction.getString("operation"));
+
+                        insertOrNull(insertStmt, 15, rsInstruction, "optional");
+                        insertOrNull(insertStmt, 16, rsInstruction, "block_marked");
+                        insertStmt.setString(17, rsInstruction.getString("default_value"));
+                        insertOrNull(insertStmt, 18, rsInstruction, "action_custom_max_wait_sec");
+                        insertOrNull(insertStmt, 19, rsInstruction, "on_hold_seconds");
+                        insertOrNull(insertStmt, 20, rsInstruction, "codified");
+                        insertOrNull(insertStmt, 21, rsInstruction, "export_to_abr");
+
+                        insertStmt.setInt(22, rsInstruction.getInt("active"));
+                        insertStmt.setInt(23, newBlockId);
+
+                        insertOrNull(insertStmt, 24, rsInstruction, "variable_id");
+                        insertOrNull(insertStmt, 25, rsInstruction, "parent_id");
+
+                        insertStmt.setInt(26, newBotJobId);
+
+                        insertStmt.addBatch();
+                        count++;
+                        newInstructionId++;
+
+                        if (count % BATCH_SIZE == 0) {
+                            insertStmt.executeBatch();
+                            conn.commit();
+                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                        }
+                    }
+
+                    insertStmt.executeBatch();
+                    conn.commit();
+                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    ARLogger.getInstance(PerformDataBase.class).info("Inserted instruction records: " + count);
+                }
+            }
+
+            // Step 3: get component_block ids after insert
+            List<Integer> blockIdsAfter = new ArrayList<>();
+            try (ResultSet rsIdsAfter = idStmtAfter.executeQuery(selectComponentIdsSQL)) {
+                while (rsIdsAfter.next()) {
+                    blockIdsAfter.add(rsIdsAfter.getInt("id"));
+                }
+            }
+
+            // Step 4: compute new IDs
+            List<Integer> newComponentIds = new ArrayList<>(blockIdsAfter);
+            newComponentIds.removeAll(blockIdsBefore);
+
+            // You can now use `newComponentIds` as needed
+            System.out.println("Newly inserted instruction IDs: " + newComponentIds);
+
+            // Step 5: update blockMap with new IDs
             List<Integer> keys = new ArrayList<>(instructionMap.keySet());
-            int index = 0;
-            while (rs.next()) {
-                int id = rs.getInt("id");
-                //                String url = rs.getString("url");
-                int keyAtIndex0 = keys.get(index);
-                instructionMap.put(keyAtIndex0, id);
-                index++;
+
+            if (keys.size() != newComponentIds.size()) {
+                System.err.println(
+                        "Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
+            } else {
+                for (int i = 0; i < keys.size(); i++) {
+                    Integer oldId = keys.get(i);
+                    Integer newId = newComponentIds.get(i);
+                    instructionMap.put(oldId, newId);
+                }
             }
 
-            ARLogger.getInstance(PerformDataBase.class)
-                    .info("Loaded component_instruction map with " + instructionMap.size() + " entries.");
+            return null;
 
-        } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe("Failed to load component_instruction map from PostgreSQL.");
+        } catch (SQLException error) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to clono instruction");
+            return new ErrorMessage("Failed to clone instruction", "instruction Insertion Failure", error.getMessage());
         }
     }
 
-    public void getNewIdsCreatedCompVariable() {
+    public ErrorMessage cloneVariables(int previousBotJob) {
 
-        String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
-        String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
-        String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
+        final int BATCH_SIZE = 100;
 
-        try (Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
-                PreparedStatement stmt =
-                        postgresConn.prepareStatement("SELECT id  FROM component_variable order by id");
-                ResultSet rs = stmt.executeQuery()) {
+        String checkExistsSQL = "SELECT * FROM variable WHERE bot_job_id = ? order by id";
 
-            List<Integer> keys = new ArrayList<>(variableMap.keySet());
-            int index = 0;
-            while (rs.next()) {
-                int id = rs.getInt("id");
-                //                String url = rs.getString("url");
-                int keyAtIndex0 = keys.get(index);
-                variableMap.put(keyAtIndex0, id);
-                index++;
+        String selectComponentIdsSQL = "SELECT id FROM variable ORDER BY id";
+
+        try (Connection conn = getConnection();
+                PreparedStatement selectStmt = conn.prepareStatement(checkExistsSQL);
+                Statement idStmtBefore = conn.createStatement();
+                Statement idStmtAfter = conn.createStatement()) {
+
+            conn.setAutoCommit(false);
+
+            // Step 1: get current component_block ids before insert
+            List<Integer> blockIdsBefore = new ArrayList<>();
+            try (ResultSet rsIdsBefore = idStmtBefore.executeQuery(selectComponentIdsSQL)) {
+                while (rsIdsBefore.next()) {
+                    blockIdsBefore.add(rsIdsBefore.getInt("id"));
+                }
             }
 
-            ARLogger.getInstance(PerformDataBase.class)
-                    .info("Loaded component_variable map with " + variableMap.size() + " entries.");
+            // Step 2: prepare and execute insert
+            selectStmt.setInt(1, previousBotJob);
 
-        } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe("Failed to load component_variable map from PostgreSQL.");
+            try (ResultSet rsVariable = selectStmt.executeQuery()) {
+
+                String insertSQL =
+                        "INSERT INTO variable (id, type, name, value, local_format, delimiter, instruction_id, bot_job_id) "
+                                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+
+                variableMap.clear();
+
+                try (PreparedStatement insertStmt = conn.prepareStatement(insertSQL)) {
+
+                    int count = 0;
+                    int newVariableId = getMaxId(conn, "variable") + 1;
+
+                    while (rsVariable.next()) {
+                        int id = rsVariable.getInt("id");
+
+                        int oldBotJobId = rsVariable.getInt("bot_job_id");
+                        Integer newBotJobId = botJobMap.get(oldBotJobId);
+                        if (newBotJobId == null) {
+                            System.out.println("Skipped variable with unknown bot_job_id: " + newBotJobId);
+                            continue;
+                        }
+
+                        Integer instructionId = rsVariable.getObject("instruction_id") != null
+                                ? rsVariable.getInt("instruction_id")
+                                : null;
+
+                        Integer newInstructionId = null;
+
+                        if (instructionId != null) {
+                            newInstructionId = instructionMap.get(instructionId);
+                            if (newInstructionId == null) {
+                                System.out.println("Skipped variable with unknown instruction_id: " + instructionId);
+                                continue;
+                            }
+                        }
+
+                        variableMap.put(id, -1);
+
+                        insertStmt.setInt(1, newVariableId);
+                        insertStmt.setString(2, rsVariable.getString("type"));
+                        insertStmt.setString(3, rsVariable.getString("name"));
+                        insertStmt.setString(4, rsVariable.getString("value"));
+                        insertStmt.setString(5, rsVariable.getString("local_format"));
+                        insertStmt.setString(6, rsVariable.getString("delimiter"));
+
+                        if (newInstructionId != null) {
+                            insertStmt.setInt(7, newInstructionId);
+                        } else {
+                            insertStmt.setNull(7, Types.INTEGER);
+                        }
+
+                        insertStmt.setInt(8, newBotJobId);
+
+                        insertStmt.addBatch();
+                        count++;
+                        newVariableId++;
+
+                        if (count % BATCH_SIZE == 0) {
+                            insertStmt.executeBatch();
+                            conn.commit();
+                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                        }
+                    }
+
+                    insertStmt.executeBatch();
+                    conn.commit();
+                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    ARLogger.getInstance(PerformDataBase.class).info("Inserted variable records: " + count);
+                }
+            }
+
+            // Step 3: get component_block ids after insert
+            List<Integer> idsAfter = new ArrayList<>();
+            try (ResultSet rsIdsAfter = idStmtAfter.executeQuery(selectComponentIdsSQL)) {
+                while (rsIdsAfter.next()) {
+                    idsAfter.add(rsIdsAfter.getInt("id"));
+                }
+            }
+
+            // Step 4: compute new IDs
+            List<Integer> newComponentIds = new ArrayList<>(idsAfter);
+            newComponentIds.removeAll(blockIdsBefore);
+
+            // You can now use `newComponentIds` as needed
+            System.out.println("Newly inserted variable IDs: " + newComponentIds);
+
+            // Step 5: update blockMap with new IDs
+            List<Integer> keys = new ArrayList<>(variableMap.keySet());
+
+            if (keys.size() != newComponentIds.size()) {
+                System.err.println(
+                        "Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
+            } else {
+                for (int i = 0; i < keys.size(); i++) {
+                    Integer oldId = keys.get(i);
+                    Integer newId = newComponentIds.get(i);
+                    variableMap.put(oldId, newId);
+                }
+            }
+
+            return null;
+
+        } catch (SQLException error) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to clone variable");
+            return new ErrorMessage("Failed to clone variable", "variable Insertion Failure", error.getMessage());
+        }
+    }
+
+    public ErrorMessage cloneUpdateInstruction(int previosBotJob) {
+        final int BATCH_SIZE = 100;
+
+        try (Connection conn = getConnection();
+                Statement postgresStmt = conn.createStatement()) {
+            conn.setAutoCommit(false);
+
+            String idsInstruction =
+                    instructionMap.values().stream().map(String::valueOf).collect(Collectors.joining(","));
+
+            String idsBlock = blockMap.values().stream().map(String::valueOf).collect(Collectors.joining(","));
+
+            int newBotJobId = botJobMap.get(previosBotJob);
+
+            String selectAccessSQL = "SELECT id, name, parent_id, variable_id " + "FROM instruction "
+                    + "WHERE (parent_id IS NOT NULL OR variable_id IS NOT NULL) "
+                    + "AND bot_job_id = "
+                    + newBotJobId + " AND id IN ("
+                    + idsInstruction + ") AND block_id IN ("
+                    + idsBlock + ") ORDER BY id";
+
+            try (ResultSet rsInstruction = postgresStmt.executeQuery(selectAccessSQL)) {
+
+                String updateSQL = "UPDATE instruction SET variable_id = ?, parent_id = ? WHERE id = ? ";
+
+                try (PreparedStatement updateStmt = conn.prepareStatement(updateSQL)) {
+                    int count = 0;
+
+                    while (rsInstruction.next()) {
+                        int id = rsInstruction.getInt("id");
+                        String name = rsInstruction.getString("name");
+
+                        // Set variable_id directly from Access
+                        int originalVariableId = rsInstruction.getInt("variable_id");
+                        // Map old bot_job_id to new
+                        Integer newVariableId = variableMap.get(originalVariableId);
+                        if (newVariableId == null) {
+                            System.out.println("Skipped variable_id column with unknown variable_id: " + newVariableId);
+                            updateStmt.setNull(1, Types.INTEGER);
+                        } else {
+                            updateStmt.setInt(1, newVariableId);
+                        }
+
+                        // Handle parent_id based on name
+                        if ("GOTO".equalsIgnoreCase(name) || "EXCEL GOTO".equalsIgnoreCase(name)) {
+                            int parentBlockId = rsInstruction.getInt("parent_id");
+                            Integer newParentBlockId = blockMap.get(parentBlockId);
+                            if (newParentBlockId != null) {
+                                updateStmt.setInt(2, newParentBlockId);
+                            } else {
+                                updateStmt.setNull(2, Types.INTEGER);
+                            }
+                        } else {
+                            int parentInstructionId = rsInstruction.getInt("parent_id");
+                            Integer newParentInstructionId = instructionMap.get(parentInstructionId);
+                            if (newParentInstructionId != null) {
+                                updateStmt.setInt(2, newParentInstructionId);
+                            } else {
+                                updateStmt.setNull(2, Types.INTEGER);
+                            }
+                        }
+
+                        updateStmt.setInt(3, id); // WHERE clause: name = ?
+
+                        updateStmt.addBatch();
+                        count++;
+
+                        if (count % BATCH_SIZE == 0) {
+                            updateStmt.executeBatch();
+                            conn.commit();
+                            System.out.println("Updated batch of " + BATCH_SIZE);
+                        }
+                    }
+
+                    if (count % BATCH_SIZE != 0) {
+                        updateStmt.executeBatch();
+                        conn.commit();
+                        System.out.println("Updated final batch of " + (count % BATCH_SIZE));
+                    }
+
+                    ARLogger.getInstance(PerformDataBase.class).info("Updated instruction records: " + count);
+                }
+            }
+
+            return null;
+
+        } catch (SQLException error) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to update cloned instruction");
+            return new ErrorMessage(
+                    "Failed to update cloned instruction", "cloned instruction Update Failure", error.getMessage());
+        }
+    }
+
+    public ErrorMessage cloneReferences(int previousBotJob) {
+
+        final int BATCH_SIZE = 100;
+
+        String idsInstruction =
+                instructionMap.keySet().stream().map(String::valueOf).collect(Collectors.joining(","));
+
+        String checkExistsSQL = "SELECT * FROM reference " + "WHERE  bot_job_id = ? AND instruction_id IN ("
+                + idsInstruction + ") ORDER BY id";
+
+        String selectComponentIdsSQL = "SELECT id FROM reference ORDER BY id";
+
+        try (Connection conn = getConnection();
+                PreparedStatement selectStmt = conn.prepareStatement(checkExistsSQL);
+                Statement idStmtBefore = conn.createStatement();
+                Statement idStmtAfter = conn.createStatement()) {
+
+            conn.setAutoCommit(false);
+
+            // Step 1: get current component_block ids before insert
+            List<Integer> blockIdsBefore = new ArrayList<>();
+            try (ResultSet rsIdsBefore = idStmtBefore.executeQuery(selectComponentIdsSQL)) {
+                while (rsIdsBefore.next()) {
+                    blockIdsBefore.add(rsIdsBefore.getInt("id"));
+                }
+            }
+
+            // Step 2: prepare and execute insert
+            selectStmt.setInt(1, previousBotJob);
+
+            try (ResultSet rsReference = selectStmt.executeQuery()) {
+
+                String insertSQL =
+                        "INSERT INTO reference (id, reference_type, value, instruction_id, bot_job_id) VALUES (?, ?, ?, ?, ?)";
+
+                referenceMap.clear();
+
+                try (PreparedStatement insertStmt = conn.prepareStatement(insertSQL)) {
+
+                    int count = 0;
+                    int newReferId = getMaxId(conn, "reference") + 1;
+
+                    while (rsReference.next()) {
+                        int id = rsReference.getInt("id");
+
+                        int oldInstructionId = rsReference.getInt("instruction_id");
+                        Integer newInstructionId = instructionMap.get(oldInstructionId);
+                        if (newInstructionId == null) {
+                            System.out.println("Skipped reference with unknown instruction_id: " + oldInstructionId);
+                            continue;
+                        }
+
+                        int oldBotJobId = rsReference.getInt("bot_job_id");
+                        Integer newBotJobId = botJobMap.get(oldBotJobId);
+                        if (newBotJobId == null) {
+                            System.out.println("Skipped reference with unknown bot_job_id: " + newBotJobId);
+                            continue;
+                        }
+
+                        referenceMap.put(id, -1);
+
+                        insertStmt.setInt(1, newReferId);
+                        insertStmt.setString(2, rsReference.getString("reference_type"));
+                        insertStmt.setString(3, rsReference.getString("value"));
+                        insertStmt.setInt(4, newInstructionId);
+
+                        if (newBotJobId != null) {
+                            insertStmt.setInt(5, newBotJobId);
+                        } else {
+                            insertStmt.setNull(5, Types.INTEGER);
+                        }
+
+                        insertStmt.addBatch();
+                        count++;
+                        newReferId++;
+
+                        if (count % BATCH_SIZE == 0) {
+                            insertStmt.executeBatch();
+                            conn.commit();
+                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                        }
+                    }
+
+                    insertStmt.executeBatch();
+                    conn.commit();
+                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    ARLogger.getInstance(PerformDataBase.class).info("Inserted reference records: " + count);
+                }
+            }
+
+            // Step 3: get component_block ids after insert
+            List<Integer> idsAfter = new ArrayList<>();
+            try (ResultSet rsIdsAfter = idStmtAfter.executeQuery(selectComponentIdsSQL)) {
+                while (rsIdsAfter.next()) {
+                    idsAfter.add(rsIdsAfter.getInt("id"));
+                }
+            }
+
+            // Step 4: compute new IDs
+            List<Integer> newComponentIds = new ArrayList<>(idsAfter);
+            newComponentIds.removeAll(blockIdsBefore);
+
+            // You can now use `newComponentIds` as needed
+            System.out.println("Newly inserted reference IDs: " + newComponentIds);
+
+            // Step 5: update blockMap with new IDs
+            List<Integer> keys = new ArrayList<>(referenceMap.keySet());
+
+            if (keys.size() != newComponentIds.size()) {
+                System.err.println(
+                        "Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
+            } else {
+                for (int i = 0; i < keys.size(); i++) {
+                    Integer oldId = keys.get(i);
+                    Integer newId = newComponentIds.get(i);
+                    referenceMap.put(oldId, newId);
+                }
+            }
+
+            return null;
+
+        } catch (SQLException error) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to clone reference");
+            return new ErrorMessage("Failed to clone reference", "reference Insertion Failure", error.getMessage());
         }
     }
 

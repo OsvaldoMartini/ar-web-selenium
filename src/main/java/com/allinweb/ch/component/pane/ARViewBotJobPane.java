@@ -428,7 +428,7 @@ public class ARViewBotJobPane extends ARPane {
         List<InstructionLoadDTO> listForDeletion =
                 performDataBase.getBlockLoopInstructionIdsWithNullBlock(this.botJobLoad.getId());
         for (InstructionLoadDTO instruction : listForDeletion) {
-            performDataBase.deleteInstruction(this.botJobLoad.getId(), instruction);
+            performDataBase.deleteInstruction(this.botJobLoad.getId(), instruction, false);
         }
         performDataBase.deleteNullBlocks(this.botJobLoad.getId());
         performDataBase.updateBlockOrderNumber(performDataBase.selectAllBlocks(this.botJobLoad.getId()), true);

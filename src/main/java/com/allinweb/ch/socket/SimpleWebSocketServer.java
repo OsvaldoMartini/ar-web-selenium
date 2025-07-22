@@ -434,7 +434,9 @@ public class SimpleWebSocketServer {
                         performDataBase.deleteCompBlockDirect(rowMoveDTO.getBotJobId(), rowMoveDTO.getDeleteBlockId());
 
                         performDataBase.updateCompBlockOrderNumber(
-                                performDataBase.selectCompAllBlocks(rowMoveDTO.getBotJobId()), true);
+                                performDataBase.selectCompAllBlocks(
+                                        rowMoveDTO.getHomeBankingId(), rowMoveDTO.getBotJobId()),
+                                true);
                     }
                 }
 
@@ -562,15 +564,17 @@ public class SimpleWebSocketServer {
                 InstructionLoadDTO deleteInstructionLoadDTO = gson.fromJson(jsonEntry, InstructionLoadDTO.class);
 
                 homeBankingId = deleteInstructionLoadDTO.getHomeBankingId();
-                sessionIdToSend = deleteInstructionLoadDTO.getSessionId();
                 botJobIdTask = deleteInstructionLoadDTO.getBotJobId();
+                sessionIdToSend = deleteInstructionLoadDTO.getSessionId();
 
                 alreadySentMgsSocket = false;
 
                 if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
-                    performDataBase.deleteInstruction(deleteInstructionLoadDTO.getBotJobId(), deleteInstructionLoadDTO);
+                    performDataBase.deleteInstruction(
+                            deleteInstructionLoadDTO.getBotJobId(), deleteInstructionLoadDTO, false);
                 } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
-                    performDataBase.deleteComponent(deleteInstructionLoadDTO);
+                    performDataBase.deleteComponent(
+                            homeBankingId, deleteInstructionLoadDTO.getBlockId(), deleteInstructionLoadDTO, false);
                 }
 
                 break;

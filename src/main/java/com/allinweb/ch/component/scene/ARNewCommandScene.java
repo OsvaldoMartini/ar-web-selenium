@@ -224,7 +224,8 @@ public class ARNewCommandScene extends ARScene {
     }
 
     public void showModal() {
-        if (rowMoveDTO.getUpdatedRows().get(0).getActions().equals("EXCEL GOTO")) {
+        if (rowMoveDTO.getUpdatedRows().get(0).getActions() != null
+                && rowMoveDTO.getUpdatedRows().get(0).getActions().equals("EXCEL GOTO")) {
             List<InstructionLoadDTO> excelDataGoto =
                     performDataBase.loadExcelGotoBlock(rowMoveDTO.getHomeBankingId(), rowMoveDTO.getBotJobId());
 

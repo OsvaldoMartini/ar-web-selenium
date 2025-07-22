@@ -18,6 +18,7 @@ import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
 import java.io.File;
 import java.io.FileInputStream;
+import java.sql.*;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
@@ -308,9 +309,10 @@ public class ARControlPanel extends Application {
             String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
 
             File dbFile = new File(dbPath + ARConstants.FILE_NAME_DB);
+
             try {
 
-                if (!dbFile.exists() || performDataBase.doesNotInstructionTableExist()) {
+                if (!dbFile.exists() && performDataBase.doesNotInstructionTableExist()) {
                     if (performDataBase.getConn() != null) {
                         performDataBase.initializeMainDatabaseAccess(dbFile);
                     }
@@ -336,31 +338,31 @@ public class ARControlPanel extends Application {
 
             try {
 
-                //                //                 Postgres to Access
-                //                performDataBase.exportHomeBankingAccess();
-                //                performDataBase.getNewIdsHomeBankAccess();
-                //                performDataBase.exportHomeUrlAccess();
-                //                performDataBase.getNewIdsHomeUrlAccess();
-                //                performDataBase.exportBotJobAccess();
-                //                performDataBase.getNewIdsBotJobAccess();
-                //                performDataBase.exportBlockAccess();
-                //                performDataBase.getNewIdsBlockAccess();
-                //                performDataBase.exportInstructionsAccess();
-                //                performDataBase.getNewIdsInstrucAccess();
-                //                performDataBase.exportVariablesAccess();
-                //                performDataBase.getNewIdsVariableAccess();
-                //                performDataBase.exportUpdateInstructionAccess();
-                //                performDataBase.exportReferencesAccess();
-                //
-                //                // SAVED COMPONENTS
-                //                performDataBase.exportCompBlockAccess();
-                //                performDataBase.getNewIdsCompBlockAccess();
-                //                performDataBase.exportCompInstructionsAccess();
-                //                performDataBase.getNewIdsCompInstrucAccess();
-                //                performDataBase.exportCompVariablesAccess();
-                //                performDataBase.getNewIdsCompVariableAccess();
-                //                performDataBase.exportUpdateCompInstructionAccess();
-                //                performDataBase.exportCompReferencesAccess();
+                //                 Postgres to Access
+                performDataBase.exportHomeBankingAccess();
+                performDataBase.getNewIdsHomeBankAccess();
+                performDataBase.exportHomeUrlAccess();
+                performDataBase.getNewIdsHomeUrlAccess();
+                performDataBase.exportBotJobAccess();
+                performDataBase.getNewIdsBotJobAccess();
+                performDataBase.exportBlockAccess();
+                performDataBase.getNewIdsBlockAccess();
+                performDataBase.exportInstructionsAccess();
+                performDataBase.getNewIdsInstrucAccess();
+                performDataBase.exportVariablesAccess();
+                performDataBase.getNewIdsVariableAccess();
+                performDataBase.exportUpdateInstructionAccess();
+                performDataBase.exportReferencesAccess();
+
+                // SAVED COMPONENTS
+                performDataBase.exportCompBlockAccess();
+                performDataBase.getNewIdsCompBlockAccess();
+                performDataBase.exportCompInstructionsAccess();
+                performDataBase.getNewIdsCompInstrucAccess();
+                performDataBase.exportCompVariablesAccess();
+                performDataBase.getNewIdsCompVariableAccess();
+                performDataBase.exportUpdateCompInstructionAccess();
+                performDataBase.exportCompReferencesAccess();
 
             } catch (Exception error) {
                 ARLogger.getInstance(ARMainPane.class).severe("Error Export to Postgres: " + error.getMessage());
