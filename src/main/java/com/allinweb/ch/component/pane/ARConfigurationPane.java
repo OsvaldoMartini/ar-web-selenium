@@ -37,6 +37,7 @@ import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
@@ -232,7 +233,7 @@ public class ARConfigurationPane extends ARPane {
         AnchorPane.setRightAnchor(title, ARConstants.SPACE_M);
 
         //        ButtonBar homeBankingActionGroup = new ButtonBar();
-        addHomeBankingButton = builder.buildButton("Insert / Config Scan");
+        addHomeBankingButton = builder.buildButton("Insert Organizations");
         //        homeBankingActionGroup.getButtons().addAll(addHomeBankingButton);
 
         //        ObservableList<HomeBankingDTO> homeBankingList =
@@ -376,7 +377,7 @@ public class ARConfigurationPane extends ARPane {
 
         browserChoiceBox.setItems(browserList);
         databaseChoiceBox.setItems(databaseList);
-        databaseChoiceBox.setDisable(false);
+        databaseChoiceBox.setDisable(true);
 
         // Add labels in the first row
         gridPaneButton.add(browserLabel, 0, 0);
@@ -439,6 +440,11 @@ public class ARConfigurationPane extends ARPane {
         pathWebDriverButton = createPathButton();
         AnchorPane driverGroup = new AnchorPane(pathWebDriver, pathWebDriverButton);
 
+        Label organizationsLabel = new Label("Organizations");
+        organizationsLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #1565C0;");
+        organizationsLabel.setAlignment(Pos.CENTER);
+        organizationsLabel.setMaxWidth(Double.MAX_VALUE);
+
         pathGroup = new VBox(
                 pathLicenseLabel,
                 licenseGroup,
@@ -459,11 +465,19 @@ public class ARConfigurationPane extends ARPane {
                 dbUrl,
                 dbUserPwdGroup,
                 gridPaneButton,
+                organizationsLabel,
                 homeBankingContainer);
+
+        VBox.setVgrow(homeBankingContainer, Priority.ALWAYS);
+        homeBankingContainer.setMaxHeight(Double.MAX_VALUE);
+
+        VBox.setVgrow(homeBankingListView, Priority.ALWAYS);
+        homeBankingListView.setMaxHeight(Double.MAX_VALUE);
 
         AnchorPane.setTopAnchor(pathGroup, ARConstants.SPACE_L + ARConstants.SPACE_M);
         AnchorPane.setLeftAnchor(pathGroup, ARConstants.SPACE_M);
         AnchorPane.setRightAnchor(pathGroup, ARConstants.SPACE_M);
+        AnchorPane.setBottomAnchor(pathGroup, ARConstants.SPACE_M); // Allow bottom expansion
 
         mainPane = new AnchorPane(title, pathGroup);
     }

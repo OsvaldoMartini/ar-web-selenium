@@ -6,6 +6,7 @@ import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.DatabaseUserDTO;
+import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
@@ -69,6 +70,28 @@ public class ARNewHomeBankingPane extends ARPane {
         performDataBase = PerformDataBase.getInstance();
     }
 
+    private Button submitButton;
+    private Button updateButton;
+    private Button deleteButton;
+    private Button templateButton;
+
+    // Create labels
+    private Label idLabel;
+    private Label nameLabel;
+    private Label urlLabel;
+    private Label priorityLabel;
+    private Label jobsLabel;
+    private Label searchConfigLabel;
+    private Label optionsConfigLabel;
+
+    private TextField idField;
+    private TextField nameField;
+    private TextField urlField;
+    private TextArea priorityField;
+    private TextField jobsField;
+    private TextArea searchConfigField;
+    private TextArea optionsConfigField;
+
     // Regular expression for a basic URL validation (improved)
     private static final String URL_REGEX =
             "^((https?|ftp|file)://)?([\\da-z.-]+)\\.([a-z.]{2,6})(:\\d+)?(/\\w .-]*)?/?$";
@@ -93,231 +116,48 @@ public class ARNewHomeBankingPane extends ARPane {
         updateHomeBankList(performDataBase.getDatabaseList());
 
         // Create labels
-        Label idLabel = new Label("ID:");
-        Label nameLabel = new Label("Name:");
-        Label urlLabel = new Label("Url:");
-        Label priorityLabel = new Label("Priority:");
-        Label jobsLabel = new Label("Total of Jobs:");
-        Label searchConfigLabel = new Label("Scan Config:");
-        Label optionsConfigLabel = new Label("WebDriver Options:");
+        idLabel = new Label("ID:");
+        nameLabel = new Label("Name:");
+        urlLabel = new Label("Url:");
+        priorityLabel = new Label("Priority:");
+        jobsLabel = new Label("Total of Jobs:");
+        searchConfigLabel = new Label("Scan Config:");
+        optionsConfigLabel = new Label("WebDriver Options:");
         // Create text fields
-        TextField idField = new TextField();
+        idField = new TextField();
         idField.setEditable(false);
         idField.setStyle("-fx-control-inner-background: D3D3D3; -fx-pref-width: 50px;");
         //        idField.setPrefWidth(200); // Set the preferred width
         idField.setPrefHeight(30);
-        TextField nameField = new TextField();
+        nameField = new TextField();
         nameField.setStyle("-fx-control-inner-background: FFDA33;");
         nameField.requestFocus();
-        TextField urlField = new TextField();
+        urlField = new TextField();
         urlField.setStyle("-fx-control-inner-background: FFDA33;");
-        TextArea priorityField = new TextArea();
+        priorityField = new TextArea();
         priorityField.setStyle("-fx-control-inner-background: FFDA33;");
-        TextField jobsField = new TextField(); // Hidden field
+        jobsField = new TextField(); // Hidden field
         jobsField.setEditable(false);
         jobsField.setStyle("-fx-control-inner-background: D3D3D3;");
         jobsField.setPrefWidth(50); // Set the preferred width
         jobsField.setPrefHeight(30);
         priorityField.setPrefRowCount(3); // Set preferred row count for the TextArea
 
-        TextArea searchConfigField = new TextArea();
+        searchConfigField = new TextArea();
         searchConfigField.setPrefRowCount(3); // Set preferred row count for the TextArea
         searchConfigField.setStyle("-fx-control-inner-background: FFDA33;");
 
-        TextArea optionsConfigField = new TextArea();
+        optionsConfigField = new TextArea();
         optionsConfigField.setPrefRowCount(3); // Set preferred row count for the TextArea
         optionsConfigField.setStyle("-fx-control-inner-background: FFDA33;");
 
         // Create submit button
-        Button submitButton = new Button("Insert");
-        submitButton.setOnAction(event -> {
-            //            if (!isValidUrl(urlField.getText().trim())) {
-            //                performMessage.errorMessage(
-            //                        "Invalid URL",
-            //                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'> URL
-            // Validation Failed</span>",
-            //                        "<span style='font-weight: bold;'>The provided URL is not valid</span>.",
-            //                        "<span style='color: #E65100; font-weight: bold;'>"
-            //                                + urlField.getText().trim() + "</span>",
-            //                        "<span style='font-style: italic;'>Details: Please check the format and try
-            // again.</span>",
-            //                        0);
-            //                return;
-            //            }
-
-            DatabaseUserDTO user = new DatabaseUserDTO(
-                    null,
-                    nameField.getText().trim(),
-                    urlField.getText().trim(),
-                    priorityField.getText(),
-                    searchConfigField.getText(),
-                    optionsConfigField.getText());
-
-            if (nameExists(nameField.getText().trim())) {
-                showAlert(
-                        Alert.AlertType.ERROR,
-                        "Error",
-                        "Env Name Already Exist",
-                        String.format("This '%s' cannot be inserted with same name.\n", nameField.getText()));
-                return;
-            }
-
-            if (nameField.getText().trim().isEmpty()
-                    || urlField.getText().trim().isEmpty()) {
-                showAlert(
-                        Alert.AlertType.ERROR, "Error", "Name and URL Cannot be Empty", "Name and URL Cannot be Empty");
-                return;
-            }
-
-            int newHomeId = saveUserData(user);
-
-            if (newHomeId > -1) {
-                try (Connection conn = performDataBase.getConnection()) {
-                    int newHomeUrlId = performDataBase.loadNexHomeUrlData() + 1;
-
-                    ErrorMessage errorMessage =
-                            performDataBase.insertHomeUrlChild(conn, newHomeId, user.getUrl(), newHomeUrlId);
-
-                    if (errorMessage != null) {
-                        performMessage.errorMessage(
-                                "Clone Bot Job Failed",
-                                errorMessage.getErrorTitle(),
-                                errorMessage.getErrorHeader(),
-                                "Verify  [INSERT] or [UPDATE] or [SELECT]",
-                                null,
-                                0);
-                    } else {
-
-                        performMessage.errorMessage(
-                                "Cannot Create New Environment ",
-                                "Verify  [INSERT] or [UPDATE] or [SELECT]",
-                                null,
-                                null,
-                                null,
-                                0);
-                    }
-
-                } catch (SQLException error) {
-                    System.out.println(error.getMessage());
-                }
-            }
-
-            performDataBase.loadAllHomeBankingBotJob();
-            updateHomeBankList(performDataBase.getDatabaseList());
-        });
+        submitButton = new Button("Insert");
 
         // Create update button
-        Button updateButton = new Button("Update");
-        updateButton.setOnAction(event -> {
-            //            if (!isValidUrl(urlField.getText().trim())) {
-            //                performMessage.errorMessage(
-            //                        "Invalid URL",
-            //                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'> URL
-            // Validation Failed</span>",
-            //                        "<span style='font-weight: bold;'>The provided URL is not valid</span>.",
-            //                        "<span style='color: #E65100; font-weight: bold;'>"
-            //                                + urlField.getText().trim() + "</span>",
-            //                        "<span style='font-style: italic;'>Details: Please check the format and try
-            // again.</span>",
-            //                        0);
-            //                return;
-            //            }
-
-            String id = idField.getText();
-            DatabaseUserDTO user = new DatabaseUserDTO(
-                    id,
-                    nameField.getText(),
-                    urlField.getText(),
-                    priorityField.getText(),
-                    searchConfigField.getText(),
-                    optionsConfigField.getText());
-            updateUserData(id, user);
-            performDataBase.loadAllHomeBankingBotJob();
-            updateHomeBankList(performDataBase.getDatabaseList());
-        });
-
-        Button deleteButton = new Button("Delete");
-        deleteButton.setOnAction(event -> {
-            String id = idField.getText();
-            if (Integer.parseInt(jobsField.getText()) > 0) {
-                showAlert(
-                        Alert.AlertType.ERROR,
-                        "Error",
-                        "Action Remove Error",
-                        String.format(
-                                "This '%s' cannot be deleted.\nIt has %s Jobs",
-                                nameField.getText(), jobsField.getText()));
-                return;
-            }
-
-            deleteUserData(id);
-            performDataBase.loadAllHomeBankingBotJob();
-            updateHomeBankList(performDataBase.getDatabaseList());
-        });
-
-        Button templateButton = new Button("Template");
-        templateButton.setOnAction(event -> {
-            StringBuilder priorities = new StringBuilder();
-            priorities.append("#numero priorità, categoria, identificativo" + System.lineSeparator());
-            priorities.append("1,xpath,currentXPath" + System.lineSeparator());
-            priorities.append("2,attributeID,attributeID" + System.lineSeparator());
-            priorities.append("3,attributeName,attributeName" + System.lineSeparator());
-            priorities.append("4,searchAttribute,searchAttribute" + System.lineSeparator());
-            priorities.append("5,coordinates,coordinates" + System.lineSeparator());
-            priorities.append("6,attribute,test-id" + System.lineSeparator());
-            //            priorMissing.append("7,attributes,allAttributes" + System.lineSeparator());
-            priorityField.setText(priorities.toString());
-
-            StringBuilder searchCriteria = new StringBuilder();
-            //            searchCriteria.append("#numero priorità, categoria, criterioricerca" +
-            // System.lineSeparator());
-            searchCriteria.append("1,ByAttribute,test-id" + System.lineSeparator());
-            //            searchCriteria.append(
-            //                    "2,ByChained,By.tagName:input,By.className:mat-mdc-input-element" +
-            // System.lineSeparator());
-            //            searchCriteria.append(
-            //                    "3,ByChained,By.xpath://*[contains(@idCOMMA \"mat-input\")]" +
-            // System.lineSeparator());
-            //            searchCriteria.append("4,ByTagName,input" + System.lineSeparator());
-            //            searchCriteria.append("5,ByTagName,button" + System.lineSeparator());
-            //            searchCriteria.append("6,ByChained,By.cssSelector:[id^=\"mat-input\"]" +
-            // System.lineSeparator());
-
-            //            searchCriteria.append("1,ByAttribute,test-id" + System.lineSeparator());
-            //            searchCriteria.append("2,ByChained,By.tagName:input" + System.lineSeparator());
-            //            searchCriteria.append("3,ByChained,By.tagName:button" + System.lineSeparator());
-            //            searchCriteria.append("4,ByTagName,button,label,a" + System.lineSeparator());
-            //            searchCriteria.append("5,ByTagName,input" + System.lineSeparator());
-            searchConfigField.setText(searchCriteria.toString());
-
-            // Proxy Example
-            String argument1 = "arg:-disable-web-security";
-            String argument2 = "arg:-disable-site-isolation-trials";
-            String argument3 = "arg:-allow-running-insecure-content";
-            String argument4 = "arg:-disable-features=IsolateOrigins,site-per-process";
-            String argument5 = "arg:-disable-infobars";
-            String argument6 = "#arg:-disable-dev-shm-usage";
-            String proxyAddress = "#proxy:proxy_address:proxy_port";
-            //            String browserLog = "#browser_log:active";
-            //            String systemProps1 = "#systemProps:webdriver.chrome.logfile:logFolder";
-            //            String systemProps2 = "#systemProps:webdriver.chrome.verboseLogging:true";
-            StringBuilder optionsConfig = new StringBuilder();
-            optionsConfig.append(argument1 + System.lineSeparator());
-            optionsConfig.append(argument2 + System.lineSeparator());
-            optionsConfig.append(argument3 + System.lineSeparator());
-            optionsConfig.append(argument4 + System.lineSeparator());
-            optionsConfig.append(argument5 + System.lineSeparator());
-            optionsConfig.append(argument6 + System.lineSeparator());
-            optionsConfig.append(proxyAddress + System.lineSeparator());
-            //            optionsConfig.append(browserLog + System.lineSeparator());
-            //            optionsConfig.append(systemProps1 + System.lineSeparator());
-            //            optionsConfig.append(systemProps2 + System.lineSeparator());
-
-            optionsConfigField.setText(optionsConfig.toString());
-
-            //            loadAllHomeBankingBotJob();
-            //            updateHomeBankList(databaseList);
-        });
+        updateButton = new Button("Update");
+        deleteButton = new Button("Delete");
+        templateButton = new Button("Template");
 
         // Create layout and add components
         GridPane gridPane = new GridPane();
@@ -468,36 +308,177 @@ public class ARNewHomeBankingPane extends ARPane {
         tableView.setItems(performDataBase.getDatabaseList());
     }
 
-    //    private List<BankingDTO> loadFromDB() {
-    //
-    //        PerformDataBase..refreshEntity(null, HomeBankingDTO.class);
-    //
-    //        List<BankingDTO> dtoList = new ArrayList<>();
-    //
-    //        List<HomeBankingDTO> listHomeBankingDTO =
-    //                PerformDataBase..getEntityList(HomeBankingDTO.class);
-    //
-    //        // Iterate through the result set and populate the DTO list
-    //        for (HomeBankingDTO homeBankingDTO : listHomeBankingDTO) {
-    //            List<JobDTO> listJobsDto = new ArrayList<>();
-    //            for (BotJobDTO botJobDTO : homeBankingDTO.getBotJobs()) {
-    //                JobDTO jobsDto = new JobDTO(botJobDTO.getName(), botJobDTO.getDescription(), new ArrayList<>());
-    //                listJobsDto.add(jobsDto);
-    //            }
-    //
-    //            dtoList.add(new BankingDTO(
-    //                    homeBankingDTO.getId(),
-    //                    homeBankingDTO.getName(),
-    //                    homeBankingDTO.getUrl(),
-    //                    homeBankingDTO.getPriority(),
-    //                    listJobsDto.size(),
-    //                    listJobsDto));
-    //        }
-    //        return dtoList;
-    //    }
-
     @Override
-    public void initUIBehaviour() {}
+    public void initUIBehaviour() {
+        submitButton.setOnAction(event -> {
+            DatabaseUserDTO user = new DatabaseUserDTO(
+                    null,
+                    nameField.getText().trim(),
+                    urlField.getText().trim(),
+                    priorityField.getText(),
+                    searchConfigField.getText(),
+                    optionsConfigField.getText());
+
+            if (nameExists(nameField.getText().trim())) {
+                showAlert(
+                        Alert.AlertType.ERROR,
+                        "Error",
+                        "Env Name Already Exist",
+                        String.format("This '%s' cannot be inserted with same name.\n", nameField.getText()));
+                return;
+            }
+
+            if (nameField.getText().trim().isEmpty()
+                    || urlField.getText().trim().isEmpty()) {
+                showAlert(
+                        Alert.AlertType.ERROR, "Error", "Name and URL Cannot be Empty", "Name and URL Cannot be Empty");
+                return;
+            }
+
+            int newHomeId = saveUserData(user);
+
+            if (newHomeId > -1) {
+                try (Connection conn = performDataBase.getConnection()) {
+                    int newHomeUrlId = performDataBase.loadNexHomeUrlData() + 1;
+
+                    ErrorMessage errorMessage =
+                            performDataBase.insertHomeUrlChild(conn, newHomeId, user.getUrl(), newHomeUrlId);
+
+                    if (errorMessage != null) {
+                        performMessage.errorMessage(
+                                "Clone Bot Job Failed",
+                                errorMessage.getErrorTitle(),
+                                errorMessage.getErrorHeader(),
+                                "Verify  [INSERT] or [UPDATE] or [SELECT]",
+                                null,
+                                0);
+                    } else {
+
+                        performMessage.errorMessage(
+                                "Cannot Create New Environment ",
+                                "Verify  [INSERT] or [UPDATE] or [SELECT]",
+                                null,
+                                null,
+                                null,
+                                0);
+                    }
+
+                } catch (SQLException error) {
+                    System.out.println(error.getMessage());
+                }
+            }
+
+            performDataBase.loadAllHomeBankingBotJob();
+            updateHomeBankList(performDataBase.getDatabaseList());
+        });
+
+        updateButton.setOnAction(event -> {
+            String id = idField.getText();
+            DatabaseUserDTO user = new DatabaseUserDTO(
+                    id,
+                    nameField.getText(),
+                    urlField.getText(),
+                    priorityField.getText(),
+                    searchConfigField.getText(),
+                    optionsConfigField.getText());
+            updateUserData(id, user);
+            performDataBase.loadAllHomeBankingBotJob();
+            updateHomeBankList(performDataBase.getDatabaseList());
+        });
+        deleteButton.setOnAction(event -> {
+            String id = idField.getText();
+            if (Integer.parseInt(jobsField.getText()) > 0) {
+                performMessage.errorMessage(
+                        "Attempt to Delete",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>The organization cannot be deleted:</span>",
+                        "<span style='font-weight: bold;'>" + nameField.getText() + "</span>.",
+                        "<span style='color: #E65100; font-weight: bold;'>Please delete the bot job(s) attached to it first.</span>",
+                        "<span style='font-style: italic;'>Details: Total bot jobs attached: " + jobsField.getText()
+                                + "</span>",
+                        0);
+                return;
+            }
+
+            ARConstants.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
+                    "Delete Confirmation",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Are you sure you want to delete this organization?</span>",
+                    "<span style='font-weight: bold;'>" + nameField.getText() + "</span>",
+                    null,
+                    null,
+                    false,
+                    "Continue",
+                    "Cancel",
+                    0);
+
+            if (respModal.equals(ARConstants.DialogModal.OK)) {
+                deleteUserData(id);
+                performDataBase.loadAllHomeBankingBotJob();
+                updateHomeBankList(performDataBase.getDatabaseList());
+            }
+        });
+        templateButton.setOnAction(event -> {
+            StringBuilder priorities = new StringBuilder();
+            priorities.append("#numero priorità, categoria, identificativo" + System.lineSeparator());
+            priorities.append("1,xpath,currentXPath" + System.lineSeparator());
+            priorities.append("2,attributeID,attributeID" + System.lineSeparator());
+            priorities.append("3,attributeName,attributeName" + System.lineSeparator());
+            priorities.append("4,searchAttribute,searchAttribute" + System.lineSeparator());
+            priorities.append("5,coordinates,coordinates" + System.lineSeparator());
+            priorities.append("6,attribute,test-id" + System.lineSeparator());
+            //            priorMissing.append("7,attributes,allAttributes" + System.lineSeparator());
+            priorityField.setText(priorities.toString());
+
+            StringBuilder searchCriteria = new StringBuilder();
+            //            searchCriteria.append("#numero priorità, categoria, criterioricerca" +
+            // System.lineSeparator());
+            searchCriteria.append("1,ByAttribute,test-id" + System.lineSeparator());
+            //            searchCriteria.append(
+            //                    "2,ByChained,By.tagName:input,By.className:mat-mdc-input-element" +
+            // System.lineSeparator());
+            //            searchCriteria.append(
+            //                    "3,ByChained,By.xpath://*[contains(@idCOMMA \"mat-input\")]" +
+            // System.lineSeparator());
+            //            searchCriteria.append("4,ByTagName,input" + System.lineSeparator());
+            //            searchCriteria.append("5,ByTagName,button" + System.lineSeparator());
+            //            searchCriteria.append("6,ByChained,By.cssSelector:[id^=\"mat-input\"]" +
+            // System.lineSeparator());
+
+            //            searchCriteria.append("1,ByAttribute,test-id" + System.lineSeparator());
+            //            searchCriteria.append("2,ByChained,By.tagName:input" + System.lineSeparator());
+            //            searchCriteria.append("3,ByChained,By.tagName:button" + System.lineSeparator());
+            //            searchCriteria.append("4,ByTagName,button,label,a" + System.lineSeparator());
+            //            searchCriteria.append("5,ByTagName,input" + System.lineSeparator());
+            searchConfigField.setText(searchCriteria.toString());
+
+            // Proxy Example
+            String argument1 = "arg:-disable-web-security";
+            String argument2 = "arg:-disable-site-isolation-trials";
+            String argument3 = "arg:-allow-running-insecure-content";
+            String argument4 = "arg:-disable-features=IsolateOrigins,site-per-process";
+            String argument5 = "arg:-disable-infobars";
+            String argument6 = "#arg:-disable-dev-shm-usage";
+            String proxyAddress = "#proxy:proxy_address:proxy_port";
+            //            String browserLog = "#browser_log:active";
+            //            String systemProps1 = "#systemProps:webdriver.chrome.logfile:logFolder";
+            //            String systemProps2 = "#systemProps:webdriver.chrome.verboseLogging:true";
+            StringBuilder optionsConfig = new StringBuilder();
+            optionsConfig.append(argument1 + System.lineSeparator());
+            optionsConfig.append(argument2 + System.lineSeparator());
+            optionsConfig.append(argument3 + System.lineSeparator());
+            optionsConfig.append(argument4 + System.lineSeparator());
+            optionsConfig.append(argument5 + System.lineSeparator());
+            optionsConfig.append(argument6 + System.lineSeparator());
+            optionsConfig.append(proxyAddress + System.lineSeparator());
+            //            optionsConfig.append(browserLog + System.lineSeparator());
+            //            optionsConfig.append(systemProps1 + System.lineSeparator());
+            //            optionsConfig.append(systemProps2 + System.lineSeparator());
+
+            optionsConfigField.setText(optionsConfig.toString());
+
+            //            loadAllHomeBankingBotJob();
+            //            updateHomeBankList(databaseList);
+        });
+    }
 
     private void updateFields() {}
 
