@@ -57,13 +57,16 @@ public class ARMainPane extends ARPane {
         return instance;
     }
 
-    public void initialize(ObservableList<WebDriver> webDriverList) {
+    public void initialize(ObservableList<WebDriver> webDriverList, boolean isEnabledLicence) {
+        this.isEnabledLicence = isEnabledLicence;
         this.webDriverList = webDriverList;
 
         if (performDataBase.getConn() != null) {
             botJobList.addAll(performDataBase.loadAllBotJobs(performDataBase.getConn()));
         }
     }
+
+    private boolean isEnabledLicence;
 
     private static final String OPENAI_ENDPOINT = "https://api.openai.com/v1/chat/completions";
 
@@ -177,7 +180,7 @@ public class ARMainPane extends ARPane {
         viewBotJobListView.setCellFactory(new ARCellFactory<>(
                 BotJobListCell.class, arViewBotJobScene, arWebDriver, botJobList, webDriverList)::call);
 
-        arConfigurationScene.initialize(viewBotJobListView, botJobList);
+        arConfigurationScene.initialize(viewBotJobListView, botJobList, isEnabledLicence);
         arNewBotJobScene.initialize(arViewBotJobScene, arWebDriver, botJobList, webDriverList);
         arWebDriver.initialize(webDriverList);
 
@@ -216,7 +219,7 @@ public class ARMainPane extends ARPane {
         });
 
         cloneBotJobButton.setOnMouseClicked(e -> {
-            if (!checkLicense()) {
+            if (isEnabledLicence && !checkLicense()) {
                 return;
             }
 
@@ -238,7 +241,7 @@ public class ARMainPane extends ARPane {
         });
 
         configureButton.setOnMouseClicked(e -> {
-            arConfigurationScene.initialize(viewBotJobListView, botJobList);
+            arConfigurationScene.initialize(viewBotJobListView, botJobList, isEnabledLicence);
             arConfigurationScene.showModal();
             try {
                 performDataBase.changeDbConnection();
@@ -265,7 +268,7 @@ public class ARMainPane extends ARPane {
         });
 
         editBotJobButton.setOnMouseClicked(e -> {
-            if (!checkLicense()) {
+            if (isEnabledLicence && !checkLicense()) {
                 return;
             }
 
@@ -294,7 +297,7 @@ public class ARMainPane extends ARPane {
         });
 
         launchBotJobButton.setOnMouseClicked(e -> {
-            if (!checkLicense()) {
+            if (isEnabledLicence && !checkLicense()) {
                 return;
             }
 

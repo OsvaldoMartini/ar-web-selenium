@@ -50,7 +50,7 @@ public class ARControlPanel extends Application {
         arMainScene = ARMainScene.getInstance();
     }
 
-    private static boolean isEnabledLicence = false;
+    private static boolean isEnabledLicence = true;
 
     @Override
     public void start(Stage stage) throws Exception {
@@ -80,6 +80,7 @@ public class ARControlPanel extends Application {
                     arPropertyManager.createDefaultProperties(configurationFile);
                 }
                 Platform.runLater(() -> {
+                    arConfigurationScene.initializeLicense(isEnabledLicence);
                     arConfigurationScene.showModal();
                     licenseControl();
                 });
@@ -152,6 +153,7 @@ public class ARControlPanel extends Application {
                                 databaseControl();
                                 webSocketControl();
 
+                                arMainScene.initialize(isEnabledLicence);
                                 arMainScene.showModal();
                             } else {
                                 licenseMessages(license.get());

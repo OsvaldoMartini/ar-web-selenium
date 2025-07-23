@@ -71,8 +71,14 @@ public class ARConfigurationPane extends ARPane {
     private ObservableList<BotJobLoadDTO> botJobList;
     private Stage modalStage;
 
+    private boolean isEnabledLicence;
+
     public void initialize(
-            Stage modalStage, ListView<BotJobLoadDTO> viewBotJobListView, ObservableList<BotJobLoadDTO> botJobList) {
+            Stage modalStage,
+            ListView<BotJobLoadDTO> viewBotJobListView,
+            ObservableList<BotJobLoadDTO> botJobList,
+            boolean isEnabledLicence) {
+        this.isEnabledLicence = isEnabledLicence;
         this.modalStage = modalStage;
         this.viewBotJobListView = viewBotJobListView;
         this.botJobList = botJobList;
@@ -516,7 +522,7 @@ public class ARConfigurationPane extends ARPane {
         //                        .subtract(ARConstants.SPACE_M * 2)
         //                        .subtract(ARConstants.SPACE_L * 2));
         addHomeBankingButton.setOnMouseClicked(e -> {
-            if (!checkLicense()) {
+            if (isEnabledLicence && !checkLicense()) {
                 return;
             }
             arNewHomeBankingScene.initialize(homeBankingList);
@@ -824,7 +830,7 @@ public class ARConfigurationPane extends ARPane {
     }
 
     private void deleteAllDB() {
-        if (!checkLicense()) {
+        if (isEnabledLicence && !checkLicense()) {
             return;
         }
 

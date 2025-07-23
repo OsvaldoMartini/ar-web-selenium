@@ -34,6 +34,7 @@ public class ARConfigurationScene extends ARScene {
         return instance;
     }
 
+    private boolean isEnabledLicence;
     private Stage modalStage;
     private Scene modalScene;
 
@@ -84,7 +85,7 @@ public class ARConfigurationScene extends ARScene {
 
     public void showModal() {
 
-        arConfigurationPane.initialize(modalStage, viewBotJobListView, botJobList);
+        arConfigurationPane.initialize(modalStage, viewBotJobListView, botJobList, isEnabledLicence);
 
         if (modalStage == null) {
             modalStage = new Stage();
@@ -132,8 +133,16 @@ public class ARConfigurationScene extends ARScene {
         }
     }
 
-    public void initialize(ListView<BotJobLoadDTO> viewBotJobListView, ObservableList<BotJobLoadDTO> botJobList) {
+    public void initialize(
+            ListView<BotJobLoadDTO> viewBotJobListView,
+            ObservableList<BotJobLoadDTO> botJobList,
+            boolean isEnabledLicence) {
+        this.isEnabledLicence = isEnabledLicence;
         this.viewBotJobListView = viewBotJobListView;
         this.botJobList = botJobList;
+    }
+
+    public void initializeLicense(boolean isEnabledLicence) {
+        this.isEnabledLicence = isEnabledLicence;
     }
 }

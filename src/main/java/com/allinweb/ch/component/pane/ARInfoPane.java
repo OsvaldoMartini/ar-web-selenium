@@ -37,7 +37,11 @@ public class ARInfoPane extends ARPane {
         return instance;
     }
 
-    public void initialize() {}
+    private boolean isEnabledLicence;
+
+    public void initialize(boolean isEnabledLicence) {
+        this.isEnabledLicence = isEnabledLicence;
+    }
 
     private Label applicationNameLabel;
     private Label compileDateLabel;
@@ -97,8 +101,14 @@ public class ARInfoPane extends ARPane {
 
         } catch (Exception e) {
             // Fallback in case of invalid format
-            expirationDateLabel.setStyle(baseLabelStyle + "-fx-text-fill: #d63031;");
-            expirationDateLabel.setText("Expiration: Invalid date");
+            if (isEnabledLicence) {
+                expirationDateLabel.setStyle(baseLabelStyle + "-fx-text-fill: #d63031; -fx-font-weight: bold;");
+                expirationDateLabel.setText("⚠ Unlicensed Version – Features May Be Limited");
+            } else {
+                expirationDateLabel.setStyle(
+                        baseLabelStyle + "-fx-text-fill: #3498db; -fx-font-weight: bold;"); // Blue tone
+                expirationDateLabel.setText("⚠ Unlicensed Version – Demo Version");
+            }
         }
 
         // VBox container

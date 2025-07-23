@@ -39,8 +39,9 @@ public class ARInfoScene extends ARScene {
         arInfoPane = ARInfoPane.getInstance();
     }
 
+    private boolean isEnabledLicence;
     private static final Double SCENE_HEIGHT = 300D;
-    private static final Double SCENE_WIDTH = 300D;
+    private static final Double SCENE_WIDTH = 400D;
     private static final String TITLE = "About";
 
     @Override
@@ -65,7 +66,7 @@ public class ARInfoScene extends ARScene {
 
     public void showModal() {
 
-        arInfoPane.initialize();
+        arInfoPane.initialize(isEnabledLicence);
 
         if (modalStage == null) {
             modalStage = new Stage();

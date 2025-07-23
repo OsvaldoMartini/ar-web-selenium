@@ -37,6 +37,7 @@ public class ARMainScene extends ARScene {
         return instance;
     }
 
+    private boolean isEnabledLicence;
     private Stage modalStage;
     private Scene modalScene;
 
@@ -76,6 +77,10 @@ public class ARMainScene extends ARScene {
         //        }
     }
 
+    public void initialize(boolean isEnabledLicence) {
+        this.isEnabledLicence = isEnabledLicence;
+    }
+
     @Override
     public IARPane buildPane() {
         //        initiateJetty();
@@ -111,7 +116,7 @@ public class ARMainScene extends ARScene {
 
     public void showModal() {
 
-        arMainPane.initialize(webDriverList);
+        arMainPane.initialize(webDriverList, isEnabledLicence);
 
         if (modalStage == null) {
             modalStage = new Stage();
