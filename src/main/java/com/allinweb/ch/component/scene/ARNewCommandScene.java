@@ -258,7 +258,7 @@ public class ARNewCommandScene extends ARScene {
                 modalScene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
                 modalStage.setScene(modalScene);
                 modalStage.setTitle(getTitle());
-                modalStage.initModality(Modality.NONE); // Changed to NONE
+                modalStage.initModality(Modality.NONE);
                 modalStage.setAlwaysOnTop(true); // Set always on top
                 modalStage.toFront();
                 // Reset alwaysOnTop after showing so it behaves normally afterward

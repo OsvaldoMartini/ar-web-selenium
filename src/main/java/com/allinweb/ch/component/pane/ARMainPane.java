@@ -33,6 +33,7 @@ import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.layout.*;
+import javafx.stage.Stage;
 import lombok.Getter;
 import org.openqa.selenium.WebDriver;
 
@@ -148,7 +149,7 @@ public class ARMainPane extends ARPane {
         // 🔹 AI Button and TextArea
         aiButton = builder.buildButton(
                 "AI", ARConstants.SPACE_L, ARConstants.ICON_AI, ARConstants.SPACE_M, new Insets(8, 10, 8, 10));
-        aiButton.setVisible(true);
+        aiButton.setVisible(false);
 
         aiTextArea = new TextArea();
         aiTextArea.setPromptText("AI Tool: Upgrade your version to access this premium feature.");
@@ -227,7 +228,8 @@ public class ARMainPane extends ARPane {
             if (selecBotJobDTO != null) {
                 if (performDataBase.getConn() != null) {
                     arSaveCloneScene.initialize(selecBotJobDTO, botJobList);
-                    arSaveCloneScene.showModal();
+                    Stage currentStage = (Stage) cloneBotJobButton.getScene().getWindow();
+                    arSaveCloneScene.showModal(currentStage);
 
                     ObservableList<BotJobLoadDTO> botJobList = FXCollections.observableArrayList(
                             performDataBase.loadAllBotJobs(performDataBase.getConn()));

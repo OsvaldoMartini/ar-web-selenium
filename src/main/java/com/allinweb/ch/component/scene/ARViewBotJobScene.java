@@ -260,7 +260,7 @@ public class ARViewBotJobScene extends ARScene {
                 modalScene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
                 modalStage.setScene(modalScene);
                 modalStage.setTitle(getTitle());
-                modalStage.initModality(Modality.WINDOW_MODAL); // Changed to NONE
+                modalStage.initModality(Modality.WINDOW_MODAL);
                 modalStage.setAlwaysOnTop(true); // Set always on top
                 modalStage.toFront();
                 // Reset alwaysOnTop after showing so it behaves normally afterward

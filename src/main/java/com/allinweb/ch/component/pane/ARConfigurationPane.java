@@ -540,7 +540,8 @@ public class ARConfigurationPane extends ARPane {
                 return;
             }
             arNewHomeBankingScene.initialize(homeBankingList);
-            arNewHomeBankingScene.showModal();
+            Stage currentStage = (Stage) addHomeBankingButton.getScene().getWindow();
+            arNewHomeBankingScene.showModal(currentStage);
         });
 
         pathLicenseButton.setOnMouseClicked(e -> openChooserFor(pathLicense, modalStage, true));

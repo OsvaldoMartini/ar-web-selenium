@@ -218,36 +218,37 @@ public class ARSaveClonePane extends ARPane {
                         System.out.println("Found matching HomeUrlDTO: id=" + matchedHomeUrl.getId() + ", url="
                                 + matchedHomeUrl.getUrl());
 
-                        cloneNewBotJob(matchedHomeUrl, newBotJobName, newDescription, stage);
+                        cloneBotJobSteps(matchedHomeUrl, newBotJobName, newDescription, stage);
+                        //                        cloneNewBotJob(matchedHomeUrl, newBotJobName, newDescription, stage);
 
                     } else {
                         System.out.println("No matching HomeUrlDTO found.");
+
                         try (Connection conn = performDataBase.getConnection()) {
-                            int newHomeUrlId = performDataBase.loadNexHomeUrlData() + 1;
-
-                            ErrorMessage errorMessage = performDataBase.insertHomeUrlChild(
-                                    conn,
+                            ErrorMessage errorMessage = performDataBase.insertNewHomeUrl(
                                     selecBotJobDTO.getHomeBankingId(),
-                                    newUrl.getText().trim(),
-                                    newHomeUrlId);
-
+                                    newUrl.getText().trim());
                             if (errorMessage != null) {
                                 performMessage.errorMessage(
-                                        "Clone Bot Job Failed",
+                                        "Insert Home URL Failed",
                                         errorMessage.getErrorTitle(),
                                         errorMessage.getErrorHeader(),
-                                        "Verify  [INSERT] or [UPDATE] or [SELECT]",
+                                        errorMessage.getErrorMessage(),
                                         null,
                                         0);
                             } else {
+
+                                // After the Insert
+                                int newHomeUrlId = performDataBase.getMaxId(conn, "home_url");
 
                                 HomeUrlDTO homeUrlDTO = new HomeUrlDTO();
                                 homeUrlDTO.setId(newHomeUrlId);
                                 homeUrlDTO.setHomeBankingId(selecBotJobDTO.getHomeBankingId());
                                 homeUrlDTO.setUrl(newUrl.getText().trim());
-                                cloneNewBotJob(homeUrlDTO, newBotJobName, newDescription, stage);
+                                //                                cloneNewBotJob(homeUrlDTO, newBotJobName,
+                                // newDescription, stage);
+                                cloneBotJobSteps(homeUrlDTO, newBotJobName, newDescription, stage);
                             }
-
                         } catch (SQLException error) {
                             System.out.println(error.getMessage());
                         }

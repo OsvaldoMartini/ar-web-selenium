@@ -5887,6 +5887,150 @@ ORDER BY bot.id ASC;
         }
     }
 
+    public ErrorMessage insertNewHomeUrl(int homeBankId, String newUrl) throws SQLException {
+        String checkQuery = "SELECT COUNT(*) FROM home_url WHERE url = ? AND home_banking_id = ?";
+        String blockInsertQuery = "INSERT INTO home_url (id, url, home_banking_id) VALUES (?, ?, ?)";
+
+        try (Connection conn = getConnection()) {
+            // Check if the URL already exists for the given home_banking_id
+            try (PreparedStatement checkStmt = conn.prepareStatement(checkQuery)) {
+                checkStmt.setString(1, newUrl);
+                checkStmt.setInt(2, homeBankId);
+
+                try (ResultSet rs = checkStmt.executeQuery()) {
+                    if (rs.next() && rs.getInt(1) > 0) {
+                        return new ErrorMessage(
+                                "Error: URL already exists for this organization.",
+                                "Duplicate URL Entry",
+                                "The URL '" + newUrl + "' is already assigned to this home_banking_id: " + homeBankId);
+                    }
+                }
+            }
+
+            // Proceed with insertion
+            try (PreparedStatement insertStmt = conn.prepareStatement(blockInsertQuery)) {
+                int newHomeUrlId = getMaxId(conn, "home_url") + 1;
+
+                int index = 1;
+                insertStmt.setInt(index++, newHomeUrlId);
+                insertStmt.setString(index++, newUrl);
+                insertStmt.setInt(index++, homeBankId);
+
+                insertStmt.executeUpdate(); // Use executeUpdate for single insert
+                return null;
+            }
+
+        } catch (SQLException error) {
+            System.out.println(error.getMessage());
+            return new ErrorMessage("Error inserting URL", "Org URL Insertion Failure", error.getMessage());
+        }
+    }
+
+    public ErrorMessage updateHomeUrl(int homeUrlId, int homeBankId, String newUrl) throws SQLException {
+        String checkQuery = "SELECT COUNT(*) FROM home_url WHERE url = ? AND home_banking_id = ? AND id != ?";
+        String updateQuery = "UPDATE home_url SET url = ? WHERE id = ? AND home_banking_id = ?";
+
+        try (Connection conn = getConnection()) {
+            // Check if the URL already exists for this org but with a different ID
+            try (PreparedStatement checkStmt = conn.prepareStatement(checkQuery)) {
+                checkStmt.setString(1, newUrl);
+                checkStmt.setInt(2, homeBankId);
+                checkStmt.setInt(3, homeUrlId);
+
+                try (ResultSet rs = checkStmt.executeQuery()) {
+                    if (rs.next() && rs.getInt(1) > 0) {
+                        return new ErrorMessage(
+                                "Error: URL already exists for this organization.",
+                                "Duplicate URL Entry",
+                                "The URL '" + newUrl + "' is already assigned to this home_banking_id: " + homeBankId);
+                    }
+                }
+            }
+
+            // Proceed with update
+            try (PreparedStatement updateStmt = conn.prepareStatement(updateQuery)) {
+                updateStmt.setString(1, newUrl);
+                updateStmt.setInt(2, homeUrlId);
+                updateStmt.setInt(3, homeBankId);
+
+                int updated = updateStmt.executeUpdate();
+                if (updated == 0) {
+                    return new ErrorMessage(
+                            "No URL updated",
+                            "Update Failed",
+                            "No record was found with ID " + homeUrlId + " for home_banking_id " + homeBankId);
+                }
+
+                return null;
+            }
+
+        } catch (SQLException error) {
+            System.out.println(error.getMessage());
+            return new ErrorMessage("Error updating URL", "Org URL Update Failure", error.getMessage());
+        }
+    }
+
+    public ErrorMessage deleteHomeUrl(int homeUrlId) throws SQLException {
+        String usageCheckQuery = "SELECT COUNT(*) AS usage_count FROM bot_job WHERE home_url_id = ?";
+        String deleteQuery = "DELETE FROM home_url WHERE id = ?";
+
+        try (Connection conn = getConnection()) {
+            // Step 1: Check usage in bot_job
+            try (PreparedStatement checkStmt = conn.prepareStatement(usageCheckQuery)) {
+                checkStmt.setInt(1, homeUrlId);
+
+                try (ResultSet rs = checkStmt.executeQuery()) {
+                    if (rs.next()) {
+                        int usageCount = rs.getInt("usage_count");
+                        if (usageCount > 0) {
+                            return new ErrorMessage(
+                                    "Cannot delete URL",
+                                    "URL in Use",
+                                    "This URL is used in " + usageCount
+                                            + " bot_job(s). Please detach it before deletion.");
+                        }
+                    }
+                }
+            }
+
+            // Step 2: Proceed with deletion
+            try (PreparedStatement deleteStmt = conn.prepareStatement(deleteQuery)) {
+                deleteStmt.setInt(1, homeUrlId);
+                int rows = deleteStmt.executeUpdate();
+
+                if (rows == 0) {
+                    return new ErrorMessage("URL not found", "Deletion Failure", "No matching URL ID found.");
+                }
+
+                return null; // Success
+            }
+
+        } catch (SQLException e) {
+            return new ErrorMessage("Error deleting URL", "Database Error", e.getMessage());
+        }
+    }
+
+    public int countUsageOfHomeUrlId(int homeUrlId) {
+        String countQuery = "SELECT COUNT(*) AS usage_count FROM bot_job WHERE home_url_id = ?";
+
+        try (Connection conn = getConnection();
+                PreparedStatement stmt = conn.prepareStatement(countQuery)) {
+
+            stmt.setInt(1, homeUrlId);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("usage_count");
+                }
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Error counting usage of Home URL ID " + homeUrlId + ": " + e.getMessage());
+        }
+
+        return 0; // Return 0 if query fails or no result
+    }
+
     public ObservableList<DatabaseUserDTO> loadAllHomeBankingBotJob() {
         databaseList.clear();
         String selectSQL =
@@ -5990,7 +6134,8 @@ GROUP BY
 
     public List<HomeUrlDTO> loadAllHomeURLByHomeId(int homeBankingId) {
         homeURLList.clear();
-        String selectSQL = " SELECT *  FROM home_url bank " + " where home_banking_id = " + homeBankingId;
+        String selectSQL =
+                " SELECT *  FROM home_url bank " + " where home_banking_id = " + homeBankingId + " order by id";
 
         try (Statement stmt = getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
@@ -11160,44 +11305,42 @@ GROUP BY
         try (Statement stmt = getConnection().createStatement()) {
 
             // Execute each statement individually
-            stmt.executeUpdate("DELETE FROM job_run_report;");
             stmt.executeUpdate("DELETE FROM variable;");
             stmt.executeUpdate("DELETE FROM reference;");
             stmt.executeUpdate("DELETE FROM instruction;");
             stmt.executeUpdate("DELETE FROM block;");
             stmt.executeUpdate("DELETE FROM bot_job;");
 
+            stmt.executeUpdate("DELETE FROM component_variable;");
             stmt.executeUpdate("DELETE FROM component_reference;");
             stmt.executeUpdate("DELETE FROM component_instruction;");
             stmt.executeUpdate("DELETE FROM component_block;");
 
             // Drop sequences if they exist
-            if (!dataBaseType.equalsIgnoreCase("ACCESS")) {
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"blockLoopInstructionSeq\";");
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"blockSeq\";");
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"botJobSeq\";");
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"variableSeq\";");
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"instructionReferenceSeq\";");
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedInstructionReferenceSeq\";");
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"excelReportSeq\";");
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedInstructionReferenceSeq\";");
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedBlockLoopInstructionSeq\";");
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"complexInstructionSeq\";");
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"configurationSeq\";");
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"homeBankingSeq\";");
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedBlockSeq\";");
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"idgen\";");
-            }
+            //            if (!dataBaseType.equalsIgnoreCase("ACCESS")) {
+            //                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"blockLoopInstructionSeq\";");
+            //                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"blockSeq\";");
+            //                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"botJobSeq\";");
+            //                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"variableSeq\";");
+            //                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"instructionReferenceSeq\";");
+            //                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedInstructionReferenceSeq\";");
+            //                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"excelReportSeq\";");
+            //                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedInstructionReferenceSeq\";");
+            //                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedBlockLoopInstructionSeq\";");
+            //                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"complexInstructionSeq\";");
+            //                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"configurationSeq\";");
+            //                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"homeBankingSeq\";");
+            //                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedBlockSeq\";");
+            //                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"idgen\";");
+            //            }
             ARLogger.getInstance(PerformDataBase.class)
                     .info("All Rows DELETED for:\n"
-                            + "ExcelReportDTO;\n"
                             + "Variables;\n"
                             + "Instructions References;\n"
                             + "Instructions;\n"
                             + "Blocks;\n"
                             + "Bot Jobs;\n"
-                            + "Saved Components;\n"
-                            + "Sequences dropped.");
+                            + "Saved Components;");
 
             return true;
 

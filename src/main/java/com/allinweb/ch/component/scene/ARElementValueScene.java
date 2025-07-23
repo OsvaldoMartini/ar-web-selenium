@@ -112,7 +112,7 @@ public class ARElementValueScene extends ARScene {
                 modalStage.setScene(modalScene);
                 modalStage.setTitle(getTitle());
                 if (getTitle().equalsIgnoreCase("New Variables")) {
-                    modalStage.initModality(Modality.WINDOW_MODAL); // Changed to NONE
+                    modalStage.initModality(Modality.WINDOW_MODAL);
                 } else {
                     modalStage.initModality(Modality.NONE);
                 }

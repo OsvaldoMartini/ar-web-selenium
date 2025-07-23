@@ -2,6 +2,7 @@ package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.model.BankingDTO;
 import com.allinweb.ch.component.model.HomeBankingLoadDTO;
+import com.allinweb.ch.component.model.HomeUrlDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
@@ -70,10 +71,14 @@ public class ARNewHomeBankingPane extends ARPane {
         performDataBase = PerformDataBase.getInstance();
     }
 
-    private Button submitButton;
-    private Button updateButton;
-    private Button deleteButton;
-    private Button templateButton;
+    private Button insertORGButton;
+    private Button updateORGButton;
+    private Button deleteORGButton;
+    private Button templateORGButton;
+
+    private Button insertURLButton;
+    private Button updateURLButton;
+    private Button deleteURLButton;
 
     // Create labels
     private Label idLabel;
@@ -91,6 +96,8 @@ public class ARNewHomeBankingPane extends ARPane {
     private TextField jobsField;
     private TextArea searchConfigField;
     private TextArea optionsConfigField;
+    private TextField homeUrlIdField;
+    private TextField homeUrlValueField;
 
     // Regular expression for a basic URL validation (improved)
     private static final String URL_REGEX =
@@ -99,8 +106,8 @@ public class ARNewHomeBankingPane extends ARPane {
     private static final Pattern URL_PATTERN = Pattern.compile(URL_REGEX, Pattern.CASE_INSENSITIVE);
 
     private Connection conn = null;
-    private TableView<DatabaseUserDTO> tableView = new TableView<>();
-
+    private TableView<DatabaseUserDTO> tableView;
+    private TableView<HomeUrlDTO> tableViewHomeUrl;
     private List<BankingDTO> dtoList;
 
     private Pane mainPane;
@@ -151,13 +158,14 @@ public class ARNewHomeBankingPane extends ARPane {
         optionsConfigField.setPrefRowCount(3); // Set preferred row count for the TextArea
         optionsConfigField.setStyle("-fx-control-inner-background: FFDA33;");
 
-        // Create submit button
-        submitButton = new Button("Insert");
+        insertORGButton = new Button("Insert");
+        updateORGButton = new Button("Update");
+        deleteORGButton = new Button("Delete");
+        templateORGButton = new Button("Template");
 
-        // Create update button
-        updateButton = new Button("Update");
-        deleteButton = new Button("Delete");
-        templateButton = new Button("Template");
+        insertURLButton = new Button("Insert URL");
+        updateURLButton = new Button("Update URL");
+        deleteURLButton = new Button("Delete URL");
 
         // Create layout and add components
         GridPane gridPane = new GridPane();
@@ -187,7 +195,7 @@ public class ARNewHomeBankingPane extends ARPane {
         gridPane.add(optionsConfigLabel, 0, 7);
         gridPane.add(optionsConfigField, 1, 7);
 
-        HBox buttonsBox = new HBox(10, submitButton, updateButton, deleteButton, templateButton);
+        HBox buttonsBox = new HBox(10, insertORGButton, updateORGButton, deleteORGButton, templateORGButton);
         buttonsBox.setAlignment(Pos.CENTER);
         buttonsBox.setSpacing(10); // Horizontal spacing between buttons
 
@@ -233,40 +241,76 @@ public class ARNewHomeBankingPane extends ARPane {
 
         tableView.setItems(performDataBase.getDatabaseList());
 
-        tableView.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
-            if (newSelection != null) {
-                // Get the selected UserDTO object
-                DatabaseUserDTO selectedUser = tableView.getSelectionModel().getSelectedItem();
-
-                // Set the values of the selected row to the text fields
-                idField.setText(selectedUser.getId());
-                nameField.setText(selectedUser.getName());
-                urlField.setText(selectedUser.getUrl());
-                priorityField.setText(selectedUser.getPriority());
-                jobsField.setText(selectedUser.getJobs()); // Update the hidden field
-                searchConfigField.setText(selectedUser.getSearchConfig()); // Update the hidden field
-                optionsConfigField.setText(selectedUser.getOptionsConfig()); // Update the hidden field
-            } else {
-                // If no row is selected, clear the text fields
-                idField.clear();
-                nameField.clear();
-                urlField.clear();
-                priorityField.clear();
-                jobsField.clear();
-                searchConfigField.clear();
-                optionsConfigField.clear();
-                // Clear other fields as needed
-            }
-        });
-
         // Wrap the tableView in a VBox for more control
         VBox tableViewContainer = new VBox(tableView);
         tableViewContainer.setAlignment(Pos.BOTTOM_CENTER);
         tableViewContainer.setSpacing(10); // Spacing around the tableView
         tableViewContainer.setPadding(new Insets(10)); // Padding inside the tableView container
 
+        // Create the second TableView for HomeUrlDTO
+        tableViewHomeUrl = new TableView<>();
+        tableViewHomeUrl.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+
+        // ID Column – fixed width
+        TableColumn<HomeUrlDTO, Integer> homeUrlIdColumn = new TableColumn<>("ID");
+        homeUrlIdColumn.setCellValueFactory(new PropertyValueFactory<>("id"));
+        homeUrlIdColumn.setPrefWidth(50); // Fixed width
+        homeUrlIdColumn.setMinWidth(20); // Prevent shrinking too much
+        homeUrlIdColumn.setMaxWidth(50); // Fixed max
+
+        // URL Column – takes remaining width
+        TableColumn<HomeUrlDTO, String> homeUrlColumn = new TableColumn<>("URL");
+        homeUrlColumn.setCellValueFactory(new PropertyValueFactory<>("url"));
+        homeUrlColumn.setMaxWidth(Double.MAX_VALUE); // Allow it to grow
+
+        tableViewHomeUrl.getColumns().addAll(homeUrlIdColumn, homeUrlColumn);
+
+        VBox tableViewHomeUrlContainer = new VBox(tableViewHomeUrl);
+        tableViewHomeUrlContainer.setAlignment(Pos.BOTTOM_CENTER);
+        tableViewHomeUrlContainer.setSpacing(10);
+        tableViewHomeUrlContainer.setPadding(new Insets(10));
+        // Optional: Allow the table to grow with the window
+        VBox.setVgrow(tableViewHomeUrlContainer, Priority.ALWAYS);
+
+        // Create Home URL detail fields
+        homeUrlIdField = new TextField();
+        homeUrlIdField.setPromptText("Home URL ID");
+        homeUrlIdField.setEditable(false);
+        homeUrlIdField.setStyle("-fx-control-inner-background: #D3D3D3;");
+        homeUrlIdField.setPrefWidth(50);
+
+        homeUrlValueField = new TextField();
+        homeUrlValueField.setPromptText("Home URL");
+        homeUrlValueField.setPrefWidth(600);
+        homeUrlValueField.setStyle("-fx-control-inner-background: #FFDA33;");
+
+        HBox fieldBox = new HBox(10, homeUrlIdField, homeUrlValueField);
+
+        HBox buttonBox = new HBox(10, insertURLButton, updateURLButton, deleteURLButton);
+
+        HBox homeUrlDetailBox = new HBox(20, fieldBox, buttonBox);
+        homeUrlDetailBox.setAlignment(Pos.CENTER_LEFT);
+        homeUrlDetailBox.setPadding(new Insets(10, 10, 0, 10));
+
+        Label organizationsLabel = new Label("Organizations");
+        organizationsLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #1565C0;");
+        organizationsLabel.setAlignment(Pos.CENTER);
+        organizationsLabel.setMaxWidth(Double.MAX_VALUE);
+
+        Label urlsOrgsLabel = new Label("Environments");
+        urlsOrgsLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #1565C0;");
+        urlsOrgsLabel.setAlignment(Pos.CENTER);
+        urlsOrgsLabel.setMaxWidth(Double.MAX_VALUE);
+
         // Create main layout
-        VBox vbox = new VBox(20, hBoxGridPane, tableViewContainer);
+        VBox vbox = new VBox(
+                10,
+                hBoxGridPane,
+                organizationsLabel,
+                tableViewContainer,
+                urlsOrgsLabel,
+                homeUrlDetailBox,
+                tableViewHomeUrlContainer);
         vbox.setAlignment(Pos.CENTER);
         vbox.setPadding(new Insets(10)); // Padding around the VBox
 
@@ -310,7 +354,7 @@ public class ARNewHomeBankingPane extends ARPane {
 
     @Override
     public void initUIBehaviour() {
-        submitButton.setOnAction(event -> {
+        insertORGButton.setOnAction(event -> {
             DatabaseUserDTO user = new DatabaseUserDTO(
                     null,
                     nameField.getText().trim(),
@@ -372,7 +416,7 @@ public class ARNewHomeBankingPane extends ARPane {
             updateHomeBankList(performDataBase.getDatabaseList());
         });
 
-        updateButton.setOnAction(event -> {
+        updateORGButton.setOnAction(event -> {
             String id = idField.getText();
             DatabaseUserDTO user = new DatabaseUserDTO(
                     id,
@@ -385,7 +429,7 @@ public class ARNewHomeBankingPane extends ARPane {
             performDataBase.loadAllHomeBankingBotJob();
             updateHomeBankList(performDataBase.getDatabaseList());
         });
-        deleteButton.setOnAction(event -> {
+        deleteORGButton.setOnAction(event -> {
             String id = idField.getText();
             if (Integer.parseInt(jobsField.getText()) > 0) {
                 performMessage.errorMessage(
@@ -416,7 +460,7 @@ public class ARNewHomeBankingPane extends ARPane {
                 updateHomeBankList(performDataBase.getDatabaseList());
             }
         });
-        templateButton.setOnAction(event -> {
+        templateORGButton.setOnAction(event -> {
             StringBuilder priorities = new StringBuilder();
             priorities.append("#numero priorità, categoria, identificativo" + System.lineSeparator());
             priorities.append("1,xpath,currentXPath" + System.lineSeparator());
@@ -477,6 +521,223 @@ public class ARNewHomeBankingPane extends ARPane {
 
             //            loadAllHomeBankingBotJob();
             //            updateHomeBankList(databaseList);
+        });
+
+        insertURLButton.setOnAction(event -> {
+            String homeBankIdStr = idField.getText().trim();
+            String homeUrl = homeUrlValueField.getText().trim();
+
+            // Check if fields are empty
+            if (homeBankIdStr.isEmpty() || homeUrl.isEmpty()) {
+                performMessage.errorMessage(
+                        "Insert Home URL Failed",
+                        "Missing Fields",
+                        "You must select an Organization and fill the Home URL field.",
+                        null,
+                        null,
+                        0);
+
+                return;
+            }
+
+            try {
+                int homeBankId = Integer.parseInt(homeBankIdStr);
+
+                ErrorMessage errorMessage = performDataBase.insertNewHomeUrl(homeBankId, homeUrl);
+                if (errorMessage != null) {
+                    performMessage.errorMessage(
+                            "Insert Home URL Failed",
+                            errorMessage.getErrorTitle(),
+                            errorMessage.getErrorHeader(),
+                            errorMessage.getErrorMessage(),
+                            null,
+                            0);
+                } else {
+                    // ✅ Reload the table after successful insert
+                    List<HomeUrlDTO> urls = performDataBase.loadAllHomeURLByHomeId(homeBankId);
+                    tableViewHomeUrl.setItems(FXCollections.observableArrayList(urls));
+
+                    homeUrlIdField.clear();
+                    homeUrlValueField.clear();
+                }
+
+            } catch (SQLException e) {
+                performMessage.errorMessage(
+                        "Insert Home URL Failed",
+                        "Database Error",
+                        e.getMessage(),
+                        "Verify [INSERT] or [UPDATE] or [SELECT]",
+                        null,
+                        0);
+            }
+        });
+
+        updateURLButton.setOnAction(event -> {
+            String homeBankIdStr = idField.getText().trim();
+            String homeUrlIdStr = homeUrlIdField.getText().trim();
+            String homeUrl = homeUrlValueField.getText().trim();
+
+            // Validate fields
+            if (homeBankIdStr.isEmpty() || homeUrl.isEmpty() || homeUrlIdStr.isEmpty()) {
+                performMessage.errorMessage(
+                        "Update Home URL Failed",
+                        "Missing Fields",
+                        "You must select an Organization and a Home URL row, and fill in the URL.",
+                        null,
+                        null,
+                        0);
+
+                return;
+            }
+
+            try {
+                int homeBankId = Integer.parseInt(homeBankIdStr);
+                int homeUrlId = Integer.parseInt(homeUrlIdStr);
+
+                ErrorMessage errorMessage = performDataBase.updateHomeUrl(homeUrlId, homeBankId, homeUrl);
+                if (errorMessage != null) {
+                    performMessage.errorMessage(
+                            "Update Home URL Failed",
+                            errorMessage.getErrorTitle(),
+                            errorMessage.getErrorHeader(),
+                            errorMessage.getErrorMessage(),
+                            null,
+                            0);
+                } else {
+                    // ✅ Reload the table after successful update
+                    List<HomeUrlDTO> urls = performDataBase.loadAllHomeURLByHomeId(homeBankId);
+                    tableViewHomeUrl.setItems(FXCollections.observableArrayList(urls));
+
+                    // Optionally clear the fields
+                    homeUrlIdField.clear();
+                    homeUrlValueField.clear();
+                }
+
+            } catch (SQLException | NumberFormatException e) {
+                performMessage.errorMessage(
+                        "Update Home URL Failed",
+                        "Database Error",
+                        e.getMessage(),
+                        "Verify [INSERT] or [UPDATE] or [SELECT]",
+                        null,
+                        0);
+            }
+        });
+
+        deleteURLButton.setOnAction(event -> {
+            String homeBankIdStr = idField.getText().trim();
+            String homeUrlIdStr = homeUrlIdField.getText().trim();
+            String homeUrl = homeUrlValueField.getText().trim();
+
+            // Validate required fields
+            if (homeBankIdStr.isEmpty() || homeUrlIdStr.isEmpty() || homeUrl.isEmpty()) {
+                performMessage.errorMessage(
+                        "Delete Home URL Failed",
+                        "Missing Fields",
+                        "You must select an Organization and a Home URL row.",
+                        null,
+                        null,
+                        0);
+                return;
+            }
+
+            // Show confirmation modal
+            ARConstants.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
+                    "Delete Confirmation",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Are you sure you want to delete this URL?</span>",
+                    "<span style='font-weight: bold;'>" + homeUrl + "</span>",
+                    null,
+                    null,
+                    false,
+                    "Continue",
+                    "Cancel",
+                    0);
+
+            if (!respModal.equals(ARConstants.DialogModal.OK)) {
+                return;
+            }
+
+            try {
+                int homeBankId = Integer.parseInt(homeBankIdStr);
+                int homeUrlId = Integer.parseInt(homeUrlIdStr);
+
+                ErrorMessage errorMessage = performDataBase.deleteHomeUrl(homeUrlId);
+                if (errorMessage != null) {
+                    performMessage.errorMessage(
+                            "Delete Home URL Failed",
+                            errorMessage.getErrorTitle(),
+                            errorMessage.getErrorHeader(),
+                            errorMessage.getErrorMessage(),
+                            null,
+                            0);
+
+                } else {
+                    // ✅ Refresh list
+                    List<HomeUrlDTO> urls = performDataBase.loadAllHomeURLByHomeId(homeBankId);
+                    tableViewHomeUrl.setItems(FXCollections.observableArrayList(urls));
+
+                    homeUrlIdField.clear();
+                    homeUrlValueField.clear();
+                }
+
+            } catch (SQLException | NumberFormatException e) {
+                performMessage.errorMessage(
+                        "Delete Home URL Failed",
+                        "Database Error",
+                        e.getMessage(),
+                        "Verify [DELETE] operation",
+                        null,
+                        0);
+            }
+        });
+
+        tableView.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
+            if (newSelection != null) {
+                // Get the selected UserDTO object
+                DatabaseUserDTO selectedUser = tableView.getSelectionModel().getSelectedItem();
+
+                // Set the values of the selected row to the text fields
+                idField.setText(selectedUser.getId());
+                nameField.setText(selectedUser.getName());
+                urlField.setText(selectedUser.getUrl());
+                priorityField.setText(selectedUser.getPriority());
+                jobsField.setText(selectedUser.getJobs()); // Update the hidden field
+                searchConfigField.setText(selectedUser.getSearchConfig()); // Update the hidden field
+                optionsConfigField.setText(selectedUser.getOptionsConfig()); // Update the hidden field
+            } else {
+                // If no row is selected, clear the text fields
+                idField.clear();
+                nameField.clear();
+                urlField.clear();
+                priorityField.clear();
+                jobsField.clear();
+                searchConfigField.clear();
+                optionsConfigField.clear();
+                // Clear other fields as needed
+            }
+        });
+
+        tableView.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
+            if (newSelection != null) {
+                DatabaseUserDTO selectedUser = tableView.getSelectionModel().getSelectedItem();
+                // ... populate form fields
+
+                // Load URLs related to the selected home banking ID
+                List<HomeUrlDTO> urls = performDataBase.loadAllHomeURLByHomeId(Integer.parseInt(selectedUser.getId()));
+                tableViewHomeUrl.setItems(FXCollections.observableArrayList(urls));
+            } else {
+                tableViewHomeUrl.getItems().clear();
+            }
+        });
+
+        tableViewHomeUrl.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
+            if (newSelection != null) {
+                homeUrlIdField.setText(String.valueOf(newSelection.getId()));
+                homeUrlValueField.setText(newSelection.getUrl());
+            } else {
+                homeUrlIdField.clear();
+                homeUrlValueField.clear();
+            }
         });
     }
 

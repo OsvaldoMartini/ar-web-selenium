@@ -74,7 +74,7 @@ public class ARSaveCloneScene extends ARScene {
         return TITLE;
     }
 
-    public void showModal() {
+    public void showModal(Stage primareStage) {
 
         arSaveClonePane.initialize(selecBotJobDTO, botJobList);
 
@@ -85,7 +85,8 @@ public class ARSaveCloneScene extends ARScene {
                 modalScene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
                 modalStage.setScene(modalScene);
                 modalStage.setTitle(getTitle());
-                modalStage.initModality(Modality.WINDOW_MODAL); // Changed to NONE
+                modalStage.initOwner(primareStage);
+                modalStage.initModality(Modality.WINDOW_MODAL);
                 modalStage.setAlwaysOnTop(true); // Set always on top
                 modalStage.toFront();
                 // Reset alwaysOnTop after showing so it behaves normally afterward

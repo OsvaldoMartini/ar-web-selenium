@@ -60,7 +60,7 @@ public class ARNewHomeBankingScene extends ARScene {
         return list == null || list.isEmpty();
     }
 
-    public void showModal() {
+    public void showModal(Stage parentStage) {
 
         arNewHomeBankingPane.initialize(homeBankingList);
 
@@ -71,7 +71,8 @@ public class ARNewHomeBankingScene extends ARScene {
                 modalScene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
                 modalStage.setScene(modalScene);
                 modalStage.setTitle(getTitle());
-                modalStage.initModality(Modality.NONE); // Changed to NONE
+                modalStage.initOwner(parentStage); // ✅ Set the owner first
+                modalStage.initModality(Modality.NONE);
                 modalStage.setAlwaysOnTop(true); // Set always on top
                 modalStage.toFront();
                 // Reset alwaysOnTop after showing so it behaves normally afterward
@@ -90,9 +91,10 @@ public class ARNewHomeBankingScene extends ARScene {
 
         modalStage.setTitle(getTitle()); // Update title if it might have changed
 
-        // Check if the stage is already showing
         if (!modalStage.isShowing()) {
-            modalStage.showAndWait(); // Show and wait only if not already showing
+            modalStage.showAndWait();
+        } else {
+            modalStage.requestFocus(); // 👈 only this, no forceful toFront
         }
     }
 
