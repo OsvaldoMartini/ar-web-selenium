@@ -377,7 +377,7 @@ public class ARConfigurationPane extends ARPane {
 
         browserChoiceBox.setItems(browserList);
         databaseChoiceBox.setItems(databaseList);
-        databaseChoiceBox.setDisable(true);
+        databaseChoiceBox.setDisable(false);
 
         // Add labels in the first row
         gridPaneButton.add(browserLabel, 0, 0);

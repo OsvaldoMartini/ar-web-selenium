@@ -149,7 +149,7 @@ public class ARMainPane extends ARPane {
         // 🔹 AI Button and TextArea
         aiButton = builder.buildButton(
                 "AI", ARConstants.SPACE_L, ARConstants.ICON_AI, ARConstants.SPACE_M, new Insets(8, 10, 8, 10));
-        aiButton.setVisible(false);
+        aiButton.setVisible(true);
 
         aiTextArea = new TextArea();
         aiTextArea.setPromptText("AI Tool: Upgrade your version to access this premium feature.");
