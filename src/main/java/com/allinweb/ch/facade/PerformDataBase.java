@@ -554,7 +554,7 @@ public class PerformDataBase {
 
     public boolean deleteReferences(int botJobId, int instructionId) {
         String deleteSQL =
-                "DELETE FROM reference WHERE " + " bot_job_id = " + botJobId + " instruction_id = " + instructionId;
+                "DELETE FROM reference WHERE " + " bot_job_id = " + botJobId + " and instruction_id = " + instructionId;
 
         try (Statement stmt = getConnection().createStatement()) {
             int rowsAffected = stmt.executeUpdate(deleteSQL);
@@ -615,7 +615,7 @@ public class PerformDataBase {
         try (Statement stmt = getConnection().createStatement()) {
 
             int rowsAffected = 0;
-            String deleteSQL = "DELETE FROM instruction" + " WHERE id = "
+            String deleteSQL = "DELETE FROM instruction WHERE id = "
                     + deleteInstructionLoadDTO.getInstructionId()
                     + (deleteInstructionLoadDTO.getBlockId() > 0
                             ? " AND block_id = " + deleteInstructionLoadDTO.getBlockId()

@@ -132,7 +132,7 @@ public class ARPropertyManager {
             missingMandatoryPats();
 
             setProperty(ARPropertyEnum.VERSION.getValue(), "AR Web v4.1f Beta Test");
-            setProperty(ARPropertyEnum.BUILD.getValue(), "Build: " + getTodaysDate(0));
+            setProperty(ARPropertyEnum.BUILD.getValue(), "Build: 23/07/2025");
 
             //        } catch (Exception e) {
             //

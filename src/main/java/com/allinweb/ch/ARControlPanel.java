@@ -112,7 +112,7 @@ public class ARControlPanel extends Application {
         }
 
         arPropertyManager.setProperty(ARPropertyEnum.VERSION.getValue(), "AR Web v4.1f Beta Test");
-        arPropertyManager.setProperty(ARPropertyEnum.BUILD.getValue(), "Build: " + getTodaysDate(0));
+        arPropertyManager.setProperty(ARPropertyEnum.BUILD.getValue(), "Build: 23/07/2025"); //
     }
 
     private static void licenseControl() {
