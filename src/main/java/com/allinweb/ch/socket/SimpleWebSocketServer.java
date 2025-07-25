@@ -777,7 +777,24 @@ public class SimpleWebSocketServer {
         blockDetailsDTO.setBotJobId(blockSplitDTO.getBotJobId());
         blockDetailsDTO.setSessionId(blockSplitDTO.getSessionId());
 
-        ErrorMessage errorMessage = performDataBase.injectNewComponent(blockDetailsDTO);
+        //        ErrorMessage errorMessage = performDataBase.injectNewComponent(blockDetailsDTO);
+
+        performDataBase.deleteCompNullBlocks(blockDetailsDTO.getHomeBankingId());
+
+        ErrorMessage errorMessage = performDataBase.createInjectBlock(blockDetailsDTO);
+        if (errorMessage == null) {
+            errorMessage = performDataBase.createInjectInstructions(blockDetailsDTO);
+        }
+        if (errorMessage == null) {
+            errorMessage = performDataBase.createInjectVariables(blockDetailsDTO);
+        }
+        if (errorMessage == null) {
+            errorMessage = performDataBase.createUpdateInjectInstruction(blockDetailsDTO);
+        }
+        if (errorMessage == null) {
+            errorMessage = performDataBase.createInjectReferences(blockDetailsDTO);
+        }
+
         if (errorMessage == null) {
             List<BotJobLoadDTO> botJobLoadList = performDataBase.loadCompleteJobs(blockDetailsDTO.getBotJobId());
 

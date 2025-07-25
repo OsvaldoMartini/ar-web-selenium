@@ -269,7 +269,7 @@ public class ARSaveComponentPane extends ARPane {
                         //                        performDataBase.saveNewComponent(conn, blockDetailsDTO, false,
                         // arrayTables);
 
-                        performDataBase.deleteCompNullBlocks(blockDetailsDTO.getHomeBankingId());
+                        performDataBase.deleteNullBlocks(blockDetailsDTO.getBotJobId());
 
                         ErrorMessage errorMessage = performDataBase.createCompBlock(blockDetailsDTO);
                         if (errorMessage == null) {
