@@ -219,7 +219,6 @@ public class ARSaveClonePane extends ARPane {
                                 + matchedHomeUrl.getUrl());
 
                         cloneBotJobSteps(matchedHomeUrl, newBotJobName, newDescription, stage);
-                        //                        cloneNewBotJob(matchedHomeUrl, newBotJobName, newDescription, stage);
 
                     } else {
                         System.out.println("No matching HomeUrlDTO found.");
@@ -245,8 +244,7 @@ public class ARSaveClonePane extends ARPane {
                                 homeUrlDTO.setId(newHomeUrlId);
                                 homeUrlDTO.setHomeBankingId(selecBotJobDTO.getHomeBankingId());
                                 homeUrlDTO.setUrl(newUrl.getText().trim());
-                                //                                cloneNewBotJob(homeUrlDTO, newBotJobName,
-                                // newDescription, stage);
+
                                 cloneBotJobSteps(homeUrlDTO, newBotJobName, newDescription, stage);
                             }
                         } catch (SQLException error) {
@@ -269,7 +267,6 @@ public class ARSaveClonePane extends ARPane {
                         System.out.println("Found matching HomeUrlDTO: id=" + matchedHomeUrl.getId() + ", url="
                                 + matchedHomeUrl.getUrl());
 
-                        // cloneNewBotJob(matchedHomeUrl, newBotJobName, newDescription, stage);
                         cloneBotJobSteps(matchedHomeUrl, newBotJobName, newDescription, stage);
                     }
                 }
@@ -284,68 +281,6 @@ public class ARSaveClonePane extends ARPane {
                         0);
             }
         });
-    }
-
-    private void cloneNewBotJob(HomeUrlDTO homeUrlDTO, String newBotJobName, String newDescription, Stage stage) {
-        try (Connection conn = performDataBase.getConnection()) {
-            int newBotJobId = performDataBase.getMaxId(conn, "bot_job") + 1;
-
-            if (newBotJobId > -1) {
-
-                String[] arrayTables = {"block", "instruction", "reference", "complex_instruction", "variable"};
-                ErrorMessage errorMessage = performDataBase.duplicateBotJobById(
-                        conn,
-                        homeUrlDTO.getHomeBankingId(),
-                        homeUrlDTO.getId(),
-                        selecBotJobDTO.getId(),
-                        newBotJobId,
-                        newBotJobName,
-                        newDescription,
-                        arrayTables);
-
-                if (errorMessage == null) {
-                    performMessage.showCustomModalDialogDragWin11(
-                            "Success: Bot Job Duplicated",
-                            "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>Bot Job Duplication Successful!</span> ✅",
-                            "<span style='color: #1976D2;'>New Bot Job Details:</span>",
-                            "<span style='font-weight: bold;'>ID:</span> " + newBotJobId + "<br>"
-                                    + "<span style='font-weight: bold;'>Name:</span> '" + newBotJobName + "'",
-                            "<span style='font-style: italic;'>Description: " + newDescription + "</span>",
-                            false,
-                            "OK",
-                            null,
-                            0);
-
-                } else {
-
-                    String errorType = "Database error";
-                    String errorDetail = "Verify  [INSERT] or [UPDATE] or [SELECT]";
-
-                    performMessage.errorMessage(
-                            "Error Encountered",
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> " + errorType,
-                            "<span style='font-style: italic;'>Detail:</span> " + errorDetail,
-                            null,
-                            0);
-                }
-            } else {
-                performMessage.errorMessage(
-                        "Access Denied",
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Access Denied!</span> 🔒",
-                        "<span style='color: #E65100;'>Cannot access the file.</span>",
-                        "<span style='font-style: italic;'>Verify if the file is currently open in another application.</span>",
-                        "<span style='font-style: italic;'>Please close the file in other applications and try again.</span>",
-                        0);
-            }
-
-            ARLogger.getInstance(ARSaveClonePane.class).finer("ARSaveClonePane Close()");
-            Platform.runLater(() -> {
-                stage.close();
-            });
-        } catch (SQLException ex) {
-            System.out.println(ex.getMessage());
-        }
     }
 
     private void cloneBotJobSteps(HomeUrlDTO homeUrlDTO, String newBotJobName, String newDescription, Stage stage) {
