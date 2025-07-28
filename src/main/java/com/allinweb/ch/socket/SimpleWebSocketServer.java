@@ -777,8 +777,6 @@ public class SimpleWebSocketServer {
         blockDetailsDTO.setBotJobId(blockSplitDTO.getBotJobId());
         blockDetailsDTO.setSessionId(blockSplitDTO.getSessionId());
 
-        //        ErrorMessage errorMessage = performDataBase.injectNewComponent(blockDetailsDTO);
-
         performDataBase.deleteCompNullBlocks(blockDetailsDTO.getHomeBankingId());
 
         ErrorMessage errorMessage = performDataBase.createInjectBlock(blockDetailsDTO);
