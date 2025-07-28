@@ -285,8 +285,14 @@ public class ARNewCommandPane extends ARPane {
 
         if (this.filteredPageItems != null && this.filteredPageItems.size() > 0) {
             variablesItems.clear();
-            this.variablesList = performDataBase.loadAllVariablesByCriteria(
-                    rowMoveDTO.getBotJobId(), filteredPageItems.get(0).getInstructionId());
+
+            if (rowMoveDTO.getSessionId().equals("componentTasks")) {
+                this.variablesList = performDataBase.loadAllCompVariablesByCriteria(
+                        rowMoveDTO.getHomeBankingId(), filteredPageItems.get(0).getInstructionId());
+            } else {
+                this.variablesList = performDataBase.loadAllVariablesByCriteria(
+                        rowMoveDTO.getBotJobId(), filteredPageItems.get(0).getInstructionId());
+            }
         }
 
         if (rowMoveDTO.getSessionId().equals("componentTasks")) {
@@ -2152,7 +2158,12 @@ public class ARNewCommandPane extends ARPane {
 
     public void reloadComboVars(int instructionId, boolean selectLast, int variableId) {
         variablesItems.clear();
-        variablesList = performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId);
+        if (rowMoveDTO.getSessionId().equals("componentTasks")) {
+            this.variablesList =
+                    performDataBase.loadAllCompVariablesByCriteria(rowMoveDTO.getHomeBankingId(), instructionId);
+        } else {
+            this.variablesList = performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId);
+        }
 
         if (variablesList != null && variablesList.size() > 0) {
             List<ComboBoxVars> variablesNames = variablesList.stream()
