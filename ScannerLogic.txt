@@ -1,6 +1,6 @@
 String mainMsg = "";
 boolean byPassNotFound = false;
-boolean byPassFlagLoop;
+boolean byPassFlagLoop = false;
 boolean success = true;
 boolean stopAll = false;
 long botJobStartTime = System.nanoTime();
@@ -943,7 +943,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 									&& currentInstruction.getForceCoordinates();
 							try {
 								webElementFound = performActions.searchElement(
-										currentInstruction, botJobId, forceCoordinates);
+										currentInstruction, botJobId, forceCoordinates, byPassFlagLoop);
 							} catch (Exception ex) {
 								success = false;
 							}
@@ -1524,8 +1524,8 @@ if (extractedData.getNumberOfDataRows() > 0) {
 						&& currentInstruction.getForceCoordinates();
 
 				try {
-					webElementFound =
-							performActions.searchElement(currentInstruction, botJobId, forceCoordinates);
+					webElementFound = performActions.searchElement(
+							currentInstruction, botJobId, forceCoordinates, byPassFlagLoop);
 				} catch (Exception ex) {
 				}
 
