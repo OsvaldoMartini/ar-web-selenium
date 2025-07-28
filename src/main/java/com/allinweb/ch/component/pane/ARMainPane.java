@@ -22,6 +22,7 @@ import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
 import java.io.File;
 import java.io.IOException;
+import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -222,6 +223,19 @@ public class ARMainPane extends ARPane {
         cloneBotJobButton.setOnMouseClicked(e -> {
             if (isEnabledLicence && !checkLicense()) {
                 return;
+            }
+
+            String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
+
+            try {
+                Connection conn = performDataBase.getConnection();
+                if (conn != null) {
+                    ARLogger.getInstance(ARMainPane.class).severe(dataBaseType + " Database connected!");
+                } else {
+                    ARLogger.getInstance(ARMainPane.class).severe(dataBaseType + " Database NOT connected!");
+                }
+            } catch (Exception error) {
+                ARLogger.getInstance(ARMainPane.class).severe(dataBaseType + " Database error!" + error.getMessage());
             }
 
             var selecBotJobDTO = viewBotJobListView.getSelectionModel().getSelectedItem();
