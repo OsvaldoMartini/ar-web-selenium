@@ -270,9 +270,26 @@ public class ARScannedElementPane extends ARPane {
                     checkRunningProcess();
                     // Extract the "body" field from the JsonObject
                     processDTO = gson.fromJson(jsonObjMSG, ElementSplitDTO.class);
-                    targetSelected = extractPickClone(processDTO.getDetails()[0]);
-                    itPrintsElementDTO(targetSelected);
-                    testingActions(targetSelected, processDTO.getType());
+
+                    if (processDTO.getOperationId() != null
+                            && processDTO.getOperationId().equalsIgnoreCase("TEST_STEP")) {
+                        InstructionLoadDTO instruc = performDataBase.getInstructionById(
+                                processDTO.getBotJobId(), processDTO.getDetails()[0].getId());
+                        if (instruc != null && instruc.getId() != null) {
+                            ElementDTO elementDTO = performActions.buildElementDTO(instruc);
+                            targetSelected = extractPickClone(elementDTO);
+                            itPrintsElementDTO(targetSelected);
+                            testingActions(targetSelected, processDTO.getType());
+                        } else {
+                            targetSelected = extractPickClone(processDTO.getDetails()[0]);
+                            itPrintsElementDTO(targetSelected);
+                            testingActions(targetSelected, processDTO.getType());
+                        }
+                    } else {
+                        targetSelected = extractPickClone(processDTO.getDetails()[0]);
+                        itPrintsElementDTO(targetSelected);
+                        testingActions(targetSelected, processDTO.getType());
+                    }
                     break;
                 case "DEL_ELEMENT_DTO":
                 case "DETAILS_ELEMENT_DTO":
@@ -581,6 +598,7 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private void testingActions(TargetElement targetTest, String testType) {
+        WebDriver driverTestActions = performActions.getCurrentDriver();
         try {
             if (targetTest.getElement() != null) {
 
@@ -682,7 +700,19 @@ public class ARScannedElementPane extends ARPane {
                 actionText1 = new Text("Actions Tested:");
                 actionText1.setStyle("-fx-font-size: 12px; -fx-fill: blue;");
 
-                WebDriver driverTestActions = performActions.getCurrentDriver();
+                if (!Strings.isNullOrEmpty(targetTest.getIFrameXPath())) {
+                    try {
+                        // Locate and switch to the iframe first
+                        WebElement iframe = driverTestActions.findElement(By.xpath(targetTest.getIFrameXPath()));
+                        driverTestActions.switchTo().frame(iframe);
+
+                        System.out.println("Found iFrame XPath: " + targetTest.getIFrameXPath());
+                    } catch (Exception e) {
+                        System.out.println("iFrame Not Found with XPath: " + targetTest.getIFrameXPath());
+                        //                performMessage.generalErrorIFrame(currentInstruction.getName());
+                        //                        return null;
+                    }
+                }
 
                 String result = performActions.sequenceOfCommands(
                         targetTest.getElement(), ARConstants.SELECT, coordinates, fieldData, driverTestActions, false);
@@ -1004,6 +1034,10 @@ public class ARScannedElementPane extends ARPane {
             //                                arWebElement.getElement().click();
         } catch (Exception e) {
             performMessage.couldNotFindElement("No TagName");
+        } finally {
+            if (driverTestActions != null) {
+                driverTestActions.switchTo().defaultContent();
+            }
         }
     }
 
@@ -2151,6 +2185,9 @@ public class ARScannedElementPane extends ARPane {
 
                 return null;
             }
+        } else if (!Strings.isNullOrEmpty(targetLocal.getCssSelector())) {
+            targetLocal.setXPathWorkedFirst(ARConstants.REGULAR_XPATH);
+
         } else {
             targetLocal.setXPathWorkedFirst(ARConstants.SHADOW_DOM);
         }
@@ -2171,23 +2208,26 @@ public class ARScannedElementPane extends ARPane {
         Pattern pattern = Pattern.compile(regex);
 
         // Iterate through each attribute in the array
-        for (AttributeData attribute : targetCheck.getAttributeData()) {
-            // Assuming you want to use the value of the attribute for matching
-            String attributeValue = attribute.getValue(); // Get the value of the attribute
+        if (targetCheck.getAttributeData() != null) {
 
-            Matcher matcher = pattern.matcher(attributeValue); // Use the value for matching
+            for (AttributeData attribute : targetCheck.getAttributeData()) {
+                // Assuming you want to use the value of the attribute for matching
+                String attributeValue = attribute.getValue(); // Get the value of the attribute
 
-            // Check for matches in the current attribute value
-            while (matcher.find()) {
-                String tag = matcher.group(1);
-                if (tag.equals("a") || tag.equals("button")) {
-                    System.out.println("Found clickable tag: <" + tag + ">");
-                    tagClickable = true;
-                    break;
+                Matcher matcher = pattern.matcher(attributeValue); // Use the value for matching
+
+                // Check for matches in the current attribute value
+                while (matcher.find()) {
+                    String tag = matcher.group(1);
+                    if (tag.equals("a") || tag.equals("button")) {
+                        System.out.println("Found clickable tag: <" + tag + ">");
+                        tagClickable = true;
+                        break;
+                    }
                 }
-            }
-            if (tagClickable) {
-                break; // Exit the loop once a clickable tag is found
+                if (tagClickable) {
+                    break; // Exit the loop once a clickable tag is found
+                }
             }
         }
 
@@ -2460,7 +2500,7 @@ public class ARScannedElementPane extends ARPane {
                 Platform.runLater(
                         () -> defineNameField.setText(PerformActions.truncateAndNormalize(finalNameDefined, 30)));
 
-            } else if (targetSelected.getAttributeData().length > 0) {
+            } else if (targetSelected.getAttributeData() != null && targetSelected.getAttributeData().length > 0) {
 
                 // Split by comma to get key-value pairs
 
@@ -2548,11 +2588,13 @@ public class ARScannedElementPane extends ARPane {
 
         sb.append("Named: " + nameDefined).append("\n");
         sb.append("All Attributes Found: ").append("\n");
-        for (AttributeData attribute : targetSelected.getAttributeData()) {
-            sb.append("->  ")
-                    .append(attribute.getName().trim() + "="
-                            + attribute.getValue().trim())
-                    .append("\n");
+        if (targetSelected.getAttributeData() != null) {
+            for (AttributeData attribute : targetSelected.getAttributeData()) {
+                sb.append("->  ")
+                        .append(attribute.getName().trim() + "="
+                                + attribute.getValue().trim())
+                        .append("\n");
+            }
         }
 
         Platform.runLater(() -> {
@@ -2991,7 +3033,7 @@ public class ARScannedElementPane extends ARPane {
 
         String mainMsg = "";
         boolean byPassNotFound = false;
-        boolean byPassFlagLoop;
+        boolean byPassFlagLoop = false;
         boolean success = true;
         boolean stopAll = false;
         long botJobStartTime = System.nanoTime();
@@ -3934,7 +3976,7 @@ public class ARScannedElementPane extends ARPane {
                                             && currentInstruction.getForceCoordinates();
                                     try {
                                         webElementFound = performActions.searchElement(
-                                                currentInstruction, botJobId, forceCoordinates);
+                                                currentInstruction, botJobId, forceCoordinates, byPassFlagLoop);
                                     } catch (Exception ex) {
                                         success = false;
                                     }
@@ -4515,8 +4557,8 @@ public class ARScannedElementPane extends ARPane {
                                 && currentInstruction.getForceCoordinates();
 
                         try {
-                            webElementFound =
-                                    performActions.searchElement(currentInstruction, botJobId, forceCoordinates);
+                            webElementFound = performActions.searchElement(
+                                    currentInstruction, botJobId, forceCoordinates, byPassFlagLoop);
                         } catch (Exception ex) {
                         }
 
