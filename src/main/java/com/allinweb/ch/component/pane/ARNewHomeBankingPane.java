@@ -142,6 +142,7 @@ public class ARNewHomeBankingPane extends ARPane {
         // --- 2. Initialize Text Fields and Text Areas ---
         // ID Field (Read-only, grey background)
         idField = new TextField();
+        idField.setPromptText("ID");
         idField.setEditable(false);
         idField.setStyle("-fx-control-inner-background: #D3D3D3;");
         idField.setPrefWidth(50); // Max 50
@@ -150,6 +151,7 @@ public class ARNewHomeBankingPane extends ARPane {
 
         // Name Field (Editable, yellow background)
         nameField = new TextField();
+        nameField.setPromptText("Organization Name");
         nameField.setStyle("-fx-control-inner-background: #FFDA33;");
         nameField.setPrefWidth(150); // Max 150
         nameField.setMaxWidth(150); // Max 150
@@ -158,6 +160,7 @@ public class ARNewHomeBankingPane extends ARPane {
 
         // URL Field (Editable, yellow background)
         urlField = new TextField();
+        urlField.setPromptText("URL Organization");
         urlField.setStyle("-fx-control-inner-background: #FFDA33;");
         urlField.setPrefHeight(28);
         HBox.setHgrow(urlField, Priority.ALWAYS); // Allow this field to expand horizontally
@@ -196,15 +199,16 @@ public class ARNewHomeBankingPane extends ARPane {
 
         // Home URL ID Field (Read-only, grey background)
         homeUrlIdField = new TextField();
-        homeUrlIdField.setPromptText("Home URL ID");
+        homeUrlIdField.setPromptText("ID");
         homeUrlIdField.setEditable(false);
         homeUrlIdField.setStyle("-fx-control-inner-background: #D3D3D3;");
-        homeUrlIdField.setPrefWidth(80);
+        homeUrlIdField.setPrefWidth(50); // Max 50
+        homeUrlIdField.setMaxWidth(50); // Max 50
         homeUrlIdField.setPrefHeight(28);
 
         // Home URL Value Field (Editable, yellow background)
         homeUrlValueField = new TextField();
-        homeUrlValueField.setPromptText("Home URL");
+        homeUrlValueField.setPromptText("Environment");
         homeUrlValueField.setStyle("-fx-control-inner-background: #FFDA33;");
         homeUrlValueField.setPrefHeight(28);
         HBox.setHgrow(homeUrlValueField, Priority.ALWAYS); // Allow this field to expand horizontally
@@ -258,7 +262,7 @@ public class ARNewHomeBankingPane extends ARPane {
         VBox orgDetailsContainer = new VBox(10); // Spacing between elements within this section
         orgDetailsContainer.setPadding(new Insets(10, 10, 2, 10)); // Padding around the container
         orgDetailsContainer.setStyle(
-                "-fx-background-color: #f5f5f5; -fx-border-color: #ccc; -fx-border-width: 1px; -fx-border-radius: 5px;"); // Subtle background and border
+                "-fx-background-color: #E8F5E9; -fx-border-color: #ccc; -fx-border-width: 1px; -fx-border-radius: 5px;"); // Very light green
 
         // Organizations Label at the very top of this section
         organizationsLabel.setStyle(
@@ -304,12 +308,10 @@ public class ARNewHomeBankingPane extends ARPane {
                 .getChildren()
                 .addAll(organizationsLabel, topFieldsRow, middleFieldsRow, orgButtonsBox, tableView);
 
-        // --- 6. Home URL Details and Table (Environments Section) ---
-        // HBox for Home URL fields and buttons
         VBox homeUrlDetailsContainer = new VBox(10); // Use VBox to stack label and then fields/buttons
         homeUrlDetailsContainer.setPadding(new Insets(10, 10, 2, 10)); // Padding
         homeUrlDetailsContainer.setStyle(
-                "-fx-background-color: #f5f5f5; -fx-border-color: #ccc; -fx-border-width: 1px; -fx-border-radius: 5px;");
+                "-fx-background-color: #E8F5E9; -fx-border-color: #ccc; -fx-border-width: 1px; -fx-border-radius: 5px;"); // Very light green
 
         // Environments Label moved inside this container, above the fields
         urlEnviromentLabel.setStyle(
@@ -356,6 +358,7 @@ public class ARNewHomeBankingPane extends ARPane {
         VBox rootVBox = new VBox(
                 20, // Spacing between major sections (e.g., Org Details and Org Table)
                 orgDetailsContainer,
+                tableView,
                 homeUrlDetailsContainer);
         rootVBox.setAlignment(Pos.TOP_CENTER); // Align content to top center of the window
         rootVBox.setPadding(new Insets(15)); // Overall padding around the entire content
@@ -367,6 +370,9 @@ public class ARNewHomeBankingPane extends ARPane {
         // --- 8. Final Setup of the Root Pane (this class) ---
         // Add the rootVBox to the AnchorPane (this instance) and anchor it to all sides
         mainPane = new AnchorPane(rootVBox);
+        // Set the background color for the mainPane
+        mainPane.setStyle("-fx-background-color: #f5f5f5;"); // Subtle background and border
+
         AnchorPane.setTopAnchor(rootVBox, 0.0);
         AnchorPane.setBottomAnchor(rootVBox, 0.0);
         AnchorPane.setLeftAnchor(rootVBox, 0.0);
@@ -603,9 +609,9 @@ public class ARNewHomeBankingPane extends ARPane {
             // Check if fields are empty
             if (homeBankIdStr.isEmpty() || homeUrl.isEmpty()) {
                 performMessage.errorMessage(
-                        "Insert Home URL Failed",
+                        "Insert Environment Failed",
                         "Missing Fields",
-                        "You must select an Organization and fill the Home URL field.",
+                        "You must select an Organization and fill the Environment field.",
                         null,
                         null,
                         0);
@@ -619,7 +625,7 @@ public class ARNewHomeBankingPane extends ARPane {
                 ErrorMessage errorMessage = performDataBase.insertNewHomeUrl(homeBankId, homeUrl);
                 if (errorMessage != null) {
                     performMessage.errorMessage(
-                            "Insert Home URL Failed",
+                            "Insert Environment Failed",
                             errorMessage.getErrorTitle(),
                             errorMessage.getErrorHeader(),
                             errorMessage.getErrorMessage(),
@@ -636,7 +642,7 @@ public class ARNewHomeBankingPane extends ARPane {
 
             } catch (SQLException e) {
                 performMessage.errorMessage(
-                        "Insert Home URL Failed",
+                        "Insert Environment Failed",
                         "Database Error",
                         e.getMessage(),
                         "Verify [INSERT] or [UPDATE] or [SELECT]",
@@ -653,9 +659,9 @@ public class ARNewHomeBankingPane extends ARPane {
             // Validate fields
             if (homeBankIdStr.isEmpty() || homeUrl.isEmpty() || homeUrlIdStr.isEmpty()) {
                 performMessage.errorMessage(
-                        "Update Home URL Failed",
+                        "Update Environment Failed",
                         "Missing Fields",
-                        "You must select an Organization and a Home URL row, and fill in the URL.",
+                        "You must select an Organization and a Environment row, and fill in the URL.",
                         null,
                         null,
                         0);
@@ -670,7 +676,7 @@ public class ARNewHomeBankingPane extends ARPane {
                 ErrorMessage errorMessage = performDataBase.updateHomeUrl(homeUrlId, homeBankId, homeUrl);
                 if (errorMessage != null) {
                     performMessage.errorMessage(
-                            "Update Home URL Failed",
+                            "Update Environment Failed",
                             errorMessage.getErrorTitle(),
                             errorMessage.getErrorHeader(),
                             errorMessage.getErrorMessage(),
@@ -688,7 +694,7 @@ public class ARNewHomeBankingPane extends ARPane {
 
             } catch (SQLException | NumberFormatException e) {
                 performMessage.errorMessage(
-                        "Update Home URL Failed",
+                        "Update Environment Failed",
                         "Database Error",
                         e.getMessage(),
                         "Verify [INSERT] or [UPDATE] or [SELECT]",
@@ -705,9 +711,9 @@ public class ARNewHomeBankingPane extends ARPane {
             // Validate required fields
             if (homeBankIdStr.isEmpty() || homeUrlIdStr.isEmpty() || homeUrl.isEmpty()) {
                 performMessage.errorMessage(
-                        "Delete Home URL Failed",
+                        "Delete Environment Failed",
                         "Missing Fields",
-                        "You must select an Organization and a Home URL row.",
+                        "You must select an Organization and a Environment row.",
                         null,
                         null,
                         0);
@@ -737,7 +743,7 @@ public class ARNewHomeBankingPane extends ARPane {
                 ErrorMessage errorMessage = performDataBase.deleteHomeUrl(homeUrlId);
                 if (errorMessage != null) {
                     performMessage.errorMessage(
-                            "Delete Home URL Failed",
+                            "Delete Environment Failed",
                             errorMessage.getErrorTitle(),
                             errorMessage.getErrorHeader(),
                             errorMessage.getErrorMessage(),
@@ -755,7 +761,7 @@ public class ARNewHomeBankingPane extends ARPane {
 
             } catch (SQLException | NumberFormatException e) {
                 performMessage.errorMessage(
-                        "Delete Home URL Failed",
+                        "Delete Environment Failed",
                         "Database Error",
                         e.getMessage(),
                         "Verify [DELETE] operation",
