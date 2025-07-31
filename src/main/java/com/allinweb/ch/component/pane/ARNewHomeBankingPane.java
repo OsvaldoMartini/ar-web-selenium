@@ -23,6 +23,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -96,7 +98,7 @@ public class ARNewHomeBankingPane extends ARPane {
     private TextField urlField;
     private TextArea priorityField;
     private TextField jobsField;
-    private TextArea searchConfigField;
+    private TextArea scanConfigField;
     private TextArea optionsConfigField;
     private TextField homeUrlIdField;
     private TextField homeUrlValueField;
@@ -178,12 +180,12 @@ public class ARNewHomeBankingPane extends ARPane {
         jobsField.setPrefHeight(28);
 
         // Search Config Field (TextArea, yellow background, multi-line)
-        searchConfigField = new TextArea();
-        searchConfigField.setStyle("-fx-control-inner-background: #FFDA33;");
-        searchConfigField.setPrefRowCount(3);
-        searchConfigField.setWrapText(true);
-        searchConfigField.setPrefHeight(60);
-        HBox.setHgrow(searchConfigField, Priority.ALWAYS); // Allow this field to expand horizontally
+        scanConfigField = new TextArea();
+        scanConfigField.setStyle("-fx-control-inner-background: #FFDA33;");
+        scanConfigField.setPrefRowCount(3);
+        scanConfigField.setWrapText(true);
+        scanConfigField.setPrefHeight(60);
+        HBox.setHgrow(scanConfigField, Priority.ALWAYS); // Allow this field to expand horizontally
 
         // Options Config Field (TextArea, yellow background, multi-line)
         optionsConfigField = new TextArea();
@@ -231,7 +233,7 @@ public class ARNewHomeBankingPane extends ARPane {
 
         VBox priorityGroup = new VBox(2, priorityLabel, priorityField);
         priorityGroup.setAlignment(Pos.TOP_LEFT);
-        VBox searchConfigGroup = new VBox(2, searchConfigLabel, searchConfigField);
+        VBox searchConfigGroup = new VBox(2, searchConfigLabel, scanConfigField);
         searchConfigGroup.setAlignment(Pos.TOP_LEFT);
         VBox optionsConfigGroup = new VBox(2, optionsConfigLabel, optionsConfigField);
         optionsConfigGroup.setAlignment(Pos.TOP_LEFT);
@@ -413,8 +415,20 @@ public class ARNewHomeBankingPane extends ARPane {
                     nameField.getText().trim(),
                     urlField.getText().trim(),
                     priorityField.getText(),
-                    searchConfigField.getText(),
+                    scanConfigField.getText(),
                     optionsConfigField.getText());
+
+            if (Strings.isNullOrEmpty(priorityField.getText().trim())) {
+                user.setPriority(fillUpTemplatePriority());
+            }
+
+            if (Strings.isNullOrEmpty(scanConfigField.getText().trim())) {
+                user.setSearchConfig(fillUpTemplateScanConfig());
+            }
+
+            if (Strings.isNullOrEmpty(optionsConfigField.getText().trim())) {
+                user.setOptionsConfig(fillUpTemplateWebDriver());
+            }
 
             if (nameExists(nameField.getText().trim())) {
                 showAlert(
@@ -488,7 +502,7 @@ public class ARNewHomeBankingPane extends ARPane {
                     nameField.getText(),
                     urlField.getText(),
                     priorityField.getText(),
-                    searchConfigField.getText(),
+                    scanConfigField.getText(),
                     optionsConfigField.getText());
             updateUserData(id, user);
             performDataBase.loadAllHomeBankingBotJob();
@@ -557,7 +571,7 @@ public class ARNewHomeBankingPane extends ARPane {
             //            searchCriteria.append("3,ByChained,By.tagName:button" + System.lineSeparator());
             //            searchCriteria.append("4,ByTagName,button,label,a" + System.lineSeparator());
             //            searchCriteria.append("5,ByTagName,input" + System.lineSeparator());
-            searchConfigField.setText(searchCriteria.toString());
+            scanConfigField.setText(searchCriteria.toString());
 
             // Proxy Example
             String argument1 = "arg:-disable-web-security";
@@ -767,7 +781,7 @@ public class ARNewHomeBankingPane extends ARPane {
                 urlField.setText(selectedUser.getUrl());
                 priorityField.setText(selectedUser.getPriority());
                 jobsField.setText(selectedUser.getJobs()); // Update the hidden field
-                searchConfigField.setText(selectedUser.getSearchConfig()); // Update the hidden field
+                scanConfigField.setText(selectedUser.getSearchConfig()); // Update the hidden field
                 optionsConfigField.setText(selectedUser.getOptionsConfig()); // Update the hidden field
             } else {
                 // If no row is selected, clear the text fields
@@ -776,7 +790,7 @@ public class ARNewHomeBankingPane extends ARPane {
                 urlField.clear();
                 priorityField.clear();
                 jobsField.clear();
-                searchConfigField.clear();
+                scanConfigField.clear();
                 optionsConfigField.clear();
                 // Clear other fields as needed
             }
@@ -804,6 +818,76 @@ public class ARNewHomeBankingPane extends ARPane {
                 homeUrlValueField.clear();
             }
         });
+    }
+
+    private String fillUpTemplatePriority() {
+        StringBuilder priorities = new StringBuilder();
+        priorities.append("#numero priorità, categoria, identificativo" + System.lineSeparator());
+        priorities.append("1,xpath,currentXPath" + System.lineSeparator());
+        priorities.append("2,attributeID,attributeID" + System.lineSeparator());
+        priorities.append("3,attributeName,attributeName" + System.lineSeparator());
+        priorities.append("4,searchAttribute,searchAttribute" + System.lineSeparator());
+        priorities.append("5,coordinates,coordinates" + System.lineSeparator());
+        priorities.append("6,attribute,test-id" + System.lineSeparator());
+        //            priorMissing.append("7,attributes,allAttributes" + System.lineSeparator());
+        Platform.runLater(() -> priorityField.setText(priorities.toString()));
+
+        return priorities.toString();
+    }
+
+    private String fillUpTemplateScanConfig() {
+        StringBuilder searchCriteria = new StringBuilder();
+        //            searchCriteria.append("#numero priorità, categoria, criterioricerca" +
+        // System.lineSeparator());
+        searchCriteria.append("1,ByAttribute,test-id" + System.lineSeparator());
+        //            searchCriteria.append(
+        //                    "2,ByChained,By.tagName:input,By.className:mat-mdc-input-element" +
+        // System.lineSeparator());
+        //            searchCriteria.append(
+        //                    "3,ByChained,By.xpath://*[contains(@idCOMMA \"mat-input\")]" +
+        // System.lineSeparator());
+        //            searchCriteria.append("4,ByTagName,input" + System.lineSeparator());
+        //            searchCriteria.append("5,ByTagName,button" + System.lineSeparator());
+        //            searchCriteria.append("6,ByChained,By.cssSelector:[id^=\"mat-input\"]" +
+        // System.lineSeparator());
+
+        //            searchCriteria.append("1,ByAttribute,test-id" + System.lineSeparator());
+        //            searchCriteria.append("2,ByChained,By.tagName:input" + System.lineSeparator());
+        //            searchCriteria.append("3,ByChained,By.tagName:button" + System.lineSeparator());
+        //            searchCriteria.append("4,ByTagName,button,label,a" + System.lineSeparator());
+        //            searchCriteria.append("5,ByTagName,input" + System.lineSeparator());
+        Platform.runLater(() -> scanConfigField.setText(searchCriteria.toString()));
+
+        return searchCriteria.toString();
+    }
+
+    private String fillUpTemplateWebDriver() {
+        // Proxy Example
+        String argument1 = "arg:-disable-web-security";
+        String argument2 = "arg:-disable-site-isolation-trials";
+        String argument3 = "arg:-allow-running-insecure-content";
+        String argument4 = "arg:-disable-features=IsolateOrigins,site-per-process";
+        String argument5 = "arg:-disable-infobars";
+        String argument6 = "#arg:-disable-dev-shm-usage";
+        String proxyAddress = "#proxy:proxy_address:proxy_port";
+        //            String browserLog = "#browser_log:active";
+        //            String systemProps1 = "#systemProps:webdriver.chrome.logfile:logFolder";
+        //            String systemProps2 = "#systemProps:webdriver.chrome.verboseLogging:true";
+        StringBuilder optionsConfig = new StringBuilder();
+        optionsConfig.append(argument1 + System.lineSeparator());
+        optionsConfig.append(argument2 + System.lineSeparator());
+        optionsConfig.append(argument3 + System.lineSeparator());
+        optionsConfig.append(argument4 + System.lineSeparator());
+        optionsConfig.append(argument5 + System.lineSeparator());
+        optionsConfig.append(argument6 + System.lineSeparator());
+        optionsConfig.append(proxyAddress + System.lineSeparator());
+        //            optionsConfig.append(browserLog + System.lineSeparator());
+        //            optionsConfig.append(systemProps1 + System.lineSeparator());
+        //            optionsConfig.append(systemProps2 + System.lineSeparator());
+
+        Platform.runLater(() -> optionsConfigField.setText(optionsConfig.toString()));
+
+        return optionsConfig.toString();
     }
 
     private void updateFields() {}
