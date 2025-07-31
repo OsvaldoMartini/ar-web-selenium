@@ -358,7 +358,6 @@ public class ARNewHomeBankingPane extends ARPane {
         VBox rootVBox = new VBox(
                 20, // Spacing between major sections (e.g., Org Details and Org Table)
                 orgDetailsContainer,
-                tableView,
                 homeUrlDetailsContainer);
         rootVBox.setAlignment(Pos.TOP_CENTER); // Align content to top center of the window
         rootVBox.setPadding(new Insets(15)); // Overall padding around the entire content
