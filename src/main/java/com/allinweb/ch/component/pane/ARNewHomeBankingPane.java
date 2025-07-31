@@ -129,10 +129,10 @@ public class ARNewHomeBankingPane extends ARPane {
 
         // --- 1. Initialize Labels ---
         idLabel = new Label("ID:");
-        nameLabel = new Label("Name:");
+        nameLabel = new Label("Organization:");
         urlLabel = new Label("Url:");
         priorityLabel = new Label("Priority:"); // This will be "Next Row" conceptually
-        jobsLabel = new Label("Total of Jobs:");
+        jobsLabel = new Label("Active Jobs");
         searchConfigLabel = new Label("Scan Config:");
         optionsConfigLabel = new Label("WebDriver Options:");
 
@@ -168,33 +168,39 @@ public class ARNewHomeBankingPane extends ARPane {
         // Priority Field (TextArea, yellow background, multi-line)
         priorityField = new TextArea();
         priorityField.setStyle("-fx-control-inner-background: #FFDA33;");
-        priorityField.setPrefRowCount(3); // Suggests initial rows
+        priorityField.setPrefRowCount(6); // Suggests initial rows
         priorityField.setWrapText(true); // Enable text wrapping
-        priorityField.setPrefHeight(60); // Adjusted height for better multi-line display
+        priorityField.setMinHeight(90);
+        priorityField.setMaxHeight(110);
+        priorityField.setPrefHeight(110);
         HBox.setHgrow(priorityField, Priority.ALWAYS); // Allow this field to expand horizontally
 
         // Jobs Field (Read-only, grey background)
         jobsField = new TextField();
         jobsField.setEditable(false);
         jobsField.setStyle("-fx-control-inner-background: #D3D3D3;");
-        jobsField.setPrefWidth(50); // Max 50
-        jobsField.setMaxWidth(50); // Max 50
-        jobsField.setPrefHeight(28);
+        jobsField.setPrefWidth(70);
+        jobsField.setMinWidth(50);
+        jobsField.setMaxWidth(70);
 
         // Search Config Field (TextArea, yellow background, multi-line)
         scanConfigField = new TextArea();
         scanConfigField.setStyle("-fx-control-inner-background: #FFDA33;");
-        scanConfigField.setPrefRowCount(3);
+        scanConfigField.setPrefRowCount(6);
         scanConfigField.setWrapText(true);
-        scanConfigField.setPrefHeight(60);
+        scanConfigField.setMinHeight(90);
+        scanConfigField.setMaxHeight(110);
+        scanConfigField.setPrefHeight(110);
         HBox.setHgrow(scanConfigField, Priority.ALWAYS); // Allow this field to expand horizontally
 
         // Options Config Field (TextArea, yellow background, multi-line)
         optionsConfigField = new TextArea();
         optionsConfigField.setStyle("-fx-control-inner-background: #FFDA33;");
-        optionsConfigField.setPrefRowCount(3);
+        optionsConfigField.setPrefRowCount(6);
         optionsConfigField.setWrapText(true);
-        optionsConfigField.setPrefHeight(60);
+        optionsConfigField.setMinHeight(90);
+        optionsConfigField.setMaxHeight(110);
+        optionsConfigField.setPrefHeight(110);
         HBox.setHgrow(optionsConfigField, Priority.ALWAYS); // Allow this field to expand horizontally
 
         // Home URL ID Field (Read-only, grey background)
@@ -260,7 +266,7 @@ public class ARNewHomeBankingPane extends ARPane {
 
         // VBox to hold the section title, field rows, and buttons
         VBox orgDetailsContainer = new VBox(10); // Spacing between elements within this section
-        orgDetailsContainer.setPadding(new Insets(10, 10, 2, 10)); // Padding around the container
+        orgDetailsContainer.setPadding(new Insets(10, 10, 5, 10)); // Padding around the container
         orgDetailsContainer.setStyle(
                 "-fx-background-color: #E8F5E9; -fx-border-color: #ccc; -fx-border-width: 1px; -fx-border-radius: 5px;"); // Very light green
 
@@ -281,14 +287,17 @@ public class ARNewHomeBankingPane extends ARPane {
         idColumn.setMinWidth(30);
         idColumn.setMaxWidth(80); // Fixed width
 
-        TableColumn<DatabaseUserDTO, String> jobColumn = new TableColumn<>("Jobs");
+        TableColumn<DatabaseUserDTO, String> jobColumn = new TableColumn<>("Active Jobs");
         jobColumn.setCellValueFactory(new PropertyValueFactory<>("jobs"));
-        jobColumn.setPrefWidth(50);
-        jobColumn.setMinWidth(30);
-        jobColumn.setMaxWidth(80); // Fixed width
+        jobColumn.setPrefWidth(90);
+        jobColumn.setMinWidth(80);
+        jobColumn.setMaxWidth(90); // Fixed width
 
-        TableColumn<DatabaseUserDTO, String> nameColumn = new TableColumn<>("Name");
+        TableColumn<DatabaseUserDTO, String> nameColumn = new TableColumn<>("Organization");
         nameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
+        nameColumn.setPrefWidth(150);
+        nameColumn.setMinWidth(150);
+        nameColumn.setMaxWidth(150);
 
         TableColumn<DatabaseUserDTO, String> urlColumn = new TableColumn<>("Url");
         urlColumn.setCellValueFactory(new PropertyValueFactory<>("url"));
@@ -309,7 +318,7 @@ public class ARNewHomeBankingPane extends ARPane {
                 .addAll(organizationsLabel, topFieldsRow, middleFieldsRow, orgButtonsBox, tableView);
 
         VBox homeUrlDetailsContainer = new VBox(10); // Use VBox to stack label and then fields/buttons
-        homeUrlDetailsContainer.setPadding(new Insets(10, 10, 2, 10)); // Padding
+        homeUrlDetailsContainer.setPadding(new Insets(10, 10, 5, 10)); // Padding
         homeUrlDetailsContainer.setStyle(
                 "-fx-background-color: #E8F5E9; -fx-border-color: #ccc; -fx-border-width: 1px; -fx-border-radius: 5px;"); // Very light green
 
@@ -335,13 +344,20 @@ public class ARNewHomeBankingPane extends ARPane {
         homeUrlIdColumn.setCellValueFactory(new PropertyValueFactory<>("id"));
         homeUrlIdColumn.setPrefWidth(50);
         homeUrlIdColumn.setMinWidth(30);
-        homeUrlIdColumn.setMaxWidth(80); // Fixed width
+        homeUrlIdColumn.setMaxWidth(80);
+
+        // Define column ORG Name
+        TableColumn<HomeUrlDTO, String> orgNameColumn = new TableColumn<>("Organization");
+        orgNameColumn.setCellValueFactory(new PropertyValueFactory<>("orgName"));
+        orgNameColumn.setPrefWidth(150);
+        orgNameColumn.setMinWidth(150);
+        orgNameColumn.setMaxWidth(150);
 
         TableColumn<HomeUrlDTO, String> homeUrlColumn = new TableColumn<>("URL");
         homeUrlColumn.setCellValueFactory(new PropertyValueFactory<>("url"));
         homeUrlColumn.setMaxWidth(Double.MAX_VALUE); // Allow URL column to grow
 
-        tableViewHomeUrl.getColumns().addAll(homeUrlIdColumn, homeUrlColumn);
+        tableViewHomeUrl.getColumns().addAll(homeUrlIdColumn, orgNameColumn, homeUrlColumn);
         List<HomeUrlDTO> urls = performDataBase.loadAllHomeURL();
         tableViewHomeUrl.setItems(FXCollections.observableArrayList(urls));
 

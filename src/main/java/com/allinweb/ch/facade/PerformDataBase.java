@@ -3585,6 +3585,8 @@ ORDER BY bot.id ASC;
             while (rs.next()) {
                 Integer currentHomeBankingId = rs.getInt("hb_id");
 
+                String orgName = rs.getString("name");
+
                 HomeBankingLoadDTO homeBanking = homeBankingMap.get(currentHomeBankingId);
                 if (homeBanking == null) {
                     homeBanking =
@@ -3594,7 +3596,7 @@ ORDER BY bot.id ASC;
                     homeBanking.setId(currentHomeBankingId);
                     homeBanking.setCookies(rs.getString("cookies"));
                     homeBanking.setDriverSession(rs.getString("driver_session"));
-                    homeBanking.setName(rs.getString("name"));
+                    homeBanking.setName(orgName);
                     homeBanking.setOptionsConfig(rs.getString("options_config"));
                     homeBanking.setPassword(rs.getString("password"));
                     homeBanking.setPriority(rs.getString("priority"));
@@ -3610,7 +3612,7 @@ ORDER BY bot.id ASC;
                 if (!rs.wasNull()) {
                     String homeUrlUrl = rs.getString("hu_url");
                     int homeUrlHomeBankingId = rs.getInt("home_banking_id");
-                    HomeUrlDTO urlDTO = new HomeUrlDTO(homeUrlId, homeUrlUrl, homeUrlHomeBankingId);
+                    HomeUrlDTO urlDTO = new HomeUrlDTO(homeUrlId, homeUrlUrl, homeUrlHomeBankingId, orgName);
                     homeBanking.getHomeUrlDTOs().add(urlDTO); // Access the list via getter and add
                     // OR if you added the addHomeUrlDTO method in HomeBankingLoadDTO:
                     // homeBanking.addHomeUrlDTO(urlDTO);
@@ -4814,15 +4816,28 @@ GROUP BY
 
     public List<HomeUrlDTO> loadAllHomeURL() {
         homeURLList.clear();
-        String selectSQL = " SELECT *  FROM home_url bank ";
+        String selectSQL =
+                """
+        SELECT
+            hu.id AS id,
+            hu.url AS url,
+            hu.home_banking_id AS home_banking_id,
+            hb.name AS org_name
+        FROM home_url hu
+        LEFT JOIN home_banking hb ON hu.home_banking_id = hb.id
+        ORDER BY hu.id
+        """;
+
         try (Statement stmt = getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
-                Integer id = rs.getInt("ID");
+                Integer id = rs.getInt("id");
                 String url = rs.getString("url");
                 Integer homeBankingId = rs.getInt("home_banking_id");
+                String orgName = rs.getString("org_name");
 
-                homeURLList.add(new HomeUrlDTO(id, url, homeBankingId));
+                // Assuming you modify HomeUrlDTO to include the bankName field
+                homeURLList.add(new HomeUrlDTO(id, url, homeBankingId, orgName));
             }
         } catch (SQLException e) {
             System.out.println(e.getMessage());
@@ -4832,21 +4847,30 @@ GROUP BY
 
     public List<HomeUrlDTO> loadAllHomeURLByHomeId(int homeBankingId) {
         homeURLList.clear();
-        String selectSQL =
-                " SELECT *  FROM home_url bank " + " where home_banking_id = " + homeBankingId + " order by id";
+
+        String selectSQL = " SELECT hu.*, hb.name AS org_name "
+                + " FROM home_url hu "
+                + " JOIN home_banking hb ON hu.home_banking_id = hb.id "
+                + " WHERE hu.home_banking_id = " + homeBankingId
+                + " ORDER BY hu.id ";
 
         try (Statement stmt = getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
-            while (rs.next()) {
-                Integer id = rs.getInt("ID");
-                String url = rs.getString("url");
 
-                homeURLList.add(new HomeUrlDTO(id, url, homeBankingId));
+            while (rs.next()) {
+                Integer id = rs.getInt("id");
+                String url = rs.getString("url");
+                String orgName = rs.getString("org_name");
+
+                homeURLList.add(new HomeUrlDTO(id, url, homeBankingId, orgName));
             }
+
             return homeURLList;
-        } catch (SQLException e) {
-            System.out.println(e.getMessage());
+
+        } catch (SQLException error) {
+            System.out.println(error.getMessage());
         }
+
         return homeURLList;
     }
 
