@@ -130,8 +130,7 @@ public class ARNewHomeBankingPane extends ARPane {
         idLabel = new Label("ID:");
         nameLabel = new Label("Name:");
         urlLabel = new Label("Url:");
-        priorityLabel = new Label("Priority:");
-        // jobsLabel will be moved and styled differently
+        priorityLabel = new Label("Priority:"); // This will be "Next Row" conceptually
         jobsLabel = new Label("Total of Jobs:");
         searchConfigLabel = new Label("Scan Config:");
         optionsConfigLabel = new Label("WebDriver Options:");
@@ -144,15 +143,15 @@ public class ARNewHomeBankingPane extends ARPane {
         idField = new TextField();
         idField.setEditable(false);
         idField.setStyle("-fx-control-inner-background: #D3D3D3;");
-        idField.setPrefWidth(50); // Set max 50
-        idField.setMaxWidth(50); // Set max 50
+        idField.setPrefWidth(50); // Max 50
+        idField.setMaxWidth(50); // Max 50
         idField.setPrefHeight(28);
 
         // Name Field (Editable, yellow background)
         nameField = new TextField();
         nameField.setStyle("-fx-control-inner-background: #FFDA33;");
-        nameField.setPrefWidth(150); // Set max 150
-        nameField.setMaxWidth(150); // Set max 150
+        nameField.setPrefWidth(150); // Max 150
+        nameField.setMaxWidth(150); // Max 150
         nameField.setPrefHeight(28);
         nameField.requestFocus(); // Keep initial focus
 
@@ -160,7 +159,7 @@ public class ARNewHomeBankingPane extends ARPane {
         urlField = new TextField();
         urlField.setStyle("-fx-control-inner-background: #FFDA33;");
         urlField.setPrefHeight(28);
-        HBox.setHgrow(urlField, Priority.ALWAYS); // Allow URL field to expand horizontally
+        HBox.setHgrow(urlField, Priority.ALWAYS); // Allow this field to expand horizontally
 
         // Priority Field (TextArea, yellow background, multi-line)
         priorityField = new TextArea();
@@ -168,13 +167,14 @@ public class ARNewHomeBankingPane extends ARPane {
         priorityField.setPrefRowCount(3); // Suggests initial rows
         priorityField.setWrapText(true); // Enable text wrapping
         priorityField.setPrefHeight(60); // Adjusted height for better multi-line display
+        HBox.setHgrow(priorityField, Priority.ALWAYS); // Allow this field to expand horizontally
 
         // Jobs Field (Read-only, grey background)
         jobsField = new TextField();
         jobsField.setEditable(false);
         jobsField.setStyle("-fx-control-inner-background: #D3D3D3;");
-        jobsField.setPrefWidth(50); // Set max 50
-        jobsField.setMaxWidth(50); // Set max 50
+        jobsField.setPrefWidth(50); // Max 50
+        jobsField.setMaxWidth(50); // Max 50
         jobsField.setPrefHeight(28);
 
         // Search Config Field (TextArea, yellow background, multi-line)
@@ -183,6 +183,7 @@ public class ARNewHomeBankingPane extends ARPane {
         searchConfigField.setPrefRowCount(3);
         searchConfigField.setWrapText(true);
         searchConfigField.setPrefHeight(60);
+        HBox.setHgrow(searchConfigField, Priority.ALWAYS); // Allow this field to expand horizontally
 
         // Options Config Field (TextArea, yellow background, multi-line)
         optionsConfigField = new TextArea();
@@ -190,6 +191,7 @@ public class ARNewHomeBankingPane extends ARPane {
         optionsConfigField.setPrefRowCount(3);
         optionsConfigField.setWrapText(true);
         optionsConfigField.setPrefHeight(60);
+        HBox.setHgrow(optionsConfigField, Priority.ALWAYS); // Allow this field to expand horizontally
 
         // Home URL ID Field (Read-only, grey background)
         homeUrlIdField = new TextField();
@@ -216,69 +218,61 @@ public class ARNewHomeBankingPane extends ARPane {
         updateURLButton = new Button("Update URL");
         deleteURLButton = new Button("Delete URL");
 
-        // --- 4. Layout for Organization Details (Top Section) ---
-        GridPane orgDetailsGrid = new GridPane();
-        orgDetailsGrid.setHgap(15); // Horizontal gap between columns
-        orgDetailsGrid.setVgap(8); // Vertical gap between rows
-        orgDetailsGrid.setPadding(new Insets(15, 20, 15, 20)); // Padding around the grid
-        orgDetailsGrid.setStyle(
+        // --- 4. Layout for Organization Details Section ---
+        // Create VBoxes for each label-field pair for consistent vertical alignment
+        VBox idGroup = new VBox(2, idLabel, idField);
+        idGroup.setAlignment(Pos.TOP_LEFT); // Align label and field to top left
+        VBox nameGroup = new VBox(2, nameLabel, nameField);
+        nameGroup.setAlignment(Pos.TOP_LEFT);
+        VBox jobsGroup = new VBox(2, jobsLabel, jobsField);
+        jobsGroup.setAlignment(Pos.TOP_LEFT);
+        VBox urlGroup = new VBox(2, urlLabel, urlField); // URL group for the top row
+        urlGroup.setAlignment(Pos.TOP_LEFT);
+
+        VBox priorityGroup = new VBox(2, priorityLabel, priorityField);
+        priorityGroup.setAlignment(Pos.TOP_LEFT);
+        VBox searchConfigGroup = new VBox(2, searchConfigLabel, searchConfigField);
+        searchConfigGroup.setAlignment(Pos.TOP_LEFT);
+        VBox optionsConfigGroup = new VBox(2, optionsConfigLabel, optionsConfigField);
+        optionsConfigGroup.setAlignment(Pos.TOP_LEFT);
+
+        // HBox for the first row of fields (ID, Name, Total Jobs, URL)
+        HBox topFieldsRow = new HBox(15, idGroup, nameGroup, jobsGroup, urlGroup);
+        topFieldsRow.setAlignment(Pos.TOP_LEFT);
+        HBox.setHgrow(urlGroup, Priority.ALWAYS); // Ensure URL group expands
+
+        // HBox for the second row of fields (Priority, Scan Config, WebDriver Options)
+        HBox middleFieldsRow = new HBox(15, priorityGroup, searchConfigGroup, optionsConfigGroup);
+        middleFieldsRow.setAlignment(Pos.TOP_LEFT);
+        HBox.setHgrow(priorityGroup, Priority.ALWAYS);
+        HBox.setHgrow(searchConfigGroup, Priority.ALWAYS);
+        HBox.setHgrow(optionsConfigGroup, Priority.ALWAYS);
+
+        // HBox for the Organization buttons
+        HBox orgButtonsBox = new HBox(10, insertORGButton, updateORGButton, deleteORGButton, templateORGButton);
+        orgButtonsBox.setAlignment(Pos.CENTER_RIGHT);
+        orgButtonsBox.setPadding(new Insets(0, 0, 10, 0)); // Padding below buttons before the grid
+
+        // VBox to hold the section title, field rows, and buttons
+        VBox orgDetailsContainer = new VBox(10); // Spacing between elements within this section
+        orgDetailsContainer.setPadding(new Insets(15, 20, 15, 20)); // Padding around the container
+        orgDetailsContainer.setStyle(
                 "-fx-background-color: #f5f5f5; -fx-border-color: #ccc; -fx-border-width: 1px; -fx-border-radius: 5px;"); // Subtle background and border
 
-        // Define Column Constraints for better alignment
-        // Three columns for the top row of ID, Name, Jobs
-        ColumnConstraints col1 = new ColumnConstraints();
-        col1.setHgrow(Priority.NEVER); // For ID VBox
-        col1.setPrefWidth(80); // Adjusted for ID field max width + label
-
-        ColumnConstraints col2 = new ColumnConstraints();
-        col2.setHgrow(Priority.NEVER); // For Name VBox
-        col2.setPrefWidth(150); // Adjusted for Name field max width + label
-
-        ColumnConstraints col3 = new ColumnConstraints();
-        col3.setHgrow(Priority.ALWAYS); // For Jobs VBox and remaining fields
-        col3.setMinWidth(80); // Minimum width for the jobs column
-
-        orgDetailsGrid.getColumnConstraints().addAll(col1, col2, col3);
-
-        // Organizations Label - MOVED HERE, ABOVE ID FIELD
-        orgDetailsGrid.add(organizationsLabel, 0, 0, 3, 1); // Span across all 3 columns
+        // Organizations Label at the very top of this section
         organizationsLabel.setStyle(
-                "-fx-font-size: 1.2em; -fx-font-weight: bold; -fx-text-fill: #1565C0; -fx-padding: 0 0 10 0;"); // Adjusted padding for top
+                "-fx-font-size: 1.2em; -fx-font-weight: bold; -fx-text-fill: #1565C0; -fx-padding: 0 0 10 0;");
         organizationsLabel.setMaxWidth(Double.MAX_VALUE);
         organizationsLabel.setAlignment(Pos.CENTER);
 
-        // New layout for ID, Name, Total of Jobs in a single row
-        // Each label-field pair in a VBox, then these VBoxes in an HBox
-        VBox idGroup = new VBox(2, idLabel, idField);
-        idGroup.setAlignment(Pos.CENTER_LEFT);
-        VBox nameGroup = new VBox(2, nameLabel, nameField);
-        nameGroup.setAlignment(Pos.CENTER_LEFT);
-        VBox jobsGroup = new VBox(2, jobsLabel, jobsField);
-        jobsGroup.setAlignment(Pos.CENTER_LEFT);
-
-        // Add these groups to the GridPane
-        orgDetailsGrid.add(idGroup, 0, 1); // Row 1, Col 0
-        orgDetailsGrid.add(nameGroup, 1, 1); // Row 1, Col 1
-        orgDetailsGrid.add(jobsGroup, 2, 1); // Row 1, Col 2
-
-        // Original fields shifted down by 1 row (because of the new row 1)
-        orgDetailsGrid.add(urlLabel, 0, 2); // Row 2, Col 0
-        orgDetailsGrid.add(urlField, 1, 2, 2, 1); // Row 2, Col 1, span 2 columns for URL field
-
-        orgDetailsGrid.add(priorityLabel, 0, 3); // Row 3
-        orgDetailsGrid.add(priorityField, 1, 3, 2, 1); // Row 3, span 2 columns
-
-        orgDetailsGrid.add(searchConfigLabel, 0, 4); // Row 4
-        orgDetailsGrid.add(searchConfigField, 1, 4, 2, 1); // Row 4, span 2 columns
-
-        orgDetailsGrid.add(optionsConfigLabel, 0, 5); // Row 5
-        orgDetailsGrid.add(optionsConfigField, 1, 5, 2, 1); // Row 5, span 2 columns
-
-        // Buttons for Organization details, aligned to the right within the grid
-        HBox orgButtonsBox = new HBox(10, insertORGButton, updateORGButton, deleteORGButton, templateORGButton);
-        orgButtonsBox.setAlignment(Pos.CENTER_RIGHT);
-        GridPane.setColumnSpan(orgButtonsBox, 3); // Span across all 3 columns
-        orgDetailsGrid.add(orgButtonsBox, 0, 6); // Placed at row 6
+        orgDetailsContainer
+                .getChildren()
+                .addAll(
+                        organizationsLabel,
+                        topFieldsRow,
+                        middleFieldsRow,
+                        orgButtonsBox // Buttons are now part of this container
+                        );
 
         // --- 5. TableView for Organizations ---
         tableView = new TableView<>();
@@ -364,7 +358,7 @@ public class ARNewHomeBankingPane extends ARPane {
         // This VBox will hold all major sections
         VBox rootVBox = new VBox(
                 20, // Spacing between major sections (e.g., Org Details and Org Table)
-                orgDetailsGrid, // orgDetailsGrid now contains the organizationsLabel and all its fields/buttons
+                orgDetailsContainer, // This VBox now holds all organization details and buttons
                 tableView,
                 urlsOrgsLabel, // Section header for Environments
                 homeUrlFieldsAndButtons,
@@ -385,7 +379,7 @@ public class ARNewHomeBankingPane extends ARPane {
         AnchorPane.setRightAnchor(rootVBox, 0.0);
 
         // --- 9. Styling for Section Labels (only urlsOrgsLabel remains here) ---
-        // organizationsLabel styling is now applied where it's added to orgDetailsGrid
+        // organizationsLabel styling is now applied within orgDetailsContainer
         urlsOrgsLabel.setStyle(
                 "-fx-font-size: 1.2em; -fx-font-weight: bold; -fx-text-fill: #1565C0; -fx-padding: 10 0 5 0;");
         urlsOrgsLabel.setMaxWidth(Double.MAX_VALUE); // Allow label to span horizontally
