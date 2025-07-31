@@ -297,25 +297,19 @@ public class ARNewHomeBankingPane extends ARPane {
         TableColumn<DatabaseUserDTO, String> urlColumn = new TableColumn<>("Url");
         urlColumn.setCellValueFactory(new PropertyValueFactory<>("url"));
 
-        TableColumn<DatabaseUserDTO, String> priorityColumn = new TableColumn<>("Priority Identifier");
-        priorityColumn.setCellValueFactory(new PropertyValueFactory<>("priority"));
+        //        TableColumn<DatabaseUserDTO, String> priorityColumn = new TableColumn<>("Priority Identifier");
+        //        priorityColumn.setCellValueFactory(new PropertyValueFactory<>("priority"));
+        //
+        //        TableColumn<DatabaseUserDTO, String> searchConfigColumn = new TableColumn<>("Search Config");
+        //        searchConfigColumn.setCellValueFactory(new PropertyValueFactory<>("searchConfig"));
+        //
+        //        TableColumn<DatabaseUserDTO, String> optionsConfigColumn = new TableColumn<>("WebDriver Options");
+        //        optionsConfigColumn.setCellValueFactory(new PropertyValueFactory<>("optionsConfig"));
 
-        TableColumn<DatabaseUserDTO, String> searchConfigColumn = new TableColumn<>("Search Config");
-        searchConfigColumn.setCellValueFactory(new PropertyValueFactory<>("searchConfig"));
-
-        TableColumn<DatabaseUserDTO, String> optionsConfigColumn = new TableColumn<>("WebDriver Options");
-        optionsConfigColumn.setCellValueFactory(new PropertyValueFactory<>("optionsConfig"));
-
-        tableView
-                .getColumns()
-                .addAll(
-                        idColumn,
-                        jobColumn,
-                        nameColumn,
-                        urlColumn,
-                        priorityColumn,
-                        searchConfigColumn,
-                        optionsConfigColumn);
+        tableView.getColumns().addAll(idColumn, jobColumn, nameColumn, urlColumn);
+        //                        priorityColumn,
+        //                        searchConfigColumn,
+        //                        optionsConfigColumn);
         tableView.setItems(performDataBase.getDatabaseList()); // Set data to the table
 
         // --- 6. Home URL Details and Table (Environments Section) ---
