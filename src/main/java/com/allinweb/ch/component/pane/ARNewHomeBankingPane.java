@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -257,7 +256,7 @@ public class ARNewHomeBankingPane extends ARPane {
 
         // VBox to hold the section title, field rows, and buttons
         VBox orgDetailsContainer = new VBox(10); // Spacing between elements within this section
-        orgDetailsContainer.setPadding(new Insets(15, 20, 2, 20)); // Padding around the container
+        orgDetailsContainer.setPadding(new Insets(10, 10, 2, 10)); // Padding around the container
         orgDetailsContainer.setStyle(
                 "-fx-background-color: #f5f5f5; -fx-border-color: #ccc; -fx-border-width: 1px; -fx-border-radius: 5px;"); // Subtle background and border
 
@@ -303,18 +302,12 @@ public class ARNewHomeBankingPane extends ARPane {
 
         orgDetailsContainer
                 .getChildren()
-                .addAll(
-                        organizationsLabel,
-                        topFieldsRow,
-                        middleFieldsRow,
-                        orgButtonsBox,
-                        tableView
-                );
+                .addAll(organizationsLabel, topFieldsRow, middleFieldsRow, orgButtonsBox, tableView);
 
         // --- 6. Home URL Details and Table (Environments Section) ---
         // HBox for Home URL fields and buttons
         VBox homeUrlDetailsContainer = new VBox(10); // Use VBox to stack label and then fields/buttons
-        homeUrlDetailsContainer.setPadding(new Insets(10, 20, 2, 20)); // Padding
+        homeUrlDetailsContainer.setPadding(new Insets(10, 10, 2, 10)); // Padding
         homeUrlDetailsContainer.setStyle(
                 "-fx-background-color: #f5f5f5; -fx-border-color: #ccc; -fx-border-width: 1px; -fx-border-radius: 5px;");
 
@@ -350,12 +343,13 @@ public class ARNewHomeBankingPane extends ARPane {
         List<HomeUrlDTO> urls = performDataBase.loadAllHomeURL();
         tableViewHomeUrl.setItems(FXCollections.observableArrayList(urls));
 
-        homeUrlDetailsContainer.getChildren().addAll(
-                urlEnviromentLabel, // Add the label first
-                fieldBox,
-                buttonBox,
-                tableViewHomeUrl
-        );
+        homeUrlDetailsContainer
+                .getChildren()
+                .addAll(
+                        urlEnviromentLabel, // Add the label first
+                        fieldBox,
+                        buttonBox,
+                        tableViewHomeUrl);
 
         // --- 7. Main Layout VBox ---
         // This VBox will hold all major sections
