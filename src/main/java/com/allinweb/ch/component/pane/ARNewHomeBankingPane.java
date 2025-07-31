@@ -91,7 +91,7 @@ public class ARNewHomeBankingPane extends ARPane {
     private Label searchConfigLabel;
     private Label optionsConfigLabel;
     private Label organizationsLabel;
-    private Label urlsOrgsLabel;
+    private Label urlEnviromentLabel;
 
     private TextField idField;
     private TextField nameField;
@@ -138,7 +138,7 @@ public class ARNewHomeBankingPane extends ARPane {
         optionsConfigLabel = new Label("WebDriver Options:");
 
         organizationsLabel = new Label("Organizations");
-        urlsOrgsLabel = new Label("Environments"); // This label will be moved
+        urlEnviromentLabel = new Label("Environments"); // This label will be moved
 
         // --- 2. Initialize Text Fields and Text Areas ---
         // ID Field (Read-only, grey background)
@@ -253,11 +253,11 @@ public class ARNewHomeBankingPane extends ARPane {
         // HBox for the Organization buttons
         HBox orgButtonsBox = new HBox(10, insertORGButton, updateORGButton, deleteORGButton, templateORGButton);
         orgButtonsBox.setAlignment(Pos.CENTER_RIGHT);
-        orgButtonsBox.setPadding(new Insets(0, 0, 10, 0)); // Padding below buttons before the grid
+        orgButtonsBox.setPadding(new Insets(0, 0, 2, 0)); // Padding below buttons before the grid
 
         // VBox to hold the section title, field rows, and buttons
         VBox orgDetailsContainer = new VBox(10); // Spacing between elements within this section
-        orgDetailsContainer.setPadding(new Insets(15, 20, 15, 20)); // Padding around the container
+        orgDetailsContainer.setPadding(new Insets(15, 20, 2, 20)); // Padding around the container
         orgDetailsContainer.setStyle(
                 "-fx-background-color: #f5f5f5; -fx-border-color: #ccc; -fx-border-width: 1px; -fx-border-radius: 5px;"); // Subtle background and border
 
@@ -266,15 +266,6 @@ public class ARNewHomeBankingPane extends ARPane {
                 "-fx-font-size: 1.2em; -fx-font-weight: bold; -fx-text-fill: #1565C0; -fx-padding: 0 0 10 0;");
         organizationsLabel.setMaxWidth(Double.MAX_VALUE);
         organizationsLabel.setAlignment(Pos.CENTER);
-
-        orgDetailsContainer
-                .getChildren()
-                .addAll(
-                        organizationsLabel,
-                        topFieldsRow,
-                        middleFieldsRow,
-                        orgButtonsBox // Buttons are now part of this container
-                );
 
         // --- 5. TableView for Organizations ---
         tableView = new TableView<>();
@@ -310,18 +301,28 @@ public class ARNewHomeBankingPane extends ARPane {
         tableView.getColumns().addAll(idColumn, jobColumn, nameColumn, urlColumn);
         tableView.setItems(performDataBase.getDatabaseList()); // Set data to the table
 
+        orgDetailsContainer
+                .getChildren()
+                .addAll(
+                        organizationsLabel,
+                        topFieldsRow,
+                        middleFieldsRow,
+                        orgButtonsBox,
+                        tableView
+                );
+
         // --- 6. Home URL Details and Table (Environments Section) ---
         // HBox for Home URL fields and buttons
         VBox homeUrlDetailsContainer = new VBox(10); // Use VBox to stack label and then fields/buttons
-        homeUrlDetailsContainer.setPadding(new Insets(10, 20, 0, 20)); // Padding
+        homeUrlDetailsContainer.setPadding(new Insets(10, 20, 2, 20)); // Padding
         homeUrlDetailsContainer.setStyle(
                 "-fx-background-color: #f5f5f5; -fx-border-color: #ccc; -fx-border-width: 1px; -fx-border-radius: 5px;");
 
         // Environments Label moved inside this container, above the fields
-        urlsOrgsLabel.setStyle(
+        urlEnviromentLabel.setStyle(
                 "-fx-font-size: 1.2em; -fx-font-weight: bold; -fx-text-fill: #1565C0; -fx-padding: 0 0 10 0;");
-        urlsOrgsLabel.setMaxWidth(Double.MAX_VALUE);
-        urlsOrgsLabel.setAlignment(Pos.CENTER);
+        urlEnviromentLabel.setMaxWidth(Double.MAX_VALUE);
+        urlEnviromentLabel.setAlignment(Pos.CENTER);
 
         HBox fieldBox = new HBox(10, homeUrlIdField, homeUrlValueField); // Fields
         fieldBox.setAlignment(Pos.CENTER_LEFT);
@@ -329,13 +330,6 @@ public class ARNewHomeBankingPane extends ARPane {
 
         HBox buttonBox = new HBox(10, insertURLButton, updateURLButton, deleteURLButton); // Buttons
         buttonBox.setAlignment(Pos.CENTER_RIGHT);
-
-        homeUrlDetailsContainer.getChildren().addAll(
-                urlsOrgsLabel, // Add the label first
-                fieldBox,
-                buttonBox
-        );
-
 
         // TableView for Home URLs
         tableViewHomeUrl = new TableView<>();
@@ -356,14 +350,19 @@ public class ARNewHomeBankingPane extends ARPane {
         List<HomeUrlDTO> urls = performDataBase.loadAllHomeURL();
         tableViewHomeUrl.setItems(FXCollections.observableArrayList(urls));
 
+        homeUrlDetailsContainer.getChildren().addAll(
+                urlEnviromentLabel, // Add the label first
+                fieldBox,
+                buttonBox,
+                tableViewHomeUrl
+        );
+
         // --- 7. Main Layout VBox ---
         // This VBox will hold all major sections
         VBox rootVBox = new VBox(
                 20, // Spacing between major sections (e.g., Org Details and Org Table)
-                orgDetailsContainer, // This VBox now holds all organization details and buttons
-                tableView,
-                homeUrlDetailsContainer, // Use the new container for Home URL details and its label
-                tableViewHomeUrl);
+                orgDetailsContainer,
+                homeUrlDetailsContainer);
         rootVBox.setAlignment(Pos.TOP_CENTER); // Align content to top center of the window
         rootVBox.setPadding(new Insets(15)); // Overall padding around the entire content
 
