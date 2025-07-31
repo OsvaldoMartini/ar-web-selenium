@@ -138,7 +138,7 @@ public class ARNewHomeBankingPane extends ARPane {
         optionsConfigLabel = new Label("WebDriver Options:");
 
         organizationsLabel = new Label("Organizations");
-        urlsOrgsLabel = new Label("Environments");
+        urlsOrgsLabel = new Label("Environments"); // This label will be moved
 
         // --- 2. Initialize Text Fields and Text Areas ---
         // ID Field (Read-only, grey background)
@@ -274,7 +274,7 @@ public class ARNewHomeBankingPane extends ARPane {
                         topFieldsRow,
                         middleFieldsRow,
                         orgButtonsBox // Buttons are now part of this container
-                        );
+                );
 
         // --- 5. TableView for Organizations ---
         tableView = new TableView<>();
@@ -299,37 +299,43 @@ public class ARNewHomeBankingPane extends ARPane {
         TableColumn<DatabaseUserDTO, String> urlColumn = new TableColumn<>("Url");
         urlColumn.setCellValueFactory(new PropertyValueFactory<>("url"));
 
-        //        TableColumn<DatabaseUserDTO, String> priorityColumn = new TableColumn<>("Priority Identifier");
-        //        priorityColumn.setCellValueFactory(new PropertyValueFactory<>("priority"));
-        //
-        //        TableColumn<DatabaseUserDTO, String> searchConfigColumn = new TableColumn<>("Search Config");
-        //        searchConfigColumn.setCellValueFactory(new PropertyValueFactory<>("searchConfig"));
-        //
-        //        TableColumn<DatabaseUserDTO, String> optionsConfigColumn = new TableColumn<>("WebDriver Options");
-        //        optionsConfigColumn.setCellValueFactory(new PropertyValueFactory<>("optionsConfig"));
+        // Removed table columns for priority, search config, options config as they are now in the detail section
+        // TableColumn<DatabaseUserDTO, String> priorityColumn = new TableColumn<>("Priority Identifier");
+        // priorityColumn.setCellValueFactory(new PropertyValueFactory<>("priority"));
+        // TableColumn<DatabaseUserDTO, String> searchConfigColumn = new TableColumn<>("Search Config");
+        // searchConfigColumn.setCellValueFactory(new PropertyValueFactory<>("searchConfig"));
+        // TableColumn<DatabaseUserDTO, String> optionsConfigColumn = new TableColumn<>("WebDriver Options");
+        // optionsConfigColumn.setCellValueFactory(new PropertyValueFactory<>("optionsConfig"));
 
         tableView.getColumns().addAll(idColumn, jobColumn, nameColumn, urlColumn);
-        //                        priorityColumn,
-        //                        searchConfigColumn,
-        //                        optionsConfigColumn);
         tableView.setItems(performDataBase.getDatabaseList()); // Set data to the table
 
         // --- 6. Home URL Details and Table (Environments Section) ---
         // HBox for Home URL fields and buttons
-        HBox homeUrlFieldsAndButtons = new HBox(20); // Spacing between field box and button box
-        homeUrlFieldsAndButtons.setAlignment(Pos.CENTER_LEFT);
-        homeUrlFieldsAndButtons.setPadding(new Insets(10, 20, 0, 20)); // Padding
-        homeUrlFieldsAndButtons.setStyle(
+        VBox homeUrlDetailsContainer = new VBox(10); // Use VBox to stack label and then fields/buttons
+        homeUrlDetailsContainer.setPadding(new Insets(10, 20, 0, 20)); // Padding
+        homeUrlDetailsContainer.setStyle(
                 "-fx-background-color: #f5f5f5; -fx-border-color: #ccc; -fx-border-width: 1px; -fx-border-radius: 5px;");
+
+        // Environments Label moved inside this container, above the fields
+        urlsOrgsLabel.setStyle(
+                "-fx-font-size: 1.2em; -fx-font-weight: bold; -fx-text-fill: #1565C0; -fx-padding: 0 0 10 0;");
+        urlsOrgsLabel.setMaxWidth(Double.MAX_VALUE);
+        urlsOrgsLabel.setAlignment(Pos.CENTER);
 
         HBox fieldBox = new HBox(10, homeUrlIdField, homeUrlValueField); // Fields
         fieldBox.setAlignment(Pos.CENTER_LEFT);
-        HBox.setHgrow(fieldBox, Priority.ALWAYS); // Allow fields to take available space
+        HBox.setHgrow(homeUrlValueField, Priority.ALWAYS); // Allow value field to take available space
 
         HBox buttonBox = new HBox(10, insertURLButton, updateURLButton, deleteURLButton); // Buttons
         buttonBox.setAlignment(Pos.CENTER_RIGHT);
 
-        homeUrlFieldsAndButtons.getChildren().addAll(fieldBox, buttonBox);
+        homeUrlDetailsContainer.getChildren().addAll(
+                urlsOrgsLabel, // Add the label first
+                fieldBox,
+                buttonBox
+        );
+
 
         // TableView for Home URLs
         tableViewHomeUrl = new TableView<>();
@@ -356,8 +362,7 @@ public class ARNewHomeBankingPane extends ARPane {
                 20, // Spacing between major sections (e.g., Org Details and Org Table)
                 orgDetailsContainer, // This VBox now holds all organization details and buttons
                 tableView,
-                urlsOrgsLabel, // Section header for Environments
-                homeUrlFieldsAndButtons,
+                homeUrlDetailsContainer, // Use the new container for Home URL details and its label
                 tableViewHomeUrl);
         rootVBox.setAlignment(Pos.TOP_CENTER); // Align content to top center of the window
         rootVBox.setPadding(new Insets(15)); // Overall padding around the entire content
@@ -374,12 +379,8 @@ public class ARNewHomeBankingPane extends ARPane {
         AnchorPane.setLeftAnchor(rootVBox, 0.0);
         AnchorPane.setRightAnchor(rootVBox, 0.0);
 
-        // --- 9. Styling for Section Labels (only urlsOrgsLabel remains here) ---
-        // organizationsLabel styling is now applied within orgDetailsContainer
-        urlsOrgsLabel.setStyle(
-                "-fx-font-size: 1.2em; -fx-font-weight: bold; -fx-text-fill: #1565C0; -fx-padding: 10 0 5 0;");
-        urlsOrgsLabel.setMaxWidth(Double.MAX_VALUE); // Allow label to span horizontally
-        urlsOrgsLabel.setAlignment(Pos.CENTER); // Center the text
+        // --- 9. Styling for Section Labels (all styling is now applied where labels are added to their containers) ---
+        // No global styling for labels needed here anymore as they are styled when added to their specific containers.
     }
 
     private void updateHomeBankList(List<DatabaseUserDTO> databaseList) {
