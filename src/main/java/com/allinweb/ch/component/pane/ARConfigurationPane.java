@@ -622,58 +622,58 @@ public class ARConfigurationPane extends ARPane {
 
                 performBackup.initialize(conn);
 
-                String logPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG);
+                String databasePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
 
-                String backupFilePath = logPath + File.separator + "backup_home_banking_" + date + ".sql";
+                String backupFilePath = databasePath + File.separator + "backup_home_banking_" + date + ".sql";
                 ErrorMessage errorMessage = performBackup.backupHomeBanking(conn, backupFilePath);
 
                 if (errorMessage == null) {
-                    backupFilePath = logPath + File.separator + "backup_home_url_" + date + ".sql";
+                    backupFilePath = databasePath + File.separator + "backup_home_url_" + date + ".sql";
                     errorMessage = performBackup.backupHomeUrl(conn, backupFilePath);
                 }
 
                 if (errorMessage == null) {
-                    backupFilePath = logPath + File.separator + "backup_bot_job_" + date + ".sql";
+                    backupFilePath = databasePath + File.separator + "backup_bot_job_" + date + ".sql";
                     errorMessage = performBackup.backupBotJob(conn, backupFilePath);
                 }
 
                 if (errorMessage == null) {
-                    backupFilePath = logPath + File.separator + "backup_block_" + date + ".sql";
+                    backupFilePath = databasePath + File.separator + "backup_block_" + date + ".sql";
                     errorMessage = performBackup.backupBlock(conn, backupFilePath);
                 }
 
                 if (errorMessage == null) {
-                    backupFilePath = logPath + File.separator + "backup_instruction_" + date + ".sql";
+                    backupFilePath = databasePath + File.separator + "backup_instruction_" + date + ".sql";
                     errorMessage = performBackup.backupInstruction(conn, backupFilePath);
                 }
 
                 if (errorMessage == null) {
-                    backupFilePath = logPath + File.separator + "backup_variable_" + date + ".sql";
+                    backupFilePath = databasePath + File.separator + "backup_variable_" + date + ".sql";
                     errorMessage = performBackup.backupVariable(conn, backupFilePath);
                 }
 
                 if (errorMessage == null) {
-                    backupFilePath = logPath + File.separator + "backup_reference_" + date + ".sql";
+                    backupFilePath = databasePath + File.separator + "backup_reference_" + date + ".sql";
                     errorMessage = performBackup.backupReference(conn, backupFilePath);
                 }
 
                 if (errorMessage == null) {
-                    backupFilePath = logPath + File.separator + "backup_component_block_" + date + ".sql";
+                    backupFilePath = databasePath + File.separator + "backup_component_block_" + date + ".sql";
                     errorMessage = performBackup.backupComponentBlock(conn, backupFilePath);
                 }
 
                 if (errorMessage == null) {
-                    backupFilePath = logPath + File.separator + "backup_component_instruction_" + date + ".sql";
+                    backupFilePath = databasePath + File.separator + "backup_component_instruction_" + date + ".sql";
                     errorMessage = performBackup.backupComponentInstruction(conn, backupFilePath);
                 }
 
                 if (errorMessage == null) {
-                    backupFilePath = logPath + File.separator + "backup_component_variable_" + date + ".sql";
+                    backupFilePath = databasePath + File.separator + "backup_component_variable_" + date + ".sql";
                     errorMessage = performBackup.backupComponentVariable(conn, backupFilePath);
                 }
 
                 if (errorMessage == null) {
-                    backupFilePath = logPath + File.separator + "backup_component_reference_" + date + ".sql";
+                    backupFilePath = databasePath + File.separator + "backup_component_reference_" + date + ".sql";
                     errorMessage = performBackup.backupComponentReference(conn, backupFilePath);
                 }
 
@@ -727,33 +727,33 @@ public class ARConfigurationPane extends ARPane {
 
                 performBackup.initialize(conn);
 
-                String logPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG);
+                String databasePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
                 String date = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy_MM_dd"));
 
-                String backupFilePath = logPath + File.separator + "backup_home_banking_" + date + ".sql";
+                String backupFilePath = databasePath + File.separator + "backup_home_banking_" + date + ".sql";
                 ErrorMessage errorMessage = performBackup.restoreHomeBanking(conn, backupFilePath);
 
                 if (errorMessage == null) {
-                    backupFilePath = logPath + File.separator + "backup_home_url_" + date + ".sql";
+                    backupFilePath = databasePath + File.separator + "backup_home_url_" + date + ".sql";
                     errorMessage = performBackup.restoreHomeUrl(conn, backupFilePath);
                 }
 
                 if (errorMessage == null) {
-                    backupFilePath = logPath + File.separator + "backup_bot_job_" + date + ".sql";
+                    backupFilePath = databasePath + File.separator + "backup_bot_job_" + date + ".sql";
                     errorMessage = performBackup.restoreBotJob(conn, backupFilePath);
                 }
                 if (errorMessage == null) {
-                    backupFilePath = logPath + File.separator + "backup_block_" + date + ".sql";
+                    backupFilePath = databasePath + File.separator + "backup_block_" + date + ".sql";
                     errorMessage = performBackup.restoreBlock(conn, backupFilePath);
                 }
 
                 if (errorMessage == null) {
-                    backupFilePath = logPath + File.separator + "backup_instruction_" + date + ".sql";
+                    backupFilePath = databasePath + File.separator + "backup_instruction_" + date + ".sql";
                     errorMessage = performBackup.restoreInstruction(conn, backupFilePath);
                 }
 
                 if (errorMessage == null) {
-                    backupFilePath = logPath + File.separator + "backup_variable_" + date + ".sql";
+                    backupFilePath = databasePath + File.separator + "backup_variable_" + date + ".sql";
                     errorMessage = performBackup.restoreVariable(conn, backupFilePath);
                 }
 
@@ -762,22 +762,22 @@ public class ARConfigurationPane extends ARPane {
                 }
 
                 if (errorMessage == null) {
-                    backupFilePath = logPath + File.separator + "backup_reference_" + date + ".sql";
+                    backupFilePath = databasePath + File.separator + "backup_reference_" + date + ".sql";
                     errorMessage = performBackup.restoreReference(conn, backupFilePath);
                 }
 
                 if (errorMessage == null) {
-                    backupFilePath = logPath + File.separator + "backup_component_block_" + date + ".sql";
+                    backupFilePath = databasePath + File.separator + "backup_component_block_" + date + ".sql";
                     errorMessage = performBackup.restoreComponentBlock(conn, backupFilePath);
                 }
 
                 if (errorMessage == null) {
-                    backupFilePath = logPath + File.separator + "backup_component_instruction_" + date + ".sql";
+                    backupFilePath = databasePath + File.separator + "backup_component_instruction_" + date + ".sql";
                     errorMessage = performBackup.restoreComponentInstruction(conn, backupFilePath);
                 }
 
                 if (errorMessage == null) {
-                    backupFilePath = logPath + File.separator + "backup_component_variable_" + date + ".sql";
+                    backupFilePath = databasePath + File.separator + "backup_component_variable_" + date + ".sql";
                     errorMessage = performBackup.restoreComponentVariable(conn, backupFilePath);
                 }
 
@@ -786,7 +786,7 @@ public class ARConfigurationPane extends ARPane {
                 }
 
                 if (errorMessage == null) {
-                    backupFilePath = logPath + File.separator + "backup_component_reference_" + date + ".sql";
+                    backupFilePath = databasePath + File.separator + "backup_component_reference_" + date + ".sql";
                     errorMessage = performBackup.restoreComponentReference(conn, backupFilePath);
                 }
 
