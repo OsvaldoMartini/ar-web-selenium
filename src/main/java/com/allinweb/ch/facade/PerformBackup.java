@@ -2,10 +2,8 @@ package com.allinweb.ch.facade;
 
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ErrorMessage;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -74,7 +72,8 @@ public class PerformBackup {
 
         try (PreparedStatement pstmt = conn.prepareStatement(query);
                 ResultSet rs = pstmt.executeQuery();
-                FileWriter writer = new FileWriter(sqlFile)) {
+                BufferedWriter writer = new BufferedWriter(
+                        new OutputStreamWriter(new FileOutputStream(sqlFile), StandardCharsets.UTF_8))) {
 
             while (rs.next()) {
                 int id = rs.getInt("id");
@@ -129,7 +128,8 @@ public class PerformBackup {
         File sqlFile = new File(backupFilePath);
         try (PreparedStatement pstmt = conn.prepareStatement(query);
                 ResultSet rs = pstmt.executeQuery();
-                FileWriter writer = new FileWriter(sqlFile)) {
+                BufferedWriter writer = new BufferedWriter(
+                        new OutputStreamWriter(new FileOutputStream(sqlFile), StandardCharsets.UTF_8))) {
 
             while (rs.next()) {
                 int id = rs.getInt("id");
@@ -169,7 +169,8 @@ public class PerformBackup {
         File sqlFile = new File(backupFilePath);
         try (PreparedStatement pstmt = conn.prepareStatement(query);
                 ResultSet rs = pstmt.executeQuery();
-                FileWriter writer = new FileWriter(sqlFile)) {
+                BufferedWriter writer = new BufferedWriter(
+                        new OutputStreamWriter(new FileOutputStream(sqlFile), StandardCharsets.UTF_8))) {
 
             while (rs.next()) {
                 int botJobId = rs.getInt("id");
@@ -225,7 +226,8 @@ public class PerformBackup {
         File sqlFile = new File(backupFilePath);
         try (PreparedStatement pstmt = conn.prepareStatement(query);
                 ResultSet rs = pstmt.executeQuery();
-                FileWriter writer = new FileWriter(sqlFile)) {
+                BufferedWriter writer = new BufferedWriter(
+                        new OutputStreamWriter(new FileOutputStream(sqlFile), StandardCharsets.UTF_8))) {
 
             while (rs.next()) {
                 int id = rs.getInt("id");
@@ -317,7 +319,8 @@ public class PerformBackup {
         File sqlFile = new File(backupFilePath);
         try (PreparedStatement pstmt = conn.prepareStatement(query);
                 ResultSet rs = pstmt.executeQuery();
-                FileWriter writer = new FileWriter(sqlFile)) {
+                BufferedWriter writer = new BufferedWriter(
+                        new OutputStreamWriter(new FileOutputStream(sqlFile), StandardCharsets.UTF_8))) {
 
             while (rs.next()) {
                 int id = rs.getInt("id");
@@ -368,7 +371,8 @@ public class PerformBackup {
         File sqlFile = new File(backupFilePath);
         try (PreparedStatement pstmt = conn.prepareStatement(query);
                 ResultSet rs = pstmt.executeQuery();
-                FileWriter writer = new FileWriter(sqlFile)) {
+                BufferedWriter writer = new BufferedWriter(
+                        new OutputStreamWriter(new FileOutputStream(sqlFile), StandardCharsets.UTF_8))) {
 
             while (rs.next()) {
                 int id = rs.getInt("id");
@@ -408,7 +412,8 @@ public class PerformBackup {
         File sqlFile = new File(backupFilePath);
         try (PreparedStatement pstmt = conn.prepareStatement(query);
                 ResultSet rs = pstmt.executeQuery();
-                FileWriter writer = new FileWriter(sqlFile)) {
+                BufferedWriter writer = new BufferedWriter(
+                        new OutputStreamWriter(new FileOutputStream(sqlFile), StandardCharsets.UTF_8))) {
 
             while (rs.next()) {
                 int id = rs.getInt("id");
@@ -468,7 +473,8 @@ public class PerformBackup {
         File sqlFile = new File(backupFilePath);
         try (PreparedStatement pstmt = conn.prepareStatement(query);
                 ResultSet rs = pstmt.executeQuery();
-                FileWriter writer = new FileWriter(sqlFile)) {
+                BufferedWriter writer = new BufferedWriter(
+                        new OutputStreamWriter(new FileOutputStream(sqlFile), StandardCharsets.UTF_8))) {
 
             while (rs.next()) {
                 int id = rs.getInt("id");
@@ -537,7 +543,8 @@ public class PerformBackup {
         File sqlFile = new File(backupFilePath);
         try (PreparedStatement pstmt = conn.prepareStatement(query);
                 ResultSet rs = pstmt.executeQuery();
-                FileWriter writer = new FileWriter(sqlFile)) {
+                BufferedWriter writer = new BufferedWriter(
+                        new OutputStreamWriter(new FileOutputStream(sqlFile), StandardCharsets.UTF_8))) {
 
             while (rs.next()) {
                 int id = rs.getInt("id");
@@ -654,7 +661,8 @@ public class PerformBackup {
         File sqlFile = new File(backupFilePath);
         try (PreparedStatement pstmt = conn.prepareStatement(query);
                 ResultSet rs = pstmt.executeQuery();
-                FileWriter writer = new FileWriter(sqlFile)) {
+                BufferedWriter writer = new BufferedWriter(
+                        new OutputStreamWriter(new FileOutputStream(sqlFile), StandardCharsets.UTF_8))) {
 
             while (rs.next()) {
                 int id = rs.getInt("id");
@@ -711,7 +719,8 @@ public class PerformBackup {
         File sqlFile = new File(backupFilePath);
         try (PreparedStatement pstmt = conn.prepareStatement(query);
                 ResultSet rs = pstmt.executeQuery();
-                FileWriter writer = new FileWriter(sqlFile)) {
+                BufferedWriter writer = new BufferedWriter(
+                        new OutputStreamWriter(new FileOutputStream(sqlFile), StandardCharsets.UTF_8))) {
 
             while (rs.next()) {
                 int id = rs.getInt("id");
@@ -757,7 +766,8 @@ public class PerformBackup {
 
         String selectHomeBankingIdsSQL = "SELECT id FROM home_banking ORDER BY id";
 
-        try (BufferedReader reader = new BufferedReader(new FileReader(sqlFilePath));
+        try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(new FileInputStream(sqlFilePath), StandardCharsets.UTF_8));
                 PreparedStatement pstmt = conn.prepareStatement(insertQuery);
                 Statement idStmtBefore = conn.createStatement();
                 Statement idStmtAfter = conn.createStatement()) {
@@ -886,7 +896,8 @@ public class PerformBackup {
 
         String selectHomeUrlIdsSQL = "SELECT id FROM home_url ORDER BY id";
 
-        try (BufferedReader reader = new BufferedReader(new FileReader(sqlFilePath));
+        try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(new FileInputStream(sqlFilePath), StandardCharsets.UTF_8));
                 PreparedStatement pstmt = conn.prepareStatement(insertQuery);
                 Statement idStmtBefore = conn.createStatement();
                 Statement idStmtAfter = conn.createStatement()) {
@@ -1011,7 +1022,8 @@ public class PerformBackup {
 
         String selectBlockIdsSQL = "SELECT id FROM block ORDER BY id";
 
-        try (BufferedReader reader = new BufferedReader(new FileReader(sqlFilePath));
+        try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(new FileInputStream(sqlFilePath), StandardCharsets.UTF_8));
                 PreparedStatement pstmt = conn.prepareStatement(insertQuery);
                 Statement idStmtBefore = conn.createStatement();
                 Statement idStmtAfter = conn.createStatement()) {
@@ -1140,7 +1152,8 @@ public class PerformBackup {
 
         String selectBotJobIdsSQL = "SELECT id FROM bot_job ORDER BY id";
 
-        try (BufferedReader reader = new BufferedReader(new FileReader(sqlFilePath));
+        try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(new FileInputStream(sqlFilePath), StandardCharsets.UTF_8));
                 PreparedStatement pstmt = conn.prepareStatement(insertQuery);
                 Statement idStmtBefore = conn.createStatement();
                 Statement idStmtAfter = conn.createStatement()) {
@@ -1292,7 +1305,8 @@ public class PerformBackup {
 
         String selectInstructionIdsSQL = "SELECT id FROM instruction ORDER BY id";
 
-        try (BufferedReader reader = new BufferedReader(new FileReader(sqlFilePath));
+        try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(new FileInputStream(sqlFilePath), StandardCharsets.UTF_8));
                 PreparedStatement pstmt = conn.prepareStatement(insertQuery);
                 Statement idStmtBefore = conn.createStatement();
                 Statement idStmtAfter = conn.createStatement()) {
@@ -1441,7 +1455,8 @@ public class PerformBackup {
 
         String selectVariableIdsSQL = "SELECT id FROM variable ORDER BY id";
 
-        try (BufferedReader reader = new BufferedReader(new FileReader(sqlFilePath));
+        try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(new FileInputStream(sqlFilePath), StandardCharsets.UTF_8));
                 PreparedStatement pstmt = conn.prepareStatement(insertQuery);
                 Statement idStmtBefore = conn.createStatement();
                 Statement idStmtAfter = conn.createStatement()) {
@@ -1674,7 +1689,8 @@ public class PerformBackup {
 
         String selectReferenceIdsSQL = "SELECT id FROM reference ORDER BY id";
 
-        try (BufferedReader reader = new BufferedReader(new FileReader(sqlFilePath));
+        try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(new FileInputStream(sqlFilePath), StandardCharsets.UTF_8));
                 PreparedStatement pstmt = conn.prepareStatement(insertQuery);
                 Statement idStmtBefore = conn.createStatement();
                 Statement idStmtAfter = conn.createStatement()) {
@@ -1803,7 +1819,8 @@ public class PerformBackup {
 
         String selectCompBlockIdsSQL = "SELECT id FROM component_block ORDER BY id";
 
-        try (BufferedReader reader = new BufferedReader(new FileReader(sqlFilePath));
+        try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(new FileInputStream(sqlFilePath), StandardCharsets.UTF_8));
                 PreparedStatement pstmt = conn.prepareStatement(insertQuery);
                 Statement idStmtBefore = conn.createStatement();
                 Statement idStmtAfter = conn.createStatement()) {
@@ -1920,7 +1937,8 @@ public class PerformBackup {
 
         String selectInstructionIdsSQL = "SELECT id FROM component_instruction ORDER BY id";
 
-        try (BufferedReader reader = new BufferedReader(new FileReader(sqlFilePath));
+        try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(new FileInputStream(sqlFilePath), StandardCharsets.UTF_8));
                 PreparedStatement pstmt = conn.prepareStatement(insertQuery);
                 Statement idStmtBefore = conn.createStatement();
                 Statement idStmtAfter = conn.createStatement()) {
@@ -2073,7 +2091,8 @@ public class PerformBackup {
 
         String selectVariableIdsSQL = "SELECT id FROM component_variable ORDER BY id";
 
-        try (BufferedReader reader = new BufferedReader(new FileReader(sqlFilePath));
+        try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(new FileInputStream(sqlFilePath), StandardCharsets.UTF_8));
                 PreparedStatement pstmt = conn.prepareStatement(insertQuery);
                 Statement idStmtBefore = conn.createStatement();
                 Statement idStmtAfter = conn.createStatement()) {
@@ -2300,7 +2319,8 @@ public class PerformBackup {
 
         String selectReferenceIdsSQL = "SELECT id FROM component_reference ORDER BY id";
 
-        try (BufferedReader reader = new BufferedReader(new FileReader(sqlFilePath));
+        try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(new FileInputStream(sqlFilePath), StandardCharsets.UTF_8));
                 PreparedStatement pstmt = conn.prepareStatement(insertQuery);
                 Statement idStmtBefore = conn.createStatement();
                 Statement idStmtAfter = conn.createStatement()) {
