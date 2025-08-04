@@ -637,8 +637,8 @@ public class ExportAccessToPostgres {
                 String checkExistsSQL =
                         "SELECT id FROM instruction WHERE instruction_order_number = ? AND name = ? AND bot_job_id = ? AND block_id = ?";
                 String insertSQL = "INSERT INTO instruction ("
-                        + "instruction_order_number, actions, name, xpath, coordinates, force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root, css_selector, description, operation, optional, block_marked, default_value, action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr, active, block_id, variable_id, parent_id, bot_job_id) "
-                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                        + "instruction_order_number, actions, name, xpath, coordinates, force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root, css_selector, description, operation, optional, block_marked, default_value, action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr, active, block_id, variable_id, parent_block_id, parent_id, bot_job_id) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
                 try (PreparedStatement insertStmt = postgresConn.prepareStatement(insertSQL);
                         PreparedStatement checkStmt = postgresConn.prepareStatement(checkExistsSQL)) {
@@ -662,6 +662,9 @@ public class ExportAccessToPostgres {
                             System.out.println("Skipped instruction with unknown block_id: " + oldBlockId);
                             continue;
                         }
+
+                        int oldParentBlockId = rsInstruction.getInt("parent_block_id");
+                        Integer newParentBlockId = blockMap.get(oldParentBlockId);
 
                         int instructionOrderNumber = rsInstruction.getInt("instruction_order_number");
                         String name = rsInstruction.getString("name");
@@ -702,9 +705,16 @@ public class ExportAccessToPostgres {
                                 insertStmt.setInt(22, newBlockId);
 
                                 insertOrNull(insertStmt, 23, rsInstruction, "variable_id");
-                                insertOrNull(insertStmt, 24, rsInstruction, "parent_id");
 
-                                insertStmt.setInt(25, newBotJobId);
+                                if (newParentBlockId != null) {
+                                    insertStmt.setInt(24, newParentBlockId);
+                                } else {
+                                    insertStmt.setNull(24, Types.INTEGER);
+                                }
+
+                                insertOrNull(insertStmt, 25, rsInstruction, "parent_id");
+
+                                insertStmt.setInt(26, newBotJobId);
 
                                 insertStmt.addBatch();
                                 count++;
@@ -925,84 +935,79 @@ public class ExportAccessToPostgres {
     }
 
     public void exportUpdateInstruction() {
-        String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
-        String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
-        String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
-
+        final String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
+        final String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
+        final String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
         final int BATCH_SIZE = 100;
 
-        try (Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
-                Statement postgresStmt = postgresConn.createStatement()) {
-            postgresConn.setAutoCommit(false);
+        String selectSQL = "SELECT id, name, parent_id, variable_id, parent_block_id " + "FROM instruction "
+                + "WHERE parent_id IS NOT NULL OR variable_id IS NOT NULL OR parent_block_id IS NOT NULL "
+                + "ORDER BY id";
 
-            String selectAccessSQL =
-                    "SELECT id, name, parent_id, variable_id FROM instruction WHERE parent_id IS NOT NULL OR variable_id IS NOT NULL ORDER BY id";
-            try (ResultSet rsInstruction = postgresStmt.executeQuery(selectAccessSQL)) {
+        String updateSQL =
+                "UPDATE instruction " + "SET variable_id = ?, parent_block_id = ?, parent_id = ? " + "WHERE id = ?";
 
-                String updateSQL = "UPDATE instruction SET variable_id = ?, parent_id = ? WHERE id = ? ";
+        try (Connection conn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery(selectSQL);
+                PreparedStatement updateStmt = conn.prepareStatement(updateSQL)) {
 
-                try (PreparedStatement updateStmt = postgresConn.prepareStatement(updateSQL)) {
-                    int count = 0;
+            conn.setAutoCommit(false);
+            int count = 0;
 
-                    while (rsInstruction.next()) {
-                        int id = rsInstruction.getInt("id");
-                        String name = rsInstruction.getString("name");
+            while (rs.next()) {
+                int id = rs.getInt("id");
+                String name = rs.getString("name");
 
-                        // Set variable_id directly from Access
-                        int originalVariableId = rsInstruction.getInt("variable_id");
-                        // Map old bot_job_id to new
-                        Integer newVariableId = variableMap.get(originalVariableId);
-                        if (newVariableId == null) {
-                            System.out.println(
-                                    "Skipped update variable column with unknown variable_id: " + newVariableId);
-                            updateStmt.setNull(1, Types.INTEGER);
-                        } else {
-                            updateStmt.setInt(1, newVariableId);
-                        }
+                // Handle variable_id
+                int originalVariableId = rs.getInt("variable_id");
+                if (rs.wasNull() || !variableMap.containsKey(originalVariableId)) {
+                    updateStmt.setNull(1, Types.INTEGER);
+                } else {
+                    updateStmt.setInt(1, variableMap.get(originalVariableId));
+                }
 
-                        // Handle parent_id based on name
-                        if ("GOTO".equalsIgnoreCase(name) || "EXCEL GOTO".equalsIgnoreCase(name)) {
-                            int parentBlockId = rsInstruction.getInt("parent_id");
-                            Integer newParentBlockId = blockMap.get(parentBlockId);
-                            if (newParentBlockId != null) {
-                                updateStmt.setInt(2, newParentBlockId);
-                            } else {
-                                updateStmt.setNull(2, Types.INTEGER);
-                            }
-                        } else {
-                            int parentInstructionId = rsInstruction.getInt("parent_id");
-                            Integer newParentInstructionId = instructionMap.get(parentInstructionId);
-                            if (newParentInstructionId != null) {
-                                updateStmt.setInt(2, newParentInstructionId);
-                            } else {
-                                updateStmt.setNull(2, Types.INTEGER);
-                            }
-                        }
-
-                        updateStmt.setInt(3, id); // WHERE clause: name = ?
-
-                        updateStmt.addBatch();
-                        count++;
-
-                        if (count % BATCH_SIZE == 0) {
-                            updateStmt.executeBatch();
-                            postgresConn.commit();
-                            System.out.println("Updated batch of " + BATCH_SIZE);
-                        }
+                // Handle parent_block_id for GOTO-related
+                if ("GOTO".equalsIgnoreCase(name) || "EXCEL GOTO".equalsIgnoreCase(name)) {
+                    int originalParentBlockId = rs.getInt("parent_block_id");
+                    if (rs.wasNull() || !blockMap.containsKey(originalParentBlockId)) {
+                        updateStmt.setNull(2, Types.INTEGER);
+                    } else {
+                        updateStmt.setInt(2, blockMap.get(originalParentBlockId));
                     }
-
-                    if (count % BATCH_SIZE != 0) {
-                        updateStmt.executeBatch();
-                        postgresConn.commit();
-                        System.out.println("Updated final batch of " + (count % BATCH_SIZE));
+                    updateStmt.setNull(3, Types.INTEGER); // parent_id ignored
+                } else {
+                    // Handle parent_id for normal instructions
+                    int originalParentId = rs.getInt("parent_id");
+                    if (rs.wasNull() || !instructionMap.containsKey(originalParentId)) {
+                        updateStmt.setNull(3, Types.INTEGER);
+                    } else {
+                        updateStmt.setInt(3, instructionMap.get(originalParentId));
                     }
+                    updateStmt.setNull(2, Types.INTEGER); // parent_block_id ignored
+                }
 
-                    ARLogger.getInstance(PerformDataBase.class).info("Updated instruction records: " + count);
+                updateStmt.setInt(4, id); // WHERE id = ?
+                updateStmt.addBatch();
+
+                if (++count % BATCH_SIZE == 0) {
+                    updateStmt.executeBatch();
+                    conn.commit();
+                    System.out.println("Updated batch of " + BATCH_SIZE);
                 }
             }
 
+            if (count % BATCH_SIZE != 0) {
+                updateStmt.executeBatch();
+                conn.commit();
+                System.out.println("Updated final batch of " + (count % BATCH_SIZE));
+            }
+
+            ARLogger.getInstance(PerformDataBase.class).info("Updated instruction records: " + count);
+
         } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class).severe("Failed to update instructions");
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to update instructions: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
@@ -1324,8 +1329,8 @@ public class ExportAccessToPostgres {
                 String checkExistsSQL =
                         "SELECT id FROM component_instruction WHERE instruction_order_number = ? AND name = ? AND home_banking_id = ? AND block_id = ?";
                 String insertSQL = "INSERT INTO component_instruction ("
-                        + "instruction_order_number, actions, name, xpath, coordinates, force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root, css_selector, description, operation, optional, block_marked, default_value, action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr, active, block_id, variable_id, parent_id, home_banking_id) "
-                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                        + "instruction_order_number, actions, name, xpath, coordinates, force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root, css_selector, description, operation, optional, block_marked, default_value, action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr, active, block_id, variable_id, parent_block_id, parent_id, home_banking_id) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
                 try (PreparedStatement insertStmt = postgresConn.prepareStatement(insertSQL);
                         PreparedStatement checkStmt = postgresConn.prepareStatement(checkExistsSQL)) {
@@ -1350,6 +1355,9 @@ public class ExportAccessToPostgres {
                             System.out.println("Skipped component_instruction with unknown block_id: " + oldBlockId);
                             continue;
                         }
+
+                        int oldParentBlockId = rsInstruction.getInt("parent_block_id");
+                        Integer newParentBlockId = blockMap.get(oldParentBlockId);
 
                         int instructionOrderNumber = rsInstruction.getInt("instruction_order_number");
                         String name = rsInstruction.getString("name");
@@ -1389,8 +1397,15 @@ public class ExportAccessToPostgres {
                                 insertStmt.setInt(21, rsInstruction.getInt("active"));
                                 insertStmt.setInt(22, newBlockId);
                                 insertOrNull(insertStmt, 23, rsInstruction, "variable_id");
-                                insertOrNull(insertStmt, 24, rsInstruction, "parent_id");
-                                insertStmt.setInt(25, newHomeBankId);
+
+                                if (newParentBlockId != null) {
+                                    insertStmt.setInt(24, newParentBlockId);
+                                } else {
+                                    insertStmt.setNull(24, Types.INTEGER);
+                                }
+
+                                insertOrNull(insertStmt, 25, rsInstruction, "parent_id");
+                                insertStmt.setInt(26, newHomeBankId);
 
                                 insertStmt.addBatch();
                                 insertedOldIds.add(id);
@@ -1594,84 +1609,79 @@ public class ExportAccessToPostgres {
     }
 
     public void exportUpdateCompInstruction() {
-        String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
-        String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
-        String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
-
+        final String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
+        final String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
+        final String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
         final int BATCH_SIZE = 100;
 
-        try (Connection postgresConn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
-                Statement postgresStmt = postgresConn.createStatement()) {
+        String selectSQL = "SELECT id, name, parent_id, variable_id, parent_block_id " + "FROM component_instruction "
+                + "WHERE parent_id IS NOT NULL OR variable_id IS NOT NULL OR parent_block_id IS NOT NULL "
+                + "ORDER BY id";
 
-            postgresConn.setAutoCommit(false);
+        String updateSQL = "UPDATE component_instruction " + "SET variable_id = ?, parent_block_id = ?, parent_id = ? "
+                + "WHERE id = ?";
 
-            String selectPostgresSQL =
-                    "SELECT id, name, parent_id, variable_id FROM component_instruction WHERE parent_id IS NOT NULL OR variable_id IS NOT NULL ORDER BY id";
-            try (ResultSet rsInstruction = postgresStmt.executeQuery(selectPostgresSQL)) {
+        try (Connection conn = DriverManager.getConnection(postgresDbUrl, userDB, userPwd);
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery(selectSQL);
+                PreparedStatement updateStmt = conn.prepareStatement(updateSQL)) {
 
-                String updateSQL = "UPDATE component_instruction SET variable_id = ?, parent_id = ? WHERE id = ? ";
+            conn.setAutoCommit(false);
+            int count = 0;
 
-                try (PreparedStatement updateStmt = postgresConn.prepareStatement(updateSQL)) {
-                    int count = 0;
+            while (rs.next()) {
+                int id = rs.getInt("id");
+                String name = rs.getString("name");
 
-                    while (rsInstruction.next()) {
-                        int id = rsInstruction.getInt("id");
-                        String name = rsInstruction.getString("name");
+                // Handle variable_id
+                int originalVariableId = rs.getInt("variable_id");
+                if (rs.wasNull() || !variableMap.containsKey(originalVariableId)) {
+                    updateStmt.setNull(1, Types.INTEGER);
+                } else {
+                    updateStmt.setInt(1, variableMap.get(originalVariableId));
+                }
 
-                        // Set variable_id directly from Access
-                        int originalVariableId = rsInstruction.getInt("variable_id");
-                        // Map old bot_job_id to new
-                        Integer newVariableId = variableMap.get(originalVariableId);
-                        if (newVariableId == null) {
-                            System.out.println("Skipped variable_id column with unknown variable_id: " + newVariableId);
-                            updateStmt.setNull(1, Types.INTEGER);
-                        } else {
-                            updateStmt.setInt(1, newVariableId);
-                        }
-
-                        // Handle parent_id based on name
-                        if ("GOTO".equalsIgnoreCase(name) || "EXCEL GOTO".equalsIgnoreCase(name)) {
-                            int parentBlockId = rsInstruction.getInt("parent_id");
-                            Integer newParentBlockId = blockMap.get(parentBlockId);
-                            if (newParentBlockId != null) {
-                                updateStmt.setInt(2, newParentBlockId);
-                            } else {
-                                updateStmt.setNull(2, Types.INTEGER);
-                            }
-                        } else {
-                            int parentInstructionId = rsInstruction.getInt("parent_id");
-                            Integer newParentInstructionId = instructionMap.get(parentInstructionId);
-                            if (newParentInstructionId != null) {
-                                updateStmt.setInt(2, newParentInstructionId);
-                            } else {
-                                updateStmt.setNull(2, Types.INTEGER);
-                            }
-                        }
-
-                        updateStmt.setInt(3, id); // WHERE clause: name = ?
-
-                        updateStmt.addBatch();
-                        count++;
-
-                        if (count % BATCH_SIZE == 0) {
-                            updateStmt.executeBatch();
-                            postgresConn.commit();
-                            System.out.println("Updated batch of " + BATCH_SIZE);
-                        }
+                // GOTO types → use parent_block_id; others → use parent_id
+                if ("GOTO".equalsIgnoreCase(name) || "EXCEL GOTO".equalsIgnoreCase(name)) {
+                    int originalParentBlockId = rs.getInt("parent_block_id");
+                    if (rs.wasNull() || !blockMap.containsKey(originalParentBlockId)) {
+                        updateStmt.setNull(2, Types.INTEGER);
+                    } else {
+                        updateStmt.setInt(2, blockMap.get(originalParentBlockId));
                     }
-
-                    if (count % BATCH_SIZE != 0) {
-                        updateStmt.executeBatch();
-                        postgresConn.commit();
-                        System.out.println("Updated final batch of " + (count % BATCH_SIZE));
+                    updateStmt.setNull(3, Types.INTEGER); // skip parent_id
+                } else {
+                    int originalParentId = rs.getInt("parent_id");
+                    if (rs.wasNull() || !instructionMap.containsKey(originalParentId)) {
+                        updateStmt.setNull(3, Types.INTEGER);
+                    } else {
+                        updateStmt.setInt(3, instructionMap.get(originalParentId));
                     }
+                    updateStmt.setNull(2, Types.INTEGER); // skip parent_block_id
+                }
 
-                    ARLogger.getInstance(PerformDataBase.class).info("Updated component_instruction records: " + count);
+                updateStmt.setInt(4, id); // WHERE id = ?
+                updateStmt.addBatch();
+
+                if (++count % BATCH_SIZE == 0) {
+                    updateStmt.executeBatch();
+                    conn.commit();
+                    System.out.println("Updated batch of " + BATCH_SIZE);
                 }
             }
 
+            if (count % BATCH_SIZE != 0) {
+                updateStmt.executeBatch();
+                conn.commit();
+                System.out.println("Updated final batch of " + (count % BATCH_SIZE));
+            }
+
+            ARLogger.getInstance(PerformDataBase.class).info("Updated component_instruction records: " + count);
+
         } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class).severe("Failed to update component_instruction");
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe("Failed to update component_instruction: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 

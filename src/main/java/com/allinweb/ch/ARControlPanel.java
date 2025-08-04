@@ -52,11 +52,11 @@ public class ARControlPanel extends Application {
         arMainScene = ARMainScene.getInstance();
     }
 
-    //    private static final ExportAccessToPostgres exportAccessToPostgres;
+    private static final ExportAccessToPostgres exportAccessToPostgres;
     private static final ExportAccessToSQLite exportAccessToSQLite;
 
     static {
-        //        exportAccessToPostgres = ExportAccessToPostgres.getInstance();
+        exportAccessToPostgres = ExportAccessToPostgres.getInstance();
         exportAccessToSQLite = ExportAccessToSQLite.getInstance();
     }
 
@@ -333,6 +333,7 @@ public class ARControlPanel extends Application {
                     if (performDataBase.getConn() != null) {
                         performInitializer.initialize(performDataBase.getConn());
                         performInitializer.initializeMainDatabaseAccess(dbFile);
+                        performInitializer.addForeignKeyConstraintsAccess();
                     }
                 } else {
                     //                performDataBase.disableForeignKeyConstraints(dbUrl);
@@ -360,8 +361,8 @@ public class ARControlPanel extends Application {
                     ARLogger.getInstance(ARMainPane.class).severe("Access Database connected!");
                 }
 
-                //                 Postgres to Access
-
+                //                //                 Postgres to Access
+                //
                 //                performDataBase.exportHomeBankingAccess();
                 //                performDataBase.getNewIdsHomeBankAccess();
                 //                performDataBase.exportHomeUrlAccess();
@@ -432,22 +433,22 @@ public class ARControlPanel extends Application {
                     ARLogger.getInstance(ARMainPane.class).severe("Access Database connected!");
                 }
 
-                // Access to SQLite
-                exportAccessToSQLite.exportHomeBanking();
-                exportAccessToSQLite.exportHomeUrl();
-                exportAccessToSQLite.exportBotJob();
-                exportAccessToSQLite.exportBlock();
-                exportAccessToSQLite.exportInstructions();
-                exportAccessToSQLite.exportVariables();
-                exportAccessToSQLite.exportUpdateInstruction();
-                exportAccessToSQLite.exportReferences();
-
-                // SAVED COMPONENTS
-                exportAccessToSQLite.exportCompBlock();
-                exportAccessToSQLite.exportCompInstructions();
-                exportAccessToSQLite.exportCompVariables();
-                exportAccessToSQLite.exportUpdateCompInstruction();
-                exportAccessToSQLite.exportCompReferences();
+                //                // Access to SQLite
+                //                exportAccessToSQLite.exportHomeBanking();
+                //                exportAccessToSQLite.exportHomeUrl();
+                //                exportAccessToSQLite.exportBotJob();
+                //                exportAccessToSQLite.exportBlock();
+                //                exportAccessToSQLite.exportInstructions();
+                //                exportAccessToSQLite.exportVariables();
+                //                exportAccessToSQLite.exportUpdateInstruction();
+                //                exportAccessToSQLite.exportReferences();
+                //
+                //                // SAVED COMPONENTS
+                //                exportAccessToSQLite.exportCompBlock();
+                //                exportAccessToSQLite.exportCompInstructions();
+                //                exportAccessToSQLite.exportCompVariables();
+                //                exportAccessToSQLite.exportUpdateCompInstruction();
+                //                exportAccessToSQLite.exportCompReferences();
 
             } catch (Exception error) {
                 ARLogger.getInstance(ARMainPane.class).severe("Error Export to Postgres: " + error.getMessage());

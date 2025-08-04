@@ -37,6 +37,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -151,6 +152,7 @@ public class ARConfigurationPane extends ARPane {
     Label browserLabel;
     Label reloadDBLabel;
     Label backupDBLabel;
+    Label restoreDateLabel;
     Label deleteAllDBLabel;
     Label insertSitesLabel;
     Label pathWebDriverLabel;
@@ -193,7 +195,11 @@ public class ARConfigurationPane extends ARPane {
     Button backupDBButton;
     Button restoreDBButton;
     Button deleteAllDBButton;
-    Button addHomeBankingButton;
+    Button insertSitesdButton;
+
+    HBox backupRestoreGroup;
+
+    DatePicker restoreDatePicker;
 
     VBox pathGroup;
 
@@ -243,7 +249,9 @@ public class ARConfigurationPane extends ARPane {
         AnchorPane.setRightAnchor(title, ARConstants.SPACE_M);
 
         //        ButtonBar homeBankingActionGroup = new ButtonBar();
-        addHomeBankingButton = builder.buildButton("Insert Organizations");
+        insertSitesdButton = builder.buildButton("Insert Organizations");
+        insertSitesdButton.setMaxWidth(120);
+
         //        homeBankingActionGroup.getButtons().addAll(addHomeBankingButton);
 
         //        ObservableList<HomeBankingDTO> homeBankingList =
@@ -337,83 +345,93 @@ public class ARConfigurationPane extends ARPane {
         // Set margin for pathDBButton to create spacing from right border
         GridPane.setMargin(pathAccessDBButton, new Insets(0, 0, 0, 5));
 
-        GridPane gridPaneButton = new GridPane();
-        gridPaneButton.setHgap(2);
-
-        // Set column constraints for each column to take up 33.33% of the grid width
-        ColumnConstraints col1Button = new ColumnConstraints();
-        col1Button.setPercentWidth(16);
-
-        ColumnConstraints col2Button = new ColumnConstraints();
-        col2Button.setPercentWidth(16);
-
-        ColumnConstraints col3Button = new ColumnConstraints();
-        col3Button.setPercentWidth(16);
-
-        ColumnConstraints col4Button = new ColumnConstraints();
-        col4Button.setPercentWidth(16);
-
-        ColumnConstraints col5Button = new ColumnConstraints();
-        col5Button.setPercentWidth(16);
-
-        ColumnConstraints col6Button = new ColumnConstraints();
-        col6Button.setPercentWidth(16);
-
-        gridPaneButton
-                .getColumnConstraints()
-                .addAll(col1Button, col2Button, col3Button, col4Button, col5Button, col6Button);
-
         browserLabel = new Label("Browser");
         databaseLabel = new Label("DB Type");
-
-        backupDBLabel = new Label("Backup DB");
-
+        backupDBLabel = new Label("Backup/Restore DB");
+        restoreDateLabel = new Label("Date/Restore");
         reloadDBLabel = new Label("Reload DB");
         deleteAllDBLabel = new Label("Delete ALL DB");
         insertSitesLabel = new Label("Insert Sites");
 
         backupDBButton = builder.buildButton("Backup");
         backupDBButton.setMaxHeight(ARConstants.SPACE_XXS);
+        backupDBButton.setMaxWidth(100);
+        backupDBButton.setStyle("-fx-font-size: 12px;");
 
         restoreDBButton = builder.buildButton("Restore");
         restoreDBButton.setMaxHeight(ARConstants.SPACE_XXS);
+        restoreDBButton.setMaxWidth(100);
+        restoreDBButton.setStyle("-fx-font-size: 12px;");
 
-        backupDBLabel.setVisible(true);
-        backupDBButton.setVisible(true);
-        restoreDBButton.setVisible(true);
+        backupDBButton.setDisable(false);
 
-        HBox backupRestoreGroup = new HBox(0); // spacing = 0 to eliminate gap
-        backupRestoreGroup.setAlignment(Pos.CENTER_LEFT); // or CENTER if you want them centered
-        // Optional: remove any padding if previously set
-        backupRestoreGroup.setPadding(Insets.EMPTY);
-        backupRestoreGroup.getChildren().addAll(backupDBButton, restoreDBButton);
+        restoreDatePicker = new DatePicker(LocalDate.now());
+        restoreDatePicker.setPrefWidth(140);
+        restoreDatePicker.setStyle("-fx-font-size: 12px;");
+        restoreDatePicker.setMaxHeight(28); // match button height
+
+        backupRestoreGroup = new HBox(10); // More spacing for clarity
+        backupRestoreGroup.setAlignment(Pos.CENTER);
+        //        backupRestoreGroup.setPadding(new Insets(2, 0, 2, 0)); // Add light vertical padding
+
+        backupRestoreGroup.getChildren().addAll(backupDBButton, restoreDBButton, restoreDatePicker);
 
         reloadDBButton = builder.buildButton("Reload Configs");
         reloadDBButton.setMaxHeight(ARConstants.SPACE_L);
+        reloadDBButton.setMaxWidth(120);
 
         deleteAllDBButton = builder.buildButton("Delete DB");
         deleteAllDBButton.setMaxHeight(ARConstants.SPACE_L);
+        deleteAllDBButton.setMaxWidth(120);
         deleteAllDBButton.setStyle("-fx-background-color: lightcoral; -fx-text-fill: blue;");
 
         browserChoiceBox.setItems(browserList);
         databaseChoiceBox.setItems(databaseList);
         databaseChoiceBox.setDisable(false);
 
-        // Add labels in the first row
-        gridPaneButton.add(browserLabel, 0, 0);
-        gridPaneButton.add(databaseLabel, 1, 0);
-        gridPaneButton.add(reloadDBLabel, 2, 0);
-        gridPaneButton.add(backupDBLabel, 3, 0);
-        gridPaneButton.add(deleteAllDBLabel, 4, 0);
-        gridPaneButton.add(insertSitesLabel, 5, 0);
+        HBox buttonRow = new HBox(10); // spacing between columns
+        buttonRow.setAlignment(Pos.CENTER);
+        buttonRow.setPadding(new Insets(5, 0, 5, 0)); // optional
 
-        // Add components in the second row, each occupying 25% of the width
-        gridPaneButton.add(browserChoiceBox, 0, 1);
-        gridPaneButton.add(databaseChoiceBox, 1, 1);
-        gridPaneButton.add(reloadDBButton, 2, 1);
-        gridPaneButton.add(backupRestoreGroup, 3, 1);
-        gridPaneButton.add(deleteAllDBButton, 4, 1);
-        gridPaneButton.add(addHomeBankingButton, 5, 1);
+        // Column 1: Browser
+        VBox browserColumn = new VBox(2);
+        browserColumn.getChildren().addAll(browserLabel, browserChoiceBox);
+
+        // Column 2: DB Type
+        VBox databaseColumn = new VBox(2);
+        databaseColumn.getChildren().addAll(databaseLabel, databaseChoiceBox);
+
+        // Column 3: Reload DB
+        VBox reloadColumn = new VBox(2);
+        reloadColumn.getChildren().addAll(reloadDBLabel, reloadDBButton);
+
+        // Column 4: Backup & Restore Group (keep as-is)
+        VBox backupColumn = new VBox(2);
+        backupColumn.getChildren().addAll(backupDBLabel, backupRestoreGroup);
+
+        // Column 5: Restore Date Picker
+        VBox dateColumn = new VBox(2);
+        dateColumn.getChildren().addAll(restoreDateLabel, restoreDatePicker);
+
+        // Column 6: Delete DB
+        VBox deleteColumn = new VBox(2);
+        deleteColumn.getChildren().addAll(deleteAllDBLabel, deleteAllDBButton);
+
+        // Column 7: Insert Sites
+        VBox insertSitesColumn = new VBox(2);
+        insertSitesColumn.getChildren().addAll(insertSitesLabel, insertSitesdButton);
+
+        // Add all columns to the row
+        buttonRow
+                .getChildren()
+                .addAll(
+                        browserColumn,
+                        databaseColumn,
+                        reloadColumn,
+                        backupColumn,
+                        dateColumn,
+                        deleteColumn,
+                        insertSitesColumn);
 
         //        AnchorPane logGroup = new AnchorPane(pathLog, sizeLog, pathLogButton);
         dbUrlLabel = new Label("Database URL:");
@@ -484,7 +502,7 @@ public class ARConfigurationPane extends ARPane {
                 dbUrlLabel,
                 dbUrl,
                 dbUserPwdGroup,
-                gridPaneButton,
+                buttonRow,
                 organizationsLabel,
                 homeBankingContainer);
 
@@ -500,6 +518,36 @@ public class ARConfigurationPane extends ARPane {
         AnchorPane.setBottomAnchor(pathGroup, ARConstants.SPACE_M); // Allow bottom expansion
 
         mainPane = new AnchorPane(title, pathGroup);
+
+        Platform.runLater(() -> {
+            double choiceBoxHeight = databaseChoiceBox.getHeight();
+
+            if (choiceBoxHeight > 0) {
+                reloadDBButton.setMinHeight(choiceBoxHeight);
+                reloadDBButton.setPrefHeight(choiceBoxHeight);
+                reloadDBButton.setMaxHeight(choiceBoxHeight);
+
+                backupDBButton.setMinHeight(choiceBoxHeight);
+                backupDBButton.setPrefHeight(choiceBoxHeight);
+                backupDBButton.setMaxHeight(choiceBoxHeight);
+
+                restoreDBButton.setMinHeight(choiceBoxHeight);
+                restoreDBButton.setPrefHeight(choiceBoxHeight);
+                restoreDBButton.setMaxHeight(choiceBoxHeight);
+
+                restoreDatePicker.setMinHeight(choiceBoxHeight);
+                restoreDatePicker.setPrefHeight(choiceBoxHeight);
+                restoreDatePicker.setMaxHeight(choiceBoxHeight);
+
+                deleteAllDBButton.setMinHeight(choiceBoxHeight);
+                deleteAllDBButton.setPrefHeight(choiceBoxHeight);
+                deleteAllDBButton.setMaxHeight(choiceBoxHeight);
+
+                insertSitesdButton.setMinHeight(choiceBoxHeight);
+                insertSitesdButton.setPrefHeight(choiceBoxHeight);
+                insertSitesdButton.setMaxHeight(choiceBoxHeight);
+            }
+        });
     }
 
     @Override
@@ -527,20 +575,19 @@ public class ARConfigurationPane extends ARPane {
                 List<InstructionLoadDTO> instList = null;
 
                 if ((instList != null && instList.size() > 0) || botJobLoadList.size() == 0) {
-                    backupDBLabel.setVisible(false);
-                    backupDBButton.setVisible(false);
+                    backupDBButton.setDisable(true);
                 }
             } catch (SQLException ignore) {
                 System.out.println("Check if It Was Migrated! - Not Migrate Columns found!");
             }
         }
 
-        addHomeBankingButton.setOnMouseClicked(e -> {
+        insertSitesdButton.setOnMouseClicked(e -> {
             if (isEnabledLicence && !checkLicense()) {
                 return;
             }
             arNewHomeBankingScene.initialize(homeBankingList);
-            Stage currentStage = (Stage) addHomeBankingButton.getScene().getWindow();
+            Stage currentStage = (Stage) insertSitesdButton.getScene().getWindow();
             arNewHomeBankingScene.showModal(currentStage);
         });
 
@@ -570,7 +617,7 @@ public class ARConfigurationPane extends ARPane {
             }
         });
         backupDBButton.setOnMouseClicked(e -> runBackupScripts());
-        restoreDBButton.setOnMouseClicked(e -> runrRestoreScripts());
+        restoreDBButton.setOnMouseClicked(e -> runRestoreScripts());
         deleteAllDBButton.setOnMouseClicked(e -> deleteAllDB());
     }
 
@@ -607,8 +654,8 @@ public class ARConfigurationPane extends ARPane {
             }
         }
 
-        Label newInstruction =
-                new Label("DB BACKUP\nDatabase Selected: \"" + dataBaseType + "\" \nLog Folder : \"v4.1f Beta Test\"");
+        Label newInstruction = new Label(
+                "DB BACKUP\nDatabase Selected: \"" + dataBaseType + "\" \nDatabase Folder : \"v4.1f Beta Test\"");
         newInstruction.setStyle("-fx-font-size: 18px; -fx-text-fill: red;");
 
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION, null, ButtonType.YES, ButtonType.NO);
@@ -709,51 +756,81 @@ public class ARConfigurationPane extends ARPane {
         }
     }
 
-    private void runrRestoreScripts() {
-        String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
+    private void runRestoreScripts() {
 
-        Label newInstruction =
-                new Label("DB RESTORE\nDatabase Selected: \"" + dataBaseType + "\" \nLog Folder : \"v4.1f Beta Test\"");
+        LocalDate selectedDate = restoreDatePicker.getValue();
+
+        String formattedDate;
+        if (selectedDate != null) {
+            formattedDate = selectedDate.format(DateTimeFormatter.ofPattern("yyyy_MM_dd"));
+            System.out.println("Selected backup date: " + formattedDate);
+        } else {
+            Label dateSelection = new Label(
+                    "Please select a date to restore from.\n" + "Check the database directory for available backups.");
+            dateSelection.setWrapText(true);
+
+            Alert alert = new Alert(Alert.AlertType.WARNING, null, ButtonType.OK);
+            alert.setTitle("Restore Warning");
+            alert.setHeaderText("No Date Selected");
+            alert.getDialogPane().setContent(dateSelection);
+            alert.showAndWait();
+            return;
+        }
+
+        String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
+        String dataBaseFolder = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+
+        Label newInstruction = new Label(
+                "DB RESTORE\nDatabase Selected: \"" + dataBaseType + "\" \nDatabase Folder : \"v4.1f Beta Test\"");
         newInstruction.setStyle("-fx-font-size: 18px; -fx-text-fill: red;");
 
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION, null, ButtonType.YES, ButtonType.NO);
         alert.setHeaderText("Are you sure you want to EXECUTE RESTORE DB (\"" + dataBaseType + "\")?");
         alert.getDialogPane().setContent(newInstruction);
 
-        Optional<ButtonType> result = alert.showAndWait();
-        if (result.isPresent() && result.get() == ButtonType.YES) {
+        ARConstants.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
+                "Restore Database Confirmation",
+                "<span style='font-weight: bold; color: #D32F2F;'>Are you sure you want to execute a database restore?</span>",
+                "The database type selected is: <span style='color: #1565C0; font-weight: bold;'>" + dataBaseType
+                        + "</span>.",
+                "<span style='color: #6A1B9A; font-weight: bold;'>The restore will apply to the folder: </span>.",
+                "<span style='font-style: italic;'>Details: " + dataBaseFolder + "</span>",
+                false,
+                "Execute Restore",
+                "Cancel",
+                0);
 
+        if (!respModal.equals(ARConstants.DialogModal.STOP)) {
             try (Connection conn = performDataBase.getConnection()) {
 
                 performBackup.initialize(conn);
 
                 String databasePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-                String date = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy_MM_dd"));
 
-                String backupFilePath = databasePath + File.separator + "backup_home_banking_" + date + ".sql";
+                String backupFilePath = databasePath + File.separator + "backup_home_banking_" + formattedDate + ".sql";
                 ErrorMessage errorMessage = performBackup.restoreHomeBanking(conn, backupFilePath);
 
                 if (errorMessage == null) {
-                    backupFilePath = databasePath + File.separator + "backup_home_url_" + date + ".sql";
+                    backupFilePath = databasePath + File.separator + "backup_home_url_" + formattedDate + ".sql";
                     errorMessage = performBackup.restoreHomeUrl(conn, backupFilePath);
                 }
 
                 if (errorMessage == null) {
-                    backupFilePath = databasePath + File.separator + "backup_bot_job_" + date + ".sql";
+                    backupFilePath = databasePath + File.separator + "backup_bot_job_" + formattedDate + ".sql";
                     errorMessage = performBackup.restoreBotJob(conn, backupFilePath);
                 }
                 if (errorMessage == null) {
-                    backupFilePath = databasePath + File.separator + "backup_block_" + date + ".sql";
+                    backupFilePath = databasePath + File.separator + "backup_block_" + formattedDate + ".sql";
                     errorMessage = performBackup.restoreBlock(conn, backupFilePath);
                 }
 
                 if (errorMessage == null) {
-                    backupFilePath = databasePath + File.separator + "backup_instruction_" + date + ".sql";
+                    backupFilePath = databasePath + File.separator + "backup_instruction_" + formattedDate + ".sql";
                     errorMessage = performBackup.restoreInstruction(conn, backupFilePath);
                 }
 
                 if (errorMessage == null) {
-                    backupFilePath = databasePath + File.separator + "backup_variable_" + date + ".sql";
+                    backupFilePath = databasePath + File.separator + "backup_variable_" + formattedDate + ".sql";
                     errorMessage = performBackup.restoreVariable(conn, backupFilePath);
                 }
 
@@ -762,22 +839,24 @@ public class ARConfigurationPane extends ARPane {
                 }
 
                 if (errorMessage == null) {
-                    backupFilePath = databasePath + File.separator + "backup_reference_" + date + ".sql";
+                    backupFilePath = databasePath + File.separator + "backup_reference_" + formattedDate + ".sql";
                     errorMessage = performBackup.restoreReference(conn, backupFilePath);
                 }
 
                 if (errorMessage == null) {
-                    backupFilePath = databasePath + File.separator + "backup_component_block_" + date + ".sql";
+                    backupFilePath = databasePath + File.separator + "backup_component_block_" + formattedDate + ".sql";
                     errorMessage = performBackup.restoreComponentBlock(conn, backupFilePath);
                 }
 
                 if (errorMessage == null) {
-                    backupFilePath = databasePath + File.separator + "backup_component_instruction_" + date + ".sql";
+                    backupFilePath =
+                            databasePath + File.separator + "backup_component_instruction_" + formattedDate + ".sql";
                     errorMessage = performBackup.restoreComponentInstruction(conn, backupFilePath);
                 }
 
                 if (errorMessage == null) {
-                    backupFilePath = databasePath + File.separator + "backup_component_variable_" + date + ".sql";
+                    backupFilePath =
+                            databasePath + File.separator + "backup_component_variable_" + formattedDate + ".sql";
                     errorMessage = performBackup.restoreComponentVariable(conn, backupFilePath);
                 }
 
@@ -786,7 +865,8 @@ public class ARConfigurationPane extends ARPane {
                 }
 
                 if (errorMessage == null) {
-                    backupFilePath = databasePath + File.separator + "backup_component_reference_" + date + ".sql";
+                    backupFilePath =
+                            databasePath + File.separator + "backup_component_reference_" + formattedDate + ".sql";
                     errorMessage = performBackup.restoreComponentReference(conn, backupFilePath);
                 }
 

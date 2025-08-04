@@ -125,6 +125,7 @@ public class PerformInitializer {
                         + "active INTEGER NOT NULL, "
                         + "block_id INTEGER REFERENCES block(id) ON DELETE CASCADE, "
                         + "variable_id INTEGER, "
+                        + "parent_block_id INTEGER REFERENCES block(id) ON DELETE CASCADE, "
                         + "parent_id INTEGER, "
                         + "bot_job_id INTEGER REFERENCES bot_job(id) ON DELETE CASCADE)";
                 stmt.executeUpdate(createInstructionTableSQL);
@@ -185,6 +186,7 @@ public class PerformInitializer {
                         + "active INTEGER NOT NULL, "
                         + "block_id INTEGER REFERENCES component_block(id) ON DELETE CASCADE, "
                         + "variable_id INTEGER, "
+                        + "parent_block_id INTEGER REFERENCES block(id) ON DELETE CASCADE, "
                         + "parent_id INTEGER, "
                         + "home_banking_id INTEGER REFERENCES home_banking(id) ON DELETE CASCADE)";
                 stmt.executeUpdate(createComponentInstructionTableSQL);
@@ -214,10 +216,27 @@ public class PerformInitializer {
         }
     }
 
+    private void dropExistingTablesAccess(Statement stmt) throws SQLException {
+        String[] tables = {
+            "component_reference", "component_variable", "component_instruction", "component_block",
+            "reference", "variable", "instruction", "block",
+            "bot_job", "home_url", "home_banking"
+        };
+        for (String table : tables) {
+            try {
+                stmt.executeUpdate("DROP TABLE " + table);
+            } catch (SQLException e) {
+                // Ignore errors if table doesn't exist
+            }
+        }
+    }
+
     public void initializeMainDatabaseAccess(File dbFile) {
 
         try (Connection conn = performDataBase.getConnection()) {
             try (Statement stmt = conn.createStatement()) {
+
+                //                dropExistingTablesAccess(stmt);
 
                 // HOME BANKING
                 String createHomeBankingTableSQL = "CREATE TABLE home_banking ("
@@ -237,8 +256,7 @@ public class PerformInitializer {
                 String createURLTableSQL = "CREATE TABLE home_url ("
                         + "ID AUTOINCREMENT PRIMARY KEY, "
                         + "url MEMO, "
-                        + "home_banking_id INTEGER, "
-                        + "CONSTRAINT fk_home_url_home_banking FOREIGN KEY (home_banking_id) REFERENCES home_banking(ID))";
+                        + "home_banking_id INTEGER)";
                 stmt.executeUpdate(createURLTableSQL);
 
                 // BOT JOB
@@ -249,9 +267,7 @@ public class PerformInitializer {
                         + "priority MEMO, "
                         + "active YESNO NOT NULL, "
                         + "home_banking_id INTEGER, "
-                        + "home_url_id INTEGER, "
-                        + "CONSTRAINT fk_bot_job_home_banking FOREIGN KEY (home_banking_id) REFERENCES home_banking(ID), "
-                        + "CONSTRAINT fk_bot_job_home_url FOREIGN KEY (home_url_id) REFERENCES home_url(ID))";
+                        + "home_url_id INTEGER)";
                 stmt.executeUpdate(createBotJobTableSQL);
 
                 // BLOCK
@@ -264,8 +280,7 @@ public class PerformInitializer {
                         + "export_file TEXT, "
                         + "active YESNO NOT NULL, "
                         + "wait INTEGER, "
-                        + "bot_job_id INTEGER, "
-                        + "CONSTRAINT fk_block_bot_job FOREIGN KEY (bot_job_id) REFERENCES bot_job(id))";
+                        + "bot_job_id INTEGER)";
                 stmt.executeUpdate(createBlockTableSQL);
 
                 // INSTRUCTION
@@ -294,12 +309,9 @@ public class PerformInitializer {
                         + "active YESNO NOT NULL, "
                         + "block_id INTEGER, "
                         + "variable_id INTEGER, "
+                        + "parent_block_id INTEGER, "
                         + "parent_id INTEGER, "
-                        + "bot_job_id INTEGER, "
-                        + "CONSTRAINT fk_instruction_block FOREIGN KEY (block_id) REFERENCES block(id), "
-                        + "CONSTRAINT fk_instruction_variable FOREIGN KEY (variable_id) REFERENCES variable(id), "
-                        + "CONSTRAINT fk_instruction_parent FOREIGN KEY (parent_id) REFERENCES instruction(id), "
-                        + "CONSTRAINT fk_instruction_bot_job FOREIGN KEY (bot_job_id) REFERENCES bot_job(id))";
+                        + "bot_job_id INTEGER)";
                 stmt.executeUpdate(createInstructionTableSQL);
 
                 // REFERENCE
@@ -308,9 +320,7 @@ public class PerformInitializer {
                         + "reference_type TEXT, "
                         + "value MEMO, "
                         + "instruction_id INTEGER NOT NULL, "
-                        + "bot_job_id INTEGER, "
-                        + "CONSTRAINT fk_reference_instruction FOREIGN KEY (instruction_id) REFERENCES instruction(id), "
-                        + "CONSTRAINT fk_reference_bot_job FOREIGN KEY (bot_job_id) REFERENCES bot_job(id))";
+                        + "bot_job_id INTEGER)";
                 stmt.executeUpdate(createReferenceTableSQL);
 
                 // VARIABLE
@@ -322,9 +332,7 @@ public class PerformInitializer {
                         + "instruction_id INTEGER, "
                         + "bot_job_id INTEGER, "
                         + "local_format TEXT, "
-                        + "delimiter TEXT, "
-                        + "CONSTRAINT fk_variable_instruction FOREIGN KEY (instruction_id) REFERENCES instruction(id), "
-                        + "CONSTRAINT fk_variable_bot_job FOREIGN KEY (bot_job_id) REFERENCES bot_job(id))";
+                        + "delimiter TEXT)";
                 stmt.executeUpdate(createVariableTableSQL);
 
                 // COMPONENT BLOCK
@@ -337,8 +345,7 @@ public class PerformInitializer {
                         + "type_id INTEGER, "
                         + "export_file TEXT, "
                         + "active YESNO, "
-                        + "wait INTEGER, "
-                        + "CONSTRAINT fk_component_block_home_banking FOREIGN KEY (home_banking_id) REFERENCES home_banking(ID))";
+                        + "wait INTEGER)";
                 stmt.executeUpdate(createComponentBlockTableSQL);
 
                 // COMPONENT INSTRUCTION
@@ -367,12 +374,9 @@ public class PerformInitializer {
                         + "active YESNO NOT NULL, "
                         + "block_id INTEGER, "
                         + "variable_id INTEGER, "
+                        + "parent_block_id INTEGER, "
                         + "parent_id INTEGER, "
-                        + "home_banking_id INTEGER, "
-                        + "CONSTRAINT fk_comp_instruction_block FOREIGN KEY (block_id) REFERENCES component_block(id), "
-                        + "CONSTRAINT fk_comp_instruction_variable FOREIGN KEY (variable_id) REFERENCES component_variable(id), "
-                        + "CONSTRAINT fk_comp_instruction_parent FOREIGN KEY (parent_id) REFERENCES component_instruction(id), "
-                        + "CONSTRAINT fk_comp_instruction_home_banking FOREIGN KEY (home_banking_id) REFERENCES home_banking(ID))";
+                        + "home_banking_id INTEGER)";
                 stmt.executeUpdate(createComponentInstructionTableSQL);
 
                 // COMPONENT REFERENCE
@@ -381,9 +385,7 @@ public class PerformInitializer {
                         + "reference_type TEXT, "
                         + "value MEMO, "
                         + "instruction_id INTEGER NOT NULL, "
-                        + "home_banking_id INTEGER, "
-                        + "CONSTRAINT fk_comp_reference_instruction FOREIGN KEY (instruction_id) REFERENCES component_instruction(id), "
-                        + "CONSTRAINT fk_comp_reference_home_banking FOREIGN KEY (home_banking_id) REFERENCES home_banking(ID))";
+                        + "home_banking_id INTEGER)";
                 stmt.executeUpdate(createComponentReferenceTableSQL);
 
                 // COMPONENT VARIABLE
@@ -395,14 +397,81 @@ public class PerformInitializer {
                         + "instruction_id INTEGER, "
                         + "home_banking_id INTEGER, "
                         + "local_format TEXT, "
-                        + "delimiter TEXT, "
-                        + "CONSTRAINT fk_comp_variable_instruction FOREIGN KEY (instruction_id) REFERENCES component_instruction(id), "
-                        + "CONSTRAINT fk_comp_variable_home_banking FOREIGN KEY (home_banking_id) REFERENCES home_banking(ID))";
+                        + "delimiter TEXT)";
                 stmt.executeUpdate(createComponentVariableTableSQL);
             }
             System.out.printf("Database %s has been created!%n", dbFile.getName());
         } catch (SQLException error) {
             System.out.println("initializeDatabase\nError: " + error.getMessage());
+        }
+    }
+
+    public void addForeignKeyConstraintsAccess() throws SQLException {
+        try (Connection conn = performDataBase.getConnection();
+                Statement stmt = conn.createStatement()) {
+            // HOME URL → HOME BANKING
+            stmt.executeUpdate(
+                    "ALTER TABLE home_url ADD CONSTRAINT fk_home_url_home_banking FOREIGN KEY (home_banking_id) REFERENCES home_banking(ID)");
+
+            // BOT JOB → HOME BANKING, HOME URL
+            stmt.executeUpdate(
+                    "ALTER TABLE bot_job ADD CONSTRAINT fk_bot_job_home_banking FOREIGN KEY (home_banking_id) REFERENCES home_banking(ID)");
+            stmt.executeUpdate(
+                    "ALTER TABLE bot_job ADD CONSTRAINT fk_bot_job_home_url FOREIGN KEY (home_url_id) REFERENCES home_url(ID)");
+
+            // BLOCK → BOT JOB
+            stmt.executeUpdate(
+                    "ALTER TABLE block ADD CONSTRAINT fk_block_bot_job FOREIGN KEY (bot_job_id) REFERENCES bot_job(id)");
+
+            // INSTRUCTION → BLOCK, VARIABLE, INSTRUCTION (self), BOT JOB
+            stmt.executeUpdate(
+                    "ALTER TABLE instruction ADD CONSTRAINT fk_instruction_block FOREIGN KEY (block_id) REFERENCES block(id)");
+            stmt.executeUpdate(
+                    "ALTER TABLE instruction ADD CONSTRAINT fk_instruction_variable FOREIGN KEY (variable_id) REFERENCES variable(id)");
+            stmt.executeUpdate(
+                    "ALTER TABLE instruction ADD CONSTRAINT fk_instruction_parent_block FOREIGN KEY (parent_block_id) REFERENCES block(id)");
+
+            stmt.executeUpdate(
+                    "ALTER TABLE instruction ADD CONSTRAINT fk_instruction_bot_job FOREIGN KEY (bot_job_id) REFERENCES bot_job(id)");
+
+            // REFERENCE → INSTRUCTION, BOT JOB
+            stmt.executeUpdate(
+                    "ALTER TABLE reference ADD CONSTRAINT fk_reference_instruction FOREIGN KEY (instruction_id) REFERENCES instruction(id)");
+            stmt.executeUpdate(
+                    "ALTER TABLE reference ADD CONSTRAINT fk_reference_bot_job FOREIGN KEY (bot_job_id) REFERENCES bot_job(id)");
+
+            // VARIABLE → INSTRUCTION, BOT JOB
+            stmt.executeUpdate(
+                    "ALTER TABLE variable ADD CONSTRAINT fk_variable_instruction FOREIGN KEY (instruction_id) REFERENCES instruction(id)");
+            stmt.executeUpdate(
+                    "ALTER TABLE variable ADD CONSTRAINT fk_variable_bot_job FOREIGN KEY (bot_job_id) REFERENCES bot_job(id)");
+
+            // COMPONENT BLOCK → HOME BANKING
+            stmt.executeUpdate(
+                    "ALTER TABLE component_block ADD CONSTRAINT fk_component_block_home_banking FOREIGN KEY (home_banking_id) REFERENCES home_banking(ID)");
+
+            // COMPONENT INSTRUCTION → COMPONENT BLOCK, VARIABLE, SELF, HOME BANKING
+            stmt.executeUpdate(
+                    "ALTER TABLE component_instruction ADD CONSTRAINT fk_comp_instruction_block FOREIGN KEY (block_id) REFERENCES component_block(id)");
+            stmt.executeUpdate(
+                    "ALTER TABLE component_instruction ADD CONSTRAINT fk_comp_instruction_variable FOREIGN KEY (variable_id) REFERENCES component_variable(id)");
+
+            stmt.executeUpdate(
+                    "ALTER TABLE component_instruction ADD CONSTRAINT fk_comp_instruction_parent_block FOREIGN KEY (parent_block_id) REFERENCES component_block(id)");
+            stmt.executeUpdate(
+                    "ALTER TABLE component_instruction ADD CONSTRAINT fk_comp_instruction_home_banking FOREIGN KEY (home_banking_id) REFERENCES home_banking(ID)");
+
+            // COMPONENT REFERENCE → COMPONENT INSTRUCTION, HOME BANKING
+            stmt.executeUpdate(
+                    "ALTER TABLE component_reference ADD CONSTRAINT fk_comp_reference_instruction FOREIGN KEY (instruction_id) REFERENCES component_instruction(id)");
+            stmt.executeUpdate(
+                    "ALTER TABLE component_reference ADD CONSTRAINT fk_comp_reference_home_banking FOREIGN KEY (home_banking_id) REFERENCES home_banking(ID)");
+
+            // COMPONENT VARIABLE → COMPONENT INSTRUCTION, HOME BANKING
+            stmt.executeUpdate(
+                    "ALTER TABLE component_variable ADD CONSTRAINT fk_comp_variable_instruction FOREIGN KEY (instruction_id) REFERENCES component_instruction(id)");
+            stmt.executeUpdate(
+                    "ALTER TABLE component_variable ADD CONSTRAINT fk_comp_variable_home_banking FOREIGN KEY (home_banking_id) REFERENCES home_banking(ID)");
         }
     }
 
@@ -482,8 +551,10 @@ public class PerformInitializer {
                         + "active INTEGER NOT NULL, "
                         + "block_id INTEGER, "
                         + "variable_id INTEGER, "
+                        + "parent_block_id INTEGER, "
                         + "parent_id INTEGER, "
                         + "bot_job_id INTEGER, "
+                        + "FOREIGN KEY(parent_block_id) REFERENCES block(id) ON DELETE CASCADE, "
                         + "FOREIGN KEY(block_id) REFERENCES block(id) ON DELETE CASCADE, "
                         + "FOREIGN KEY(bot_job_id) REFERENCES bot_job(id) ON DELETE CASCADE)";
                 stmt.executeUpdate(createInstructionTableSQL);
@@ -549,8 +620,10 @@ public class PerformInitializer {
                         + "active INTEGER NOT NULL, "
                         + "block_id INTEGER, "
                         + "variable_id INTEGER, "
+                        + "parent_block_id INTEGER, "
                         + "parent_id INTEGER, "
                         + "home_banking_id INTEGER, "
+                        + "FOREIGN KEY(parent_block_id) REFERENCES block(id) ON DELETE CASCADE, "
                         + "FOREIGN KEY(block_id) REFERENCES component_block(id) ON DELETE CASCADE, "
                         + "FOREIGN KEY(home_banking_id) REFERENCES home_banking(id) ON DELETE CASCADE)";
                 stmt.executeUpdate(createComponentInstructionTableSQL);
@@ -648,24 +721,45 @@ public class PerformInitializer {
             throw new IllegalArgumentException("Database type is required.");
         }
 
-        if ("Postgres".equalsIgnoreCase(dataBaseType)) {
-            // PostgreSQL
-            Class.forName("org.postgresql.Driver");
-            DriverManager.getConnection(dbUrl, userDB, userPwd);
+        Connection conn = null;
 
-        } else if ("SQLite".equalsIgnoreCase(dataBaseType)) {
-            // SQLite
-            String dbSQLiteUrl = CONNECTION_TYPE_SQLITE + dbUrlPath + ARConstants.FILE_NAME_SQLITE;
-            ARLogger.getInstance(PerformDataBase.class).info("SQLite connection URL: " + dbSQLiteUrl);
-            Class.forName("org.sqlite.JDBC");
-            DriverManager.getConnection(dbUrl);
+        try {
+            if ("Postgres".equalsIgnoreCase(dataBaseType)) {
+                // PostgreSQL
+                Class.forName("org.postgresql.Driver");
+                conn = DriverManager.getConnection(dbUrl, userDB, userPwd);
 
-        } else {
-            // Default to Access
-            String dbAccessUrl = CONNECTION_TYPE + dbUrlPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
-            ARLogger.getInstance(PerformDataBase.class).info("Access connection URL: " + dbAccessUrl);
-            Class.forName("net.ucanaccess.jdbc.UcanaccessDriver");
-            DriverManager.getConnection(dbAccessUrl);
+            } else if ("SQLite".equalsIgnoreCase(dataBaseType)) {
+                // SQLite
+                String dbSQLiteUrl = CONNECTION_TYPE_SQLITE + dbUrlPath + ARConstants.FILE_NAME_SQLITE;
+                ARLogger.getInstance(PerformDataBase.class).info("SQLite connection URL: " + dbSQLiteUrl);
+                Class.forName("org.sqlite.JDBC");
+                conn = DriverManager.getConnection(dbUrl);
+
+            } else {
+                // Default to Access
+                String dbAccessUrl = CONNECTION_TYPE + dbUrlPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
+                ARLogger.getInstance(PerformDataBase.class).info("Access connection URL: " + dbAccessUrl);
+                Class.forName("net.ucanaccess.jdbc.UcanaccessDriver");
+                conn = DriverManager.getConnection(dbAccessUrl);
+            }
+
+            // Wait for 3 seconds to simulate holding the connection
+            try {
+                Thread.sleep(3000); // 3000 ms = 3 seconds
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt(); // Restore interrupt status
+            }
+
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.close();
+                    conn = null;
+                } catch (SQLException e) {
+                    System.out.println("Error closing connection: " + e.getMessage());
+                }
+            }
         }
     }
 }

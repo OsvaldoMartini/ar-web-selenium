@@ -3,10 +3,11 @@ package com.allinweb.ch.facade;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ErrorMessage;
 import java.io.*;
-import java.nio.charset.StandardCharsets;
+import java.nio.charset.Charset;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.TreeMap;
 import lombok.Getter;
 import lombok.Setter;
@@ -29,6 +30,8 @@ public class PerformBackup {
     private TreeMap<Integer, Integer> botJobMap = new TreeMap<>();
     private TreeMap<Integer, Integer> blockMap = new TreeMap<>();
     private TreeMap<Integer, Integer> instructionMap = new TreeMap<>();
+    private TreeMap<Integer, Integer> instrVariablesMap = new TreeMap<>();
+    private TreeMap<Integer, Integer> instrNewInverted = new TreeMap<>();
     private TreeMap<Integer, Integer> variableMap = new TreeMap<>();
     private TreeMap<Integer, Integer> referenceMap = new TreeMap<>();
 
@@ -73,7 +76,7 @@ public class PerformBackup {
         try (PreparedStatement pstmt = conn.prepareStatement(query);
                 ResultSet rs = pstmt.executeQuery();
                 BufferedWriter writer = new BufferedWriter(
-                        new OutputStreamWriter(new FileOutputStream(sqlFile), StandardCharsets.UTF_8))) {
+                        new OutputStreamWriter(new FileOutputStream(sqlFile), Charset.forName("windows-1252")))) {
 
             while (rs.next()) {
                 int id = rs.getInt("id");
@@ -129,7 +132,7 @@ public class PerformBackup {
         try (PreparedStatement pstmt = conn.prepareStatement(query);
                 ResultSet rs = pstmt.executeQuery();
                 BufferedWriter writer = new BufferedWriter(
-                        new OutputStreamWriter(new FileOutputStream(sqlFile), StandardCharsets.UTF_8))) {
+                        new OutputStreamWriter(new FileOutputStream(sqlFile), Charset.forName("windows-1252")))) {
 
             while (rs.next()) {
                 int id = rs.getInt("id");
@@ -170,7 +173,7 @@ public class PerformBackup {
         try (PreparedStatement pstmt = conn.prepareStatement(query);
                 ResultSet rs = pstmt.executeQuery();
                 BufferedWriter writer = new BufferedWriter(
-                        new OutputStreamWriter(new FileOutputStream(sqlFile), StandardCharsets.UTF_8))) {
+                        new OutputStreamWriter(new FileOutputStream(sqlFile), Charset.forName("windows-1252")))) {
 
             while (rs.next()) {
                 int botJobId = rs.getInt("id");
@@ -227,7 +230,7 @@ public class PerformBackup {
         try (PreparedStatement pstmt = conn.prepareStatement(query);
                 ResultSet rs = pstmt.executeQuery();
                 BufferedWriter writer = new BufferedWriter(
-                        new OutputStreamWriter(new FileOutputStream(sqlFile), StandardCharsets.UTF_8))) {
+                        new OutputStreamWriter(new FileOutputStream(sqlFile), Charset.forName("windows-1252")))) {
 
             while (rs.next()) {
                 int id = rs.getInt("id");
@@ -320,7 +323,7 @@ public class PerformBackup {
         try (PreparedStatement pstmt = conn.prepareStatement(query);
                 ResultSet rs = pstmt.executeQuery();
                 BufferedWriter writer = new BufferedWriter(
-                        new OutputStreamWriter(new FileOutputStream(sqlFile), StandardCharsets.UTF_8))) {
+                        new OutputStreamWriter(new FileOutputStream(sqlFile), Charset.forName("windows-1252")))) {
 
             while (rs.next()) {
                 int id = rs.getInt("id");
@@ -372,7 +375,7 @@ public class PerformBackup {
         try (PreparedStatement pstmt = conn.prepareStatement(query);
                 ResultSet rs = pstmt.executeQuery();
                 BufferedWriter writer = new BufferedWriter(
-                        new OutputStreamWriter(new FileOutputStream(sqlFile), StandardCharsets.UTF_8))) {
+                        new OutputStreamWriter(new FileOutputStream(sqlFile), Charset.forName("windows-1252")))) {
 
             while (rs.next()) {
                 int id = rs.getInt("id");
@@ -413,7 +416,7 @@ public class PerformBackup {
         try (PreparedStatement pstmt = conn.prepareStatement(query);
                 ResultSet rs = pstmt.executeQuery();
                 BufferedWriter writer = new BufferedWriter(
-                        new OutputStreamWriter(new FileOutputStream(sqlFile), StandardCharsets.UTF_8))) {
+                        new OutputStreamWriter(new FileOutputStream(sqlFile), Charset.forName("windows-1252")))) {
 
             while (rs.next()) {
                 int id = rs.getInt("id");
@@ -474,7 +477,7 @@ public class PerformBackup {
         try (PreparedStatement pstmt = conn.prepareStatement(query);
                 ResultSet rs = pstmt.executeQuery();
                 BufferedWriter writer = new BufferedWriter(
-                        new OutputStreamWriter(new FileOutputStream(sqlFile), StandardCharsets.UTF_8))) {
+                        new OutputStreamWriter(new FileOutputStream(sqlFile), Charset.forName("windows-1252")))) {
 
             while (rs.next()) {
                 int id = rs.getInt("id");
@@ -544,7 +547,7 @@ public class PerformBackup {
         try (PreparedStatement pstmt = conn.prepareStatement(query);
                 ResultSet rs = pstmt.executeQuery();
                 BufferedWriter writer = new BufferedWriter(
-                        new OutputStreamWriter(new FileOutputStream(sqlFile), StandardCharsets.UTF_8))) {
+                        new OutputStreamWriter(new FileOutputStream(sqlFile), Charset.forName("windows-1252")))) {
 
             while (rs.next()) {
                 int id = rs.getInt("id");
@@ -662,7 +665,7 @@ public class PerformBackup {
         try (PreparedStatement pstmt = conn.prepareStatement(query);
                 ResultSet rs = pstmt.executeQuery();
                 BufferedWriter writer = new BufferedWriter(
-                        new OutputStreamWriter(new FileOutputStream(sqlFile), StandardCharsets.UTF_8))) {
+                        new OutputStreamWriter(new FileOutputStream(sqlFile), Charset.forName("windows-1252")))) {
 
             while (rs.next()) {
                 int id = rs.getInt("id");
@@ -720,7 +723,7 @@ public class PerformBackup {
         try (PreparedStatement pstmt = conn.prepareStatement(query);
                 ResultSet rs = pstmt.executeQuery();
                 BufferedWriter writer = new BufferedWriter(
-                        new OutputStreamWriter(new FileOutputStream(sqlFile), StandardCharsets.UTF_8))) {
+                        new OutputStreamWriter(new FileOutputStream(sqlFile), Charset.forName("windows-1252")))) {
 
             while (rs.next()) {
                 int id = rs.getInt("id");
@@ -767,7 +770,7 @@ public class PerformBackup {
         String selectHomeBankingIdsSQL = "SELECT id FROM home_banking ORDER BY id";
 
         try (BufferedReader reader = new BufferedReader(
-                        new InputStreamReader(new FileInputStream(sqlFilePath), StandardCharsets.UTF_8));
+                        new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
                 PreparedStatement pstmt = conn.prepareStatement(insertQuery);
                 Statement idStmtBefore = conn.createStatement();
                 Statement idStmtAfter = conn.createStatement()) {
@@ -897,7 +900,7 @@ public class PerformBackup {
         String selectHomeUrlIdsSQL = "SELECT id FROM home_url ORDER BY id";
 
         try (BufferedReader reader = new BufferedReader(
-                        new InputStreamReader(new FileInputStream(sqlFilePath), StandardCharsets.UTF_8));
+                        new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
                 PreparedStatement pstmt = conn.prepareStatement(insertQuery);
                 Statement idStmtBefore = conn.createStatement();
                 Statement idStmtAfter = conn.createStatement()) {
@@ -1023,7 +1026,7 @@ public class PerformBackup {
         String selectBlockIdsSQL = "SELECT id FROM block ORDER BY id";
 
         try (BufferedReader reader = new BufferedReader(
-                        new InputStreamReader(new FileInputStream(sqlFilePath), StandardCharsets.UTF_8));
+                        new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
                 PreparedStatement pstmt = conn.prepareStatement(insertQuery);
                 Statement idStmtBefore = conn.createStatement();
                 Statement idStmtAfter = conn.createStatement()) {
@@ -1153,7 +1156,7 @@ public class PerformBackup {
         String selectBotJobIdsSQL = "SELECT id FROM bot_job ORDER BY id";
 
         try (BufferedReader reader = new BufferedReader(
-                        new InputStreamReader(new FileInputStream(sqlFilePath), StandardCharsets.UTF_8));
+                        new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
                 PreparedStatement pstmt = conn.prepareStatement(insertQuery);
                 Statement idStmtBefore = conn.createStatement();
                 Statement idStmtAfter = conn.createStatement()) {
@@ -1299,14 +1302,14 @@ public class PerformBackup {
                     force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root,
                     css_selector, description, operation, optional, block_marked,
                     default_value, action_custom_max_wait_sec, on_hold_seconds, codified,
-                    export_to_abr, active, block_id, variable_id, parent_id, bot_job_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                    export_to_abr, active, block_id, variable_id, parent_block_id, parent_id, bot_job_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                 """;
 
         String selectInstructionIdsSQL = "SELECT id FROM instruction ORDER BY id";
 
         try (BufferedReader reader = new BufferedReader(
-                        new InputStreamReader(new FileInputStream(sqlFilePath), StandardCharsets.UTF_8));
+                        new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
                 PreparedStatement pstmt = conn.prepareStatement(insertQuery);
                 Statement idStmtBefore = conn.createStatement();
                 Statement idStmtAfter = conn.createStatement()) {
@@ -1324,6 +1327,7 @@ public class PerformBackup {
             boolean batchReady = false;
             List<Integer> insertedOldIds = new ArrayList<>();
             instructionMap.clear();
+            instrVariablesMap.clear();
 
             String line;
             while ((line = reader.readLine()) != null) {
@@ -1358,12 +1362,14 @@ public class PerformBackup {
                     }
 
                     for (int i = 0; i < values.size(); i++) {
-                        String val;
                         switch (i) {
                             case 0 -> setSafeParam(pstmt, 1, values.get(0), Types.INTEGER); // id
                             case 1 -> setSafeParam(pstmt, 2, values.get(1), Types.INTEGER); // instruction_order_number
                             case 2 -> setSafeParam(pstmt, 3, values.get(2), Types.VARCHAR); // actions
-                            case 3 -> setSafeParam(pstmt, 4, values.get(3), Types.VARCHAR); // name
+                            case 3 -> {
+                                String val = values.get(3);
+                                setSafeParam(pstmt, 4, val, Types.VARCHAR);
+                            } // name
                             case 4 -> setSafeParam(pstmt, 5, values.get(4), Types.VARCHAR); // xpath
                             case 5 -> setSafeParam(pstmt, 6, values.get(5), Types.VARCHAR); // coordinates
                             case 6 -> setSafeParam(pstmt, 7, values.get(6), Types.INTEGER); // force_coordinates
@@ -1388,12 +1394,42 @@ public class PerformBackup {
                                 // block_id replaced with newBlockId
                                 setSafeParam(pstmt, 23, String.valueOf(newBlockId), Types.INTEGER);
                             }
-                            case 23 -> setSafeParam(pstmt, 24, values.get(23), Types.INTEGER); // variable_id
-                            case 24 -> setSafeParam(pstmt, 25, values.get(24), Types.INTEGER); // parent_id
+                            case 23 -> {
+                                // variable_id + tracking
+                                Integer instructionId = values.get(0) != null ? Integer.valueOf(values.get(0)) : null;
+                                String varValue = values.get(23);
+                                Integer variableId = null;
+                                if (varValue != null
+                                        && !varValue.isBlank()
+                                        && !varValue.equalsIgnoreCase("null")
+                                        && !varValue.equalsIgnoreCase("[null]")) {
+                                    try {
+                                        variableId = Integer.valueOf(varValue.trim());
+                                    } catch (NumberFormatException e) {
+                                        // Ignore parsing errors and keep variableId as null
+                                    }
+                                }
 
+                                if (instructionId != null && variableId != null) {
+                                    instrVariablesMap.put(instructionId, variableId);
+                                }
+
+                                // Firts to Be mapped after INSERTS into Variable TABLE
+                                setSafeParam(pstmt, 24, "NULL", Types.INTEGER);
+                            }
+                            case 24 -> {
+                                String action = values.get(2);
+                                if (action.equalsIgnoreCase("GOTO") || action.equalsIgnoreCase("EXCEL GOTO")) {
+                                    setSafeParam(pstmt, 25, values.get(24), Types.INTEGER); // parent_block_id
+                                    setSafeParam(pstmt, 26, null, Types.INTEGER); // parent_id
+                                } else {
+                                    setSafeParam(pstmt, 25, null, Types.INTEGER); // parent_block_id
+                                    setSafeParam(pstmt, 26, values.get(24), Types.INTEGER); // parent_id
+                                }
+                            }
                             case 25 -> {
                                 // bot_job_id replaced with newBotJobId
-                                setSafeParam(pstmt, 26, String.valueOf(newBotJobId), Types.INTEGER);
+                                setSafeParam(pstmt, 27, String.valueOf(newBotJobId), Types.INTEGER);
                             }
                             default -> throw new IllegalArgumentException("Unexpected column index: " + i);
                         }
@@ -1456,7 +1492,7 @@ public class PerformBackup {
         String selectVariableIdsSQL = "SELECT id FROM variable ORDER BY id";
 
         try (BufferedReader reader = new BufferedReader(
-                        new InputStreamReader(new FileInputStream(sqlFilePath), StandardCharsets.UTF_8));
+                        new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
                 PreparedStatement pstmt = conn.prepareStatement(insertQuery);
                 Statement idStmtBefore = conn.createStatement();
                 Statement idStmtAfter = conn.createStatement()) {
@@ -1594,15 +1630,22 @@ public class PerformBackup {
     public ErrorMessage restoreUpdateInstruction(Connection conn) {
         final int BATCH_SIZE = 100;
 
+        instrNewInverted.clear();
+
+        for (Map.Entry<Integer, Integer> entry : instructionMap.entrySet()) {
+            instrNewInverted.put(entry.getValue(), entry.getKey());
+        }
+
         try (Statement connStmt = conn.createStatement()) {
             conn.setAutoCommit(false);
 
-            String selectAccessSQL =
-                    "SELECT id, name, parent_id, variable_id FROM instruction WHERE parent_id IS NOT NULL OR variable_id IS NOT NULL ORDER BY id";
+            String selectAccessSQL = "SELECT id, name, parent_id, variable_id, parent_block_id "
+                    + "FROM instruction WHERE parent_id IS NOT NULL OR variable_id IS NULL OR parent_block_id IS NOT NULL ORDER BY id";
 
             try (ResultSet rsInstruction = connStmt.executeQuery(selectAccessSQL)) {
 
-                String updateSQL = "UPDATE instruction SET variable_id = ?, parent_id = ? WHERE id = ?";
+                String updateSQL =
+                        "UPDATE instruction SET variable_id = ?, parent_id = ?, parent_block_id = ? WHERE id = ?";
 
                 try (PreparedStatement updateStmt = conn.prepareStatement(updateSQL)) {
                     int count = 0;
@@ -1611,44 +1654,53 @@ public class PerformBackup {
                         int id = rsInstruction.getInt("id");
                         String name = rsInstruction.getString("name");
 
-                        // Get variable_id, handle SQL NULL
-                        int originalVariableId = rsInstruction.getInt("variable_id");
+                        // ---- variable_id ----
+                        Integer originalOldID = instrNewInverted.get(id);
+                        Integer originalVarId = null;
+
+                        if (originalOldID != null) {
+                            originalVarId = instrVariablesMap.get(originalOldID);
+                        }
+
                         Integer newVariableId = null;
-                        if (!rsInstruction.wasNull()) {
-                            newVariableId = variableMap.get(originalVariableId);
+                        if (originalVarId != null) {
+                            newVariableId = variableMap.get(originalVarId);
                         }
 
-                        if (newVariableId == null) {
-                            System.out.println(
-                                    "Skipped update variable column with unknown variable_id: " + originalVariableId);
-                            setSafeParam(updateStmt, 1, "NULL", Types.INTEGER);
-                        } else {
-                            setSafeParam(updateStmt, 1, String.valueOf(newVariableId), Types.INTEGER);
-                        }
+                        setSafeParam(
+                                updateStmt,
+                                1,
+                                newVariableId != null ? String.valueOf(newVariableId) : "NULL",
+                                Types.INTEGER);
 
-                        // Handle parent_id differently based on name
-                        int parentId = rsInstruction.getInt("parent_id");
+                        // ---- parent_id ----
                         Integer newParentId = null;
-
-                        if ("GOTO".equalsIgnoreCase(name) || "EXCEL GOTO".equalsIgnoreCase(name)) {
-                            // For these, parent_id refers to block id
-                            if (!rsInstruction.wasNull()) {
-                                newParentId = blockMap.get(parentId);
-                            }
-                        } else {
-                            // Otherwise, parent_id refers to instruction id
-                            if (!rsInstruction.wasNull()) {
-                                newParentId = instructionMap.get(parentId);
-                            }
+                        int originalParentId = rsInstruction.getInt("parent_id");
+                        boolean isParentIdNull = rsInstruction.wasNull();
+                        if (!isParentIdNull) {
+                            newParentId = instructionMap.get(originalParentId);
                         }
+                        setSafeParam(
+                                updateStmt,
+                                2,
+                                newParentId != null ? String.valueOf(newParentId) : "NULL",
+                                Types.INTEGER);
 
-                        if (newParentId == null) {
-                            setSafeParam(updateStmt, 2, "NULL", Types.INTEGER);
-                        } else {
-                            setSafeParam(updateStmt, 2, String.valueOf(newParentId), Types.INTEGER);
+                        // ---- parent_block_id ----
+                        Integer newParentBlockId = null;
+                        int originalParentBlockId = rsInstruction.getInt("parent_block_id");
+                        boolean isParentBlockIdNull = rsInstruction.wasNull();
+                        if (!isParentBlockIdNull) {
+                            newParentBlockId = blockMap.get(originalParentBlockId);
                         }
+                        setSafeParam(
+                                updateStmt,
+                                3,
+                                newParentBlockId != null ? String.valueOf(newParentBlockId) : "NULL",
+                                Types.INTEGER);
 
-                        updateStmt.setInt(3, id); // WHERE clause on id
+                        // ---- WHERE id = ? ----
+                        updateStmt.setInt(4, id);
 
                         updateStmt.addBatch();
                         count++;
@@ -1660,7 +1712,6 @@ public class PerformBackup {
                         }
                     }
 
-                    // Final batch
                     if (count % BATCH_SIZE != 0) {
                         updateStmt.executeBatch();
                         conn.commit();
@@ -1690,13 +1741,13 @@ public class PerformBackup {
         String selectReferenceIdsSQL = "SELECT id FROM reference ORDER BY id";
 
         try (BufferedReader reader = new BufferedReader(
-                        new InputStreamReader(new FileInputStream(sqlFilePath), StandardCharsets.UTF_8));
+                        new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
                 PreparedStatement pstmt = conn.prepareStatement(insertQuery);
                 Statement idStmtBefore = conn.createStatement();
                 Statement idStmtAfter = conn.createStatement()) {
+
             conn.setAutoCommit(false);
 
-            // Step 1: get current reference IDs before insert
             List<Integer> idsBefore = new ArrayList<>();
             try (ResultSet rsBefore = idStmtBefore.executeQuery(selectReferenceIdsSQL)) {
                 while (rsBefore.next()) {
@@ -1706,7 +1757,6 @@ public class PerformBackup {
 
             StringBuilder currentInsert = new StringBuilder();
             boolean batchReady = false;
-
             List<Integer> insertedOldIds = new ArrayList<>();
             referenceMap.clear();
 
@@ -1724,46 +1774,37 @@ public class PerformBackup {
                                 "Parse Error", "Expected 5 values for reference", currentInsert.toString());
                     }
 
-                    // Extract old bot_job_id (index 4)
-                    Integer oldBotJobId = null;
-                    try {
-                        String oldBotJobIdStr = values.get(4);
-                        oldBotJobId = Integer.parseInt(oldBotJobIdStr);
-                    } catch (NumberFormatException ex) {
-                        System.out.println("Invalid bot_job_id format: " + values.get(4));
-                    }
+                    // Parse old instruction ID and bot job ID
+                    Integer oldInstructionId = parseIntSafe(values.get(3));
+                    Integer oldBotJobId = parseIntSafe(values.get(4));
 
-                    // Lookup newBotJobId from botJobMap
-                    Integer newBotJobId = null;
-                    if (oldBotJobId != null) {
-                        newBotJobId = botJobMap.get(oldBotJobId);
-                    }
+                    Integer newInstructionId = oldInstructionId != null ? instructionMap.get(oldInstructionId) : null;
+                    Integer newBotJobId = oldBotJobId != null ? botJobMap.get(oldBotJobId) : null;
 
-                    if (newBotJobId == null) {
-                        System.out.println("Skipped reference with unknown bot_job_id: " + oldBotJobId);
+                    if (newInstructionId == null || newBotJobId == null) {
+                        System.out.println("Skipped reference due to unknown instruction or bot_job ID: " + "instr="
+                                + oldInstructionId + ", botJob=" + oldBotJobId);
                         currentInsert.setLength(0);
-                        continue; // skip this row
+                        continue;
                     }
 
                     for (int i = 0; i < values.size(); i++) {
                         String val = values.get(i);
-
                         switch (i) {
                             case 0 -> setSafeParam(pstmt, 1, val, Types.INTEGER); // id
                             case 1 -> setSafeParam(pstmt, 2, val, Types.VARCHAR); // reference_type
                             case 2 -> setSafeParam(pstmt, 3, val, Types.VARCHAR); // value
-                            case 3 -> setSafeParam(pstmt, 4, val, Types.INTEGER); // instruction_id
-                            case 4 -> setSafeParam(
-                                    pstmt, 5, String.valueOf(newBotJobId), Types.INTEGER); // bot_job_id replaced
+                            case 3 -> setSafeParam(
+                                    pstmt, 4, String.valueOf(newInstructionId), Types.INTEGER); // instruction_id
+                            case 4 -> setSafeParam(pstmt, 5, String.valueOf(newBotJobId), Types.INTEGER); // bot_job_id
                             default -> throw new IllegalArgumentException("Unexpected column index: " + i);
                         }
                     }
 
-                    // Track old ID for mapping later
                     try {
                         int oldId = Integer.parseInt(values.get(0));
                         insertedOldIds.add(oldId);
-                        referenceMap.put(oldId, -1); // initialize mapping
+                        referenceMap.put(oldId, -1); // mark for replacement
                     } catch (Exception ex) {
                         System.out.println("Error parsing referenceMap entry: " + ex.getMessage());
                     }
@@ -1779,7 +1820,6 @@ public class PerformBackup {
                 conn.commit();
             }
 
-            // Step 3: get reference IDs after insert
             List<Integer> idsAfter = new ArrayList<>();
             try (ResultSet rsAfter = idStmtAfter.executeQuery(selectReferenceIdsSQL)) {
                 while (rsAfter.next()) {
@@ -1820,7 +1860,7 @@ public class PerformBackup {
         String selectCompBlockIdsSQL = "SELECT id FROM component_block ORDER BY id";
 
         try (BufferedReader reader = new BufferedReader(
-                        new InputStreamReader(new FileInputStream(sqlFilePath), StandardCharsets.UTF_8));
+                        new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
                 PreparedStatement pstmt = conn.prepareStatement(insertQuery);
                 Statement idStmtBefore = conn.createStatement();
                 Statement idStmtAfter = conn.createStatement()) {
@@ -1856,7 +1896,7 @@ public class PerformBackup {
                                 "Parse Error", "Expected 9 values for component_block", currentInsert.toString());
                     }
 
-                    // No bot_job_id mapping here unless you add it; you can add it if necessary
+                    // No home_banking_id mapping here unless you add it; you can add it if necessary
 
                     for (int i = 0; i < values.size(); i++) {
                         String val = values.get(i);
@@ -1931,21 +1971,20 @@ public class PerformBackup {
                     force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root,
                     css_selector, description, operation, optional, block_marked,
                     default_value, action_custom_max_wait_sec, on_hold_seconds, codified,
-                    export_to_abr, active, block_id, variable_id, parent_id, home_banking_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                    export_to_abr, active, block_id, variable_id, parent_block_id, parent_id, home_banking_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                 """;
 
         String selectInstructionIdsSQL = "SELECT id FROM component_instruction ORDER BY id";
 
         try (BufferedReader reader = new BufferedReader(
-                        new InputStreamReader(new FileInputStream(sqlFilePath), StandardCharsets.UTF_8));
+                        new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
                 PreparedStatement pstmt = conn.prepareStatement(insertQuery);
                 Statement idStmtBefore = conn.createStatement();
                 Statement idStmtAfter = conn.createStatement()) {
 
             conn.setAutoCommit(false);
 
-            // Step 1: Get current IDs before insert
             List<Integer> idsBefore = new ArrayList<>();
             try (ResultSet rsBefore = idStmtBefore.executeQuery(selectInstructionIdsSQL)) {
                 while (rsBefore.next()) {
@@ -1956,7 +1995,8 @@ public class PerformBackup {
             StringBuilder currentInsert = new StringBuilder();
             boolean batchReady = false;
             List<Integer> insertedOldIds = new ArrayList<>();
-            instructionMap.clear(); // You should have this Map<Integer,Integer> defined somewhere
+            instructionMap.clear();
+            instrVariablesMap.clear();
 
             String line;
             while ((line = reader.readLine()) != null) {
@@ -1969,26 +2009,24 @@ public class PerformBackup {
 
                     if (values.size() != 26) {
                         return new ErrorMessage(
-                                "Parse Error",
-                                "Expected 26 values for component_instruction",
-                                currentInsert.toString());
+                                "Parse Error", "Expected 26 values for instruction", currentInsert.toString());
                     }
 
                     // Extract old block_id (index 22) and home_banking_id (index 25)
                     Integer oldBlockId = parseIntSafe(values.get(22));
-                    Integer oldHomeBankingId = parseIntSafe(values.get(25));
+                    Integer oldHomeBankId = parseIntSafe(values.get(25));
 
-                    // Map to new IDs using your maps (make sure these are populated accordingly)
                     Integer newBlockId = oldBlockId != null ? blockMap.get(oldBlockId) : null;
-                    Integer newHomeBankingId = oldHomeBankingId != null ? homeBankMap.get(oldHomeBankingId) : null;
+                    Integer newHomeBankId = oldHomeBankId != null ? homeBankMap.get(oldHomeBankId) : null;
 
                     if (newBlockId == null) {
-                        System.out.println("Skipped instruction with unknown block_id: " + oldBlockId);
+                        System.out.println("Skipped component_instruction with unknown block_id: " + oldBlockId);
                         currentInsert.setLength(0);
                         continue;
                     }
-                    if (newHomeBankingId == null) {
-                        System.out.println("Skipped instruction with unknown home_banking_id: " + oldHomeBankingId);
+                    if (newHomeBankId == null) {
+                        System.out.println(
+                                "Skipped component_instruction with unknown home_banking_id: " + oldHomeBankId);
                         currentInsert.setLength(0);
                         continue;
                     }
@@ -2019,17 +2057,47 @@ public class PerformBackup {
                             case 20 -> setSafeParam(pstmt, 21, values.get(20), Types.INTEGER); // export_to_abr
                             case 21 -> setSafeParam(pstmt, 22, values.get(21), Types.INTEGER); // active
 
-                            case 22 -> setSafeParam(
-                                    pstmt, 23, String.valueOf(newBlockId), Types.INTEGER); // block_id replaced
-                            case 23 -> setSafeParam(pstmt, 24, values.get(23), Types.INTEGER); // variable_id
-                            case 24 -> setSafeParam(pstmt, 25, values.get(24), Types.INTEGER); // parent_id
+                            case 22 -> {
+                                // block_id replaced with newBlockId
+                                setSafeParam(pstmt, 23, String.valueOf(newBlockId), Types.INTEGER);
+                            }
+                            case 23 -> {
+                                // variable_id + tracking
+                                Integer instructionId = values.get(0) != null ? Integer.valueOf(values.get(0)) : null;
+                                String varValue = values.get(23);
+                                Integer variableId = null;
+                                if (varValue != null
+                                        && !varValue.isBlank()
+                                        && !varValue.equalsIgnoreCase("null")
+                                        && !varValue.equalsIgnoreCase("[null]")) {
+                                    try {
+                                        variableId = Integer.valueOf(varValue.trim());
+                                    } catch (NumberFormatException e) {
+                                        // Ignore parsing errors and keep variableId as null
+                                    }
+                                }
 
-                            case 25 -> setSafeParam(
-                                    pstmt,
-                                    26,
-                                    String.valueOf(newHomeBankingId),
-                                    Types.INTEGER); // home_banking_id replaced
+                                if (instructionId != null && variableId != null) {
+                                    instrVariablesMap.put(instructionId, variableId);
+                                }
 
+                                // Firts to Be mapped after INSERTS into Variable TABLE
+                                setSafeParam(pstmt, 24, "NULL", Types.INTEGER);
+                            }
+                            case 24 -> {
+                                String action = values.get(2);
+                                if (action.equalsIgnoreCase("GOTO") || action.equalsIgnoreCase("EXCEL GOTO")) {
+                                    setSafeParam(pstmt, 25, values.get(24), Types.INTEGER); // parent_block_id
+                                    setSafeParam(pstmt, 26, null, Types.INTEGER); // parent_id
+                                } else {
+                                    setSafeParam(pstmt, 25, null, Types.INTEGER); // parent_block_id
+                                    setSafeParam(pstmt, 26, values.get(24), Types.INTEGER); // parent_id
+                                }
+                            }
+                            case 25 -> {
+                                // home_banking_id replaced with newBotJobId
+                                setSafeParam(pstmt, 27, String.valueOf(newHomeBankId), Types.INTEGER);
+                            }
                             default -> throw new IllegalArgumentException("Unexpected column index: " + i);
                         }
                     }
@@ -2053,7 +2121,6 @@ public class PerformBackup {
                 conn.commit();
             }
 
-            // Step 3: get IDs after insert
             List<Integer> idsAfter = new ArrayList<>();
             try (ResultSet rsAfter = idStmtAfter.executeQuery(selectInstructionIdsSQL)) {
                 while (rsAfter.next()) {
@@ -2092,7 +2159,7 @@ public class PerformBackup {
         String selectVariableIdsSQL = "SELECT id FROM component_variable ORDER BY id";
 
         try (BufferedReader reader = new BufferedReader(
-                        new InputStreamReader(new FileInputStream(sqlFilePath), StandardCharsets.UTF_8));
+                        new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
                 PreparedStatement pstmt = conn.prepareStatement(insertQuery);
                 Statement idStmtBefore = conn.createStatement();
                 Statement idStmtAfter = conn.createStatement()) {
@@ -2223,61 +2290,78 @@ public class PerformBackup {
     public ErrorMessage restoreComponentUpdateInstruction(Connection conn) {
         final int BATCH_SIZE = 100;
 
+        instrNewInverted.clear();
+        for (Map.Entry<Integer, Integer> entry : instructionMap.entrySet()) {
+            instrNewInverted.put(entry.getValue(), entry.getKey());
+        }
+
         try (Statement connStmt = conn.createStatement()) {
             conn.setAutoCommit(false);
 
             String selectAccessSQL =
-                    "SELECT id, name, parent_id, variable_id FROM component_instruction WHERE parent_id IS NOT NULL OR variable_id IS NOT NULL ORDER BY id";
+                    "SELECT id, name, parent_id, variable_id, parent_block_id " + "FROM component_instruction "
+                            + "WHERE parent_id IS NOT NULL OR variable_id IS NULL OR parent_block_id IS NOT NULL "
+                            + "ORDER BY id";
 
             try (ResultSet rsInstruction = connStmt.executeQuery(selectAccessSQL)) {
 
-                String updateSQL = "UPDATE component_instruction SET variable_id = ?, parent_id = ? WHERE id = ?";
+                String updateSQL =
+                        "UPDATE component_instruction SET variable_id = ?, parent_id = ?, parent_block_id = ? WHERE id = ?";
 
                 try (PreparedStatement updateStmt = conn.prepareStatement(updateSQL)) {
                     int count = 0;
 
                     while (rsInstruction.next()) {
                         int id = rsInstruction.getInt("id");
-                        String name = rsInstruction.getString("name");
 
-                        // Get variable_id, handle SQL NULL
-                        int originalVariableId = rsInstruction.getInt("variable_id");
+                        // ---- variable_id ----
+                        Integer originalOldId = instrNewInverted.get(id);
+                        Integer originalVarId = null;
+                        if (originalOldId != null) {
+                            originalVarId = instrVariablesMap.get(originalOldId);
+                        }
+
                         Integer newVariableId = null;
-                        if (!rsInstruction.wasNull()) {
-                            newVariableId = variableMap.get(originalVariableId);
+                        if (originalVarId != null) {
+                            newVariableId = variableMap.get(originalVarId);
                         }
 
-                        if (newVariableId == null) {
-                            System.out.println(
-                                    "Skipped update variable column with unknown variable_id: " + originalVariableId);
-                            setSafeParam(updateStmt, 1, "NULL", Types.INTEGER);
-                        } else {
-                            setSafeParam(updateStmt, 1, String.valueOf(newVariableId), Types.INTEGER);
-                        }
+                        setSafeParam(
+                                updateStmt,
+                                1,
+                                newVariableId != null ? String.valueOf(newVariableId) : "NULL",
+                                Types.INTEGER);
 
-                        // Handle parent_id differently based on name
-                        int parentId = rsInstruction.getInt("parent_id");
+                        // ---- parent_id ----
                         Integer newParentId = null;
-
-                        if ("GOTO".equalsIgnoreCase(name) || "EXCEL GOTO".equalsIgnoreCase(name)) {
-                            // For these, parent_id refers to block id
-                            if (!rsInstruction.wasNull()) {
-                                newParentId = blockMap.get(parentId);
-                            }
-                        } else {
-                            // Otherwise, parent_id refers to instruction id
-                            if (!rsInstruction.wasNull()) {
-                                newParentId = instructionMap.get(parentId);
-                            }
+                        int originalParentId = rsInstruction.getInt("parent_id");
+                        boolean isParentIdNull = rsInstruction.wasNull();
+                        if (!isParentIdNull) {
+                            newParentId = instructionMap.get(originalParentId);
                         }
 
-                        if (newParentId == null) {
-                            setSafeParam(updateStmt, 2, "NULL", Types.INTEGER);
-                        } else {
-                            setSafeParam(updateStmt, 2, String.valueOf(newParentId), Types.INTEGER);
+                        setSafeParam(
+                                updateStmt,
+                                2,
+                                newParentId != null ? String.valueOf(newParentId) : "NULL",
+                                Types.INTEGER);
+
+                        // ---- parent_block_id ----
+                        Integer newParentBlockId = null;
+                        int originalParentBlockId = rsInstruction.getInt("parent_block_id");
+                        boolean isParentBlockIdNull = rsInstruction.wasNull();
+                        if (!isParentBlockIdNull) {
+                            newParentBlockId = blockMap.get(originalParentBlockId);
                         }
 
-                        updateStmt.setInt(3, id); // WHERE clause on id
+                        setSafeParam(
+                                updateStmt,
+                                3,
+                                newParentBlockId != null ? String.valueOf(newParentBlockId) : "NULL",
+                                Types.INTEGER);
+
+                        // ---- WHERE id = ? ----
+                        updateStmt.setInt(4, id);
 
                         updateStmt.addBatch();
                         count++;
@@ -2289,7 +2373,6 @@ public class PerformBackup {
                         }
                     }
 
-                    // Final batch
                     if (count % BATCH_SIZE != 0) {
                         updateStmt.executeBatch();
                         conn.commit();
@@ -2320,14 +2403,13 @@ public class PerformBackup {
         String selectReferenceIdsSQL = "SELECT id FROM component_reference ORDER BY id";
 
         try (BufferedReader reader = new BufferedReader(
-                        new InputStreamReader(new FileInputStream(sqlFilePath), StandardCharsets.UTF_8));
+                        new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
                 PreparedStatement pstmt = conn.prepareStatement(insertQuery);
                 Statement idStmtBefore = conn.createStatement();
                 Statement idStmtAfter = conn.createStatement()) {
 
             conn.setAutoCommit(false);
 
-            // Step 1: get current reference IDs before insert
             List<Integer> idsBefore = new ArrayList<>();
             try (ResultSet rsBefore = idStmtBefore.executeQuery(selectReferenceIdsSQL)) {
                 while (rsBefore.next()) {
@@ -2337,7 +2419,6 @@ public class PerformBackup {
 
             StringBuilder currentInsert = new StringBuilder();
             boolean batchReady = false;
-
             List<Integer> insertedOldIds = new ArrayList<>();
             referenceMap.clear();
 
@@ -2355,49 +2436,38 @@ public class PerformBackup {
                                 "Parse Error", "Expected 5 values for component_reference", currentInsert.toString());
                     }
 
-                    // Extract old home_banking_id (index 4)
-                    Integer oldHomeBankingId = null;
-                    try {
-                        oldHomeBankingId = Integer.parseInt(values.get(4));
-                    } catch (NumberFormatException ex) {
-                        System.out.println("Invalid home_banking_id format: " + values.get(4));
-                    }
+                    // Parse old instruction ID and bot job ID
+                    Integer oldInstructionId = parseIntSafe(values.get(3));
+                    Integer oldHomeBankId = parseIntSafe(values.get(4));
 
-                    // Lookup newHomeBankingId from homeBankingMap (assumed available)
-                    Integer newHomeBankingId = null;
-                    if (oldHomeBankingId != null) {
-                        newHomeBankingId = homeBankMap.get(oldHomeBankingId); // You need to have this map defined
-                    }
+                    Integer newInstructionId = oldInstructionId != null ? instructionMap.get(oldInstructionId) : null;
+                    Integer newHomeBankId = oldHomeBankId != null ? homeBankMap.get(oldHomeBankId) : null;
 
-                    if (newHomeBankingId == null) {
-                        System.out.println(
-                                "Skipped component_reference with unknown home_banking_id: " + oldHomeBankingId);
+                    if (newInstructionId == null || newHomeBankId == null) {
+                        System.out.println("Skipped component_reference due to unknown instruction or home_bank ID: "
+                                + "instr=" + oldInstructionId + ", homeBankId=" + oldHomeBankId);
                         currentInsert.setLength(0);
-                        continue; // skip this row
+                        continue;
                     }
 
                     for (int i = 0; i < values.size(); i++) {
                         String val = values.get(i);
-
                         switch (i) {
                             case 0 -> setSafeParam(pstmt, 1, val, Types.INTEGER); // id
                             case 1 -> setSafeParam(pstmt, 2, val, Types.VARCHAR); // reference_type
                             case 2 -> setSafeParam(pstmt, 3, val, Types.VARCHAR); // value
-                            case 3 -> setSafeParam(pstmt, 4, val, Types.INTEGER); // instruction_id
+                            case 3 -> setSafeParam(
+                                    pstmt, 4, String.valueOf(newInstructionId), Types.INTEGER); // instruction_id
                             case 4 -> setSafeParam(
-                                    pstmt,
-                                    5,
-                                    String.valueOf(newHomeBankingId),
-                                    Types.INTEGER); // home_banking_id replaced
+                                    pstmt, 5, String.valueOf(newHomeBankId), Types.INTEGER); // home_banking_id
                             default -> throw new IllegalArgumentException("Unexpected column index: " + i);
                         }
                     }
 
-                    // Track old ID for mapping later
                     try {
                         int oldId = Integer.parseInt(values.get(0));
                         insertedOldIds.add(oldId);
-                        referenceMap.put(oldId, -1); // initialize mapping
+                        referenceMap.put(oldId, -1); // mark for replacement
                     } catch (Exception ex) {
                         System.out.println("Error parsing referenceMap entry: " + ex.getMessage());
                     }
@@ -2413,7 +2483,6 @@ public class PerformBackup {
                 conn.commit();
             }
 
-            // Step 3: get reference IDs after insert
             List<Integer> idsAfter = new ArrayList<>();
             try (ResultSet rsAfter = idStmtAfter.executeQuery(selectReferenceIdsSQL)) {
                 while (rsAfter.next()) {
