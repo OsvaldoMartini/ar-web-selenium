@@ -4,9 +4,7 @@ import com.allinweb.ch.component.pane.ARMainPane;
 import com.allinweb.ch.component.scene.ARConfigurationScene;
 import com.allinweb.ch.component.scene.ARLicenseScene;
 import com.allinweb.ch.component.scene.ARMainScene;
-import com.allinweb.ch.facade.PerformDataBase;
-import com.allinweb.ch.facade.PerformInitializer;
-import com.allinweb.ch.facade.PerformMessage;
+import com.allinweb.ch.facade.*;
 import com.allinweb.ch.license.LicenceVal;
 import com.allinweb.ch.license.LicenseManager;
 import com.allinweb.ch.socket.ARWebSocketServer;
@@ -55,10 +53,12 @@ public class ARControlPanel extends Application {
     }
 
     //    private static final ExportAccessToPostgres exportAccessToPostgres;
-    //
-    //    static {
-    //        exportAccessToPostgres = ExportAccessToPostgres.getInstance();
-    //    }
+    private static final ExportAccessToSQLite exportAccessToSQLite;
+
+    static {
+        //        exportAccessToPostgres = ExportAccessToPostgres.getInstance();
+        exportAccessToSQLite = ExportAccessToSQLite.getInstance();
+    }
 
     private static boolean isEnabledLicence = true;
 
@@ -300,7 +300,7 @@ public class ARControlPanel extends Application {
                     ARLogger.getInstance(ARMainPane.class).severe("Postgres Database connected!");
                 }
 
-                //                 // Access to Postgres
+                //                // Access to Postgres
                 //                exportAccessToPostgres.exportHomeBanking();
                 //                exportAccessToPostgres.exportHomeUrl();
                 //                exportAccessToPostgres.exportBotJob();
@@ -362,8 +362,8 @@ public class ARControlPanel extends Application {
 
                 //                 Postgres to Access
 
-                performDataBase.exportHomeBankingAccess();
-                performDataBase.getNewIdsHomeBankAccess();
+                //                performDataBase.exportHomeBankingAccess();
+                //                performDataBase.getNewIdsHomeBankAccess();
                 //                performDataBase.exportHomeUrlAccess();
                 //                performDataBase.getNewIdsHomeUrlAccess();
                 //                performDataBase.exportBotJobAccess();
@@ -432,32 +432,22 @@ public class ARControlPanel extends Application {
                     ARLogger.getInstance(ARMainPane.class).severe("Access Database connected!");
                 }
 
-                //                 Postgres to Access
+                // Access to SQLite
+                exportAccessToSQLite.exportHomeBanking();
+                exportAccessToSQLite.exportHomeUrl();
+                exportAccessToSQLite.exportBotJob();
+                exportAccessToSQLite.exportBlock();
+                exportAccessToSQLite.exportInstructions();
+                exportAccessToSQLite.exportVariables();
+                exportAccessToSQLite.exportUpdateInstruction();
+                exportAccessToSQLite.exportReferences();
 
-                //                performDataBase.exportHomeBankingAccess();
-                //                performDataBase.getNewIdsHomeBankAccess();
-                //                performDataBase.exportHomeUrlAccess();
-                //                performDataBase.getNewIdsHomeUrlAccess();
-                //                performDataBase.exportBotJobAccess();
-                //                performDataBase.getNewIdsBotJobAccess();
-                //                performDataBase.exportBlockAccess();
-                //                performDataBase.getNewIdsBlockAccess();
-                //                performDataBase.exportInstructionsAccess();
-                //                performDataBase.getNewIdsInstrucAccess();
-                //                performDataBase.exportVariablesAccess();
-                //                performDataBase.getNewIdsVariableAccess();
-                //                performDataBase.exportUpdateInstructionAccess();
-                //                performDataBase.exportReferencesAccess();
-                //
-                //                // SAVED COMPONENTS
-                //                performDataBase.exportCompBlockAccess();
-                //                performDataBase.getNewIdsCompBlockAccess();
-                //                performDataBase.exportCompInstructionsAccess();
-                //                performDataBase.getNewIdsCompInstrucAccess();
-                //                performDataBase.exportCompVariablesAccess();
-                //                performDataBase.getNewIdsCompVariableAccess();
-                //                performDataBase.exportUpdateCompInstructionAccess();
-                //                performDataBase.exportCompReferencesAccess();
+                // SAVED COMPONENTS
+                exportAccessToSQLite.exportCompBlock();
+                exportAccessToSQLite.exportCompInstructions();
+                exportAccessToSQLite.exportCompVariables();
+                exportAccessToSQLite.exportUpdateCompInstruction();
+                exportAccessToSQLite.exportCompReferences();
 
             } catch (Exception error) {
                 ARLogger.getInstance(ARMainPane.class).severe("Error Export to Postgres: " + error.getMessage());

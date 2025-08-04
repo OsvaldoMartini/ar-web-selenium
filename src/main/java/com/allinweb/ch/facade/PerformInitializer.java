@@ -219,9 +219,9 @@ public class PerformInitializer {
         try (Connection conn = performDataBase.getConnection()) {
             try (Statement stmt = conn.createStatement()) {
 
-                // Create home_banking table
+                // HOME BANKING
                 String createHomeBankingTableSQL = "CREATE TABLE home_banking ("
-                        + "ID INTEGER PRIMARY KEY, "
+                        + "ID AUTOINCREMENT PRIMARY KEY, "
                         + "url MEMO, "
                         + "name TEXT, "
                         + "priority MEMO, "
@@ -233,42 +233,30 @@ public class PerformInitializer {
                         + "password TEXT)";
                 stmt.executeUpdate(createHomeBankingTableSQL);
 
-                // Create bot_job table with a foreign key reference to home_banking
+                // HOME URL
                 String createURLTableSQL = "CREATE TABLE home_url ("
-                        + "ID INTEGER PRIMARY KEY, "
+                        + "ID AUTOINCREMENT PRIMARY KEY, "
                         + "url MEMO, "
-                        + "home_banking_id INTEGER);";
+                        + "home_banking_id INTEGER, "
+                        + "CONSTRAINT fk_home_url_home_banking FOREIGN KEY (home_banking_id) REFERENCES home_banking(ID))";
                 stmt.executeUpdate(createURLTableSQL);
 
-                String addURLForeignKeySQL = "ALTER TABLE home_url "
-                        + "ADD CONSTRAINT FK_URL FOREIGN KEY (home_banking_id) "
-                        + "REFERENCES home_banking(id) ";
-                stmt.executeUpdate(addURLForeignKeySQL);
-
-                // Create bot_job table with a foreign key reference to home_banking
+                // BOT JOB
                 String createBotJobTableSQL = "CREATE TABLE bot_job ("
-                        + "id INTEGER PRIMARY KEY, "
+                        + "id AUTOINCREMENT PRIMARY KEY, "
                         + "name TEXT UNIQUE, "
                         + "description TEXT, "
                         + "priority MEMO, "
                         + "active YESNO NOT NULL, "
                         + "home_banking_id INTEGER, "
-                        + "home_url_id INTEGER);";
+                        + "home_url_id INTEGER, "
+                        + "CONSTRAINT fk_bot_job_home_banking FOREIGN KEY (home_banking_id) REFERENCES home_banking(ID), "
+                        + "CONSTRAINT fk_bot_job_home_url FOREIGN KEY (home_url_id) REFERENCES home_url(ID))";
                 stmt.executeUpdate(createBotJobTableSQL);
 
-                String addBotJobForeignKeySQL = "ALTER TABLE bot_job "
-                        + "ADD CONSTRAINT FK_BotJob FOREIGN KEY (home_banking_id) "
-                        + "REFERENCES home_banking(id) ";
-                stmt.executeUpdate(addBotJobForeignKeySQL);
-
-                String addHomrURLForeignKeySQL = "ALTER TABLE bot_job "
-                        + "ADD CONSTRAINT FK_HomeUrl FOREIGN KEY (home_url_id) "
-                        + "REFERENCES home_url(id) ";
-                stmt.executeUpdate(addHomrURLForeignKeySQL);
-
-                // Create block table with a foreign key reference to bot_job
+                // BLOCK
                 String createBlockTableSQL = "CREATE TABLE block ("
-                        + "id INTEGER PRIMARY KEY, "
+                        + "id AUTOINCREMENT PRIMARY KEY, "
                         + "block_order_number INTEGER NOT NULL, "
                         + "name TEXT NOT NULL, "
                         + "description TEXT, "
@@ -276,17 +264,13 @@ public class PerformInitializer {
                         + "export_file TEXT, "
                         + "active YESNO NOT NULL, "
                         + "wait INTEGER, "
-                        + "bot_job_id INTEGER);";
+                        + "bot_job_id INTEGER, "
+                        + "CONSTRAINT fk_block_bot_job FOREIGN KEY (bot_job_id) REFERENCES bot_job(id))";
                 stmt.executeUpdate(createBlockTableSQL);
 
-                String addForeignKeySQL2 = "ALTER TABLE block "
-                        + "ADD CONSTRAINT FK_2 FOREIGN KEY (bot_job_id) "
-                        + "REFERENCES bot_job(id) ";
-                stmt.executeUpdate(addForeignKeySQL2);
-
-                // Create instruction table with foreign key references to block and bot_job
+                // INSTRUCTION
                 String createInstructionTableSQL = "CREATE TABLE instruction ("
-                        + "id INTEGER PRIMARY KEY, "
+                        + "id AUTOINCREMENT PRIMARY KEY, "
                         + "instruction_order_number INTEGER NOT NULL, "
                         + "actions MEMO, "
                         + "name TEXT, "
@@ -311,60 +295,41 @@ public class PerformInitializer {
                         + "block_id INTEGER, "
                         + "variable_id INTEGER, "
                         + "parent_id INTEGER, "
-                        + "bot_job_id INTEGER);";
+                        + "bot_job_id INTEGER, "
+                        + "CONSTRAINT fk_instruction_block FOREIGN KEY (block_id) REFERENCES block(id), "
+                        + "CONSTRAINT fk_instruction_variable FOREIGN KEY (variable_id) REFERENCES variable(id), "
+                        + "CONSTRAINT fk_instruction_parent FOREIGN KEY (parent_id) REFERENCES instruction(id), "
+                        + "CONSTRAINT fk_instruction_bot_job FOREIGN KEY (bot_job_id) REFERENCES bot_job(id))";
                 stmt.executeUpdate(createInstructionTableSQL);
 
-                String addForeignKeySQL3 = "ALTER TABLE instruction "
-                        + "ADD CONSTRAINT FK_3 FOREIGN KEY (block_id) "
-                        + "REFERENCES block(id) ";
-                stmt.executeUpdate(addForeignKeySQL3);
-
-                String addForeignKeySQL4 = "ALTER TABLE instruction "
-                        + "ADD CONSTRAINT FK_4 FOREIGN KEY (bot_job_id) "
-                        + "REFERENCES bot_job(id) ";
-                stmt.executeUpdate(addForeignKeySQL4);
-
+                // REFERENCE
                 String createReferenceTableSQL = "CREATE TABLE reference ("
-                        + "id INTEGER PRIMARY KEY, "
+                        + "id AUTOINCREMENT PRIMARY KEY, "
                         + "reference_type TEXT, "
                         + "value MEMO, "
                         + "instruction_id INTEGER NOT NULL, "
-                        + "bot_job_id INTEGER);";
+                        + "bot_job_id INTEGER, "
+                        + "CONSTRAINT fk_reference_instruction FOREIGN KEY (instruction_id) REFERENCES instruction(id), "
+                        + "CONSTRAINT fk_reference_bot_job FOREIGN KEY (bot_job_id) REFERENCES bot_job(id))";
                 stmt.executeUpdate(createReferenceTableSQL);
 
-                String addForeignKeySQL5 = "ALTER TABLE reference "
-                        + "ADD CONSTRAINT FK_5 FOREIGN KEY (instruction_id) "
-                        + "REFERENCES instruction(id) ";
-                stmt.executeUpdate(addForeignKeySQL5);
-
-                String addForeignKeySQL6 = "ALTER TABLE reference "
-                        + "ADD CONSTRAINT FK_6 FOREIGN KEY (bot_job_id) "
-                        + "REFERENCES bot_job(id) ";
-                stmt.executeUpdate(addForeignKeySQL6);
-
+                // VARIABLE
                 String createVariableTableSQL = "CREATE TABLE variable ("
-                        + "id INTEGER PRIMARY KEY, "
+                        + "id AUTOINCREMENT PRIMARY KEY, "
                         + "type TEXT, "
                         + "name TEXT, "
                         + "value MEMO, "
                         + "instruction_id INTEGER, "
-                        + "bot_job_id INTEGER,"
-                        + "local_format TEXT,"
-                        + "delimiter TEXT);";
+                        + "bot_job_id INTEGER, "
+                        + "local_format TEXT, "
+                        + "delimiter TEXT, "
+                        + "CONSTRAINT fk_variable_instruction FOREIGN KEY (instruction_id) REFERENCES instruction(id), "
+                        + "CONSTRAINT fk_variable_bot_job FOREIGN KEY (bot_job_id) REFERENCES bot_job(id))";
                 stmt.executeUpdate(createVariableTableSQL);
 
-                String addForeignKeySQL7 = "ALTER TABLE variable "
-                        + "ADD CONSTRAINT FK_7 FOREIGN KEY (instruction_id) "
-                        + "REFERENCES instruction(id) ";
-                stmt.executeUpdate(addForeignKeySQL7);
-
-                String addForeignKeySQL8 = "ALTER TABLE variable "
-                        + "ADD CONSTRAINT FK_8 FOREIGN KEY (bot_job_id) "
-                        + "REFERENCES bot_job(id) ";
-                stmt.executeUpdate(addForeignKeySQL8);
-
+                // COMPONENT BLOCK
                 String createComponentBlockTableSQL = "CREATE TABLE component_block ("
-                        + "id INTEGER PRIMARY KEY, "
+                        + "id AUTOINCREMENT PRIMARY KEY, "
                         + "home_banking_id INTEGER, "
                         + "block_order_number INTEGER NOT NULL, "
                         + "name TEXT NOT NULL, "
@@ -372,16 +337,13 @@ public class PerformInitializer {
                         + "type_id INTEGER, "
                         + "export_file TEXT, "
                         + "active YESNO, "
-                        + "wait INTEGER);";
+                        + "wait INTEGER, "
+                        + "CONSTRAINT fk_component_block_home_banking FOREIGN KEY (home_banking_id) REFERENCES home_banking(ID))";
                 stmt.executeUpdate(createComponentBlockTableSQL);
 
-                String addForeignKeySQL9 = "ALTER TABLE component_block "
-                        + "ADD CONSTRAINT FK_9 FOREIGN KEY (home_banking_id) "
-                        + "REFERENCES home_banking(id) ";
-                stmt.executeUpdate(addForeignKeySQL9);
-
+                // COMPONENT INSTRUCTION
                 String createComponentInstructionTableSQL = "CREATE TABLE component_instruction ("
-                        + "id INTEGER PRIMARY KEY, "
+                        + "id AUTOINCREMENT PRIMARY KEY, "
                         + "instruction_order_number INTEGER NOT NULL, "
                         + "actions MEMO, "
                         + "name TEXT, "
@@ -406,57 +368,37 @@ public class PerformInitializer {
                         + "block_id INTEGER, "
                         + "variable_id INTEGER, "
                         + "parent_id INTEGER, "
-                        + "home_banking_id INTEGER);";
+                        + "home_banking_id INTEGER, "
+                        + "CONSTRAINT fk_comp_instruction_block FOREIGN KEY (block_id) REFERENCES component_block(id), "
+                        + "CONSTRAINT fk_comp_instruction_variable FOREIGN KEY (variable_id) REFERENCES component_variable(id), "
+                        + "CONSTRAINT fk_comp_instruction_parent FOREIGN KEY (parent_id) REFERENCES component_instruction(id), "
+                        + "CONSTRAINT fk_comp_instruction_home_banking FOREIGN KEY (home_banking_id) REFERENCES home_banking(ID))";
                 stmt.executeUpdate(createComponentInstructionTableSQL);
 
-                String addForeignKeySQL10 = "ALTER TABLE component_instruction "
-                        + "ADD CONSTRAINT FK_10 FOREIGN KEY (block_id) "
-                        + "REFERENCES component_block(id) ";
-                stmt.executeUpdate(addForeignKeySQL10);
-
-                String addCompBlkHomeForeignKeySQL = "ALTER TABLE component_instruction "
-                        + "ADD CONSTRAINT FK_BLKHomeBank FOREIGN KEY (home_banking_id) "
-                        + "REFERENCES home_banking(id) ";
-                stmt.executeUpdate(addCompBlkHomeForeignKeySQL);
-
+                // COMPONENT REFERENCE
                 String createComponentReferenceTableSQL = "CREATE TABLE component_reference ("
-                        + "id INTEGER PRIMARY KEY, "
+                        + "id AUTOINCREMENT PRIMARY KEY, "
                         + "reference_type TEXT, "
                         + "value MEMO, "
                         + "instruction_id INTEGER NOT NULL, "
-                        + "home_banking_id INTEGER);";
+                        + "home_banking_id INTEGER, "
+                        + "CONSTRAINT fk_comp_reference_instruction FOREIGN KEY (instruction_id) REFERENCES component_instruction(id), "
+                        + "CONSTRAINT fk_comp_reference_home_banking FOREIGN KEY (home_banking_id) REFERENCES home_banking(ID))";
                 stmt.executeUpdate(createComponentReferenceTableSQL);
 
-                String addForeignKeySQL11 = "ALTER TABLE component_reference "
-                        + "ADD CONSTRAINT FK_11 FOREIGN KEY (instruction_id) "
-                        + "REFERENCES component_instruction(id) ";
-                stmt.executeUpdate(addForeignKeySQL11);
-
-                String addCompReferForeignKeySQL = "ALTER TABLE component_reference "
-                        + "ADD CONSTRAINT FK_CompRefer FOREIGN KEY (home_banking_id) "
-                        + "REFERENCES home_banking(id) ";
-                stmt.executeUpdate(addCompReferForeignKeySQL);
-
+                // COMPONENT VARIABLE
                 String createComponentVariableTableSQL = "CREATE TABLE component_variable ("
-                        + "id INTEGER PRIMARY KEY, "
+                        + "id AUTOINCREMENT PRIMARY KEY, "
                         + "type TEXT, "
                         + "name TEXT, "
                         + "value MEMO, "
                         + "instruction_id INTEGER, "
-                        + "home_banking_id INTEGER,"
-                        + "local_format TEXT,"
-                        + "delimiter TEXT);";
+                        + "home_banking_id INTEGER, "
+                        + "local_format TEXT, "
+                        + "delimiter TEXT, "
+                        + "CONSTRAINT fk_comp_variable_instruction FOREIGN KEY (instruction_id) REFERENCES component_instruction(id), "
+                        + "CONSTRAINT fk_comp_variable_home_banking FOREIGN KEY (home_banking_id) REFERENCES home_banking(ID))";
                 stmt.executeUpdate(createComponentVariableTableSQL);
-
-                String addForeignKeySQL12 = "ALTER TABLE component_variable "
-                        + "ADD CONSTRAINT FK_12 FOREIGN KEY (instruction_id) "
-                        + "REFERENCES component_instruction(id) ";
-                stmt.executeUpdate(addForeignKeySQL12);
-
-                String addCompVarForeignKeySQL = "ALTER TABLE component_variable "
-                        + "ADD CONSTRAINT FK_CompVar FOREIGN KEY (home_banking_id) "
-                        + "REFERENCES home_banking(id) ";
-                stmt.executeUpdate(addCompVarForeignKeySQL);
             }
             System.out.printf("Database %s has been created!%n", dbFile.getName());
         } catch (SQLException error) {
