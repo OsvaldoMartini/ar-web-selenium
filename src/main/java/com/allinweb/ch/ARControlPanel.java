@@ -34,6 +34,7 @@ public class ARControlPanel extends Application {
     private static final PerformMessage performMessage;
     private static final ARPropertyManager arPropertyManager;
     private static final PerformDataBase performDataBase;
+
     private static final PerformInitializer performInitializer;
     private static final ARLicenseScene arLicenseScene;
     private static String defaultConfigurationFileName = ARConstants.USER_PATH + ARConstants.FILE_NAME_CONFIGURATION;
@@ -52,6 +53,12 @@ public class ARControlPanel extends Application {
         arConfigurationScene = ARConfigurationScene.getInstance();
         arMainScene = ARMainScene.getInstance();
     }
+
+    //    private static final ExportAccessToPostgres exportAccessToPostgres;
+    //
+    //    static {
+    //        exportAccessToPostgres = ExportAccessToPostgres.getInstance();
+    //    }
 
     private static boolean isEnabledLicence = true;
 
@@ -293,31 +300,22 @@ public class ARControlPanel extends Application {
                     ARLogger.getInstance(ARMainPane.class).severe("Postgres Database connected!");
                 }
 
-                //                //                 Access to Postgres
-                //                performDataBase.exportHomeBanking();
-                //                performDataBase.getNewIdsHomeBank();
-                //                performDataBase.exportHomeUrl();
-                //                performDataBase.getNewIdsHomeUrl();
-                //                performDataBase.exportBotJob();
-                //                performDataBase.getNewIdsBotJob();
-                //                performDataBase.exportBlock();
-                //                performDataBase.getNewIdsBlock();
-                //                performDataBase.exportInstructions();
-                //                performDataBase.getNewIdsInstruc();
-                //                performDataBase.exportVariables();
-                //                performDataBase.getNewIdsVariable();
-                //                performDataBase.exportUpdateInstruction();
-                //                performDataBase.exportReferences();
+                //                 // Access to Postgres
+                //                exportAccessToPostgres.exportHomeBanking();
+                //                exportAccessToPostgres.exportHomeUrl();
+                //                exportAccessToPostgres.exportBotJob();
+                //                exportAccessToPostgres.exportBlock();
+                //                exportAccessToPostgres.exportInstructions();
+                //                exportAccessToPostgres.exportVariables();
+                //                exportAccessToPostgres.exportUpdateInstruction();
+                //                exportAccessToPostgres.exportReferences();
                 //
                 //                // SAVED COMPONENTS
-                //                performDataBase.exportCompBlock();
-                //                performDataBase.getNewIdsCompBlock();
-                //                performDataBase.exportCompInstructions();
-                //                performDataBase.getNewIdsCompInstruc();
-                //                performDataBase.exportCompVariables();
-                //                performDataBase.getNewIdsCompVariable();
-                //                performDataBase.exportUpdateCompInstruction();
-                //                performDataBase.exportCompReferences();
+                //                exportAccessToPostgres.exportCompBlock();
+                //                exportAccessToPostgres.exportCompInstructions();
+                //                exportAccessToPostgres.exportCompVariables();
+                //                exportAccessToPostgres.exportUpdateCompInstruction();
+                //                exportAccessToPostgres.exportCompReferences();
 
             } catch (Exception error) {
                 ARLogger.getInstance(ARMainPane.class).severe("Error Export to Postgres: " + error.getMessage());
@@ -364,8 +362,8 @@ public class ARControlPanel extends Application {
 
                 //                 Postgres to Access
 
-                //                performDataBase.exportHomeBankingAccess();
-                //                performDataBase.getNewIdsHomeBankAccess();
+                performDataBase.exportHomeBankingAccess();
+                performDataBase.getNewIdsHomeBankAccess();
                 //                performDataBase.exportHomeUrlAccess();
                 //                performDataBase.getNewIdsHomeUrlAccess();
                 //                performDataBase.exportBotJobAccess();
