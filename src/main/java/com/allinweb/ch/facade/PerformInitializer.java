@@ -409,21 +409,21 @@ public class PerformInitializer {
     public void addForeignKeyConstraintsAccess() throws SQLException {
         try (Connection conn = performDataBase.getConnection();
                 Statement stmt = conn.createStatement()) {
-            // HOME URL → HOME BANKING
+            // HOME URL - HOME BANKING
             stmt.executeUpdate(
                     "ALTER TABLE home_url ADD CONSTRAINT fk_home_url_home_banking FOREIGN KEY (home_banking_id) REFERENCES home_banking(ID)");
 
-            // BOT JOB → HOME BANKING, HOME URL
+            // BOT JOB - HOME BANKING, HOME URL
             stmt.executeUpdate(
                     "ALTER TABLE bot_job ADD CONSTRAINT fk_bot_job_home_banking FOREIGN KEY (home_banking_id) REFERENCES home_banking(ID)");
             stmt.executeUpdate(
                     "ALTER TABLE bot_job ADD CONSTRAINT fk_bot_job_home_url FOREIGN KEY (home_url_id) REFERENCES home_url(ID)");
 
-            // BLOCK → BOT JOB
+            // BLOCK - BOT JOB
             stmt.executeUpdate(
                     "ALTER TABLE block ADD CONSTRAINT fk_block_bot_job FOREIGN KEY (bot_job_id) REFERENCES bot_job(id)");
 
-            // INSTRUCTION → BLOCK, VARIABLE, INSTRUCTION (self), BOT JOB
+            // INSTRUCTION - BLOCK, VARIABLE, INSTRUCTION (self), BOT JOB
             stmt.executeUpdate(
                     "ALTER TABLE instruction ADD CONSTRAINT fk_instruction_block FOREIGN KEY (block_id) REFERENCES block(id)");
             stmt.executeUpdate(
@@ -434,23 +434,23 @@ public class PerformInitializer {
             stmt.executeUpdate(
                     "ALTER TABLE instruction ADD CONSTRAINT fk_instruction_bot_job FOREIGN KEY (bot_job_id) REFERENCES bot_job(id)");
 
-            // REFERENCE → INSTRUCTION, BOT JOB
+            // REFERENCE - INSTRUCTION, BOT JOB
             stmt.executeUpdate(
                     "ALTER TABLE reference ADD CONSTRAINT fk_reference_instruction FOREIGN KEY (instruction_id) REFERENCES instruction(id)");
             stmt.executeUpdate(
                     "ALTER TABLE reference ADD CONSTRAINT fk_reference_bot_job FOREIGN KEY (bot_job_id) REFERENCES bot_job(id)");
 
-            // VARIABLE → INSTRUCTION, BOT JOB
+            // VARIABLE - INSTRUCTION, BOT JOB
             stmt.executeUpdate(
                     "ALTER TABLE variable ADD CONSTRAINT fk_variable_instruction FOREIGN KEY (instruction_id) REFERENCES instruction(id)");
             stmt.executeUpdate(
                     "ALTER TABLE variable ADD CONSTRAINT fk_variable_bot_job FOREIGN KEY (bot_job_id) REFERENCES bot_job(id)");
 
-            // COMPONENT BLOCK → HOME BANKING
+            // COMPONENT BLOCK - HOME BANKING
             stmt.executeUpdate(
                     "ALTER TABLE component_block ADD CONSTRAINT fk_component_block_home_banking FOREIGN KEY (home_banking_id) REFERENCES home_banking(ID)");
 
-            // COMPONENT INSTRUCTION → COMPONENT BLOCK, VARIABLE, SELF, HOME BANKING
+            // COMPONENT INSTRUCTION - COMPONENT BLOCK, VARIABLE, SELF, HOME BANKING
             stmt.executeUpdate(
                     "ALTER TABLE component_instruction ADD CONSTRAINT fk_comp_instruction_block FOREIGN KEY (block_id) REFERENCES component_block(id)");
             stmt.executeUpdate(
@@ -461,13 +461,13 @@ public class PerformInitializer {
             stmt.executeUpdate(
                     "ALTER TABLE component_instruction ADD CONSTRAINT fk_comp_instruction_home_banking FOREIGN KEY (home_banking_id) REFERENCES home_banking(ID)");
 
-            // COMPONENT REFERENCE → COMPONENT INSTRUCTION, HOME BANKING
+            // COMPONENT REFERENCE - COMPONENT INSTRUCTION, HOME BANKING
             stmt.executeUpdate(
                     "ALTER TABLE component_reference ADD CONSTRAINT fk_comp_reference_instruction FOREIGN KEY (instruction_id) REFERENCES component_instruction(id)");
             stmt.executeUpdate(
                     "ALTER TABLE component_reference ADD CONSTRAINT fk_comp_reference_home_banking FOREIGN KEY (home_banking_id) REFERENCES home_banking(ID)");
 
-            // COMPONENT VARIABLE → COMPONENT INSTRUCTION, HOME BANKING
+            // COMPONENT VARIABLE - COMPONENT INSTRUCTION, HOME BANKING
             stmt.executeUpdate(
                     "ALTER TABLE component_variable ADD CONSTRAINT fk_comp_variable_instruction FOREIGN KEY (instruction_id) REFERENCES component_instruction(id)");
             stmt.executeUpdate(

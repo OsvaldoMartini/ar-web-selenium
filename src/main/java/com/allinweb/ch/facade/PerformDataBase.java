@@ -8983,7 +8983,6 @@ GROUP BY
                 instructionLoadDTO.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
                 instructionLoadDTO.setOperation(rs.getString("operation"));
                 instructionLoadDTO.setOptional(rs.getBoolean("optional"));
-                instructionLoadDTO.setParentId(rs.getInt("parent_id"));
                 instructionLoadDTO.setXpath(rs.getString("xpath"));
                 instructionLoadDTO.setCoordinates(rs.getString("coordinates"));
                 instructionLoadDTO.setForceCoordinates(rs.getBoolean("force_coordinates"));
@@ -8995,6 +8994,11 @@ GROUP BY
                 instructionLoadDTO.setCssSelector(rs.getString("css_selector"));
 
                 instructionLoadDTO.setVariableId(rs.getInt("variable_id"));
+
+                instructionLoadDTO.setParentBlockId(rs.getInt("parent_block_id"));
+
+                instructionLoadDTO.setParentId(rs.getInt("parent_id"));
+
                 instructionLoadDTO.setBlockId(rs.getInt("block_id"));
                 // Removed: setBlockOrderNumber as 'block_order_number' is not available without joining the 'block'
                 // table.

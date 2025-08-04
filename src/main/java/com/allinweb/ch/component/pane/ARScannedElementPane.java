@@ -3101,8 +3101,9 @@ public class ARScannedElementPane extends ARPane {
             int blockInitial = currentBlock;
 
             if (!excelDataGoto.isEmpty() && !blocksLoaded.isEmpty()) {
-                Integer parentId = excelDataGoto.get(excelDataGoto.size() - 1).getParentId();
-                blockInitial = performActions.getBlockOrderNumber(blocksLoaded, parentId) - 1;
+                Integer parentBlockId =
+                        excelDataGoto.get(excelDataGoto.size() - 1).getParentBlockId();
+                blockInitial = performActions.getBlockOrderNumber(blocksLoaded, parentBlockId) - 1;
             }
 
             int xExcelCurrentRow = 0;
