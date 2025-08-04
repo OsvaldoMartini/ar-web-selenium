@@ -5,6 +5,7 @@ import com.allinweb.ch.component.scene.ARConfigurationScene;
 import com.allinweb.ch.component.scene.ARLicenseScene;
 import com.allinweb.ch.component.scene.ARMainScene;
 import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformInitializer;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.license.LicenceVal;
 import com.allinweb.ch.license.LicenseManager;
@@ -33,6 +34,7 @@ public class ARControlPanel extends Application {
     private static final PerformMessage performMessage;
     private static final ARPropertyManager arPropertyManager;
     private static final PerformDataBase performDataBase;
+    private static final PerformInitializer performInitializer;
     private static final ARLicenseScene arLicenseScene;
     private static String defaultConfigurationFileName = ARConstants.USER_PATH + ARConstants.FILE_NAME_CONFIGURATION;
     private static final ARConfigurationScene arConfigurationScene;
@@ -43,6 +45,7 @@ public class ARControlPanel extends Application {
 
     static {
         performDataBase = PerformDataBase.getInstance();
+        performInitializer = PerformInitializer.getInstance();
         performMessage = PerformMessage.getInstance();
         arPropertyManager = ARPropertyManager.getInstance();
         arLicenseScene = ARLicenseScene.getInstance();
@@ -255,16 +258,27 @@ public class ARControlPanel extends Application {
         //        performDataBase.migrationAccessToAccess();
         //        System.exit(0);
 
-        if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
+        if ("Postgres".equalsIgnoreCase(dataBaseType)) {
+            // Postgres-specific logic
             performDataBase.POSTGRES_DB = true;
+        } else if ("SQLite".equalsIgnoreCase(dataBaseType)) {
+            // SQLite-specific logic
+            performDataBase.SQLITE_DB = true;
+        } else if ("Access".equalsIgnoreCase(dataBaseType)) {
+            // Access-specific logic
+            performDataBase.ACCESS_DB = true;
+        }
+
+        if (performDataBase.POSTGRES_DB) {
 
             try {
-                if (performDataBase.doesNotInstructionTableExist()) {
+                if (performInitializer.doesNotInstructionTableExist(performDataBase.getConnection())) {
 
                     if (performDataBase.getConn() != null) {
                         //            createTableOpenAIVector();
                         //            createTableLLama2AIVector();
-                        performDataBase.initializeMainDatabasePostgres();
+                        performInitializer.setConn(performDataBase.getConn());
+                        performInitializer.initializeMainDatabasePostgres();
                     }
                 }
             } catch (Exception error) {
@@ -309,20 +323,18 @@ public class ARControlPanel extends Application {
                 ARLogger.getInstance(ARMainPane.class).severe("Error Export to Postgres: " + error.getMessage());
             }
 
-        } else {
-            performDataBase.POSTGRES_DB = false;
-        }
-
-        if (!performDataBase.POSTGRES_DB) {
+        } else if (performDataBase.ACCESS_DB) {
             String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
 
-            File dbFile = new File(dbPath + ARConstants.FILE_NAME_DB);
+            File dbFile = new File(dbPath + ARConstants.FILE_NAME_ACCESS);
 
             try {
 
-                if (!dbFile.exists() && performDataBase.doesNotInstructionTableExist()) {
+                if (!dbFile.exists()
+                        && performInitializer.doesNotInstructionTableExistAccess(performDataBase.getConnection())) {
                     if (performDataBase.getConn() != null) {
-                        performDataBase.initializeMainDatabaseAccess(dbFile);
+                        performInitializer.initialize(performDataBase.getConn());
+                        performInitializer.initializeMainDatabaseAccess(dbFile);
                     }
                 } else {
                     //                performDataBase.disableForeignKeyConstraints(dbUrl);
@@ -339,7 +351,79 @@ public class ARControlPanel extends Application {
                         "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: Set the path for the Database!</span>",
                         "<span style='color: #2E7D32; font-weight: bold;'>The Path for Database is Blank!</span>",
                         "<span style='font-weight: bold;'>Please configure the application before use.</span>.",
-                        "<span style='font-weight: bold;'>" + dbPath + ARConstants.FILE_NAME_DB + "</span>.",
+                        "<span style='font-weight: bold;'>" + dbPath + ARConstants.FILE_NAME_ACCESS + "</span>.",
+                        0);
+                System.exit(0);
+            }
+
+            try {
+                Connection conn = performDataBase.getConnection();
+                if (conn != null) {
+                    ARLogger.getInstance(ARMainPane.class).severe("Access Database connected!");
+                }
+
+                //                 Postgres to Access
+
+                //                performDataBase.exportHomeBankingAccess();
+                //                performDataBase.getNewIdsHomeBankAccess();
+                //                performDataBase.exportHomeUrlAccess();
+                //                performDataBase.getNewIdsHomeUrlAccess();
+                //                performDataBase.exportBotJobAccess();
+                //                performDataBase.getNewIdsBotJobAccess();
+                //                performDataBase.exportBlockAccess();
+                //                performDataBase.getNewIdsBlockAccess();
+                //                performDataBase.exportInstructionsAccess();
+                //                performDataBase.getNewIdsInstrucAccess();
+                //                performDataBase.exportVariablesAccess();
+                //                performDataBase.getNewIdsVariableAccess();
+                //                performDataBase.exportUpdateInstructionAccess();
+                //                performDataBase.exportReferencesAccess();
+                //
+                //                // SAVED COMPONENTS
+                //                performDataBase.exportCompBlockAccess();
+                //                performDataBase.getNewIdsCompBlockAccess();
+                //                performDataBase.exportCompInstructionsAccess();
+                //                performDataBase.getNewIdsCompInstrucAccess();
+                //                performDataBase.exportCompVariablesAccess();
+                //                performDataBase.getNewIdsCompVariableAccess();
+                //                performDataBase.exportUpdateCompInstructionAccess();
+                //                performDataBase.exportCompReferencesAccess();
+
+            } catch (Exception error) {
+                ARLogger.getInstance(ARMainPane.class).severe("Error Export to Postgres: " + error.getMessage());
+            }
+
+            //            performDataBase.updatePossibleMigrationColumnsTable(dbUrl, dbFile);
+
+        } else if (performDataBase.SQLITE_DB) {
+            String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+
+            File dbFile = new File(dbPath + ARConstants.FILE_NAME_SQLITE);
+
+            try {
+
+                if (!dbFile.exists()
+                        && performInitializer.doesNotInstructionTableExistSQLITE(performDataBase.getConnection())) {
+                    if (performDataBase.getConn() != null) {
+                        performInitializer.initialize(performDataBase.getConn());
+                        performInitializer.initializeMainDatabaseSQLite(dbFile);
+                    }
+                } else {
+                    //                performDataBase.disableForeignKeyConstraints(dbUrl);
+                    //                                    performDataBase.updateTableAccess(dbUrl, dbFile);
+                    //                                    performDataBase.updateDatabaseSchema(dbUrl, dbFile);
+
+                    ARLogger.getInstance(ARMainPane.class)
+                            .info(String.format("Database '%s' already exists!", dbFile.getName()));
+                }
+
+            } catch (Exception error) {
+                performMessage.errorMessage(
+                        "Configuration Needed", // Using configurationFileName as the title
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: Set the path for the Database!</span>",
+                        "<span style='color: #2E7D32; font-weight: bold;'>The Path for Database is Blank!</span>",
+                        "<span style='font-weight: bold;'>Please configure the application before use.</span>.",
+                        "<span style='font-weight: bold;'>" + dbPath + ARConstants.FILE_NAME_SQLITE + "</span>.",
                         0);
                 System.exit(0);
             }

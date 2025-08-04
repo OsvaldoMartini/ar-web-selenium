@@ -495,7 +495,15 @@ public class ARNewHomeBankingPane extends ARPane {
 
                 } catch (Exception error) {
                     ARLogger.getInstance(PerformDataBase.class).severe("getConnection Error: " + error.getMessage());
-                    String database = performDataBase.POSTGRES_DB ? "Postgress" : "Access";
+
+                    String database;
+                    if (performDataBase.POSTGRES_DB) {
+                        database = "Postgres";
+                    } else if (performDataBase.SQLITE_DB) {
+                        database = "SQLite";
+                    } else {
+                        database = "Access";
+                    }
                     performMessage.errorMessage(
                             "Database connection Failed",
                             "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>An error occurred during the Database connection.</span>",
@@ -725,13 +733,35 @@ public class ARNewHomeBankingPane extends ARPane {
 
             // Validate required fields
             if (homeBankIdStr.isEmpty() || homeUrlIdStr.isEmpty() || homeUrl.isEmpty()) {
-                performMessage.errorMessage(
+                performMessage.showCustomModalDialogDragWin11(
                         "Delete Environment Failed",
-                        "Missing Fields",
-                        "You must select an Organization and a Environment row.",
+                        "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>Missing Fields/Row selection</span>",
+                        "<span style='font-style: italic;'>You must select an Organization and/or an Environment row.</span>",
                         null,
+                        null,
+                        true, // or false depending on whether you want modal draggable or not
+                        "OK",
                         null,
                         0);
+
+                return;
+            }
+
+            List<HomeUrlDTO> homeUrlList = performDataBase.loadAllHomeURLByHomeId(Integer.parseInt(homeBankIdStr));
+            if (homeUrlList.size() == 1) {
+
+                performMessage.showCustomModalDialogDragWin11(
+                        "Only One Environment",
+                        "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>This organization must have at least one Environment.</span>",
+                        "<span style='font-style: italic;'>"
+                                + nameField.getText().trim() + "</span>",
+                        "<span style='color: #E65100; font-weight: bold;'>Use Update to change the Environment URL.</span>",
+                        "<span style='color: #E65100; font-weight: bold;'>Or delete the entire Organization if that is your intention.</span>",
+                        false,
+                        "OK",
+                        null,
+                        0);
+
                 return;
             }
 
@@ -828,6 +858,8 @@ public class ARNewHomeBankingPane extends ARPane {
             if (newSelection != null) {
                 homeUrlIdField.setText(String.valueOf(newSelection.getId()));
                 homeUrlValueField.setText(newSelection.getUrl());
+                nameField.setText(String.valueOf(newSelection.getOrgName()));
+                idField.setText(String.valueOf(newSelection.getHomeBankingId()));
             } else {
                 homeUrlIdField.clear();
                 homeUrlValueField.clear();

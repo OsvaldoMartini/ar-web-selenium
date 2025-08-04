@@ -16,6 +16,7 @@ import com.allinweb.ch.component.scene.ARViewBotJobScene;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.facade.PerformBackup;
 import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformInitializer;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.license.LicenceVal;
 import com.allinweb.ch.license.LicenseManager;
@@ -100,6 +101,7 @@ public class ARConfigurationPane extends ARPane {
     private static final PerformMessage performMessage;
     private static final PerformDataBase performDataBase;
     private static final PerformBackup performBackup;
+    private static final PerformInitializer performInitializer;
 
     private static final ARScannedElementScene arScannedElementScene;
     private static final ARViewBotJobScene arViewBotJobScene;
@@ -120,6 +122,7 @@ public class ARConfigurationPane extends ARPane {
         performDataBase = PerformDataBase.getInstance();
         arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
         performBackup = PerformBackup.getInstance();
+        performInitializer = PerformInitializer.getInstance();
     }
 
     private ObservableList<HomeBankingLoadDTO> homeBankingList = FXCollections.observableArrayList();
@@ -170,7 +173,9 @@ public class ARConfigurationPane extends ARPane {
     ChoiceBox<String> databaseChoiceBox = new ChoiceBox<>();
     ObservableList<String> browserList =
             FXCollections.observableArrayList(ARConstants.CHROME, ARConstants.EDGE, ARConstants.FIREFOX);
-    ObservableList<String> databaseList = FXCollections.observableArrayList(ARConstants.ACCESS, ARConstants.POSTGRES);
+
+    ObservableList<String> databaseList = FXCollections.observableArrayList(
+            ARConstants.ACCESS, ARConstants.POSTGRES, ARConstants.SQLSERVER, ARConstants.SQLITE);
 
     Button pathExcelButton;
     Button pathLicenseButton;
@@ -392,7 +397,7 @@ public class ARConfigurationPane extends ARPane {
 
         browserChoiceBox.setItems(browserList);
         databaseChoiceBox.setItems(databaseList);
-        databaseChoiceBox.setDisable(true);
+        databaseChoiceBox.setDisable(false);
 
         // Add labels in the first row
         gridPaneButton.add(browserLabel, 0, 0);
@@ -575,7 +580,7 @@ public class ARConfigurationPane extends ARPane {
 
         if (dataBaseType.equalsIgnoreCase("ACCESS")) {
             String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-            File dbFile = new File(dbPath + ARConstants.FILE_NAME_DB);
+            File dbFile = new File(dbPath + ARConstants.FILE_NAME_ACCESS);
 
             try {
                 if (dbFile.exists()) {
@@ -905,7 +910,7 @@ public class ARConfigurationPane extends ARPane {
                     pathWebDriver.getText().trim());
 
             try {
-                performDataBase.testConnection(
+                performInitializer.testConnection(
                         databaseChoiceBox.getValue(),
                         pathAccessDB.getText().trim(),
                         dbUrl.getText(),

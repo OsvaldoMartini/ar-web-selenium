@@ -74,7 +74,8 @@ public class ARConstants {
 
     public static final String FILE_NAME_CONFIGURATION = "\\config\\configuration.properties";
     public static final String FILE_NAME_PRIORITIES = "\\priorities.properties";
-    public static final String FILE_NAME_DB = "\\database.mdb";
+    public static final String FILE_NAME_ACCESS = "\\database.mdb";
+    public static final String FILE_NAME_SQLITE = "\\database.db";
     public static final String USER_PATH = System.getProperty("user.dir");
 
     // ICON FILE NAMES
@@ -222,6 +223,7 @@ public class ARConstants {
     public static final String POSTGRES = "PostGres";
     public static final String ACCESS = "Access";
     public static final String SQLSERVER = "SQLServer";
+    public static final String SQLITE = "SQLite";
 
     public static final String XPATH_SCRIPT = "" + "window.addEventListener('click', onClick);"
             + "const onClick = (event) => {\n"

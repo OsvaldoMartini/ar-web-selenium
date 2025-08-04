@@ -65,10 +65,12 @@ public class PerformDataBase {
 
     public static final ARPropertyManager arPropertyManager;
     public static final PerformMessage performMessage;
+    public static final PerformInitializer performInitializer;
 
     static {
         performMessage = PerformMessage.getInstance();
         arPropertyManager = ARPropertyManager.getInstance();
+        performInitializer = PerformInitializer.getInstance();
     }
 
     public String previousDB;
@@ -82,6 +84,7 @@ public class PerformDataBase {
 
     public final String CONNECTION_TYPE = "jdbc:ucanaccess://";
     public final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
+    public final String CONNECTION_TYPE_SQLITE = "jdbc:sqlite:"; // no parameters needed
 
     private TreeMap<Integer, Integer> homeBankMap = new TreeMap<>();
     private TreeMap<Integer, Integer> homeUrlMap = new TreeMap<>();
@@ -92,7 +95,9 @@ public class PerformDataBase {
     private TreeMap<Integer, Integer> referenceMap = new TreeMap<>();
 
     // Postgres
+    public boolean ACCESS_DB = false;
     public boolean POSTGRES_DB = false;
+    public boolean SQLITE_DB = false;
 
     @Getter
     private List<HomeBankingLoadDTO> databaseUpds;
@@ -146,20 +151,6 @@ public class PerformDataBase {
         return openConnections;
     }
 
-    public void testConnection(String dataBaseType, String dbAccessPath, String dbUrl, String userDB, String userPwd)
-            throws SQLException, ClassNotFoundException {
-        if (dataBaseType != null && !dataBaseType.equalsIgnoreCase("POSTGRES")) {
-
-            String dbAccessUrl = CONNECTION_TYPE + dbAccessPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
-            ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + dbUrl);
-            Class.forName("net.ucanaccess.jdbc.UcanaccessDriver");
-            DriverManager.getConnection(dbAccessUrl);
-        } else {
-            Class.forName("org.postgresql.Driver");
-            DriverManager.getConnection(dbUrl, userDB, userPwd);
-        }
-    }
-
     public void changeDbConnection() throws SQLException {
         String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
         //        if (Strings.isNullOrEmpty(previousDB) || (previousDB != null && !previousDB.equals(dataBaseType))) {
@@ -167,26 +158,51 @@ public class PerformDataBase {
 
         previousDB = dataBaseType;
 
-        if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
-            POSTGRES_DB = true;
+        if (dataBaseType != null) {
+            if ("Postgres".equalsIgnoreCase(dataBaseType)) {
+                // Postgres-specific logic
+                POSTGRES_DB = true;
+            } else if ("SQLite".equalsIgnoreCase(dataBaseType)) {
+                // SQLite-specific logic
+                SQLITE_DB = true;
+            } else if ("Access".equalsIgnoreCase(dataBaseType)) {
+                // Access-specific logic
+                ACCESS_DB = true;
+            }
+        } else {
+            // Access-specific logic
+            ACCESS_DB = true;
+        }
 
+        if (dataBaseType != null && dataBaseType.equalsIgnoreCase("SQLite")) {
+            String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+            File dbFile = new File(dbPath + ARConstants.FILE_NAME_SQLITE);
             //            createTableOpenAIVector();
             //            createTableLLama2AIVector();
-            if (doesNotInstructionTableExist()) {
+            if (performInitializer.doesNotInstructionTableExistSQLITE(getConnection())) {
                 if (getConn() != null) {
-                    initializeMainDatabasePostgres();
+                    performInitializer.initialize(getConn());
+                    performInitializer.initializeMainDatabaseSQLite(dbFile);
+                }
+            }
+
+        } else if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
+            //            createTableOpenAIVector();
+            //            createTableLLama2AIVector();
+            if (performInitializer.doesNotInstructionTableExist(getConnection())) {
+                if (getConn() != null) {
+                    performInitializer.initialize(getConn());
+                    performInitializer.initializeMainDatabasePostgres();
                 }
             }
 
         } else {
-            POSTGRES_DB = false;
-
             String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-            String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+            File dbFile = new File(dbPath + ARConstants.FILE_NAME_ACCESS);
 
-            File dbFile = new File(dbPath + ARConstants.FILE_NAME_DB);
             if (!dbFile.exists()) {
-                initializeMainDatabaseAccess(dbFile);
+                performInitializer.initialize(getConn());
+                performInitializer.initializeMainDatabaseAccess(dbFile);
             } else {
                 ARLogger.getInstance(PerformDataBase.class)
                         .info(String.format("Database '%s' detected!", dbFile.getName()));
@@ -196,55 +212,74 @@ public class PerformDataBase {
     }
 
     public Connection getConnection() throws SQLException {
-        //        ARLogger.getInstance(PerformDataBase.class).info("Open Connections Count() : " +
-        // getOpenConnectionsCount());
-
+        // Determine DB type from properties
         String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
 
-        if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
-            POSTGRES_DB = true;
-        } else {
-            POSTGRES_DB = false;
+        // Booleans to track DB type
+        POSTGRES_DB = false;
+        SQLITE_DB = false;
+
+        if (dataBaseType != null) {
+            if (dataBaseType.equalsIgnoreCase("POSTGRES")) {
+                POSTGRES_DB = true;
+            } else if (dataBaseType.equalsIgnoreCase("SQLITE")) {
+                SQLITE_DB = true;
+            } else
+                // else default to Access
+                ACCESS_DB = true;
         }
 
         try {
-
-            // Close previous connection if already exists and is open
-            //            if (conn != null && !conn.isClosed()) {
-            //                closeConnection(); // Close previous connection before establishing a new one
-            //            }
-
             if (conn == null || conn.isClosed()) {
-                if (!POSTGRES_DB) {
-                    String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-                    String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
-                    ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + dbUrl);
-                    Class.forName("net.ucanaccess.jdbc.UcanaccessDriver");
-                    conn = DriverManager.getConnection(dbUrl);
-                    conn.setReadOnly(false);
-                } else {
+                if (POSTGRES_DB) {
+                    // Postgres connection
                     String dbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
                     String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
                     String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
 
-                    String userData = userDB + " - " + userPwd;
-
                     ARLogger.getInstance(PerformDataBase.class).info("POSTGRES connection URL: " + dbUrl);
-                    ARLogger.getInstance(PerformDataBase.class).info("User Details: " + userData);
+                    ARLogger.getInstance(PerformDataBase.class).info("User Details: " + userDB + " - [PROTECTED]");
+
                     Class.forName("org.postgresql.Driver");
                     conn = DriverManager.getConnection(dbUrl, userDB, userPwd);
                     conn.setReadOnly(false);
+
+                } else if (SQLITE_DB) {
+                    // SQLite connection
+                    String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+                    String sqliteUrl = CONNECTION_TYPE_SQLITE
+                            + dbPath
+                            + ARConstants.FILE_NAME_SQLITE; // make sure you have FILE_NAME_SQLITE constant
+
+                    ARLogger.getInstance(PerformDataBase.class).info("SQLITE connection URL: " + sqliteUrl);
+
+                    Class.forName("org.sqlite.JDBC");
+                    conn = DriverManager.getConnection(sqliteUrl);
+                    conn.setReadOnly(false);
+
+                } else {
+                    // Default to Access connection
+                    String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+                    String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
+
+                    ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + dbUrl);
+
+                    Class.forName("net.ucanaccess.jdbc.UcanaccessDriver");
+                    conn = DriverManager.getConnection(dbUrl);
+                    conn.setReadOnly(false);
                 }
-                // Increment the open connection counter
+
+                // Reset open connections counter if too many
                 if (getOpenConnectionsCount() > 10) {
                     this.openConnections = 0;
                 }
-
                 incrementOpenConnections();
             }
         } catch (SQLException error) {
             ARLogger.getInstance(PerformDataBase.class).severe("getConnection Error: " + error.getMessage());
-            String database = POSTGRES_DB ? "Postgress" : "Access";
+
+            String database = POSTGRES_DB ? "Postgres" : (SQLITE_DB ? "SQLite" : "Access");
+
             performMessage.errorMessage(
                     "Database connection Failed",
                     "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>An error occurred during the Database connection.</span>",
@@ -255,10 +290,9 @@ public class PerformDataBase {
 
             throw error;
         } catch (ClassNotFoundException error) {
-            ARLogger.getInstance(PerformDataBase.class).severe("Drive DB Class not Found Error: " + error.getMessage());
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe("Driver DB Class not Found Error: " + error.getMessage());
         }
-
-        //        changeDbConnection(previousDB);
 
         return conn;
     }
@@ -4876,7 +4910,7 @@ GROUP BY
 
     public void selectHomeBankinOneRow() {
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
         ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
 
         String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
@@ -4965,7 +4999,7 @@ GROUP BY
 
     public void exportHomeBankingAccess() {
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
         ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
 
         String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
@@ -5054,7 +5088,7 @@ GROUP BY
 
     public void exportHomeBanking() {
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
         ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
 
         String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
@@ -5169,7 +5203,7 @@ GROUP BY
     public void getNewIdsHomeBankAccess() {
 
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
 
         try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
                 PreparedStatement stmt = accessConn.prepareStatement("SELECT id, url FROM home_banking order by id");
@@ -5224,7 +5258,7 @@ GROUP BY
     public void getNewIdsHomeUrlAccess() {
 
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
 
         try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
                 PreparedStatement stmt = accessConn.prepareStatement("SELECT id, url FROM home_url order by id");
@@ -5279,7 +5313,7 @@ GROUP BY
     public void getNewIdsBotJobAccess() {
 
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
 
         try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
                 PreparedStatement stmt = accessConn.prepareStatement("SELECT id  FROM bot_job order by id");
@@ -5333,7 +5367,7 @@ GROUP BY
     public void getNewIdsBlockAccess() {
 
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
 
         try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
                 PreparedStatement stmt = accessConn.prepareStatement("SELECT id  FROM block order by id");
@@ -5387,7 +5421,7 @@ GROUP BY
     public void getNewIdsInstrucAccess() {
 
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
 
         try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
                 PreparedStatement stmt = accessConn.prepareStatement("SELECT id  FROM instruction order by id");
@@ -5442,7 +5476,7 @@ GROUP BY
     public void getNewIdsVariableAccess() {
 
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
 
         try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
                 PreparedStatement stmt = accessConn.prepareStatement("SELECT id  FROM variable order by id");
@@ -5498,7 +5532,7 @@ GROUP BY
     public void getNewIdsCompBlockAccess() {
 
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
 
         try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
                 PreparedStatement stmt = accessConn.prepareStatement("SELECT id  FROM component_block order by id");
@@ -5555,7 +5589,7 @@ GROUP BY
     public void getNewIdsCompInstrucAccess() {
 
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
 
         try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
                 PreparedStatement stmt =
@@ -5614,7 +5648,7 @@ GROUP BY
     public void getNewIdsCompVariableAccess() {
 
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
 
         try (Connection accessConn = DriverManager.getConnection(accessDbUrl);
                 PreparedStatement stmt = accessConn.prepareStatement("SELECT id  FROM component_variable order by id");
@@ -5699,7 +5733,7 @@ GROUP BY
 
     public void exportHomeUrl() {
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
         ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
 
         String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
@@ -5774,7 +5808,7 @@ GROUP BY
 
     public void exportHomeUrlAccess() {
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
         ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
 
         String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
@@ -5881,7 +5915,7 @@ GROUP BY
 
     public void exportBotJob() {
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
         ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
 
         String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
@@ -5974,7 +6008,7 @@ GROUP BY
 
     public void exportBotJobAccess() {
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
         ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
 
         String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
@@ -6064,7 +6098,7 @@ GROUP BY
 
     public void exportBlock() {
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
         ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
 
         String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
@@ -6172,7 +6206,7 @@ GROUP BY
 
     public void exportBlockAccess() {
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
         ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
 
         String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
@@ -6283,7 +6317,7 @@ GROUP BY
 
     public void exportInstructions() {
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
         ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
 
         String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
@@ -6403,7 +6437,7 @@ GROUP BY
 
     public void exportInstructionsAccess() {
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
         ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
 
         String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
@@ -6524,7 +6558,7 @@ GROUP BY
 
     public void exportVariables() {
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
         ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
 
         String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
@@ -6634,7 +6668,7 @@ GROUP BY
 
     public void exportVariablesAccess() {
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
         ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
 
         String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
@@ -6829,7 +6863,7 @@ GROUP BY
     public void exportUpdateInstructionAccess() {
 
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
 
         final int BATCH_SIZE = 100;
 
@@ -6911,7 +6945,7 @@ GROUP BY
 
     public void exportReferences() {
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
         ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
 
         String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
@@ -7004,7 +7038,7 @@ GROUP BY
 
     public void exportReferencesAccess() {
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
         ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
 
         String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
@@ -7100,7 +7134,7 @@ GROUP BY
     // EXPORT SAVED COMPONENTS
     public void exportCompBlock() {
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
         ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
 
         String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
@@ -7209,7 +7243,7 @@ GROUP BY
 
     public void exportCompBlockAccess() {
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
         ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
 
         String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
@@ -7321,7 +7355,7 @@ GROUP BY
 
     public void exportCompInstructions() {
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
         ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
 
         String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
@@ -7441,7 +7475,7 @@ GROUP BY
 
     public void exportCompInstructionsAccess() {
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
         ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
 
         String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
@@ -7563,7 +7597,7 @@ GROUP BY
 
     public void exportCompVariables() {
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
         ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
 
         String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
@@ -7675,7 +7709,7 @@ GROUP BY
 
     public void exportCompVariablesAccess() {
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
         ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
 
         String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
@@ -7872,7 +7906,7 @@ GROUP BY
     public void exportUpdateCompInstructionAccess() {
 
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
 
         final int BATCH_SIZE = 100;
 
@@ -7953,7 +7987,7 @@ GROUP BY
 
     public void exportCompReferences() {
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
         ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
 
         String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
@@ -8052,7 +8086,7 @@ GROUP BY
 
     public void exportCompReferencesAccess() {
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
         ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
 
         String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
@@ -10195,272 +10229,6 @@ GROUP BY
         }
     }
 
-    public void initializeMainDatabaseAccess(File dbFile) {
-
-        try (Connection conn = getConnection()) {
-            try (Statement stmt = conn.createStatement()) {
-
-                // Create home_banking table
-                String createHomeBankingTableSQL = "CREATE TABLE home_banking ("
-                        + "ID INTEGER PRIMARY KEY, "
-                        + "url MEMO, "
-                        + "name TEXT, "
-                        + "priority MEMO, "
-                        + "search_config MEMO, "
-                        + "options_config MEMO, "
-                        + "cookies MEMO, "
-                        + "driver_session MEMO, "
-                        + "username TEXT, "
-                        + "password TEXT)";
-                stmt.executeUpdate(createHomeBankingTableSQL);
-
-                // Create bot_job table with a foreign key reference to home_banking
-                String createURLTableSQL = "CREATE TABLE home_url ("
-                        + "ID INTEGER PRIMARY KEY, "
-                        + "url MEMO, "
-                        + "home_banking_id INTEGER);";
-                stmt.executeUpdate(createURLTableSQL);
-
-                String addURLForeignKeySQL = "ALTER TABLE home_url "
-                        + "ADD CONSTRAINT FK_URL FOREIGN KEY (home_banking_id) "
-                        + "REFERENCES home_banking(id) ";
-                stmt.executeUpdate(addURLForeignKeySQL);
-
-                // Create bot_job table with a foreign key reference to home_banking
-                String createBotJobTableSQL = "CREATE TABLE bot_job ("
-                        + "id INTEGER PRIMARY KEY, "
-                        + "name TEXT UNIQUE, "
-                        + "description TEXT, "
-                        + "priority MEMO, "
-                        + "active YESNO NOT NULL, "
-                        + "home_banking_id INTEGER, "
-                        + "home_url_id INTEGER);";
-                stmt.executeUpdate(createBotJobTableSQL);
-
-                String addBotJobForeignKeySQL = "ALTER TABLE bot_job "
-                        + "ADD CONSTRAINT FK_BotJob FOREIGN KEY (home_banking_id) "
-                        + "REFERENCES home_banking(id) ";
-                stmt.executeUpdate(addBotJobForeignKeySQL);
-
-                String addHomrURLForeignKeySQL = "ALTER TABLE bot_job "
-                        + "ADD CONSTRAINT FK_HomeUrl FOREIGN KEY (home_url_id) "
-                        + "REFERENCES home_url(id) ";
-                stmt.executeUpdate(addHomrURLForeignKeySQL);
-
-                // Create block table with a foreign key reference to bot_job
-                String createBlockTableSQL = "CREATE TABLE block ("
-                        + "id INTEGER PRIMARY KEY, "
-                        + "block_order_number INTEGER NOT NULL, "
-                        + "name TEXT NOT NULL, "
-                        + "description TEXT, "
-                        + "type_id INTEGER, "
-                        + "export_file TEXT, "
-                        + "active YESNO NOT NULL, "
-                        + "wait INTEGER, "
-                        + "bot_job_id INTEGER);";
-                stmt.executeUpdate(createBlockTableSQL);
-
-                String addForeignKeySQL2 = "ALTER TABLE block "
-                        + "ADD CONSTRAINT FK_2 FOREIGN KEY (bot_job_id) "
-                        + "REFERENCES bot_job(id) ";
-                stmt.executeUpdate(addForeignKeySQL2);
-
-                // Create instruction table with foreign key references to block and bot_job
-                String createInstructionTableSQL = "CREATE TABLE instruction ("
-                        + "id INTEGER PRIMARY KEY, "
-                        + "instruction_order_number INTEGER NOT NULL, "
-                        + "actions MEMO, "
-                        + "name TEXT, "
-                        + "xpath MEMO, "
-                        + "coordinates TEXT, "
-                        + "force_coordinates YESNO, "
-                        + "iframe_xpath MEMO, "
-                        + "tag_name TEXT, "
-                        + "shadow_host MEMO, "
-                        + "shadow_root MEMO, "
-                        + "css_selector MEMO, "
-                        + "description TEXT, "
-                        + "operation TEXT, "
-                        + "optional YESNO, "
-                        + "block_marked YESNO, "
-                        + "default_value TEXT, "
-                        + "action_custom_max_wait_sec INTEGER, "
-                        + "on_hold_seconds INTEGER, "
-                        + "codified YESNO, "
-                        + "export_to_abr YESNO, "
-                        + "active YESNO NOT NULL, "
-                        + "block_id INTEGER, "
-                        + "variable_id INTEGER, "
-                        + "parent_id INTEGER, "
-                        + "bot_job_id INTEGER);";
-                stmt.executeUpdate(createInstructionTableSQL);
-
-                String addForeignKeySQL3 = "ALTER TABLE instruction "
-                        + "ADD CONSTRAINT FK_3 FOREIGN KEY (block_id) "
-                        + "REFERENCES block(id) ";
-                stmt.executeUpdate(addForeignKeySQL3);
-
-                String addForeignKeySQL4 = "ALTER TABLE instruction "
-                        + "ADD CONSTRAINT FK_4 FOREIGN KEY (bot_job_id) "
-                        + "REFERENCES bot_job(id) ";
-                stmt.executeUpdate(addForeignKeySQL4);
-
-                String createReferenceTableSQL = "CREATE TABLE reference ("
-                        + "id INTEGER PRIMARY KEY, "
-                        + "reference_type TEXT, "
-                        + "value MEMO, "
-                        + "instruction_id INTEGER NOT NULL, "
-                        + "bot_job_id INTEGER);";
-                stmt.executeUpdate(createReferenceTableSQL);
-
-                String addForeignKeySQL5 = "ALTER TABLE reference "
-                        + "ADD CONSTRAINT FK_5 FOREIGN KEY (instruction_id) "
-                        + "REFERENCES instruction(id) ";
-                stmt.executeUpdate(addForeignKeySQL5);
-
-                String addForeignKeySQL6 = "ALTER TABLE reference "
-                        + "ADD CONSTRAINT FK_6 FOREIGN KEY (bot_job_id) "
-                        + "REFERENCES bot_job(id) ";
-                stmt.executeUpdate(addForeignKeySQL6);
-
-                String createVariableTableSQL = "CREATE TABLE variable ("
-                        + "id INTEGER PRIMARY KEY, "
-                        + "type TEXT, "
-                        + "name TEXT, "
-                        + "value MEMO, "
-                        + "instruction_id INTEGER, "
-                        + "bot_job_id INTEGER,"
-                        + "local_format TEXT,"
-                        + "delimiter TEXT);";
-                stmt.executeUpdate(createVariableTableSQL);
-
-                String addForeignKeySQL7 = "ALTER TABLE variable "
-                        + "ADD CONSTRAINT FK_7 FOREIGN KEY (instruction_id) "
-                        + "REFERENCES instruction(id) ";
-                stmt.executeUpdate(addForeignKeySQL7);
-
-                String addForeignKeySQL8 = "ALTER TABLE variable "
-                        + "ADD CONSTRAINT FK_8 FOREIGN KEY (bot_job_id) "
-                        + "REFERENCES bot_job(id) ";
-                stmt.executeUpdate(addForeignKeySQL8);
-
-                String createComponentBlockTableSQL = "CREATE TABLE component_block ("
-                        + "id INTEGER PRIMARY KEY, "
-                        + "home_banking_id INTEGER, "
-                        + "block_order_number INTEGER NOT NULL, "
-                        + "name TEXT NOT NULL, "
-                        + "description TEXT, "
-                        + "type_id INTEGER, "
-                        + "export_file TEXT, "
-                        + "active YESNO, "
-                        + "wait INTEGER);";
-                stmt.executeUpdate(createComponentBlockTableSQL);
-
-                String addForeignKeySQL9 = "ALTER TABLE component_block "
-                        + "ADD CONSTRAINT FK_9 FOREIGN KEY (home_banking_id) "
-                        + "REFERENCES home_banking(id) ";
-                stmt.executeUpdate(addForeignKeySQL9);
-
-                String createComponentInstructionTableSQL = "CREATE TABLE component_instruction ("
-                        + "id INTEGER PRIMARY KEY, "
-                        + "instruction_order_number INTEGER NOT NULL, "
-                        + "actions MEMO, "
-                        + "name TEXT, "
-                        + "xpath MEMO, "
-                        + "coordinates TEXT, "
-                        + "force_coordinates YESNO, "
-                        + "iframe_xpath MEMO, "
-                        + "tag_name TEXT, "
-                        + "shadow_host MEMO, "
-                        + "shadow_root MEMO, "
-                        + "css_selector MEMO, "
-                        + "description TEXT, "
-                        + "operation TEXT, "
-                        + "optional YESNO, "
-                        + "block_marked YESNO, "
-                        + "default_value TEXT, "
-                        + "action_custom_max_wait_sec INTEGER, "
-                        + "on_hold_seconds INTEGER, "
-                        + "codified YESNO, "
-                        + "export_to_abr YESNO, "
-                        + "active YESNO NOT NULL, "
-                        + "block_id INTEGER, "
-                        + "variable_id INTEGER, "
-                        + "parent_id INTEGER, "
-                        + "home_banking_id INTEGER);";
-                stmt.executeUpdate(createComponentInstructionTableSQL);
-
-                String addForeignKeySQL10 = "ALTER TABLE component_instruction "
-                        + "ADD CONSTRAINT FK_10 FOREIGN KEY (block_id) "
-                        + "REFERENCES component_block(id) ";
-                stmt.executeUpdate(addForeignKeySQL10);
-
-                String addCompBlkHomeForeignKeySQL = "ALTER TABLE component_instruction "
-                        + "ADD CONSTRAINT FK_BLKHomeBank FOREIGN KEY (home_banking_id) "
-                        + "REFERENCES home_banking(id) ";
-                stmt.executeUpdate(addCompBlkHomeForeignKeySQL);
-
-                String createComponentReferenceTableSQL = "CREATE TABLE component_reference ("
-                        + "id INTEGER PRIMARY KEY, "
-                        + "reference_type TEXT, "
-                        + "value MEMO, "
-                        + "instruction_id INTEGER NOT NULL, "
-                        + "home_banking_id INTEGER);";
-                stmt.executeUpdate(createComponentReferenceTableSQL);
-
-                String addForeignKeySQL11 = "ALTER TABLE component_reference "
-                        + "ADD CONSTRAINT FK_11 FOREIGN KEY (instruction_id) "
-                        + "REFERENCES component_instruction(id) ";
-                stmt.executeUpdate(addForeignKeySQL11);
-
-                String addCompReferForeignKeySQL = "ALTER TABLE component_reference "
-                        + "ADD CONSTRAINT FK_CompRefer FOREIGN KEY (home_banking_id) "
-                        + "REFERENCES home_banking(id) ";
-                stmt.executeUpdate(addCompReferForeignKeySQL);
-
-                String createComponentVariableTableSQL = "CREATE TABLE component_variable ("
-                        + "id INTEGER PRIMARY KEY, "
-                        + "type TEXT, "
-                        + "name TEXT, "
-                        + "value MEMO, "
-                        + "instruction_id INTEGER, "
-                        + "home_banking_id INTEGER,"
-                        + "local_format TEXT,"
-                        + "delimiter TEXT);";
-                stmt.executeUpdate(createComponentVariableTableSQL);
-
-                String addForeignKeySQL12 = "ALTER TABLE component_variable "
-                        + "ADD CONSTRAINT FK_12 FOREIGN KEY (instruction_id) "
-                        + "REFERENCES component_instruction(id) ";
-                stmt.executeUpdate(addForeignKeySQL12);
-
-                String addCompVarForeignKeySQL = "ALTER TABLE component_variable "
-                        + "ADD CONSTRAINT FK_CompVar FOREIGN KEY (home_banking_id) "
-                        + "REFERENCES home_banking(id) ";
-                stmt.executeUpdate(addCompVarForeignKeySQL);
-            }
-            System.out.println(String.format("Database %s has been created!", dbFile.getName()));
-        } catch (SQLException error) {
-            System.out.println("initializeDatabase\nError: " + error.getMessage());
-        }
-    }
-
-    public boolean doesNotInstructionTableExist() throws SQLException {
-        try (Connection conn = getConnection()) {
-            if (conn != null && conn.getMetaData() != null) {
-                setConn(conn);
-                try (ResultSet rs = conn.getMetaData().getTables(null, null, "instruction", null)) {
-                    return !rs.next(); // Returns true if the table exists
-                }
-            }
-        } catch (SQLException error) {
-            System.out.println("Error checking table existence: " + error.getMessage());
-            throw error;
-        }
-
-        return true; // Default return if an exception occurs or the table does not exist
-    }
-
     public void createTableLLama2AIVector() {
 
         try (Connection conn = getConnection()) {
@@ -10498,191 +10266,6 @@ GROUP BY
                         );
                         """;
                 stmt.executeUpdate(createTableVectorOpenAI);
-            }
-            System.out.println("Database %s has been created!");
-        } catch (SQLException error) {
-            System.out.println("initializeDatabase\nError: " + error.getMessage());
-        }
-    }
-
-    public void initializeMainDatabasePostgres() {
-        try (Connection conn = getConnection()) {
-            try (Statement stmt = conn.createStatement()) {
-
-                // Create home_banking table
-                String createHomeBankingTableSQL = "CREATE TABLE home_banking ("
-                        + "ID SERIAL PRIMARY KEY, "
-                        + "url TEXT, "
-                        + "name TEXT, "
-                        + "priority TEXT, "
-                        + "search_config TEXT, "
-                        + "options_config TEXT, "
-                        + "cookies TEXT, "
-                        + "driver_session TEXT, "
-                        + "username TEXT, "
-                        + "password TEXT)";
-                stmt.executeUpdate(createHomeBankingTableSQL);
-
-                // Create bot_job table with a foreign key reference to home_banking
-                String createURLTableSQL = "CREATE TABLE home_url ("
-                        + "ID SERIAL PRIMARY KEY, "
-                        + "url TEXT, "
-                        + "home_banking_id INTEGER REFERENCES home_banking(id) ON DELETE CASCADE)";
-                stmt.executeUpdate(createURLTableSQL);
-
-                // Create bot_job table with a foreign key reference to home_banking
-                String createBotJobTableSQL = "CREATE TABLE bot_job ("
-                        + "id SERIAL PRIMARY KEY, "
-                        + "name TEXT UNIQUE, "
-                        + "description TEXT, "
-                        + "priority TEXT, "
-                        + "active INTEGER NOT NULL, "
-                        + "home_banking_id INTEGER REFERENCES home_banking(id) ON DELETE CASCADE, "
-                        + "home_url_id INTEGER REFERENCES home_url(id) ON DELETE CASCADE)";
-                stmt.executeUpdate(createBotJobTableSQL);
-
-                // Create block table with a foreign key reference to bot_job
-                String createBlockTableSQL = "CREATE TABLE block ("
-                        + "id SERIAL PRIMARY KEY, "
-                        + "block_order_number INTEGER NOT NULL, "
-                        + "name TEXT NOT NULL, "
-                        + "description TEXT, "
-                        + "type_id INTEGER, "
-                        + "export_file TEXT, "
-                        + "active INTEGER NOT NULL, "
-                        + "wait INTEGER, "
-                        + "bot_job_id INTEGER REFERENCES bot_job(id) ON DELETE CASCADE)";
-                stmt.executeUpdate(createBlockTableSQL);
-
-                // Create instruction table with foreign key references to block and bot_job
-                String createInstructionTableSQL = "CREATE TABLE instruction ("
-                        + "id SERIAL PRIMARY KEY, "
-                        + "instruction_order_number INTEGER NOT NULL, "
-                        + "actions TEXT, "
-                        + "name TEXT, "
-                        + "xpath TEXT, "
-                        + "coordinates TEXT, "
-                        + "force_coordinates INTEGER, "
-                        + "iframe_xpath TEXT, "
-                        + "tag_name TEXT, "
-                        + "shadow_host TEXT, "
-                        + "shadow_root TEXT, "
-                        + "css_selector TEXT, "
-                        + "description TEXT, "
-                        + "operation TEXT, "
-                        + "optional INTEGER, "
-                        + "block_marked INTEGER, "
-                        + "default_value TEXT, "
-                        + "action_custom_max_wait_sec INTEGER, "
-                        + "on_hold_seconds INTEGER, "
-                        + "codified INTEGER, "
-                        + "export_to_abr INTEGER, "
-                        + "active INTEGER NOT NULL, "
-                        + "block_id INTEGER REFERENCES block(id) ON DELETE CASCADE, "
-                        + "variable_id INTEGER, "
-                        + "parent_id INTEGER, "
-                        + "bot_job_id INTEGER REFERENCES bot_job(id) ON DELETE CASCADE)";
-                stmt.executeUpdate(createInstructionTableSQL);
-
-                String createReferenceTableSQL = "CREATE TABLE reference ("
-                        + "id SERIAL PRIMARY KEY, "
-                        + "reference_type TEXT, "
-                        + "value TEXT, "
-                        + "instruction_id INTEGER NOT NULL REFERENCES instruction(id) ON DELETE CASCADE, "
-                        + "bot_job_id INTEGER REFERENCES bot_job(id) ON DELETE CASCADE)";
-                stmt.executeUpdate(createReferenceTableSQL);
-
-                String createVariableTableSQL = "CREATE TABLE variable ("
-                        + "id SERIAL PRIMARY KEY, "
-                        + "type TEXT, "
-                        + "name TEXT, "
-                        + "value TEXT, "
-                        + "local_format TEXT,"
-                        + "delimiter TEXT,"
-                        + "instruction_id INTEGER REFERENCES instruction(id) ON DELETE CASCADE, "
-                        + "bot_job_id INTEGER REFERENCES bot_job(id) ON DELETE CASCADE)";
-                stmt.executeUpdate(createVariableTableSQL);
-
-                //                String createConfigurationTableSQL = "CREATE TABLE configuration ("
-                //                        + "id SERIAL PRIMARY KEY, "
-                //                        + "pathJava TEXT, "
-                //                        + "logLevel TEXT, "
-                //                        + "pathDB TEXT, "
-                //                        + "interactionTimeoutSec TEXT, "
-                //                        + "pathLog TEXT, "
-                //                        + "defaultInstructionStopSeconds TEXT, "
-                //                        + "pathReport TEXT, "
-                //                        + "browser TEXT, "
-                //                        + "dataBaseType TEXT, "
-                //                        + "pageUpdateTimeoutSec TEXT, "
-                //                        + "pathPriority TEXT, "
-                //                        + "pathEngine TEXT, "
-                //                        + "pathExcel TEXT, "
-                //                        + "pathExport TEXT, "
-                //                        + "socketPort TEXT, "
-                //                        + "blockLimit TEXT, "
-                //                        + "pathJavaFx TEXT)";
-                //                stmt.executeUpdate(createConfigurationTableSQL);
-
-                String createComponentBlockTableSQL = "CREATE TABLE component_block ("
-                        + "id SERIAL PRIMARY KEY, "
-                        + "home_banking_id INTEGER REFERENCES home_banking(id) ON DELETE CASCADE, "
-                        + "block_order_number INTEGER NOT NULL, "
-                        + "name TEXT NOT NULL, "
-                        + "description TEXT, "
-                        + "type_id INTEGER, "
-                        + "export_file TEXT, "
-                        + "active INTEGER, "
-                        + "wait INTEGER)";
-                stmt.executeUpdate(createComponentBlockTableSQL);
-
-                String createComponentInstructionTableSQL = "CREATE TABLE component_instruction ("
-                        + "id SERIAL PRIMARY KEY, "
-                        + "instruction_order_number INTEGER NOT NULL, "
-                        + "actions TEXT, "
-                        + "name TEXT, "
-                        + "xpath TEXT, "
-                        + "coordinates TEXT, "
-                        + "force_coordinates INTEGER, "
-                        + "iframe_xpath TEXT, "
-                        + "tag_name TEXT, "
-                        + "shadow_host TEXT, "
-                        + "shadow_root TEXT, "
-                        + "css_selector TEXT, "
-                        + "description TEXT, "
-                        + "operation TEXT, "
-                        + "optional INTEGER, "
-                        + "block_marked INTEGER, "
-                        + "default_value TEXT, "
-                        + "action_custom_max_wait_sec INTEGER, "
-                        + "on_hold_seconds INTEGER, "
-                        + "codified INTEGER, "
-                        + "export_to_abr INTEGER, "
-                        + "active INTEGER NOT NULL, "
-                        + "block_id INTEGER REFERENCES component_block(id) ON DELETE CASCADE, "
-                        + "variable_id INTEGER, "
-                        + "parent_id INTEGER, "
-                        + "home_banking_id INTEGER REFERENCES home_banking(id) ON DELETE CASCADE)";
-                stmt.executeUpdate(createComponentInstructionTableSQL);
-
-                String createComponentReferenceTableSQL = "CREATE TABLE component_reference ("
-                        + "id SERIAL PRIMARY KEY, "
-                        + "reference_type TEXT, "
-                        + "value TEXT, "
-                        + "instruction_id INTEGER NOT NULL REFERENCES component_instruction(id) ON DELETE CASCADE, "
-                        + "home_banking_id INTEGER REFERENCES home_banking(id) ON DELETE CASCADE)";
-                stmt.executeUpdate(createComponentReferenceTableSQL);
-
-                String createComponentVariableTableSQL = "CREATE TABLE component_variable ("
-                        + "id SERIAL PRIMARY KEY, "
-                        + "type TEXT, "
-                        + "name TEXT, "
-                        + "value TEXT, "
-                        + "local_format TEXT,"
-                        + "delimiter TEXT,"
-                        + "instruction_id INTEGER REFERENCES component_instruction(id) ON DELETE CASCADE, "
-                        + "home_banking_id INTEGER REFERENCES home_banking(id) ON DELETE CASCADE)";
-                stmt.executeUpdate(createComponentVariableTableSQL);
             }
             System.out.println("Database %s has been created!");
         } catch (SQLException error) {
@@ -11036,7 +10619,7 @@ GROUP BY
         String accessOrigin = CONNECTION_TYPE + dbPath + "database-FABRIZIO-2.mdb" + CONNECTION_PARAMETERS;
         ARLogger.getInstance(PerformDataBase.class).info("ACCESS Origin URL: " + accessOrigin);
 
-        String accessDest = CONNECTION_TYPE + dbPathDest + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+        String accessDest = CONNECTION_TYPE + dbPathDest + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
         ARLogger.getInstance(PerformDataBase.class).info("ACCESS Destination URL: " + accessDest);
 
         final int BATCH_SIZE = 100;

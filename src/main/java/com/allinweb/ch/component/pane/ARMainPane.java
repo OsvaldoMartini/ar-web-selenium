@@ -3,6 +3,7 @@ package com.allinweb.ch.component.pane;
 import com.allinweb.ch.component.listCell.ARCellFactory;
 import com.allinweb.ch.component.listCell.BotJobListCell;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
+import com.allinweb.ch.component.model.HomeUrlDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARConfigurationScene;
 import com.allinweb.ch.component.scene.ARInfoScene;
@@ -88,10 +89,9 @@ public class ARMainPane extends ARPane {
     @Getter
     private ObservableList<WebDriver> webDriverList;
 
-    private static final String CONNECTION_TYPE = "jdbc:ucanaccess://";
-    private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
-    // Postgres
-    private static boolean POSTGRES_DB = false;
+    public final String CONNECTION_TYPE = "jdbc:ucanaccess://";
+    public final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
+    public final String CONNECTION_TYPE_SQLITE = "jdbc:sqlite:"; // no parameters needed
 
     // Static block to initialize
     static {
@@ -211,13 +211,28 @@ public class ARMainPane extends ARPane {
         });
 
         newBotJobButton.setOnMouseClicked(e -> {
-            arNewBotJobScene.initialize(arViewBotJobScene, arWebDriver, botJobList, webDriverList);
-            arNewBotJobScene.showModal();
-            botJobList.clear();
-            if (performDataBase.getConn() != null) {
-                botJobList.addAll(performDataBase.loadAllBotJobs(performDataBase.getConn()));
+            List<HomeUrlDTO> homeUrlList = performDataBase.loadAllHomeURL();
+            if (!homeUrlList.isEmpty()) {
+
+                arNewBotJobScene.initialize(arViewBotJobScene, arWebDriver, botJobList, webDriverList);
+                arNewBotJobScene.showModal();
+                botJobList.clear();
+                if (performDataBase.getConn() != null) {
+                    botJobList.addAll(performDataBase.loadAllBotJobs(performDataBase.getConn()));
+                }
+                viewBotJobListView.setItems(botJobList);
+            } else {
+                performMessage.showCustomModalDialogDragWin11(
+                        "Environments Are Empty",
+                        "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>Please add at least one Organization Environment.</span>",
+                        "<span style='font-style: italic;'>Go to the Configuration and add Organizations.</span>",
+                        "<span style='color: #E65100; font-weight: bold;'>Select an Organization and add an </span><span style='font-weight: bold;'>Environment</span>.",
+                        null,
+                        false,
+                        "OK",
+                        null,
+                        0);
             }
-            viewBotJobListView.setItems(botJobList);
         });
 
         cloneBotJobButton.setOnMouseClicked(e -> {

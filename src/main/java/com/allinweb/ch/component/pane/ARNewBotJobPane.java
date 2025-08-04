@@ -1,7 +1,7 @@
 package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.model.BotJobLoadDTO;
-import com.allinweb.ch.component.model.HomeBankingLoadDTO;
+import com.allinweb.ch.component.model.HomeUrlDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARViewBotJobScene;
 import com.allinweb.ch.driver.ARWebDriver;
@@ -10,7 +10,6 @@ import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import com.google.common.base.Strings;
-import java.awt.*;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -47,7 +46,7 @@ public class ARNewBotJobPane extends ARPane {
         return instance;
     }
 
-    private ObservableList<HomeBankingLoadDTO> homeBankingList = FXCollections.observableArrayList();
+    private final ObservableList<HomeUrlDTO> homeURLList = FXCollections.observableArrayList();
     private ObservableList<BotJobLoadDTO> botJobList;
     //    private final ListView<BotJobLoadDTO> viewBotJobListView;
     public void initialize(
@@ -71,7 +70,7 @@ public class ARNewBotJobPane extends ARPane {
 
     private Pane mainPane;
 
-    private ChoiceBox<HomeBankingLoadDTO> homeBankingChoiceBox;
+    private ChoiceBox<HomeUrlDTO> homeURLChoiceBox;
 
     private ARViewBotJobScene arViewBotJobScene;
     private ARWebDriver arWebDriver;
@@ -100,9 +99,9 @@ public class ARNewBotJobPane extends ARPane {
         //        ObservableList<HomeBankingDTO> homeBankingUrlList =
         //                PerformDataBase..getEntityList(HomeBankingDTO.class);
 
-        homeBankingList.clear();
-        homeBankingList.addAll(performDataBase.loadHomeBanking(null));
-        homeBankingChoiceBox = new ChoiceBox<>(homeBankingList);
+        homeURLList.clear();
+        homeURLList.addAll(performDataBase.loadAllHomeURL());
+        homeURLChoiceBox = new ChoiceBox<>(homeURLList);
 
         VBox mainLayout = new VBox(
                 10,
@@ -111,7 +110,7 @@ public class ARNewBotJobPane extends ARPane {
                 labelBotJobDescription,
                 botJobDescription,
                 labelHomeBanking,
-                homeBankingChoiceBox,
+                homeURLChoiceBox,
                 createBotJobButton);
 
         mainLayout.setPadding(new Insets(10));
@@ -127,17 +126,17 @@ public class ARNewBotJobPane extends ARPane {
 
     @Override
     public void initUIBehaviour() {
-        homeBankingChoiceBox.setConverter(new StringConverter<>() {
+        homeURLChoiceBox.setConverter(new StringConverter<>() {
             @Override
-            public String toString(HomeBankingLoadDTO object) {
+            public String toString(HomeUrlDTO object) {
                 if (object != null) {
-                    return object.getName() + " | " + object.getUrl();
+                    return object.getOrgName() + " | " + object.getUrl();
                 }
                 return null;
             }
 
             @Override
-            public HomeBankingLoadDTO fromString(String string) {
+            public HomeUrlDTO fromString(String string) {
                 return null;
             }
         });
@@ -185,8 +184,8 @@ public class ARNewBotJobPane extends ARPane {
                 return;
             }
 
-            if (homeBankingChoiceBox.getValue() == null
-                    || Strings.isNullOrEmpty(homeBankingChoiceBox.getValue().getName())) {
+            if (homeURLChoiceBox.getValue() == null
+                    || Strings.isNullOrEmpty(homeURLChoiceBox.getValue().getOrgName())) {
                 performMessage.errorMessage(
                         "Missing Website", // Clearer, more direct title
                         "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>The Website cannot be empty.</span>", // Stronger emphasis on the issue
@@ -200,9 +199,8 @@ public class ARNewBotJobPane extends ARPane {
             BotJobLoadDTO createdBotJob = new BotJobLoadDTO();
             createdBotJob.setName(botJobName.getText().trim());
             createdBotJob.setDescription(botJobDescription.getText().trim());
-            createdBotJob.setHomeBankingId(homeBankingChoiceBox.getValue().getId());
-            createdBotJob.setHomeUrlId(
-                    homeBankingChoiceBox.getValue().getHomeUrlDTOs().get(0).getId());
+            createdBotJob.setHomeBankingId(homeURLChoiceBox.getValue().getHomeBankingId());
+            createdBotJob.setHomeUrlId(homeURLChoiceBox.getValue().getId());
 
             int newJobId = performDataBase.createNewBotJob(createdBotJob);
 

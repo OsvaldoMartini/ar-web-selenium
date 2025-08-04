@@ -305,7 +305,8 @@ public class ARNewCommandPane extends ARPane {
         if (this.blockLoadList != null && !this.blockLoadList.isEmpty()) {
             //            for (BotJobLoadDTO botJobLoadDTO : this.botJobLoadList) {
 
-            if (rowMoveDTO.getUpdatedRows().get(0).getActions().equals("EXCEL GOTO")) {
+            if (rowMoveDTO.getUpdatedRows().get(0).getActions() != null
+                    && rowMoveDTO.getUpdatedRows().get(0).getActions().equals("EXCEL GOTO")) {
                 loadBlockItems(blockLoadList, -99);
             } else {
                 loadBlockItems(blockLoadList, rowMoveDTO.getBlockId());
@@ -1332,7 +1333,8 @@ public class ARNewCommandPane extends ARPane {
         comboBoxAllBlocks.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue != null) {
                 if (!firstLoad) {
-                    if (rowMoveDTO.getUpdatedRows().get(0).getActions().equals("EXCEL GOTO")) {
+                    if (rowMoveDTO.getUpdatedRows().get(0).getActions() != null
+                            && rowMoveDTO.getUpdatedRows().get(0).getActions().equals("EXCEL GOTO")) {
                         loadBlockItems(blockLoadList, -99);
                     } else {
                         loadBlockItems(blockLoadList, newValue.getBlockId());
