@@ -221,7 +221,7 @@ public class PerformBackup {
                        force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root,
                        css_selector, description, operation, optional, block_marked, default_value,
                        action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr,
-                       active, block_id, variable_id, parent_id, bot_job_id
+                       active, block_id, variable_id, parent_block_id, parent_id, bot_job_id
                 FROM instruction
                 ORDER BY id ASC
                 """;
@@ -261,14 +261,16 @@ public class PerformBackup {
                 boolean blockIdWasNull = rs.wasNull();
                 int variableId = rs.getInt("variable_id");
                 boolean variableIdWasNull = rs.wasNull();
+                int parentBlockId = rs.getInt("parent_block_id");
+                boolean parentBlockIdWasNull = rs.wasNull();
                 int parentId = rs.getInt("parent_id");
                 boolean parentIdWasNull = rs.wasNull();
                 int botJobId = rs.getInt("bot_job_id");
                 boolean botJobIdWasNull = rs.wasNull();
 
                 String insert = String.format(
-                        "INSERT INTO instruction (id, instruction_order_number, actions, name, xpath, coordinates, force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root, css_selector, description, operation, optional, block_marked, default_value, action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr, active, block_id, variable_id, parent_id, bot_job_id) "
-                                + "VALUES (%d, %d, '%s', '%s', '%s', '%s', %d, '%s', '%s', '%s', '%s', '%s', '%s', '%s', %d, %d, '%s', %s, %s, %d, %d, %d, %s, %s, %s, %s);",
+                        "INSERT INTO instruction (id, instruction_order_number, actions, name, xpath, coordinates, force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root, css_selector, description, operation, optional, block_marked, default_value, action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr, active, block_id, variable_id, parent_block_id, parent_id, bot_job_id) "
+                                + "VALUES (%d, %d, '%s', '%s', '%s', '%s', %d, '%s', '%s', '%s', '%s', '%s', '%s', '%s', %d, %d, '%s', %s, %s, %d, %d, %d, %s, %s, %s, %s, %s);",
                         id,
                         order,
                         actions,
@@ -293,6 +295,7 @@ public class PerformBackup {
                         active ? 1 : 0,
                         blockIdWasNull ? "NULL" : blockId,
                         variableIdWasNull ? "NULL" : variableId,
+                        parentBlockIdWasNull ? "NULL" : parentBlockId,
                         parentIdWasNull ? "NULL" : parentId,
                         botJobIdWasNull ? "NULL" : botJobId);
 
@@ -537,7 +540,7 @@ public class PerformBackup {
                        force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root,
                        css_selector, description, operation, optional, block_marked,
                        default_value, action_custom_max_wait_sec, on_hold_seconds,
-                       codified, export_to_abr, active, block_id, variable_id, parent_id,
+                       codified, export_to_abr, active, block_id, variable_id, parent_block_id, parent_id,
                        home_banking_id
                 FROM component_instruction
                 ORDER BY id ASC
@@ -597,6 +600,9 @@ public class PerformBackup {
                 int variableId = rs.getInt("variable_id");
                 boolean variableIdWasNull = rs.wasNull();
 
+                int parentBlockId = rs.getInt("parent_block_id");
+                boolean parentBlockIdWasNull = rs.wasNull();
+
                 int parentId = rs.getInt("parent_id");
                 boolean parentIdWasNull = rs.wasNull();
 
@@ -608,8 +614,8 @@ public class PerformBackup {
                                 + "id, instruction_order_number, actions, name, xpath, coordinates, force_coordinates, iframe_xpath, "
                                 + "tag_name, shadow_host, shadow_root, css_selector, description, operation, optional, block_marked, "
                                 + "default_value, action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr, active, "
-                                + "block_id, variable_id, parent_id, home_banking_id"
-                                + ") VALUES (%d, %d, '%s', '%s', '%s', '%s', %s, '%s', '%s', '%s', '%s', '%s', '%s', '%s', %s, %s, '%s', %s, %s, %s, %s, %d, %s, %s, %s, %s);",
+                                + "block_id, variable_id, parent_block_id, parent_id, home_banking_id"
+                                + ") VALUES (%d, %d, '%s', '%s', '%s', '%s', %s, '%s', '%s', '%s', '%s', '%s', '%s', '%s', %s, %s, '%s', %s, %s, %s, %s, %d, %s, %s, %s, %s, %s);",
                         id,
                         orderNumber,
                         actions,
@@ -634,6 +640,7 @@ public class PerformBackup {
                         active ? 1 : 0,
                         blockIdWasNull ? "NULL" : blockId,
                         variableIdWasNull ? "NULL" : variableId,
+                        parentBlockIdWasNull ? "NULL" : parentBlockId,
                         parentIdWasNull ? "NULL" : parentId,
                         homeBankingIdWasNull ? "NULL" : homeBankingId);
 

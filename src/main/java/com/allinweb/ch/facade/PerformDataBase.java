@@ -1770,7 +1770,8 @@ public class PerformDataBase {
                 + "  b.export_file, "
                 + "  b.active as block_active, b.wait, "
                 + "  bli.active as instruction_active, "
-                + "  bli.variable_id "
+                + "  bli.variable_id, "
+                + "  bli.parent_block_id "
                 + " FROM bot_job bot "
                 + " LEFT JOIN block b ON b.bot_job_id = bot.id "
                 + " JOIN instruction bli ON bli.block_id = b.id "
@@ -1851,6 +1852,7 @@ public class PerformDataBase {
                     instruction.setCodified(rs.getBoolean("codified"));
                     instruction.setExportToABR(rs.getBoolean("export_to_abr"));
                     instruction.setOperation(rs.getString("operation"));
+                    instruction.setParentBlockId(rs.getInt("parent_block_id"));
                     instruction.setParentId(rs.getInt("parent_id"));
                     instruction.setVariableId(rs.getInt("variable_id"));
 
@@ -1918,7 +1920,8 @@ public class PerformDataBase {
                 + "    bli.active AS instruction_active,\n"
                 + "    irl.reference_type, \n"
                 + "    irl.value AS reference_value, \n"
-                + "    bli.variable_id \n"
+                + "    bli.variable_id, \n"
+                + "    bli.parent_block_id \n"
                 + "FROM home_banking hb\n"
                 + "LEFT JOIN component_block blk ON blk.home_banking_id = hb.id\n"
                 + "JOIN component_instruction bli ON bli.block_id = blk.id\n"
@@ -1999,6 +2002,7 @@ public class PerformDataBase {
                     instruction.setCodified(rs.getBoolean("codified"));
                     instruction.setExportToABR(rs.getBoolean("export_to_abr"));
                     instruction.setOperation(rs.getString("operation"));
+                    instruction.setParentBlockId(rs.getInt("parent_block_id"));
                     instruction.setParentId(rs.getInt("parent_id"));
                     instruction.setVariableId(rs.getInt("variable_id"));
 
@@ -3033,6 +3037,7 @@ ORDER BY bot.id ASC;
                     "on_hold_seconds",
                     instructionLoad.getOnHoldSeconds() != null ? instructionLoad.getOnHoldSeconds() : 1);
             addColumnValue.accept("operation", instructionLoad.getOperation());
+            addColumnValue.accept("parent_block_id", instructionLoad.getParentBlockId());
             addColumnValue.accept("parent_id", instructionLoad.getParentId());
             addColumnValue.accept("variable_id", instructionLoad.getVariableId());
             addColumnValue.accept("block_id", currentBlockId);
@@ -3183,6 +3188,7 @@ ORDER BY bot.id ASC;
             addColumnValue.accept("name", instructionLoadDTO.getName());
             addColumnValue.accept("on_hold_seconds", instructionLoadDTO.getOnHoldSeconds());
             addColumnValue.accept("operation", instructionLoadDTO.getOperation());
+            addColumnValue.accept("parent_block_id", instructionLoadDTO.getParentBlockId());
             addColumnValue.accept("parent_id", instructionLoadDTO.getParentId());
             addColumnValue.accept("variable_id", instructionLoadDTO.getVariableId());
             addColumnValue.accept("block_id", currentBlockId);
@@ -3539,6 +3545,11 @@ ORDER BY bot.id ASC;
         int response;
 
         try {
+            // PARENT BLOCK ID
+            if (rowMoveDTO.getParentBlockId() != null) {
+                instruction.setParentBlockId(rowMoveDTO.getParentBlockId());
+            }
+
             Integer currentBlockId = rowMoveDTO.getBlockId();
 
             if (instruction.getBlockId() != null && !instruction.getBlockId().equals(currentBlockId)) {
@@ -3923,6 +3934,7 @@ ORDER BY bot.id ASC;
                                         loopInstLoad.getInstructionActive(),
                                         itemBlock.getWait(),
                                         loopInstLoad.getActions(),
+                                        loopInstLoad.getParentBlockId(), // Parent Block Id
                                         loopInstLoad.getParentId(),
                                         loopInstLoad.getVariableId(),
                                         loopInstLoad.getOperation(),
