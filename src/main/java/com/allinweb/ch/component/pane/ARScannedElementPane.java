@@ -403,16 +403,8 @@ public class ARScannedElementPane extends ARPane {
 
                     errorMessage = performDataBase.insertReferencesBatch(instructionList);
                 }
-                if (errorMessage != null) {
-                    String[] lines = errorMessage.getErrorMessage().split("\n");
-                    performMessage.errorMessage(
-                            errorMessage.getErrorTitle(),
-                            errorMessage.getErrorHeader(),
-                            (!Strings.isNullOrEmpty(lines[0]) ? lines[0] : null),
-                            (!Strings.isNullOrEmpty(lines[0]) ? lines[1] : null),
-                            null,
-                            0);
-                }
+
+                updateBotJobTasks(this.botJobLoad.getId());
 
                 if (errorMessage != null) {
                     performMessage.errorMessage(

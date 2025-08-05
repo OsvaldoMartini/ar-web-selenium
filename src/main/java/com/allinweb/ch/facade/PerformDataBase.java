@@ -4391,20 +4391,6 @@ ORDER BY bot.id ASC;
         }
     }
 
-    private Integer loadNextIdBReferenceData() {
-        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
-        String selectSQL = "SELECT MAX(ID) AS max_id FROM reference";
-        try (Statement stmt = getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
-            while (rs.next()) {
-                return rs.getInt("max_id");
-            }
-        } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class).severe("loadNextIdBReferenceData  \nError: " + e.getMessage());
-        }
-        return null;
-    }
-
     // Handle DELETE_INSTRUCTION message
     public void deleteComponent(
             int homeBankId, int blockId, InstructionLoadDTO deleteInstructionLoad, boolean blockDeletion) {
