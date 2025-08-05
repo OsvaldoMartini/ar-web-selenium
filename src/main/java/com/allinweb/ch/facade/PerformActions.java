@@ -13,17 +13,7 @@ import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
 import com.allinweb.ch.component.model.VariableLoadDTO;
 import com.allinweb.ch.persistence.TargetElement;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
-import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARLogger;
-import com.allinweb.ch.util.ARPriorities;
-import com.allinweb.ch.util.ARPropertyEnum;
-import com.allinweb.ch.util.ARPropertyManager;
-import com.allinweb.ch.util.ARWebUtil;
-import com.allinweb.ch.util.CryptationAlgorithm;
-import com.allinweb.ch.util.ExcelReportStatusEnum;
-import com.allinweb.ch.util.Priority;
-import com.allinweb.ch.util.PriorityTypeEnum;
-import com.allinweb.ch.util.UtilsMethods;
+import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -4007,19 +3997,25 @@ public class PerformActions {
 
             newBlockDetails.setBotJobId(botJobId);
 
-            int newBlockId = performDataBase.createNewBlock(newBlockDetails);
+            ErrorMessage errorMessage = performDataBase.initiateNewBlock(newBlockDetails, botJobId);
 
-            if (newBlockId < 0) {
+            if (errorMessage == null) {
+                if (!performDataBase.getIdsBlockAfter().isEmpty()
+                        && performDataBase.getIdsBlockAfter().get(0) > 0) {
+                    return performDataBase.getIdsBlockAfter().get(0);
+                } else {
+                    return -9999;
+                }
+            } else {
+
                 performMessage.errorMessage(
-                        "Error Creating new Block",
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Verify the Bot Job Name if you have any</span>",
-                        "<span style='color: #E65100; font-weight: bold;'>Check if you already have a Bot Job Created!</span>",
-                        null,
+                        errorMessage.getErrorTitle(),
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                + errorMessage.getErrorTitle(),
+                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
                         null,
                         0);
-                return -1;
-            } else {
-                return newBlockId;
             }
         }
         return -1;

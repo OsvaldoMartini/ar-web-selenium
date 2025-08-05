@@ -14,11 +14,7 @@ import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.socket.WebSocketSessionManager;
-import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARLogger;
-import com.allinweb.ch.util.ComboBoxImage;
-import com.allinweb.ch.util.ComboBoxOperator;
-import com.allinweb.ch.util.ComboBoxVars;
+import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import java.sql.Connection;
@@ -38,6 +34,7 @@ import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
+import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
@@ -2406,7 +2403,7 @@ public class ARNewCommandPane extends ARPane {
             boolean isShowAlert = added == 1;
 
             // Run the instruction add in a separate Task
-            int newRowId = performDataBase.preFillInstruction(
+            ErrorMessage errorMessage = performDataBase.preFillInstruction(
                     nextAction == null ? name : nextAction,
                     nextAction == null ? description : nextAction,
                     nextAction == null ? actions : nextAction,
@@ -2420,7 +2417,7 @@ public class ARNewCommandPane extends ARPane {
                     rowMoveDTO.getType().equals("EDIT_OPERATION"),
                     blockIdChanged);
 
-            if (newRowId > 0) {
+            if (errorMessage == null) {
 
                 String tableName = "instruction";
                 if (rowMoveDTO.getSessionId().equals("componentTasks")) {
@@ -2453,7 +2450,7 @@ public class ARNewCommandPane extends ARPane {
 
             if (Strings.isNullOrEmpty(nextAction)) {
                 nextAction = ARConstants.ELSE;
-                parentId = newRowId;
+                // parentId = newRowId;
             } else if (!Strings.isNullOrEmpty(nextAction) && nextAction.equals(ARConstants.ELSE)) {
                 nextAction = ARConstants.ENDIF;
             }

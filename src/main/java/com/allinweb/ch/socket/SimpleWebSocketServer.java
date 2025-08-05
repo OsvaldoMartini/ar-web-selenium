@@ -449,9 +449,9 @@ public class SimpleWebSocketServer {
             case "EDIT_OPERATION":
                 RowMoveDTO insertBeforeDTO = gson.fromJson(jsonEntry, RowMoveDTO.class);
 
-                homeBankingId = insertBeforeDTO.getHomeBankingId();
-                botJobIdTask = insertBeforeDTO.getBotJobId();
-                sessionIdToSend = insertBeforeDTO.getSessionId();
+                //                homeBankingId = insertBeforeDTO.getHomeBankingId();
+                //                botJobIdTask = insertBeforeDTO.getBotJobId();
+                //                sessionIdToSend = insertBeforeDTO.getSessionId();
 
                 injectStepAfterOrBefore(sessionIdToSend, insertBeforeDTO);
 
@@ -671,14 +671,31 @@ public class SimpleWebSocketServer {
         System.out.println("Updated Block: " + updatedBlock.size());
         newBlock.setForceOrder(true);
 
-        int newBlockId = performDataBase.createNewBlock(newBlock);
-        if (performDataBase.updateInstructionsSplitter(
-                newBlock.getInstructions(), (int) originalBlock.getBlockId(), newBlockId)) {
-            if (updatedBlock.size() > 0) {
-                performDataBase.updateBlockOrderNumber(updatedBlock, false);
-                //                performDataBase.updateBlockOrderNumber(
-                //                        performDataBase.selectAllBlocks(updatedBlock.get(0).getBotJobId()), true);
+        ErrorMessage errorMessage = performDataBase.initiateNewBlock(newBlock, blockSplitDTO.getBotJobId());
+
+        if (errorMessage == null) {
+            int newBlockId = -9999;
+            if (!performDataBase.getIdsBlockAfter().isEmpty()
+                    && performDataBase.getIdsBlockAfter().get(0) > 0) {
+                newBlockId = performDataBase.getIdsBlockAfter().get(0);
             }
+            if (performDataBase.updateInstructionsSplitter(
+                    newBlock.getInstructions(), (int) originalBlock.getBlockId(), newBlockId)) {
+                if (updatedBlock.size() > 0) {
+                    performDataBase.updateBlockOrderNumber(updatedBlock, false);
+                    //                performDataBase.updateBlockOrderNumber(
+                    //                        performDataBase.selectAllBlocks(updatedBlock.get(0).getBotJobId()), true);
+                }
+            }
+        } else {
+            performMessage.errorMessage(
+                    errorMessage.getErrorTitle(),
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                            + errorMessage.getErrorTitle(),
+                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                    null,
+                    0);
         }
     }
 
@@ -718,7 +735,7 @@ public class SimpleWebSocketServer {
                     try {
                         // Run the instruction add in a separate Task
 
-                        int newRowId = performDataBase.preFillInstruction(
+                        ErrorMessage message = performDataBase.preFillInstruction(
                                 "ELSEIF",
                                 "ELSEIF",
                                 ARConstants.ELSEIF,

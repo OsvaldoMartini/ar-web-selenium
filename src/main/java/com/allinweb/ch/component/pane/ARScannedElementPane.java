@@ -497,7 +497,7 @@ public class ARScannedElementPane extends ARPane {
                     instruction.setActions(parts[0]);
                 }
 
-                int newId = preFillAddInstruction(
+                ErrorMessage errorMessage = preFillAddInstruction(
                         instruction.getName().trim(),
                         instruction.getDescription().trim(),
                         instruction.getActions(),
@@ -518,20 +518,25 @@ public class ARScannedElementPane extends ARPane {
                         currentBlockId,
                         false);
 
-                if (newId < 0) {
+                if (errorMessage != null) {
                     performMessage.errorMessage(
                             "Error Adding New Component Instruction",
                             "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to insert new Operation!</span> ❌",
                             "<span style='color: #E65100; font-weight: bold;'>Instruction Name:</span> <span style='font-weight: bold;'>"
                                     + instruction.getName() + "</span>",
-                            "<span style='font-style: italic;'>This operation could not be added. Please review the application state and any related processes.</span>",
+                            "<span style='font-style: italic;'>Details: " + errorMessage.getErrorMessage() + "</span>",
                             null,
                             0);
 
                     return null;
                 }
 
-                instruction.setId(newId);
+                if (!performDataBase.getIdsInstrucAfter().isEmpty()
+                        && performDataBase.getIdsInstrucAfter().get(0) > 0) {
+                    instruction.setId(performDataBase.getIdsInstrucAfter().get(0));
+                } else {
+                    instruction.setId(performDataBase.getIdsInstrucAfter().get(0));
+                }
 
                 targetInsert.setInstructionId(instruction.getId());
                 List<InstructionReferenceLoadDTO> queue = new ArrayList<>();
@@ -549,28 +554,33 @@ public class ARScannedElementPane extends ARPane {
                 try {
 
                     //                    Platform.runLater(() -> {
-                    try {
-                        performDataBase.insertReferences(queue, instruction.getId());
-                        if (!sendAll) {
-                            updateBotJobTasks(currentBotJobId);
-                        }
-                    } catch (SQLException error) {
-                        ARLogger.getInstance(PerformDataBase.class)
-                                .severe("Cannot Insert References. Error: " + error.getMessage());
+                    errorMessage = performDataBase.insertReferences(queue, instruction.getId());
+                    if (!sendAll) {
+                        updateBotJobTasks(currentBotJobId);
+                    }
+
+                    if (errorMessage != null) {
+                        String[] lines = errorMessage.getErrorMessage().split("\n");
                         performMessage.errorMessage(
-                                "Web Instruction Analysis",
-                                "<span style='color: #FFA000; font-weight: bold; font-size: 1.1em;'>Potential Issue with Web Instruction</span> ⚠️",
-                                "<span style='color: #E65100;'>Instruction:</span> <span style='font-weight: bold;'>\""
-                                        + instruction.getName() + "\"</span>",
-                                "<span style='color: #757575;'>Added with " + queue.size()
-                                        + " reference locators.</span>",
-                                "<span style='font-style: italic;'>Warning: The engine might not process this element correctly due to insufficient identifiable attributes. Consider adding more specific locators.</span>",
+                                errorMessage.getErrorTitle(),
+                                errorMessage.getErrorHeader(),
+                                (!Strings.isNullOrEmpty(lines[0]) ? lines[0] : null),
+                                (!Strings.isNullOrEmpty(lines[0]) ? lines[1] : null),
+                                null,
                                 0);
                     }
 
                     //                    });
                 } catch (Exception ex) {
                     ARLogger.getInstance(Task.class).severe("Error Adding Instruction elements");
+                    performMessage.errorMessage(
+                            "Web Instruction Analysis",
+                            "<span style='color: #FFA000; font-weight: bold; font-size: 1.1em;'>Potential Issue with Web Instruction</span> ⚠️",
+                            "<span style='color: #E65100;'>Instruction:</span> <span style='font-weight: bold;'>\""
+                                    + instruction.getName() + "\"</span>",
+                            "<span style='color: #757575;'>Added with " + queue.size() + " reference locators.</span>",
+                            "<span style='font-style: italic;'>Warning: The engine might not process this element correctly due to insufficient identifiable attributes. Consider adding more specific locators.</span>",
+                            0);
                 }
                 //                                        });
                 return null;
@@ -5128,7 +5138,7 @@ public class ARScannedElementPane extends ARPane {
         alert.showAndWait();
     }
 
-    private int preFillAddInstruction(
+    private ErrorMessage preFillAddInstruction(
             String name,
             String description,
             String actions,
@@ -5182,14 +5192,14 @@ public class ARScannedElementPane extends ARPane {
         instructionLoadDTO.setInstructionActive(true);
 
         // Wrap the persistence in a try-catch block
-        int newId = -1;
+        ErrorMessage errorMessage = null;
 
         try {
             if (!updateRow) {
-                newId = performDataBase.insertInstruction(
+                errorMessage = performDataBase.insertInstruction(
                         "botJobTasks", instructionLoadDTO, currentBotJobId, currentBlockId, homeBanking.getId());
             } else {
-                newId = performDataBase.updateInstruction(
+                errorMessage = performDataBase.updateInstruction(
                         "botJobTasks", instructionLoadDTO, currentBotJobId, currentBlockId, homeBanking.getId());
             }
 
@@ -5199,10 +5209,8 @@ public class ARScannedElementPane extends ARPane {
                     .severe(String.format(
                             "Cannot Insert \"Instruction\"  \"%s\"\nCannot be saved!\nError: %s",
                             instructionLoadDTO.getName(), e.getMessage()));
-
-            return -1;
         }
-        return newId;
+        return errorMessage;
     }
 
     private void loadAllBlockItems(List<BlockLoadDTO> blockLoadDTOList) {

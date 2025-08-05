@@ -94,6 +94,14 @@ public class PerformDataBase {
     private TreeMap<Integer, Integer> variableMap = new TreeMap<>();
     private TreeMap<Integer, Integer> referenceMap = new TreeMap<>();
 
+    @Getter
+    @Setter
+    public List<Integer> idsBlockAfter = new ArrayList<>();
+
+    @Getter
+    @Setter
+    public List<Integer> idsInstrucAfter = new ArrayList<>();
+
     // Postgres
     public boolean ACCESS_DB = false;
     public boolean POSTGRES_DB = false;
@@ -1263,58 +1271,72 @@ public class PerformDataBase {
         return blockDeletion;
     }
 
-    // Method to create a new BlockDTO entity and save it to the database
-    public int createNewBlock(BlockDetailsDTO newBlockDetails) {
-        try {
-            // Persist the BlockDTO entity using the saveBlock method
-            int newBlockId = initiateNewBlock(newBlockDetails, newBlockDetails.getBotJobId());
-            if (newBlockId > -1) {
-                // Update the Instruction blockId
-                return newBlockId;
+    public ErrorMessage initiateNewBlock(BlockDetailsDTO blockDTO, int botJobId) {
+        Integer nextBlockOrder = blockDTO.getBlockOrderNumber() != null
+                ? blockDTO.getBlockOrderNumber()
+                : loadNextBlockOrderNumber(blockDTO.getBotJobId()) + 1;
+
+        if (nextBlockOrder < 0) {
+            return new ErrorMessage(
+                    "Error Initiate New Block",
+                    "nextBlockOrder is less than '-1'",
+                    "nextBlockOrder: " + nextBlockOrder);
+        }
+
+        String selectIdsSQL = "SELECT id FROM block ORDER BY id";
+        String insertSQL =
+                "INSERT INTO block (block_order_number, description, name, type_id, active, wait, bot_job_id) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?)";
+
+        try (Connection conn = getConnection();
+                Statement idStmtBefore = conn.createStatement();
+                Statement idStmtAfter = conn.createStatement();
+                PreparedStatement insertStmt = conn.prepareStatement(insertSQL)) {
+
+            // Step 1: Get all block IDs before insertion
+            List<Integer> idsBefore = new ArrayList<>();
+            try (ResultSet rsBefore = idStmtBefore.executeQuery(selectIdsSQL)) {
+                while (rsBefore.next()) {
+                    idsBefore.add(rsBefore.getInt("id"));
+                }
             }
 
-        } catch (Exception e) {
+            // Step 2: Set parameters and insert new block
+            insertStmt.setInt(1, nextBlockOrder);
+            insertStmt.setString(2, blockDTO.getBlockName() + " description");
+            insertStmt.setString(3, blockDTO.getBlockName());
+            insertStmt.setInt(4, 1); // type_id
+            insertStmt.setInt(5, blockDTO.getActive() ? 1 : 0);
+            insertStmt.setInt(6, 3); // wait
+            insertStmt.setInt(7, botJobId);
+
+            int rowsInserted = insertStmt.executeUpdate();
+
+            // Step 3: Get all block IDs after insertion
+            idsBlockAfter.clear();
+            try (ResultSet rsAfter = idStmtAfter.executeQuery(selectIdsSQL)) {
+                while (rsAfter.next()) {
+                    idsBlockAfter.add(rsAfter.getInt("id"));
+                }
+            }
+
+            // Step 4: Determine the new ID
+            idsBlockAfter.removeAll(idsBefore);
+            if (idsBlockAfter.size() == 1) {
+                int newId = idsBlockAfter.get(0);
+                ARLogger.getInstance(PerformDataBase.class)
+                        .info(String.format("Block data saved successfully.\nBlockId: %d", newId));
+            } else {
+                ARLogger.getInstance(PerformDataBase.class)
+                        .warning("Block inserted, but new ID could not be uniquely identified.");
+            }
+
+            return null;
+
+        } catch (SQLException error) {
             ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("createNewBlock - \nError: %s", e.getMessage()));
-        }
-
-        return -1;
-    }
-
-    private int initiateNewBlock(BlockDetailsDTO blockDTO, int botJobId) {
-        // Generate a Unique-ID for the block
-        Integer nextId = loadNextIdBlockData() + 1;
-        Integer nextBlockOrder = -1;
-        if (blockDTO.getBlockOrderNumber() != null) {
-            nextBlockOrder = blockDTO.getBlockOrderNumber();
-        } else {
-            nextBlockOrder = loadNextBlockOrderNumber(blockDTO.getBotJobId()) + 1;
-        }
-
-        if (nextId < 0 || nextBlockOrder < 0) {
-            return -1;
-        }
-
-        // Build the SQL insert query
-        String insertSQL =
-                "INSERT INTO block(id, block_order_number, description, name, type_id, active, wait, bot_job_id) VALUES ("
-                        + nextId + ", "
-                        + nextBlockOrder + ", " // block_order_number
-                        + "'" + blockDTO.getBlockName() + " description', " // description
-                        + "'" + blockDTO.getBlockName() + "', " // name
-                        + 1 + ", " // type_id
-                        + (blockDTO.getActive() ? 1 : 0) + ", " // active
-                        + 3 + ", " // wait
-                        + botJobId + ")"; // bot_job_id, assuming BotJobDTO has an ID
-        try (Statement stmt = getConnection().createStatement()) {
-            stmt.executeUpdate(insertSQL);
-            ARLogger.getInstance(PerformDataBase.class)
-                    .info(String.format("Block data saved successfully.\n BlockId: %d", nextId));
-            return nextId;
-        } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("saveBlock - \nError: %s", e.getMessage()));
-            return -1;
+                    .severe(String.format("Error Initiate New Block: %s", error.getMessage()));
+            return new ErrorMessage("Error Initiate New Block", "Cannot create a new block", error.getMessage());
         }
     }
 
@@ -2979,7 +3001,7 @@ ORDER BY bot.id ASC;
         return blockLoadList;
     }
 
-    public int insertInstruction(
+    public ErrorMessage insertInstruction(
             String typeTask,
             InstructionLoadDTO instructionLoad,
             Integer currentBotJobId,
@@ -2991,19 +3013,21 @@ ORDER BY bot.id ASC;
             tableName = "component_instruction";
         }
 
-        try (Statement stmt = getConnection().createStatement()) {
-            Integer nextId = instructionLoad.getId();
+        try (Connection conn = getConnection();
+                Statement stmt = conn.createStatement();
+                Statement idStmtBefore = conn.createStatement();
+                Statement idStmtAfter = conn.createStatement()) {
 
-            if (typeTask.equals("componentTasks") && nextId == null) {
-                nextId = loadNextIdComponentInstruc() + 1;
-                instructionLoad.setId(nextId);
-            } else if (nextId == null) {
-                nextId = loadNextIdInstructionData() + 1;
-                instructionLoad.setId(nextId);
+            // Step 1: Get all IDs before insertion
+            List<Integer> idsBefore = new ArrayList<>();
+            try (ResultSet rsBefore = idStmtBefore.executeQuery("SELECT id FROM " + tableName + " order by id")) {
+                while (rsBefore.next()) {
+                    idsBefore.add(rsBefore.getInt("id"));
+                }
             }
 
-            StringBuilder columns = new StringBuilder("id");
-            StringBuilder values = new StringBuilder(nextId.toString());
+            StringBuilder columns = new StringBuilder();
+            StringBuilder values = new StringBuilder();
 
             // Helper method to add columns and values
             BiConsumer<String, Object> addColumnValue = (column, value) -> {
@@ -3094,9 +3118,29 @@ ORDER BY bot.id ASC;
             // }
 
             // Construct final SQL query
+            // Final insert
             String insertSQL = String.format("INSERT INTO %s (%s) VALUES (%s)", tableName, columns, values);
-
             int rowsAffected = stmt.executeUpdate(insertSQL);
+
+            // Step 4: Get IDs after insertion
+            idsInstrucAfter.clear();
+            try (ResultSet rsAfter = idStmtAfter.executeQuery("SELECT id FROM " + tableName)) {
+                while (rsAfter.next()) {
+                    idsInstrucAfter.add(rsAfter.getInt("id"));
+                }
+            }
+
+            // Step 5: Identify newly inserted ID
+            idsInstrucAfter.removeAll(idsBefore);
+            if (idsInstrucAfter.size() == 1) {
+                int newId = idsInstrucAfter.get(0);
+                System.out.println("Instruction inserted with new ID: " + newId);
+                // You can map the old temp ID to this new one if needed
+            } else {
+                System.err.println(
+                        "Could not uniquely identify the inserted instruction ID. Found: " + idsInstrucAfter);
+            }
+
             if (rowsAffected > 0) {
                 ARLogger.getInstance(PerformDataBase.class)
                         .info(String.format(
@@ -3106,7 +3150,6 @@ ORDER BY bot.id ASC;
                                 instructionLoad.getName(),
                                 instructionLoad.getActions(),
                                 instructionLoad.getOperation()));
-                return nextId;
 
             } else {
                 ARLogger.getInstance(PerformDataBase.class)
@@ -3117,24 +3160,24 @@ ORDER BY bot.id ASC;
                                 instructionLoad.getName(),
                                 instructionLoad.getActions(),
                                 instructionLoad.getOperation()));
-                return -1;
             }
 
+            return null;
         } catch (SQLException error) {
             ARLogger.getInstance(PerformDataBase.class)
-                    .warning(String.format(
+                    .severe(String.format(
                             "%s NOT SAVED id: %d Name: %s Actions: %s Operations: %s",
                             tableName.toUpperCase(),
                             instructionLoad.getId(),
                             instructionLoad.getName(),
                             instructionLoad.getActions(),
                             instructionLoad.getOperation()));
-            ARLogger.getInstance(PerformDataBase.class).warning(error.getMessage());
-            return -1;
+            ARLogger.getInstance(PerformDataBase.class).severe(error.getMessage());
+            return new ErrorMessage("Error in backup process", "Error during home_banking backup", error.getMessage());
         }
     }
 
-    public int updateInstruction(
+    public ErrorMessage updateInstruction(
             String typeTask,
             InstructionLoadDTO instructionLoadDTO,
             Integer currentBotJobId,
@@ -3149,7 +3192,10 @@ ORDER BY bot.id ASC;
         try (Statement stmt = getConnection().createStatement()) {
             if (instructionLoadDTO.getId() == null) {
                 ARLogger.getInstance(PerformDataBase.class).warning("Instruction ID is null. Update failed.");
-                return -1;
+                return new ErrorMessage(
+                        "Error Update Instruction",
+                        "Error during updating instruction",
+                        "Instruction ID is null. Update failed.");
             }
 
             StringBuilder setClause = new StringBuilder();
@@ -3238,7 +3284,10 @@ ORDER BY bot.id ASC;
             if (setClause.isEmpty()) {
                 ARLogger.getInstance(PerformDataBase.class)
                         .warning("No fields to update for instruction ID: " + instructionLoadDTO.getId());
-                return -1;
+                return new ErrorMessage(
+                        "Error Update Instruction",
+                        "Error during updating instruction",
+                        "No fields to update for instruction ID: " + instructionLoadDTO.getId());
             }
 
             // Construct final SQL query
@@ -3255,7 +3304,6 @@ ORDER BY bot.id ASC;
                                 instructionLoadDTO.getName(),
                                 instructionLoadDTO.getActions(),
                                 instructionLoadDTO.getOperation()));
-                return rowsAffected;
             } else {
                 ARLogger.getInstance(PerformDataBase.class)
                         .warning(String.format(
@@ -3265,9 +3313,8 @@ ORDER BY bot.id ASC;
                                 instructionLoadDTO.getName(),
                                 instructionLoadDTO.getActions(),
                                 instructionLoadDTO.getOperation()));
-                return 0;
             }
-
+            return null;
         } catch (SQLException error) {
             ARLogger.getInstance(PerformDataBase.class)
                     .warning(String.format(
@@ -3277,7 +3324,8 @@ ORDER BY bot.id ASC;
                             instructionLoadDTO.getName(),
                             instructionLoadDTO.getActions(),
                             instructionLoadDTO.getOperation()));
-            return -1;
+            return new ErrorMessage(
+                    "Error Update Instruction", "Error during updating instruction", error.getMessage());
         }
     }
 
@@ -3393,7 +3441,7 @@ ORDER BY bot.id ASC;
         return false;
     }
 
-    public int preFillInstruction(
+    public ErrorMessage preFillInstruction(
             String name,
             String description,
             String actions,
@@ -3526,23 +3574,27 @@ ORDER BY bot.id ASC;
                 newBlockDetails.setBotJobId(rowMoveDTO.getBotJobId());
                 newBlockDetails.setBlockId(rowMoveDTO.getBlockId());
 
-                int newBlockId = createNewBlock(newBlockDetails);
+                ErrorMessage errorMessage = initiateNewBlock(newBlockDetails, rowMoveDTO.getBotJobId());
 
-                if (newBlockId > 0) {
+                if (errorMessage == null) {
+                    int newBlockId = -9999;
+                    if (!getIdsBlockAfter().isEmpty() && getIdsBlockAfter().get(0) > 0) {
+                        newBlockId = getIdsBlockAfter().get(0);
+                    }
 
                     // IT SETS THE NEW TARGET IN CASE TO ADD MORE INSTRUCTIONS
                     rowMoveDTO.setBlockId(newBlockId);
-
                     this.blockLoadList = loadBlocksByBotJobId(rowMoveDTO.getBotJobId());
-
                     instruction.setBlockId(newBlockId);
+                } else {
+                    return errorMessage;
                 }
             }
         }
         instruction.setExportToABR(false);
         instruction.setInstructionActive(true);
         // Wrap the persistence in a try-catch block
-        int response;
+        ErrorMessage errorMessage = null;
 
         try {
             // PARENT BLOCK ID
@@ -3556,14 +3608,14 @@ ORDER BY bot.id ASC;
                 currentBlockId = instruction.getBlockId();
             }
             if (!updateRow) {
-                response = insertInstruction(
+                errorMessage = insertInstruction(
                         rowMoveDTO.getSessionId(),
                         instruction,
                         rowMoveDTO.getBotJobId(),
                         currentBlockId,
                         rowMoveDTO.getHomeBankingId());
             } else {
-                response = updateInstruction(
+                errorMessage = updateInstruction(
                         rowMoveDTO.getSessionId(),
                         instruction,
                         rowMoveDTO.getBotJobId(),
@@ -3576,16 +3628,14 @@ ORDER BY bot.id ASC;
                 rowMoveDTO.getUpdatedRows().get(0).setInstructionOrderNumber(targetOrderNumber + 1);
             }
 
-            int finalResponse = response;
             if (isShowAlert) {
-                if (finalResponse > -1) {
+                if (errorMessage == null) {
 
                     ARLogger.getInstance(PerformDataBase.class)
                             .info(String.format(
                                     "\"Component\" Instruction: \"%s\" has been added successfully!",
                                     instruction.getName()));
                 } else {
-
                     ARLogger.getInstance(PerformDataBase.class)
                             .severe(String.format(
                                     "Error Add New \"Component\" Instruction: \"%s\" Cannot be saved!",
@@ -3593,15 +3643,10 @@ ORDER BY bot.id ASC;
                 }
             }
 
-            if (response > -1) {
-                return response;
-            }
-
         } catch (Exception e) {
             ARLogger.getInstance(PerformDataBase.class).severe("Cannot Insert Instruction\nError: " + e.getMessage());
         }
-
-        return -1;
+        return errorMessage;
     }
 
     public List<HomeBankingLoadDTO> loadHomeBanking(Integer homeBankingId) {
@@ -4112,49 +4157,51 @@ ORDER BY bot.id ASC;
         return savedBlockLoadList;
     }
 
-    public boolean insertReferences(List<InstructionReferenceLoadDTO> queue, int instructionId) throws SQLException {
+    public ErrorMessage insertReferences(List<InstructionReferenceLoadDTO> queue, int instructionId) {
         String insertSQL =
-                "INSERT INTO reference(id, reference_type, value, instruction_id, bot_job_id) VALUES (?, ?, ?, ?, ?)";
+                "INSERT INTO reference(reference_type, value, instruction_id, bot_job_id) VALUES (?, ?, ?, ?)";
 
         try (Connection conn = getConnection();
                 PreparedStatement pstmt = conn.prepareStatement(insertSQL)) {
 
-            int batchSize = 100; // Define a batch size
+            final int BATCH_SIZE = 100;
             int count = 0;
 
-            Integer currentId = loadNextIdBReferenceData() + 1;
-
             for (InstructionReferenceLoadDTO reference : queue) {
-
-                if (reference.getReferenceType().equalsIgnoreCase("customXPath")) {
-                    continue;
+                if ("customXPath".equalsIgnoreCase(reference.getReferenceType())) {
+                    continue; // Skip this type
                 }
 
-                // Set parameters
-                pstmt.setInt(1, currentId);
-                pstmt.setString(2, reference.getReferenceType());
-                pstmt.setString(3, reference.getValue());
-                pstmt.setInt(4, instructionId);
-                pstmt.setInt(5, reference.getBotJobId());
+                pstmt.setString(1, reference.getReferenceType());
+                pstmt.setString(2, reference.getValue());
+                pstmt.setInt(3, instructionId);
+                pstmt.setInt(4, reference.getBotJobId());
 
-                currentId++;
-                pstmt.addBatch(); // Add to batch
+                pstmt.addBatch();
 
-                // Execute batch if batch size is reached
-                if (++count % batchSize == 0) {
+                if (++count % BATCH_SIZE == 0) {
                     pstmt.executeBatch();
-                    pstmt.clearBatch(); // Clear executed batch to free memory
+                    pstmt.clearBatch();
                 }
             }
 
-            // Execute remaining queries in batch
-            if (count % batchSize != 0) {
+            if (count % BATCH_SIZE != 0) {
                 pstmt.executeBatch();
                 pstmt.clearBatch();
             }
 
-            ARLogger.getInstance(PerformDataBase.class).info("Batch insert completed successfully.");
-            return true;
+            ARLogger.getInstance(PerformDataBase.class).info("Reference batch insert completed successfully.");
+            return null; // No error
+        } catch (SQLException error) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe("Failed to insert references into database: " + error.getMessage());
+            return new ErrorMessage(
+                    "Reference Insertion Error", "An error occurred during reference insertion.", error.getMessage());
+        } catch (Exception error) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe("Failed to insert references into database: " + error.getMessage());
+            return new ErrorMessage(
+                    "Reference Insertion Error", "An error occurred during reference insertion.", error.getMessage());
         }
     }
 

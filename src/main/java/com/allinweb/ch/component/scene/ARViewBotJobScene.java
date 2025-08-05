@@ -11,9 +11,11 @@ import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
+import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
 import java.io.IOException;
 import java.net.URI;
@@ -69,12 +71,14 @@ public class ARViewBotJobScene extends ARScene {
     private static final PerformDataBase performDataBase;
     private static ARNewCommandScene arNewCommandScene;
     private static final ARViewBotJobPane arViewBotJobPane;
+    private static final PerformMessage performMessage;
 
     static {
         arPropertyManager = ARPropertyManager.getInstance();
         performDataBase = PerformDataBase.getInstance();
         arNewCommandScene = ARNewCommandScene.getInstance();
         arViewBotJobPane = ARViewBotJobPane.getInstance();
+        performMessage = PerformMessage.getInstance();
     }
 
     private int portSocketInitial = 54525;
@@ -161,10 +165,20 @@ public class ARViewBotJobScene extends ARScene {
 
             newBlockDetails.setBotJobId(this.botLoadJob.getId());
 
-            int newBlockId = performDataBase.createNewBlock(newBlockDetails);
-            ARLogger.getInstance(Thread.class)
-                    .info(String.format(
-                            "Created a new Block id %d for bot job Id %d", newBlockId, this.botLoadJob.getId()));
+            ErrorMessage errorMessage = performDataBase.initiateNewBlock(newBlockDetails, this.botLoadJob.getId());
+            if (errorMessage == null) {
+                ARLogger.getInstance(Thread.class)
+                        .info(String.format("A new Block was created for bot job Id %d", this.botLoadJob.getId()));
+            } else {
+                performMessage.errorMessage(
+                        errorMessage.getErrorTitle(),
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                + errorMessage.getErrorTitle(),
+                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                        null,
+                        0);
+            }
         }
     }
 
