@@ -735,7 +735,7 @@ public class SimpleWebSocketServer {
                     try {
                         // Run the instruction add in a separate Task
 
-                        ErrorMessage message = performDataBase.preFillInstruction(
+                        ErrorMessage message = performDataBase.preFillNewInstruction(
                                 "ELSEIF",
                                 "ELSEIF",
                                 ARConstants.ELSEIF,

@@ -2403,7 +2403,7 @@ public class ARNewCommandPane extends ARPane {
             boolean isShowAlert = added == 1;
 
             // Run the instruction add in a separate Task
-            ErrorMessage errorMessage = performDataBase.preFillInstruction(
+            ErrorMessage errorMessage = performDataBase.preFillNewInstruction(
                     nextAction == null ? name : nextAction,
                     nextAction == null ? description : nextAction,
                     nextAction == null ? actions : nextAction,

@@ -109,6 +109,8 @@ public class ARScannedElementPane extends ARPane {
 
     private final Gson gson = new Gson();
 
+    private List<InstructionLoadDTO> instructionList = new ArrayList<>();
+
     private void stopKeepAlivePings() {
         scheduler.shutdownNow();
     }
@@ -353,6 +355,7 @@ public class ARScannedElementPane extends ARPane {
 
             int nextOrder = listInstr.size() + 1;
 
+            instructionList.clear();
             for (ElementDTO elementDTO : processDTO.getDetails()) {
                 TargetElement targetEach = extractPickClone(elementDTO);
 
@@ -364,8 +367,63 @@ public class ARScannedElementPane extends ARPane {
                 // FallBack React Computed
                 performActions.defineSavedReferenced(targetEach);
 
-                insertNewElementDTO(currentBlockId, nextOrder, targetEach);
+                insertManyNewElementDTO(currentBlockId, nextOrder, targetEach);
                 nextOrder++;
+            }
+
+            if (instructionList.size() > 0) {
+
+                ErrorMessage errorMessage = performDataBase.insertInstructionsBatch(
+                        "botJobTasks",
+                        instructionList,
+                        this.botJobLoad.getId(),
+                        currentBlockId,
+                        this.botJobLoad.getHomeBankingId());
+
+                if (instructionList.size()
+                        != performDataBase.getIdsInstrucAfter().size()) {
+                    performMessage.errorMessage(
+                            "Error Inserting ALL Elements",
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Batch Insertion Failed ❌</span>",
+                            "<span style='color: #E65100; font-weight: bold;'>Mismatch detected:</span> The number of inserted instructions does not match the expected size.",
+                            "<span style='font-style: italic;'>Expected (from list):</span> " + instructionList.size(),
+                            "<span style='font-style: italic;'>Actual (inserted):</span> "
+                                    + performDataBase.getIdsInstrucAfter().size(),
+                            0);
+
+                    return;
+                }
+
+                if (errorMessage == null) {
+                    for (int i = 0; i < instructionList.size(); i++) {
+                        InstructionLoadDTO instruction = instructionList.get(i);
+                        Integer newId = performDataBase.getIdsInstrucAfter().get(i);
+                        instruction.setId(newId);
+                    }
+
+                    errorMessage = performDataBase.insertReferencesBatch(instructionList);
+                }
+                if (errorMessage != null) {
+                    String[] lines = errorMessage.getErrorMessage().split("\n");
+                    performMessage.errorMessage(
+                            errorMessage.getErrorTitle(),
+                            errorMessage.getErrorHeader(),
+                            (!Strings.isNullOrEmpty(lines[0]) ? lines[0] : null),
+                            (!Strings.isNullOrEmpty(lines[0]) ? lines[1] : null),
+                            null,
+                            0);
+                }
+
+                if (errorMessage != null) {
+                    performMessage.errorMessage(
+                            errorMessage.getErrorTitle(),
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                    + errorMessage.getErrorTitle(),
+                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                            null,
+                            0);
+                }
             }
         }
     }
@@ -412,21 +470,81 @@ public class ARScannedElementPane extends ARPane {
 
             if (currentBlockId < 0) {
 
-                performMessage.showCustomModalDialogDragWin11(
-                        this.botJobLoad.getName(),
-                        "Select the block to Add New Command!",
-                        null,
-                        null,
-                        null,
-                        true,
-                        "OK",
-                        null,
-                        300);
+                performMessage.errorMessage(
+                        "Operation \"Insert ALL\" failed",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>No Block Selected ❌</span>",
+                        "<span style='color: #E65100; font-weight: bold;'>You must select a Block from the dropdown list</span> before adding a new command.",
+                        "<span style='font-style: italic;'>Context:</span> Bot Job: <b>" + botJobLoad.getName()
+                                + "</b>",
+                        "<span style='color: #455A64;'>Tip: Use the block selector (ComboBox) above the table to choose the target block.</span>",
+                        0);
+
             } else {
                 return currentBlockId;
             }
         }
         return newBlockID;
+    }
+
+    private void insertManyNewElementDTO(int currentBlockId, int nextInstOrderNumber, TargetElement targetInsert) {
+
+        if (targetInsert.getXPath() == null) {
+            targetInsert.setXPath(targetInsert.getSavedReferences().get("currentXPath"));
+        }
+
+        if (targetInsert.getCoordinates() == null) {
+            targetInsert.setCoordinates(targetInsert.getSavedReferences().get("coordinates"));
+        }
+
+        targetInsert.setClickElement(checkClickElement.isSelected());
+        WebElementTagNameEnum tagType = targetInsert.getTagType();
+        if (checkForceEnterText.isSelected() && tagType.equals(WebElementTagNameEnum.INPUT)) {
+            tagType = WebElementTagNameEnum.INPUT_ENTER;
+        }
+
+        Integer currentBotJobId = botJobLoad.getId();
+
+        InstructionLoadDTO instruction = performActions.buildNewInstruction(
+                tagType, targetInsert.getTagName(), false, nextInstOrderNumber, targetInsert);
+
+        instruction.setForceCoordinates(true); // default
+        instruction.setCoordinates(targetInsert.getCoordinates());
+        instruction.setIFrameXPath(targetInsert.getIFrameXPath());
+        instruction.setShadowHost(targetInsert.getShadowHost());
+        instruction.setShadowRoot(targetInsert.getShadowRoot());
+        instruction.setCssSelector(targetInsert.getCssSelector());
+        instruction.setBlockId(currentBlockId);
+        instruction.setBotJobId(currentBotJobId);
+        instruction.setName(targetInsert.getDefinedName());
+
+        // Fix action string
+        String actions = instruction.getActions();
+        String[] parts = actions.split(",");
+        if (actions.startsWith("I:")) {
+            for (int i = 0; i < parts.length; i++) {
+                parts[i] = parts[i].trim();
+                if (parts[i].startsWith("I:")) {
+                    parts[i] = parts[i].contains(":E:")
+                            ? "I:E:" + targetInsert.getDefinedName()
+                            : "I:" + targetInsert.getDefinedName();
+                    break;
+                }
+            }
+            instruction.setActions(parts[0]);
+        }
+
+        // Set references
+        List<InstructionReferenceLoadDTO> referenceList = new ArrayList<>();
+        for (Map.Entry<String, String> entry : targetInsert.getSavedReferences().entrySet()) {
+            InstructionReferenceLoadDTO reference = new InstructionReferenceLoadDTO();
+            reference.setReferenceType(entry.getKey());
+            reference.setValue(entry.getValue());
+            reference.setBotJobId(currentBotJobId);
+            referenceList.add(reference);
+        }
+
+        instruction.setInstructionReferenceLoadDTOList(referenceList);
+        instructionList.add(instruction);
     }
 
     private void insertNewElementDTO(int currentBlockId, int nextInstOrderNumber, TargetElement targetInsert) {

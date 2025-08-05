@@ -3001,6 +3001,162 @@ ORDER BY bot.id ASC;
         return blockLoadList;
     }
 
+    public ErrorMessage insertInstructionsBatch(
+            String typeTask,
+            List<InstructionLoadDTO> instructionList,
+            Integer currentBotJobId,
+            Integer currentBlockId,
+            Integer homeBankingId) {
+
+        String tableName = "instruction";
+        if ("componentTasks".equals(typeTask)) {
+            tableName = "component_instruction";
+        }
+
+        final int BATCH_SIZE = 100;
+        int count = 0;
+
+        try (Connection conn = getConnection();
+                Statement stmt = conn.createStatement();
+                Statement idStmtBefore = conn.createStatement();
+                Statement idStmtAfter = conn.createStatement()) {
+
+            // Step 1: Get all IDs before insertion
+            List<Integer> idsBefore = new ArrayList<>();
+            try (ResultSet rsBefore = idStmtBefore.executeQuery("SELECT id FROM " + tableName + " ORDER BY id")) {
+                while (rsBefore.next()) {
+                    idsBefore.add(rsBefore.getInt("id"));
+                }
+            }
+
+            // Step 2: Perform batch insert
+            for (InstructionLoadDTO instructionLoad : instructionList) {
+                StringBuilder columns = new StringBuilder();
+                StringBuilder values = new StringBuilder();
+
+                BiConsumer<String, Object> addColumnValue = (column, value) -> {
+                    if (value != null) {
+                        if (columns.length() > 0) {
+                            columns.append(", ");
+                            values.append(", ");
+                        }
+                        columns.append(column);
+                        if (value instanceof String) {
+                            values.append("'")
+                                    .append(((String) value).replace("'", "''"))
+                                    .append("'");
+                        } else {
+                            values.append(value);
+                        }
+                    }
+                };
+
+                // Add non-boolean fields
+                addColumnValue.accept("coordinates", instructionLoad.getCoordinates());
+                addColumnValue.accept("iframe_xpath", instructionLoad.getIFrameXPath());
+                addColumnValue.accept("tag_name", instructionLoad.getTagName());
+                addColumnValue.accept("shadow_host", instructionLoad.getShadowHost());
+                addColumnValue.accept("shadow_root", instructionLoad.getShadowRoot());
+                addColumnValue.accept("css_selector", instructionLoad.getCssSelector());
+                addColumnValue.accept("xpath", instructionLoad.getXpath());
+                addColumnValue.accept("action_custom_max_wait_sec", instructionLoad.getActionCustomMaxWaitSec());
+                addColumnValue.accept("actions", instructionLoad.getActions());
+                addColumnValue.accept("default_value", instructionLoad.getDefaultValue());
+                addColumnValue.accept("description", instructionLoad.getDescription());
+                addColumnValue.accept("instruction_order_number", instructionLoad.getInstructionOrderNumber());
+                addColumnValue.accept("name", instructionLoad.getName());
+                addColumnValue.accept(
+                        "on_hold_seconds",
+                        instructionLoad.getOnHoldSeconds() != null ? instructionLoad.getOnHoldSeconds() : 1);
+                addColumnValue.accept("operation", instructionLoad.getOperation());
+                addColumnValue.accept("parent_block_id", instructionLoad.getParentBlockId());
+                addColumnValue.accept("parent_id", instructionLoad.getParentId());
+                addColumnValue.accept("variable_id", instructionLoad.getVariableId());
+                addColumnValue.accept("block_id", currentBlockId);
+
+                if ("componentTasks".equals(typeTask)) {
+                    addColumnValue.accept("home_banking_id", homeBankingId);
+                } else {
+                    addColumnValue.accept("bot_job_id", currentBotJobId);
+                }
+
+                // Boolean fields
+                addColumnValue.accept(
+                        "block_marked",
+                        instructionLoad.getBlockMarked() != null ? (instructionLoad.getBlockMarked() ? 1 : 0) : null);
+                addColumnValue.accept(
+                        "codified",
+                        instructionLoad.getCodified() != null ? (instructionLoad.getCodified() ? 1 : 0) : null);
+                addColumnValue.accept(
+                        "export_to_abr",
+                        instructionLoad.getExportToABR() != null ? (instructionLoad.getExportToABR() ? 1 : 0) : null);
+                addColumnValue.accept(
+                        "optional",
+                        instructionLoad.getOptional() != null ? (instructionLoad.getOptional() ? 1 : 0) : null);
+                addColumnValue.accept(
+                        "active",
+                        instructionLoad.getInstructionActive() != null
+                                ? (instructionLoad.getInstructionActive() ? 1 : 0)
+                                : null);
+                addColumnValue.accept(
+                        "executed",
+                        instructionLoad.getExecuted() != null ? (instructionLoad.getExecuted() ? 1 : 0) : null);
+                addColumnValue.accept(
+                        "block_active",
+                        instructionLoad.getBlockActive() != null ? (instructionLoad.getBlockActive() ? 1 : 0) : null);
+                addColumnValue.accept(
+                        "refresh_loop",
+                        instructionLoad.getRefreshLoop() != null ? (instructionLoad.getRefreshLoop() ? 1 : 0) : null);
+                addColumnValue.accept(
+                        "loop_only",
+                        instructionLoad.getLoopOnly() != null ? (instructionLoad.getLoopOnly() ? 1 : 0) : null);
+                addColumnValue.accept(
+                        "force_coordinates",
+                        instructionLoad.getForceCoordinates() != null
+                                ? (instructionLoad.getForceCoordinates() ? 1 : 0)
+                                : null);
+
+                // Final insert
+                String insertSQL = String.format("INSERT INTO %s (%s) VALUES (%s)", tableName, columns, values);
+                stmt.addBatch(insertSQL);
+
+                if (++count % BATCH_SIZE == 0) {
+                    stmt.executeBatch();
+                    stmt.clearBatch();
+                }
+            }
+
+            // Final batch
+            if (count % BATCH_SIZE != 0) {
+                stmt.executeBatch();
+                stmt.clearBatch();
+            }
+
+            // Step 3: Get all IDs after insertion
+            idsInstrucAfter.clear();
+            try (ResultSet rsAfter = idStmtAfter.executeQuery("SELECT id FROM " + tableName + " ORDER BY id")) {
+                while (rsAfter.next()) {
+                    idsInstrucAfter.add(rsAfter.getInt("id"));
+                }
+            }
+
+            idsInstrucAfter.removeAll(idsBefore);
+
+            ARLogger.getInstance(PerformDataBase.class)
+                    .info(String.format(
+                            "Batch insert completed for %d %s records. New IDs: %s",
+                            count, tableName.toUpperCase(), idsInstrucAfter));
+
+            return null;
+
+        } catch (SQLException error) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe("Batch insert error for " + tableName + ": " + error.getMessage());
+            return new ErrorMessage(
+                    "Instruction Insertion Error", "Error inserting batch instructions.", error.getMessage());
+        }
+    }
+
     public ErrorMessage insertInstruction(
             String typeTask,
             InstructionLoadDTO instructionLoad,
@@ -3348,34 +3504,6 @@ ORDER BY bot.id ASC;
         return false; // Return false if an error occurs or the ID is not found
     }
 
-    private Integer loadNextIdInstructionData() {
-        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq;
-        String selectSQL = "SELECT MAX(ID) AS max_id FROM instruction";
-        try (Statement stmt = getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
-            while (rs.next()) {
-                return rs.getInt("max_id");
-            }
-        } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class).severe("loadNextIdInstructionData  \nError: " + e.getMessage());
-        }
-        return null;
-    }
-
-    private Integer loadNextIdComponentInstruc() {
-        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq;
-        String selectSQL = "SELECT MAX(ID) AS max_id FROM component_instruction";
-        try (Statement stmt = getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
-            while (rs.next()) {
-                return rs.getInt("max_id");
-            }
-        } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class).severe("loadNextIdCompInstruc  \nError: " + e.getMessage());
-        }
-        return null;
-    }
-
     public boolean preInsertStep(RowMoveDTO rowMoveDTO, List<InstructionLoadDTO> rowList, String tableName) {
         // Check if the operation type is either "INSERT_BEFORE" or "INSERT_AFTER"
         String operationType = rowMoveDTO.getType();
@@ -3441,7 +3569,7 @@ ORDER BY bot.id ASC;
         return false;
     }
 
-    public ErrorMessage preFillInstruction(
+    public ErrorMessage preFillNewInstruction(
             String name,
             String description,
             String actions,
@@ -3529,9 +3657,9 @@ ORDER BY bot.id ASC;
         Integer nextId = -1;
         if (!updateRow) {
             if (rowMoveDTO.getSessionId().equals("componentTasks")) {
-                nextId = loadNextIdComponentInstruc() + 1;
+                nextId = -9999;
             } else {
-                nextId = loadNextIdInstructionData() + 1;
+                nextId = -9999;
             }
         } else {
             nextId = rowMoveDTO.getUpdatedRows().get(0).getInstructionId();
@@ -4155,6 +4283,64 @@ ORDER BY bot.id ASC;
         }
 
         return savedBlockLoadList;
+    }
+
+    public ErrorMessage insertReferencesBatch(List<InstructionLoadDTO> instructionList) {
+        String insertSQL =
+                "INSERT INTO reference(reference_type, value, instruction_id, bot_job_id) VALUES (?, ?, ?, ?)";
+
+        try (Connection conn = getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(insertSQL)) {
+
+            final int BATCH_SIZE = 100;
+            int count = 0;
+
+            for (InstructionLoadDTO instruction : instructionList) {
+                Integer instructionId = instruction.getId();
+                Integer botJobId = instruction.getBotJobId();
+
+                if (instruction.getInstructionReferenceLoadDTOList() == null) continue;
+
+                for (InstructionReferenceLoadDTO reference : instruction.getInstructionReferenceLoadDTOList()) {
+                    if ("customXPath".equalsIgnoreCase(reference.getReferenceType())) {
+                        continue; // Skip this type
+                    }
+
+                    pstmt.setString(1, reference.getReferenceType());
+                    pstmt.setString(2, reference.getValue());
+                    pstmt.setInt(3, instructionId);
+                    pstmt.setInt(4, botJobId);
+
+                    pstmt.addBatch();
+
+                    if (++count % BATCH_SIZE == 0) {
+                        pstmt.executeBatch();
+                        pstmt.clearBatch();
+                    }
+                }
+            }
+
+            if (count % BATCH_SIZE != 0) {
+                pstmt.executeBatch();
+                pstmt.clearBatch();
+            }
+
+            ARLogger.getInstance(PerformDataBase.class).info("Reference batch insert completed successfully.");
+            return null; // No error
+
+        } catch (SQLException error) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe("Failed to insert references into database: " + error.getMessage());
+            return new ErrorMessage(
+                    "Reference Insertion Error", "An error occurred during reference insertion.", error.getMessage());
+        } catch (Exception error) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe("Unexpected error inserting references: " + error.getMessage());
+            return new ErrorMessage(
+                    "Reference Insertion Error",
+                    "An unexpected error occurred during reference insertion.",
+                    error.getMessage());
+        }
     }
 
     public ErrorMessage insertReferences(List<InstructionReferenceLoadDTO> queue, int instructionId) {
