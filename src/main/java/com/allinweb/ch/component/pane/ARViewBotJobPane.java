@@ -213,8 +213,10 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     private void refreshGrids() {
-        this.botJobLoadList = performDataBase.loadCompleteJobs(this.botJobLoad.getId());
+        setPayloadEmpty("botJobTasks");
         String jsonData = gson.toJson(payloadEmpty);
+
+        this.botJobLoadList = performDataBase.loadCompleteJobs(this.botJobLoad.getId());
 
         if (!this.botJobLoadList.isEmpty()) {
             List<InstructionLoadDTO> instructions = performDataBase.buildJsonViewData(botJobLoadList, "instruction");
@@ -226,9 +228,10 @@ public class ARViewBotJobPane extends ARPane {
         webSocketSessionManager.sendMessageJson(
                 this.botJobLoad.getHomeBankingId(), "botJobTasks", jsonData, "updateInstructions");
 
+        setPayloadEmpty("componentTasks");
+        jsonData = gson.toJson(payloadEmpty);
         this.botJobLoadComp = performDataBase.loadComponentsComplete(
                 this.botJobLoad.getHomeBankingId(), this.botJobLoad.getId(), this.botJobLoad.getName());
-        jsonData = gson.toJson(payloadEmpty);
         if (!botJobLoadComp.isEmpty()) {
             List<InstructionLoadDTO> instructions =
                     performDataBase.buildJsonViewData(botJobLoadComp, "component_instruction");
@@ -245,8 +248,7 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     private void builViewComponent() {
-        setPayloadEmpty();
-
+        setPayloadEmpty("botJobTasks");
         String jsonData = gson.toJson(payloadEmpty);
 
         // Load blocks based on the BotJobLoadDTO instead of blockDTOObservableList
@@ -276,9 +278,11 @@ public class ARViewBotJobPane extends ARPane {
                 this.botJobLoad.getId(),
                 this.botJobLoad.getName());
 
+        setPayloadEmpty("componentTasks");
+        jsonData = gson.toJson(payloadEmpty);
+
         this.botJobLoadComp = performDataBase.loadComponentsComplete(
                 this.botJobLoad.getHomeBankingId(), this.botJobLoad.getId(), this.botJobLoad.getName());
-        jsonData = gson.toJson(payloadEmpty);
 
         if (!this.botJobLoadComp.isEmpty()) {
             if (this.botJobLoadComp.get(0).getBlockLoadDTOList().isEmpty()) {
@@ -1183,10 +1187,19 @@ public class ARViewBotJobPane extends ARPane {
         instance = null;
     }
 
-    private void setPayloadEmpty() {
-        this.botJobLoadList = new ArrayList<>();
+    private void setPayloadEmpty(String destination) {
+        if (this.botJobLoadList == null) {
+            this.botJobLoadList = new ArrayList<>();
+        } else {
+            this.botJobLoadList.clear();
+        }
         BotJobLoadDTO botJobDTO = new BotJobLoadDTO();
-        botJobDTO.setId(this.botJobLoad.getId() != null ? this.botJobLoad.getId() : 0);
+        if (destination.equalsIgnoreCase("botJobTasks")) {
+            botJobDTO.setId(this.botJobLoad.getId() != null ? this.botJobLoad.getId() : 0);
+        } else if (destination.equalsIgnoreCase("componentTasks")) {
+            botJobDTO.setHomeBankingId(
+                    this.botJobLoad.getHomeBankingId() != null ? this.botJobLoad.getHomeBankingId() : 0);
+        }
         botJobDTO.setName(this.botJobLoad.getName() != null ? this.botJobLoad.getName() : "Bot Job Name Default");
         botJobDTO.setBlockLoadDTOList(new ArrayList<>());
         this.botJobLoadList.add(botJobDTO);
