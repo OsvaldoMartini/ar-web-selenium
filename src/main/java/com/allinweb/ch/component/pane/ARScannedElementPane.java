@@ -252,20 +252,13 @@ public class ARScannedElementPane extends ARPane {
 
                     break;
                 case "NEW_ELEMENT_DTO":
+                case "SEND_ALL_ELEMENTS_DTO":
                     checkRunningProcess();
                     // Extract the "body" field from the JsonObject
                     ElementSplitDTO processDTO = gson.fromJson(jsonObjMSG, ElementSplitDTO.class);
-                    targetSelected = extractPickClone(processDTO.getDetails()[0]);
-                    itPrintsElementDTO(targetSelected);
-                    stepsInsertOneDTO(targetSelected);
-                    break;
-                case "SEND_ALL_ELEMENTS_DTO":
-                    sendAll = true;
-                    checkRunningProcess();
-                    // Extract the "body" field from the JsonObject
-                    processDTO = gson.fromJson(jsonObjMSG, ElementSplitDTO.class);
-                    stepsInsertManyDTO(processDTO);
-                    sendAll = false;
+                    boolean isMany = "SEND_ALL_ELEMENTS_DTO".equalsIgnoreCase(type);
+                    stepsInsertManyDTO(processDTO, isMany);
+                    //                    stepsInsertOneDTO(targetSelected);
                     break;
                 case "TEST_CLICK_DTO":
                 case "TEST_INPUT_DTO":
@@ -280,16 +273,16 @@ public class ARScannedElementPane extends ARPane {
                         if (instruc != null && instruc.getId() != null) {
                             ElementDTO elementDTO = performActions.buildElementDTO(instruc);
                             targetSelected = extractPickClone(elementDTO);
-                            itPrintsElementDTO(targetSelected);
+                            itPrintsElementDTO();
                             testingActions(targetSelected, processDTO.getType());
                         } else {
                             targetSelected = extractPickClone(processDTO.getDetails()[0]);
-                            itPrintsElementDTO(targetSelected);
+                            itPrintsElementDTO();
                             testingActions(targetSelected, processDTO.getType());
                         }
                     } else {
                         targetSelected = extractPickClone(processDTO.getDetails()[0]);
-                        itPrintsElementDTO(targetSelected);
+                        itPrintsElementDTO();
                         testingActions(targetSelected, processDTO.getType());
                     }
                     break;
@@ -298,7 +291,7 @@ public class ARScannedElementPane extends ARPane {
                     // Extract the "body" field from the JsonObject
                     processDTO = gson.fromJson(jsonObjMSG, ElementSplitDTO.class);
                     targetSelected = extractPickClone(processDTO.getDetails()[0]);
-                    itPrintsElementDTO(targetSelected);
+                    itPrintsElementDTO();
                     break;
                 default:
                     break;
@@ -318,8 +311,8 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private void stepsInsertOneDTO(TargetElement targetInsertOne) {
-        int blockExist = validateBlockDB("Default Block", this.botJobLoad.getId());
+    private void stepsInsertOneDTO(TargetElement targetInsertOne, boolean isMany) {
+        int blockExist = validateBlockDB("Default Block", this.botJobLoad.getId(), isMany);
         if (blockExist > 0 && currentBlockId > 0) {
 
             //            preTestCoordinates(targetInsertOne);
@@ -328,6 +321,7 @@ public class ARScannedElementPane extends ARPane {
                     performDataBase.getInstructionsByBlockId(botJobLoad.getId(), currentBlockId, "instruction");
 
             int nextOrder = listInstr.size() + 1;
+            instructionList.clear();
 
             if (!Strings.isNullOrEmpty(defineNameField.getText().trim())
                     && !targetInsertOne
@@ -347,8 +341,8 @@ public class ARScannedElementPane extends ARPane {
         instance = null;
     }
 
-    private void stepsInsertManyDTO(ElementSplitDTO processDTO) {
-        validateBlockDB("Default Block", this.botJobLoad.getId());
+    private void stepsInsertManyDTO(ElementSplitDTO processDTO, boolean isMany) {
+        validateBlockDB("Default Block", this.botJobLoad.getId(), isMany);
         if (currentBlockId > 0) {
             List<InstructionLoadDTO> listInstr =
                     performDataBase.getInstructionsByBlockId(botJobLoad.getId(), currentBlockId, "instruction");
@@ -367,7 +361,18 @@ public class ARScannedElementPane extends ARPane {
                 // FallBack React Computed
                 performActions.defineSavedReferenced(targetEach);
 
-                insertManyNewElementDTO(currentBlockId, nextOrder, targetEach);
+                if (!isMany) {
+                    if (!Strings.isNullOrEmpty(defineNameField.getText().trim())
+                            && !targetEach
+                                    .getDefinedName()
+                                    .equalsIgnoreCase(defineNameField.getText().trim())) {
+                        targetEach.setDefinedName(defineNameField.getText().trim());
+                    }
+                    targetSelected = targetEach;
+                    itPrintsElementDTO();
+                }
+
+                prepareToInsertElementDTO(currentBlockId, nextOrder, targetEach, true);
                 nextOrder++;
             }
 
@@ -438,7 +443,7 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private int validateBlockDB(String blockName, int botJobId) {
+    private int validateBlockDB(String blockName, int botJobId, boolean isMany) {
 
         int newBlockID = performActions.createBlockIfNone(blockName, botJobId);
         if (newBlockID > 0) {
@@ -461,9 +466,9 @@ public class ARScannedElementPane extends ARPane {
             }
 
             if (currentBlockId < 0) {
-
+                String insertOne = isMany ? "Insert ALL" : "Insert one Element";
                 performMessage.errorMessage(
-                        "Operation \"Insert ALL\" failed",
+                        "Operation \"" + insertOne + "\" failed",
                         "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>No Block Selected ❌</span>",
                         "<span style='color: #E65100; font-weight: bold;'>You must select a Block from the dropdown list</span> before adding a new command.",
                         "<span style='font-style: italic;'>Context:</span> Bot Job: <b>" + botJobLoad.getName()
@@ -478,7 +483,8 @@ public class ARScannedElementPane extends ARPane {
         return newBlockID;
     }
 
-    private void insertManyNewElementDTO(int currentBlockId, int nextInstOrderNumber, TargetElement targetInsert) {
+    private void prepareToInsertElementDTO(
+            int currentBlockId, int nextInstOrderNumber, TargetElement targetInsert, boolean manyElements) {
 
         if (targetInsert.getXPath() == null) {
             targetInsert.setXPath(targetInsert.getSavedReferences().get("currentXPath"));
@@ -486,6 +492,15 @@ public class ARScannedElementPane extends ARPane {
 
         if (targetInsert.getCoordinates() == null) {
             targetInsert.setCoordinates(targetInsert.getSavedReferences().get("coordinates"));
+        }
+
+        String actionReq = targetInsert.getTagName();
+        if (!manyElements) {
+            actionReq = checkClickElement.isSelected()
+                    ? ARConstants.CLICK
+                    : checkInputText.isSelected()
+                            ? ARConstants.INSERT
+                            : checkOutputText.isSelected() ? ARConstants.OUTPUT : ARConstants.OTHER;
         }
 
         targetInsert.setClickElement(checkClickElement.isSelected());
@@ -496,8 +511,8 @@ public class ARScannedElementPane extends ARPane {
 
         Integer currentBotJobId = botJobLoad.getId();
 
-        InstructionLoadDTO instruction = performActions.buildNewInstruction(
-                tagType, targetInsert.getTagName(), false, nextInstOrderNumber, targetInsert);
+        InstructionLoadDTO instruction =
+                performActions.buildNewInstruction(tagType, actionReq, false, nextInstOrderNumber, targetInsert);
 
         instruction.setForceCoordinates(true); // default
         instruction.setCoordinates(targetInsert.getCoordinates());
@@ -665,9 +680,7 @@ public class ARScannedElementPane extends ARPane {
 
                     //                    Platform.runLater(() -> {
                     errorMessage = performDataBase.insertReferences(queue, instruction.getId());
-                    if (!sendAll) {
-                        updateBotJobTasks(currentBotJobId);
-                    }
+                    updateBotJobTasks(currentBotJobId);
 
                     if (errorMessage != null) {
                         String[] lines = errorMessage.getErrorMessage().split("\n");
@@ -1194,7 +1207,6 @@ public class ARScannedElementPane extends ARPane {
     private List<BotJobLoadDTO> botJobLoadList = new ArrayList<>();
     private List<BlockLoadDTO> blockLoadList = new ArrayList<>();
     private HomeBankingLoadDTO homeBanking;
-    private boolean sendAll;
 
     private ComboBox<ComboBoxVars> comboBoxBlocks;
     private final ObservableList<ComboBoxVars> blocksItems = FXCollections.observableArrayList();
@@ -2579,7 +2591,7 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private void itPrintsElementDTO(TargetElement target) {
+    private void itPrintsElementDTO() {
 
         //                textFlowResult.getChildren().clear();
         //                textFlowResult.getChildren().addAll(countdownTextField);
@@ -2593,141 +2605,142 @@ public class ARScannedElementPane extends ARPane {
         //        for (ARWebElement arWebElement : scannedElements2.getItems()) {
         //            performActions.highlightElement(jsExecutor, arWebElement.getElement(), null);
         //        }
+        if (targetSelected != null) {
+            StringBuilder sb = new StringBuilder();
+            String nameDefined = "";
 
-        StringBuilder sb = new StringBuilder();
-        String nameDefined = "";
+            if (targetSelected.getElement() != null) {
 
-        if (target.getElement() != null) {
+                defineNameField.setText("");
+                if (!Strings.isNullOrEmpty(targetSelected.getAttribId())
+                        || !Strings.isNullOrEmpty(targetSelected.getAttribName())
+                        || !Strings.isNullOrEmpty(targetSelected.getSomeText())) {
+                    nameDefined = (!Strings.isNullOrEmpty(targetSelected.getSomeText())
+                            ? PerformActions.truncateAndNormalize(targetSelected.getSomeText(), 30)
+                            : !Strings.isNullOrEmpty(targetSelected.getAttribId())
+                                    ? targetSelected.getAttribId()
+                                    : !Strings.isNullOrEmpty(targetSelected.getAttribName())
+                                            ? targetSelected.getAttribName()
+                                            : "");
 
-            defineNameField.setText("");
-            if (!Strings.isNullOrEmpty(targetSelected.getAttribId())
-                    || !Strings.isNullOrEmpty(targetSelected.getAttribName())
-                    || !Strings.isNullOrEmpty(targetSelected.getSomeText())) {
-                nameDefined = (!Strings.isNullOrEmpty(targetSelected.getSomeText())
-                        ? PerformActions.truncateAndNormalize(targetSelected.getSomeText(), 30)
-                        : !Strings.isNullOrEmpty(targetSelected.getAttribId())
-                                ? targetSelected.getAttribId()
-                                : !Strings.isNullOrEmpty(targetSelected.getAttribName())
-                                        ? targetSelected.getAttribName()
-                                        : "");
-
-                if (targetSelected.getDefinedName() != null
-                        && !targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
-                    nameDefined = targetSelected.getDefinedName();
-                }
-
-                String finalNameDefined = nameDefined;
-                Platform.runLater(
-                        () -> defineNameField.setText(PerformActions.truncateAndNormalize(finalNameDefined, 30)));
-
-            } else if (targetSelected.getAttributeData() != null && targetSelected.getAttributeData().length > 0) {
-
-                // Split by comma to get key-value pairs
-
-                String idValue = null;
-                String nameValue = null;
-                String typeValue = null;
-
-                // Loop through each key-value pair
-                for (AttributeData attributeData : targetSelected.getAttributeData()) {
-
-                    String key = attributeData.getName().trim();
-                    String value = attributeData.getValue().trim().replaceAll("\"", ""); // Remove quotes
-
-                    if (key.equals("id")) {
-                        idValue = value;
-                    } else if (key.equals("name")) {
-                        nameValue = value;
-                    } else if (key.equals("type")) {
-                        typeValue = value;
+                    if (targetSelected.getDefinedName() != null
+                            && !targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
+                        nameDefined = targetSelected.getDefinedName();
                     }
+
+                    String finalNameDefined = nameDefined;
+                    Platform.runLater(
+                            () -> defineNameField.setText(PerformActions.truncateAndNormalize(finalNameDefined, 30)));
+
+                } else if (targetSelected.getAttributeData() != null && targetSelected.getAttributeData().length > 0) {
+
+                    // Split by comma to get key-value pairs
+
+                    String idValue = null;
+                    String nameValue = null;
+                    String typeValue = null;
+
+                    // Loop through each key-value pair
+                    for (AttributeData attributeData : targetSelected.getAttributeData()) {
+
+                        String key = attributeData.getName().trim();
+                        String value = attributeData.getValue().trim().replaceAll("\"", ""); // Remove quotes
+
+                        if (key.equals("id")) {
+                            idValue = value;
+                        } else if (key.equals("name")) {
+                            nameValue = value;
+                        } else if (key.equals("type")) {
+                            typeValue = value;
+                        }
+                    }
+
+                    // Print based on priority: ID -> Name -> Type
+                    if (idValue != null) {
+                        nameDefined = targetSelected.getTagName() + "-" + idValue;
+                    } else if (nameValue != null) {
+                        nameDefined = targetSelected.getTagName() + "-" + nameValue;
+                    } else if (typeValue != null) {
+                        nameDefined = targetSelected.getTagName() + "-" + typeValue;
+                    } else {
+                        nameDefined = targetSelected.getTagName();
+                    }
+
+                    if (targetSelected.getDefinedName() != null
+                            && !targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
+                        nameDefined = targetSelected.getDefinedName();
+                    }
+
+                    String finalSomeText = nameDefined;
+                    Platform.runLater(
+                            () -> defineNameField.setText(PerformActions.truncateAndNormalize(finalSomeText, 30)));
+
+                } else if (!Strings.isNullOrEmpty(targetSelected.getTagName())) {
+
+                    if (targetSelected.getDefinedName() != null
+                            && !targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
+                        nameDefined = targetSelected.getDefinedName();
+                    } else {
+                        nameDefined = targetSelected.getTagName();
+                    }
+                    String finalSomeText = nameDefined;
+
+                    Platform.runLater(() -> defineNameField.setText(finalSomeText));
                 }
-
-                // Print based on priority: ID -> Name -> Type
-                if (idValue != null) {
-                    nameDefined = targetSelected.getTagName() + "-" + idValue;
-                } else if (nameValue != null) {
-                    nameDefined = targetSelected.getTagName() + "-" + nameValue;
-                } else if (typeValue != null) {
-                    nameDefined = targetSelected.getTagName() + "-" + typeValue;
-                } else {
-                    nameDefined = targetSelected.getTagName();
-                }
-
-                if (targetSelected.getDefinedName() != null
-                        && !targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
-                    nameDefined = targetSelected.getDefinedName();
-                }
-
-                String finalSomeText = nameDefined;
-                Platform.runLater(
-                        () -> defineNameField.setText(PerformActions.truncateAndNormalize(finalSomeText, 30)));
-
-            } else if (!Strings.isNullOrEmpty(targetSelected.getTagName())) {
-
-                if (targetSelected.getDefinedName() != null
-                        && !targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
-                    nameDefined = targetSelected.getDefinedName();
-                } else {
-                    nameDefined = targetSelected.getTagName();
-                }
-                String finalSomeText = nameDefined;
-
-                Platform.runLater(() -> defineNameField.setText(finalSomeText));
             }
-        }
 
-        //                sb.append(this.targetElement.getOriginalTagName() + "-" +
-        // this.targetElement.getSomeText())
-        //                        .append("\n");
+            //                sb.append(this.targetElement.getOriginalTagName() + "-" +
+            // this.targetElement.getSomeText())
+            //                        .append("\n");
 
-        sb.append("TagType: " + targetSelected.getTagType()).append("\n");
-        sb.append("ID: " + targetSelected.getAttribId()).append("\n");
-        sb.append("Name: " + targetSelected.getAttribName()).append("\n");
-        if (!Strings.isNullOrEmpty(targetSelected.getShadowRoot())) {
-            sb.append("ShadowHost: " + targetSelected.getShadowHost()).append("\n");
-            sb.append("cssSelector: " + targetSelected.getCssSelector()).append("\n");
-        }
-        sb.append("Text: " + targetSelected.getSomeText()).append("\n");
+            sb.append("TagType: " + targetSelected.getTagType()).append("\n");
+            sb.append("ID: " + targetSelected.getAttribId()).append("\n");
+            sb.append("Name: " + targetSelected.getAttribName()).append("\n");
+            if (!Strings.isNullOrEmpty(targetSelected.getShadowRoot())) {
+                sb.append("ShadowHost: " + targetSelected.getShadowHost()).append("\n");
+                sb.append("cssSelector: " + targetSelected.getCssSelector()).append("\n");
+            }
+            sb.append("Text: " + targetSelected.getSomeText()).append("\n");
 
-        if (!Strings.isNullOrEmpty(targetSelected.getCoordinates())) {
-            sb.append("Coordinates: " + targetSelected.getCoordinates()).append("\n");
-            coordsTextField.setText(targetSelected.getCoordinates());
-        } else {
-            sb.append("Coordinates: EMPTY").append("\n");
-        }
+            if (!Strings.isNullOrEmpty(targetSelected.getCoordinates())) {
+                sb.append("Coordinates: " + targetSelected.getCoordinates()).append("\n");
+                coordsTextField.setText(targetSelected.getCoordinates());
+            } else {
+                sb.append("Coordinates: EMPTY").append("\n");
+            }
 
-        if (!Strings.isNullOrEmpty(targetSelected.getSearchAttributeValue())) {
-            sb.append("Search Attrib: " + targetSelected.getSearchAttributeValue())
-                    .append("\n");
-            searchAttribValueField.setText(targetSelected.getSearchAttributeValue());
-            searchAttribValueField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
-        } else {
-            sb.append("Search Attrib: No Defined").append("\n");
-        }
-
-        sb.append("Named: " + nameDefined).append("\n");
-        sb.append("All Attributes Found: ").append("\n");
-        if (targetSelected.getAttributeData() != null) {
-            for (AttributeData attribute : targetSelected.getAttributeData()) {
-                sb.append("->  ")
-                        .append(attribute.getName().trim() + "="
-                                + attribute.getValue().trim())
+            if (!Strings.isNullOrEmpty(targetSelected.getSearchAttributeValue())) {
+                sb.append("Search Attrib: " + targetSelected.getSearchAttributeValue())
                         .append("\n");
+                searchAttribValueField.setText(targetSelected.getSearchAttributeValue());
+                searchAttribValueField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
+            } else {
+                sb.append("Search Attrib: No Defined").append("\n");
             }
+
+            sb.append("Named: " + nameDefined).append("\n");
+            sb.append("All Attributes Found: ").append("\n");
+            if (targetSelected.getAttributeData() != null) {
+                for (AttributeData attribute : targetSelected.getAttributeData()) {
+                    sb.append("->  ")
+                            .append(attribute.getName().trim() + "="
+                                    + attribute.getValue().trim())
+                            .append("\n");
+                }
+            }
+
+            Platform.runLater(() -> {
+                countdownTextField.setText(sb.toString());
+                countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
+            });
+
+            //                textFlowResult.getChildren().clear();
+            //                textFlowResult.getChildren().addAll(countdownTextField);
+            //                textFlowResult.requestLayout();
+            //                contentPane.requestLayout();
+
+            defineCheckBoxesClickable(targetSelected);
         }
-
-        Platform.runLater(() -> {
-            countdownTextField.setText(sb.toString());
-            countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
-        });
-
-        //                textFlowResult.getChildren().clear();
-        //                textFlowResult.getChildren().addAll(countdownTextField);
-        //                textFlowResult.requestLayout();
-        //                contentPane.requestLayout();
-
-        defineCheckBoxesClickable(targetSelected);
         performActions.getCurrentDriver().switchTo().defaultContent();
     }
 

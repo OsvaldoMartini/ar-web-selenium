@@ -3200,16 +3200,8 @@ ORDER BY bot.id ASC;
             };
 
             // Add non-boolean fields
-            addColumnValue.accept("coordinates", instructionLoad.getCoordinates());
-            addColumnValue.accept("iframe_xpath", instructionLoad.getIFrameXPath());
-            addColumnValue.accept("tag_name", instructionLoad.getTagName());
-            addColumnValue.accept("shadow_host", instructionLoad.getShadowHost());
-            addColumnValue.accept("shadow_root", instructionLoad.getShadowRoot());
-            addColumnValue.accept("css_selector", instructionLoad.getCssSelector());
-            addColumnValue.accept("xpath", instructionLoad.getXpath());
             addColumnValue.accept("action_custom_max_wait_sec", instructionLoad.getActionCustomMaxWaitSec());
             addColumnValue.accept("actions", instructionLoad.getActions());
-            addColumnValue.accept("default_value", instructionLoad.getDefaultValue());
             addColumnValue.accept("description", instructionLoad.getDescription());
             addColumnValue.accept("instruction_order_number", instructionLoad.getInstructionOrderNumber());
             addColumnValue.accept("name", instructionLoad.getName());
@@ -3227,29 +3219,9 @@ ORDER BY bot.id ASC;
             } else {
                 addColumnValue.accept("bot_job_id", currentBotJobId);
             }
-            // Add boolean fields with conditional logic
-            if (instructionLoad.getBlockMarked() != null) {
-                addColumnValue.accept("block_marked", instructionLoad.getBlockMarked() ? 1 : 0);
-            }
-
-            if (instructionLoad.getCodified() != null) {
-                addColumnValue.accept("codified", instructionLoad.getCodified() ? 1 : 0);
-            }
-
-            if (instructionLoad.getExportToABR() != null) {
-                addColumnValue.accept("export_to_abr", instructionLoad.getExportToABR() ? 1 : 0);
-            }
-
-            if (instructionLoad.getOptional() != null) {
-                addColumnValue.accept("optional", instructionLoad.getOptional() ? 1 : 0);
-            }
 
             if (instructionLoad.getInstructionActive() != null) {
                 addColumnValue.accept("active", instructionLoad.getInstructionActive() ? 1 : 0);
-            }
-
-            if (instructionLoad.getExecuted() != null) {
-                addColumnValue.accept("executed", instructionLoad.getExecuted() ? 1 : 0);
             }
 
             if (instructionLoad.getBlockActive() != null) {
@@ -3264,18 +3236,11 @@ ORDER BY bot.id ASC;
                 addColumnValue.accept("loop_only", instructionLoad.getLoopOnly() ? 1 : 0);
             }
 
-            if (instructionLoad.getForceCoordinates() != null) {
-                addColumnValue.accept("force_coordinates", instructionLoad.getForceCoordinates() ? 1 : 0);
-            }
-
-            // Uncomment if needed
-            // if (instructionLoad.getEditMode() != null) {
-            //     addColumnValue.accept("edit_mode", instructionLoad.getEditMode() ? 1 : 0);
-            // }
-
             // Construct final SQL query
+            String finalColumns = columns.length() > 0 ? columns.substring(2) : "";
+            String finalValues = values.length() > 0 ? values.substring(2) : "";
             // Final insert
-            String insertSQL = String.format("INSERT INTO %s (%s) VALUES (%s)", tableName, columns, values);
+            String insertSQL = String.format("INSERT INTO %s (%s) VALUES (%s)", tableName, finalColumns, finalValues);
             int rowsAffected = stmt.executeUpdate(insertSQL);
 
             // Step 4: Get IDs after insertion
@@ -3329,7 +3294,7 @@ ORDER BY bot.id ASC;
                             instructionLoad.getActions(),
                             instructionLoad.getOperation()));
             ARLogger.getInstance(PerformDataBase.class).severe(error.getMessage());
-            return new ErrorMessage("Error in backup process", "Error during home_banking backup", error.getMessage());
+            return new ErrorMessage("Error in insert Instruction", "Error during inserting step", error.getMessage());
         }
     }
 
@@ -3375,16 +3340,8 @@ ORDER BY bot.id ASC;
             };
 
             // Add fields to update
-            addColumnValue.accept("coordinates", instructionLoadDTO.getCoordinates());
-            addColumnValue.accept("iframe_xpath", instructionLoadDTO.getIFrameXPath());
-            addColumnValue.accept("tag_name", instructionLoadDTO.getTagName());
-            addColumnValue.accept("shadow_host", instructionLoadDTO.getShadowHost());
-            addColumnValue.accept("shadow_root", instructionLoadDTO.getShadowRoot());
-            addColumnValue.accept("css_selector", instructionLoadDTO.getCssSelector());
-            addColumnValue.accept("xpath", instructionLoadDTO.getXpath());
             addColumnValue.accept("action_custom_max_wait_sec", instructionLoadDTO.getActionCustomMaxWaitSec());
             addColumnValue.accept("actions", instructionLoadDTO.getActions());
-            addColumnValue.accept("default_value", instructionLoadDTO.getDefaultValue());
             addColumnValue.accept("description", instructionLoadDTO.getDescription());
             addColumnValue.accept("instruction_order_number", instructionLoadDTO.getInstructionOrderNumber());
             addColumnValue.accept("name", instructionLoadDTO.getName());
@@ -3401,27 +3358,11 @@ ORDER BY bot.id ASC;
                 addColumnValue.accept("bot_job_id", currentBotJobId);
             }
 
-            // Boolean fields
-            addColumnValue.accept(
-                    "block_marked",
-                    instructionLoadDTO.getBlockMarked() != null ? (instructionLoadDTO.getBlockMarked() ? 1 : 0) : null);
-            addColumnValue.accept(
-                    "codified",
-                    instructionLoadDTO.getCodified() != null ? (instructionLoadDTO.getCodified() ? 1 : 0) : null);
-            addColumnValue.accept(
-                    "export_to_abr",
-                    instructionLoadDTO.getExportToABR() != null ? (instructionLoadDTO.getExportToABR() ? 1 : 0) : null);
-            addColumnValue.accept(
-                    "optional",
-                    instructionLoadDTO.getOptional() != null ? (instructionLoadDTO.getOptional() ? 1 : 0) : null);
             addColumnValue.accept(
                     "active",
                     instructionLoadDTO.getInstructionActive() != null
                             ? (instructionLoadDTO.getInstructionActive() ? 1 : 0)
                             : null);
-            addColumnValue.accept(
-                    "executed",
-                    instructionLoadDTO.getExecuted() != null ? (instructionLoadDTO.getExecuted() ? 1 : 0) : null);
             addColumnValue.accept(
                     "block_active",
                     instructionLoadDTO.getBlockActive() != null ? (instructionLoadDTO.getBlockActive() ? 1 : 0) : null);
@@ -3576,14 +3517,12 @@ ORDER BY bot.id ASC;
             String operation,
             Integer onHold,
             Integer varId,
-            Integer instructionId,
-            Integer parentId,
             RowMoveDTO rowMoveDTO,
-            boolean isShowAlert,
-            boolean updateRow,
             boolean blockIdChanged) {
 
         //        this.botJobLoadDTO = loadBotJobById(rowMoveDTO.getBotJobId());
+
+        boolean updateRow = rowMoveDTO.getType().equals("EDIT_OPERATION");
 
         if (!updateRow || blockIdChanged) {
             List<InstructionLoadDTO> rowList = null;
@@ -3626,15 +3565,16 @@ ORDER BY bot.id ASC;
         }
 
         List<BlockLoadDTO> finalMatchingBlocks = matchingBlocks;
-        //        List<InstructionLoadDTO> finalInstructionList = rowList;
 
         InstructionLoadDTO instruction = new InstructionLoadDTO();
-
+        // EDIT_OPERATION
+        if (updateRow) {
+            int idToUpdate = rowMoveDTO.getUpdatedRows().get(0).getInstructionId();
+            instruction.setId(idToUpdate);
+        }
         instruction.setName(name);
-
-        instruction.setCodified(false);
-        instruction.setExportToABR(false);
         instruction.setInstructionActive(true);
+
         if (rowMoveDTO != null && !rowMoveDTO.getUpdatedRows().isEmpty()) {
             if ("INSERT_BEFORE".equals(rowMoveDTO.getType()) || "EDIT_OPERATION".equals(rowMoveDTO.getType())) {
                 instruction.setInstructionOrderNumber(
@@ -3646,42 +3586,11 @@ ORDER BY bot.id ASC;
         } else {
             instruction.setInstructionOrderNumber(finalMatchingBlocks.size() + 1);
         }
-        instruction.setOptional(false);
-
         instruction.setOperation(operation);
         instruction.setActions(actions);
         instruction.setDescription(description);
 
         instruction.setVariableId(varId);
-
-        Integer nextId = -1;
-        if (!updateRow) {
-            if (rowMoveDTO.getSessionId().equals("componentTasks")) {
-                nextId = -9999;
-            } else {
-                nextId = -9999;
-            }
-        } else {
-            nextId = rowMoveDTO.getUpdatedRows().get(0).getInstructionId();
-        }
-
-        if (actions.equalsIgnoreCase(ARConstants.IF)) {
-            instruction.setId(nextId);
-            instruction.setParentId(nextId);
-        } else if (actions.equalsIgnoreCase(ARConstants.ELSE)) {
-            instruction.setId(nextId);
-            instruction.setParentId(parentId);
-        } else if (actions.equalsIgnoreCase(ARConstants.ENDIF)) {
-            instruction.setId(nextId);
-            instruction.setParentId(parentId);
-        } else if (actions.equalsIgnoreCase(ARConstants.ELSEIF)) {
-            instruction.setId(nextId);
-            instruction.setParentId(parentId);
-        } else {
-            instruction.setId(nextId);
-            instruction.setParentId(instructionId);
-        }
-
         instruction.setActionCustomMaxWaitSec(30);
         instruction.setOnHoldSeconds(onHold);
 
@@ -3756,19 +3665,25 @@ ORDER BY bot.id ASC;
                 rowMoveDTO.getUpdatedRows().get(0).setInstructionOrderNumber(targetOrderNumber + 1);
             }
 
-            if (isShowAlert) {
-                if (errorMessage == null) {
+            if (errorMessage == null) {
+                ARLogger.getInstance(PerformDataBase.class)
+                        .info(String.format(
+                                "\"Component\" Instruction: \"%s\" has been added successfully!",
+                                instruction.getName()));
+            } else {
+                ARLogger.getInstance(PerformDataBase.class)
+                        .severe(String.format(
+                                "Error Add New \"Component\" Instruction: \"%s\" Cannot be saved!",
+                                instruction.getName()));
 
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .info(String.format(
-                                    "\"Component\" Instruction: \"%s\" has been added successfully!",
-                                    instruction.getName()));
-                } else {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .severe(String.format(
-                                    "Error Add New \"Component\" Instruction: \"%s\" Cannot be saved!",
-                                    instruction.getName()));
-                }
+                performMessage.errorMessage(
+                        errorMessage.getErrorTitle(),
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                + errorMessage.getErrorTitle(),
+                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                        null,
+                        0);
             }
 
         } catch (Exception e) {

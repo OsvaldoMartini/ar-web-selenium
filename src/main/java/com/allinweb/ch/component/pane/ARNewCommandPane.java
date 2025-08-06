@@ -2356,23 +2356,7 @@ public class ARNewCommandPane extends ARPane {
             return;
         }
 
-        // Create and show alert inside Platform.runLater
-
-        //        if (this.botJobLoad.getBlockLoadDTOList() == null) {
-        //            this.botJobLoadList = performDataBase.loadBotJobComplete(rowMoveDTO.getBotJobId());
-        //            if (this.botJobLoadList.size() > 0) {
-        //                this.botJobLoad.setBlockLoadDTOList(this.botJobLoadList.get(0).getBlockLoadDTOList());
-        //            }
-        //        } else if (this.botJobLoad.getBlockLoadDTOList() != null
-        //                && this.botJobLoad.getBlockLoadDTOList().size() == 0) {
-        //            this.botJobLoadList = performDataBase.loadBotJobComplete(rowMoveDTO.getBotJobId());
-        //            if (this.botJobLoadList.size() > 0) {
-        //                this.botJobLoad.setBlockLoadDTOList(this.botJobLoadList.get(0).getBlockLoadDTOList());
-        //            }
-        //        }
-
         // Combine the texts using TextFlow
-
         Text extra = new Text("Action: ");
         extra.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
         extra.setVisible(true);
@@ -2396,65 +2380,45 @@ public class ARNewCommandPane extends ARPane {
         int endifCount = actions.equalsIgnoreCase(ARConstants.IF) ? 3 : 1;
 
         // Run the loop for adding multiple instructions
-        String nextAction = null;
-        int parentId = 0;
-        for (int added = endifCount; added >= 1; added--) {
 
-            boolean isShowAlert = added == 1;
+        // Run the instruction add in a separate Task
+        ErrorMessage errorMessage = performDataBase.preFillNewInstruction(
+                name, description, actions, operation, onHold, varId, rowMoveDTO, blockIdChanged);
 
-            // Run the instruction add in a separate Task
-            ErrorMessage errorMessage = performDataBase.preFillNewInstruction(
-                    nextAction == null ? name : nextAction,
-                    nextAction == null ? description : nextAction,
-                    nextAction == null ? actions : nextAction,
-                    nextAction == null ? operation : nextAction,
-                    onHold,
-                    varId,
-                    instructionId,
-                    nextAction == null ? -1 : parentId,
-                    rowMoveDTO,
-                    isShowAlert,
-                    rowMoveDTO.getType().equals("EDIT_OPERATION"),
-                    blockIdChanged);
+        if (errorMessage == null) {
 
-            if (errorMessage == null) {
-
-                String tableName = "instruction";
-                if (rowMoveDTO.getSessionId().equals("componentTasks")) {
-                    tableName = "component_instruction";
-                    rowMoveDTO.setOperationId("componentsUpdate");
-                    this.botJobLoadList = performDataBase.loadComponentsComplete(
-                            rowMoveDTO.getHomeBankingId(), rowMoveDTO.getBotJobId(), rowMoveDTO.getBotJobName());
-                } else {
-                    rowMoveDTO.setOperationId("updateInstructions");
-                    this.botJobLoadList = performDataBase.loadCompleteJobs(rowMoveDTO.getBotJobId());
-                }
-
-                String jsonData = "[]";
-                if (!botJobLoadList.isEmpty()) {
-                    List<InstructionLoadDTO> instructions =
-                            performDataBase.buildJsonViewData(botJobLoadList, tableName);
-                    jsonData = gson.toJson(instructions);
-                }
-
-                webSocketSessionManager.sendMessageJson(
-                        rowMoveDTO.getHomeBankingId(),
-                        rowMoveDTO.getSessionId(),
-                        jsonData,
-                        rowMoveDTO.getOperationId());
-
-                if (!rowMoveDTO.getType().equals("EDIT_OPERATION")) {
-                    updateFields();
-                }
+            String tableName = "instruction";
+            if (rowMoveDTO.getSessionId().equals("componentTasks")) {
+                tableName = "component_instruction";
+                rowMoveDTO.setOperationId("componentsUpdate");
+                this.botJobLoadList = performDataBase.loadComponentsComplete(
+                        rowMoveDTO.getHomeBankingId(), rowMoveDTO.getBotJobId(), rowMoveDTO.getBotJobName());
+            } else {
+                rowMoveDTO.setOperationId("updateInstructions");
+                this.botJobLoadList = performDataBase.loadCompleteJobs(rowMoveDTO.getBotJobId());
             }
 
-            if (Strings.isNullOrEmpty(nextAction)) {
-                nextAction = ARConstants.ELSE;
-                // parentId = newRowId;
-            } else if (!Strings.isNullOrEmpty(nextAction) && nextAction.equals(ARConstants.ELSE)) {
-                nextAction = ARConstants.ENDIF;
+            String jsonData = "[]";
+            if (!botJobLoadList.isEmpty()) {
+                List<InstructionLoadDTO> instructions = performDataBase.buildJsonViewData(botJobLoadList, tableName);
+                jsonData = gson.toJson(instructions);
+            }
+
+            webSocketSessionManager.sendMessageJson(
+                    rowMoveDTO.getHomeBankingId(), rowMoveDTO.getSessionId(), jsonData, rowMoveDTO.getOperationId());
+
+            if (!rowMoveDTO.getType().equals("EDIT_OPERATION")) {
+                updateFields();
             }
         }
+
+        //            if (Strings.isNullOrEmpty(nextAction)) {
+        //                nextAction = ARConstants.ELSE;
+        //                // parentId = newRowId;
+        //            } else if (!Strings.isNullOrEmpty(nextAction) && nextAction.equals(ARConstants.ELSE)) {
+        //                nextAction = ARConstants.ENDIF;
+        //            }
+        //        }
         //        }
         //        defineTextFlow(comboBoxInstruc.getValue().getValue());
     }

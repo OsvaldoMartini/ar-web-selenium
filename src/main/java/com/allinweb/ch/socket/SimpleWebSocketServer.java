@@ -736,18 +736,7 @@ public class SimpleWebSocketServer {
                         // Run the instruction add in a separate Task
 
                         ErrorMessage message = performDataBase.preFillNewInstruction(
-                                "ELSEIF",
-                                "ELSEIF",
-                                ARConstants.ELSEIF,
-                                ARConstants.ELSEIF,
-                                1,
-                                null,
-                                null,
-                                parentId,
-                                rowMoveDTO,
-                                false,
-                                false,
-                                false);
+                                "ELSEIF", "ELSEIF", ARConstants.ELSEIF, ARConstants.ELSEIF, 1, null, rowMoveDTO, false);
 
                     } catch (Exception e) {
 
