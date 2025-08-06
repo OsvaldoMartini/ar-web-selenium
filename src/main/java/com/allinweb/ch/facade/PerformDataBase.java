@@ -1,19 +1,6 @@
 package com.allinweb.ch.facade;
 
-import com.allinweb.ch.component.model.BlockDetailsDTO;
-import com.allinweb.ch.component.model.BlockLoadDTO;
-import com.allinweb.ch.component.model.BlockOrderDetailDTO;
-import com.allinweb.ch.component.model.BotJobLoadDTO;
-import com.allinweb.ch.component.model.DeleteBlockDTO;
-import com.allinweb.ch.component.model.HomeBankingLoadDTO;
-import com.allinweb.ch.component.model.HomeUrlDTO;
-import com.allinweb.ch.component.model.InstructionLoadDTO;
-import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
-import com.allinweb.ch.component.model.ParentOperations;
-import com.allinweb.ch.component.model.RollBackBlocksDTO;
-import com.allinweb.ch.component.model.RowMoveDTO;
-import com.allinweb.ch.component.model.VariableLoadDTO;
-import com.allinweb.ch.component.model.VariableUserDTO;
+import com.allinweb.ch.component.model.*;
 import com.allinweb.ch.persistence.DatabaseUserDTO;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
@@ -31,7 +18,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
 import java.text.MessageFormat;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
@@ -45,7 +31,9 @@ public class PerformDataBase {
     // Static final variable to hold the singleton instance
     protected static volatile PerformDataBase instance;
 
-    public final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
+    private List<InstructionLoadDTO> instructionList = new ArrayList<>();
+    private List<InstructionOperationDTO> instrucOperList = new ArrayList<>();
+
     // Private constructor to prevent instantiation
     private PerformDataBase() {
         // Initialize if necessary
@@ -307,14 +295,19 @@ public class PerformDataBase {
     }
 
     // Handle DELETE_INSTRUCTION message
-    public void deleteInstruction(int botJobId, InstructionLoadDTO deleteInstructionLoadDTO, boolean blockDeletion) {
+    public void deleteInstruction(int botJobId, InstructionLoadDTO toDelete, boolean blockDeletion) {
 
-        if (deleteInstructionLoadDTO.getParentId() != null) {
-            List<ParentOperations> listParents = loadParents(
-                    botJobId, deleteInstructionLoadDTO.getInstructionId(), deleteInstructionLoadDTO.getParentId());
+        if (toDelete.getParentId() != null) {
+            List<ParentOperations> listParents =
+                    loadParents(botJobId, toDelete.getInstructionId(), toDelete.getParentId());
             if (!listParents.isEmpty()) {
 
-                if (!blockDeletion) {
+                boolean isIF = toDelete.getActions().equalsIgnoreCase("IF")
+                        || toDelete.getActions().equalsIgnoreCase("ELSE")
+                        || toDelete.getActions().equalsIgnoreCase("ENDIF")
+                        || toDelete.getActions().equalsIgnoreCase("ELSEIF");
+
+                if (!blockDeletion && !isIF) {
 
                     List<String> lstMsg = performMessage.distributeMsg(
                             listParents.stream().map(ParentOperations::getName).collect(Collectors.toList()));
@@ -335,19 +328,16 @@ public class PerformDataBase {
                     }
                 }
 
-                deleteRowParents(
-                        deleteInstructionLoadDTO.getBotJobId(),
-                        deleteInstructionLoadDTO.getBlockId(),
-                        deleteInstructionLoadDTO.getInstructionId());
+                deleteRowParents(toDelete.getBotJobId(), toDelete.getBlockId(), toDelete.getInstructionId());
             }
         }
 
-        if (deleteInstructionLoadDTO.getInstructionId() > 0) {
-            if (deleteVariable(botJobId, deleteInstructionLoadDTO.getInstructionId()))
-                if (deleteReferences(botJobId, deleteInstructionLoadDTO.getInstructionId()))
-                    if (deleteRow(deleteInstructionLoadDTO)) {
+        if (toDelete.getInstructionId() > 0) {
+            if (deleteVariable(botJobId, toDelete.getInstructionId()))
+                if (deleteReferences(botJobId, toDelete.getInstructionId()))
+                    if (deleteRow(toDelete)) {
                         deleteNullBlocks(botJobId);
-                        updateBlockOrderNumber(selectAllBlocks(deleteInstructionLoadDTO.getBlockId()), true);
+                        updateBlockOrderNumber(selectAllBlocks(toDelete.getBlockId()), true);
                     }
         }
     }
@@ -2053,48 +2043,59 @@ public class PerformDataBase {
         return botJobLoadCompList;
     }
 
-    public boolean reorderInstructions(List<InstructionLoadDTO> rowList, String tableName) {
+    public boolean reorderInstructions(List<InstructionLoadDTO> rowList, String tableName, boolean explicity) {
+        final int BATCH_SIZE = 100;
         int orderNumber = 1;
+        int count = 0;
 
-        // Iterate through the list and update the instructionOrderNumber
-        for (InstructionLoadDTO instruction : rowList) {
-            instruction.setInstructionOrderNumber(orderNumber);
-            orderNumber++; // Increment the order number for the next instruction
-        }
+        String updateSQL =
+                String.format("UPDATE %s SET instruction_order_number = ? WHERE id = ? AND block_id = ?", tableName);
 
-        // Build the SQL update statement
-        try (Statement stmt = getConnection().createStatement()) {
-            // Loop through each instruction in the rowList
+        try (Connection conn = getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(updateSQL)) {
+
+            conn.setAutoCommit(false); // Start transaction
+
             for (InstructionLoadDTO instruction : rowList) {
-                // Increment the instructionOrderNumber by 1 for each instruction
-                String updateSQL = "UPDATE " + tableName + " SET  "
-                        + " instruction_order_number = " + instruction.getInstructionOrderNumber()
-                        + " WHERE id = " + instruction.getInstructionId()
-                        + " AND block_id = " + instruction.getBlockId();
+                if (!explicity) {
+                    instruction.setInstructionOrderNumber(orderNumber);
+                }
 
-                int rowsAffected = stmt.executeUpdate(updateSQL);
-                if (rowsAffected > 0) {
-                    //                    ARLogger.getInstance(PerformDataBase.class)
-                    //                            .info(String.format(
-                    //                                    "preInsertStep - InstructionId: %s in BlockId: %s now has
-                    // order number: %d",
-                    //                                    instruction.getInstructionId(),
-                    //                                    instruction.getBlockId(),
-                    //                                    instruction.getInstructionOrderNumber() + 1));
-                } else {
+                Integer instrId = instruction.getInstructionId();
+                Integer blockId = instruction.getBlockId();
+
+                if (instrId == null || blockId == null) {
                     ARLogger.getInstance(PerformDataBase.class)
-                            .warning(String.format(
-                                    "preInsertStep - No matching record found for BlockId: %d and InstructionId: %d",
-                                    instruction.getBlockId(), instruction.getInstructionId()));
+                            .warning("Skipping reorder: instructionId or blockId is null.");
+                    continue;
+                }
+
+                pstmt.setInt(1, instruction.getInstructionOrderNumber());
+                pstmt.setInt(2, instrId);
+                pstmt.setInt(3, blockId);
+
+                pstmt.addBatch();
+                orderNumber++;
+
+                if (++count % BATCH_SIZE == 0) {
+                    pstmt.executeBatch();
+                    pstmt.clearBatch();
                 }
             }
 
+            // Execute remaining batch
+            if (count % BATCH_SIZE != 0) {
+                pstmt.executeBatch();
+            }
+
+            conn.commit(); // Commit transaction
             return true;
+
         } catch (SQLException e) {
             ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("Error updating instruction order numbers.\nError: %s", e.getMessage()));
+                    .severe("Error batch updating instruction order numbers: " + e.getMessage());
+            return false;
         }
-        return false;
     }
 
     public int deleteBotJob(int botJobId) {
@@ -3003,7 +3004,7 @@ ORDER BY bot.id ASC;
 
     public ErrorMessage insertInstructionsBatch(
             String typeTask,
-            List<InstructionLoadDTO> instructionList,
+            List<InstructionLoadDTO> instructions,
             Integer currentBotJobId,
             Integer currentBlockId,
             Integer homeBankingId) {
@@ -3030,7 +3031,7 @@ ORDER BY bot.id ASC;
             }
 
             // Step 2: Perform batch insert
-            for (InstructionLoadDTO instructionLoad : instructionList) {
+            for (InstructionLoadDTO instructionLoad : instructions) {
                 StringBuilder columns = new StringBuilder();
                 StringBuilder values = new StringBuilder();
 
@@ -3159,15 +3160,18 @@ ORDER BY bot.id ASC;
 
     public ErrorMessage insertInstruction(
             String typeTask,
-            InstructionLoadDTO instructionLoad,
+            List<InstructionOperationDTO> instructions,
             Integer currentBotJobId,
             Integer currentBlockId,
             Integer homeBankingId) {
 
         String tableName = "instruction";
-        if (typeTask.equals("componentTasks")) {
+        if ("componentTasks".equals(typeTask)) {
             tableName = "component_instruction";
         }
+
+        final int BATCH_SIZE = 100;
+        int count = 0;
 
         try (Connection conn = getConnection();
                 Statement stmt = conn.createStatement();
@@ -3176,131 +3180,158 @@ ORDER BY bot.id ASC;
 
             // Step 1: Get all IDs before insertion
             List<Integer> idsBefore = new ArrayList<>();
-            try (ResultSet rsBefore = idStmtBefore.executeQuery("SELECT id FROM " + tableName + " order by id")) {
+            try (ResultSet rsBefore = idStmtBefore.executeQuery("SELECT id FROM " + tableName + " ORDER BY id")) {
                 while (rsBefore.next()) {
                     idsBefore.add(rsBefore.getInt("id"));
                 }
             }
 
-            StringBuilder columns = new StringBuilder();
-            StringBuilder values = new StringBuilder();
+            // Step 2: Build and add batch statements
+            for (InstructionOperationDTO instructionLoad : instructions) {
+                StringBuilder columns = new StringBuilder();
+                StringBuilder values = new StringBuilder();
 
-            // Helper method to add columns and values
-            BiConsumer<String, Object> addColumnValue = (column, value) -> {
-                if (value != null) {
-                    columns.append(", ").append(column);
-                    if (value instanceof String) {
-                        values.append(", '")
-                                .append(((String) value).replace("'", "''"))
-                                .append("'");
-                    } else {
-                        values.append(", ").append(value);
+                BiConsumer<String, Object> addColumnValue = (column, value) -> {
+                    if (value != null) {
+                        if (columns.length() > 0) {
+                            columns.append(", ");
+                            values.append(", ");
+                        }
+                        columns.append(column);
+                        if (value instanceof String) {
+                            values.append("'")
+                                    .append(((String) value).replace("'", "''"))
+                                    .append("'");
+                        } else {
+                            values.append(value);
+                        }
                     }
+                };
+
+                // Non-boolean fields
+                addColumnValue.accept("action_custom_max_wait_sec", instructionLoad.getActionCustomMaxWaitSec());
+                addColumnValue.accept("actions", instructionLoad.getActions());
+                addColumnValue.accept("description", instructionLoad.getDescription());
+                addColumnValue.accept("instruction_order_number", instructionLoad.getInstructionOrderNumber());
+                addColumnValue.accept("name", instructionLoad.getName());
+                addColumnValue.accept(
+                        "on_hold_seconds",
+                        instructionLoad.getOnHoldSeconds() != null ? instructionLoad.getOnHoldSeconds() : 1);
+                addColumnValue.accept("operation", instructionLoad.getOperation());
+                addColumnValue.accept("parent_block_id", instructionLoad.getParentBlockId());
+                addColumnValue.accept("parent_id", instructionLoad.getParentId());
+                addColumnValue.accept("variable_id", instructionLoad.getVariableId());
+                addColumnValue.accept("block_id", currentBlockId);
+
+                if ("componentTasks".equals(typeTask)) {
+                    addColumnValue.accept("home_banking_id", homeBankingId);
+                } else {
+                    addColumnValue.accept("bot_job_id", currentBotJobId);
                 }
-            };
 
-            // Add non-boolean fields
-            addColumnValue.accept("action_custom_max_wait_sec", instructionLoad.getActionCustomMaxWaitSec());
-            addColumnValue.accept("actions", instructionLoad.getActions());
-            addColumnValue.accept("description", instructionLoad.getDescription());
-            addColumnValue.accept("instruction_order_number", instructionLoad.getInstructionOrderNumber());
-            addColumnValue.accept("name", instructionLoad.getName());
-            addColumnValue.accept(
-                    "on_hold_seconds",
-                    instructionLoad.getOnHoldSeconds() != null ? instructionLoad.getOnHoldSeconds() : 1);
-            addColumnValue.accept("operation", instructionLoad.getOperation());
-            addColumnValue.accept("parent_block_id", instructionLoad.getParentBlockId());
-            addColumnValue.accept("parent_id", instructionLoad.getParentId());
-            addColumnValue.accept("variable_id", instructionLoad.getVariableId());
-            addColumnValue.accept("block_id", currentBlockId);
+                // Boolean fields
+                addColumnValue.accept(
+                        "active",
+                        instructionLoad.getInstructionActive() != null
+                                ? (instructionLoad.getInstructionActive() ? 1 : 0)
+                                : null);
+                addColumnValue.accept(
+                        "block_active",
+                        instructionLoad.getBlockActive() != null ? (instructionLoad.getBlockActive() ? 1 : 0) : null);
+                addColumnValue.accept(
+                        "refresh_loop",
+                        instructionLoad.getRefreshLoop() != null ? (instructionLoad.getRefreshLoop() ? 1 : 0) : null);
+                addColumnValue.accept(
+                        "loop_only",
+                        instructionLoad.getLoopOnly() != null ? (instructionLoad.getLoopOnly() ? 1 : 0) : null);
+                addColumnValue.accept(
+                        "force_coordinates",
+                        instructionLoad.getForceCoordinates() != null
+                                ? (instructionLoad.getForceCoordinates() ? 1 : 0)
+                                : null);
+                // Final SQL
+                String insertSQL = String.format("INSERT INTO %s (%s) VALUES (%s)", tableName, columns, values);
+                stmt.addBatch(insertSQL);
 
-            if (typeTask.equals("componentTasks")) {
-                addColumnValue.accept("home_banking_id", homeBankingId);
-            } else {
-                addColumnValue.accept("bot_job_id", currentBotJobId);
+                if (++count % BATCH_SIZE == 0) {
+                    stmt.executeBatch();
+                    stmt.clearBatch();
+                }
             }
 
-            if (instructionLoad.getInstructionActive() != null) {
-                addColumnValue.accept("active", instructionLoad.getInstructionActive() ? 1 : 0);
+            // Final batch if not aligned with BATCH_SIZE
+            if (count % BATCH_SIZE != 0) {
+                stmt.executeBatch();
+                stmt.clearBatch();
             }
 
-            if (instructionLoad.getBlockActive() != null) {
-                addColumnValue.accept("block_active", instructionLoad.getBlockActive() ? 1 : 0);
-            }
-
-            if (instructionLoad.getRefreshLoop() != null) {
-                addColumnValue.accept("refresh_loop", instructionLoad.getRefreshLoop() ? 1 : 0);
-            }
-
-            if (instructionLoad.getLoopOnly() != null) {
-                addColumnValue.accept("loop_only", instructionLoad.getLoopOnly() ? 1 : 0);
-            }
-
-            // Construct final SQL query
-            String finalColumns = columns.length() > 0 ? columns.substring(2) : "";
-            String finalValues = values.length() > 0 ? values.substring(2) : "";
-            // Final insert
-            String insertSQL = String.format("INSERT INTO %s (%s) VALUES (%s)", tableName, finalColumns, finalValues);
-            int rowsAffected = stmt.executeUpdate(insertSQL);
-
-            // Step 4: Get IDs after insertion
+            // Step 3: Get IDs after insertion
             idsInstrucAfter.clear();
-            try (ResultSet rsAfter = idStmtAfter.executeQuery("SELECT id FROM " + tableName)) {
+            try (ResultSet rsAfter = idStmtAfter.executeQuery("SELECT id FROM " + tableName + " ORDER BY id")) {
                 while (rsAfter.next()) {
                     idsInstrucAfter.add(rsAfter.getInt("id"));
                 }
             }
 
-            // Step 5: Identify newly inserted ID
+            // Step 4: Compute new inserted IDs
             idsInstrucAfter.removeAll(idsBefore);
-            if (idsInstrucAfter.size() == 1) {
-                int newId = idsInstrucAfter.get(0);
-                System.out.println("Instruction inserted with new ID: " + newId);
-                // You can map the old temp ID to this new one if needed
-            } else {
-                System.err.println(
-                        "Could not uniquely identify the inserted instruction ID. Found: " + idsInstrucAfter);
-            }
 
-            if (rowsAffected > 0) {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .info(String.format(
-                                "New %s SAVED SUCCESSFULLY id: %d Name: %s Actions: %s Operation: %s",
-                                tableName.toUpperCase(),
-                                instructionLoad.getId(),
-                                instructionLoad.getName(),
-                                instructionLoad.getActions(),
-                                instructionLoad.getOperation()));
-
-            } else {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .warning(String.format(
-                                "%s NOT SAVED\nid: %d Name: %s Actions: %s Operations: %s",
-                                tableName.toUpperCase(),
-                                instructionLoad.getId(),
-                                instructionLoad.getName(),
-                                instructionLoad.getActions(),
-                                instructionLoad.getOperation()));
-            }
+            ARLogger.getInstance(PerformDataBase.class)
+                    .info(String.format(
+                            "Batch insert completed for %d %s records. New IDs: %s",
+                            count, tableName.toUpperCase(), idsInstrucAfter));
 
             return null;
+
         } catch (SQLException error) {
             ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
-                            "%s NOT SAVED id: %d Name: %s Actions: %s Operations: %s",
-                            tableName.toUpperCase(),
-                            instructionLoad.getId(),
-                            instructionLoad.getName(),
-                            instructionLoad.getActions(),
-                            instructionLoad.getOperation()));
-            ARLogger.getInstance(PerformDataBase.class).severe(error.getMessage());
-            return new ErrorMessage("Error in insert Instruction", "Error during inserting step", error.getMessage());
+                    .severe("Batch insert error for " + tableName + ": " + error.getMessage());
+            return new ErrorMessage("Instruction Insert Error", "Failed during batch insert", error.getMessage());
+        }
+    }
+
+    public ErrorMessage updateInstructionParentIdOnly(String typeTask, List<InstructionOperationDTO> operations) {
+
+        String tableName = "instruction";
+        if ("componentTasks".equals(typeTask)) {
+            tableName = "component_instruction";
+        }
+
+        StringBuilder batchSQL = new StringBuilder();
+
+        try (Connection conn = getConnection();
+                Statement stmt = conn.createStatement()) {
+
+            for (InstructionOperationDTO operation : operations) {
+                if (operation.getId() == null || operation.getParentId() == null) {
+                    ARLogger.getInstance(PerformDataBase.class)
+                            .warning("Skipping: Instruction ID or Parent ID is null.");
+                    continue;
+                }
+
+                String updateSQL = String.format(
+                        "UPDATE %s SET parent_id = %d WHERE id = %d;",
+                        tableName, operation.getParentId(), operation.getId());
+
+                batchSQL.append(updateSQL).append("\n");
+                stmt.addBatch(updateSQL);
+            }
+
+            stmt.executeBatch();
+            ARLogger.getInstance(PerformDataBase.class).info("Parent ID update batch executed:\n" + batchSQL);
+
+            return null;
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Batch parent_id update failed: " + e.getMessage());
+
+            return new ErrorMessage("Update Error", "Failed to update parent_id in instructions.", e.getMessage());
         }
     }
 
     public ErrorMessage updateInstruction(
             String typeTask,
-            InstructionLoadDTO instructionLoadDTO,
+            InstructionOperationDTO InstructionOperation,
             Integer currentBotJobId,
             Integer currentBlockId,
             Integer homeBankingId) {
@@ -3311,7 +3342,7 @@ ORDER BY bot.id ASC;
         }
 
         try (Statement stmt = getConnection().createStatement()) {
-            if (instructionLoadDTO.getId() == null) {
+            if (InstructionOperation.getId() == null) {
                 ARLogger.getInstance(PerformDataBase.class).warning("Instruction ID is null. Update failed.");
                 return new ErrorMessage(
                         "Error Update Instruction",
@@ -3340,16 +3371,16 @@ ORDER BY bot.id ASC;
             };
 
             // Add fields to update
-            addColumnValue.accept("action_custom_max_wait_sec", instructionLoadDTO.getActionCustomMaxWaitSec());
-            addColumnValue.accept("actions", instructionLoadDTO.getActions());
-            addColumnValue.accept("description", instructionLoadDTO.getDescription());
-            addColumnValue.accept("instruction_order_number", instructionLoadDTO.getInstructionOrderNumber());
-            addColumnValue.accept("name", instructionLoadDTO.getName());
-            addColumnValue.accept("on_hold_seconds", instructionLoadDTO.getOnHoldSeconds());
-            addColumnValue.accept("operation", instructionLoadDTO.getOperation());
-            addColumnValue.accept("parent_block_id", instructionLoadDTO.getParentBlockId());
-            addColumnValue.accept("parent_id", instructionLoadDTO.getParentId());
-            addColumnValue.accept("variable_id", instructionLoadDTO.getVariableId());
+            addColumnValue.accept("action_custom_max_wait_sec", InstructionOperation.getActionCustomMaxWaitSec());
+            addColumnValue.accept("actions", InstructionOperation.getActions());
+            addColumnValue.accept("description", InstructionOperation.getDescription());
+            addColumnValue.accept("instruction_order_number", InstructionOperation.getInstructionOrderNumber());
+            addColumnValue.accept("name", InstructionOperation.getName());
+            addColumnValue.accept("on_hold_seconds", InstructionOperation.getOnHoldSeconds());
+            addColumnValue.accept("operation", InstructionOperation.getOperation());
+            addColumnValue.accept("parent_block_id", InstructionOperation.getParentBlockId());
+            addColumnValue.accept("parent_id", InstructionOperation.getParentId());
+            addColumnValue.accept("variable_id", InstructionOperation.getVariableId());
             addColumnValue.accept("block_id", currentBlockId);
 
             if (typeTask.equals("componentTasks")) {
@@ -3360,36 +3391,40 @@ ORDER BY bot.id ASC;
 
             addColumnValue.accept(
                     "active",
-                    instructionLoadDTO.getInstructionActive() != null
-                            ? (instructionLoadDTO.getInstructionActive() ? 1 : 0)
+                    InstructionOperation.getInstructionActive() != null
+                            ? (InstructionOperation.getInstructionActive() ? 1 : 0)
                             : null);
             addColumnValue.accept(
                     "block_active",
-                    instructionLoadDTO.getBlockActive() != null ? (instructionLoadDTO.getBlockActive() ? 1 : 0) : null);
+                    InstructionOperation.getBlockActive() != null
+                            ? (InstructionOperation.getBlockActive() ? 1 : 0)
+                            : null);
             addColumnValue.accept(
                     "refresh_loop",
-                    instructionLoadDTO.getRefreshLoop() != null ? (instructionLoadDTO.getRefreshLoop() ? 1 : 0) : null);
+                    InstructionOperation.getRefreshLoop() != null
+                            ? (InstructionOperation.getRefreshLoop() ? 1 : 0)
+                            : null);
             addColumnValue.accept(
                     "loop_only",
-                    instructionLoadDTO.getLoopOnly() != null ? (instructionLoadDTO.getLoopOnly() ? 1 : 0) : null);
+                    InstructionOperation.getLoopOnly() != null ? (InstructionOperation.getLoopOnly() ? 1 : 0) : null);
             addColumnValue.accept(
                     "force_coordinates",
-                    instructionLoadDTO.getForceCoordinates() != null
-                            ? (instructionLoadDTO.getForceCoordinates() ? 1 : 0)
+                    InstructionOperation.getForceCoordinates() != null
+                            ? (InstructionOperation.getForceCoordinates() ? 1 : 0)
                             : null);
 
             if (setClause.isEmpty()) {
                 ARLogger.getInstance(PerformDataBase.class)
-                        .warning("No fields to update for instruction ID: " + instructionLoadDTO.getId());
+                        .warning("No fields to update for instruction ID: " + InstructionOperation.getId());
                 return new ErrorMessage(
                         "Error Update Instruction",
                         "Error during updating instruction",
-                        "No fields to update for instruction ID: " + instructionLoadDTO.getId());
+                        "No fields to update for instruction ID: " + InstructionOperation.getId());
             }
 
             // Construct final SQL query
             String updateSQL =
-                    String.format("UPDATE %s SET %s WHERE id = %d", tableName, setClause, instructionLoadDTO.getId());
+                    String.format("UPDATE %s SET %s WHERE id = %d", tableName, setClause, InstructionOperation.getId());
 
             int rowsAffected = stmt.executeUpdate(updateSQL);
             if (rowsAffected > 0) {
@@ -3397,19 +3432,19 @@ ORDER BY bot.id ASC;
                         .info(String.format(
                                 "%s UPDATED SUCCESSFULLY id: %d Name: %s Actions: %s Operation: %s",
                                 tableName.toUpperCase(),
-                                instructionLoadDTO.getId(),
-                                instructionLoadDTO.getName(),
-                                instructionLoadDTO.getActions(),
-                                instructionLoadDTO.getOperation()));
+                                InstructionOperation.getId(),
+                                InstructionOperation.getName(),
+                                InstructionOperation.getActions(),
+                                InstructionOperation.getOperation()));
             } else {
                 ARLogger.getInstance(PerformDataBase.class)
                         .warning(String.format(
                                 "%s NOT UPDATED id: %d Name: %s Actions: %s Operations: %s",
                                 tableName.toUpperCase(),
-                                instructionLoadDTO.getId(),
-                                instructionLoadDTO.getName(),
-                                instructionLoadDTO.getActions(),
-                                instructionLoadDTO.getOperation()));
+                                InstructionOperation.getId(),
+                                InstructionOperation.getName(),
+                                InstructionOperation.getActions(),
+                                InstructionOperation.getOperation()));
             }
             return null;
         } catch (SQLException error) {
@@ -3417,10 +3452,10 @@ ORDER BY bot.id ASC;
                     .warning(String.format(
                             "%s UPDATE FAILED id: %d Name: %s Actions: %s Operations: %s",
                             tableName.toUpperCase(),
-                            instructionLoadDTO.getId(),
-                            instructionLoadDTO.getName(),
-                            instructionLoadDTO.getActions(),
-                            instructionLoadDTO.getOperation()));
+                            InstructionOperation.getId(),
+                            InstructionOperation.getName(),
+                            InstructionOperation.getActions(),
+                            InstructionOperation.getOperation()));
             return new ErrorMessage(
                     "Error Update Instruction", "Error during updating instruction", error.getMessage());
         }
@@ -3445,69 +3480,38 @@ ORDER BY bot.id ASC;
         return false; // Return false if an error occurs or the ID is not found
     }
 
-    public boolean preInsertStep(RowMoveDTO rowMoveDTO, List<InstructionLoadDTO> rowList, String tableName) {
-        // Check if the operation type is either "INSERT_BEFORE" or "INSERT_AFTER"
+    public List<InstructionLoadDTO> preInsertStep(
+            RowMoveDTO rowMoveDTO, List<InstructionLoadDTO> rowList, int shiftQty) {
+
         String operationType = rowMoveDTO.getType();
+
         if ("INSERT_BEFORE".equals(operationType)
                 || "INSERT_AFTER".equals(operationType)
                 || "INSERT_AFTER_ELSEIF".equals(operationType)) {
-            // Get the instruction order number from the first instruction in the updated rows
+
             int targetOrderNumber = rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber();
 
-            // Check if the targetOrderNumber exists in the rowList
             boolean orderNumberExists = rowList.stream()
                     .anyMatch(instruction -> instruction.getInstructionOrderNumber() == targetOrderNumber);
 
             if (!orderNumberExists) {
-                // If the target order number doesn't exist, return false without shifting
                 ARLogger.getInstance(PerformDataBase.class)
                         .warning(String.format(
                                 "preInsertStep - Target order number %d does not exist in the row list.",
                                 targetOrderNumber));
-                return false;
             }
 
-            // Build the SQL update statement
-            try (Statement stmt = getConnection().createStatement()) {
-                // Loop through each instruction in the rowList
-                for (InstructionLoadDTO instruction : rowList) {
-                    // For "INSERT_BEFORE", shift instructions with an order number greater than or equal to the target
-                    // For "INSERT_AFTER", shift instructions with an order number strictly greater than the target
-                    boolean shouldShift = ("INSERT_BEFORE".equals(operationType))
-                            ? instruction.getInstructionOrderNumber() >= targetOrderNumber
-                            : instruction.getInstructionOrderNumber() > targetOrderNumber;
+            for (InstructionLoadDTO instruction : rowList) {
+                boolean shouldShift = "INSERT_BEFORE".equals(operationType)
+                        ? instruction.getInstructionOrderNumber() >= targetOrderNumber
+                        : instruction.getInstructionOrderNumber() > targetOrderNumber;
 
-                    if (shouldShift) {
-                        // Increment the instructionOrderNumber by 1 for each instruction
-                        String updateSQL = "UPDATE " + tableName + " SET  "
-                                + " instruction_order_number = " + (instruction.getInstructionOrderNumber() + 1)
-                                + " WHERE id = " + instruction.getInstructionId()
-                                + " AND block_id = " + instruction.getBlockId();
-
-                        int rowsAffected = stmt.executeUpdate(updateSQL);
-                        if (rowsAffected > 0) {
-                            //                            ARLogger.getInstance(PerformDataBase.class)
-                            //                                    .info(String.format(
-                            //                                            "preInsertStep - InstructionId: %s in BlockId:
-                            // %s now has order number: %d",
-                            //                                            instruction.getInstructionId(),
-                            //                                            instruction.getBlockId(),
-                            //                                            instruction.getInstructionOrderNumber() + 1));
-                        } else {
-                            ARLogger.getInstance(PerformDataBase.class)
-                                    .warning(String.format(
-                                            "preInsertStep - No matching record found for BlockId: %d and InstructionId: %d",
-                                            instruction.getBlockId(), instruction.getInstructionId()));
-                        }
-                    }
+                if (shouldShift) {
+                    instruction.setInstructionOrderNumber(instruction.getInstructionOrderNumber() + shiftQty);
                 }
-                return true;
-            } catch (SQLException e) {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .severe(String.format("Error updating instruction order numbers.\nError: %s", e.getMessage()));
             }
         }
-        return false;
+        return rowList;
     }
 
     public ErrorMessage preFillNewInstruction(
@@ -3523,6 +3527,7 @@ ORDER BY bot.id ASC;
         //        this.botJobLoadDTO = loadBotJobById(rowMoveDTO.getBotJobId());
 
         boolean updateRow = rowMoveDTO.getType().equals("EDIT_OPERATION");
+        boolean isIF = actions.equalsIgnoreCase(ARConstants.IF);
 
         if (!updateRow || blockIdChanged) {
             List<InstructionLoadDTO> rowList = null;
@@ -3533,9 +3538,12 @@ ORDER BY bot.id ASC;
 
             rowList = getInstructionsByBlockId(rowMoveDTO.getBotJobId(), rowMoveDTO.getBlockId(), tableName);
 
-            reorderInstructions(rowList, tableName);
-
-            preInsertStep(rowMoveDTO, rowList, tableName);
+            if (isIF) {
+                rowList = preInsertStep(rowMoveDTO, rowList, 3);
+            } else {
+                rowList = preInsertStep(rowMoveDTO, rowList, 1);
+            }
+            reorderInstructions(rowList, tableName, true);
         }
 
         List<BlockLoadDTO> matchingBlocks = null;
@@ -3566,7 +3574,7 @@ ORDER BY bot.id ASC;
 
         List<BlockLoadDTO> finalMatchingBlocks = matchingBlocks;
 
-        InstructionLoadDTO instruction = new InstructionLoadDTO();
+        InstructionOperationDTO instruction = new InstructionOperationDTO();
         // EDIT_OPERATION
         if (updateRow) {
             int idToUpdate = rowMoveDTO.getUpdatedRows().get(0).getInstructionId();
@@ -3586,6 +3594,13 @@ ORDER BY bot.id ASC;
         } else {
             instruction.setInstructionOrderNumber(finalMatchingBlocks.size() + 1);
         }
+
+        // PARENT BLOCK ID
+        if (rowMoveDTO.getParentBlockId() != null
+                && (actions.equalsIgnoreCase("GOTO") || actions.equalsIgnoreCase("EXCEL GOTO"))) {
+            instruction.setParentBlockId(rowMoveDTO.getParentBlockId());
+        }
+
         instruction.setOperation(operation);
         instruction.setActions(actions);
         instruction.setDescription(description);
@@ -3628,16 +3643,12 @@ ORDER BY bot.id ASC;
                 }
             }
         }
-        instruction.setExportToABR(false);
         instruction.setInstructionActive(true);
         // Wrap the persistence in a try-catch block
         ErrorMessage errorMessage = null;
 
         try {
-            // PARENT BLOCK ID
-            if (rowMoveDTO.getParentBlockId() != null) {
-                instruction.setParentBlockId(rowMoveDTO.getParentBlockId());
-            }
+            int targetOrderNumber = rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber();
 
             Integer currentBlockId = rowMoveDTO.getBlockId();
 
@@ -3645,12 +3656,51 @@ ORDER BY bot.id ASC;
                 currentBlockId = instruction.getBlockId();
             }
             if (!updateRow) {
+                instrucOperList.clear();
+                instrucOperList.add(instruction);
+
+                if (isIF) {
+                    // Create ELSE
+                    int orderNumber = instruction.getInstructionOrderNumber();
+                    orderNumber++;
+                    InstructionOperationDTO elseInstr = buildFromLoadDTO(instruction);
+                    elseInstr.setName("ELSE");
+                    elseInstr.setDescription("ELSE");
+                    elseInstr.setActions(ARConstants.ELSE);
+                    elseInstr.setOperation(ARConstants.ELSE);
+                    elseInstr.setInstructionOrderNumber(orderNumber);
+                    instrucOperList.add(elseInstr);
+
+                    // Create ENDIF
+                    orderNumber++;
+                    InstructionOperationDTO endifInstr = buildFromLoadDTO(instruction);
+                    endifInstr.setName("ENDIF");
+                    endifInstr.setDescription("ENDIF");
+                    endifInstr.setActions(ARConstants.ENDIF);
+                    endifInstr.setOperation(ARConstants.ENDIF);
+                    endifInstr.setInstructionOrderNumber(orderNumber);
+                    instrucOperList.add(endifInstr);
+
+                    // Last OrderNumber added
+                    targetOrderNumber = orderNumber;
+                }
+
                 errorMessage = insertInstruction(
                         rowMoveDTO.getSessionId(),
-                        instruction,
+                        instrucOperList,
                         rowMoveDTO.getBotJobId(),
                         currentBlockId,
                         rowMoveDTO.getHomeBankingId());
+
+                if (isIF && errorMessage == null && idsInstrucAfter.size() == 3) {
+                    int index = 0;
+                    for (InstructionOperationDTO instruct : instrucOperList) {
+                        instruct.setId(idsInstrucAfter.get(index));
+                        instruct.setParentId(idsInstrucAfter.get(0)); // PARENT ID FOR ALL
+                        index++; // To get the NEWS Ids
+                    }
+                    errorMessage = updateInstructionParentIdOnly(rowMoveDTO.getSessionId(), instrucOperList);
+                }
             } else {
                 errorMessage = updateInstruction(
                         rowMoveDTO.getSessionId(),
@@ -3661,8 +3711,7 @@ ORDER BY bot.id ASC;
             }
 
             if (!updateRow || blockIdChanged) {
-                int targetOrderNumber = rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber();
-                rowMoveDTO.getUpdatedRows().get(0).setInstructionOrderNumber(targetOrderNumber + 1);
+                rowMoveDTO.getUpdatedRows().get(0).setInstructionOrderNumber(targetOrderNumber);
             }
 
             if (errorMessage == null) {
@@ -4002,7 +4051,7 @@ ORDER BY bot.id ASC;
 
                 for (BlockLoadDTO block : botJobLoadList.get(0).getBlockLoadDTOList()) {
                     rowList = getInstructionsByBlockId(botJobLoadList.get(0).getId(), block.getId(), tableName);
-                    reorderInstructions(rowList, tableName);
+                    reorderInstructions(rowList, tableName, false);
                 }
 
                 List<InstructionLoadDTO> blockLoopInstructions = botJobLoadList.get(0).getBlockLoadDTOList().stream()
@@ -4307,15 +4356,19 @@ ORDER BY bot.id ASC;
     }
 
     // Handle DELETE_INSTRUCTION message
-    public void deleteComponent(
-            int homeBankId, int blockId, InstructionLoadDTO deleteInstructionLoad, boolean blockDeletion) {
+    public void deleteComponent(int homeBankId, int blockId, InstructionLoadDTO toDelete, boolean blockDeletion) {
 
-        if (deleteInstructionLoad.getParentId() != null) {
-            List<ParentOperations> listParents = loadParentsComp(
-                    homeBankId, blockId, deleteInstructionLoad.getInstructionId(), deleteInstructionLoad.getParentId());
+        if (toDelete.getParentId() != null) {
+            List<ParentOperations> listParents =
+                    loadParentsComp(homeBankId, blockId, toDelete.getInstructionId(), toDelete.getParentId());
             if (!listParents.isEmpty()) {
 
-                if (!blockDeletion) {
+                boolean isIF = toDelete.getActions().equalsIgnoreCase("IF")
+                        || toDelete.getActions().equalsIgnoreCase("ELSE")
+                        || toDelete.getActions().equalsIgnoreCase("ENDIF")
+                        || toDelete.getActions().equalsIgnoreCase("ELSEIF");
+
+                if (!blockDeletion && !isIF) {
                     List<String> lstMsg = performMessage.distributeMsg(
                             listParents.stream().map(ParentOperations::getName).collect(Collectors.toList()));
 
@@ -4335,14 +4388,14 @@ ORDER BY bot.id ASC;
                     }
                 }
 
-                deleteCompRowParents(homeBankId, blockId, deleteInstructionLoad.getInstructionId());
+                deleteCompRowParents(homeBankId, blockId, toDelete.getInstructionId());
             }
         }
 
-        if (deleteCompVariable(deleteInstructionLoad))
-            if (deleteCompReferences(deleteInstructionLoad))
-                if (deleteCompInstruction(deleteInstructionLoad)) {
-                    deleteCompNullBlocks(deleteInstructionLoad.getHomeBankingId());
+        if (deleteCompVariable(toDelete))
+            if (deleteCompReferences(toDelete))
+                if (deleteCompInstruction(toDelete)) {
+                    deleteCompNullBlocks(toDelete.getHomeBankingId());
                     updateCompBlockOrderNumber(selectCompAllBlocks(homeBankId, blockId), true);
                 }
     }
@@ -9305,5 +9358,28 @@ GROUP BY
         } catch (SQLException error) {
             ARLogger.getInstance(PerformDataBase.class).severe("Error during migration: " + error);
         }
+    }
+
+    private InstructionOperationDTO buildFromLoadDTO(InstructionOperationDTO dto) {
+        return InstructionOperationDTO.builder()
+                .id(dto.getId())
+                .blockId(dto.getBlockId())
+                .botJobId(dto.getBotJobId())
+                .homeBankingId(dto.getHomeBankingId())
+                .name(dto.getName())
+                .description(dto.getDescription())
+                .actions(dto.getActions())
+                .operation(dto.getOperation())
+                .instructionOrderNumber(dto.getInstructionOrderNumber())
+                .actionCustomMaxWaitSec(dto.getActionCustomMaxWaitSec())
+                .onHoldSeconds(dto.getOnHoldSeconds())
+                .variableId(dto.getVariableId())
+                .parentBlockId(dto.getParentBlockId())
+                .parentId(dto.getParentId())
+                .instructionActive(dto.getInstructionActive())
+                .blockActive(dto.getBlockActive())
+                .refreshLoop(dto.getRefreshLoop())
+                .loopOnly(dto.getLoopOnly())
+                .build();
     }
 }

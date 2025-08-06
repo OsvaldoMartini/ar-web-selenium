@@ -55,7 +55,6 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.concurrent.Task;
 import javafx.concurrent.Worker;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
@@ -311,28 +310,28 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private void stepsInsertOneDTO(TargetElement targetInsertOne, boolean isMany) {
-        int blockExist = validateBlockDB("Default Block", this.botJobLoad.getId(), isMany);
-        if (blockExist > 0 && currentBlockId > 0) {
-
-            //            preTestCoordinates(targetInsertOne);
-
-            List<InstructionLoadDTO> listInstr =
-                    performDataBase.getInstructionsByBlockId(botJobLoad.getId(), currentBlockId, "instruction");
-
-            int nextOrder = listInstr.size() + 1;
-            instructionList.clear();
-
-            if (!Strings.isNullOrEmpty(defineNameField.getText().trim())
-                    && !targetInsertOne
-                            .getDefinedName()
-                            .equalsIgnoreCase(defineNameField.getText().trim())) {
-                targetInsertOne.setDefinedName(defineNameField.getText().trim());
-            }
-
-            insertNewElementDTO(currentBlockId, nextOrder, targetInsertOne);
-        }
-    }
+    //    private void stepsInsertOneDTO(TargetElement targetInsertOne, boolean isMany) {
+    //        int blockExist = validateBlockDB("Default Block", this.botJobLoad.getId(), isMany);
+    //        if (blockExist > 0 && currentBlockId > 0) {
+    //
+    //            //            preTestCoordinates(targetInsertOne);
+    //
+    //            List<InstructionLoadDTO> listInstr =
+    //                    performDataBase.getInstructionsByBlockId(botJobLoad.getId(), currentBlockId, "instruction");
+    //
+    //            int nextOrder = listInstr.size() + 1;
+    //            instructionList.clear();
+    //
+    //            if (!Strings.isNullOrEmpty(defineNameField.getText().trim())
+    //                    && !targetInsertOne
+    //                            .getDefinedName()
+    //                            .equalsIgnoreCase(defineNameField.getText().trim())) {
+    //                targetInsertOne.setDefinedName(defineNameField.getText().trim());
+    //            }
+    //
+    //            insertNewElementDTO(currentBlockId, nextOrder, targetInsertOne);
+    //        }
+    //    }
 
     public void destroy() {
         clearPane(getPaneReference());
@@ -552,167 +551,6 @@ public class ARScannedElementPane extends ARPane {
 
         instruction.setInstructionReferenceLoadDTOList(referenceList);
         instructionList.add(instruction);
-    }
-
-    private void insertNewElementDTO(int currentBlockId, int nextInstOrderNumber, TargetElement targetInsert) {
-
-        if (targetInsert.getXPath() == null) {
-            targetInsert.setXPath(targetInsert.getSavedReferences().get("currentXPath"));
-        }
-
-        if (targetInsert.getCoordinates() == null) {
-            targetInsert.setCoordinates(targetInsert.getSavedReferences().get("coordinates"));
-        }
-
-        Task<Void> handleEvent = new Task<>() {
-            @Override
-            protected Void call() throws Exception {
-                ARLogger.getInstance(Task.class).finer("THREAD: instruction list size " + nextInstOrderNumber);
-
-                String actionReq = checkClickElement.isSelected()
-                        ? ARConstants.CLICK
-                        : checkInputText.isSelected()
-                                ? ARConstants.INSERT
-                                : checkOutputText.isSelected() ? ARConstants.OUTPUT : ARConstants.OTHER;
-
-                targetInsert.setClickElement(checkClickElement.isSelected());
-
-                WebElementTagNameEnum tagType = targetInsert.getTagType();
-
-                if (checkForceEnterText.isSelected() && tagType.equals(WebElementTagNameEnum.INPUT)) {
-                    tagType = WebElementTagNameEnum.INPUT_ENTER;
-                }
-
-                InstructionLoadDTO instruction = performActions.buildNewInstruction(
-                        tagType, actionReq, false, nextInstOrderNumber, targetInsert);
-
-                instruction.setForceCoordinates(checkForceCoordText.isSelected());
-
-                instruction.setCoordinates(targetInsert.getCoordinates());
-                instruction.setIFrameXPath(targetInsert.getIFrameXPath());
-
-                instruction.setShadowHost(targetInsert.getShadowHost());
-                instruction.setShadowRoot(targetInsert.getShadowRoot());
-                instruction.setCssSelector(targetInsert.getCssSelector());
-
-                instruction.setBlockId(currentBlockId);
-
-                Integer currentBotJobId = botJobLoad.getId();
-
-                // Change the Name on the fly
-                instruction.setName(targetInsert.getDefinedName());
-
-                // Update the action string if it contains "I:"
-                String actions = instruction.getActions();
-                String[] parts = actions.split(",");
-
-                if (actions.startsWith("I:")) {
-                    for (int i = 0; i < parts.length; i++) {
-                        parts[i] = parts[i].trim(); // Ensure no leading/trailing spaces
-                        if (parts[i].startsWith("I:")) {
-                            if (parts[i].contains(":E:")) {
-                                parts[i] = "I:E:" + targetInsert.getDefinedName();
-                            } else {
-                                parts[i] = "I:" + targetInsert.getDefinedName();
-                            }
-                            break;
-                        }
-                    }
-
-                    instruction.setActions(parts[0]);
-                }
-
-                ErrorMessage errorMessage = preFillAddInstruction(
-                        instruction.getName().trim(),
-                        instruction.getDescription().trim(),
-                        instruction.getActions(),
-                        instruction.getOperation(),
-                        instruction.getOnHoldSeconds(),
-                        instruction.getVariableId(),
-                        instruction.getInstructionOrderNumber(),
-                        instruction.getExportToABR(),
-                        instruction.getXpath(),
-                        instruction.getCoordinates(),
-                        instruction.getForceCoordinates(),
-                        instruction.getIFrameXPath(),
-                        instruction.getTagName(),
-                        instruction.getShadowHost(),
-                        instruction.getShadowRoot(),
-                        instruction.getCssSelector(),
-                        currentBotJobId,
-                        currentBlockId,
-                        false);
-
-                if (errorMessage != null) {
-                    performMessage.errorMessage(
-                            "Error Adding New Component Instruction",
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to insert new Operation!</span> ❌",
-                            "<span style='color: #E65100; font-weight: bold;'>Instruction Name:</span> <span style='font-weight: bold;'>"
-                                    + instruction.getName() + "</span>",
-                            "<span style='font-style: italic;'>Details: " + errorMessage.getErrorMessage() + "</span>",
-                            null,
-                            0);
-
-                    return null;
-                }
-
-                if (!performDataBase.getIdsInstrucAfter().isEmpty()
-                        && performDataBase.getIdsInstrucAfter().get(0) > 0) {
-                    instruction.setId(performDataBase.getIdsInstrucAfter().get(0));
-                } else {
-                    instruction.setId(performDataBase.getIdsInstrucAfter().get(0));
-                }
-
-                targetInsert.setInstructionId(instruction.getId());
-                List<InstructionReferenceLoadDTO> queue = new ArrayList<>();
-                for (String key : targetInsert.getSavedReferences().keySet()) {
-                    InstructionReferenceLoadDTO reference = new InstructionReferenceLoadDTO();
-                    reference.setReferenceType(key);
-                    reference.setValue(targetInsert.getSavedReferences().get(key));
-
-                    reference.setBotJobId(currentBotJobId);
-
-                    //
-                    // reference.setBlockLoopInstructionLoadDTO(instruction);
-                    queue.add(reference);
-                }
-                try {
-
-                    //                    Platform.runLater(() -> {
-                    errorMessage = performDataBase.insertReferences(queue, instruction.getId());
-                    updateBotJobTasks(currentBotJobId);
-
-                    if (errorMessage != null) {
-                        String[] lines = errorMessage.getErrorMessage().split("\n");
-                        performMessage.errorMessage(
-                                errorMessage.getErrorTitle(),
-                                errorMessage.getErrorHeader(),
-                                (!Strings.isNullOrEmpty(lines[0]) ? lines[0] : null),
-                                (!Strings.isNullOrEmpty(lines[0]) ? lines[1] : null),
-                                null,
-                                0);
-                    }
-
-                    //                    });
-                } catch (Exception ex) {
-                    ARLogger.getInstance(Task.class).severe("Error Adding Instruction elements");
-                    performMessage.errorMessage(
-                            "Web Instruction Analysis",
-                            "<span style='color: #FFA000; font-weight: bold; font-size: 1.1em;'>Potential Issue with Web Instruction</span> ⚠️",
-                            "<span style='color: #E65100;'>Instruction:</span> <span style='font-weight: bold;'>\""
-                                    + instruction.getName() + "\"</span>",
-                            "<span style='color: #757575;'>Added with " + queue.size() + " reference locators.</span>",
-                            "<span style='font-style: italic;'>Warning: The engine might not process this element correctly due to insufficient identifiable attributes. Consider adding more specific locators.</span>",
-                            0);
-                }
-                //                                        });
-                return null;
-            }
-        };
-        ARLogger.getInstance(ARScannedElementPane.class).fine("Thread created");
-        ARLogger.getInstance(ARScannedElementPane.class).fine("Before thread execution");
-        new Thread(handleEvent).start();
-        ARLogger.getInstance(ARScannedElementPane.class).fine("After thread execution");
     }
 
     private void updateBotJobTasks(int currentBotJobId) {
@@ -5259,81 +5097,6 @@ public class ARScannedElementPane extends ARPane {
         alert.setHeaderText(header);
         alert.setContentText(content);
         alert.showAndWait();
-    }
-
-    private ErrorMessage preFillAddInstruction(
-            String name,
-            String description,
-            String actions,
-            String operation,
-            Integer onHold,
-            Integer varId,
-            Integer instructionOrderNumber,
-            boolean exportToAR,
-            String xPath,
-            String coordinates,
-            boolean forceCoordinates,
-            String iFrameXPath,
-            String tagName,
-            String shadowHost,
-            String shadowRoot,
-            String cssSelector,
-            Integer currentBotJobId,
-            Integer currentBlockId,
-            boolean updateRow) {
-
-        InstructionLoadDTO instructionLoadDTO = new InstructionLoadDTO();
-
-        instructionLoadDTO.setXpath(xPath);
-        instructionLoadDTO.setCoordinates(coordinates);
-        instructionLoadDTO.setForceCoordinates(forceCoordinates);
-        instructionLoadDTO.setIFrameXPath(iFrameXPath);
-
-        instructionLoadDTO.setTagName(tagName);
-        instructionLoadDTO.setShadowHost(shadowHost);
-        instructionLoadDTO.setShadowRoot(shadowRoot);
-        instructionLoadDTO.setCssSelector(cssSelector);
-
-        instructionLoadDTO.setName(name);
-
-        instructionLoadDTO.setCodified(false);
-
-        instructionLoadDTO.setInstructionOrderNumber(instructionOrderNumber);
-
-        instructionLoadDTO.setOptional(false);
-
-        //        InstructionLoadDTO.setOperation(operation);
-        instructionLoadDTO.setActions(actions);
-        instructionLoadDTO.setDescription(description);
-
-        instructionLoadDTO.setVariableId(varId);
-
-        instructionLoadDTO.setActionCustomMaxWaitSec(30);
-        instructionLoadDTO.setOnHoldSeconds(onHold);
-        //        InstructionLoadDTO.setBlock(savedBlockDTO);
-        instructionLoadDTO.setExportToABR(exportToAR);
-        instructionLoadDTO.setInstructionActive(true);
-
-        // Wrap the persistence in a try-catch block
-        ErrorMessage errorMessage = null;
-
-        try {
-            if (!updateRow) {
-                errorMessage = performDataBase.insertInstruction(
-                        "botJobTasks", instructionLoadDTO, currentBotJobId, currentBlockId, homeBanking.getId());
-            } else {
-                errorMessage = performDataBase.updateInstruction(
-                        "botJobTasks", instructionLoadDTO, currentBotJobId, currentBlockId, homeBanking.getId());
-            }
-
-        } catch (Exception e) {
-
-            ARLogger.getInstance(ARScannedElementPane.class)
-                    .severe(String.format(
-                            "Cannot Insert \"Instruction\"  \"%s\"\nCannot be saved!\nError: %s",
-                            instructionLoadDTO.getName(), e.getMessage()));
-        }
-        return errorMessage;
     }
 
     private void loadAllBlockItems(List<BlockLoadDTO> blockLoadDTOList) {
