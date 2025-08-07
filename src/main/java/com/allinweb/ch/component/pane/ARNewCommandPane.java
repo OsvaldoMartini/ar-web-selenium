@@ -2315,8 +2315,6 @@ public class ARNewCommandPane extends ARPane {
             Integer parentBlockId,
             RowMoveDTO rowMoveDTO) {
 
-        savingOper = true;
-
         Integer blockId = comboBoxAllBlocks.getValue().getBlockId();
         String blockName = comboBoxAllBlocks.getValue().getText();
 
