@@ -36,7 +36,6 @@ import com.google.gson.JsonParser;
 import java.io.*;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.sql.*;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.util.*;
@@ -1065,7 +1064,7 @@ public class ARScannedElementPane extends ARPane {
     private Button configureButton;
     private Button launchBotJobButton;
     private Button stopBotJobButton;
-    private Button searchWebElementsButton;
+    private Button pageScannerButton;
     private Button refreshWebPageButton;
     private Button leftButton;
     private Button rightButton;
@@ -1456,7 +1455,7 @@ public class ARScannedElementPane extends ARPane {
 
         cloneElementsButton = componentBuilder.buildButton(
                 "Clone", ARConstants.SPACE_L, ARConstants.ICON_TICK, ARConstants.SPACE_SM, new Insets(5));
-        searchWebElementsButton = componentBuilder.buildButton(
+        pageScannerButton = componentBuilder.buildButton(
                 "Page Scanner", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
 
         turnOnOffButton = new Button("Search Hidden Fields: Off");
@@ -1642,7 +1641,7 @@ public class ARScannedElementPane extends ARPane {
             gridPaneTop.setHgap(10); // Set horizontal gap between columns
 
             // Add buttons and checkbox to the GridPane
-            gridPaneTop.add(searchWebElementsButton, 0, 0);
+            gridPaneTop.add(pageScannerButton, 0, 0);
             gridPaneTop.add(searchTermsLabel, 3, 0);
             gridPaneTop.add(searchTermsField, 4, 0);
             gridPaneTop.add(searchButton, 5, 0);
@@ -2028,7 +2027,7 @@ public class ARScannedElementPane extends ARPane {
             }
         });
 
-        searchWebElementsButton.setOnAction(e -> searchTermsBtn(null));
+        pageScannerButton.setOnAction(e -> searchTermsBtn(null));
 
         searchButton.setOnAction(e -> searchTermsBtn(searchTermsField.getText().trim()));
 

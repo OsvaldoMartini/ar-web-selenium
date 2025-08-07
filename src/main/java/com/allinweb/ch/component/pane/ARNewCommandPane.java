@@ -145,6 +145,7 @@ public class ARNewCommandPane extends ARPane {
     private Button addWaitButton2;
     private Button addCloseActionButton;
     private Button addScreenButton;
+    private Button refreshWebButton;
 
     double buttonWidth = 200;
     double blockAddNewsWidth = 200;
@@ -175,6 +176,7 @@ public class ARNewCommandPane extends ARPane {
     private ComboBox<FormatOption> comboBoxLoops;
     private ObservableList<FormatOption> loopsItems = FXCollections.observableArrayList();
 
+    private HBox webBoxWebFields;
     private ComboBox<ComboBoxImage> comboBoxWebFields;
     private ObservableList<ComboBoxVars> webPageItems;
     private ObservableList<ComboBoxImage> filteredPageItems = FXCollections.observableArrayList();
@@ -360,6 +362,8 @@ public class ARNewCommandPane extends ARPane {
                 "Add Close Browser", ARConstants.SPACE_L, ARConstants.ICON_CROSS, ARConstants.SPACE_M, new Insets(5));
         addScreenButton = componentBuilder.buildButton(
                 "Add Screenshot", ARConstants.SPACE_L, ARConstants.ICON_SCREEN, ARConstants.SPACE_M, new Insets(5));
+
+        refreshWebButton = createPathButton();
 
         // Create a new HBox for the new buttons
         buttonBox = new HBox(10); // 10 is the spacing between buttons
@@ -775,9 +779,15 @@ public class ARNewCommandPane extends ARPane {
             }
         });
 
+        webBoxWebFields = new HBox();
+        webBoxWebFields.setSpacing(0); // No spacing, use margins instead
+        HBox.setMargin(comboBoxWebFields, new Insets(0, 3, 0, 0)); // Right margin of 3 pixels
+        HBox.setMargin(refreshWebButton, new Insets(0, 3, 0, 0)); // Right margin of 3 pixels
+        webBoxWebFields.getChildren().addAll(comboBoxWebFields, refreshWebButton);
+
         commandBox = new VBox(commandLabel, comboBoxInstruc);
         varsBox = new VBox(botJobVarsLabel, comboBoxVars);
-        webFieldsBox = new VBox(webPageLabel, comboBoxWebFields);
+        webFieldsBox = new VBox(webPageLabel, webBoxWebFields);
         addNewsBox = new VBox(addBlocksLabel, comboBoxAllBlocks);
         blocksBox = new VBox(blocksLabel, comboBoxBlocksGoto);
 
@@ -983,6 +993,10 @@ public class ARNewCommandPane extends ARPane {
 
         addScreenButton.setOnAction(e -> insertNewInstruction(
                 "Screenshot Browser", "Screenshot Browser", ARConstants.SCREEN, 0, "", null, null, null, rowMoveDTO));
+
+        refreshWebButton.setOnMouseClicked(e -> {
+            updateFields();
+        });
 
         comboBoxOperator.setVisible(false);
         comboBoxTimes.setVisible(false);
@@ -1410,6 +1424,7 @@ public class ARNewCommandPane extends ARPane {
             webPageLabel.setVisible(true);
             comboBoxOperator.setVisible(true);
             comboBoxWebFields.setVisible(true);
+            webBoxWebFields.setVisible(true);
             comboBoxAllBlocks.setVisible(true);
 
             variableButton.setVisible(true);
@@ -1463,6 +1478,7 @@ public class ARNewCommandPane extends ARPane {
             webPageLabel.setVisible(false);
             comboBoxOperator.setVisible(false);
             comboBoxWebFields.setVisible(false);
+            webBoxWebFields.setVisible(false);
             comboBoxAllBlocks.setVisible(true);
 
             variableButton.setVisible(false);
@@ -1516,6 +1532,7 @@ public class ARNewCommandPane extends ARPane {
             webPageLabel.setVisible(false);
             comboBoxOperator.setVisible(false);
             comboBoxWebFields.setVisible(false);
+            webBoxWebFields.setVisible(false);
 
             comboBoxAllBlocks.setVisible(true);
 
@@ -1570,6 +1587,7 @@ public class ARNewCommandPane extends ARPane {
             comboBoxBlocksGoto.setVisible(false);
             comboBoxOperator.setVisible(false);
             comboBoxWebFields.setVisible(false);
+            webBoxWebFields.setVisible(false);
             comboBoxAllBlocks.setVisible(true);
 
             variableButton.setVisible(false);
@@ -1620,6 +1638,7 @@ public class ARNewCommandPane extends ARPane {
             webPageLabel.setVisible(true);
             comboBoxOperator.setVisible(false);
             comboBoxWebFields.setVisible(true);
+            webBoxWebFields.setVisible(true);
             comboBoxAllBlocks.setVisible(true);
 
             variableButton.setVisible(false);
@@ -1675,6 +1694,7 @@ public class ARNewCommandPane extends ARPane {
             webPageLabel.setVisible(true);
             comboBoxOperator.setVisible(false);
             comboBoxWebFields.setVisible(true);
+            webBoxWebFields.setVisible(true);
             comboBoxAllBlocks.setVisible(true);
 
             variableButton.setVisible(false);
@@ -1730,6 +1750,7 @@ public class ARNewCommandPane extends ARPane {
             comboBoxBlocksGoto.setVisible(false);
             comboBoxOperator.setVisible(false);
             comboBoxWebFields.setVisible(false);
+            webBoxWebFields.setVisible(false);
             comboBoxAllBlocks.setVisible(true);
             variableButton.setVisible(false);
             comboBoxVars.setVisible(false);
@@ -1779,6 +1800,7 @@ public class ARNewCommandPane extends ARPane {
             webPageLabel.setVisible(true);
             comboBoxOperator.setVisible(false);
             comboBoxWebFields.setVisible(true);
+            webBoxWebFields.setVisible(true);
             comboBoxAllBlocks.setVisible(true);
             variableButton.setVisible(true);
 
@@ -2240,7 +2262,7 @@ public class ARNewCommandPane extends ARPane {
                         item.getInstructionId(),
                         item.getOrderNumber()))
                 .toList());
-                comboBoxWebFields.getSelectionModel().selectFirst();
+        comboBoxWebFields.getSelectionModel().selectFirst();
     }
 
     private void clearFields() {}
@@ -2421,9 +2443,9 @@ public class ARNewCommandPane extends ARPane {
             webSocketSessionManager.sendMessageJson(
                     rowMoveDTO.getHomeBankingId(), rowMoveDTO.getSessionId(), jsonData, rowMoveDTO.getOperationId());
 
-            if (!rowMoveDTO.getType().equals("EDIT_OPERATION")) {
-//                updateFields();
-            } 
+            //            if (!rowMoveDTO.getType().equals("EDIT_OPERATION")) {
+            //                updateFields();
+            //            }
         }
 
         //            if (Strings.isNullOrEmpty(nextAction)) {
@@ -2617,5 +2639,13 @@ public class ARNewCommandPane extends ARPane {
             return new Image(ARConstants.ICON_LINK);
         }
         return null; // Default case if tagType is neither "input" nor "output"
+    }
+
+    private Button createPathButton() {
+        Button button = componentBuilder.buildButton(
+                "", ARConstants.SPACE_L, ARConstants.ICON_REFRESH, ARConstants.SPACE_M, new Insets(3D));
+        button.setMaxWidth(ARConstants.SPACE_L);
+        AnchorPane.setRightAnchor(button, 0D);
+        return button;
     }
 }

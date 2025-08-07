@@ -3863,7 +3863,9 @@ ORDER BY bot.id ASC;
                         || actions.equalsIgnoreCase(ARConstants.CHECK_VALUE)
                         || actions.equalsIgnoreCase(ARConstants.HOLD)
                         || actions.equalsIgnoreCase(ARConstants.PAUSE)
-                        || actions.equalsIgnoreCase(ARConstants.EXCEL_GOTO)) {
+                        || actions.equalsIgnoreCase(ARConstants.EXCEL_GOTO)
+                        || actions.equalsIgnoreCase(ARConstants.SCREEN)
+                        || actions.equalsIgnoreCase(ARConstants.QUIT)) {
                     continue;
                 }
 
@@ -3923,7 +3925,9 @@ ORDER BY bot.id ASC;
                         || actions.equalsIgnoreCase(ARConstants.CHECK_VALUE)
                         || actions.equalsIgnoreCase(ARConstants.HOLD)
                         || actions.equalsIgnoreCase(ARConstants.PAUSE)
-                        || actions.equalsIgnoreCase(ARConstants.EXCEL_GOTO)) {
+                        || actions.equalsIgnoreCase(ARConstants.EXCEL_GOTO)
+                        || actions.equalsIgnoreCase(ARConstants.SCREEN)
+                        || actions.equalsIgnoreCase(ARConstants.QUIT)) {
                     continue;
                 }
 
