@@ -24,8 +24,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import javafx.application.Platform;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -1206,29 +1204,12 @@ public class ARNewCommandPane extends ARPane {
                         1,
                         "IF",
                         null, // Block Order Number as VarId
-                        null, // BLOCK ID as Parent Id
-                        null,
+                        null, // Parent Id null
+                        null, // Parent Block Id null
                         this.rowMoveDTO);
             }
 
             //            PerformDataBase..changeDbConnection(previousDB);
-        });
-
-        // Add a listener to print the ID when the selection changes
-        comboBoxWebFields.getSelectionModel().selectedItemProperty().addListener(new ChangeListener<ComboBoxImage>() {
-            @Override
-            public void changed(
-                    ObservableValue<? extends ComboBoxImage> observable,
-                    ComboBoxImage oldValue,
-                    ComboBoxImage newValue) {
-                if (newValue != null) {
-                    if (!firstLoad) {
-                        reloadComboVars(newValue.getInstructionId(), false, -1);
-                        comboBoxVars.getSelectionModel().selectFirst();
-                        recallMessages(comboBoxInstruc.getValue().getValue());
-                    }
-                }
-            }
         });
 
         cancelButton.setOnMouseClicked((e) -> {
@@ -1281,6 +1262,34 @@ public class ARNewCommandPane extends ARPane {
             comboBoxVars.getSelectionModel().selectFirst();
             if (comboBoxVars.getValue() != null) {
                 recallMessages(comboBoxInstruc.getValue().getValue());
+            }
+        });
+
+        //        comboBoxWebFields.getSelectionModel().selectedItemProperty().addListener(new
+        // ChangeListener<ComboBoxImage>() {
+        //            @Override
+        //            public void changed(
+        //                    ObservableValue<? extends ComboBoxImage> observable,
+        //                    ComboBoxImage oldValue,
+        //                    ComboBoxImage newValue) {
+        //                if (newValue != null) {
+        //                    if (!firstLoad)  {
+        //                        reloadComboVars(newValue.getInstructionId(), false, -1);
+        //                        comboBoxVars.getSelectionModel().selectFirst();
+        //                        recallMessages(comboBoxInstruc.getValue().getValue());
+        //                    }
+        //                }
+        //            }
+        //        });
+
+        // Add a listener to print the ID when the selection changes
+        comboBoxWebFields.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue != null) {
+                if (!firstLoad) {
+                    reloadComboVars(newValue.getInstructionId(), false, -1);
+                    comboBoxVars.getSelectionModel().selectFirst();
+                    recallMessages(comboBoxInstruc.getValue().getValue());
+                }
             }
         });
 
@@ -2231,7 +2240,7 @@ public class ARNewCommandPane extends ARPane {
                         item.getInstructionId(),
                         item.getOrderNumber()))
                 .toList());
-        comboBoxWebFields.getSelectionModel().selectFirst();
+                comboBoxWebFields.getSelectionModel().selectFirst();
     }
 
     private void clearFields() {}
@@ -2301,13 +2310,21 @@ public class ARNewCommandPane extends ARPane {
             String actions,
             Integer onHold,
             String operation,
-            Integer varId,
-            Integer instructionId,
+            Integer variableId,
+            Integer parentId,
             Integer parentBlockId,
             RowMoveDTO rowMoveDTO) {
 
+        savingOper = true;
+
         Integer blockId = comboBoxAllBlocks.getValue().getBlockId();
         String blockName = comboBoxAllBlocks.getValue().getText();
+
+        if (!rowMoveDTO.getBlockId().equals(blockId)) {
+            blockIdChanged = true;
+        } else {
+            blockIdChanged = false;
+        }
 
         // This will make the EXCEL GOTO TO BE RELOCATES JUST AS INFO
         // EXCEL GOTO IS GOING TO BE RENDERED DIFFERENTLY ON GridItems
@@ -2335,13 +2352,12 @@ public class ARNewCommandPane extends ARPane {
         } else {
             rowMoveDTO.setBlockId(blockId);
             rowMoveDTO.setBlockName(blockName);
+
+            // Parent Id
+            rowMoveDTO.getUpdatedRows().get(0).setParentId(parentId);
         }
 
-        if (!rowMoveDTO.getBlockId().equals(blockId)) {
-            blockIdChanged = true;
-        } else {
-            blockIdChanged = false;
-        }
+        rowMoveDTO.getUpdatedRows().get(0).setVariableId(variableId);
 
         // This prevents if was deleted when in EDIT _OPERATION
         if (rowMoveDTO.getType().equals("EDIT_OPERATION")) {
@@ -2383,7 +2399,7 @@ public class ARNewCommandPane extends ARPane {
 
         // Run the instruction add in a separate Task
         ErrorMessage errorMessage = performDataBase.preFillNewInstruction(
-                name, description, actions, operation, onHold, varId, rowMoveDTO, blockIdChanged);
+                name, description, actions, operation, onHold, rowMoveDTO, blockIdChanged);
 
         if (errorMessage == null) {
 
@@ -2408,8 +2424,8 @@ public class ARNewCommandPane extends ARPane {
                     rowMoveDTO.getHomeBankingId(), rowMoveDTO.getSessionId(), jsonData, rowMoveDTO.getOperationId());
 
             if (!rowMoveDTO.getType().equals("EDIT_OPERATION")) {
-                updateFields();
-            }
+//                updateFields();
+            } 
         }
 
         //            if (Strings.isNullOrEmpty(nextAction)) {

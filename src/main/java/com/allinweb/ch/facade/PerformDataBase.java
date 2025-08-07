@@ -3520,7 +3520,6 @@ ORDER BY bot.id ASC;
             String actions,
             String operation,
             Integer onHold,
-            Integer varId,
             RowMoveDTO rowMoveDTO,
             boolean blockIdChanged) {
 
@@ -3529,7 +3528,7 @@ ORDER BY bot.id ASC;
         boolean updateRow = rowMoveDTO.getType().equals("EDIT_OPERATION");
         boolean isIF = actions.equalsIgnoreCase(ARConstants.IF);
 
-        if (!updateRow || blockIdChanged) {
+        if (!updateRow) {
             List<InstructionLoadDTO> rowList = null;
             String tableName = "instruction";
             if (rowMoveDTO.getSessionId().equals("componentTasks")) {
@@ -3538,12 +3537,16 @@ ORDER BY bot.id ASC;
 
             rowList = getInstructionsByBlockId(rowMoveDTO.getBotJobId(), rowMoveDTO.getBlockId(), tableName);
 
-            if (isIF) {
-                rowList = preInsertStep(rowMoveDTO, rowList, 3);
+            if (!blockIdChanged) {
+                if (isIF) {
+                    rowList = preInsertStep(rowMoveDTO, rowList, 3);
+                } else {
+                    rowList = preInsertStep(rowMoveDTO, rowList, 1);
+                }
+                reorderInstructions(rowList, tableName, true);
             } else {
-                rowList = preInsertStep(rowMoveDTO, rowList, 1);
+                rowMoveDTO.getUpdatedRows().get(0).setInstructionOrderNumber(rowList.size() + 1);
             }
-            reorderInstructions(rowList, tableName, true);
         }
 
         List<BlockLoadDTO> matchingBlocks = null;
@@ -3601,11 +3604,25 @@ ORDER BY bot.id ASC;
             instruction.setParentBlockId(rowMoveDTO.getParentBlockId());
         }
 
+        // PARENT ID
+        if (rowMoveDTO.getUpdatedRows().get(0).getParentId() != null
+                && (actions.equalsIgnoreCase(ARConstants.GET_VALUE)
+                        || actions.equalsIgnoreCase(ARConstants.SET_VALUE)
+                        || actions.equalsIgnoreCase(ARConstants.CHECK_VALUE)
+                        || actions.equalsIgnoreCase(ARConstants.EXTRACT_FIELD)
+                        || actions.equalsIgnoreCase(ARConstants.LOOP)
+                        || actions.equalsIgnoreCase(ARConstants.REFRESH_LOOP))) {
+            instruction.setParentId(rowMoveDTO.getUpdatedRows().get(0).getParentId());
+        }
+
+        if (rowMoveDTO.getUpdatedRows().get(0).getVariableId() != null) {
+            instruction.setVariableId(rowMoveDTO.getUpdatedRows().get(0).getVariableId());
+        }
+
         instruction.setOperation(operation);
         instruction.setActions(actions);
         instruction.setDescription(description);
 
-        instruction.setVariableId(varId);
         instruction.setActionCustomMaxWaitSec(30);
         instruction.setOnHoldSeconds(onHold);
 
