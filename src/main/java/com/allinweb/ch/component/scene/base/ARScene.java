@@ -5,21 +5,27 @@ import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
+import lombok.Setter;
 
-public abstract class ARScene implements IARScene {
+public abstract class ARScene implements IARScene, IconLoader {
 
-    private Image icon;
+    @Setter
+    protected Image icon;
+
     protected Stage stage; // Make stage protected to allow access in subclass
     private Scene scene; // Keep a reference to the scene
     protected final List<Thread> threadList = new ArrayList<>();
     // Flag to track if the close request handler has been set
     protected boolean isCloseHandlerSet = false;
+
+    public void loadIcon() {
+        loadAndSetIcon(ARConstants.ICON_APPLICATION); // e.g. "/images/ABR_icon.png"
+    }
 
     public ARScene() {
         setupStage(); // Initialize the stage and set its behavior
@@ -54,14 +60,6 @@ public abstract class ARScene implements IARScene {
                 ARLogger.getInstance(ARScene.class).severe("ARScene IllegalStateException: " + ex);
             }
         });
-    }
-
-    private void loadIcon() {
-        try {
-            icon = new Image(Objects.requireNonNull(getClass().getResourceAsStream(ARConstants.ICON_APPLICATION)));
-        } catch (Exception e) {
-            ARLogger.getInstance(ARScene.class).severe("Error loading icon in ARScene\n" + e);
-        }
     }
 
     public void createScene() {
