@@ -310,18 +310,36 @@ public class ARElementValuePane extends ARPane {
             if (nameExists(nameField.getText().trim())) {
                 performMessage.errorMessage(
                         "Variable Name Already Exists",
-                        String.format("'%s' cannot be inserted with the existent name!", nameField.getText()),
-                        null,
-                        null,
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                        String.format(
+                                "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> Duplicate Variable Name - '%s'",
+                                nameField.getText()),
+                        "<span style='font-style: italic;'>Detail:</span> A variable with this name already exists. Please choose a unique name.",
                         null,
                         0);
 
                 return;
             }
 
-            if (nameField.getText().trim().isEmpty() || selectedType.isEmpty()) {
+            if (nameField.getText().trim().isEmpty()) {
                 performMessage.errorMessage(
-                        "Name and Type Cannot be Empty", "Name and Type Cannot be Empty", null, null, null, 0);
+                        "Name Cannot be Empty",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> Name Cannot be Empty",
+                        "<span style='font-style: italic;'>Detail:</span> Please enter a valid name before continuing. This field is required.",
+                        null,
+                        0);
+                return;
+            }
+
+            if (selectedType.isEmpty()) {
+                performMessage.errorMessage(
+                        "Type of Variable Cannot be Empty",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> Type of Variable Cannot be Empty",
+                        "<span style='font-style: italic;'>Detail:</span> You must select or provide a valid variable type before proceeding.",
+                        null,
+                        0);
                 return;
             }
 
