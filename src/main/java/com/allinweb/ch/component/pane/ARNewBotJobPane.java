@@ -6,13 +6,12 @@ import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARViewBotJobScene;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import com.google.common.base.Strings;
 import javafx.application.Platform;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
@@ -46,15 +45,11 @@ public class ARNewBotJobPane extends ARPane {
         return instance;
     }
 
-    private final ObservableList<HomeUrlDTO> homeURLList = FXCollections.observableArrayList();
-    private ObservableList<BotJobLoadDTO> botJobList;
     //    private final ListView<BotJobLoadDTO> viewBotJobListView;
-    public void initialize(
-            ARViewBotJobScene arViewBotJobScene, ARWebDriver arWebDriver, ObservableList<BotJobLoadDTO> botJobList) {
+    public void initialize(ARViewBotJobScene arViewBotJobScene, ARWebDriver arWebDriver) {
         //        this.viewBotJobListView = viewBotJobListView;
         this.arViewBotJobScene = arViewBotJobScene;
         this.arWebDriver = arWebDriver;
-        this.botJobList = botJobList; // FXCollections.observableArrayList(performDataBase.loadAllBotJobs());
         //        this.viewBotJobListView.setItems(botJobList);
     }
 
@@ -74,10 +69,12 @@ public class ARNewBotJobPane extends ARPane {
 
     private ARViewBotJobScene arViewBotJobScene;
     private ARWebDriver arWebDriver;
+    private static final PerformLists performLists;
     private static final PerformDataBase performDataBase;
     private static final PerformMessage performMessage;
 
     static {
+        performLists = PerformLists.getInstance();
         performDataBase = PerformDataBase.getInstance();
         performMessage = PerformMessage.getInstance();
     }
@@ -99,9 +96,8 @@ public class ARNewBotJobPane extends ARPane {
         //        ObservableList<HomeBankingDTO> homeBankingUrlList =
         //                PerformDataBase..getEntityList(HomeBankingDTO.class);
 
-        homeURLList.clear();
-        homeURLList.addAll(performDataBase.loadAllHomeURL());
-        homeURLChoiceBox = new ChoiceBox<>(homeURLList);
+        performDataBase.loadHomeUrls(null);
+        homeURLChoiceBox = new ChoiceBox<>(performLists.getListHomeUrl());
 
         VBox mainLayout = new VBox(
                 10,
@@ -168,7 +164,7 @@ public class ARNewBotJobPane extends ARPane {
                 return;
             }
 
-            boolean existName = botJobList.stream().anyMatch(f -> f.getName()
+            boolean existName = performLists.getListBotJob().stream().anyMatch(f -> f.getName()
                     .equalsIgnoreCase(botJobName.getText().trim()));
 
             if (existName) {
@@ -206,17 +202,17 @@ public class ARNewBotJobPane extends ARPane {
 
             if (newJobId > 0) {
                 createdBotJob.setId(newJobId);
-                this.botJobList.add(createdBotJob); // Add the new bot job to the ObservableList
+                //                this.botJobList.add(createdBotJob); // Add the new bot job to the ObservableList
 
                 // Refresh the ListView after adding the new bot job
-                this.botJobList.clear();
+                //                this.botJobList.clear();
                 if (performDataBase.getConn() != null) {
-                    this.botJobList.addAll(performDataBase.loadAllBotJobs(performDataBase.getConn()));
+                    performDataBase.loadQuickBotJobs();
                 }
                 //                viewBotJobListView.setItems(botJobList);
                 //                viewBotJobListView.refresh(); // Explicitly refresh the ListView
 
-                arViewBotJobScene.initialize(arWebDriver, createdBotJob, botJobList);
+                arViewBotJobScene.initialize(arWebDriver, createdBotJob);
                 arViewBotJobScene.showModal();
 
                 // Close the current window

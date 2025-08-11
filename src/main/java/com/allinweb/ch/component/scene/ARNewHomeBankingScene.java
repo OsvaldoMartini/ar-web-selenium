@@ -1,13 +1,12 @@
 package com.allinweb.ch.component.scene;
 
-import com.allinweb.ch.component.model.HomeBankingLoadDTO;
 import com.allinweb.ch.component.pane.ARNewHomeBankingPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
+import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.util.ARLogger;
 import java.util.List;
 import javafx.application.Platform;
-import javafx.collections.ObservableList;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -36,9 +35,11 @@ public class ARNewHomeBankingScene extends ARScene {
     private Stage modalStage;
     private Scene modalScene;
 
+    private static final PerformLists performLists;
     private static final ARNewHomeBankingPane arNewHomeBankingPane;
 
     static {
+        performLists = PerformLists.getInstance();
         arNewHomeBankingPane = ARNewHomeBankingPane.getInstance();
     }
 
@@ -46,12 +47,9 @@ public class ARNewHomeBankingScene extends ARScene {
     private static final Double SCENE_WIDTH = 1200D;
     private static final String TITLE = "New Url";
 
-    private ObservableList<HomeBankingLoadDTO> homeBankingList;
+    public void initialize() {
 
-    public void initialize(ObservableList<HomeBankingLoadDTO> homeBankingList) {
-        this.homeBankingList = homeBankingList;
-
-        if (!isNullOrEmpty(arNewHomeBankingPane.getHomeBankingList())) {
+        if (!isNullOrEmpty(performLists.getListHomeBanking())) {
             arNewHomeBankingPane.updateTableBankingView();
         }
     }
@@ -62,7 +60,7 @@ public class ARNewHomeBankingScene extends ARScene {
 
     public void showModal(Stage parentStage) {
 
-        arNewHomeBankingPane.initialize(homeBankingList);
+        arNewHomeBankingPane.initialize();
 
         if (modalStage == null) {
             modalStage = new Stage();

@@ -5,6 +5,7 @@ import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.scene.ARAlertScene;
 import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.*;
 import com.allinweb.ch.readersAndWriters.ExcelReader;
@@ -41,12 +42,14 @@ public class ExcelUtils {
 
     private static final ARPropertyManager arPropertyManager;
     private static final PerformMessage performMessage;
+    private static final PerformLists performLists;
     private static final PerformDataBase performDataBase;
 
     // Static block to initialize
     static {
         performMessage = PerformMessage.getInstance();
         arPropertyManager = ARPropertyManager.getInstance();
+        performLists = PerformLists.getInstance();
         performDataBase = PerformDataBase.getInstance();
     }
 
@@ -86,11 +89,11 @@ public class ExcelUtils {
         try {
             bufferedWriter = new BufferedWriter(new FileWriter(file));
 
-            List<BotJobLoadDTO> lisBotJobBlocks = performDataBase.loadBotJobAndBlocks(botJob.getId());
+            performDataBase.loadQuickBotJobs(botJob.getId());
 
             Set<String> fieldAddedSet = new HashSet<>();
 
-            for (BlockLoadDTO block : lisBotJobBlocks.get(0).getBlockLoadDTOList()) {
+            for (BlockLoadDTO block : performLists.getQuickBotJobs().get(0).getBlockLoadDTOList()) {
                 String firstRow = "#" + block.getName();
                 bufferedWriter.write(firstRow);
                 bufferedWriter.newLine();
@@ -104,7 +107,7 @@ public class ExcelUtils {
                 //                                        && instruction.getActions().contains(ARConstants.INSERT));
 
                 List<InstructionLoadDTO> allInstructions =
-                        performDataBase.getInstructionsByBlockId(block.getBotJobId(), block.getId(), "instruction");
+                        performDataBase.getInstructionsList(block.getBotJobId(), block.getId(), -1, "instruction");
 
                 List<InstructionLoadDTO> instructionList = new ArrayList<>();
 
@@ -171,7 +174,7 @@ public class ExcelUtils {
             System.out.println(e.getMessage());
         }
 
-        List<BlockLoadDTO> blockList = performDataBase.loadBlocksByBotJobId(botJobLoad.getId());
+        performDataBase.loadBlocks(botJobLoad.getId(), botJobLoad.getName(), "block");
 
         Set<String> fieldAddedSet = new HashSet<>();
 
@@ -181,9 +184,9 @@ public class ExcelUtils {
         Row instructionFieldRow = spreadsheet.createRow(SECOND_ROW);
         int currentIndex = 0;
 
-        if (blockList.size() > 0) {
+        if (!performLists.getListBlock().isEmpty()) {
 
-            for (BlockLoadDTO block : blockList) {
+            for (BlockLoadDTO block : performLists.getListBlock()) {
                 Cell blockNameCell = blockNameRow.createCell(currentIndex, CellType.STRING);
                 blockNameCell.setCellValue("#" + block.getName());
 
@@ -192,7 +195,7 @@ public class ExcelUtils {
 
                 // Retrieve all instructions for the block
                 List<InstructionLoadDTO> allInstructions =
-                        performDataBase.getInstructionsByBlockId(block.getBotJobId(), block.getId(), "instruction");
+                        performDataBase.getInstructionsList(block.getBotJobId(), block.getId(), -1, "instruction");
 
                 // Iterate over the instructions and apply filtering manually
                 for (InstructionLoadDTO instruction : allInstructions) {

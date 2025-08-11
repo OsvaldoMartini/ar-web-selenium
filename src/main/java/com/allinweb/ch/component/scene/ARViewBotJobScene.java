@@ -1,7 +1,6 @@
 package com.allinweb.ch.component.scene;
 
 import com.allinweb.ch.component.model.BlockDetailsDTO;
-import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.HomeBankingLoadDTO;
 import com.allinweb.ch.component.model.HomeUrlDTO;
@@ -11,6 +10,7 @@ import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;
@@ -19,15 +19,12 @@ import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
 import java.io.IOException;
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import javafx.application.Platform;
-import javafx.collections.ObservableList;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -68,6 +65,7 @@ public class ARViewBotJobScene extends ARScene {
     private Scene modalScene;
 
     private static final ARPropertyManager arPropertyManager;
+    private static final PerformLists performLists;
     private static final PerformDataBase performDataBase;
     private static ARNewCommandScene arNewCommandScene;
     private static final ARViewBotJobPane arViewBotJobPane;
@@ -75,6 +73,7 @@ public class ARViewBotJobScene extends ARScene {
 
     static {
         arPropertyManager = ARPropertyManager.getInstance();
+        performLists = PerformLists.getInstance();
         performDataBase = PerformDataBase.getInstance();
         arNewCommandScene = ARNewCommandScene.getInstance();
         arViewBotJobPane = ARViewBotJobPane.getInstance();
@@ -90,21 +89,14 @@ public class ARViewBotJobScene extends ARScene {
 
     private ExecutorService executorWebSocket = Executors.newSingleThreadExecutor();
 
-    private ObservableList<BotJobLoadDTO> botJobList;
-
-    private ARScene currentScene;
     private ARWebDriver arWebDriver;
-    private BotJobLoadDTO botJobLoad;
 
-    public void initialize(
-            ARWebDriver arWebDriver, BotJobLoadDTO botJobLoad, ObservableList<BotJobLoadDTO> botJobList) {
+    private BotJobLoadDTO selectedBojJob;
+
+    public void initialize(ARWebDriver arWebDriver, BotJobLoadDTO selectedBojJob) {
         this.arWebDriver = arWebDriver;
-        this.botJobLoad = botJobLoad;
-        this.botJobList = botJobList;
-
+        this.selectedBojJob = selectedBojJob;
         reloadList();
-
-        this.currentScene = currentScene;
 
         String port = arPropertyManager.getProperty(ARPropertyEnum.PORT_SOCKET);
         if (!Strings.isNullOrEmpty(port)) {
@@ -131,44 +123,49 @@ public class ARViewBotJobScene extends ARScene {
         //                    .info(String.format("Failed to Update ALL Bot Job Active = 1"));
         //        }
 
-        this.blockLoadList = performDataBase.loadBlocksByBotJobId(this.botJobLoad.getId());
+        performDataBase.loadBlocks(selectedBojJob.getId(), selectedBojJob.getName(), "block");
         //        this.botLoadJobs = performDataBase.loadBotJobWithBlock(this.botJobId);
 
-        this.botLoadJob = performDataBase.loadBotJobById(this.botJobLoad.getId());
+        BotJobLoadDTO botJobLoad = performLists.getQuickBotJobs().stream()
+                .filter(job -> job.getId().equals(selectedBojJob.getId()))
+                .findFirst()
+                .orElse(null); // orElseThrow(...) if you want an exception when not found
 
-        List<HomeBankingLoadDTO> homeBankingList = performDataBase.loadHomeBanking(this.botJobLoad.getHomeBankingId());
-        this.homeBankingLoadDTO = homeBankingList.isEmpty() ? null : homeBankingList.get(0);
+        performDataBase.loadHomeBanking(selectedBojJob.getHomeBankingId());
+        HomeBankingLoadDTO homeBankingLoadDTO = performLists.getListHomeBanking().stream()
+                .filter(job -> job.getId().equals(selectedBojJob.getHomeBankingId()))
+                .findFirst()
+                .orElse(null); // orElseThrow(...) if you want an exception when not found
 
-        if (homeBankingLoadDTO != null) {
-            this.botLoadJob.setHomeBankingLoadDTO(homeBankingLoadDTO);
-            HomeUrlDTO homeUrlDTO = findMatchingHomeUrlDTO(botLoadJob);
+        if (botJobLoad != null && homeBankingLoadDTO != null) {
+            HomeUrlDTO homeUrlDTO = findMatchingHomeUrlDTO(botJobLoad);
             if (homeUrlDTO != null) {
-                this.botLoadJob.setHomeUrlId(homeUrlDTO.getId());
-                this.homeBankingLoadDTO.setUrl(homeUrlDTO.getUrl());
+                botJobLoad.setHomeUrlId(homeUrlDTO.getId());
+                homeBankingLoadDTO.setUrl(homeUrlDTO.getUrl()); // TO GET FROM HOME URL
             }
         }
 
-        if (this.botLoadJob.getBlockLoadDTOList() == null) {
-            this.botLoadJob.setBlockLoadDTOList(this.blockLoadList);
+        if (botJobLoad != null && botJobLoad.getBlockLoadDTOList() == null) {
+            botJobLoad.setBlockLoadDTOList(performLists.getListBlock());
         }
         // It Prevents Start without blocks
-        if (this.botLoadJob != null && blockLoadList.isEmpty()) {
+        if (performLists.getListBlock().isEmpty()) {
 
             // It Prevents Start without blocks
             BlockDetailsDTO newBlockDetails = new BlockDetailsDTO();
-            newBlockDetails.setBlockName(this.botLoadJob.getName() + " default block");
-            newBlockDetails.setBlockDescription(this.botLoadJob.getName() + " block description");
+            newBlockDetails.setBlockName(selectedBojJob.getName() + " default block");
+            newBlockDetails.setBlockDescription(selectedBojJob.getName() + " block description");
             newBlockDetails.setTypeId(1);
             newBlockDetails.setActive(true);
             newBlockDetails.setWait(3);
             newBlockDetails.setBlockOrderNumber(1);
 
-            newBlockDetails.setBotJobId(this.botLoadJob.getId());
+            newBlockDetails.setBotJobId(selectedBojJob.getId());
 
-            ErrorMessage errorMessage = performDataBase.initiateNewBlock(newBlockDetails, this.botLoadJob.getId());
+            ErrorMessage errorMessage = performDataBase.initiateNewBlock(newBlockDetails, selectedBojJob.getId());
             if (errorMessage == null) {
                 ARLogger.getInstance(Thread.class)
-                        .info(String.format("A new Block was created for bot job Id %d", this.botLoadJob.getId()));
+                        .info(String.format("A new Block was created for bot job Id %d", selectedBojJob.getId()));
             } else {
                 performMessage.errorMessage(
                         errorMessage.getErrorTitle(),
@@ -195,10 +192,6 @@ public class ARViewBotJobScene extends ARScene {
 
         return null;
     }
-
-    private BotJobLoadDTO botLoadJob = null;
-    private List<BlockLoadDTO> blockLoadList = new ArrayList<>();
-    private HomeBankingLoadDTO homeBankingLoadDTO;
 
     private static final Double SCENE_HEIGHT = 600D;
     private static final Double SCENE_WIDTH = 1100D;
@@ -256,8 +249,8 @@ public class ARViewBotJobScene extends ARScene {
 
     @Override
     public String getTitle() {
-        if (this.botLoadJob.getId() != null) {
-            return TITLE + " WebSite Id: " + this.botLoadJob.getHomeBankingId() + " Id: " + this.botLoadJob.getId();
+        if (selectedBojJob.getId() != null) {
+            return TITLE + " WebSite Id: " + selectedBojJob.getHomeBankingId() + " Id: " + selectedBojJob.getId();
         }
 
         return TITLE;
@@ -265,7 +258,7 @@ public class ARViewBotJobScene extends ARScene {
 
     public void showModal() {
 
-        arViewBotJobPane.initialize(this, this.botLoadJob, botJobList);
+        arViewBotJobPane.initialize(this, selectedBojJob);
 
         if (modalStage == null) {
             modalStage = new Stage();

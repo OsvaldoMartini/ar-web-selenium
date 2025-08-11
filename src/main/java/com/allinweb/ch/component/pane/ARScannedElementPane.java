@@ -19,11 +19,7 @@ import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
 import com.allinweb.ch.component.scene.ARScannedElementScene;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.driver.ARWebDriver;
-import com.allinweb.ch.facade.PerformActions;
-import com.allinweb.ch.facade.PerformCloneLoad;
-import com.allinweb.ch.facade.PerformDataBase;
-import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.facade.PerformPreLoad;
+import com.allinweb.ch.facade.*;
 import com.allinweb.ch.persistence.*;
 import com.allinweb.ch.readersAndWriters.ExcelReader;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
@@ -266,10 +262,15 @@ public class ARScannedElementPane extends ARPane {
 
                     if (processDTO.getOperationId() != null
                             && processDTO.getOperationId().equalsIgnoreCase("TEST_STEP")) {
-                        InstructionLoadDTO instruc = performDataBase.getInstructionById(
-                                processDTO.getBotJobId(), processDTO.getDetails()[0].getId());
-                        if (instruc != null && instruc.getId() != null) {
-                            ElementDTO elementDTO = performActions.buildElementDTO(instruc);
+
+                        String tableName = "instruction";
+                        if (processDTO.getSessionId().equals("componentTasks")) {
+                            tableName = "component_instruction";
+                        }
+                        List<InstructionLoadDTO> instruc = performDataBase.getInstructionsList(
+                                processDTO.getBotJobId(), -1, processDTO.getDetails()[0].getId(), tableName);
+                        if (!instruc.isEmpty() && instruc.get(0).getId() != null) {
+                            ElementDTO elementDTO = performActions.buildElementDTO(instruc.get(0));
                             targetSelected = extractPickClone(elementDTO);
                             itPrintsElementDTO();
                             testingActions(targetSelected, processDTO.getType());
@@ -309,29 +310,6 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    //    private void stepsInsertOneDTO(TargetElement targetInsertOne, boolean isMany) {
-    //        int blockExist = validateBlockDB("Default Block", this.botJobLoad.getId(), isMany);
-    //        if (blockExist > 0 && currentBlockId > 0) {
-    //
-    //            //            preTestCoordinates(targetInsertOne);
-    //
-    //            List<InstructionLoadDTO> listInstr =
-    //                    performDataBase.getInstructionsByBlockId(botJobLoad.getId(), currentBlockId, "instruction");
-    //
-    //            int nextOrder = listInstr.size() + 1;
-    //            instructionList.clear();
-    //
-    //            if (!Strings.isNullOrEmpty(defineNameField.getText().trim())
-    //                    && !targetInsertOne
-    //                            .getDefinedName()
-    //                            .equalsIgnoreCase(defineNameField.getText().trim())) {
-    //                targetInsertOne.setDefinedName(defineNameField.getText().trim());
-    //            }
-    //
-    //            insertNewElementDTO(currentBlockId, nextOrder, targetInsertOne);
-    //        }
-    //    }
-
     public void destroy() {
         clearPane(getPaneReference());
         pane = null;
@@ -342,10 +320,10 @@ public class ARScannedElementPane extends ARPane {
     private void stepsInsertManyDTO(ElementSplitDTO processDTO, boolean isMany) {
         validateBlockDB("Default Block", this.botJobLoad.getId(), isMany);
         if (currentBlockId > 0) {
-            List<InstructionLoadDTO> listInstr =
-                    performDataBase.getInstructionsByBlockId(botJobLoad.getId(), currentBlockId, "instruction");
+            List<InstructionLoadDTO> listInstructions =
+                    performDataBase.getInstructionsList(botJobLoad.getId(), currentBlockId, -1, "instruction");
 
-            int nextOrder = listInstr.size() + 1;
+            int nextOrder = listInstructions.size() + 1;
 
             instructionList.clear();
             for (ElementDTO elementDTO : processDTO.getDetails()) {
@@ -553,7 +531,7 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private void updateBotJobTasks(int currentBotJobId) {
-        botJobLoadList = performDataBase.loadCompleteJobs(currentBotJobId);
+        List<BotJobLoadDTO> botJobLoadList = performDataBase.loadCompleteJobs(currentBotJobId);
         String jsonData = "[]";
         if (!botJobLoadList.isEmpty()) {
             List<InstructionLoadDTO> blockLoopInstructions =
@@ -1041,8 +1019,6 @@ public class ARScannedElementPane extends ARPane {
 
     double comboWidth = 200;
 
-    private List<BotJobLoadDTO> botJobLoadList = new ArrayList<>();
-    private List<BlockLoadDTO> blockLoadList = new ArrayList<>();
     private HomeBankingLoadDTO homeBanking;
 
     private ComboBox<ComboBoxVars> comboBoxBlocks;
@@ -1136,6 +1112,7 @@ public class ARScannedElementPane extends ARPane {
 
     private static final ARScannedElementScene arScannedElementScene;
     private static final PerformCloneLoad performCloneLoad;
+    private static final PerformLists performLists;
     private static final PerformDataBase performDataBase;
     private static final PerformActions performActions;
     private static final PerformMessage performMessage;
@@ -1149,6 +1126,7 @@ public class ARScannedElementPane extends ARPane {
         arScannedElementScene = ARScannedElementScene.getInstance();
         arPropertyManager = ARPropertyManager.getInstance();
         webSocketSessionManager = WebSocketSessionManager.getInstance();
+        performLists = PerformLists.getInstance();
         performDataBase = PerformDataBase.getInstance();
         performActions = PerformActions.getInstance();
         performMessage = PerformMessage.getInstance();
@@ -1586,8 +1564,8 @@ public class ARScannedElementPane extends ARPane {
 
         updateSceneTitleWithCurrentURL(homeBanking.getUrl());
 
-        this.blockLoadList = performDataBase.loadBlocksByBotJobId(this.botJobLoad.getId());
-        loadAllBlockItems(this.blockLoadList);
+        performDataBase.loadBlocks(this.botJobLoad.getId(), this.botJobLoad.getName(), "block");
+        loadAllBlockItems(performLists.getListBlock());
 
         refreshBlocksButton = createPathButton();
 
@@ -1814,8 +1792,8 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private void refreshBlocks(boolean secondItem) {
-        this.blockLoadList = performDataBase.loadBlocksByBotJobId(this.botJobLoad.getId());
-        loadAllBlockItems(this.blockLoadList);
+        performDataBase.loadBlocks(this.botJobLoad.getId(), this.botJobLoad.getName(), "block");
+        loadAllBlockItems(performLists.getListBlock());
 
         if (!secondItem) {
             comboBoxBlocks.getSelectionModel().selectFirst(); // Select the first item
@@ -1952,14 +1930,17 @@ public class ARScannedElementPane extends ARPane {
             setInterceptBotJob(false);
             isJobRunning.set(false);
 
-            this.botJobLoadList = performDataBase.loadCompleteJobs(botJobLoad.getId());
+            performDataBase.loadCompleteJobs(botJobLoad.getId());
 
             // Set all instructions' executed field to false
-            botJobLoadList.get(0).getBlockLoadDTOList().stream()
-                    .flatMap(block -> block.getInstructionLoadDTOS().stream())
-                    .forEach(instruction -> instruction.setExecuted(false));
+            if (!performLists.getListBotJob().isEmpty()) {
 
-            recallJob();
+                performLists.getListBotJob().get(0).getBlockLoadDTOList().stream()
+                        .flatMap(block -> block.getInstructionLoadDTOS().stream())
+                        .forEach(instruction -> instruction.setExecuted(false));
+
+                recallJob();
+            }
         });
 
         stopBotJobButton.setOnMouseClicked(e -> {
@@ -2895,8 +2876,8 @@ public class ARScannedElementPane extends ARPane {
             System.out.println(e.getMessage());
         }
 
-        List<BlockLoadDTO> blocksLoaded = botJobLoadList.get(0).getBlockLoadDTOList();
-        String botJobName = botJobLoadList.get(0).getName();
+        List<BlockLoadDTO> blocksLoaded = performLists.getListBotJob().get(0).getBlockLoadDTOList();
+        String botJobName = performLists.getListBotJob().get(0).getName();
 
         //        ARPropertyManager managerProps = ARPropertyManager.getInstance();
         String excelPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
@@ -2989,7 +2970,7 @@ public class ARScannedElementPane extends ARPane {
         printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
 
         ExcelWriter.ExcelChain writerReport = new ExcelWriter(
-                        botJobLoadList.get(0).getName(), performActions.getCurrentDriver(), false)
+                        performLists.getListBotJob().get(0).getName(), performActions.getCurrentDriver(), false)
                 .withPurpose("report");
         writerReport.insertReportHead();
 
@@ -3019,7 +3000,7 @@ public class ARScannedElementPane extends ARPane {
         int executeSpecificBlock = comboBoxBlocks.getValue().getInstructionId();
         sessionRowStatus = "botJobTasks"; // + botJobId;
 
-        variablesLoaded = performDataBase.loadAllVariables(botJobId);
+        performDataBase.loadAllVariables(botJobId);
         Map<String, String> mapSavedLocators = new HashMap<>();
 
         Set<Integer> parentIdsForLoop = null;
@@ -5219,12 +5200,23 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private void setPayloadEmpty() {
-        this.botJobLoadList = new ArrayList<>();
         BotJobLoadDTO botJobDTO = new BotJobLoadDTO();
         botJobDTO.setId(this.botJobLoad.getId() != null ? this.botJobLoad.getId() : 0);
         botJobDTO.setName(this.botJobLoad.getName() != null ? this.botJobLoad.getName() : "Bot Job Name Default");
         botJobDTO.setBlockLoadDTOList(new ArrayList<>());
-        this.botJobLoadList.add(botJobDTO);
+        this.payloadEmpty = new PayloadJson(this.botJobLoad.getId(), this.botJobLoad.getName(), 0);
+    }
+
+    private void setPayloadEmpty(String destination) {
+        BotJobLoadDTO botJobDTO = new BotJobLoadDTO();
+        if (destination.equalsIgnoreCase("botJobTasks")) {
+            botJobDTO.setId(this.botJobLoad.getId() != null ? this.botJobLoad.getId() : 0);
+        } else if (destination.equalsIgnoreCase("componentTasks")) {
+            botJobDTO.setHomeBankingId(
+                    this.botJobLoad.getHomeBankingId() != null ? this.botJobLoad.getHomeBankingId() : 0);
+        }
+        botJobDTO.setName(this.botJobLoad.getName() != null ? this.botJobLoad.getName() : "Bot Job Name Default");
+        botJobDTO.setBlockLoadDTOList(new ArrayList<>());
 
         this.payloadEmpty = new PayloadJson(this.botJobLoad.getId(), this.botJobLoad.getName(), 0);
     }

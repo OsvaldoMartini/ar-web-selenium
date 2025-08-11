@@ -4,6 +4,7 @@ import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.HomeUrlDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
@@ -66,12 +67,15 @@ public class ARSaveClonePane extends ARPane {
 
     private static final ARPropertyManager arPropertyManager;
     private static final PerformMessage performMessage;
+
+    private static final PerformLists performLists;
     private static final PerformDataBase performDataBase;
 
     // Static block to initialize
     static {
         arPropertyManager = ARPropertyManager.getInstance();
         performMessage = PerformMessage.getInstance();
+        performLists = PerformLists.getInstance();
         performDataBase = PerformDataBase.getInstance();
     }
 
@@ -198,7 +202,7 @@ public class ARSaveClonePane extends ARPane {
             if (!Strings.isNullOrEmpty(newUrl.getText())) {
 
                 Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
-                List<HomeUrlDTO> homeUrlDTOList = performDataBase.loadAllHomeURLByHomeId(
+                performDataBase.loadHomeUrls(
                         selecBotJobDTO.getHomeBankingLoadDTO().getId());
 
                 if (!newUrl.getText()
@@ -206,7 +210,7 @@ public class ARSaveClonePane extends ARPane {
                         .equals(selecBotJobDTO.getHomeBankingLoadDTO().getUrl())) {
 
                     // Check if homeURLList contains a HomeUrlDTO with matching id and url
-                    Optional<HomeUrlDTO> matchHomeUrl = homeUrlDTOList.stream()
+                    Optional<HomeUrlDTO> matchHomeUrl = performLists.getListHomeUrl().stream()
                             .filter(homeUrl -> homeUrl.getId() != null
                                     && selecBotJobDTO.getHomeBankingId().equals(homeUrl.getHomeBankingId())
                                     && newUrl.getText().trim().equals(homeUrl.getUrl()))
@@ -255,7 +259,7 @@ public class ARSaveClonePane extends ARPane {
                 } else {
 
                     // Check if homeURLList contains a HomeUrlDTO with matching id and url
-                    Optional<HomeUrlDTO> matchHomeUrl = homeUrlDTOList.stream()
+                    Optional<HomeUrlDTO> matchHomeUrl = performLists.getListHomeUrl().stream()
                             .filter(homeUrl -> homeUrl.getId() != null
                                     && selecBotJobDTO.getHomeBankingId().equals(homeUrl.getHomeBankingId())
                                     && newUrl.getText().trim().equals(homeUrl.getUrl()))

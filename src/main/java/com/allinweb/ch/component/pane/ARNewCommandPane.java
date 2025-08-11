@@ -1,17 +1,12 @@
 package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.builder.WebElementIcon;
-import com.allinweb.ch.component.model.BlockLoadDTO;
-import com.allinweb.ch.component.model.BlockOptions;
-import com.allinweb.ch.component.model.BotJobLoadDTO;
-import com.allinweb.ch.component.model.FormatOption;
-import com.allinweb.ch.component.model.InstructionLoadDTO;
-import com.allinweb.ch.component.model.RowMoveDTO;
-import com.allinweb.ch.component.model.VariableUserDTO;
+import com.allinweb.ch.component.model.*;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARElementValueScene;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.*;
@@ -59,6 +54,7 @@ public class ARNewCommandPane extends ARPane {
     }
 
     private static final WebSocketSessionManager webSocketSessionManager;
+    private static final PerformLists performLists;
     private static final PerformDataBase performDataBase;
     private static final PerformMessage performMessage;
     private static final ARElementValueScene arElementValueScene;
@@ -67,6 +63,7 @@ public class ARNewCommandPane extends ARPane {
     static {
         webSocketSessionManager = WebSocketSessionManager.getInstance();
         performMessage = PerformMessage.getInstance();
+        performLists = PerformLists.getInstance();
         performDataBase = PerformDataBase.getInstance();
         arElementValueScene = ARElementValueScene.getInstance();
     }
@@ -159,13 +156,8 @@ public class ARNewCommandPane extends ARPane {
     Button addNewInstructionButton;
     Button cancelButton;
 
-    private List<BotJobLoadDTO> botJobLoadList = new ArrayList<>();
-    private List<BlockLoadDTO> blockLoadList = new ArrayList<>();
-
     private ComboBox<ComboBoxImage> comboBoxInstruc;
     private ObservableList<ComboBoxImage> itemsInstructions = FXCollections.observableArrayList();
-
-    private ObservableList<VariableUserDTO> variablesList = FXCollections.observableArrayList();
 
     private ComboBox<ComboBoxVars> comboBoxVars;
     private ObservableList<ComboBoxVars> variablesItems = FXCollections.observableArrayList();
@@ -178,7 +170,6 @@ public class ARNewCommandPane extends ARPane {
 
     private HBox webBoxWebFields;
     private ComboBox<ComboBoxImage> comboBoxWebFields;
-    private ObservableList<ComboBoxVars> webPageItems;
     private ObservableList<ComboBoxImage> filteredPageItems = FXCollections.observableArrayList();
 
     private ComboBox<BlockOptions> comboBoxAllBlocks;
@@ -193,15 +184,15 @@ public class ARNewCommandPane extends ARPane {
     public void initialize(RowMoveDTO rowMoveDTO) {
 
         if (rowMoveDTO.getSessionId().equals("componentTasks")) {
-            this.webPageItems = performDataBase.loadCompWebPageFields(rowMoveDTO.getHomeBankingId());
+            performDataBase.loadWebPageFields(rowMoveDTO.getHomeBankingId(), "home_banking");
         } else {
-            this.webPageItems = performDataBase.loadWebPageFields(rowMoveDTO.getBotJobId());
+            performDataBase.loadWebPageFields(rowMoveDTO.getBotJobId(), "bot_job");
         }
 
         this.rowMoveDTO = rowMoveDTO;
 
         this.filteredPageItems.clear();
-        this.filteredPageItems.addAll(webPageItems.stream()
+        this.filteredPageItems.addAll(performLists.getListWebPageItems().stream()
                 //                .filter(item -> !"button".equals(item.getTagType()) && !"a".equals(item.getTagType()))
                 .map(item -> new ComboBoxImage(
                         item.getText(),
@@ -284,35 +275,36 @@ public class ARNewCommandPane extends ARPane {
             variablesItems.clear();
 
             if (rowMoveDTO.getSessionId().equals("componentTasks")) {
-                this.variablesList = performDataBase.loadAllCompVariablesByCriteria(
-                        rowMoveDTO.getHomeBankingId(), filteredPageItems.get(0).getInstructionId());
+                performDataBase.loadAllVariablesByCriteria(
+                        rowMoveDTO.getHomeBankingId(),
+                        filteredPageItems.get(0).getInstructionId(),
+                        "component_variable");
             } else {
-                this.variablesList = performDataBase.loadAllVariablesByCriteria(
-                        rowMoveDTO.getBotJobId(), filteredPageItems.get(0).getInstructionId());
+                performDataBase.loadAllVariablesByCriteria(
+                        rowMoveDTO.getHomeBankingId(), filteredPageItems.get(0).getInstructionId(), "variable");
             }
         }
 
         if (rowMoveDTO.getSessionId().equals("componentTasks")) {
-            this.blockLoadList = performDataBase.loadCompBlocksByHomeId(
-                    rowMoveDTO.getHomeBankingId(), rowMoveDTO.getBotJobId(), rowMoveDTO.getBotJobName());
+            performDataBase.loadBlocks(rowMoveDTO.getHomeBankingId(), rowMoveDTO.getBotJobName(), "component_block");
         } else {
-            this.blockLoadList = performDataBase.loadBlocksByBotJobId(rowMoveDTO.getBotJobId());
+            performDataBase.loadBlocks(rowMoveDTO.getBotJobId(), rowMoveDTO.getBotJobName(), "block");
         }
 
-        if (this.blockLoadList != null && !this.blockLoadList.isEmpty()) {
+        if (!performLists.getListBlock().isEmpty()) {
             //            for (BotJobLoadDTO botJobLoadDTO : this.botJobLoadList) {
 
             if (rowMoveDTO.getUpdatedRows().get(0).getActions() != null
                     && rowMoveDTO.getUpdatedRows().get(0).getActions().equals("EXCEL GOTO")) {
-                loadBlockItems(blockLoadList, -99);
+                loadBlockItems(performLists.getListBlock(), -99);
             } else {
-                loadBlockItems(blockLoadList, rowMoveDTO.getBlockId());
+                loadBlockItems(performLists.getListBlock(), rowMoveDTO.getBlockId());
             }
 
             //            }
 
             //            for (BotJobLoadDTO botJobLoadDTO : this.botJobLoadList) {
-            loadAllBlockItems(blockLoadList);
+            loadAllBlockItems(performLists.getListBlock());
             //            }
         } else {
             allBlocksItems.add(new BlockOptions("#1 Default Block", "Default Block", 1, 1));
@@ -1312,9 +1304,9 @@ public class ARNewCommandPane extends ARPane {
             if (newValue != null) {
                 if (!firstLoad) {
                     if (ARConstants.EXCEL_GOTO.equalsIgnoreCase(String.valueOf(newValue.getValue()))) {
-                        loadBlockItems(blockLoadList, -99);
+                        loadBlockItems(performLists.getListBlock(), -99);
                     } else {
-                        loadBlockItems(blockLoadList, rowMoveDTO.getBlockId());
+                        loadBlockItems(performLists.getListBlock(), rowMoveDTO.getBlockId());
                     }
                     recallMessages(comboBoxInstruc.getValue().getValue());
                     if (comboBoxVars.getValue() != null
@@ -1364,9 +1356,9 @@ public class ARNewCommandPane extends ARPane {
                 if (!firstLoad) {
                     if (rowMoveDTO.getUpdatedRows().get(0).getActions() != null
                             && rowMoveDTO.getUpdatedRows().get(0).getActions().equals("EXCEL GOTO")) {
-                        loadBlockItems(blockLoadList, -99);
+                        loadBlockItems(performLists.getListBlock(), -99);
                     } else {
-                        loadBlockItems(blockLoadList, newValue.getBlockId());
+                        loadBlockItems(performLists.getListBlock(), newValue.getBlockId());
                     }
 
                     recallMessages(comboBoxInstruc.getValue().getValue());
@@ -2198,14 +2190,14 @@ public class ARNewCommandPane extends ARPane {
     public void reloadComboVars(int instructionId, boolean selectLast, int variableId) {
         variablesItems.clear();
         if (rowMoveDTO.getSessionId().equals("componentTasks")) {
-            this.variablesList =
-                    performDataBase.loadAllCompVariablesByCriteria(rowMoveDTO.getHomeBankingId(), instructionId);
+            performDataBase.loadAllVariablesByCriteria(
+                    rowMoveDTO.getHomeBankingId(), instructionId, "component_variable");
         } else {
-            this.variablesList = performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId);
+            performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId, "variable");
         }
 
-        if (variablesList != null && variablesList.size() > 0) {
-            List<ComboBoxVars> variablesNames = variablesList.stream()
+        if (!performLists.getListVariable().isEmpty()) {
+            List<ComboBoxVars> variablesNames = performLists.getListVariablesUser().stream()
                     .map(variable -> new ComboBoxVars(
                             variable.getType().substring(0, 1) + variable.getName(),
                             variable.getValue(),
@@ -2246,13 +2238,13 @@ public class ARNewCommandPane extends ARPane {
 
     private void updateFields() {
         if (rowMoveDTO.getSessionId().equals("componentTasks")) {
-            this.webPageItems = performDataBase.loadCompWebPageFields(rowMoveDTO.getHomeBankingId());
+            performDataBase.loadWebPageFields(rowMoveDTO.getHomeBankingId(), "home_banking");
         } else {
-            this.webPageItems = performDataBase.loadWebPageFields(rowMoveDTO.getBotJobId());
+            performDataBase.loadWebPageFields(rowMoveDTO.getBotJobId(), "bot_job");
         }
 
         this.filteredPageItems.clear();
-        this.filteredPageItems.addAll(this.webPageItems.stream()
+        this.filteredPageItems.addAll(performLists.getListWebPageItems().stream()
                 //                .filter(item -> !"button".equals(item.getTagType()) && !"a".equals(item.getTagType()))
                 .map(item -> new ComboBoxImage(
                         item.getText(),
@@ -2275,7 +2267,7 @@ public class ARNewCommandPane extends ARPane {
     }
 
     private boolean nameExists(String name) {
-        for (VariableUserDTO dto : variablesList) {
+        for (VariableUserDTO dto : performLists.getListVariablesUser()) {
             if (dto.getName().trim().equalsIgnoreCase(name)) {
                 return true;
             }
@@ -2423,15 +2415,16 @@ public class ARNewCommandPane extends ARPane {
 
         if (errorMessage == null) {
 
+            List<BotJobLoadDTO> botJobLoadList = new ArrayList<>();
             String tableName = "instruction";
             if (rowMoveDTO.getSessionId().equals("componentTasks")) {
                 tableName = "component_instruction";
                 rowMoveDTO.setOperationId("componentsUpdate");
-                this.botJobLoadList = performDataBase.loadComponentsComplete(
+                botJobLoadList = performDataBase.loadComponentsComplete(
                         rowMoveDTO.getHomeBankingId(), rowMoveDTO.getBotJobId(), rowMoveDTO.getBotJobName());
             } else {
                 rowMoveDTO.setOperationId("updateInstructions");
-                this.botJobLoadList = performDataBase.loadCompleteJobs(rowMoveDTO.getBotJobId());
+                botJobLoadList = performDataBase.loadCompleteJobs(rowMoveDTO.getBotJobId());
             }
 
             String jsonData = "[]";

@@ -88,6 +88,7 @@ public class PerformActions {
     }
 
     private static final PerformMessage performMessage;
+    private static final PerformLists performLists;
     private static final PerformDataBase performDataBase;
     private static final IframeInputLocator iframeInputLocator;
     private static final ARPropertyManager arPropertyManager;
@@ -96,6 +97,7 @@ public class PerformActions {
     static {
         arPropertyManager = ARPropertyManager.getInstance();
         performMessage = PerformMessage.getInstance();
+        performLists = PerformLists.getInstance();
         performDataBase = PerformDataBase.getInstance();
         iframeInputLocator = IframeInputLocator.getInstance();
     }
@@ -3985,8 +3987,8 @@ public class PerformActions {
     public int createBlockIfNone(String blockName, int botJobId) {
 
         // It Prevents Start without blocks
-        List<BlockLoadDTO> blockLoadList = performDataBase.loadBlocksByBotJobId(botJobId);
-        if (blockLoadList.isEmpty()) {
+        performDataBase.loadBlocks(botJobId, null, "block");
+        if (performLists.getListBlock().isEmpty()) {
 
             BlockDetailsDTO newBlockDetails = new BlockDetailsDTO();
             newBlockDetails.setBlockName(blockName);

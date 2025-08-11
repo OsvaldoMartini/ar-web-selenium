@@ -9,20 +9,11 @@ import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ComboBoxVars;
 import com.allinweb.ch.util.ErrorMessage;
 import java.io.File;
-import java.sql.Connection;
-import java.sql.DatabaseMetaData;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.sql.Types;
+import java.sql.*;
 import java.text.MessageFormat;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -30,9 +21,6 @@ public class PerformDataBase {
 
     // Static final variable to hold the singleton instance
     protected static volatile PerformDataBase instance;
-
-    private List<InstructionLoadDTO> instructionList = new ArrayList<>();
-    private List<InstructionOperationDTO> instrucOperList = new ArrayList<>();
 
     // Private constructor to prevent instantiation
     private PerformDataBase() {
@@ -54,8 +42,10 @@ public class PerformDataBase {
     public static final ARPropertyManager arPropertyManager;
     public static final PerformMessage performMessage;
     public static final PerformInitializer performInitializer;
+    public static final PerformLists performLists;
 
     static {
+        performLists = PerformLists.getInstance();
         performMessage = PerformMessage.getInstance();
         arPropertyManager = ARPropertyManager.getInstance();
         performInitializer = PerformInitializer.getInstance();
@@ -94,25 +84,6 @@ public class PerformDataBase {
     public boolean ACCESS_DB = false;
     public boolean POSTGRES_DB = false;
     public boolean SQLITE_DB = false;
-
-    @Getter
-    private List<HomeBankingLoadDTO> databaseUpds;
-
-    @Getter
-    private ObservableList<DatabaseUserDTO> databaseList = FXCollections.observableArrayList();
-
-    @Getter
-    private List<HomeUrlDTO> homeURLList = new ArrayList<>();
-
-    @Getter
-    private ObservableList<VariableUserDTO> variablesList = FXCollections.observableArrayList();
-
-    @Getter
-    private ObservableList<ComboBoxVars> webPageItems = FXCollections.observableArrayList();
-
-    private List<BotJobLoadDTO> botJobLoadList = new ArrayList<>();
-    private List<BotJobLoadDTO> botJobLoadCompList = new ArrayList<>();
-    private List<BlockLoadDTO> blockLoadList = new ArrayList<>();
 
     public void initialize(String databaseType) {
         this.previousDB = databaseType;
@@ -1225,8 +1196,12 @@ public class PerformDataBase {
     // Handle DELETE_BLOCK message
     public boolean deleteBlock(DeleteBlockDTO deleteBlockDTO) {
         boolean blockDeletion = false;
+        String tableName = "instruction";
+        if (deleteBlockDTO.getSessionId().equals("componentTasks")) {
+            tableName = "component_instruction";
+        }
         List<InstructionLoadDTO> deleteList =
-                getInstructionsByBlockId(deleteBlockDTO.getBotJobId(), deleteBlockDTO.getBlockId());
+                getInstructionsList(deleteBlockDTO.getBotJobId(), deleteBlockDTO.getBlockId(), -1, tableName);
         if (deleteList.size() > 0) {
             for (InstructionLoadDTO deleteDTO : deleteList) {
                 deleteDTO.setHomeBankingId(deleteBlockDTO.getHomeBankingId());
@@ -1249,10 +1224,14 @@ public class PerformDataBase {
     // Handle DELETE_BLOCK message
     public boolean deleteCompBlock(DeleteBlockDTO deleteBlockDTO) {
         boolean blockDeletion = false;
-        List<InstructionLoadDTO> deleteList =
-                getCompInstructionsByBlockId(deleteBlockDTO.getHomeBankingId(), deleteBlockDTO.getBlockId());
-        if (deleteList.size() > 0) {
-            for (InstructionLoadDTO deleteDTO : deleteList) {
+        String tableName = "instruction";
+        if (deleteBlockDTO.getSessionId().equals("componentTasks")) {
+            tableName = "component_instruction";
+        }
+        List<InstructionLoadDTO> instructionsList =
+                getInstructionsList(deleteBlockDTO.getHomeBankingId(), deleteBlockDTO.getBlockId(), -1, tableName);
+        if (instructionsList.size() > 0) {
+            for (InstructionLoadDTO deleteDTO : instructionsList) {
                 deleteDTO.setHomeBankingId(deleteBlockDTO.getHomeBankingId());
                 deleteComponent(deleteBlockDTO.getHomeBankingId(), deleteBlockDTO.getBlockId(), deleteDTO, true);
                 //                updateOtherBlocks()
@@ -1798,7 +1777,7 @@ public class PerformDataBase {
             Map<Integer, BlockLoadDTO> blockMapDTO = new HashMap<>();
             Map<Integer, InstructionLoadDTO> instructionMapDTO = new HashMap<>();
 
-            botJobLoadList.clear();
+            performLists.getListBotJob().clear();
 
             while (rs.next()) {
                 botJobId = rs.getInt("bot_job_id");
@@ -1812,7 +1791,7 @@ public class PerformDataBase {
                     botJobDTO.setName(rs.getString("bot_job_name"));
                     botJobDTO.setBlockLoadDTOList(new ArrayList<>());
                     botJobMapDTO.put(botJobId, botJobDTO);
-                    botJobLoadList.add(botJobDTO);
+                    performLists.getListBotJob().add(botJobDTO);
                 }
 
                 int blockId = rs.getInt("block_id");
@@ -1887,10 +1866,10 @@ public class PerformDataBase {
             ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "Error loadBotJobWithBlock for botJobId %d\nError: %s", botJobId, e.getMessage()));
-            botJobLoadList.clear();
+            performLists.getListBotJob().clear();
         }
 
-        return botJobLoadList;
+        return performLists.getListBotJob();
     }
 
     public List<BotJobLoadDTO> loadComponentsComplete(int homeBankingId, int botJobIdDest, String botJobNameDest) {
@@ -1949,7 +1928,7 @@ public class PerformDataBase {
             Map<Integer, BlockLoadDTO> blockMapDTO = new HashMap<>();
             Map<Integer, InstructionLoadDTO> instructionMapDTO = new HashMap<>();
 
-            botJobLoadCompList.clear();
+            performLists.getListBotJobComp().clear();
 
             while (rs.next()) {
                 //                int botJobId = rs.getInt("bot_job_id");
@@ -1962,7 +1941,7 @@ public class PerformDataBase {
                     botJobDTO.setName(botJobNameDest); // rs.getString("bot_job_name"));
                     botJobDTO.setBlockLoadDTOList(new ArrayList<>());
                     botJobMapDTO.put(botJobIdDest, botJobDTO);
-                    botJobLoadCompList.add(botJobDTO);
+                    performLists.getListBotJobComp().add(botJobDTO);
                 }
 
                 int blockId = rs.getInt("block_id");
@@ -2037,10 +2016,10 @@ public class PerformDataBase {
             ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "Error loadBotJobWithBlock for botJobId %d\nError: %s", homeBankingId, error.getMessage()));
-            botJobLoadCompList.clear();
+            performLists.getListBotJobComp().clear();
         }
 
-        return botJobLoadCompList;
+        return performLists.getListBotJobComp();
     }
 
     public boolean reorderInstructions(List<InstructionLoadDTO> rowList, String tableName, boolean explicity) {
@@ -2247,257 +2226,8 @@ public class PerformDataBase {
         return blockLoadDTO;
     }
 
-    public List<InstructionLoadDTO> getInstructionsByBlockId(int botJobId, int blockId, String tableName) {
-        // List to store the fetched instructions
-        List<InstructionLoadDTO> instructions = new ArrayList<>();
-
-        // Build the SQL query statement
-        String querySQL = "SELECT * FROM " + tableName + " WHERE block_id = " + blockId
-                + " order by instruction_order_number ASC";
-
-        // Execute the query and process the result set
-        try (Statement stmt = getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(querySQL)) {
-
-            while (rs.next()) {
-                // Assuming you have an Instruction class, populate it with data from the ResultSet
-                InstructionLoadDTO instruction = new InstructionLoadDTO();
-
-                instruction.setInstructionId(rs.getInt("id"));
-                if (tableName.equals("component_instruction")) {
-                    instruction.setHomeBankingId(rs.getInt("home_banking_id"));
-                } else {
-                    instruction.setBotJobId(rs.getInt("bot_job_id"));
-                }
-                instruction.setBlockId(rs.getInt("block_id"));
-
-                instruction.setInstructionName(rs.getString("name"));
-                instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
-                instruction.setBlockId(rs.getInt("block_id"));
-                instruction.setBlockOrderNumber(instruction.getBlockOrderNumber());
-                instruction.setBotJobId(botJobId);
-
-                instruction.setActions(rs.getString("actions"));
-                instruction.setXpath(rs.getString("xpath"));
-                instruction.setCoordinates(rs.getString("coordinates"));
-                instruction.setForceCoordinates(rs.getBoolean("force_coordinates"));
-                instruction.setIFrameXPath(rs.getString("iframe_xpath"));
-
-                instruction.setTagName(rs.getString("tag_name"));
-                instruction.setShadowHost(rs.getString("shadow_host"));
-                instruction.setShadowRoot(rs.getString("shadow_root"));
-                instruction.setCssSelector(rs.getString("css_selector"));
-
-                instruction.setDescription(rs.getString("description"));
-                instruction.setOptional(rs.getBoolean("optional"));
-                instruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
-                instruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
-                instruction.setCodified(rs.getBoolean("codified"));
-                instruction.setExportToABR(rs.getBoolean("export_to_abr"));
-                instruction.setInstructionActive(rs.getBoolean("active"));
-
-                // Add the instruction to the list
-                instructions.add(instruction);
-            }
-
-            ARLogger.getInstance(PerformDataBase.class)
-                    .info(String.format("Fetched %d instructions for Block ID %d:", instructions.size(), blockId));
-
-        } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
-                            "Error fetching instructions for Block ID %d. Error: %s: ", blockId, e.getMessage()));
-        }
-
-        return instructions;
-    }
-
-    public List<InstructionLoadDTO> getCompInstructionsByBlockId(int homeBankId, int blockId) {
-        // List to store the fetched instructions
-        List<InstructionLoadDTO> instructions = new ArrayList<>();
-
-        // Build the SQL query statement
-        String querySQL = "SELECT * FROM component_instruction WHERE home_banking_id = " + homeBankId
-                + " and block_id = " + blockId + " order by instruction_order_number ASC";
-
-        // Execute the query and process the result set
-        try (Statement stmt = getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(querySQL)) {
-
-            while (rs.next()) {
-                // Assuming you have an Instruction class, populate it with data from the ResultSet
-                InstructionLoadDTO instruction = new InstructionLoadDTO();
-                instruction.setInstructionId(rs.getInt("id"));
-
-                instruction.setBlockId(rs.getInt("block_id"));
-
-                instruction.setInstructionName(rs.getString("name"));
-                instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
-                instruction.setBlockOrderNumber(instruction.getBlockOrderNumber());
-                instruction.setHomeBankingId(homeBankId);
-
-                instruction.setActions(rs.getString("actions"));
-                instruction.setXpath(rs.getString("xpath"));
-                instruction.setCoordinates(rs.getString("coordinates"));
-                instruction.setForceCoordinates(rs.getBoolean("force_coordinates"));
-                instruction.setIFrameXPath(rs.getString("iframe_xpath"));
-
-                instruction.setTagName(rs.getString("tag_name"));
-                instruction.setShadowHost(rs.getString("shadow_host"));
-                instruction.setShadowRoot(rs.getString("shadow_root"));
-                instruction.setCssSelector(rs.getString("css_selector"));
-
-                instruction.setDescription(rs.getString("description"));
-                instruction.setOptional(rs.getBoolean("optional"));
-                instruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
-                instruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
-                instruction.setCodified(rs.getBoolean("codified"));
-                instruction.setExportToABR(rs.getBoolean("export_to_abr"));
-                instruction.setInstructionActive(rs.getBoolean("active"));
-
-                instruction.setVariableId(rs.getInt("variable_id"));
-                instruction.setParentId(rs.getInt("parent_id"));
-
-                // Add the instruction to the list
-                instructions.add(instruction);
-            }
-
-            ARLogger.getInstance(PerformDataBase.class)
-                    .info(String.format(
-                            "Fetched %d Component Instructions for Block ID %d:", instructions.size(), blockId));
-
-        } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
-                            "Error fetching Component Instructions for Block ID %d. Error: %s: ",
-                            blockId, e.getMessage()));
-        }
-
-        return instructions;
-    }
-
-    public List<InstructionLoadDTO> getInstructionsByBlockId(int botJobId, int blockId) {
-        // List to store the fetched instructions
-        List<InstructionLoadDTO> instructions = new ArrayList<>();
-
-        // Build the SQL query statement
-        String querySQL = "SELECT * FROM instruction WHERE bot_job_id = " + botJobId + " and block_id = " + blockId
-                + " order by instruction_order_number ASC";
-
-        // Execute the query and process the result set
-        try (Statement stmt = getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(querySQL)) {
-
-            while (rs.next()) {
-                // Assuming you have an Instruction class, populate it with data from the ResultSet
-                InstructionLoadDTO instruction = new InstructionLoadDTO();
-                instruction.setInstructionId(rs.getInt("id"));
-
-                instruction.setBlockId(rs.getInt("block_id"));
-
-                instruction.setInstructionName(rs.getString("name"));
-                instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
-                instruction.setBlockOrderNumber(instruction.getBlockOrderNumber());
-                instruction.setBotJobId(botJobId);
-
-                instruction.setActions(rs.getString("actions"));
-                instruction.setXpath(rs.getString("xpath"));
-                instruction.setCoordinates(rs.getString("coordinates"));
-                instruction.setForceCoordinates(rs.getBoolean("force_coordinates"));
-                instruction.setIFrameXPath(rs.getString("iframe_xpath"));
-
-                instruction.setTagName(rs.getString("tag_name"));
-                instruction.setShadowHost(rs.getString("shadow_host"));
-                instruction.setShadowRoot(rs.getString("shadow_root"));
-                instruction.setCssSelector(rs.getString("css_selector"));
-
-                instruction.setDescription(rs.getString("description"));
-                instruction.setOptional(rs.getBoolean("optional"));
-                instruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
-                instruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
-                instruction.setCodified(rs.getBoolean("codified"));
-                instruction.setExportToABR(rs.getBoolean("export_to_abr"));
-                instruction.setInstructionActive(rs.getBoolean("active"));
-
-                instruction.setVariableId(rs.getInt("variable_id"));
-                instruction.setParentId(rs.getInt("parent_id"));
-
-                // Add the instruction to the list
-                instructions.add(instruction);
-            }
-
-            ARLogger.getInstance(PerformDataBase.class)
-                    .info(String.format(
-                            "Fetched %d Component Instructions for Block ID %d:", instructions.size(), blockId));
-
-        } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
-                            "Error fetching Component Instructions for Block ID %d. Error: %s: ",
-                            blockId, e.getMessage()));
-        }
-
-        return instructions;
-    }
-
-    public InstructionLoadDTO getInstructionById(int botJobId, int instructionId) {
-        // List to store the fetched instructions
-
-        // Build the SQL query statement
-        String querySQL = "SELECT * FROM instruction WHERE bot_job_id = " + botJobId + " and id = " + instructionId;
-        InstructionLoadDTO instruction = null;
-
-        // Execute the query and process the result set
-        try (Statement stmt = getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(querySQL)) {
-
-            while (rs.next()) {
-                // Assuming you have an Instruction class, populate it with data from the ResultSet
-                instruction = new InstructionLoadDTO();
-                instruction.setId(rs.getInt("id"));
-
-                instruction.setBlockId(rs.getInt("block_id"));
-
-                instruction.setInstructionName(rs.getString("name"));
-                instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
-                instruction.setBlockOrderNumber(instruction.getBlockOrderNumber());
-                instruction.setBotJobId(botJobId);
-
-                instruction.setActions(rs.getString("actions"));
-                instruction.setXpath(rs.getString("xpath"));
-                instruction.setCoordinates(rs.getString("coordinates"));
-                instruction.setForceCoordinates(rs.getBoolean("force_coordinates"));
-                instruction.setIFrameXPath(rs.getString("iframe_xpath"));
-
-                instruction.setTagName(rs.getString("tag_name"));
-                instruction.setShadowHost(rs.getString("shadow_host"));
-                instruction.setShadowRoot(rs.getString("shadow_root"));
-                instruction.setCssSelector(rs.getString("css_selector"));
-
-                instruction.setDescription(rs.getString("description"));
-                instruction.setOptional(rs.getBoolean("optional"));
-                instruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
-                instruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
-                instruction.setCodified(rs.getBoolean("codified"));
-                instruction.setExportToABR(rs.getBoolean("export_to_abr"));
-                instruction.setInstructionActive(rs.getBoolean("active"));
-
-                instruction.setVariableId(rs.getInt("variable_id"));
-                instruction.setParentId(rs.getInt("parent_id"));
-            }
-
-        } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
-                            "Error fetching Instruction Bot Job ID %d - Instruc %d . Error: %s: ",
-                            botJobId, instructionId, e.getMessage()));
-        }
-
-        return instruction;
-    }
-
-    public List<BotJobLoadDTO> loadAllBotJobs(Connection conn) {
-        this.botJobLoadList.clear();
+    public List<BotJobLoadDTO> loadQuickBotJobs() {
+        performLists.getQuickBotJobs().clear();
         String query =
                 """
 SELECT bot.id AS bot_job_id, bot.name AS bot_job_name,
@@ -2549,76 +2279,124 @@ ORDER BY bot.id ASC;
                         botJobDTO.setHomeBankingLoadDTO(homeBankingDTO);
                     }
 
-                    this.botJobLoadList.add(botJobDTO);
+                    performLists.getQuickBotJobs().add(botJobDTO);
                 }
             }
         } catch (SQLException error) {
             ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("Error loadAllBotJobs Error: %s", error.getMessage()));
+                    .severe(String.format("Error loadQuickBotJobs Error: %s", error.getMessage()));
         }
 
-        return this.botJobLoadList;
+        return performLists.getQuickBotJobs();
     }
 
-    public List<BotJobLoadDTO> loadBotJobAndBlocks(int botJobId) {
-        String query = "SELECT bot.id AS bot_job_id, bot.name AS bot_job_name, "
-                + " b.id AS block_id, b.block_order_number, b.name AS block_name, "
-                + " b.description AS block_description, b.type_id,"
-                + " b.active, b.wait"
-                + " FROM bot_job bot "
-                + " LEFT JOIN block b ON b.bot_job_id = bot.id "
-                + " where bot.active = 1 and bot_job_id = " + botJobId
-                + "  ORDER BY bot.id, b.block_order_number ASC";
+    public void loadQuickBotJobs(int botJobId) {
+        performLists.getQuickBotJobs().clear();
 
-        try (Statement stmt = getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(query)) {
+        String baseQuery =
+                """
+                SELECT bot.id AS bot_job_id, bot.name AS bot_job_name,
+                       bot.description AS bot_job_description, bot.priority AS bot_job_priority,
+                       bot.home_banking_id, bot.home_url_id,
+                       hu.url AS home_banking_url,
+                       hb.name AS home_banking_name,
+                       hb.priority AS home_banking_priority, hb.search_config,
+                       hb.options_config, hb.cookies, hb.driver_session,
+                       hb.username, hb.password,
+                       bot.active
+                FROM bot_job bot
+                LEFT JOIN home_banking hb ON bot.home_banking_id = hb.id
+                LEFT JOIN home_url hu ON bot.home_url_id = hu.id AND hu.home_banking_id = hb.id
+                """;
 
-            Map<Integer, BotJobLoadDTO> botJobMapDTO = new HashMap<>();
-            Map<Integer, BlockLoadDTO> blockMapDTO = new HashMap<>();
+        // If botJobId > 0, join blocks and filter by that botJobId
+        String query;
+        if (botJobId > 0) {
+            query = baseQuery + " LEFT JOIN block b ON b.bot_job_id = bot.id "
+                    + " WHERE bot.active = 1 AND bot.id = ? "
+                    + " ORDER BY bot.id, b.block_order_number ASC";
+        } else {
+            query = baseQuery + " ORDER BY bot.id ASC";
+        }
 
-            botJobLoadList.clear();
+        Map<Integer, BotJobLoadDTO> botJobMap = new HashMap<>();
+        Map<Integer, BlockLoadDTO> blockMap = new HashMap<>();
 
-            while (rs.next()) {
-                botJobId = rs.getInt("bot_job_id");
-                BotJobLoadDTO botJobDTO = botJobMapDTO.get(botJobId);
+        try (PreparedStatement pstmt = getConnection().prepareStatement(query)) {
+            if (botJobId > 0) {
+                pstmt.setInt(1, botJobId);
+            }
 
-                if (botJobDTO == null) {
-                    botJobDTO = new BotJobLoadDTO();
-                    botJobDTO.setId(botJobId);
-                    botJobDTO.setName(rs.getString("bot_job_name"));
-                    botJobDTO.setBlockLoadDTOList(new ArrayList<>());
-                    botJobMapDTO.put(botJobId, botJobDTO);
-                    botJobLoadList.add(botJobDTO);
-                }
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    int currentBotJobId = rs.getInt("bot_job_id");
+                    BotJobLoadDTO botJobDTO = botJobMap.get(currentBotJobId);
+                    if (botJobDTO == null) {
+                        botJobDTO = new BotJobLoadDTO();
+                        botJobDTO.setId(currentBotJobId);
+                        botJobDTO.setName(rs.getString("bot_job_name"));
+                        botJobDTO.setDescription(rs.getString("bot_job_description"));
+                        botJobDTO.setPriority(rs.getString("bot_job_priority"));
+                        botJobDTO.setHomeBankingId(rs.getInt("home_banking_id"));
+                        botJobDTO.setHomeUrlId(rs.getInt("home_url_id"));
+                        botJobDTO.setActive(rs.getBoolean("active"));
 
-                int blockId = rs.getInt("block_id");
-                BlockLoadDTO blockDTO = blockMapDTO.get(blockId);
+                        // Set HomeBankingLoadDTO if home banking data present
+                        Integer homeBankingId = rs.getObject("home_banking_id", Integer.class);
+                        if (homeBankingId != null) {
+                            HomeBankingLoadDTO homeBankingDTO = new HomeBankingLoadDTO();
+                            homeBankingDTO.setId(homeBankingId);
+                            homeBankingDTO.setUrl(rs.getString("home_banking_url"));
+                            homeBankingDTO.setName(rs.getString("home_banking_name"));
+                            homeBankingDTO.setPriority(rs.getString("home_banking_priority"));
+                            homeBankingDTO.setSearchConfig(rs.getString("search_config"));
+                            homeBankingDTO.setOptionsConfig(rs.getString("options_config"));
+                            homeBankingDTO.setCookies(rs.getString("cookies"));
+                            homeBankingDTO.setDriverSession(rs.getString("driver_session"));
+                            homeBankingDTO.setUsername(rs.getString("username"));
+                            homeBankingDTO.setPassword(rs.getString("password"));
 
-                if (blockDTO == null) {
-                    blockDTO = new BlockLoadDTO();
-                    blockDTO.setId(blockId);
-                    blockDTO.setBlockOrderNumber(rs.getInt("block_order_number"));
-                    blockDTO.setName(rs.getString("block_name"));
-                    blockDTO.setDescription(rs.getString("block_description"));
-                    blockDTO.setTypeId(rs.getInt("type_id"));
-                    blockDTO.setActive(rs.getBoolean("active"));
-                    blockDTO.setWait(rs.getInt("wait"));
+                            botJobDTO.setHomeBankingLoadDTO(homeBankingDTO);
+                        }
 
-                    blockDTO.setBotJobId(botJobDTO.getId());
-                    blockDTO.setBotJobName(botJobDTO.getName());
+                        if (botJobId > 0) {
+                            botJobDTO.setBlockLoadDTOList(new ArrayList<>());
+                        }
 
-                    blockDTO.setInstructionLoadDTOS(new ArrayList<>());
-                    botJobDTO.getBlockLoadDTOList().add(blockDTO);
-                    blockMapDTO.put(blockId, blockDTO);
+                        botJobMap.put(currentBotJobId, botJobDTO);
+                        performLists.getQuickBotJobs().add(botJobDTO);
+                    }
+
+                    // If we requested a specific botJob, load blocks
+                    if (botJobId > 0) {
+                        int blockId = rs.getInt("block_id");
+                        if (!rs.wasNull()) {
+                            BlockLoadDTO blockDTO = blockMap.get(blockId);
+                            if (blockDTO == null) {
+                                blockDTO = new BlockLoadDTO();
+                                blockDTO.setId(blockId);
+                                blockDTO.setBlockOrderNumber(rs.getInt("block_order_number"));
+                                blockDTO.setName(rs.getString("block_name"));
+                                blockDTO.setDescription(rs.getString("block_description"));
+                                blockDTO.setTypeId(rs.getInt("type_id"));
+                                blockDTO.setActive(rs.getBoolean("active"));
+                                blockDTO.setWait(rs.getInt("wait"));
+
+                                blockDTO.setBotJobId(currentBotJobId);
+                                blockDTO.setBotJobName(botJobDTO.getName());
+
+                                blockMap.put(blockId, blockDTO);
+                                botJobDTO.getBlockLoadDTOList().add(blockDTO);
+                            }
+                        }
+                    }
                 }
             }
         } catch (SQLException e) {
             ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
-                            "Error loadJustJobBlocks for botJobId %d\nError: %s", botJobId, e.getMessage()));
+                            "Error loadQuickBotJobs for botJobId %d\nError: %s", botJobId, e.getMessage()));
         }
-
-        return botJobLoadList;
     }
 
     public List<String> loadAllActionsPerBlock(List<BlockLoadDTO> blockLoadDTOList) {
@@ -2849,38 +2627,6 @@ ORDER BY bot.id ASC;
         }
     }
 
-    public BotJobLoadDTO loadBotJobById(int botJobId) {
-        // SQL query to get the blocks for a specific bot job
-        String query = "SELECT * from bot_job bot WHERE bot.active = 1 and bot.id = " + botJobId;
-
-        // Initialize the necessary data structures
-
-        // Use Statement to execute the query
-        try (Statement stmt = getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(query)) {
-            BotJobLoadDTO botJobLoadDTO = new BotJobLoadDTO();
-
-            while (rs.next()) {
-                botJobLoadDTO = new BotJobLoadDTO();
-
-                botJobLoadDTO.setId(rs.getInt("id"));
-                botJobLoadDTO.setName(rs.getString("name"));
-                botJobLoadDTO.setDescription(rs.getString("description"));
-                botJobLoadDTO.setPriority(rs.getString("priority"));
-                botJobLoadDTO.setHomeBankingId(rs.getInt("home_banking_id"));
-                botJobLoadDTO.setHomeUrlId(rs.getInt("home_url_id"));
-                botJobLoadDTO.setActive(rs.getBoolean("active"));
-            }
-            return botJobLoadDTO;
-
-        } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("Error loadBotJob for botJobId %d\nError: %s", botJobId, e.getMessage()));
-        }
-
-        return null;
-    }
-
     public boolean updateBotStatus() {
         // SQL query to get the blocks for a specific bot job
         String query = "update bot_job set active = 1";
@@ -2900,106 +2646,92 @@ ORDER BY bot.id ASC;
         return false;
     }
 
-    public List<BlockLoadDTO> loadBlocksByBotJobId(int botJobId) {
-        // SQL query to get the blocks for a specific bot job
-        String query = "SELECT " + "b.id AS block_id, "
-                + "b.block_order_number, "
-                + "b.name AS block_name, "
-                + "b.description AS block_description, "
-                + "b.type_id, "
-                + "bot.id AS bot_job_id, "
-                + "bot.name AS bot_job_name "
-                + "FROM bot_job bot "
-                + "JOIN block b ON b.bot_job_id = bot.id "
-                + "WHERE bot.active = 1 and bot.id = "
-                + botJobId + " " + // Use the botJobId directly in the query string
-                "ORDER BY b.block_order_number ASC";
+    public void loadBlocks(
+            Integer whereId, // botJobId or homeBankingId depending on tableName
+            String botJobName,
+            String tableName // "block" or "component_block"
+            ) {
 
-        // Initialize the necessary data structures
-        blockLoadList.clear();
+        // Validate tableName
+        if (!"block".equals(tableName) && !"component_block".equals(tableName)) {
+            throw new IllegalArgumentException("tableName must be 'block' or 'component_block'");
+        }
+
+        // Build SQL dynamically based on tableName
+        StringBuilder query = new StringBuilder("SELECT ");
+        if ("block".equals(tableName)) {
+            query.append("b.id AS block_id, ")
+                    .append("b.block_order_number, ")
+                    .append("b.name AS block_name, ")
+                    .append("b.description AS block_description, ")
+                    .append("b.type_id, ")
+                    .append("bot.id AS bot_job_id, ")
+                    .append("bot.name AS bot_job_name ")
+                    .append("FROM bot_job bot ")
+                    .append("JOIN block b ON b.bot_job_id = bot.id ")
+                    .append("WHERE bot.active = 1 AND bot.id = ? ")
+                    .append("ORDER BY b.block_order_number ASC");
+        } else { // component_block
+            query.append("b.id AS block_id, ")
+                    .append("b.block_order_number, ")
+                    .append("b.name AS block_name, ")
+                    .append("b.description AS block_description, ")
+                    .append("b.type_id, ")
+                    .append("hb.id AS home_banking_id ")
+                    .append("FROM home_banking hb ")
+                    .append("JOIN component_block b ON b.home_banking_id = hb.id ")
+                    // Assuming the component_instruction join is required as in your original method
+                    .append("JOIN component_instruction ci ON ci.home_banking_id = hb.id AND ci.block_id = b.id ")
+                    .append("WHERE hb.id = ? ")
+                    .append("ORDER BY b.block_order_number ASC");
+        }
+
+        // Choose target list depending on tableName
+        List<BlockLoadDTO> targetList;
+        if ("block".equals(tableName)) {
+            performLists.getListBlock().clear();
+            targetList = performLists.getListBlock();
+        } else {
+            performLists.getListBlockComp().clear();
+            targetList = performLists.getListBlockComp();
+        }
+
         Map<Integer, BlockLoadDTO> blockMapDTO = new HashMap<>();
 
-        // Use Statement to execute the query
-        try (Statement stmt = getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(query)) {
+        try (PreparedStatement pstmt = getConnection().prepareStatement(query.toString())) {
+            pstmt.setInt(1, whereId);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    int blockId = rs.getInt("block_id");
+                    BlockLoadDTO blockDTO = blockMapDTO.get(blockId);
 
-            while (rs.next()) {
-                // Load the Block information
-                int blockId = rs.getInt("block_id");
-                BlockLoadDTO blockDTO = blockMapDTO.get(blockId);
+                    if (blockDTO == null) {
+                        blockDTO = new BlockLoadDTO();
+                        blockDTO.setId(blockId);
+                        blockDTO.setBlockOrderNumber(rs.getInt("block_order_number"));
+                        blockDTO.setName(rs.getString("block_name"));
+                        blockDTO.setDescription(rs.getString("block_description"));
+                        blockDTO.setTypeId(rs.getInt("type_id"));
 
-                if (blockDTO == null) {
-                    blockDTO = new BlockLoadDTO();
-                    blockDTO.setId(blockId);
-                    blockDTO.setBlockOrderNumber(rs.getInt("block_order_number"));
-                    blockDTO.setName(rs.getString("block_name"));
-                    blockDTO.setDescription(rs.getString("block_description"));
-                    blockDTO.setTypeId(rs.getInt("type_id"));
-                    blockDTO.setBotJobId(rs.getInt("bot_job_id"));
-                    blockDTO.setBotJobName(rs.getString("bot_job_name"));
+                        if ("block".equals(tableName)) {
+                            blockDTO.setBotJobId(rs.getInt("bot_job_id"));
+                            blockDTO.setBotJobName(rs.getString("bot_job_name"));
+                        } else {
+                            blockDTO.setHomeBankingId(rs.getInt("home_banking_id"));
+                            blockDTO.setBotJobId(whereId != null ? whereId : 0); // optional: set passed botJobId
+                            blockDTO.setBotJobName(botJobName);
+                        }
 
-                    blockMapDTO.put(blockId, blockDTO);
-                    blockLoadList.add(blockDTO);
+                        blockMapDTO.put(blockId, blockDTO);
+                        targetList.add(blockDTO);
+                    }
                 }
             }
         } catch (SQLException e) {
             ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
-                            "Error loadBlocksForBotJob for botJobId %d\nError: %s", botJobId, e.getMessage()));
+                            "Error loading blocks for %s id %d\nError: %s", tableName, whereId, e.getMessage()));
         }
-
-        return blockLoadList;
-    }
-
-    public List<BlockLoadDTO> loadCompBlocksByHomeId(int homeBankingId, int botJobId, String botJobName) {
-        // SQL query to get the blocks for a specific bot job
-        String query = "SELECT " + "b.id AS block_id, "
-                + "b.block_order_number, "
-                + "b.name AS block_name, "
-                + "b.description AS block_description, "
-                + "b.type_id, "
-                + "hb.id AS home_banking_id "
-                + "FROM home_banking hb "
-                + "JOIN component_block b ON b.home_banking_id = hb.id "
-                + "JOIN component_instruction ci ON ci.home_banking_id = hb.id and ci.block_id = b.id "
-                + "WHERE  hb.id = "
-                + homeBankingId + " " + "ORDER BY b.block_order_number ASC";
-
-        // Initialize the necessary data structures
-        blockLoadList.clear();
-        Map<Integer, BlockLoadDTO> blockMapDTO = new HashMap<>();
-
-        // Use Statement to execute the query
-        try (Statement stmt = getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(query)) {
-
-            while (rs.next()) {
-                // Load the Block information
-                int blockId = rs.getInt("block_id");
-                BlockLoadDTO blockDTO = blockMapDTO.get(blockId);
-
-                if (blockDTO == null) {
-                    blockDTO = new BlockLoadDTO();
-                    blockDTO.setId(blockId);
-                    blockDTO.setBlockOrderNumber(rs.getInt("block_order_number"));
-                    blockDTO.setName(rs.getString("block_name"));
-                    blockDTO.setDescription(rs.getString("block_description"));
-                    blockDTO.setTypeId(rs.getInt("type_id"));
-                    blockDTO.setHomeBankingId(rs.getInt("home_banking_id"));
-                    blockDTO.setBotJobId(botJobId);
-                    blockDTO.setBotJobName(botJobName);
-
-                    blockMapDTO.put(blockId, blockDTO);
-                    blockLoadList.add(blockDTO);
-                }
-            }
-        } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
-                            "Error loadBlocksForBotJob for botJobId %d\nError: %s", botJobId, error.getMessage()));
-        }
-
-        return blockLoadList;
     }
 
     public ErrorMessage insertInstructionsBatch(
@@ -3535,7 +3267,7 @@ ORDER BY bot.id ASC;
                 tableName = "component_instruction";
             }
 
-            rowList = getInstructionsByBlockId(rowMoveDTO.getBotJobId(), rowMoveDTO.getBlockId(), tableName);
+            rowList = getInstructionsList(rowMoveDTO.getBotJobId(), rowMoveDTO.getBlockId(), -1, tableName);
 
             if (!blockIdChanged) {
                 if (isIF) {
@@ -3551,8 +3283,8 @@ ORDER BY bot.id ASC;
 
         List<BlockLoadDTO> matchingBlocks = null;
 
-        this.botJobLoadList = loadBotJobAndBlocks(rowMoveDTO.getBotJobId());
-        this.blockLoadList = loadBlocksByBotJobId(rowMoveDTO.getBotJobId());
+        loadQuickBotJobs(rowMoveDTO.getBotJobId());
+        loadBlocks(rowMoveDTO.getBotJobId(), rowMoveDTO.getBotJobName(), "block");
 
         if (!rowMoveDTO.getUpdatedRows().isEmpty()) {
 
@@ -3562,14 +3294,14 @@ ORDER BY bot.id ASC;
                 targetBlockId = rowMoveDTO.getBlockOrderNumber();
 
                 Integer finalTargetBlockId = targetBlockId;
-                matchingBlocks = blockLoadList.stream()
+                matchingBlocks = performLists.getListBlock().stream()
                         .filter(block -> block.getBlockOrderNumber().equals(finalTargetBlockId))
                         .collect(Collectors.toList());
 
             } else {
                 targetBlockId = rowMoveDTO.getBlockId();
                 Integer finalTargetBlockId1 = targetBlockId;
-                matchingBlocks = blockLoadList.stream()
+                matchingBlocks = performLists.getListBlock().stream()
                         .filter(block -> block.getId().equals(finalTargetBlockId1))
                         .collect(Collectors.toList());
             }
@@ -3653,7 +3385,12 @@ ORDER BY bot.id ASC;
 
                     // IT SETS THE NEW TARGET IN CASE TO ADD MORE INSTRUCTIONS
                     rowMoveDTO.setBlockId(newBlockId);
-                    this.blockLoadList = loadBlocksByBotJobId(rowMoveDTO.getBotJobId());
+
+                    String tableName = "block";
+                    if (rowMoveDTO.getSessionId().equals("componentTasks")) {
+                        tableName = "component_block";
+                    }
+                    loadBlocks(rowMoveDTO.getBotJobId(), rowMoveDTO.getBotJobName(), tableName);
                     instruction.setBlockId(newBlockId);
                 } else {
                     return errorMessage;
@@ -3673,8 +3410,8 @@ ORDER BY bot.id ASC;
                 currentBlockId = instruction.getBlockId();
             }
             if (!updateRow) {
-                instrucOperList.clear();
-                instrucOperList.add(instruction);
+                performLists.getInstrucOperList().clear();
+                performLists.getInstrucOperList().add(instruction);
 
                 if (isIF) {
                     // Create ELSE
@@ -3686,7 +3423,7 @@ ORDER BY bot.id ASC;
                     elseInstr.setActions(ARConstants.ELSE);
                     elseInstr.setOperation(ARConstants.ELSE);
                     elseInstr.setInstructionOrderNumber(orderNumber);
-                    instrucOperList.add(elseInstr);
+                    performLists.getInstrucOperList().add(elseInstr);
 
                     // Create ENDIF
                     orderNumber++;
@@ -3696,7 +3433,7 @@ ORDER BY bot.id ASC;
                     endifInstr.setActions(ARConstants.ENDIF);
                     endifInstr.setOperation(ARConstants.ENDIF);
                     endifInstr.setInstructionOrderNumber(orderNumber);
-                    instrucOperList.add(endifInstr);
+                    performLists.getInstrucOperList().add(endifInstr);
 
                     // Last OrderNumber added
                     targetOrderNumber = orderNumber;
@@ -3704,19 +3441,20 @@ ORDER BY bot.id ASC;
 
                 errorMessage = insertInstruction(
                         rowMoveDTO.getSessionId(),
-                        instrucOperList,
+                        performLists.getInstrucOperList(),
                         rowMoveDTO.getBotJobId(),
                         currentBlockId,
                         rowMoveDTO.getHomeBankingId());
 
                 if (isIF && errorMessage == null && idsInstrucAfter.size() == 3) {
                     int index = 0;
-                    for (InstructionOperationDTO instruct : instrucOperList) {
+                    for (InstructionOperationDTO instruct : performLists.getInstrucOperList()) {
                         instruct.setId(idsInstrucAfter.get(index));
                         instruct.setParentId(idsInstrucAfter.get(0)); // PARENT ID FOR ALL
                         index++; // To get the NEWS Ids
                     }
-                    errorMessage = updateInstructionParentIdOnly(rowMoveDTO.getSessionId(), instrucOperList);
+                    errorMessage =
+                            updateInstructionParentIdOnly(rowMoveDTO.getSessionId(), performLists.getInstrucOperList());
                 }
             } else {
                 errorMessage = updateInstruction(
@@ -3754,11 +3492,14 @@ ORDER BY bot.id ASC;
 
         } catch (Exception e) {
             ARLogger.getInstance(PerformDataBase.class).severe("Cannot Insert Instruction\nError: " + e.getMessage());
+        } finally {
+            performLists.getInstrucOperList().clear();
         }
         return errorMessage;
     }
 
-    public List<HomeBankingLoadDTO> loadHomeBanking(Integer homeBankingId) {
+    public void loadHomeBanking(Integer homeBankingId) {
+        performLists.getListHomeBanking().clear();
         Map<Integer, HomeBankingLoadDTO> homeBankingMap = new HashMap<>();
 
         StringBuilder selectSQLBuilder = new StringBuilder();
@@ -3769,7 +3510,7 @@ ORDER BY bot.id ASC;
         selectSQLBuilder.append("LEFT JOIN home_url hu ON hb.id = hu.home_banking_id ");
 
         if (homeBankingId != null) {
-            selectSQLBuilder.append("WHERE hb.id = ? "); // Add a space before WHERE
+            selectSQLBuilder.append("WHERE hb.id = ? ");
         }
         selectSQLBuilder.append("ORDER BY hb.id, hu.id");
 
@@ -3780,44 +3521,39 @@ ORDER BY bot.id ASC;
                 pstmt.setInt(1, homeBankingId);
             }
 
-            ResultSet rs = pstmt.executeQuery();
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    Integer currentHomeBankingId = rs.getInt("hb_id");
+                    String orgName = rs.getString("name");
 
-            while (rs.next()) {
-                Integer currentHomeBankingId = rs.getInt("hb_id");
+                    HomeBankingLoadDTO homeBanking = homeBankingMap.get(currentHomeBankingId);
+                    if (homeBanking == null) {
+                        homeBanking = new HomeBankingLoadDTO();
+                        homeBanking.setId(currentHomeBankingId);
+                        homeBanking.setCookies(rs.getString("cookies"));
+                        homeBanking.setDriverSession(rs.getString("driver_session"));
+                        homeBanking.setName(orgName);
+                        homeBanking.setOptionsConfig(rs.getString("options_config"));
+                        homeBanking.setPassword(rs.getString("password"));
+                        homeBanking.setPriority(rs.getString("priority"));
+                        homeBanking.setSearchConfig(rs.getString("search_config"));
+                        homeBanking.setUrl(rs.getString("hb_url"));
+                        homeBanking.setUsername(rs.getString("username"));
+                        homeBanking.setHomeUrlDTOs(new ArrayList<>());
+                        homeBankingMap.put(currentHomeBankingId, homeBanking);
+                    }
 
-                String orgName = rs.getString("name");
-
-                HomeBankingLoadDTO homeBanking = homeBankingMap.get(currentHomeBankingId);
-                if (homeBanking == null) {
-                    homeBanking =
-                            new HomeBankingLoadDTO(); // This will use the @NoArgsConstructor and the list will be null
-                    // OR, if you implement the full constructor, use it:
-                    // new HomeBankingLoadDTO(id, url, name, etc.)
-                    homeBanking.setId(currentHomeBankingId);
-                    homeBanking.setCookies(rs.getString("cookies"));
-                    homeBanking.setDriverSession(rs.getString("driver_session"));
-                    homeBanking.setName(orgName);
-                    homeBanking.setOptionsConfig(rs.getString("options_config"));
-                    homeBanking.setPassword(rs.getString("password"));
-                    homeBanking.setPriority(rs.getString("priority"));
-                    homeBanking.setSearchConfig(rs.getString("search_config"));
-                    homeBanking.setUrl(rs.getString("hb_url"));
-                    homeBanking.setUsername(rs.getString("username"));
-                    homeBanking.setHomeUrlDTOs(
-                            new ArrayList<>()); // <--- IMPORTANT: Initialize the list here if not done in constructor
-                    homeBankingMap.put(currentHomeBankingId, homeBanking);
-                }
-
-                int homeUrlId = rs.getInt("hu_id");
-                if (!rs.wasNull()) {
-                    String homeUrlUrl = rs.getString("hu_url");
-                    int homeUrlHomeBankingId = rs.getInt("home_banking_id");
-                    HomeUrlDTO urlDTO = new HomeUrlDTO(homeUrlId, homeUrlUrl, homeUrlHomeBankingId, orgName);
-                    homeBanking.getHomeUrlDTOs().add(urlDTO); // Access the list via getter and add
-                    // OR if you added the addHomeUrlDTO method in HomeBankingLoadDTO:
-                    // homeBanking.addHomeUrlDTO(urlDTO);
+                    int homeUrlId = rs.getInt("hu_id");
+                    if (!rs.wasNull()) {
+                        String homeUrlUrl = rs.getString("hu_url");
+                        int homeUrlHomeBankingId = rs.getInt("home_banking_id");
+                        HomeUrlDTO urlDTO = new HomeUrlDTO(homeUrlId, homeUrlUrl, homeUrlHomeBankingId, orgName);
+                        homeBanking.getHomeUrlDTOs().add(urlDTO);
+                    }
                 }
             }
+
+            performLists.getListHomeBanking().addAll(homeBankingMap.values());
 
         } catch (SQLException e) {
             String message = homeBankingId != null
@@ -3826,133 +3562,78 @@ ORDER BY bot.id ASC;
                     : "Error selecting ALL home banking records";
             ARLogger.getInstance(PerformDataBase.class).severe(message);
         }
-
-        return new ArrayList<>(homeBankingMap.values());
     }
 
-    public ObservableList<ComboBoxVars> loadWebPageFields(int botJobId) {
-        webPageItems.clear();
-        String selectSQL = " SELECT  "
-                + "  bot.id AS bot_job_id,  "
-                + "  b.id AS block_id,  "
-                + "  bli.id AS instruction_id,  "
-                + "  bli.instruction_order_number,  "
-                + "  bli.actions,  "
-                + "  bli.name AS instruction_name,  "
-                + "  bli.xpath,  "
-                + "  bli.operation,      "
-                + "  bli.tag_name      "
-                + " FROM bot_job bot  "
-                + " LEFT JOIN block b ON b.bot_job_id = bot.id  "
-                + " JOIN instruction bli ON bli.block_id = b.id  "
-                + " where bot.active = 1 and bot.id = " + botJobId
-                + "   and operation is null  "
-                + "  ORDER BY bot.id, b.block_order_number, bli.instruction_order_number ASC;";
+    public void loadWebPageFields(int whereId, String tableName) {
+        performLists.getListWebPageItems().clear();
 
-        try (Statement stmt = getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
-            while (rs.next()) {
-                int id = rs.getInt("instruction_id");
-                String name = rs.getString("instruction_name").trim();
-                String actions = rs.getString("actions").trim();
+        String sql;
+        boolean useComponent = "home_banking".equalsIgnoreCase(tableName);
 
-                // Filter out "SET", "GET", "CK", adn "H"
-                if (actions == null
-                        || actions.equalsIgnoreCase(ARConstants.SET_VALUE)
-                        || actions.equalsIgnoreCase(ARConstants.GET_VALUE)
-                        || actions.equalsIgnoreCase(ARConstants.CHECK_VALUE)
-                        || actions.equalsIgnoreCase(ARConstants.HOLD)
-                        || actions.equalsIgnoreCase(ARConstants.PAUSE)
-                        || actions.equalsIgnoreCase(ARConstants.EXCEL_GOTO)
-                        || actions.equalsIgnoreCase(ARConstants.SCREEN)
-                        || actions.equalsIgnoreCase(ARConstants.QUIT)) {
-                    continue;
+        if (useComponent) {
+            sql = "SELECT hb.id AS home_banking_id, " + "b.id AS block_id, bli.id AS instruction_id, "
+                    + "bli.instruction_order_number, bli.actions, bli.name AS instruction_name, "
+                    + "bli.xpath, bli.operation, bli.tag_name "
+                    + "FROM home_banking hb "
+                    + "LEFT JOIN component_block b ON b.home_banking_id = hb.id "
+                    + "JOIN component_instruction bli ON bli.block_id = b.id "
+                    + "WHERE hb.id = ? AND operation IS NULL "
+                    + "ORDER BY hb.id, b.block_order_number, bli.instruction_order_number ASC";
+        } else {
+            sql = "SELECT bot.id AS bot_job_id, " + "b.id AS block_id, bli.id AS instruction_id, "
+                    + "bli.instruction_order_number, bli.actions, bli.name AS instruction_name, "
+                    + "bli.xpath, bli.operation, bli.tag_name "
+                    + "FROM bot_job bot "
+                    + "LEFT JOIN block b ON b.bot_job_id = bot.id "
+                    + "JOIN instruction bli ON bli.block_id = b.id "
+                    + "WHERE bot.active = 1 AND bot.id = ? AND operation IS NULL "
+                    + "ORDER BY bot.id, b.block_order_number, bli.instruction_order_number ASC";
+        }
+
+        try (PreparedStatement pstmt = getConnection().prepareStatement(sql)) {
+            pstmt.setInt(1, whereId);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    int id = rs.getInt("instruction_id");
+                    String name = rs.getString("instruction_name");
+                    String actions = rs.getString("actions");
+
+                    if (name != null) name = name.trim();
+                    if (actions != null) actions = actions.trim();
+
+                    // Filter out unwanted actions
+                    if (actions == null
+                            || actions.equalsIgnoreCase(ARConstants.SET_VALUE)
+                            || actions.equalsIgnoreCase(ARConstants.GET_VALUE)
+                            || actions.equalsIgnoreCase(ARConstants.CHECK_VALUE)
+                            || actions.equalsIgnoreCase(ARConstants.HOLD)
+                            || actions.equalsIgnoreCase(ARConstants.PAUSE)
+                            || actions.equalsIgnoreCase(ARConstants.EXCEL_GOTO)
+                            || actions.equalsIgnoreCase(ARConstants.SCREEN)
+                            || actions.equalsIgnoreCase(ARConstants.QUIT)) {
+                        continue;
+                    }
+
+                    int blockId = rs.getInt("block_id");
+                    String tagName = rs.getString("tag_name");
+                    if (tagName != null) tagName = tagName.trim();
+
+                    int orderNumber = rs.getInt("instruction_order_number");
+
+                    performLists
+                            .getListWebPageItems()
+                            .add(new ComboBoxVars(
+                                    "(" + id + ")" + name, name, id, blockId, -1, -1, tagName, orderNumber, null));
                 }
-
-                Integer blockId = rs.getInt("block_id");
-
-                String tagName = rs.getString("tag_name");
-                tagName = (tagName != null) ? tagName.trim() : null;
-
-                Integer orderNumber = rs.getInt("instruction_order_number");
-
-                // Filter out "SET", "GET", "CK", adn "H" "PAUSE"
-                webPageItems.add(
-                        new ComboBoxVars("(" + id + ")" + name, name, id, blockId, -1, -1, tagName, orderNumber, null));
             }
         } catch (SQLException e) {
             ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
-                            "loadWebPageFields - Error selecting Web Page Fields. Error: %s", e.getMessage()));
-        } catch (Exception error) {
+                    .severe(String.format("loadWebPageFields - SQL Error: %s", e.getMessage()));
+        } catch (Exception ex) {
             ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
-                            "loadWebPageFields - Error selecting Web Page Fields. Error: %s", error.getMessage()));
+                    .severe(String.format("loadWebPageFields - General Error: %s", ex.getMessage()));
         }
-        return webPageItems;
-    }
-
-    public ObservableList<ComboBoxVars> loadCompWebPageFields(int homeBankingId) {
-        webPageItems.clear();
-        String selectSQL = " SELECT  "
-                + "  hb.id AS home_banking_id,  "
-                + "  b.id AS block_id,  "
-                + "  bli.id AS instruction_id,  "
-                + "  bli.instruction_order_number,  "
-                + "  bli.actions,  "
-                + "  bli.name AS instruction_name,  "
-                + "  bli.xpath,  "
-                + "  bli.operation,      "
-                + "  bli.tag_name      "
-                + " FROM home_banking hb  "
-                + " LEFT JOIN component_block b ON b.home_banking_id = hb.id  "
-                + " JOIN component_instruction bli ON bli.block_id = b.id  "
-                + " where hb.id = " + homeBankingId
-                + "   and operation is null  "
-                + "  ORDER BY hb.id, b.block_order_number, bli.instruction_order_number ASC;";
-
-        try (Statement stmt = getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
-            while (rs.next()) {
-                int id = rs.getInt("instruction_id");
-                String name = rs.getString("instruction_name").trim();
-                String actions = rs.getString("actions").trim();
-
-                // Filter out "SET", "GET", "CK", adn "H"
-                if (actions == null
-                        || actions.equalsIgnoreCase(ARConstants.SET_VALUE)
-                        || actions.equalsIgnoreCase(ARConstants.GET_VALUE)
-                        || actions.equalsIgnoreCase(ARConstants.CHECK_VALUE)
-                        || actions.equalsIgnoreCase(ARConstants.HOLD)
-                        || actions.equalsIgnoreCase(ARConstants.PAUSE)
-                        || actions.equalsIgnoreCase(ARConstants.EXCEL_GOTO)
-                        || actions.equalsIgnoreCase(ARConstants.SCREEN)
-                        || actions.equalsIgnoreCase(ARConstants.QUIT)) {
-                    continue;
-                }
-
-                Integer blockId = rs.getInt("block_id");
-
-                String tagName = rs.getString("tag_name");
-                tagName = (tagName != null) ? tagName.trim() : null;
-
-                Integer orderNumber = rs.getInt("instruction_order_number");
-
-                // Filter out "SET", "GET", "CK", adn "H"
-                webPageItems.add(
-                        new ComboBoxVars("(" + id + ")" + name, name, id, blockId, -1, -1, tagName, orderNumber, null));
-            }
-        } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
-                            "loadCompWebPageFields - Error selecting Component Web Page Fields. Error: %s",
-                            e.getMessage()));
-        } catch (Exception error) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
-                            "loadWebPageFields - Error selecting Web Page Fields. Error: %s", error.getMessage()));
-        }
-        return webPageItems;
     }
 
     // Migration Scripts
@@ -4064,21 +3745,22 @@ ORDER BY bot.id ASC;
                 .collect(Collectors.toList());
     }
 
-    public List<InstructionLoadDTO> buildJsonViewData(List<BotJobLoadDTO> botJobLoadList, String tableName) {
-        if (!botJobLoadList.isEmpty()
-                && !botJobLoadList.get(0).getBlockLoadDTOList().isEmpty()) {
+    public List<InstructionLoadDTO> buildJsonViewData(List<BotJobLoadDTO> listInstruction, String tableName) {
+        if (!listInstruction.isEmpty()
+                && !listInstruction.get(0).getBlockLoadDTOList().isEmpty()) {
+
             List<InstructionLoadDTO> rowList = null;
             try {
 
-                for (BlockLoadDTO block : botJobLoadList.get(0).getBlockLoadDTOList()) {
-                    rowList = getInstructionsByBlockId(botJobLoadList.get(0).getId(), block.getId(), tableName);
+                for (BlockLoadDTO block : listInstruction.get(0).getBlockLoadDTOList()) {
+                    rowList = getInstructionsList(listInstruction.get(0).getId(), block.getId(), -1, tableName);
                     reorderInstructions(rowList, tableName, false);
                 }
 
-                List<InstructionLoadDTO> blockLoopInstructions = botJobLoadList.get(0).getBlockLoadDTOList().stream()
+                List<InstructionLoadDTO> blockLoopInstructions = listInstruction.get(0).getBlockLoadDTOList().stream()
                         .flatMap(itemBlock -> itemBlock.getInstructionLoadDTOS().stream()
                                 .map(loopInstLoad -> new InstructionLoadDTO(
-                                        botJobLoadList.get(0).getHomeBankingId(), // homBankingId
+                                        listInstruction.get(0).getHomeBankingId(), // homBankingId
                                         itemBlock.getBotJobId(), // botJobId
                                         itemBlock.getBotJobName(), // botJob Name
                                         loopInstLoad.getId(), // Instruction Id
@@ -4231,7 +3913,7 @@ ORDER BY bot.id ASC;
                 + homeBankingId;
 
         // Initialize the necessary data structures
-        List<BlockLoadDTO> savedBlockLoadList = new ArrayList<>();
+        List<BlockLoadDTO> savedlistBlock = new ArrayList<>();
 
         Map<Integer, BlockLoadDTO> blockMapDTO = new HashMap<>();
 
@@ -4257,7 +3939,7 @@ ORDER BY bot.id ASC;
                     blockDTO.setBotJobName(botJobName);
 
                     blockMapDTO.put(blockId, blockDTO);
-                    savedBlockLoadList.add(blockDTO);
+                    savedlistBlock.add(blockDTO);
                 }
             }
         } catch (SQLException e) {
@@ -4267,7 +3949,7 @@ ORDER BY bot.id ASC;
                             homeBankingId, e.getMessage()));
         }
 
-        return savedBlockLoadList;
+        return savedlistBlock;
     }
 
     public ErrorMessage insertReferencesBatch(List<InstructionLoadDTO> instructionList) {
@@ -4533,162 +4215,166 @@ ORDER BY bot.id ASC;
         }
     }
 
-    public void updateTableAccess(String dbUrl, File dbFile) {
-        //        try {
-        //            String url = "jdbc:odbc:Driver={Microsoft Access Driver (*.mdb,
-        // *.accdb)};DBQ=path_to_your_access_db.accdb";
-        //            Connection conn = DriverManager.getConnection(url);
-        //        } catch (SQLException error) {
-        //            System.out.println("initializeDatabase\nError: " + error.getMessage());
-        //        }
+    //    public void updateTableAccess(String dbUrl, File dbFile) {
+    //        //        try {
+    //        //            String url = "jdbc:odbc:Driver={Microsoft Access Driver (*.mdb,
+    //        // *.accdb)};DBQ=path_to_your_access_db.accdb";
+    //        //            Connection conn = DriverManager.getConnection(url);
+    //        //        } catch (SQLException error) {
+    //        //            System.out.println("initializeDatabase\nError: " + error.getMessage());
+    //        //        }
+    //
+    //        try (Connection conn = DriverManager.getConnection(dbUrl)) {
+    //            try (Statement stmt = conn.createStatement()) {
+    //                DatabaseMetaData dbMeta = conn.getMetaData();
+    //                ResultSet rs = dbMeta.getColumns(null, null, "variable", "local_format");
+    //
+    //                if (!rs.next()) {
+    //                    // Column does not exist, so add it
+    //                    //                    String addLocalFormatColumnSQL = "ALTER TABLE variable ADD COLUMN
+    // local_format
+    //                    // TEXT;";
+    //                    //                    String addLocalFormatColumnSQL = "ALTER TABLE variable ADD COLUMN
+    // local_format
+    //                    // MEMO;";
+    //                    String addLocalFormatColumnSQL = "ALTER TABLE variable ADD COLUMN local_format VARCHAR(255);";
+    //                    stmt.executeUpdate(addLocalFormatColumnSQL);
+    //
+    //                    System.out.println(String.format("Database %s has been updated!", dbFile.getName()));
+    //                    System.out.println(String.format("Updates %s", "variable ADD COLUMN local_format"));
+    //                } else {
+    //                    //                    System.out.println(String.format("Database %s no need updates!",
+    //                    // dbFile.getName()));
+    //                }
+    //
+    //                rs = dbMeta.getColumns(null, null, "component_variable", "local_format");
+    //
+    //                if (!rs.next()) {
+    //                    // Column does not exist, so add it
+    //                    //                    String addLocalFormatColumnSQL = "ALTER TABLE variable ADD COLUMN
+    // local_format
+    //                    // TEXT;";
+    //                    //                    String addLocalFormatColumnSQL = "ALTER TABLE variable ADD COLUMN
+    // local_format
+    //                    // MEMO;";
+    //                    String addLocalFormatColumnSQL =
+    //                            "ALTER TABLE component_variable ADD COLUMN local_format VARCHAR(255);";
+    //                    stmt.executeUpdate(addLocalFormatColumnSQL);
+    //
+    //                    System.out.println(String.format("Database %s has been updated!", dbFile.getName()));
+    //                    System.out.println(String.format("Updates %s", "component_variable ADD COLUMN local_format"));
+    //                } else {
+    //                    //                    System.out.println(String.format("Database %s no need updates!",
+    //                    // dbFile.getName()));
+    //                }
+    //
+    //                // ADD DELIMITER COLUMN
+    //                rs = dbMeta.getColumns(null, null, "variable", "delimiter");
+    //
+    //                if (!rs.next()) {
+    //                    String addLocalFormatColumnSQL = "ALTER TABLE variable ADD COLUMN delimiter VARCHAR(255);";
+    //                    stmt.executeUpdate(addLocalFormatColumnSQL);
+    //
+    //                    System.out.println(String.format("Database %s has been updated!", dbFile.getName()));
+    //                    System.out.println(String.format("Updates %s", "variable ADD COLUMN delimiter"));
+    //                } else {
+    //                    //                    System.out.println(String.format("Database %s no need updates!",
+    //                    // dbFile.getName()));
+    //                }
+    //
+    //                rs = dbMeta.getColumns(null, null, "component_variable", "delimiter");
+    //
+    //                if (!rs.next()) {
+    //                    String addLocalFormatColumnSQL =
+    //                            "ALTER TABLE component_variable ADD COLUMN delimiter VARCHAR(255);";
+    //                    stmt.executeUpdate(addLocalFormatColumnSQL);
+    //
+    //                    System.out.println(String.format("Database %s has been updated!", dbFile.getName()));
+    //                    System.out.println(String.format("Updates %s", "component_variable ADD COLUMN delimiter"));
+    //                } else {
+    //                    //                    System.out.println(String.format("Database %s no need updates!",
+    //                    // dbFile.getName()));
+    //                }
+    //
+    //                boolean homeUrlExists = false;
+    //                rs = dbMeta.getTables(null, null, null, new String[] {"TABLE"});
+    //
+    //                ResultSet tables = dbMeta.getTables(null, null, null, new String[] {"TABLE"});
+    //                while (tables.next()) {
+    //                    String tableName = tables.getString("TABLE_NAME");
+    //                    if ("home_url".equalsIgnoreCase(tableName)) {
+    //                        System.out.println("Table 'home_url' exists.");
+    //                        homeUrlExists = true;
+    //                        break;
+    //                    }
+    //                }
+    //
+    //                if (!homeUrlExists) {
+    //                    System.out.println("Table 'home_url' does NOT exist. Creating it...");
+    //                    createHomeURLTable(dbUrl, dbFile); // Pass the connection if needed
+    //                }
+    //
+    //                // ADD HOME_URL_ID COLUMN
+    //                rs = dbMeta.getColumns(null, null, "bot_job", "home_url_id");
+    //
+    //                if (!rs.next()) {
+    //                    String addHomeUrlIdColumnSQL = "ALTER TABLE bot_job ADD COLUMN home_url_id INTEGER;";
+    //                    stmt.executeUpdate(addHomeUrlIdColumnSQL);
+    //
+    //                    //                    String addHomrURLForeignKeySQL = "ALTER TABLE bot_job "
+    //                    //                            + "ADD CONSTRAINT FK_NewHomeURL FOREIGN KEY (home_url_id) "
+    //                    //                            + "REFERENCES home_url(id)";
+    //                    //                    stmt.executeUpdate(addHomrURLForeignKeySQL);
+    //
+    //                    //                    String upDateSQL = "UPDATE bot_job "
+    //                    //                            + "SET home_url_id = home_banking_id";
+    //                    //                    stmt.executeUpdate(upDateSQL);
+    //
+    //                    System.out.println(String.format("Database %s has been updated!", dbFile.getName()));
+    //                    System.out.println(String.format("Updates %s", "bot_job ADD COLUMN home_url_id"));
+    //                } else {
+    //                    //                    System.out.println(String.format("Database %s no need updates!",
+    //                    // dbFile.getName()));
+    //                }
+    //
+    //                //                // TEST FOR DROPPING COLUMNS
+    //                //                rs = dbMeta.getColumns(null, null, "variable", "local_format");
+    //                //                if (rs.next()) {
+    //                //                    // Column exists, so drop it
+    //                //                    String dropColumnSQL = "ALTER TABLE variable DROP COLUMN local_format;";
+    //                //                    stmt.executeUpdate(dropColumnSQL);
+    //                //                }
+    //
+    //                //                rs = dbMeta.getTables(null, null, "home_url", new String[]{"TABLE"});
+    //
+    //                //                deleteHomeUrl(dbUrl);
+    //                this.listHomeBanking = loadHomeBanking(null);
+    //                this.listHomeUrl = loadAllHomeURL();
+    //
+    //                insertUpdateHomeUrl();
+    //
+    //                // Update bot_jobs home_url_id
+    //                this.listHomeUrl = loadAllHomeURL();
+    //
+    //                performLists.listInstruction = loadQuickBotJobs(getConn());
+    //
+    //                if (performLists.listInstruction != null
+    //                        && performLists.listInstruction.size() > 0
+    //                        && performLists.listInstruction.get(0).getHomeUrlId() == 0) {
+    //                    updateBotJobHomeUrlId(listHomeUrl);
+    //                }
+    //
+    //                rs.close();
+    //            }
+    //        } catch (SQLException error) {
+    //            System.out.println("initializeDatabase\nError: " + error.getMessage());
+    //        }
+    //    }
 
-        try (Connection conn = DriverManager.getConnection(dbUrl)) {
-            try (Statement stmt = conn.createStatement()) {
-                DatabaseMetaData dbMeta = conn.getMetaData();
-                ResultSet rs = dbMeta.getColumns(null, null, "variable", "local_format");
-
-                if (!rs.next()) {
-                    // Column does not exist, so add it
-                    //                    String addLocalFormatColumnSQL = "ALTER TABLE variable ADD COLUMN local_format
-                    // TEXT;";
-                    //                    String addLocalFormatColumnSQL = "ALTER TABLE variable ADD COLUMN local_format
-                    // MEMO;";
-                    String addLocalFormatColumnSQL = "ALTER TABLE variable ADD COLUMN local_format VARCHAR(255);";
-                    stmt.executeUpdate(addLocalFormatColumnSQL);
-
-                    System.out.println(String.format("Database %s has been updated!", dbFile.getName()));
-                    System.out.println(String.format("Updates %s", "variable ADD COLUMN local_format"));
-                } else {
-                    //                    System.out.println(String.format("Database %s no need updates!",
-                    // dbFile.getName()));
-                }
-
-                rs = dbMeta.getColumns(null, null, "component_variable", "local_format");
-
-                if (!rs.next()) {
-                    // Column does not exist, so add it
-                    //                    String addLocalFormatColumnSQL = "ALTER TABLE variable ADD COLUMN local_format
-                    // TEXT;";
-                    //                    String addLocalFormatColumnSQL = "ALTER TABLE variable ADD COLUMN local_format
-                    // MEMO;";
-                    String addLocalFormatColumnSQL =
-                            "ALTER TABLE component_variable ADD COLUMN local_format VARCHAR(255);";
-                    stmt.executeUpdate(addLocalFormatColumnSQL);
-
-                    System.out.println(String.format("Database %s has been updated!", dbFile.getName()));
-                    System.out.println(String.format("Updates %s", "component_variable ADD COLUMN local_format"));
-                } else {
-                    //                    System.out.println(String.format("Database %s no need updates!",
-                    // dbFile.getName()));
-                }
-
-                // ADD DELIMITER COLUMN
-                rs = dbMeta.getColumns(null, null, "variable", "delimiter");
-
-                if (!rs.next()) {
-                    String addLocalFormatColumnSQL = "ALTER TABLE variable ADD COLUMN delimiter VARCHAR(255);";
-                    stmt.executeUpdate(addLocalFormatColumnSQL);
-
-                    System.out.println(String.format("Database %s has been updated!", dbFile.getName()));
-                    System.out.println(String.format("Updates %s", "variable ADD COLUMN delimiter"));
-                } else {
-                    //                    System.out.println(String.format("Database %s no need updates!",
-                    // dbFile.getName()));
-                }
-
-                rs = dbMeta.getColumns(null, null, "component_variable", "delimiter");
-
-                if (!rs.next()) {
-                    String addLocalFormatColumnSQL =
-                            "ALTER TABLE component_variable ADD COLUMN delimiter VARCHAR(255);";
-                    stmt.executeUpdate(addLocalFormatColumnSQL);
-
-                    System.out.println(String.format("Database %s has been updated!", dbFile.getName()));
-                    System.out.println(String.format("Updates %s", "component_variable ADD COLUMN delimiter"));
-                } else {
-                    //                    System.out.println(String.format("Database %s no need updates!",
-                    // dbFile.getName()));
-                }
-
-                boolean homeUrlExists = false;
-                rs = dbMeta.getTables(null, null, null, new String[] {"TABLE"});
-
-                ResultSet tables = dbMeta.getTables(null, null, null, new String[] {"TABLE"});
-                while (tables.next()) {
-                    String tableName = tables.getString("TABLE_NAME");
-                    if ("home_url".equalsIgnoreCase(tableName)) {
-                        System.out.println("Table 'home_url' exists.");
-                        homeUrlExists = true;
-                        break;
-                    }
-                }
-
-                if (!homeUrlExists) {
-                    System.out.println("Table 'home_url' does NOT exist. Creating it...");
-                    createHomeURLTable(dbUrl, dbFile); // Pass the connection if needed
-                }
-
-                // ADD HOME_URL_ID COLUMN
-                rs = dbMeta.getColumns(null, null, "bot_job", "home_url_id");
-
-                if (!rs.next()) {
-                    String addHomeUrlIdColumnSQL = "ALTER TABLE bot_job ADD COLUMN home_url_id INTEGER;";
-                    stmt.executeUpdate(addHomeUrlIdColumnSQL);
-
-                    //                    String addHomrURLForeignKeySQL = "ALTER TABLE bot_job "
-                    //                            + "ADD CONSTRAINT FK_NewHomeURL FOREIGN KEY (home_url_id) "
-                    //                            + "REFERENCES home_url(id)";
-                    //                    stmt.executeUpdate(addHomrURLForeignKeySQL);
-
-                    //                    String upDateSQL = "UPDATE bot_job "
-                    //                            + "SET home_url_id = home_banking_id";
-                    //                    stmt.executeUpdate(upDateSQL);
-
-                    System.out.println(String.format("Database %s has been updated!", dbFile.getName()));
-                    System.out.println(String.format("Updates %s", "bot_job ADD COLUMN home_url_id"));
-                } else {
-                    //                    System.out.println(String.format("Database %s no need updates!",
-                    // dbFile.getName()));
-                }
-
-                //                // TEST FOR DROPPING COLUMNS
-                //                rs = dbMeta.getColumns(null, null, "variable", "local_format");
-                //                if (rs.next()) {
-                //                    // Column exists, so drop it
-                //                    String dropColumnSQL = "ALTER TABLE variable DROP COLUMN local_format;";
-                //                    stmt.executeUpdate(dropColumnSQL);
-                //                }
-
-                //                rs = dbMeta.getTables(null, null, "home_url", new String[]{"TABLE"});
-
-                //                deleteHomeUrl(dbUrl);
-                this.databaseUpds = loadHomeBanking(null);
-                this.homeURLList = loadAllHomeURL();
-
-                insertUpdateHomeUrl();
-
-                // Update bot_jobs home_url_id
-                this.homeURLList = loadAllHomeURL();
-
-                this.botJobLoadList = loadAllBotJobs(getConn());
-
-                if (botJobLoadList != null
-                        && botJobLoadList.size() > 0
-                        && botJobLoadList.get(0).getHomeUrlId() == 0) {
-                    updateBotJobHomeUrlId(homeURLList);
-                }
-
-                rs.close();
-            }
-        } catch (SQLException error) {
-            System.out.println("initializeDatabase\nError: " + error.getMessage());
-        }
-    }
-
-    private void updateBotJobHomeUrlId(List<HomeUrlDTO> homeURLList) {
+    private void updateBotJobHomeUrlId(List<HomeUrlDTO> listHomeUrl) {
         try (Connection conn = getConnection()) {
 
-            ErrorMessage errorMessage = updateBotJobHomeUrlIds(conn, homeURLList);
+            ErrorMessage errorMessage = updateBotJobHomeUrlIds(conn, listHomeUrl);
 
             if (errorMessage != null) {
                 performMessage.errorMessage(
@@ -4705,7 +4391,7 @@ ORDER BY bot.id ASC;
         }
     }
 
-    private ErrorMessage updateBotJobHomeUrlIds(Connection conn, List<HomeUrlDTO> homeURLList) {
+    private ErrorMessage updateBotJobHomeUrlIds(Connection conn, List<HomeUrlDTO> listHomeUrl) {
         // Update bot_job only if the home_url_id to be set exists in the home_url table
         String blockInsertQuery = "UPDATE bot_job AS bj " + "SET bj.home_url_id = ? "
                 + "WHERE bj.home_banking_id = ? "
@@ -4713,7 +4399,7 @@ ORDER BY bot.id ASC;
 
         try (PreparedStatement blockStmt = conn.prepareStatement(blockInsertQuery)) {
             boolean batchModeEnabled = false;
-            for (HomeUrlDTO homeUrl : homeURLList) {
+            for (HomeUrlDTO homeUrl : listHomeUrl) {
                 blockStmt.setInt(1, homeUrl.getId()); // 1st ?: Sets home_url_id in bot_job
                 blockStmt.setInt(2, homeUrl.getHomeBankingId()); // 2nd ?: Sets home_banking_id in bot_job
                 blockStmt.setInt(3, homeUrl.getId()); // 4th ?: Used in AND EXISTS (SELECT 1 FROM home_url WHERE id = ?)
@@ -4786,12 +4472,12 @@ ORDER BY bot.id ASC;
         try (PreparedStatement blockStmt = conn.prepareStatement(blockInsertQuery)) {
 
             boolean batchModeEnabled = false;
-            for (HomeBankingLoadDTO dbUser : this.databaseUpds) {
+            for (HomeBankingLoadDTO dbUser : performLists.getListHomeBanking()) {
                 Integer dbUserId = dbUser.getId() != null ? dbUser.getId() : null;
                 String dbUserUrl = dbUser.getUrl();
 
-                // Check if homeURLList contains a HomeUrlDTO with matching id and url
-                boolean exists = homeURLList.stream()
+                // Check if listHomeUrl contains a HomeUrlDTO with matching id and url
+                boolean exists = performLists.getListHomeUrl().stream()
                         .anyMatch(homeUrl -> homeUrl.getId() != null
                                 && dbUserId.equals(homeUrl.getHomeBankingId())
                                 && dbUserUrl.equals(homeUrl.getUrl()));
@@ -4986,8 +4672,8 @@ ORDER BY bot.id ASC;
         return 0; // Return 0 if query fails or no result
     }
 
-    public ObservableList<DatabaseUserDTO> loadAllHomeBankingBotJob() {
-        databaseList.clear();
+    public void loadAllDataUsers() {
+        performLists.getListDatabaseUsers().clear();
         String selectSQL =
                 """
 SELECT
@@ -5049,84 +4735,58 @@ GROUP BY
                 if (searchConfigSb.length() > 0) searchConfigSb.setLength(searchConfigSb.length() - 1);
                 if (optionsConfigSb.length() > 0) optionsConfigSb.setLength(optionsConfigSb.length() - 1);
 
-                databaseList.add(new DatabaseUserDTO(
-                        id,
-                        jobs,
-                        name,
-                        url,
-                        prioritySb.toString(),
-                        searchConfigSb.toString(),
-                        optionsConfigSb.toString(),
-                        username,
-                        password));
+                performLists
+                        .getListDatabaseUsers()
+                        .add(new DatabaseUserDTO(
+                                id,
+                                jobs,
+                                name,
+                                url,
+                                prioritySb.toString(),
+                                searchConfigSb.toString(),
+                                optionsConfigSb.toString(),
+                                username,
+                                password));
+            }
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        }
+    }
+
+    public List<HomeUrlDTO> loadHomeUrls(Integer homeBankingId) {
+        performLists.getListHomeUrl().clear();
+
+        StringBuilder sql = new StringBuilder(
+                "SELECT hu.id AS id, hu.url AS url, hu.home_banking_id AS home_banking_id, hb.name AS org_name "
+                        + "FROM home_url hu "
+                        + "LEFT JOIN home_banking hb ON hu.home_banking_id = hb.id ");
+
+        if (homeBankingId != null && homeBankingId > 0) {
+            sql.append("WHERE hu.home_banking_id = ? ");
+        }
+
+        sql.append("ORDER BY hu.id");
+
+        try (PreparedStatement pstmt = getConnection().prepareStatement(sql.toString())) {
+            if (homeBankingId != null && homeBankingId > 0) {
+                pstmt.setInt(1, homeBankingId);
+            }
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    Integer id = rs.getInt("id");
+                    String url = rs.getString("url");
+                    Integer hbId = rs.getInt("home_banking_id");
+                    String orgName = rs.getString("org_name");
+
+                    performLists.getListHomeUrl().add(new HomeUrlDTO(id, url, hbId, orgName));
+                }
             }
         } catch (SQLException e) {
             System.out.println(e.getMessage());
         }
 
-        return databaseList;
-        //        jobUserList.clear();
-        //        loadBotJobData();
-    }
-
-    public List<HomeUrlDTO> loadAllHomeURL() {
-        homeURLList.clear();
-        String selectSQL =
-                """
-        SELECT
-            hu.id AS id,
-            hu.url AS url,
-            hu.home_banking_id AS home_banking_id,
-            hb.name AS org_name
-        FROM home_url hu
-        LEFT JOIN home_banking hb ON hu.home_banking_id = hb.id
-        ORDER BY hu.id
-        """;
-
-        try (Statement stmt = getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
-            while (rs.next()) {
-                Integer id = rs.getInt("id");
-                String url = rs.getString("url");
-                Integer homeBankingId = rs.getInt("home_banking_id");
-                String orgName = rs.getString("org_name");
-
-                // Assuming you modify HomeUrlDTO to include the bankName field
-                homeURLList.add(new HomeUrlDTO(id, url, homeBankingId, orgName));
-            }
-        } catch (SQLException e) {
-            System.out.println(e.getMessage());
-        }
-        return homeURLList;
-    }
-
-    public List<HomeUrlDTO> loadAllHomeURLByHomeId(int homeBankingId) {
-        homeURLList.clear();
-
-        String selectSQL = " SELECT hu.*, hb.name AS org_name "
-                + " FROM home_url hu "
-                + " JOIN home_banking hb ON hu.home_banking_id = hb.id "
-                + " WHERE hu.home_banking_id = " + homeBankingId
-                + " ORDER BY hu.id ";
-
-        try (Statement stmt = getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
-
-            while (rs.next()) {
-                Integer id = rs.getInt("id");
-                String url = rs.getString("url");
-                String orgName = rs.getString("org_name");
-
-                homeURLList.add(new HomeUrlDTO(id, url, homeBankingId, orgName));
-            }
-
-            return homeURLList;
-
-        } catch (SQLException error) {
-            System.out.println(error.getMessage());
-        }
-
-        return homeURLList;
+        return performLists.getListHomeUrl();
     }
 
     public void selectHomeBankinOneRow() {
@@ -9043,84 +8703,68 @@ GROUP BY
         return false;
     }
 
-    public ObservableList<VariableUserDTO> loadAllVariablesByCriteria(int botJobId, int parentId) {
-        variablesList.clear();
-        String selectSQL =
-                "SELECT vars.id, vars.type, vars.name, vars.value, vars.local_format, vars.delimiter, COUNT(blk.variable_id) UsedVars "
-                        + "FROM variable vars "
-                        + "LEFT JOIN instruction blk ON blk.variable_id = vars.id "
-                        + "WHERE vars.bot_job_id = " + botJobId;
+    public void loadAllVariablesByCriteria(int whereId, int parentId, String tableName) {
+        performLists.getListVariablesUser().clear();
 
-        if (parentId != -1) { // Check if instructionId is provided (not -1)
-            selectSQL += " AND instruction_id = " + parentId;
+        // Determine related table and columns based on tableName
+        String joinTable;
+        String joinTableVarId;
+        String filterColumn;
+
+        if ("component_variable".equalsIgnoreCase(tableName)) {
+            joinTable = "component_instruction";
+            joinTableVarId = "variable_id"; // assuming the join column name in component_instruction is variable_id
+            filterColumn = "home_banking_id";
+        } else {
+            // default to "variable"
+            joinTable = "instruction";
+            joinTableVarId = "variable_id";
+            filterColumn = "bot_job_id";
         }
 
-        selectSQL += " GROUP BY vars.id, vars.type, vars.Name, vars.value, vars.local_format, vars.delimiter";
+        StringBuilder selectSQL = new StringBuilder(
+                "SELECT vars.id, vars.type, vars.name, vars.value, vars.local_format, vars.delimiter, COUNT(blk."
+                        + joinTableVarId + ") AS UsedVars "
+                        + "FROM " + tableName + " vars "
+                        + "LEFT JOIN " + joinTable + " blk ON blk." + joinTableVarId + " = vars.id "
+                        + "WHERE vars." + filterColumn + " = ? ");
 
-        selectSQL += " ORDER BY vars.id";
+        if (parentId != -1) {
+            selectSQL.append(" AND instruction_id = ? ");
+        }
 
-        try (Statement stmt = getConnection().createStatement(); // Assuming you have getConnection() method
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
+        selectSQL.append(" GROUP BY vars.id, vars.type, vars.name, vars.value, vars.local_format, vars.delimiter ");
+        selectSQL.append(" ORDER BY vars.id ");
 
-            while (rs.next()) {
-                int id = rs.getInt("ID");
-                String type = rs.getString("type");
-                String name = rs.getString("name");
-                String value = rs.getString("value");
-                String localFormat = rs.getString("local_format");
-                String delimiter = rs.getString("delimiter");
-                String usedVars = rs.getString("UsedVars");
-                variablesList.add(new VariableUserDTO(
-                        id, type, name, value, botJobId, parentId, localFormat, delimiter, usedVars));
+        try (PreparedStatement pstmt = getConnection().prepareStatement(selectSQL.toString())) {
+            pstmt.setInt(1, whereId);
+            if (parentId != -1) {
+                pstmt.setInt(2, parentId);
             }
-            return variablesList;
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    int id = rs.getInt("id");
+                    String type = rs.getString("type");
+                    String name = rs.getString("name");
+                    String value = rs.getString("value");
+                    String localFormat = rs.getString("local_format");
+                    String delimiter = rs.getString("delimiter");
+                    String usedVars = rs.getString("UsedVars");
+
+                    performLists
+                            .getListVariablesUser()
+                            .add(new VariableUserDTO(
+                                    id, type, name, value, whereId, parentId, localFormat, delimiter, usedVars));
+                }
+            }
         } catch (SQLException e) {
-            // Handle the exception properly (log, throw, etc.)
-            ARLogger.getInstance(PerformDataBase.class).severe("loadAllVariblesByCriteria. Error: " + e.getMessage());
+            ARLogger.getInstance(PerformDataBase.class).severe("loadAllVariablesByCriteria. Error: " + e.getMessage());
         }
-        return null;
     }
 
-    public ObservableList<VariableUserDTO> loadAllCompVariablesByCriteria(int homeBankId, int parentId) {
-        variablesList.clear();
-        String selectSQL =
-                "SELECT vars.id, vars.type, vars.name, vars.value, vars.local_format, vars.delimiter, COUNT(blk.variable_id) UsedVars "
-                        + "FROM component_variable vars "
-                        + "LEFT JOIN component_instruction blk ON blk.variable_id = vars.id "
-                        + "WHERE vars.home_banking_id = " + homeBankId;
-
-        if (parentId != -1) { // Check if instructionId is provided (not -1)
-            selectSQL += " AND instruction_id = " + parentId;
-        }
-
-        selectSQL += " GROUP BY vars.id, vars.type, vars.Name, vars.value, vars.local_format, vars.delimiter";
-
-        selectSQL += " ORDER BY vars.id";
-
-        try (Statement stmt = getConnection().createStatement(); // Assuming you have getConnection() method
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
-
-            while (rs.next()) {
-                int id = rs.getInt("ID");
-                String type = rs.getString("type");
-                String name = rs.getString("name");
-                String value = rs.getString("value");
-                String localFormat = rs.getString("local_format");
-                String delimiter = rs.getString("delimiter");
-                String usedVars = rs.getString("UsedVars");
-                variablesList.add(new VariableUserDTO(
-                        id, type, name, value, homeBankId, parentId, localFormat, delimiter, usedVars));
-            }
-            return variablesList;
-        } catch (SQLException e) {
-            // Handle the exception properly (log, throw, etc.)
-            ARLogger.getInstance(PerformDataBase.class).severe("loadAllVariblesByCriteria. Error: " + e.getMessage());
-        }
-        return null;
-    }
-
-    public List<VariableLoadDTO> loadAllVariables(int botJobId) {
-        List<VariableLoadDTO> variablesLoadList = new ArrayList<>();
+    public void loadAllVariables(int botJobId) {
+        performLists.getListVariable().clear();
         String selectSQL =
                 "SELECT vars.id, instruction_id, vars.type, vars.name, vars.value, vars.local_format, vars.delimiter, COUNT(blk.variable_id) UsedVars "
                         + "FROM variable vars "
@@ -9143,14 +8787,14 @@ GROUP BY
                 String localFormat = rs.getString("local_format");
                 String delimiter = rs.getString("delimiter");
                 Integer usedVars = rs.getInt("UsedVars");
-                variablesLoadList.add(new VariableLoadDTO(
-                        id, -1, botJobId, instructionId, type, name, value, localFormat, delimiter, usedVars));
+                performLists
+                        .getListVariable()
+                        .add(new VariableLoadDTO(
+                                id, -1, botJobId, instructionId, type, name, value, localFormat, delimiter, usedVars));
             }
-            return variablesLoadList;
         } catch (SQLException error) {
             ARLogger.getInstance(PerformDataBase.class).severe("loadAllVariables. Error: " + error.getMessage());
         }
-        return null;
     }
 
     public List<InstructionLoadDTO> loadExcelGotoBlock(int homeBankingId, int botJobId) {
@@ -9402,5 +9046,115 @@ GROUP BY
                 .refreshLoop(dto.getRefreshLoop())
                 .loopOnly(dto.getLoopOnly())
                 .build();
+    }
+
+    public List<InstructionLoadDTO> getInstructionsList(int whereID, int blockId, int instrucId, String tableName) {
+        List<InstructionLoadDTO> instructions = new ArrayList<>();
+
+        // Validate table name to avoid SQL injection
+        List<String> allowedTables = Arrays.asList("instruction", "component_instruction");
+        if (!allowedTables.contains(tableName)) {
+            throw new IllegalArgumentException("Invalid table name: " + tableName);
+        }
+
+        // Determine filter column
+        String whereColumn = tableName.equals("component_instruction") ? "home_banking_id" : "bot_job_id";
+
+        // Build query dynamically
+        StringBuilder querySQL = new StringBuilder("SELECT * FROM ")
+                .append(tableName)
+                .append(" WHERE ")
+                .append(whereColumn)
+                .append(" = ?");
+        if (blockId > 0) {
+            querySQL.append(" AND block_id = ?");
+        }
+        if (instrucId > 0) {
+            querySQL.append(" AND id = ?");
+        }
+        querySQL.append(" ORDER BY instruction_order_number ASC");
+
+        try (PreparedStatement pstmt = getConnection().prepareStatement(querySQL.toString())) {
+            int paramIndex = 1;
+            pstmt.setInt(paramIndex++, whereID);
+            if (blockId > 0) {
+                pstmt.setInt(paramIndex++, blockId);
+            }
+            if (instrucId > 0) {
+                pstmt.setInt(paramIndex++, instrucId);
+            }
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    InstructionLoadDTO instruction = new InstructionLoadDTO();
+
+                    instruction.setInstructionId(rs.getInt("id"));
+
+                    if (tableName.equals("component_instruction")) {
+                        instruction.setHomeBankingId(rs.getInt("home_banking_id"));
+                    } else {
+                        instruction.setBotJobId(rs.getInt("bot_job_id"));
+                    }
+
+                    instruction.setBlockId(rs.getInt("block_id"));
+                    instruction.setInstructionName(rs.getString("name"));
+                    instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
+
+                    instruction.setActions(rs.getString("actions"));
+                    instruction.setXpath(rs.getString("xpath"));
+                    instruction.setCoordinates(rs.getString("coordinates"));
+                    instruction.setForceCoordinates(rs.getBoolean("force_coordinates"));
+                    instruction.setIFrameXPath(rs.getString("iframe_xpath"));
+                    instruction.setTagName(rs.getString("tag_name"));
+                    instruction.setShadowHost(rs.getString("shadow_host"));
+                    instruction.setShadowRoot(rs.getString("shadow_root"));
+                    instruction.setCssSelector(rs.getString("css_selector"));
+                    instruction.setDescription(rs.getString("description"));
+                    instruction.setOptional(rs.getBoolean("optional"));
+                    instruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
+                    instruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
+                    instruction.setCodified(rs.getBoolean("codified"));
+                    instruction.setExportToABR(rs.getBoolean("export_to_abr"));
+                    instruction.setInstructionActive(rs.getBoolean("active"));
+
+                    if (hasColumn(rs, "variable_id")) {
+                        instruction.setVariableId(rs.getInt("variable_id"));
+                    }
+                    if (hasColumn(rs, "parent_id")) {
+                        instruction.setParentId(rs.getInt("parent_id"));
+                    }
+
+                    instructions.add(instruction);
+                }
+
+                ARLogger.getInstance(PerformDataBase.class)
+                        .info(String.format(
+                                "Fetched %d instructions from table %s%s%s",
+                                instructions.size(),
+                                tableName,
+                                blockId > 0 ? " for Block ID " + blockId : "",
+                                instrucId > 0 ? " and Instruction ID " + instrucId : ""));
+            }
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format(
+                            "Error fetching instructions from table %s%s. Error: %s",
+                            tableName, blockId > 0 ? " for Block ID " + blockId : "", e.getMessage()));
+        }
+
+        return instructions;
+    }
+
+    /**
+     * Utility to check if a column exists in ResultSet
+     */
+    private boolean hasColumn(ResultSet rs, String columnName) throws SQLException {
+        ResultSetMetaData rsMeta = rs.getMetaData();
+        for (int i = 1; i <= rsMeta.getColumnCount(); i++) {
+            if (columnName.equalsIgnoreCase(rsMeta.getColumnName(i))) {
+                return true;
+            }
+        }
+        return false;
     }
 }

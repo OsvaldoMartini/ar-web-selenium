@@ -5,13 +5,13 @@ import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.model.VariableUserDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
 import com.google.common.base.Strings;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
-import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -44,7 +44,6 @@ public class ARElementValuePane extends ARPane {
     // Postgres
     private Connection conn = null;
 
-    private ObservableList<VariableUserDTO> variablesList = FXCollections.observableArrayList();
     private TableView<VariableUserDTO> tableView = new TableView<>();
     private RowMoveDTO rowMoveDTO;
     private int varId;
@@ -71,12 +70,14 @@ public class ARElementValuePane extends ARPane {
     Button updateButton;
     Button deleteButton;
 
+    private static final PerformLists performLists;
     private static final PerformDataBase performDataBase;
     private static final PerformMessage performMessage;
     private static final ARNewCommandPane arNewCommandPane;
 
     // Static block to initialize
     static {
+        performLists = PerformLists.getInstance();
         performDataBase = PerformDataBase.getInstance();
         performMessage = PerformMessage.getInstance();
         arNewCommandPane = ARNewCommandPane.getInstance();
@@ -98,7 +99,11 @@ public class ARElementValuePane extends ARPane {
         this.varName = varName;
         this.instructionType = instructionType;
 
-        this.variablesList = performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId);
+        String tableName = "variable";
+        if (rowMoveDTO.getSessionId().equals("componentTasks")) {
+            tableName = "component_variable";
+        }
+        performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId, tableName);
 
         if (this.varId > -1) {
             selectRowById(varId);
@@ -344,8 +349,11 @@ public class ARElementValuePane extends ARPane {
             }
 
             performDataBase.saveUserData(user);
-            this.variablesList.clear();
-            this.variablesList = performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId);
+            String tableName = "variable";
+            if (rowMoveDTO.getSessionId().equals("componentTasks")) {
+                tableName = "component_variable";
+            }
+            performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId, tableName);
             arNewCommandPane.reloadComboVars(instructionId, true, -1);
         });
 
@@ -381,7 +389,11 @@ public class ARElementValuePane extends ARPane {
 
             performDataBase.updateUserData(selectedUser.getId(), selectedUser);
 
-            this.variablesList = performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId);
+            String tableName = "variable";
+            if (rowMoveDTO.getSessionId().equals("componentTasks")) {
+                tableName = "component_variable";
+            }
+            performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId, tableName);
             arNewCommandPane.reloadComboVars(instructionId, true, varId);
         });
         updateButton.setDisable(true);
@@ -403,7 +415,11 @@ public class ARElementValuePane extends ARPane {
             }
 
             performDataBase.deleteUserData(id);
-            this.variablesList = performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId);
+            String tableName = "variable";
+            if (rowMoveDTO.getSessionId().equals("componentTasks")) {
+                tableName = "component_variable";
+            }
+            performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId, tableName);
             arNewCommandPane.reloadComboVars(instructionId, true, -1);
         });
         deleteButton.setDisable(true);
@@ -487,7 +503,7 @@ public class ARElementValuePane extends ARPane {
         List<TableColumn<VariableUserDTO, String>> columns =
                 List.of(idColumn, typeColumn, nameColumn, valueColumn, localFormatColumn, delimiterColumn);
         tableView.getColumns().addAll(columns);
-        tableView.setItems(variablesList);
+        tableView.setItems(performLists.getListVariablesUser());
 
         // Add listener to TableView selection
         //        tableView
@@ -600,7 +616,7 @@ public class ARElementValuePane extends ARPane {
     }
 
     private boolean nameExists(String name) {
-        for (VariableUserDTO dto : variablesList) {
+        for (VariableUserDTO dto : performLists.getListVariablesUser()) {
             if (dto.getName().trim().equalsIgnoreCase(name)) {
                 return true;
             }
@@ -622,9 +638,12 @@ public class ARElementValuePane extends ARPane {
     public void selectRowById(int idToFind) {
         if (rowMoveDTO != null && rowMoveDTO.getBotJobId() != null) {
 
-            if (this.variablesList.isEmpty()) {
-                this.variablesList =
-                        performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId);
+            if (performLists.getListVariablesUser().isEmpty()) {
+                String tableName = "variable";
+                if (rowMoveDTO.getSessionId().equals("componentTasks")) {
+                    tableName = "component_variable";
+                }
+                performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId, tableName);
             }
 
             if (tableView == null) {

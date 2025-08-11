@@ -5,6 +5,7 @@ import com.allinweb.ch.component.model.HomeBankingLoadDTO;
 import com.allinweb.ch.component.model.HomeUrlDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.DatabaseUserDTO;
 import com.allinweb.ch.util.ARConstants;
@@ -25,13 +26,11 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.*;
-import lombok.Getter;
 
 public class ARNewHomeBankingPane extends ARPane {
 
@@ -54,21 +53,15 @@ public class ARNewHomeBankingPane extends ARPane {
         return instance;
     }
 
-    @Getter
-    private ObservableList<HomeBankingLoadDTO> homeBankingList;
-
-    public void initialize(ObservableList<HomeBankingLoadDTO> homeBankingList) {
-        this.homeBankingList = homeBankingList;
-        if (this.homeBankingList == null) {
-            this.homeBankingList = FXCollections.observableArrayList();
-        }
-    }
+    public void initialize() {}
 
     private static final PerformMessage performMessage;
+    private static final PerformLists performLists;
     private static final PerformDataBase performDataBase;
     // Static block to initialize
     static {
         performMessage = PerformMessage.getInstance();
+        performLists = PerformLists.getInstance();
         performDataBase = PerformDataBase.getInstance();
     }
 
@@ -123,7 +116,9 @@ public class ARNewHomeBankingPane extends ARPane {
     @Override
     public void initUIComponents() {
         // Load initial data
-        performDataBase.loadAllHomeBankingBotJob();
+
+        Platform.runLater(() -> performDataBase.loadAllDataUsers());
+
         // Assuming getDatabaseList() and getHomeUrlList() are populated by loadAllHomeBankingBotJob()
         // If not, you might need to call updateHomeBankList(someLoadedList) here.
 
@@ -311,7 +306,7 @@ public class ARNewHomeBankingPane extends ARPane {
         // optionsConfigColumn.setCellValueFactory(new PropertyValueFactory<>("optionsConfig"));
 
         tableView.getColumns().addAll(idColumn, jobColumn, nameColumn, urlColumn);
-        tableView.setItems(performDataBase.getDatabaseList()); // Set data to the table
+        tableView.setItems(performLists.getListDatabaseUsers()); // Set data to the table
 
         orgDetailsContainer
                 .getChildren()
@@ -358,8 +353,8 @@ public class ARNewHomeBankingPane extends ARPane {
         homeUrlColumn.setMaxWidth(Double.MAX_VALUE); // Allow URL column to grow
 
         tableViewHomeUrl.getColumns().addAll(homeUrlIdColumn, orgNameColumn, homeUrlColumn);
-        List<HomeUrlDTO> urls = performDataBase.loadAllHomeURL();
-        tableViewHomeUrl.setItems(FXCollections.observableArrayList(urls));
+        performDataBase.loadHomeUrls(null);
+        tableViewHomeUrl.setItems(FXCollections.observableArrayList(performLists.getListHomeUrl()));
 
         homeUrlDetailsContainer
                 .getChildren()
@@ -398,7 +393,7 @@ public class ARNewHomeBankingPane extends ARPane {
     }
 
     private void updateHomeBankList(List<DatabaseUserDTO> databaseList) {
-        homeBankingList.clear();
+        performLists.getListHomeBanking().clear();
 
         for (DatabaseUserDTO user : databaseList) {
             HomeBankingLoadDTO homeBanking = new HomeBankingLoadDTO();
@@ -412,14 +407,16 @@ public class ARNewHomeBankingPane extends ARPane {
             homeBanking.setUsername(user.getUsername() != null ? user.getUsername() : null);
             homeBanking.setPassword(user.getPassword() != null ? user.getPassword() : null);
 
-            homeBankingList.add(homeBanking);
+            performLists.getListHomeBanking().add(homeBanking);
         }
     }
 
     public void updateTableBankingView() {
-        performDataBase.loadAllHomeBankingBotJob();
-        updateHomeBankList(performDataBase.getDatabaseList());
-        tableView.setItems(performDataBase.getDatabaseList());
+        Platform.runLater(() -> {
+            performDataBase.loadAllDataUsers();
+            updateHomeBankList(performLists.getListDatabaseUsers());
+            tableView.setItems(performLists.getListDatabaseUsers());
+        });
     }
 
     @Override
@@ -514,8 +511,10 @@ public class ARNewHomeBankingPane extends ARPane {
                 }
             }
 
-            performDataBase.loadAllHomeBankingBotJob();
-            updateHomeBankList(performDataBase.getDatabaseList());
+            Platform.runLater(() -> {
+                performDataBase.loadAllDataUsers();
+                updateHomeBankList(performLists.getListDatabaseUsers());
+            });
         });
 
         updateORGButton.setOnAction(event -> {
@@ -528,8 +527,10 @@ public class ARNewHomeBankingPane extends ARPane {
                     scanConfigField.getText(),
                     optionsConfigField.getText());
             updateUserData(id, user);
-            performDataBase.loadAllHomeBankingBotJob();
-            updateHomeBankList(performDataBase.getDatabaseList());
+            Platform.runLater(() -> {
+                performDataBase.loadAllDataUsers();
+                updateHomeBankList(performLists.getListDatabaseUsers());
+            });
         });
         deleteORGButton.setOnAction(event -> {
             String id = idField.getText();
@@ -558,8 +559,10 @@ public class ARNewHomeBankingPane extends ARPane {
 
             if (respModal.equals(ARConstants.DialogModal.OK)) {
                 deleteUserData(id);
-                performDataBase.loadAllHomeBankingBotJob();
-                updateHomeBankList(performDataBase.getDatabaseList());
+                Platform.runLater(() -> {
+                    performDataBase.loadAllDataUsers();
+                    updateHomeBankList(performLists.getListDatabaseUsers());
+                });
             }
         });
         templateORGButton.setOnAction(event -> {
@@ -656,8 +659,8 @@ public class ARNewHomeBankingPane extends ARPane {
                             0);
                 } else {
                     // ✅ Reload the table after successful insert
-                    List<HomeUrlDTO> urls = performDataBase.loadAllHomeURLByHomeId(homeBankId);
-                    tableViewHomeUrl.setItems(FXCollections.observableArrayList(urls));
+                    performDataBase.loadHomeUrls(null);
+                    tableViewHomeUrl.setItems(FXCollections.observableArrayList(performLists.getListHomeUrl()));
 
                     homeUrlIdField.clear();
                     homeUrlValueField.clear();
@@ -707,8 +710,8 @@ public class ARNewHomeBankingPane extends ARPane {
                             0);
                 } else {
                     // ✅ Reload the table after successful update
-                    List<HomeUrlDTO> urls = performDataBase.loadAllHomeURLByHomeId(homeBankId);
-                    tableViewHomeUrl.setItems(FXCollections.observableArrayList(urls));
+                    performDataBase.loadHomeUrls(null);
+                    tableViewHomeUrl.setItems(FXCollections.observableArrayList(performLists.getListHomeUrl()));
 
                     // Optionally clear the fields
                     homeUrlIdField.clear();
@@ -747,8 +750,8 @@ public class ARNewHomeBankingPane extends ARPane {
                 return;
             }
 
-            List<HomeUrlDTO> homeUrlList = performDataBase.loadAllHomeURLByHomeId(Integer.parseInt(homeBankIdStr));
-            if (homeUrlList.size() == 1) {
+            performDataBase.loadHomeUrls(Integer.parseInt(homeBankIdStr));
+            if (performLists.getListHomeUrl().size() == 1) {
 
                 performMessage.showCustomModalDialogDragWin11(
                         "Only One Environment",
@@ -797,8 +800,8 @@ public class ARNewHomeBankingPane extends ARPane {
 
                 } else {
                     // ✅ Refresh list
-                    List<HomeUrlDTO> urls = performDataBase.loadAllHomeURLByHomeId(homeBankId);
-                    tableViewHomeUrl.setItems(FXCollections.observableArrayList(urls));
+                    performDataBase.loadHomeUrls(homeBankId);
+                    tableViewHomeUrl.setItems(FXCollections.observableArrayList(performLists.getListHomeUrl()));
 
                     homeUrlIdField.clear();
                     homeUrlValueField.clear();
@@ -847,8 +850,8 @@ public class ARNewHomeBankingPane extends ARPane {
                 // ... populate form fields
 
                 // Load URLs related to the selected home banking ID
-                List<HomeUrlDTO> urls = performDataBase.loadAllHomeURLByHomeId(Integer.parseInt(selectedUser.getId()));
-                tableViewHomeUrl.setItems(FXCollections.observableArrayList(urls));
+                performDataBase.loadHomeUrls(Integer.parseInt(selectedUser.getId()));
+                tableViewHomeUrl.setItems(FXCollections.observableArrayList(performLists.getListHomeUrl()));
             } else {
                 tableViewHomeUrl.getItems().clear();
             }
@@ -960,7 +963,7 @@ public class ARNewHomeBankingPane extends ARPane {
     }
 
     private boolean nameExists(String name) {
-        for (DatabaseUserDTO dto : performDataBase.getDatabaseList()) {
+        for (DatabaseUserDTO dto : performLists.getListDatabaseUsers()) {
             if (dto.getName().trim().equalsIgnoreCase(name)) {
                 return true;
             }

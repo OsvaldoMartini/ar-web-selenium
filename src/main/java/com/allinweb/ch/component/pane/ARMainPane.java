@@ -3,7 +3,6 @@ package com.allinweb.ch.component.pane;
 import com.allinweb.ch.component.listCell.ARCellFactory;
 import com.allinweb.ch.component.listCell.BotJobListCell;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
-import com.allinweb.ch.component.model.HomeUrlDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARConfigurationScene;
 import com.allinweb.ch.component.scene.ARInfoScene;
@@ -13,6 +12,7 @@ import com.allinweb.ch.component.scene.ARViewBotJobScene;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.license.LicenceVal;
 import com.allinweb.ch.license.LicenseManager;
@@ -65,7 +65,7 @@ public class ARMainPane extends ARPane {
         this.webDriverList = webDriverList;
 
         if (performDataBase.getConn() != null) {
-            botJobList.addAll(performDataBase.loadAllBotJobs(performDataBase.getConn()));
+            botJobList.addAll(performDataBase.loadQuickBotJobs());
         }
     }
 
@@ -76,6 +76,7 @@ public class ARMainPane extends ARPane {
     //    private static final ARSharedResources dbResource;
     private static final ARInfoScene arInfoScene;
     private static final ARPropertyManager arPropertyManager;
+    private static final PerformLists performLists;
     private static final PerformDataBase performDataBase;
     private static final PerformMessage performMessage;
     private static final ARConfigurationScene arConfigurationScene;
@@ -99,6 +100,7 @@ public class ARMainPane extends ARPane {
         //        //        dbResource = PerformDataBase.;
         arPropertyManager = ARPropertyManager.getInstance();
         arNewBotJobScene = ARNewBotJobScene.getInstance();
+        performLists = PerformLists.getInstance();
         performDataBase = PerformDataBase.getInstance();
         performMessage = PerformMessage.getInstance();
         arConfigurationScene = ARConfigurationScene.getInstance();
@@ -183,7 +185,7 @@ public class ARMainPane extends ARPane {
                 BotJobListCell.class, arViewBotJobScene, arWebDriver, botJobList, webDriverList)::call);
 
         arConfigurationScene.initialize(viewBotJobListView, botJobList, isEnabledLicence);
-        arNewBotJobScene.initialize(arViewBotJobScene, arWebDriver, botJobList, webDriverList);
+        arNewBotJobScene.initialize(arViewBotJobScene, arWebDriver, webDriverList);
         arWebDriver.initialize(webDriverList);
 
         // 🔹 Wrap buttonPane + aiTextArea
@@ -211,14 +213,14 @@ public class ARMainPane extends ARPane {
         });
 
         newBotJobButton.setOnMouseClicked(e -> {
-            List<HomeUrlDTO> homeUrlList = performDataBase.loadAllHomeURL();
-            if (!homeUrlList.isEmpty()) {
+            performDataBase.loadHomeUrls(null);
+            if (!performLists.getListHomeUrl().isEmpty()) {
 
-                arNewBotJobScene.initialize(arViewBotJobScene, arWebDriver, botJobList, webDriverList);
+                arNewBotJobScene.initialize(arViewBotJobScene, arWebDriver, webDriverList);
                 arNewBotJobScene.showModal();
                 botJobList.clear();
                 if (performDataBase.getConn() != null) {
-                    botJobList.addAll(performDataBase.loadAllBotJobs(performDataBase.getConn()));
+                    botJobList.addAll(performDataBase.loadQuickBotJobs());
                 }
                 viewBotJobListView.setItems(botJobList);
             } else {
@@ -260,8 +262,8 @@ public class ARMainPane extends ARPane {
                     Stage currentStage = (Stage) cloneBotJobButton.getScene().getWindow();
                     arSaveCloneScene.showModal(currentStage);
 
-                    ObservableList<BotJobLoadDTO> botJobList = FXCollections.observableArrayList(
-                            performDataBase.loadAllBotJobs(performDataBase.getConn()));
+                    ObservableList<BotJobLoadDTO> botJobList =
+                            FXCollections.observableArrayList(performDataBase.loadQuickBotJobs());
                     viewBotJobListView.setItems(botJobList);
                     viewBotJobListView.refresh();
                 }
@@ -281,8 +283,8 @@ public class ARMainPane extends ARPane {
             }
             if (performDataBase.getConn() != null) {
                 try {
-                    ObservableList<BotJobLoadDTO> botJobList = FXCollections.observableArrayList(
-                            performDataBase.loadAllBotJobs(performDataBase.getConn()));
+                    ObservableList<BotJobLoadDTO> botJobList =
+                            FXCollections.observableArrayList(performDataBase.loadQuickBotJobs());
 
                     viewBotJobListView.setItems(botJobList);
                 } catch (Exception error) {
@@ -310,7 +312,7 @@ public class ARMainPane extends ARPane {
                 try {
                     Platform.runLater(() -> {
                         // new ARViewBotJobScene(selecBotJobDTO).showModal();
-                        arViewBotJobScene.initialize(arWebDriver, selecBotJobDTO, botJobList);
+                        arViewBotJobScene.initialize(arWebDriver, selecBotJobDTO);
                         arViewBotJobScene.showModal();
 
                         // new Alert(AlertType.WARNING, "Error" + selecBotJobDTO.getName()).show();

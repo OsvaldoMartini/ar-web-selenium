@@ -14,10 +14,7 @@ import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
 import com.allinweb.ch.component.scene.ARScannedElementScene;
 import com.allinweb.ch.component.scene.ARViewBotJobScene;
 import com.allinweb.ch.control.ARComponentBuilder;
-import com.allinweb.ch.facade.PerformBackup;
-import com.allinweb.ch.facade.PerformDataBase;
-import com.allinweb.ch.facade.PerformInitializer;
-import com.allinweb.ch.facade.PerformMessage;
+import com.allinweb.ch.facade.*;
 import com.allinweb.ch.license.LicenceVal;
 import com.allinweb.ch.license.LicenseManager;
 import com.allinweb.ch.util.ARConstants;
@@ -100,6 +97,7 @@ public class ARConfigurationPane extends ARPane {
     private static final ARPropertyManager arPropertyManager;
     private static final ARNewHomeBankingScene arNewHomeBankingScene;
     private static final PerformMessage performMessage;
+    private static final PerformLists performLists;
     private static final PerformDataBase performDataBase;
     private static final PerformBackup performBackup;
     private static final PerformInitializer performInitializer;
@@ -120,13 +118,13 @@ public class ARConfigurationPane extends ARPane {
 
         arPropertyManager = ARPropertyManager.getInstance();
         performMessage = PerformMessage.getInstance();
+        performLists = PerformLists.getInstance();
         performDataBase = PerformDataBase.getInstance();
         arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
         performBackup = PerformBackup.getInstance();
         performInitializer = PerformInitializer.getInstance();
     }
 
-    private ObservableList<HomeBankingLoadDTO> homeBankingList = FXCollections.observableArrayList();
     private ListView<HomeBankingLoadDTO> homeBankingListView;
 
     // UI Components
@@ -258,9 +256,9 @@ public class ARConfigurationPane extends ARPane {
         //                PerformDataBase..getEntityList(HomeBankingDTO.class);
 
         if (performDataBase.getConn() != null) {
-            homeBankingList.addAll(performDataBase.loadHomeBanking(null));
+            performDataBase.loadHomeBanking(null);
         }
-        homeBankingListView = new ListView<>(homeBankingList);
+        homeBankingListView = new ListView<>(performLists.getListHomeBanking());
         homeBankingListView.setCellFactory(new ARCellFactory<>(HomeBankingListCell.class)::call);
 
         // Setting the preferred height for homeBankingListView
@@ -570,12 +568,15 @@ public class ARConfigurationPane extends ARPane {
 
         if (performDataBase.getConn() != null) {
             try (Connection conn = performDataBase.getConnection()) {
-                List<BotJobLoadDTO> botJobLoadList = performDataBase.loadAllBotJobs(conn);
+                if (conn != null) {
+                    performDataBase.loadQuickBotJobs();
 
-                List<InstructionLoadDTO> instList = null;
+                    List<InstructionLoadDTO> instList = null;
 
-                if ((instList != null && instList.size() > 0) || botJobLoadList.size() == 0) {
-                    backupDBButton.setDisable(true);
+                    if ((instList != null && instList.size() > 0)
+                            || performLists.getListBlock().isEmpty()) {
+                        backupDBButton.setDisable(true);
+                    }
                 }
             } catch (SQLException ignore) {
                 System.out.println("Check if It Was Migrated! - Not Migrate Columns found!");
@@ -586,7 +587,7 @@ public class ARConfigurationPane extends ARPane {
             if (isEnabledLicence && !checkLicense()) {
                 return;
             }
-            arNewHomeBankingScene.initialize(homeBankingList);
+            arNewHomeBankingScene.initialize();
             Stage currentStage = (Stage) insertSitesdButton.getScene().getWindow();
             arNewHomeBankingScene.showModal(currentStage);
         });
@@ -1055,15 +1056,12 @@ public class ARConfigurationPane extends ARPane {
             //            performDataBase.exportVariables();
             //            performDataBase.exportReferences();
 
-            homeBankingList.clear();
-            homeBankingList.addAll(performDataBase.loadHomeBanking(null));
-            homeBankingListView = new ListView<>(homeBankingList);
-
-            arNewHomeBankingScene.initialize(homeBankingList);
+            performDataBase.loadHomeBanking(null);
+            homeBankingListView = new ListView<>(performLists.getListHomeBanking());
+            arNewHomeBankingScene.initialize();
 
             try {
-                botJobList = FXCollections.observableArrayList(
-                        performDataBase.loadAllBotJobs(performDataBase.getConnection()));
+                botJobList = FXCollections.observableArrayList(performDataBase.loadQuickBotJobs());
             } catch (Exception error) {
                 throw error;
             }

@@ -1,6 +1,5 @@
 package com.allinweb.ch.component.scene;
 
-import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.pane.ARNewBotJobPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
@@ -49,17 +48,12 @@ public class ARNewBotJobScene extends ARScene {
     //    ListView<BotJobLoadDTO> viewBotJobListView;
     private ARViewBotJobScene arViewBotJobScene;
     private ARWebDriver arWebDriver;
-    private ObservableList<BotJobLoadDTO> botJobList;
     private ObservableList<WebDriver> webDriverList;
 
     public void initialize(
-            ARViewBotJobScene arViewBotJobScene,
-            ARWebDriver arWebDriver,
-            ObservableList<BotJobLoadDTO> botJobList,
-            ObservableList<WebDriver> webDriverList) {
+            ARViewBotJobScene arViewBotJobScene, ARWebDriver arWebDriver, ObservableList<WebDriver> webDriverList) {
         this.arViewBotJobScene = arViewBotJobScene;
         this.arWebDriver = arWebDriver;
-        this.botJobList = botJobList;
         this.webDriverList = webDriverList;
     }
 
@@ -87,7 +81,7 @@ public class ARNewBotJobScene extends ARScene {
 
     public void showModal() {
 
-        arNewBotJobPane.initialize(arViewBotJobScene, arWebDriver, botJobList);
+        arNewBotJobPane.initialize(arViewBotJobScene, arWebDriver);
 
         if (modalStage == null) {
             modalStage = new Stage();
