@@ -134,20 +134,21 @@ public class ARMainPane extends ARPane {
 
     @Override
     public void initUIComponents() {
-        newBotJobButton = builder.buildButton(
-                "New", ARConstants.SPACE_M, ARConstants.ICON_NEW, ARConstants.SPACE_M, new Insets(8, 10, 8, 10));
-        cloneBotJobButton = builder.buildButton(
-                "Clone Job", ARConstants.SPACE_M, ARConstants.ICON_SAVE, ARConstants.SPACE_M, new Insets(8, 10, 8, 10));
-        configureButton = builder.buildButton(
-                "Config", ARConstants.SPACE_M, ARConstants.ICON_CONFIG, ARConstants.SPACE_M, new Insets(8, 10, 8, 10));
-        infoButton = builder.buildButton(
-                "Info", ARConstants.SPACE_M, ARConstants.ICON_INFO, ARConstants.SPACE_M, new Insets(8, 10, 8, 10));
-        editBotJobButton = builder.buildButton(
-                "Open Job", ARConstants.SPACE_L, ARConstants.ICON_EDIT, ARConstants.SPACE_M, new Insets(8, 10, 8, 10));
-        launchBotJobButton = builder.buildButton(
-                "Launch", ARConstants.SPACE_L, ARConstants.ICON_PLAY, ARConstants.SPACE_M, new Insets(8, 10, 8, 10));
-        exitButton = builder.buildButton(
-                "Exit", ARConstants.SPACE_L, ARConstants.ICON_CROSS, ARConstants.SPACE_M, new Insets(8, 10, 8, 10));
+        double smallHeight = ARConstants.SPACE_S; // or just a smaller double like 20.0
+        double smallIconSize = ARConstants.SPACE_S; // smaller icon size
+        Insets smallPadding = new Insets(4, 6, 4, 6);
+
+        newBotJobButton = builder.buildButton("New", smallHeight, ARConstants.ICON_NEW, smallIconSize, smallPadding);
+        cloneBotJobButton =
+                builder.buildButton("Clone Job", smallHeight, ARConstants.ICON_SAVE, smallIconSize, smallPadding);
+        configureButton =
+                builder.buildButton("Config", smallHeight, ARConstants.ICON_CONFIG, smallIconSize, smallPadding);
+        infoButton = builder.buildButton("Info", smallHeight, ARConstants.ICON_INFO, smallIconSize, smallPadding);
+        editBotJobButton =
+                builder.buildButton("Open Job", smallHeight, ARConstants.ICON_EDIT, smallIconSize, smallPadding);
+        launchBotJobButton =
+                builder.buildButton("Launch", smallHeight, ARConstants.ICON_PLAY, smallIconSize, smallPadding);
+        exitButton = builder.buildButton("Exit", smallHeight, ARConstants.ICON_CROSS, smallIconSize, smallPadding);
 
         // 🔹 AI Button and TextArea
         aiButton = builder.buildButton(
@@ -162,8 +163,19 @@ public class ARMainPane extends ARPane {
         aiTextArea.setManaged(false); // ensures space is not reserved when hidden
         aiTextArea.setPrefRowCount(4);
 
+        int buttonWidth = 100;
+
+        aiButton.setPrefWidth(buttonWidth);
+        newBotJobButton.setPrefWidth(buttonWidth);
+        cloneBotJobButton.setPrefWidth(buttonWidth);
+        configureButton.setPrefWidth(buttonWidth);
+        infoButton.setPrefWidth(buttonWidth);
+        launchBotJobButton.setPrefWidth(buttonWidth);
+        editBotJobButton.setPrefWidth(buttonWidth);
+        exitButton.setPrefWidth(buttonWidth);
+
         buttonPane = new HBox(
-                aiButton,
+                //                aiButton,
                 newBotJobButton,
                 cloneBotJobButton,
                 configureButton,
@@ -172,11 +184,13 @@ public class ARMainPane extends ARPane {
                 editBotJobButton,
                 exitButton);
 
-        buttonPane.setAlignment(Pos.TOP_CENTER);
-        buttonPane.setSpacing(5); // optional
+        buttonPane.setAlignment(Pos.CENTER);
+        buttonPane.setSpacing(5);
+        buttonPane.setPadding(new Insets(0, 5, 0, 5));
+
         AnchorPane.setTopAnchor(buttonPane, ARConstants.SPACE_ZERO);
-        AnchorPane.setLeftAnchor(buttonPane, ARConstants.SPACE_ZERO);
-        AnchorPane.setRightAnchor(buttonPane, ARConstants.SPACE_ZERO);
+        //        AnchorPane.setLeftAnchor(buttonPane, 5.0);
+        //        AnchorPane.setRightAnchor(buttonPane, 5.0);
 
         initHeader();
 

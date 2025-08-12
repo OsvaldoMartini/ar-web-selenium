@@ -5,6 +5,7 @@ import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import java.util.Objects;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
@@ -87,8 +88,13 @@ public class ARComponentBuilder {
     }
 
     public Button buildButton(String text, Double height, String iconSource, Double iconSize, Insets padding) {
-
         return buildButton(text, height, iconSource, iconSize, padding, null);
+    }
+
+    public Button buildButton(
+            String text, Double height, String iconSource, Double iconSize, Insets padding, double maxTextWidth) {
+
+        return buildButton(text, height, iconSource, iconSize, padding, null, maxTextWidth);
     }
 
     public Button buildButton(
@@ -98,6 +104,35 @@ public class ARComponentBuilder {
         button.setGraphic(image);
         button.setMaxHeight(height);
         button.setPadding(padding);
+        if (fill != null) {
+            button.setBackground(fill);
+        }
+        return button;
+    }
+
+    public Button buildButton(
+            String text,
+            Double height,
+            String iconSource,
+            Double iconSize,
+            Insets padding,
+            Background fill,
+            double maxTextWidth) {
+
+        ImageView image = buildImageView(iconSource, iconSize);
+        Label label = new Label(text);
+        label.setWrapText(true);
+        label.setMaxWidth(maxTextWidth);
+
+        VBox vbox = new VBox(image, label);
+        vbox.setAlignment(Pos.CENTER);
+        vbox.setSpacing(2);
+
+        Button button = new Button();
+        button.setGraphic(vbox);
+        button.setMaxHeight(height);
+        button.setPadding(padding);
+        button.setContentDisplay(ContentDisplay.GRAPHIC_ONLY); // Important to avoid text outside graphic
         if (fill != null) {
             button.setBackground(fill);
         }

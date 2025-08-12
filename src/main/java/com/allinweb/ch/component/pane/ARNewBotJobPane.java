@@ -92,6 +92,10 @@ public class ARNewBotJobPane extends ARPane {
         performDataBase.loadHomeUrls(null);
 
         homeURLChoiceBox = new ChoiceBox<>();
+        homeURLChoiceBox.setPrefWidth(250); // Set fixed preferred width, adjust as needed
+        homeURLChoiceBox.setMaxWidth(250);
+        homeURLChoiceBox.setMinWidth(250);
+
         refreshEnvsButton = createPathButton();
 
         // Create HBox to hold choicebox + refresh button horizontally

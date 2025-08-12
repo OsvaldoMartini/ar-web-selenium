@@ -42,8 +42,8 @@ public class ARNewBotJobScene extends ARScene {
         arNewBotJobPane = ARNewBotJobPane.getInstance();
     }
 
-    private static final Double SCENE_HEIGHT = 400D;
-    private static final Double SCENE_WIDTH = 300D;
+    private static final Double SCENE_HEIGHT = 300D;
+    private static final Double SCENE_WIDTH = 350D;
     private static final String TITLE = "New Bot Job";
     //    ListView<BotJobLoadDTO> viewBotJobListView;
     private ARViewBotJobScene arViewBotJobScene;
