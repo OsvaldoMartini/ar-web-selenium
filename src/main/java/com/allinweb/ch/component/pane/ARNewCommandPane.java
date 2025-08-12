@@ -2196,7 +2196,7 @@ public class ARNewCommandPane extends ARPane {
             performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId, "variable");
         }
 
-        if (!performLists.getListVariable().isEmpty()) {
+        if (!performLists.getListVariablesUser().isEmpty()) {
             List<ComboBoxVars> variablesNames = performLists.getListVariablesUser().stream()
                     .map(variable -> new ComboBoxVars(
                             variable.getType().substring(0, 1) + variable.getName(),

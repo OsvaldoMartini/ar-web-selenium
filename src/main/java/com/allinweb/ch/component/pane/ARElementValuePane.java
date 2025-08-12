@@ -485,7 +485,7 @@ public class ARElementValuePane extends ARPane {
                 return;
             }
 
-            performDataBase.saveUserData(user);
+            performDataBase.createVariable(user);
             String tableName = "variable";
             if (rowMoveDTO.getSessionId().equals("componentTasks")) {
                 tableName = "component_variable";

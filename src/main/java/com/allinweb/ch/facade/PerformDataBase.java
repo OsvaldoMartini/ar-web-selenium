@@ -8,6 +8,7 @@ import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ComboBoxVars;
 import com.allinweb.ch.util.ErrorMessage;
+import com.google.common.base.Strings;
 import java.io.File;
 import java.sql.*;
 import java.text.MessageFormat;
@@ -81,6 +82,22 @@ public class PerformDataBase {
     @Getter
     @Setter
     public List<Integer> idsInstrucAfter = new ArrayList<>();
+
+    @Getter
+    @Setter
+    public List<Integer> idsBotJobAfter = new ArrayList<>();
+
+    @Getter
+    @Setter
+    public List<Integer> idsHomeUrlAfter = new ArrayList<>();
+
+    @Getter
+    @Setter
+    public List<Integer> idsHomeBankAfter = new ArrayList<>();
+
+    @Getter
+    @Setter
+    public List<Integer> idsVariableAfter = new ArrayList<>();
 
     // Postgres
     public boolean ACCESS_DB = false;
@@ -1305,35 +1322,62 @@ public class PerformDataBase {
         }
     }
 
-    public int createNewBotJob(BotJobLoadDTO createdBotJob) {
-        // Generate a Unique-ID for the bot job
-        Integer nextId = loadNextIdBotJobData() + 1;
-
-        if (nextId < 0) {
-            return -1;
+    // CREATE NEW BOT JOB
+    public Integer getNewBotJobId() {
+        if (idsBotJobAfter != null && idsBotJobAfter.size() == 1) {
+            return idsBotJobAfter.get(0); // return the only new ID
         }
+        return -1; // invalid or multiple IDs
+    }
 
-        // Build the SQL insert query using PreparedStatement
+    public ErrorMessage createNewBotJob(BotJobLoadDTO createdBotJob) {
+        String tableName = "bot_job";
         String insertSQL =
-                "INSERT INTO bot_job (id, name, description, home_banking_id, home_url_id, active) VALUES (?, ?, ?, ?, ?, ?)";
+                "INSERT INTO bot_job (name, description, home_banking_id, home_url_id, active) VALUES (?, ?, ?, ?, ?)";
 
-        try (PreparedStatement pstmt = getConnection().prepareStatement(insertSQL)) {
-            pstmt.setInt(1, nextId);
-            pstmt.setString(2, createdBotJob.getName());
-            pstmt.setString(3, createdBotJob.getName() + " description");
-            pstmt.setInt(4, createdBotJob.getHomeBankingId());
-            pstmt.setInt(5, createdBotJob.getHomeUrlId());
-            pstmt.setInt(6, 1); // Setting "active" as true
+        try (Connection conn = getConnection();
+                Statement idStmtBefore = conn.createStatement();
+                Statement idStmtAfter = conn.createStatement();
+                PreparedStatement pstmt = conn.prepareStatement(insertSQL)) {
+
+            // Step 1: Get IDs before insertion
+            List<Integer> idsBefore = new ArrayList<>();
+            try (ResultSet rsBefore = idStmtBefore.executeQuery("SELECT id FROM " + tableName + " ORDER BY id")) {
+                while (rsBefore.next()) {
+                    idsBefore.add(rsBefore.getInt("id"));
+                }
+            }
+
+            // Step 2: Insert new bot job
+            pstmt.setString(1, createdBotJob.getName());
+            pstmt.setString(2, createdBotJob.getName() + " description");
+            pstmt.setInt(3, createdBotJob.getHomeBankingId());
+            pstmt.setInt(4, createdBotJob.getHomeUrlId());
+            pstmt.setInt(5, 1); // active = true
 
             pstmt.executeUpdate();
 
+            // Step 3: Get IDs after insertion
+            idsBotJobAfter.clear();
+            try (ResultSet rsAfter = idStmtAfter.executeQuery("SELECT id FROM " + tableName + " ORDER BY id")) {
+                while (rsAfter.next()) {
+                    idsBotJobAfter.add(rsAfter.getInt("id"));
+                }
+            }
+
+            // Step 4: Keep only the new IDs
+            idsBotJobAfter.removeAll(idsBefore);
+
             ARLogger.getInstance(PerformDataBase.class)
-                    .info(String.format("BotJob data saved successfully.\n BotJobId: %d", nextId));
-            return nextId;
+                    .info(String.format("BotJob inserted successfully. New IDs: %s", idsBotJobAfter));
+
+            return null; // null means no error
+
         } catch (SQLException error) {
             ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("createNewBotJob - \nError: %s", error.getMessage()));
-            return -1;
+                    .severe(String.format("createNewBotJob - Error: %s", error.getMessage()));
+
+            return new ErrorMessage("Bot Job Insertion Error", "Error inserting a new bot job.", error.getMessage());
         }
     }
 
@@ -1684,48 +1728,6 @@ public class PerformDataBase {
                             botJobId, blockId, e.getMessage()));
         }
         return false;
-    }
-
-    public Integer loadNexHomeUrlData() {
-        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
-        String selectSQL = "SELECT MAX(ID) AS max_id FROM home_url";
-        try (Statement stmt = getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
-            while (rs.next()) {
-                return rs.getInt("max_id");
-            }
-        } catch (SQLException e) {
-            System.out.println(e.getMessage());
-        }
-        return null;
-    }
-
-    private Integer loadNextIdBotJobData() {
-        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
-        String selectSQL = "SELECT MAX(ID) AS max_id FROM bot_job";
-        try (Statement stmt = getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
-            while (rs.next()) {
-                return rs.getInt("max_id");
-            }
-        } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class).severe("loadNextIdBotJobData  \nError: " + e.getMessage());
-        }
-        return null;
-    }
-
-    private Integer loadNextIdBlockData() {
-        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
-        String selectSQL = "SELECT MAX(ID) AS max_id FROM block";
-        try (Statement stmt = getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
-            while (rs.next()) {
-                return rs.getInt("max_id");
-            }
-        } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
-        }
-        return null;
     }
 
     public int loadNextBlockOrderNumber(int botJobId) {
@@ -3715,17 +3717,6 @@ ORDER BY bot.id ASC;
         return -1;
     }
 
-    public int getMaxId(Connection conn, String tableName) throws SQLException {
-        String query = "SELECT MAX(id) FROM " + tableName;
-        try (Statement stmt = conn.createStatement()) {
-            ResultSet rs = stmt.executeQuery(query);
-            if (rs.next()) {
-                return rs.getInt(1);
-            }
-        }
-        return 0;
-    }
-
     public List<InstructionLoadDTO> filterInstructions(List<InstructionLoadDTO> instructionList) {
         return instructionList.stream()
                 .filter(instruction -> !ARConstants.EXTRACT_FIELD.equals(instruction.getActions())
@@ -4209,162 +4200,6 @@ ORDER BY bot.id ASC;
         }
     }
 
-    //    public void updateTableAccess(String dbUrl, File dbFile) {
-    //        //        try {
-    //        //            String url = "jdbc:odbc:Driver={Microsoft Access Driver (*.mdb,
-    //        // *.accdb)};DBQ=path_to_your_access_db.accdb";
-    //        //            Connection conn = DriverManager.getConnection(url);
-    //        //        } catch (SQLException error) {
-    //        //            System.out.println("initializeDatabase\nError: " + error.getMessage());
-    //        //        }
-    //
-    //        try (Connection conn = DriverManager.getConnection(dbUrl)) {
-    //            try (Statement stmt = conn.createStatement()) {
-    //                DatabaseMetaData dbMeta = conn.getMetaData();
-    //                ResultSet rs = dbMeta.getColumns(null, null, "variable", "local_format");
-    //
-    //                if (!rs.next()) {
-    //                    // Column does not exist, so add it
-    //                    //                    String addLocalFormatColumnSQL = "ALTER TABLE variable ADD COLUMN
-    // local_format
-    //                    // TEXT;";
-    //                    //                    String addLocalFormatColumnSQL = "ALTER TABLE variable ADD COLUMN
-    // local_format
-    //                    // MEMO;";
-    //                    String addLocalFormatColumnSQL = "ALTER TABLE variable ADD COLUMN local_format VARCHAR(255);";
-    //                    stmt.executeUpdate(addLocalFormatColumnSQL);
-    //
-    //                    System.out.println(String.format("Database %s has been updated!", dbFile.getName()));
-    //                    System.out.println(String.format("Updates %s", "variable ADD COLUMN local_format"));
-    //                } else {
-    //                    //                    System.out.println(String.format("Database %s no need updates!",
-    //                    // dbFile.getName()));
-    //                }
-    //
-    //                rs = dbMeta.getColumns(null, null, "component_variable", "local_format");
-    //
-    //                if (!rs.next()) {
-    //                    // Column does not exist, so add it
-    //                    //                    String addLocalFormatColumnSQL = "ALTER TABLE variable ADD COLUMN
-    // local_format
-    //                    // TEXT;";
-    //                    //                    String addLocalFormatColumnSQL = "ALTER TABLE variable ADD COLUMN
-    // local_format
-    //                    // MEMO;";
-    //                    String addLocalFormatColumnSQL =
-    //                            "ALTER TABLE component_variable ADD COLUMN local_format VARCHAR(255);";
-    //                    stmt.executeUpdate(addLocalFormatColumnSQL);
-    //
-    //                    System.out.println(String.format("Database %s has been updated!", dbFile.getName()));
-    //                    System.out.println(String.format("Updates %s", "component_variable ADD COLUMN local_format"));
-    //                } else {
-    //                    //                    System.out.println(String.format("Database %s no need updates!",
-    //                    // dbFile.getName()));
-    //                }
-    //
-    //                // ADD DELIMITER COLUMN
-    //                rs = dbMeta.getColumns(null, null, "variable", "delimiter");
-    //
-    //                if (!rs.next()) {
-    //                    String addLocalFormatColumnSQL = "ALTER TABLE variable ADD COLUMN delimiter VARCHAR(255);";
-    //                    stmt.executeUpdate(addLocalFormatColumnSQL);
-    //
-    //                    System.out.println(String.format("Database %s has been updated!", dbFile.getName()));
-    //                    System.out.println(String.format("Updates %s", "variable ADD COLUMN delimiter"));
-    //                } else {
-    //                    //                    System.out.println(String.format("Database %s no need updates!",
-    //                    // dbFile.getName()));
-    //                }
-    //
-    //                rs = dbMeta.getColumns(null, null, "component_variable", "delimiter");
-    //
-    //                if (!rs.next()) {
-    //                    String addLocalFormatColumnSQL =
-    //                            "ALTER TABLE component_variable ADD COLUMN delimiter VARCHAR(255);";
-    //                    stmt.executeUpdate(addLocalFormatColumnSQL);
-    //
-    //                    System.out.println(String.format("Database %s has been updated!", dbFile.getName()));
-    //                    System.out.println(String.format("Updates %s", "component_variable ADD COLUMN delimiter"));
-    //                } else {
-    //                    //                    System.out.println(String.format("Database %s no need updates!",
-    //                    // dbFile.getName()));
-    //                }
-    //
-    //                boolean homeUrlExists = false;
-    //                rs = dbMeta.getTables(null, null, null, new String[] {"TABLE"});
-    //
-    //                ResultSet tables = dbMeta.getTables(null, null, null, new String[] {"TABLE"});
-    //                while (tables.next()) {
-    //                    String tableName = tables.getString("TABLE_NAME");
-    //                    if ("home_url".equalsIgnoreCase(tableName)) {
-    //                        System.out.println("Table 'home_url' exists.");
-    //                        homeUrlExists = true;
-    //                        break;
-    //                    }
-    //                }
-    //
-    //                if (!homeUrlExists) {
-    //                    System.out.println("Table 'home_url' does NOT exist. Creating it...");
-    //                    createHomeURLTable(dbUrl, dbFile); // Pass the connection if needed
-    //                }
-    //
-    //                // ADD HOME_URL_ID COLUMN
-    //                rs = dbMeta.getColumns(null, null, "bot_job", "home_url_id");
-    //
-    //                if (!rs.next()) {
-    //                    String addHomeUrlIdColumnSQL = "ALTER TABLE bot_job ADD COLUMN home_url_id INTEGER;";
-    //                    stmt.executeUpdate(addHomeUrlIdColumnSQL);
-    //
-    //                    //                    String addHomrURLForeignKeySQL = "ALTER TABLE bot_job "
-    //                    //                            + "ADD CONSTRAINT FK_NewHomeURL FOREIGN KEY (home_url_id) "
-    //                    //                            + "REFERENCES home_url(id)";
-    //                    //                    stmt.executeUpdate(addHomrURLForeignKeySQL);
-    //
-    //                    //                    String upDateSQL = "UPDATE bot_job "
-    //                    //                            + "SET home_url_id = home_banking_id";
-    //                    //                    stmt.executeUpdate(upDateSQL);
-    //
-    //                    System.out.println(String.format("Database %s has been updated!", dbFile.getName()));
-    //                    System.out.println(String.format("Updates %s", "bot_job ADD COLUMN home_url_id"));
-    //                } else {
-    //                    //                    System.out.println(String.format("Database %s no need updates!",
-    //                    // dbFile.getName()));
-    //                }
-    //
-    //                //                // TEST FOR DROPPING COLUMNS
-    //                //                rs = dbMeta.getColumns(null, null, "variable", "local_format");
-    //                //                if (rs.next()) {
-    //                //                    // Column exists, so drop it
-    //                //                    String dropColumnSQL = "ALTER TABLE variable DROP COLUMN local_format;";
-    //                //                    stmt.executeUpdate(dropColumnSQL);
-    //                //                }
-    //
-    //                //                rs = dbMeta.getTables(null, null, "home_url", new String[]{"TABLE"});
-    //
-    //                //                deleteHomeUrl(dbUrl);
-    //                this.listHomeBanking = loadHomeBanking(null);
-    //                this.listHomeUrl = loadAllHomeURL();
-    //
-    //                insertUpdateHomeUrl();
-    //
-    //                // Update bot_jobs home_url_id
-    //                this.listHomeUrl = loadAllHomeURL();
-    //
-    //                performLists.listInstruction = loadQuickBotJobs(getConn());
-    //
-    //                if (performLists.listInstruction != null
-    //                        && performLists.listInstruction.size() > 0
-    //                        && performLists.listInstruction.get(0).getHomeUrlId() == 0) {
-    //                    updateBotJobHomeUrlId(listHomeUrl);
-    //                }
-    //
-    //                rs.close();
-    //            }
-    //        } catch (SQLException error) {
-    //            System.out.println("initializeDatabase\nError: " + error.getMessage());
-    //        }
-    //    }
-
     private void updateBotJobHomeUrlId(List<HomeUrlDTO> listHomeUrl) {
         try (Connection conn = getConnection()) {
 
@@ -4411,129 +4246,150 @@ ORDER BY bot.id ASC;
         }
     }
 
-    public void createHomeURLTable(String dbUrl, File dbFile) {
-        try (Connection conn = DriverManager.getConnection(dbUrl)) {
-            try (Statement stmt = conn.createStatement()) {
-
-                // Create bot_job table with a foreign key reference to home_banking
-                String createURLTableSQL = "CREATE TABLE home_url ("
-                        + "ID INTEGER PRIMARY KEY, "
-                        + "url MEMO, "
-                        + "home_banking_id INTEGER);";
-                stmt.executeUpdate(createURLTableSQL);
-
-                //                String addURLForeignKeySQL = "ALTER TABLE home_url "
-                //                        + "ADD CONSTRAINT FK_UrlNew FOREIGN KEY (home_banking_id) "
-                //                        + "REFERENCES home_banking(id) ";
-                //                stmt.executeUpdate(addURLForeignKeySQL);
-            }
-            System.out.println(String.format("Database %s has been created!", dbFile.getName()));
-        } catch (SQLException error) {
-            System.out.println("initializeDatabase\nError: " + error.getMessage());
+    // CREATE NEW HOME BANK
+    public Integer getNewHomeBankId() {
+        if (idsHomeBankAfter != null && idsHomeBankAfter.size() == 1) {
+            return idsHomeBankAfter.get(0); // return the only new ID
         }
+        return -1; // invalid or multiple IDs
     }
 
-    private void insertUpdateHomeUrl() {
-        try (Connection conn = getConnection()) {
+    public ErrorMessage createNewHomeBanking(DatabaseUserDTO user) {
+        String tableName = "home_banking";
+        String insertSQL = "INSERT INTO " + tableName
+                + " (Name, Url, priority, search_config, options_config, username, password) VALUES (?, ?, ?, ?, ?, ?, ?)";
 
-            int newHomeUrlId = loadNexHomeUrlData() + 1;
+        try (Connection conn = getConnection();
+                Statement idStmtBefore = conn.createStatement();
+                Statement idStmtAfter = conn.createStatement();
+                PreparedStatement pstmt = conn.prepareStatement(insertSQL)) {
 
-            if (newHomeUrlId > -1) {
-
-                ErrorMessage errorMessage = insertIntoHomeUrl(conn, newHomeUrlId);
-
-                if (errorMessage != null) {
-                    performMessage.errorMessage(
-                            "Updating Home URLs Error",
-                            "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>Home URLs error!</span>",
-                            null,
-                            null,
-                            null,
-                            0);
+            // Step 1: Get IDs before insertion
+            List<Integer> idsBefore = new ArrayList<>();
+            try (ResultSet rsBefore = idStmtBefore.executeQuery("SELECT id FROM " + tableName + " ORDER BY id")) {
+                while (rsBefore.next()) {
+                    idsBefore.add(rsBefore.getInt("id"));
                 }
             }
-        } catch (SQLException ex) {
-            System.out.println(ex.getMessage());
-        }
-    }
 
-    private ErrorMessage insertIntoHomeUrl(Connection conn, int newHomeUrlId) throws SQLException {
-        String blockInsertQuery = "INSERT INTO home_url " + "(id,  url, home_banking_id) ";
-        String strValues = "VALUES (?, ?, ?)";
+            // Step 2: Prepare values
+            String priority = Strings.isNullOrEmpty(user.getPriority()) ? "" : user.getPriority();
+            String searchConfig = Strings.isNullOrEmpty(user.getSearchConfig()) ? "" : user.getSearchConfig();
+            String optionsConfig = Strings.isNullOrEmpty(user.getOptionsConfig()) ? "" : user.getOptionsConfig();
 
-        blockInsertQuery = blockInsertQuery + strValues;
+            // Step 3: Insert new home_banking record
+            pstmt.setString(1, user.getName());
+            pstmt.setString(2, user.getUrl());
+            pstmt.setString(3, priority);
+            pstmt.setString(4, searchConfig);
+            pstmt.setString(5, optionsConfig);
+            pstmt.setString(6, user.getUsername());
+            pstmt.setString(7, user.getPassword());
+            pstmt.addBatch();
+            pstmt.executeBatch();
 
-        try (PreparedStatement blockStmt = conn.prepareStatement(blockInsertQuery)) {
-
-            boolean batchModeEnabled = false;
-            for (HomeBankingLoadDTO dbUser : performLists.getListHomeBanking()) {
-                Integer dbUserId = dbUser.getId() != null ? dbUser.getId() : null;
-                String dbUserUrl = dbUser.getUrl();
-
-                // Check if listHomeUrl contains a HomeUrlDTO with matching id and url
-                boolean exists = performLists.getListHomeUrl().stream()
-                        .anyMatch(homeUrl -> homeUrl.getId() != null
-                                && dbUserId.equals(homeUrl.getHomeBankingId())
-                                && dbUserUrl.equals(homeUrl.getUrl()));
-
-                if (!exists) {
-                    System.out.println("Insert in home_url: Home Banking ID = " + dbUserId + ", url = " + dbUserUrl);
-                    int index = 1;
-                    blockStmt.setInt(index++, newHomeUrlId);
-                    blockStmt.setString(index++, dbUserUrl);
-                    blockStmt.setInt(index++, dbUserId);
-
-                    newHomeUrlId++;
-
-                    blockStmt.addBatch(); // Add the current block to the batch
-                    batchModeEnabled = true;
+            // Step 4: Get IDs after insertion
+            idsHomeBankAfter.clear();
+            try (ResultSet rsAfter = idStmtAfter.executeQuery("SELECT id FROM " + tableName + " ORDER BY id")) {
+                while (rsAfter.next()) {
+                    idsHomeBankAfter.add(rsAfter.getInt("id"));
                 }
             }
-            if (batchModeEnabled) {
-                blockStmt.executeBatch(); // Execute the batch insert
+
+            // Step 5: Keep only the new IDs
+            idsHomeBankAfter.removeAll(idsBefore);
+
+            ARLogger.getInstance(PerformDataBase.class)
+                    .info(String.format("HomeBanking inserted successfully. New IDs: %s", idsHomeBankAfter));
+
+            return null; // null means no error
+
+        } catch (SQLException error) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format("saveUserData - Error: %s", error.getMessage()));
+
+            return new ErrorMessage(
+                    "HomeBanking Insertion Error", "Error inserting a new HomeBanking record.", error.getMessage());
+        }
+    }
+
+    // CREATE NEW HOME URL CHILD
+    public Integer getNewHomeUrlId() {
+        if (idsHomeUrlAfter != null && idsHomeUrlAfter.size() == 1) {
+            return idsHomeUrlAfter.get(0); // return the only new ID
+        }
+        return -1; // invalid or multiple IDs
+    }
+
+    public ErrorMessage createHomeUrlChild(int homeBankId, String newUrl) {
+        String tableName = "home_url";
+        String insertSQL = "INSERT INTO " + tableName + " (url, home_banking_id) VALUES (?, ?)";
+
+        try (Connection conn = getConnection();
+                Statement idStmtBefore = conn.createStatement();
+                Statement idStmtAfter = conn.createStatement();
+                PreparedStatement pstmt = conn.prepareStatement(insertSQL)) {
+
+            conn.setAutoCommit(false); // Disable auto-commit
+
+            // Step 1: Get IDs before insertion
+            List<Integer> idsBefore = new ArrayList<>();
+            try (ResultSet rsBefore = idStmtBefore.executeQuery("SELECT id FROM " + tableName + " ORDER BY id")) {
+                while (rsBefore.next()) {
+                    idsBefore.add(rsBefore.getInt("id"));
+                }
             }
-            return null;
+
+            // Step 2: Insert new home_url record
+            pstmt.setString(1, newUrl);
+            pstmt.setInt(2, homeBankId);
+            pstmt.addBatch();
+            pstmt.executeBatch();
+
+            // Step 3: Get IDs after insertion
+            idsHomeUrlAfter.clear();
+            try (ResultSet rsAfter = idStmtAfter.executeQuery("SELECT id FROM " + tableName + " ORDER BY id")) {
+                while (rsAfter.next()) {
+                    idsHomeUrlAfter.add(rsAfter.getInt("id"));
+                }
+            }
+
+            // Step 4: Keep only the new IDs
+            idsHomeUrlAfter.removeAll(idsBefore);
+
+            ARLogger.getInstance(PerformDataBase.class)
+                    .info(String.format("HomeUrl inserted successfully. New IDs: %s", idsHomeUrlAfter));
+
+            conn.commit(); // Commit transaction
+            return null; // Success
+
         } catch (SQLException error) {
-            System.out.println(error.getMessage());
-            return new ErrorMessage("Error Duplicating Blocks", "Block Insertion Failure", error.getMessage());
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format("createHomeUrlChild - Error: %s", error.getMessage()));
+
+            return new ErrorMessage("Home URL Insertion Error", "Error inserting a new home URL.", error.getMessage());
         }
     }
 
-    public ErrorMessage insertHomeUrlChild(Connection conn, int homeBankId, String newUrl, int newHomeUrlId)
-            throws SQLException {
-        String blockInsertQuery = "INSERT INTO home_url " + "(id,  url, home_banking_id) ";
-        String strValues = "VALUES (?, ?, ?)";
+    public ErrorMessage createNewHomeUrl(int homeBankId, String newUrl) {
+        String tableName = "home_url";
+        String checkQuery = "SELECT COUNT(*) FROM " + tableName + " WHERE url = ? AND home_banking_id = ?";
+        String insertSQL = "INSERT INTO " + tableName + " (url, home_banking_id) VALUES (?, ?)";
 
-        blockInsertQuery = blockInsertQuery + strValues;
+        try (Connection conn = getConnection();
+                Statement idStmtBefore = conn.createStatement();
+                Statement idStmtAfter = conn.createStatement()) {
 
-        try (PreparedStatement blockStmt = conn.prepareStatement(blockInsertQuery)) {
+            conn.setAutoCommit(false); // Disable auto-commit
 
-            int index = 1;
-            blockStmt.setInt(index++, newHomeUrlId);
-            blockStmt.setString(index++, newUrl);
-            blockStmt.setInt(index++, homeBankId);
-
-            blockStmt.addBatch(); // Add the current block to the batch
-            blockStmt.executeBatch(); // Execute the batch insert
-            return null;
-        } catch (SQLException error) {
-            System.out.println(error.getMessage());
-            return new ErrorMessage("Error Duplicating Blocks", "Block Insertion Failure", error.getMessage());
-        }
-    }
-
-    public ErrorMessage insertNewHomeUrl(int homeBankId, String newUrl) throws SQLException {
-        String checkQuery = "SELECT COUNT(*) FROM home_url WHERE url = ? AND home_banking_id = ?";
-        String blockInsertQuery = "INSERT INTO home_url (id, url, home_banking_id) VALUES (?, ?, ?)";
-
-        try (Connection conn = getConnection()) {
-            // Check if the URL already exists for the given home_banking_id
+            // Step 1: Check if the URL already exists for the given home_banking_id
             try (PreparedStatement checkStmt = conn.prepareStatement(checkQuery)) {
                 checkStmt.setString(1, newUrl);
                 checkStmt.setInt(2, homeBankId);
 
                 try (ResultSet rs = checkStmt.executeQuery()) {
                     if (rs.next() && rs.getInt(1) > 0) {
+                        conn.commit(); // Commit even though nothing was inserted
                         return new ErrorMessage(
                                 "Error: URL already exists for this organization.",
                                 "Duplicate URL Entry",
@@ -4542,22 +4398,45 @@ ORDER BY bot.id ASC;
                 }
             }
 
-            // Proceed with insertion
-            try (PreparedStatement insertStmt = conn.prepareStatement(blockInsertQuery)) {
-                int newHomeUrlId = getMaxId(conn, "home_url") + 1;
-
-                int index = 1;
-                insertStmt.setInt(index++, newHomeUrlId);
-                insertStmt.setString(index++, newUrl);
-                insertStmt.setInt(index++, homeBankId);
-
-                insertStmt.executeUpdate(); // Use executeUpdate for single insert
-                return null;
+            // Step 2: Get IDs before insertion
+            List<Integer> idsBefore = new ArrayList<>();
+            try (ResultSet rsBefore = idStmtBefore.executeQuery("SELECT id FROM " + tableName + " ORDER BY id")) {
+                while (rsBefore.next()) {
+                    idsBefore.add(rsBefore.getInt("id"));
+                }
             }
 
+            // Step 3: Prepare and execute insert
+            try (PreparedStatement pstmt = conn.prepareStatement(insertSQL)) {
+                pstmt.setString(1, newUrl);
+                pstmt.setInt(2, homeBankId);
+
+                pstmt.addBatch();
+                pstmt.executeBatch();
+            }
+
+            // Step 4: Get IDs after insertion
+            idsHomeUrlAfter.clear();
+            try (ResultSet rsAfter = idStmtAfter.executeQuery("SELECT id FROM " + tableName + " ORDER BY id")) {
+                while (rsAfter.next()) {
+                    idsHomeUrlAfter.add(rsAfter.getInt("id"));
+                }
+            }
+
+            // Step 5: Keep only the new IDs
+            idsHomeUrlAfter.removeAll(idsBefore);
+
+            ARLogger.getInstance(PerformDataBase.class)
+                    .info(String.format("HomeUrl inserted successfully. New IDs: %s", idsHomeUrlAfter));
+
+            conn.commit(); // Commit transaction
+            return null; // Success, no error
+
         } catch (SQLException error) {
-            System.out.println(error.getMessage());
-            return new ErrorMessage("Error inserting URL", "Org URL Insertion Failure", error.getMessage());
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format("insertNewHomeUrl - Error: %s", error.getMessage()));
+
+            return new ErrorMessage("Home URL Insertion Error", "Error inserting a new home URL.", error.getMessage());
         }
     }
 
@@ -6571,15 +6450,14 @@ GROUP BY
             try (ResultSet rs = selectStmt.executeQuery()) {
 
                 String insertSQL = "INSERT INTO component_block "
-                        + "(id, block_order_number, name, description, type_id, export_file, active, wait, home_banking_id) "
-                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                        + "(block_order_number, name, description, type_id, export_file, active, wait, home_banking_id) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
                 blockMap.clear();
 
                 try (PreparedStatement insertStmt = conn.prepareStatement(insertSQL)) {
 
                     int count = 0;
-                    int newCompBlock = getMaxId(conn, "component_block") + 1;
 
                     while (rs.next()) {
                         int id = rs.getInt("id");
@@ -6599,27 +6477,25 @@ GROUP BY
 
                         blockMap.put(id, -1);
 
-                        insertStmt.setInt(1, newCompBlock);
-                        insertStmt.setInt(2, blockOrderNumber);
-                        insertStmt.setString(3, blockDetailsDTO.getBlockName());
-                        insertStmt.setString(4, blockDetailsDTO.getBlockDescription());
+                        insertStmt.setInt(1, blockOrderNumber);
+                        insertStmt.setString(2, blockDetailsDTO.getBlockName());
+                        insertStmt.setString(3, blockDetailsDTO.getBlockDescription());
                         if (typeId != null) {
-                            insertStmt.setInt(5, typeId);
+                            insertStmt.setInt(4, typeId);
                         } else {
-                            insertStmt.setNull(5, Types.INTEGER);
+                            insertStmt.setNull(4, Types.INTEGER);
                         }
-                        insertStmt.setString(6, exportFile);
-                        insertStmt.setInt(7, active);
+                        insertStmt.setString(5, exportFile);
+                        insertStmt.setInt(6, active);
                         if (wait != null) {
-                            insertStmt.setInt(8, wait);
+                            insertStmt.setInt(7, wait);
                         } else {
-                            insertStmt.setNull(8, Types.INTEGER);
+                            insertStmt.setNull(7, Types.INTEGER);
                         }
-                        insertStmt.setInt(9, newHomeBankId);
+                        insertStmt.setInt(8, newHomeBankId);
 
                         insertStmt.addBatch();
                         count++;
-                        newCompBlock++;
 
                         if (count % BATCH_SIZE == 0) {
                             insertStmt.executeBatch();
@@ -6706,15 +6582,14 @@ GROUP BY
             try (ResultSet rsInstruction = selectStmt.executeQuery()) {
 
                 String insertSQL = "INSERT INTO component_instruction ("
-                        + "id, instruction_order_number, actions, name, xpath, coordinates, force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root, css_selector, description, operation, optional, block_marked, default_value, action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr, active, block_id, variable_id, parent_id, home_banking_id) "
-                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                        + "instruction_order_number, actions, name, xpath, coordinates, force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root, css_selector, description, operation, optional, block_marked, default_value, action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr, active, block_id, variable_id, parent_id, home_banking_id) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
                 instructionMap.clear();
 
                 try (PreparedStatement insertStmt = conn.prepareStatement(insertSQL)) {
 
                     int count = 0;
-                    int newCompInstr = getMaxId(conn, "component_instruction") + 1;
 
                     while (rsInstruction.next()) {
                         int id = rsInstruction.getInt("id");
@@ -6733,41 +6608,39 @@ GROUP BY
 
                         instructionMap.put(id, -1);
 
-                        insertStmt.setInt(1, newCompInstr);
-                        insertStmt.setInt(2, rsInstruction.getInt("instruction_order_number"));
-                        insertStmt.setString(3, rsInstruction.getString("actions"));
-                        insertStmt.setString(4, rsInstruction.getString("name"));
-                        insertStmt.setString(5, rsInstruction.getString("xpath"));
-                        insertStmt.setString(6, rsInstruction.getString("coordinates"));
+                        insertStmt.setInt(1, rsInstruction.getInt("instruction_order_number"));
+                        insertStmt.setString(2, rsInstruction.getString("actions"));
+                        insertStmt.setString(3, rsInstruction.getString("name"));
+                        insertStmt.setString(4, rsInstruction.getString("xpath"));
+                        insertStmt.setString(5, rsInstruction.getString("coordinates"));
 
-                        insertOrNull(insertStmt, 7, rsInstruction, "force_coordinates");
-                        insertStmt.setString(8, rsInstruction.getString("iframe_xpath"));
-                        insertStmt.setString(9, rsInstruction.getString("tag_name"));
-                        insertStmt.setString(10, rsInstruction.getString("shadow_host"));
-                        insertStmt.setString(11, rsInstruction.getString("shadow_root"));
-                        insertStmt.setString(12, rsInstruction.getString("css_selector"));
-                        insertStmt.setString(13, rsInstruction.getString("description"));
-                        insertStmt.setString(14, rsInstruction.getString("operation"));
+                        insertOrNull(insertStmt, 6, rsInstruction, "force_coordinates");
+                        insertStmt.setString(7, rsInstruction.getString("iframe_xpath"));
+                        insertStmt.setString(8, rsInstruction.getString("tag_name"));
+                        insertStmt.setString(9, rsInstruction.getString("shadow_host"));
+                        insertStmt.setString(10, rsInstruction.getString("shadow_root"));
+                        insertStmt.setString(11, rsInstruction.getString("css_selector"));
+                        insertStmt.setString(12, rsInstruction.getString("description"));
+                        insertStmt.setString(13, rsInstruction.getString("operation"));
 
-                        insertOrNull(insertStmt, 15, rsInstruction, "optional");
-                        insertOrNull(insertStmt, 16, rsInstruction, "block_marked");
-                        insertStmt.setString(17, rsInstruction.getString("default_value"));
-                        insertOrNull(insertStmt, 18, rsInstruction, "action_custom_max_wait_sec");
-                        insertOrNull(insertStmt, 19, rsInstruction, "on_hold_seconds");
-                        insertOrNull(insertStmt, 20, rsInstruction, "codified");
-                        insertOrNull(insertStmt, 21, rsInstruction, "export_to_abr");
+                        insertOrNull(insertStmt, 14, rsInstruction, "optional");
+                        insertOrNull(insertStmt, 15, rsInstruction, "block_marked");
+                        insertStmt.setString(16, rsInstruction.getString("default_value"));
+                        insertOrNull(insertStmt, 17, rsInstruction, "action_custom_max_wait_sec");
+                        insertOrNull(insertStmt, 18, rsInstruction, "on_hold_seconds");
+                        insertOrNull(insertStmt, 19, rsInstruction, "codified");
+                        insertOrNull(insertStmt, 20, rsInstruction, "export_to_abr");
 
-                        insertStmt.setInt(22, rsInstruction.getInt("active"));
-                        insertStmt.setInt(23, newBlockId);
+                        insertStmt.setInt(21, rsInstruction.getInt("active"));
+                        insertStmt.setInt(22, newBlockId);
 
-                        insertOrNull(insertStmt, 24, rsInstruction, "variable_id");
-                        insertOrNull(insertStmt, 25, rsInstruction, "parent_id");
+                        insertOrNull(insertStmt, 23, rsInstruction, "variable_id");
+                        insertOrNull(insertStmt, 24, rsInstruction, "parent_id");
 
-                        insertStmt.setInt(26, newHomeBankId);
+                        insertStmt.setInt(25, newHomeBankId);
 
                         insertStmt.addBatch();
                         count++;
-                        newCompInstr++;
                         if (count % BATCH_SIZE == 0) {
                             insertStmt.executeBatch();
                             conn.commit();
@@ -6858,15 +6731,14 @@ GROUP BY
             try (ResultSet rsVariable = selectStmt.executeQuery()) {
 
                 String insertSQL =
-                        "INSERT INTO component_variable (id, type, name, value, local_format, delimiter, instruction_id, home_banking_id) "
-                                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+                        "INSERT INTO component_variable (type, name, value, local_format, delimiter, instruction_id, home_banking_id) "
+                                + "VALUES (?, ?, ?, ?, ?, ?, ?)";
 
                 variableMap.clear();
 
                 try (PreparedStatement insertStmt = conn.prepareStatement(insertSQL)) {
 
                     int count = 0;
-                    int newCompVariable = getMaxId(conn, "component_variable") + 1;
 
                     while (rsVariable.next()) {
                         int id = rsVariable.getInt("id");
@@ -6894,24 +6766,22 @@ GROUP BY
 
                         variableMap.put(id, -1);
 
-                        insertStmt.setInt(1, newCompVariable);
-                        insertStmt.setString(2, rsVariable.getString("type"));
-                        insertStmt.setString(3, rsVariable.getString("name"));
-                        insertStmt.setString(4, rsVariable.getString("value"));
-                        insertStmt.setString(5, rsVariable.getString("local_format"));
-                        insertStmt.setString(6, rsVariable.getString("delimiter"));
+                        insertStmt.setString(1, rsVariable.getString("type"));
+                        insertStmt.setString(2, rsVariable.getString("name"));
+                        insertStmt.setString(3, rsVariable.getString("value"));
+                        insertStmt.setString(4, rsVariable.getString("local_format"));
+                        insertStmt.setString(5, rsVariable.getString("delimiter"));
 
                         if (newInstructionId != null) {
-                            insertStmt.setInt(7, newInstructionId);
+                            insertStmt.setInt(6, newInstructionId);
                         } else {
-                            insertStmt.setNull(7, Types.INTEGER);
+                            insertStmt.setNull(6, Types.INTEGER);
                         }
 
-                        insertStmt.setInt(8, newHomeBankId);
+                        insertStmt.setInt(7, newHomeBankId);
 
                         insertStmt.addBatch();
                         count++;
-                        newCompVariable++;
 
                         if (count % BATCH_SIZE == 0) {
                             insertStmt.executeBatch();
@@ -7096,14 +6966,13 @@ GROUP BY
             try (ResultSet rsReference = selectStmt.executeQuery()) {
 
                 String insertSQL =
-                        "INSERT INTO component_reference (id, reference_type, value, instruction_id, home_banking_id) VALUES (?, ?, ?, ?, ?)";
+                        "INSERT INTO component_reference ( reference_type, value, instruction_id, home_banking_id) VALUES (?, ?, ?, ?)";
 
                 referenceMap.clear();
 
                 try (PreparedStatement insertStmt = conn.prepareStatement(insertSQL)) {
 
                     int count = 0;
-                    int newCompRefer = getMaxId(conn, "component_reference") + 1;
 
                     while (rsReference.next()) {
                         int id = rsReference.getInt("id");
@@ -7125,20 +6994,18 @@ GROUP BY
 
                         referenceMap.put(id, -1);
 
-                        insertStmt.setInt(1, newCompRefer);
-                        insertStmt.setString(2, rsReference.getString("reference_type"));
-                        insertStmt.setString(3, rsReference.getString("value"));
-                        insertStmt.setInt(4, newInstructionId);
+                        insertStmt.setString(1, rsReference.getString("reference_type"));
+                        insertStmt.setString(2, rsReference.getString("value"));
+                        insertStmt.setInt(3, newInstructionId);
 
                         if (newHomeBankId != null) {
-                            insertStmt.setInt(5, newHomeBankId);
+                            insertStmt.setInt(4, newHomeBankId);
                         } else {
-                            insertStmt.setNull(5, Types.INTEGER);
+                            insertStmt.setNull(4, Types.INTEGER);
                         }
 
                         insertStmt.addBatch();
                         count++;
-                        newCompRefer++;
 
                         if (count % BATCH_SIZE == 0) {
                             insertStmt.executeBatch();
@@ -7229,15 +7096,14 @@ GROUP BY
             try (ResultSet rs = selectStmt.executeQuery()) {
 
                 String insertSQL = "INSERT INTO block "
-                        + "(id, block_order_number, name, description, type_id, export_file, active, wait, bot_job_id) "
-                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                        + "(block_order_number, name, description, type_id, export_file, active, wait, bot_job_id) "
+                        + "VALUES ( ?, ?, ?, ?, ?, ?, ?, ?)";
 
                 blockMap.clear();
 
                 try (PreparedStatement insertStmt = conn.prepareStatement(insertSQL)) {
 
                     int count = 0;
-                    int newCompBlock = getMaxId(conn, "block") + 1;
 
                     while (rs.next()) {
                         int id = rs.getInt("id");
@@ -7257,27 +7123,25 @@ GROUP BY
 
                         blockMap.put(id, -1);
 
-                        insertStmt.setInt(1, newCompBlock);
-                        insertStmt.setInt(2, blockOrderNumber);
-                        insertStmt.setString(3, blockDetailsDTO.getBlockName());
-                        insertStmt.setString(4, blockDetailsDTO.getBlockDescription());
+                        insertStmt.setInt(1, blockOrderNumber);
+                        insertStmt.setString(2, blockDetailsDTO.getBlockName());
+                        insertStmt.setString(3, blockDetailsDTO.getBlockDescription());
                         if (typeId != null) {
-                            insertStmt.setInt(5, typeId);
+                            insertStmt.setInt(4, typeId);
                         } else {
-                            insertStmt.setNull(5, Types.INTEGER);
+                            insertStmt.setNull(4, Types.INTEGER);
                         }
-                        insertStmt.setString(6, exportFile);
-                        insertStmt.setInt(7, active);
+                        insertStmt.setString(5, exportFile);
+                        insertStmt.setInt(6, active);
                         if (wait != null) {
-                            insertStmt.setInt(8, wait);
+                            insertStmt.setInt(7, wait);
                         } else {
-                            insertStmt.setNull(8, Types.INTEGER);
+                            insertStmt.setNull(7, Types.INTEGER);
                         }
-                        insertStmt.setInt(9, newBotJobId);
+                        insertStmt.setInt(8, newBotJobId);
 
                         insertStmt.addBatch();
                         count++;
-                        newCompBlock++;
 
                         if (count % BATCH_SIZE == 0) {
                             insertStmt.executeBatch();
@@ -7364,15 +7228,14 @@ GROUP BY
             try (ResultSet rsInstruction = selectStmt.executeQuery()) {
 
                 String insertSQL = "INSERT INTO instruction ("
-                        + "id, instruction_order_number, actions, name, xpath, coordinates, force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root, css_selector, description, operation, optional, block_marked, default_value, action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr, active, block_id, variable_id, parent_id, bot_job_id) "
-                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                        + "instruction_order_number, actions, name, xpath, coordinates, force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root, css_selector, description, operation, optional, block_marked, default_value, action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr, active, block_id, variable_id, parent_id, bot_job_id) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
                 instructionMap.clear();
 
                 try (PreparedStatement insertStmt = conn.prepareStatement(insertSQL)) {
 
                     int count = 0;
-                    int newCompInstr = getMaxId(conn, "instruction") + 1;
 
                     while (rsInstruction.next()) {
                         int id = rsInstruction.getInt("id");
@@ -7391,41 +7254,40 @@ GROUP BY
 
                         instructionMap.put(id, -1);
 
-                        insertStmt.setInt(1, newCompInstr);
-                        insertStmt.setInt(2, rsInstruction.getInt("instruction_order_number"));
-                        insertStmt.setString(3, rsInstruction.getString("actions"));
-                        insertStmt.setString(4, rsInstruction.getString("name"));
-                        insertStmt.setString(5, rsInstruction.getString("xpath"));
-                        insertStmt.setString(6, rsInstruction.getString("coordinates"));
+                        insertStmt.setInt(1, rsInstruction.getInt("instruction_order_number"));
+                        insertStmt.setString(2, rsInstruction.getString("actions"));
+                        insertStmt.setString(3, rsInstruction.getString("name"));
+                        insertStmt.setString(4, rsInstruction.getString("xpath"));
+                        insertStmt.setString(5, rsInstruction.getString("coordinates"));
 
-                        insertOrNull(insertStmt, 7, rsInstruction, "force_coordinates");
-                        insertStmt.setString(8, rsInstruction.getString("iframe_xpath"));
-                        insertStmt.setString(9, rsInstruction.getString("tag_name"));
-                        insertStmt.setString(10, rsInstruction.getString("shadow_host"));
-                        insertStmt.setString(11, rsInstruction.getString("shadow_root"));
-                        insertStmt.setString(12, rsInstruction.getString("css_selector"));
-                        insertStmt.setString(13, rsInstruction.getString("description"));
-                        insertStmt.setString(14, rsInstruction.getString("operation"));
+                        insertOrNull(insertStmt, 6, rsInstruction, "force_coordinates");
+                        insertStmt.setString(7, rsInstruction.getString("iframe_xpath"));
+                        insertStmt.setString(8, rsInstruction.getString("tag_name"));
+                        insertStmt.setString(9, rsInstruction.getString("shadow_host"));
+                        insertStmt.setString(10, rsInstruction.getString("shadow_root"));
+                        insertStmt.setString(11, rsInstruction.getString("css_selector"));
+                        insertStmt.setString(12, rsInstruction.getString("description"));
+                        insertStmt.setString(13, rsInstruction.getString("operation"));
 
-                        insertOrNull(insertStmt, 15, rsInstruction, "optional");
-                        insertOrNull(insertStmt, 16, rsInstruction, "block_marked");
-                        insertStmt.setString(17, rsInstruction.getString("default_value"));
-                        insertOrNull(insertStmt, 18, rsInstruction, "action_custom_max_wait_sec");
-                        insertOrNull(insertStmt, 19, rsInstruction, "on_hold_seconds");
-                        insertOrNull(insertStmt, 20, rsInstruction, "codified");
-                        insertOrNull(insertStmt, 21, rsInstruction, "export_to_abr");
+                        insertOrNull(insertStmt, 14, rsInstruction, "optional");
+                        insertOrNull(insertStmt, 15, rsInstruction, "block_marked");
+                        insertStmt.setString(16, rsInstruction.getString("default_value"));
+                        insertOrNull(insertStmt, 17, rsInstruction, "action_custom_max_wait_sec");
+                        insertOrNull(insertStmt, 18, rsInstruction, "on_hold_seconds");
+                        insertOrNull(insertStmt, 19, rsInstruction, "codified");
+                        insertOrNull(insertStmt, 20, rsInstruction, "export_to_abr");
 
-                        insertStmt.setInt(22, rsInstruction.getInt("active"));
-                        insertStmt.setInt(23, newBlockId);
+                        insertStmt.setInt(21, rsInstruction.getInt("active"));
+                        insertStmt.setInt(22, newBlockId);
 
-                        insertOrNull(insertStmt, 24, rsInstruction, "variable_id");
-                        insertOrNull(insertStmt, 25, rsInstruction, "parent_id");
+                        insertOrNull(insertStmt, 23, rsInstruction, "variable_id");
+                        insertOrNull(insertStmt, 24, rsInstruction, "parent_id");
 
-                        insertStmt.setInt(26, newBotJobId);
+                        insertStmt.setInt(25, newBotJobId);
 
                         insertStmt.addBatch();
                         count++;
-                        newCompInstr++;
+
                         if (count % BATCH_SIZE == 0) {
                             insertStmt.executeBatch();
                             conn.commit();
@@ -7514,15 +7376,14 @@ GROUP BY
             try (ResultSet rsVariable = selectStmt.executeQuery()) {
 
                 String insertSQL =
-                        "INSERT INTO variable (id, type, name, value, local_format, delimiter, instruction_id, bot_job_id) "
-                                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+                        "INSERT INTO variable (type, name, value, local_format, delimiter, instruction_id, bot_job_id) "
+                                + "VALUES (?, ?, ?, ?, ?, ?, ?)";
 
                 variableMap.clear();
 
                 try (PreparedStatement insertStmt = conn.prepareStatement(insertSQL)) {
 
                     int count = 0;
-                    int newCompVariable = getMaxId(conn, "variable") + 1;
 
                     while (rsVariable.next()) {
                         int id = rsVariable.getInt("id");
@@ -7549,24 +7410,22 @@ GROUP BY
 
                         variableMap.put(id, -1);
 
-                        insertStmt.setInt(1, newCompVariable);
-                        insertStmt.setString(2, rsVariable.getString("type"));
-                        insertStmt.setString(3, rsVariable.getString("name"));
-                        insertStmt.setString(4, rsVariable.getString("value"));
-                        insertStmt.setString(5, rsVariable.getString("local_format"));
-                        insertStmt.setString(6, rsVariable.getString("delimiter"));
+                        insertStmt.setString(1, rsVariable.getString("type"));
+                        insertStmt.setString(2, rsVariable.getString("name"));
+                        insertStmt.setString(3, rsVariable.getString("value"));
+                        insertStmt.setString(4, rsVariable.getString("local_format"));
+                        insertStmt.setString(5, rsVariable.getString("delimiter"));
 
                         if (newInstructionId != null) {
-                            insertStmt.setInt(7, newInstructionId);
+                            insertStmt.setInt(6, newInstructionId);
                         } else {
-                            insertStmt.setNull(7, Types.INTEGER);
+                            insertStmt.setNull(6, Types.INTEGER);
                         }
 
-                        insertStmt.setInt(8, newBotJobId);
+                        insertStmt.setInt(7, newBotJobId);
 
                         insertStmt.addBatch();
                         count++;
-                        newCompVariable++;
 
                         if (count % BATCH_SIZE == 0) {
                             insertStmt.executeBatch();
@@ -7746,14 +7605,13 @@ GROUP BY
             try (ResultSet rsReference = selectStmt.executeQuery()) {
 
                 String insertSQL =
-                        "INSERT INTO reference (id, reference_type, value, instruction_id, bot_job_id) VALUES (?, ?, ?, ?, ?)";
+                        "INSERT INTO reference (reference_type, value, instruction_id, bot_job_id) VALUES (?, ?, ?, ?)";
 
                 referenceMap.clear();
 
                 try (PreparedStatement insertStmt = conn.prepareStatement(insertSQL)) {
 
                     int count = 0;
-                    int newCompRefer = getMaxId(conn, "reference") + 1;
 
                     while (rsReference.next()) {
                         int id = rsReference.getInt("id");
@@ -7773,20 +7631,18 @@ GROUP BY
 
                         referenceMap.put(id, -1);
 
-                        insertStmt.setInt(1, newCompRefer);
-                        insertStmt.setString(2, rsReference.getString("reference_type"));
-                        insertStmt.setString(3, rsReference.getString("value"));
-                        insertStmt.setInt(4, newInstructionId);
+                        insertStmt.setString(1, rsReference.getString("reference_type"));
+                        insertStmt.setString(2, rsReference.getString("value"));
+                        insertStmt.setInt(3, newInstructionId);
 
                         if (newBotJobId != null) {
-                            insertStmt.setInt(5, newBotJobId);
+                            insertStmt.setInt(4, newBotJobId);
                         } else {
-                            insertStmt.setNull(5, Types.INTEGER);
+                            insertStmt.setNull(4, Types.INTEGER);
                         }
 
                         insertStmt.addBatch();
                         count++;
-                        newCompRefer++;
 
                         if (count % BATCH_SIZE == 0) {
                             insertStmt.executeBatch();
@@ -7848,10 +7704,7 @@ GROUP BY
     }
 
     public ErrorMessage cloneBotJob(
-            HomeUrlDTO homeUrlDTO, int previousBotJob, String newBotJobName, String newDescription)
-            throws SQLException {
-
-        int newBotJobId = getMaxId(conn, "bot_job") + 1;
+            HomeUrlDTO homeUrlDTO, int previousBotJob, String newBotJobName, String newDescription) {
 
         String selectComponentIdsSQL =
                 "SELECT id FROM bot_job WHERE home_banking_id = " + homeUrlDTO.getHomeBankingId() + " ORDER BY id";
@@ -7871,25 +7724,24 @@ GROUP BY
             }
 
             String insertSQL =
-                    "INSERT INTO bot_job (id, name, description, priority, home_banking_id, home_url_id, active) "
-                            + "SELECT ?, ?, ?, priority, home_banking_id, ?, ? FROM bot_job WHERE id = ?";
+                    "INSERT INTO bot_job (name, description, priority, home_banking_id, home_url_id, active) "
+                            + "SELECT ?, ?, priority, home_banking_id, ?, ? FROM bot_job WHERE id = ?";
 
             botJobMap.clear();
             botJobMap.put(previousBotJob, -1);
 
             try (PreparedStatement insertStmt = conn.prepareStatement(insertSQL)) {
 
-                insertStmt.setInt(1, newBotJobId);
-                insertStmt.setString(2, newBotJobName);
-                insertStmt.setString(3, newDescription);
-                insertStmt.setInt(4, homeUrlDTO.getId());
-                insertStmt.setInt(5, 1);
-                insertStmt.setInt(6, previousBotJob);
+                insertStmt.setString(1, newBotJobName);
+                insertStmt.setString(2, newDescription);
+                insertStmt.setInt(3, homeUrlDTO.getId());
+                insertStmt.setInt(4, 1);
+                insertStmt.setInt(5, previousBotJob);
 
                 insertStmt.addBatch();
                 insertStmt.executeBatch();
                 conn.commit();
-                ARLogger.getInstance(PerformDataBase.class).info("Inserted bot job records: 1");
+                ARLogger.getInstance(PerformDataBase.class).info("Inserted bot job record: 1");
             }
 
             // Step 3: get component_block ids after insert
@@ -7958,16 +7810,14 @@ GROUP BY
             try (ResultSet rs = selectStmt.executeQuery()) {
 
                 String insertSQL = "INSERT INTO block "
-                        + "(id, block_order_number, name, description, type_id, export_file, active, wait, bot_job_id) "
-                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                        + "( block_order_number, name, description, type_id, export_file, active, wait, bot_job_id) "
+                        + "VALUES ( ?, ?, ?, ?, ?, ?, ?, ?)";
 
                 blockMap.clear();
 
                 try (PreparedStatement insertStmt = conn.prepareStatement(insertSQL)) {
 
                     int count = 0;
-
-                    int newBlockId = getMaxId(conn, "block") + 1;
 
                     while (rs.next()) {
                         int id = rs.getInt("id");
@@ -7990,26 +7840,24 @@ GROUP BY
 
                         blockMap.put(id, -1);
 
-                        insertStmt.setInt(1, newBlockId);
-                        insertStmt.setInt(2, blockOrderNumber);
-                        insertStmt.setString(3, name);
-                        insertStmt.setString(4, description);
+                        insertStmt.setInt(1, blockOrderNumber);
+                        insertStmt.setString(2, name);
+                        insertStmt.setString(3, description);
                         if (typeId != null) {
-                            insertStmt.setInt(5, typeId);
+                            insertStmt.setInt(4, typeId);
                         } else {
-                            insertStmt.setNull(5, Types.INTEGER);
+                            insertStmt.setNull(4, Types.INTEGER);
                         }
-                        insertStmt.setString(6, exportFile);
-                        insertStmt.setInt(7, active);
+                        insertStmt.setString(5, exportFile);
+                        insertStmt.setInt(6, active);
                         if (wait != null) {
-                            insertStmt.setInt(8, wait);
+                            insertStmt.setInt(7, wait);
                         } else {
-                            insertStmt.setNull(8, Types.INTEGER);
+                            insertStmt.setNull(7, Types.INTEGER);
                         }
-                        insertStmt.setInt(9, newBotJobId);
+                        insertStmt.setInt(8, newBotJobId);
 
                         insertStmt.addBatch();
-                        newBlockId++;
                         count++;
 
                         if (count % BATCH_SIZE == 0) {
@@ -8094,16 +7942,14 @@ GROUP BY
             try (ResultSet rsInstruction = selectStmt.executeQuery()) {
 
                 String insertSQL = "INSERT INTO instruction ("
-                        + "id, instruction_order_number, actions, name, xpath, coordinates, force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root, css_selector, description, operation, optional, block_marked, default_value, action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr, active, block_id, variable_id, parent_id, bot_job_id) "
-                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                        + " instruction_order_number, actions, name, xpath, coordinates, force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root, css_selector, description, operation, optional, block_marked, default_value, action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr, active, block_id, variable_id, parent_id, bot_job_id) "
+                        + "VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
                 instructionMap.clear();
 
                 try (PreparedStatement insertStmt = conn.prepareStatement(insertSQL)) {
 
                     int count = 0;
-
-                    int newInstructionId = getMaxId(conn, "instruction") + 1;
 
                     while (rsInstruction.next()) {
                         int id = rsInstruction.getInt("id");
@@ -8124,41 +7970,39 @@ GROUP BY
 
                         instructionMap.put(id, -1);
 
-                        insertStmt.setInt(1, newInstructionId);
-                        insertStmt.setInt(2, rsInstruction.getInt("instruction_order_number"));
-                        insertStmt.setString(3, rsInstruction.getString("actions"));
-                        insertStmt.setString(4, rsInstruction.getString("name"));
-                        insertStmt.setString(5, rsInstruction.getString("xpath"));
-                        insertStmt.setString(6, rsInstruction.getString("coordinates"));
+                        insertStmt.setInt(1, rsInstruction.getInt("instruction_order_number"));
+                        insertStmt.setString(2, rsInstruction.getString("actions"));
+                        insertStmt.setString(3, rsInstruction.getString("name"));
+                        insertStmt.setString(4, rsInstruction.getString("xpath"));
+                        insertStmt.setString(5, rsInstruction.getString("coordinates"));
 
-                        insertOrNull(insertStmt, 7, rsInstruction, "force_coordinates");
-                        insertStmt.setString(8, rsInstruction.getString("iframe_xpath"));
-                        insertStmt.setString(9, rsInstruction.getString("tag_name"));
-                        insertStmt.setString(10, rsInstruction.getString("shadow_host"));
-                        insertStmt.setString(11, rsInstruction.getString("shadow_root"));
-                        insertStmt.setString(12, rsInstruction.getString("css_selector"));
-                        insertStmt.setString(13, rsInstruction.getString("description"));
-                        insertStmt.setString(14, rsInstruction.getString("operation"));
+                        insertOrNull(insertStmt, 6, rsInstruction, "force_coordinates");
+                        insertStmt.setString(7, rsInstruction.getString("iframe_xpath"));
+                        insertStmt.setString(8, rsInstruction.getString("tag_name"));
+                        insertStmt.setString(9, rsInstruction.getString("shadow_host"));
+                        insertStmt.setString(10, rsInstruction.getString("shadow_root"));
+                        insertStmt.setString(11, rsInstruction.getString("css_selector"));
+                        insertStmt.setString(12, rsInstruction.getString("description"));
+                        insertStmt.setString(13, rsInstruction.getString("operation"));
 
-                        insertOrNull(insertStmt, 15, rsInstruction, "optional");
-                        insertOrNull(insertStmt, 16, rsInstruction, "block_marked");
-                        insertStmt.setString(17, rsInstruction.getString("default_value"));
-                        insertOrNull(insertStmt, 18, rsInstruction, "action_custom_max_wait_sec");
-                        insertOrNull(insertStmt, 19, rsInstruction, "on_hold_seconds");
-                        insertOrNull(insertStmt, 20, rsInstruction, "codified");
-                        insertOrNull(insertStmt, 21, rsInstruction, "export_to_abr");
+                        insertOrNull(insertStmt, 14, rsInstruction, "optional");
+                        insertOrNull(insertStmt, 15, rsInstruction, "block_marked");
+                        insertStmt.setString(16, rsInstruction.getString("default_value"));
+                        insertOrNull(insertStmt, 17, rsInstruction, "action_custom_max_wait_sec");
+                        insertOrNull(insertStmt, 18, rsInstruction, "on_hold_seconds");
+                        insertOrNull(insertStmt, 19, rsInstruction, "codified");
+                        insertOrNull(insertStmt, 20, rsInstruction, "export_to_abr");
 
-                        insertStmt.setInt(22, rsInstruction.getInt("active"));
-                        insertStmt.setInt(23, newBlockId);
+                        insertStmt.setInt(21, rsInstruction.getInt("active"));
+                        insertStmt.setInt(22, newBlockId);
 
-                        insertOrNull(insertStmt, 24, rsInstruction, "variable_id");
-                        insertOrNull(insertStmt, 25, rsInstruction, "parent_id");
+                        insertOrNull(insertStmt, 23, rsInstruction, "variable_id");
+                        insertOrNull(insertStmt, 24, rsInstruction, "parent_id");
 
-                        insertStmt.setInt(26, newBotJobId);
+                        insertStmt.setInt(25, newBotJobId);
 
                         insertStmt.addBatch();
                         count++;
-                        newInstructionId++;
 
                         if (count % BATCH_SIZE == 0) {
                             insertStmt.executeBatch();
@@ -8242,15 +8086,14 @@ GROUP BY
             try (ResultSet rsVariable = selectStmt.executeQuery()) {
 
                 String insertSQL =
-                        "INSERT INTO variable (id, type, name, value, local_format, delimiter, instruction_id, bot_job_id) "
-                                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+                        "INSERT INTO variable ( type, name, value, local_format, delimiter, instruction_id, bot_job_id) "
+                                + "VALUES (?, ?, ?, ?, ?, ?, ?)";
 
                 variableMap.clear();
 
                 try (PreparedStatement insertStmt = conn.prepareStatement(insertSQL)) {
 
                     int count = 0;
-                    int newVariableId = getMaxId(conn, "variable") + 1;
 
                     while (rsVariable.next()) {
                         int id = rsVariable.getInt("id");
@@ -8278,24 +8121,22 @@ GROUP BY
 
                         variableMap.put(id, -1);
 
-                        insertStmt.setInt(1, newVariableId);
-                        insertStmt.setString(2, rsVariable.getString("type"));
-                        insertStmt.setString(3, rsVariable.getString("name"));
-                        insertStmt.setString(4, rsVariable.getString("value"));
-                        insertStmt.setString(5, rsVariable.getString("local_format"));
-                        insertStmt.setString(6, rsVariable.getString("delimiter"));
+                        insertStmt.setString(1, rsVariable.getString("type"));
+                        insertStmt.setString(2, rsVariable.getString("name"));
+                        insertStmt.setString(3, rsVariable.getString("value"));
+                        insertStmt.setString(4, rsVariable.getString("local_format"));
+                        insertStmt.setString(5, rsVariable.getString("delimiter"));
 
                         if (newInstructionId != null) {
-                            insertStmt.setInt(7, newInstructionId);
+                            insertStmt.setInt(6, newInstructionId);
                         } else {
-                            insertStmt.setNull(7, Types.INTEGER);
+                            insertStmt.setNull(6, Types.INTEGER);
                         }
 
-                        insertStmt.setInt(8, newBotJobId);
+                        insertStmt.setInt(7, newBotJobId);
 
                         insertStmt.addBatch();
                         count++;
-                        newVariableId++;
 
                         if (count % BATCH_SIZE == 0) {
                             insertStmt.executeBatch();
@@ -8476,14 +8317,13 @@ GROUP BY
             try (ResultSet rsReference = selectStmt.executeQuery()) {
 
                 String insertSQL =
-                        "INSERT INTO reference (id, reference_type, value, instruction_id, bot_job_id) VALUES (?, ?, ?, ?, ?)";
+                        "INSERT INTO reference (reference_type, value, instruction_id, bot_job_id) VALUES (?, ?, ?, ?)";
 
                 referenceMap.clear();
 
                 try (PreparedStatement insertStmt = conn.prepareStatement(insertSQL)) {
 
                     int count = 0;
-                    int newReferId = getMaxId(conn, "reference") + 1;
 
                     while (rsReference.next()) {
                         int id = rsReference.getInt("id");
@@ -8504,20 +8344,18 @@ GROUP BY
 
                         referenceMap.put(id, -1);
 
-                        insertStmt.setInt(1, newReferId);
-                        insertStmt.setString(2, rsReference.getString("reference_type"));
-                        insertStmt.setString(3, rsReference.getString("value"));
-                        insertStmt.setInt(4, newInstructionId);
+                        insertStmt.setString(1, rsReference.getString("reference_type"));
+                        insertStmt.setString(2, rsReference.getString("value"));
+                        insertStmt.setInt(3, newInstructionId);
 
                         if (newBotJobId != null) {
-                            insertStmt.setInt(5, newBotJobId);
+                            insertStmt.setInt(4, newBotJobId);
                         } else {
-                            insertStmt.setNull(5, Types.INTEGER);
+                            insertStmt.setNull(4, Types.INTEGER);
                         }
 
                         insertStmt.addBatch();
                         count++;
-                        newReferId++;
 
                         if (count % BATCH_SIZE == 0) {
                             insertStmt.executeBatch();
@@ -8866,41 +8704,61 @@ GROUP BY
         return instructionLoadDTOList;
     }
 
-    private Integer loadNextIdData() {
-        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
-        String selectSQL = "SELECT MAX(ID) AS max_id FROM variable";
-        try (Statement stmt = getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
-            while (rs.next()) {
-                return rs.getInt("max_id");
+    public ErrorMessage createVariable(VariableUserDTO user) {
+        String tableName = "variable";
+        String insertSQL = "INSERT INTO " + tableName
+                + " (type, Name, Value, bot_job_id, instruction_id, local_format, delimiter) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?)";
+
+        try (Connection conn = getConnection();
+                Statement idStmtBefore = conn.createStatement();
+                Statement idStmtAfter = conn.createStatement();
+                PreparedStatement pstmt = conn.prepareStatement(insertSQL)) {
+
+            conn.setAutoCommit(false); // Disable auto-commit
+
+            // Step 1: Get IDs before insertion
+            List<Integer> idsBefore = new ArrayList<>();
+            try (ResultSet rsBefore = idStmtBefore.executeQuery("SELECT ID FROM " + tableName + " ORDER BY ID")) {
+                while (rsBefore.next()) {
+                    idsBefore.add(rsBefore.getInt("ID"));
+                }
             }
-        } catch (SQLException error) {
-            System.out.println(error.getMessage());
-        }
-        return null;
-    }
 
-    public void saveUserData(VariableUserDTO user) {
-        // Generate a Unique-ID
-        Integer hashCode = loadNextIdData() + 1;
-        //        AlterSeq(hashCode);
-        //        Integer hashCode = generateID();
+            // Step 2: Insert new variable record
+            pstmt.setString(1, user.getType());
+            pstmt.setString(2, user.getName());
+            pstmt.setString(3, user.getValue());
+            pstmt.setInt(4, user.getBotJobId());
+            pstmt.setInt(5, user.getParentId());
+            pstmt.setString(6, user.getLocalFormat());
+            pstmt.setString(7, user.getDelimiter());
 
-        String insertSQL =
-                "INSERT INTO variable (ID, type, Name, Value, bot_job_id, instruction_id, local_format, delimiter) VALUES ( "
-                        + hashCode + ","
-                        + "'" + user.getType() + "', "
-                        + "'" + user.getName() + "', "
-                        + "'" + user.getValue() + "', "
-                        + "'" + user.getBotJobId() + "', "
-                        + "'" + user.getParentId() + "', "
-                        + "'" + user.getLocalFormat() + "', "
-                        + "'" + user.getDelimiter() + "')";
-        try (Statement stmt = getConnection().createStatement()) {
-            stmt.executeUpdate(insertSQL);
-            System.out.println("Data saved successfully.");
+            pstmt.addBatch();
+            pstmt.executeBatch();
+
+            // Step 3: Get IDs after insertion
+            idsVariableAfter.clear();
+            try (ResultSet rsAfter = idStmtAfter.executeQuery("SELECT ID FROM " + tableName + " ORDER BY ID")) {
+                while (rsAfter.next()) {
+                    idsVariableAfter.add(rsAfter.getInt("ID"));
+                }
+            }
+
+            // Step 4: Keep only the new IDs
+            idsVariableAfter.removeAll(idsBefore);
+
+            ARLogger.getInstance(PerformDataBase.class)
+                    .info(String.format("Variable inserted successfully. New IDs: %s", idsVariableAfter));
+
+            conn.commit(); // Commit transaction
+            return null; // Success
+
         } catch (SQLException error) {
-            System.out.println(error.getMessage());
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format("createVariable - Error: %s", error.getMessage()));
+
+            return new ErrorMessage("Variable Insertion Error", "Error inserting a new variable.", error.getMessage());
         }
     }
 

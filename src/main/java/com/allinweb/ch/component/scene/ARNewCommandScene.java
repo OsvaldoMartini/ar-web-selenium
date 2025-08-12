@@ -178,7 +178,7 @@ public class ARNewCommandScene extends ARScene {
 
     private static final Double SCENE_HEIGHT = 300D;
     private static final Double SCENE_WIDTH = 800D;
-    private static final String TITLE = "Add Command";
+    private static final String TITLE = "Add/Update Operations";
 
     @Getter
     @Setter
@@ -217,7 +217,7 @@ public class ARNewCommandScene extends ARScene {
     public String getTitle() {
         String titleMsg = createDescriptionString(rowMoveDTO);
         if (titleMsg != null) {
-            return titleMsg;
+            return TITLE + ": " + titleMsg;
         } else {
             return TITLE;
         }

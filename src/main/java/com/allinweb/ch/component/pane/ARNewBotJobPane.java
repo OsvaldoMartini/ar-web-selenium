@@ -11,6 +11,7 @@ import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
+import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
@@ -261,10 +262,11 @@ public class ARNewBotJobPane extends ARPane {
             createdBotJob.setHomeBankingId(homeURLChoiceBox.getValue().getHomeBankingId());
             createdBotJob.setHomeUrlId(homeURLChoiceBox.getValue().getId());
 
-            int newJobId = performDataBase.createNewBotJob(createdBotJob);
+            ErrorMessage errorMessage = performDataBase.createNewBotJob(createdBotJob);
 
-            if (newJobId > 0) {
-                createdBotJob.setId(newJobId);
+            int newBotJobId = performDataBase.getNewBotJobId();
+            if (errorMessage == null && newBotJobId > -1) {
+                createdBotJob.setId(newBotJobId);
 
                 if (performDataBase.getConn() != null) {
                     performDataBase.loadQuickBotJobs();
@@ -273,7 +275,7 @@ public class ARNewBotJobPane extends ARPane {
                 arViewBotJobScene.initialize(arWebDriver, createdBotJob);
                 arViewBotJobScene.showModal();
 
-                ARLogger.getInstance(ARNewBotJobPane.class).finer("ARNewBotJobPane CurrentStage close()");
+                ARLogger.getInstance(ARNewBotJobPane.class).info("Success creating new Bot Job ID: " + newBotJobId);
                 Platform.runLater(() -> {
                     Stage currentStage = (Stage) createBotJobButton.getScene().getWindow();
                     if (currentStage != null) {
@@ -281,7 +283,15 @@ public class ARNewBotJobPane extends ARPane {
                     }
                 });
             } else {
-                ARLogger.getInstance(Thread.class).severe("Error creating BotJobDTO. Check the Block Creation!");
+                ARLogger.getInstance(ARNewBotJobPane.class)
+                        .severe("Error creating BotJobDTO. Check the Block Creation!");
+                performMessage.errorMessage(
+                        "Access Database error",
+                        errorMessage.getErrorTitle(),
+                        errorMessage.getErrorHeader(),
+                        "Verify  [INSERT] or [UPDATE] or [SELECT]",
+                        null,
+                        0);
             }
         });
     }

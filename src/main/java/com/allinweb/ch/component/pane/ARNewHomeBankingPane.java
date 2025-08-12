@@ -16,9 +16,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -453,59 +451,36 @@ public class ARNewHomeBankingPane extends ARPane {
                 return;
             }
 
-            int newHomeId = saveUserData(user);
+            ErrorMessage errorMessage = performDataBase.createNewHomeBanking(user);
 
-            if (newHomeId > -1) {
-                try (Connection conn = performDataBase.getConnection()) {
-                    int newHomeUrlId = performDataBase.loadNexHomeUrlData() + 1;
+            int newHomeBankId = performDataBase.getNewHomeBankId();
 
-                    ErrorMessage errorMessage =
-                            performDataBase.insertHomeUrlChild(conn, newHomeId, user.getUrl(), newHomeUrlId);
-
-                    if (errorMessage != null) {
-                        performMessage.errorMessage(
-                                "Clone Bot Job Failed",
-                                errorMessage.getErrorTitle(),
-                                errorMessage.getErrorHeader(),
-                                "Verify  [INSERT] or [UPDATE] or [SELECT]",
-                                null,
-                                0);
-                    } else {
-                        performMessage.showCustomModalDialogDragWin11(
-                                "New Environment Created Successfully",
-                                "<span style='color: #388E3C; font-weight: bold; font-size: 1.1em;'>The test environment has been successfully created for the organization.</span>",
-                                "<span style='font-weight: bold; color: #1976D2;'>Organization: " + user.getName()
-                                        + "</span>",
-                                "<span style='color: #0288D1; font-weight: bold;'>This environment is now ready for testing and further configuration.</span>",
-                                "<span style='font-style: italic; color: #1976D2;'>Environment URL: " + user.getUrl()
-                                        + "</span>",
-                                false,
-                                "OK",
-                                null,
-                                0);
-                    }
-
-                } catch (Exception error) {
-                    ARLogger.getInstance(PerformDataBase.class).severe("getConnection Error: " + error.getMessage());
-
-                    String database;
-                    if (performDataBase.POSTGRES_DB) {
-                        database = "Postgres";
-                    } else if (performDataBase.SQLITE_DB) {
-                        database = "SQLite";
-                    } else {
-                        database = "Access";
-                    }
-                    performMessage.errorMessage(
-                            "Database connection Failed",
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>An error occurred during the Database connection.</span>",
-                            "<span style='font-weight: bold;'>" + database + "</span>.",
-                            "<span style='color: #E65100; font-weight: bold;'>Please ensure the Database connections are correct.</span>",
-                            "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
-                            0);
-                }
+            if (errorMessage == null) {
+                performDataBase.createHomeUrlChild(newHomeBankId, user.getUrl());
             }
 
+            if (errorMessage == null) {
+                performMessage.showCustomModalDialogDragWin11(
+                        "New Environment Created Successfully",
+                        "<span style='color: #388E3C; font-weight: bold; font-size: 1.1em;'>The test environment has been successfully created for the organization.</span>",
+                        "<span style='font-weight: bold; color: #1976D2;'>Organization: " + user.getName() + "</span>",
+                        "<span style='color: #0288D1; font-weight: bold;'>This environment is now ready for testing and further configuration.</span>",
+                        "<span style='font-style: italic; color: #1976D2;'>Environment URL: " + user.getUrl()
+                                + "</span>",
+                        false,
+                        "OK",
+                        null,
+                        0);
+
+            } else {
+                performMessage.errorMessage(
+                        "Clone Bot Job Failed",
+                        errorMessage.getErrorTitle(),
+                        errorMessage.getErrorHeader(),
+                        "Verify  [INSERT] or [UPDATE] or [SELECT]",
+                        null,
+                        0);
+            }
             Platform.runLater(() -> {
                 performDataBase.loadAllDataUsers();
                 performDataBase.loadHomeBanking(null);
@@ -667,38 +642,26 @@ public class ARNewHomeBankingPane extends ARPane {
                 return;
             }
 
-            try {
-                int homeBankId = Integer.parseInt(homeBankIdStr);
+            int homeBankId = Integer.parseInt(homeBankIdStr);
 
-                ErrorMessage errorMessage = performDataBase.insertNewHomeUrl(homeBankId, homeUrl);
-                if (errorMessage != null) {
-                    performMessage.errorMessage(
-                            "Insert Environment Failed ❌",
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>"
-                                    + errorMessage.getErrorTitle() + "</span>",
-                            "<span style='color: #E65100; font-weight: bold;'>" + errorMessage.getErrorHeader()
-                                    + "</span>",
-                            "<span style='font-style: italic;'>" + errorMessage.getErrorMessage() + "</span>",
-                            null,
-                            0);
-
-                } else {
-                    // ✅ Reload the table after successful insert
-                    performDataBase.loadHomeUrls(homeBankId);
-                    tableViewHomeUrl.setItems(FXCollections.observableArrayList(performLists.getListHomeUrl()));
-
-                    homeUrlIdField.clear();
-                    homeUrlValueField.clear();
-                }
-
-            } catch (SQLException e) {
+            ErrorMessage errorMessage = performDataBase.createNewHomeUrl(homeBankId, homeUrl);
+            if (errorMessage != null) {
                 performMessage.errorMessage(
-                        "Insert Environment Failed",
-                        "Database Error",
-                        e.getMessage(),
-                        "Verify [INSERT] or [UPDATE] or [SELECT]",
+                        "Insert New Environment Failed ❌",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>"
+                                + errorMessage.getErrorTitle() + "</span>",
+                        "<span style='color: #E65100; font-weight: bold;'>" + errorMessage.getErrorHeader() + "</span>",
+                        "<span style='font-style: italic;'>" + errorMessage.getErrorMessage() + "</span>",
                         null,
                         0);
+
+            } else {
+                // ✅ Reload the table after successful insert
+                performDataBase.loadHomeUrls(homeBankId);
+                tableViewHomeUrl.setItems(FXCollections.observableArrayList(performLists.getListHomeUrl()));
+
+                homeUrlIdField.clear();
+                homeUrlValueField.clear();
             }
         });
 
@@ -1021,49 +984,6 @@ public class ARNewHomeBankingPane extends ARPane {
             dataList.add(new BankingDTO(i + 1, "Name " + i, "URL " + i, "Priority " + i, 5, new ArrayList<>()));
         }
         return dataList;
-    }
-
-    private Integer loadNexIdData() {
-        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
-        String selectSQL = "SELECT MAX(ID) AS max_id FROM home_banking";
-        try (Statement stmt = performDataBase.getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
-            while (rs.next()) {
-                return rs.getInt("max_id");
-            }
-        } catch (SQLException e) {
-            System.out.println(e.getMessage());
-        }
-        return null;
-    }
-
-    private int saveUserData(DatabaseUserDTO user) {
-        // Generate a Unique-ID
-        Integer hashCode = loadNexIdData() + 1;
-        //        AlterSeq(hashCode);
-        //        Integer hashCode = generateID();
-        String priority = Strings.isNullOrEmpty(user.getPriority()) ? "" : user.getPriority();
-        String searchConfig = Strings.isNullOrEmpty(user.getSearchConfig()) ? "" : user.getSearchConfig();
-        String optionsConfig = Strings.isNullOrEmpty(user.getSearchConfig()) ? "" : user.getOptionsConfig();
-
-        String insertSQL =
-                "INSERT INTO home_banking (ID, Name, Url, priority, search_config, options_config, username, password) VALUES ( "
-                        + hashCode + ","
-                        + "'" + user.getName() + "', "
-                        + "'" + user.getUrl() + "', "
-                        + "'" + priority + "', "
-                        + "'" + searchConfig + "', "
-                        + "'" + optionsConfig + "', "
-                        + "'" + user.getUsername() + "', "
-                        + "'" + user.getPassword() + "')";
-        try (Statement stmt = performDataBase.getConnection().createStatement()) {
-            stmt.executeUpdate(insertSQL);
-            System.out.println("Data saved successfully.");
-        } catch (SQLException e) {
-            System.out.println(e.getMessage());
-            return -1;
-        }
-        return hashCode;
     }
 
     private void updateUserData(String id, DatabaseUserDTO user) {
