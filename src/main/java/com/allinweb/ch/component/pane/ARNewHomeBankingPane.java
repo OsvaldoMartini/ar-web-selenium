@@ -125,7 +125,7 @@ public class ARNewHomeBankingPane extends ARPane {
         // --- 1. Initialize Labels ---
         idLabel = new Label("ID:");
         nameLabel = new Label("Organization:");
-        urlLabel = new Label("Url:");
+        urlLabel = new Label("Url Base:");
         priorityLabel = new Label("Priority:"); // This will be "Next Row" conceptually
         jobsLabel = new Label("Active Jobs");
         searchConfigLabel = new Label("Scan Config:");
@@ -155,7 +155,7 @@ public class ARNewHomeBankingPane extends ARPane {
 
         // URL Field (Editable, yellow background)
         urlField = new TextField();
-        urlField.setPromptText("URL Organization");
+        urlField.setPromptText("URL Base of the Organization");
         urlField.setStyle("-fx-control-inner-background: #FFDA33;");
         urlField.setPrefHeight(28);
         HBox.setHgrow(urlField, Priority.ALWAYS); // Allow this field to expand horizontally
@@ -294,7 +294,7 @@ public class ARNewHomeBankingPane extends ARPane {
         nameColumn.setMinWidth(150);
         nameColumn.setMaxWidth(150);
 
-        TableColumn<HomeBankingLoadDTO, String> urlColumn = new TableColumn<>("Url");
+        TableColumn<HomeBankingLoadDTO, String> urlColumn = new TableColumn<>("Url Environment");
         urlColumn.setCellValueFactory(new PropertyValueFactory<>("url"));
 
         // Removed table columns for priority, search config, options config as they are now in the detail section
@@ -348,7 +348,7 @@ public class ARNewHomeBankingPane extends ARPane {
         orgNameColumn.setMinWidth(150);
         orgNameColumn.setMaxWidth(150);
 
-        TableColumn<HomeUrlDTO, String> homeUrlColumn = new TableColumn<>("URL");
+        TableColumn<HomeUrlDTO, String> homeUrlColumn = new TableColumn<>("Url Base");
         homeUrlColumn.setCellValueFactory(new PropertyValueFactory<>("url"));
         homeUrlColumn.setMaxWidth(Double.MAX_VALUE); // Allow URL column to grow
 
@@ -755,6 +755,7 @@ public class ARNewHomeBankingPane extends ARPane {
                     // ✅ Reload the table after successful update
                     performDataBase.loadHomeUrls(homeBankId);
                     tableViewHomeUrl.setItems(FXCollections.observableArrayList(performLists.getListHomeUrl()));
+                    tableViewHomeUrl.getSelectionModel().clearSelection();
 
                     // Optionally clear the fields
                     homeUrlIdField.clear();
