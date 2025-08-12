@@ -872,15 +872,18 @@ public class ARConfigurationPane extends ARPane {
                 }
 
                 if (errorMessage == null) {
-                    showAlertTimer(
-                            Alert.AlertType.INFORMATION,
-                            "Restore DB Success!",
-                            "Check the LOGS folder!",
-                            "Database",
-                            databaseChoiceBox.getValue(),
-                            null,
-                            null);
 
+                    performMessage.showCustomModalDialogDragWin11(
+                            "Restore DB Success! ✅",
+                            "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>Database restored successfully!</span>",
+                            "<span style='color: #1565C0; font-weight: bold;'>Now you can start to use your database!</span>",
+                            "<span style='color: #6A1B9A; font-weight: bold;'>Database:</span> "
+                                    + databaseChoiceBox.getValue(),
+                            "<span style='color: #E65100; font-weight: bold;'>💡 Don't forget:</span> Press the <span style='text-decoration: underline;'>Reload DB</span> button to refresh your data!",
+                            false,
+                            "OK",
+                            null,
+                            0);
                 } else {
 
                     performMessage.errorMessage(

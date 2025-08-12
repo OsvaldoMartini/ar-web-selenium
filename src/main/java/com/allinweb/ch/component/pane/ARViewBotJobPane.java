@@ -154,7 +154,7 @@ public class ARViewBotJobPane extends ARPane {
         this.arScene = arScene;
         this.selectedBojJob = selectedBojJob;
 
-        Platform.runLater(() -> performDataBase.loadAllVariablesByCriteria(selectedBojJob.getId(), -1, ""));
+        Platform.runLater(() -> performDataBase.loadAllVariablesByCriteria(selectedBojJob.getId(), -1, "variable"));
         Platform.runLater(() -> {
             performDataBase.loadWebPageFields(selectedBojJob.getId(), "bot_job");
         });

@@ -726,15 +726,21 @@ public class PerformInitializer {
         try {
             if ("Postgres".equalsIgnoreCase(dataBaseType)) {
                 // PostgreSQL
+                ARLogger.getInstance(PerformDataBase.class).info("Postgres URL: " + dbUrl);
                 Class.forName("org.postgresql.Driver");
                 conn = DriverManager.getConnection(dbUrl, userDB, userPwd);
 
+            } else if ("SQLServer".equalsIgnoreCase(dataBaseType)) {
+                // SQLite
+                ARLogger.getInstance(PerformDataBase.class).info("SQLServer URL: " + dbUrl);
+                Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+                conn = DriverManager.getConnection(dbUrl, userDB, userPwd);
             } else if ("SQLite".equalsIgnoreCase(dataBaseType)) {
                 // SQLite
                 String dbSQLiteUrl = CONNECTION_TYPE_SQLITE + dbUrlPath + ARConstants.FILE_NAME_SQLITE;
                 ARLogger.getInstance(PerformDataBase.class).info("SQLite connection URL: " + dbSQLiteUrl);
                 Class.forName("org.sqlite.JDBC");
-                conn = DriverManager.getConnection(dbUrl);
+                conn = DriverManager.getConnection(dbSQLiteUrl);
 
             } else {
                 // Default to Access
@@ -755,7 +761,6 @@ public class PerformInitializer {
             if (conn != null) {
                 try {
                     conn.close();
-                    conn = null;
                 } catch (SQLException e) {
                     System.out.println("Error closing connection: " + e.getMessage());
                 }

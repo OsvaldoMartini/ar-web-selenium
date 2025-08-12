@@ -67,6 +67,8 @@ public class ARElementValuePane extends ARPane {
     Label delimeterCSVLabel;
     ComboBox<FormatOption> comboBoxLocalFormat;
     ComboBox<FormatOption> comboBoxCSVColumns;
+
+    Button insertButton;
     Button updateButton;
     Button deleteButton;
 
@@ -259,29 +261,164 @@ public class ARElementValuePane extends ARPane {
         });
         comboBoxCSVColumns.getSelectionModel().selectFirst();
 
-        // Ensure only one checkbox can be selected at a time
-        stringCheckBox.selectedProperty().addListener((obs, oldValue, newValue) -> {
-            if (newValue) {
-                numericCheckBox.setSelected(false);
-                numberFormatLabel.setDisable(true);
-                comboBoxLocalFormat.setDisable(true);
-            }
-        });
-
-        numericCheckBox.selectedProperty().addListener((obs, oldValue, newValue) -> {
-            if (newValue) {
-                stringCheckBox.setSelected(false);
-                numberFormatLabel.setDisable(false);
-                comboBoxLocalFormat.setDisable(false);
-            } else {
-                numberFormatLabel.setDisable(true);
-                comboBoxLocalFormat.setDisable(true);
-            }
-        });
-
         // Create submit button
-        Button submitButton = new Button("Insert");
-        submitButton.setOnAction(event -> {
+        insertButton = new Button("Insert");
+
+        // Create update button
+        updateButton = new Button("Update");
+        updateButton.setDisable(true);
+
+        // Create delete button
+        deleteButton = new Button("Delete");
+        deleteButton.setDisable(true);
+
+        // Create layout and add components
+        GridPane gridPane = new GridPane();
+        gridPane.setHgap(10); // Horizontal gap between columns
+        gridPane.setVgap(10); // Vertical gap between rows
+        gridPane.setPadding(new Insets(10)); // Padding around the gridPane
+
+        // Add components to the grid
+        gridPane.add(idLabel, 0, 0);
+        gridPane.add(idField, 1, 0);
+
+        gridPane.add(parentLabel, 0, 1);
+        gridPane.add(parentField, 1, 1);
+
+        gridPane.add(nameLabel, 0, 2);
+        gridPane.add(nameField, 1, 2);
+
+        gridPane.add(valueLabel, 0, 3);
+        gridPane.add(valueField, 1, 3);
+
+        gridPane.add(typeLabel, 0, 4);
+        HBox typeBox = new HBox(10, stringCheckBox, numericCheckBox); // Create an HBox to hold the checkboxes
+        gridPane.add(typeBox, 1, 4);
+
+        gridPane.add(numberFormatLabel, 0, 5);
+        gridPane.add(comboBoxLocalFormat, 1, 5);
+
+        gridPane.add(delimeterCSVLabel, 0, 6);
+        gridPane.add(comboBoxCSVColumns, 1, 6);
+
+        gridPane.add(jobsLabel, 0, 8);
+        gridPane.add(usedVarsField, 1, 8);
+
+        HBox buttonsBox = new HBox(11, insertButton, updateButton, deleteButton);
+        buttonsBox.setAlignment(Pos.CENTER);
+        buttonsBox.setSpacing(10); // Horizontal spacing between buttons
+
+        gridPane.add(buttonsBox, 0, 9, 2, 1);
+
+        HBox hBoxGridPane = new HBox(gridPane);
+        hBoxGridPane.setAlignment(Pos.CENTER);
+        hBoxGridPane.setSpacing(10); // Horizontal spacing around the gridPane
+
+        // Configure TableView
+        tableView = new TableView<>();
+        TableColumn<VariableUserDTO, String> idColumn = new TableColumn<>("ID");
+        idColumn.setCellValueFactory(new PropertyValueFactory<>("id"));
+        applyBoldColumnStyle(idColumn);
+
+        TableColumn<VariableUserDTO, String> typeColumn = new TableColumn<>("Type");
+        typeColumn.setCellValueFactory(new PropertyValueFactory<>("type"));
+        applyBoldColumnStyle(typeColumn);
+
+        TableColumn<VariableUserDTO, String> nameColumn = new TableColumn<>("Name");
+        nameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
+        applyBoldColumnStyle(nameColumn);
+
+        TableColumn<VariableUserDTO, String> valueColumn = new TableColumn<>("Value");
+        valueColumn.setCellValueFactory(new PropertyValueFactory<>("value"));
+        applyBoldColumnStyle(valueColumn);
+
+        TableColumn<VariableUserDTO, String> localFormatColumn = new TableColumn<>("Local Format");
+        localFormatColumn.setCellValueFactory(new PropertyValueFactory<>("localFormat"));
+        applyBoldColumnStyle(localFormatColumn);
+
+        TableColumn<VariableUserDTO, String> delimiterColumn = new TableColumn<>("CSV Delimiter");
+        delimiterColumn.setCellValueFactory(new PropertyValueFactory<>("delimiter"));
+        applyStyledColumn(delimiterColumn, item -> {
+            if (",".equals(item)) {
+                return "Comma \",\"";
+            } else if ("|".equals(item)) {
+                return "Pipe \"|\"";
+            } else {
+                return String.valueOf(item);
+            }
+        });
+
+        List<TableColumn<VariableUserDTO, String>> columns =
+                List.of(idColumn, typeColumn, nameColumn, valueColumn, localFormatColumn, delimiterColumn);
+        tableView.getColumns().addAll(columns);
+        tableView.setItems(performLists.getListVariablesUser());
+
+        // Wrap the TableView in a VBox for more control
+        VBox tableViewContainer = new VBox(tableView);
+        tableViewContainer.setAlignment(Pos.BOTTOM_CENTER);
+        tableViewContainer.setSpacing(10); // Spacing around the TableView
+        tableViewContainer.setPadding(new Insets(10)); // Padding inside the TableView container
+
+        // Create the main layout
+        VBox mainLayout = new VBox(20, hBoxGridPane, tableViewContainer);
+        mainLayout.setAlignment(Pos.CENTER);
+        mainLayout.setPadding(new Insets(10)); // Padding around the VBox
+
+        // Adjust VBox properties for better alignment
+        VBox.setVgrow(tableViewContainer, Priority.ALWAYS);
+
+        // Use AnchorPane to ensure the VBox resizes with the window
+        mainPane = new AnchorPane(mainLayout);
+        AnchorPane.setTopAnchor(mainLayout, 0.0);
+        AnchorPane.setBottomAnchor(mainLayout, 0.0);
+        AnchorPane.setLeftAnchor(mainLayout, 0.0);
+        AnchorPane.setRightAnchor(mainLayout, 0.0);
+    }
+
+    private void clearData() {
+        idField.clear();
+        nameField.clear();
+        valueField.clear();
+        usedVarsField.clear();
+        stringCheckBox.setSelected(false);
+        numericCheckBox.setSelected(false);
+        numberFormatLabel.setDisable(true);
+        comboBoxLocalFormat.setDisable(true);
+        deleteButton.setDisable(true);
+        updateButton.setDisable(true);
+    }
+
+    //    private List<BankingDTO> loadFromDB() {
+    //
+    //        PerformDataBase..refreshEntity(null, HomeBankingDTO.class);
+    //
+    //        List<BankingDTO> dtoList = new ArrayList<>();
+    //
+    //        List<HomeBankingDTO> listHomeBankingDTO =
+    //                PerformDataBase..getEntityList(HomeBankingDTO.class);
+    //
+    //        // Iterate through the result set and populate the DTO list
+    //        for (HomeBankingDTO homeBankingDTO : listHomeBankingDTO) {
+    //            List<JobDTO> listJobsDto = new ArrayList<>();
+    //            for (BotJobDTO botJobDTO : homeBankingDTO.getBotJobs()) {
+    //                JobDTO jobsDto = new JobDTO(botJobDTO.getName(), botJobDTO.getDescription(), new ArrayList<>());
+    //                listJobsDto.add(jobsDto);
+    //            }
+    //
+    //            dtoList.add(new BankingDTO(
+    //                    homeBankingDTO.getId(),
+    //                    homeBankingDTO.getName(),
+    //                    homeBankingDTO.getUrl(),
+    //                    homeBankingDTO.getPriority(),
+    //                    listJobsDto.size(),
+    //                    listJobsDto));
+    //        }
+    //        return dtoList;
+    //    }
+
+    @Override
+    public void initUIBehaviour() {
+        insertButton.setOnAction(event -> {
             String selectedType =
                     stringCheckBox.isSelected() ? "$String" : numericCheckBox.isSelected() ? "#Numeric" : "";
 
@@ -356,9 +493,6 @@ public class ARElementValuePane extends ARPane {
             performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId, tableName);
             arNewCommandPane.reloadComboVars(instructionId, true, -1);
         });
-
-        // Create update button
-        updateButton = new Button("Update");
         updateButton.setOnAction(event -> {
             VariableUserDTO selectedUser = tableView.getSelectionModel().getSelectedItem();
 
@@ -396,10 +530,6 @@ public class ARElementValuePane extends ARPane {
             performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId, tableName);
             arNewCommandPane.reloadComboVars(instructionId, true, varId);
         });
-        updateButton.setDisable(true);
-
-        // Create delete button
-        deleteButton = new Button("Delete");
         deleteButton.setOnAction(event -> {
             String id = idField.getText();
             if (Integer.parseInt(usedVarsField.getText()) > 0) {
@@ -422,94 +552,32 @@ public class ARElementValuePane extends ARPane {
             performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId, tableName);
             arNewCommandPane.reloadComboVars(instructionId, true, -1);
         });
-        deleteButton.setDisable(true);
-
-        // Create layout and add components
-        GridPane gridPane = new GridPane();
-        gridPane.setHgap(10); // Horizontal gap between columns
-        gridPane.setVgap(10); // Vertical gap between rows
-        gridPane.setPadding(new Insets(10)); // Padding around the gridPane
-
-        // Add components to the grid
-        gridPane.add(idLabel, 0, 0);
-        gridPane.add(idField, 1, 0);
-
-        gridPane.add(parentLabel, 0, 1);
-        gridPane.add(parentField, 1, 1);
-
-        gridPane.add(nameLabel, 0, 2);
-        gridPane.add(nameField, 1, 2);
-
-        gridPane.add(valueLabel, 0, 3);
-        gridPane.add(valueField, 1, 3);
-
-        gridPane.add(typeLabel, 0, 4);
-        HBox typeBox = new HBox(10, stringCheckBox, numericCheckBox); // Create an HBox to hold the checkboxes
-        gridPane.add(typeBox, 1, 4);
-
-        gridPane.add(numberFormatLabel, 0, 5);
-        gridPane.add(comboBoxLocalFormat, 1, 5);
-
-        gridPane.add(delimeterCSVLabel, 0, 6);
-        gridPane.add(comboBoxCSVColumns, 1, 6);
-
-        gridPane.add(jobsLabel, 0, 8);
-        gridPane.add(usedVarsField, 1, 8);
-
-        HBox buttonsBox = new HBox(11, submitButton, updateButton, deleteButton);
-        buttonsBox.setAlignment(Pos.CENTER);
-        buttonsBox.setSpacing(10); // Horizontal spacing between buttons
-
-        gridPane.add(buttonsBox, 0, 9, 2, 1);
-
-        HBox hBoxGridPane = new HBox(gridPane);
-        hBoxGridPane.setAlignment(Pos.CENTER);
-        hBoxGridPane.setSpacing(10); // Horizontal spacing around the gridPane
-
-        // Configure TableView
-        tableView = new TableView<>();
-        TableColumn<VariableUserDTO, String> idColumn = new TableColumn<>("ID");
-        idColumn.setCellValueFactory(new PropertyValueFactory<>("id"));
-        applyBoldColumnStyle(idColumn);
-
-        TableColumn<VariableUserDTO, String> typeColumn = new TableColumn<>("Type");
-        typeColumn.setCellValueFactory(new PropertyValueFactory<>("type"));
-        applyBoldColumnStyle(typeColumn);
-
-        TableColumn<VariableUserDTO, String> nameColumn = new TableColumn<>("Name");
-        nameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
-        applyBoldColumnStyle(nameColumn);
-
-        TableColumn<VariableUserDTO, String> valueColumn = new TableColumn<>("Value");
-        valueColumn.setCellValueFactory(new PropertyValueFactory<>("value"));
-        applyBoldColumnStyle(valueColumn);
-
-        TableColumn<VariableUserDTO, String> localFormatColumn = new TableColumn<>("Local Format");
-        localFormatColumn.setCellValueFactory(new PropertyValueFactory<>("localFormat"));
-        applyBoldColumnStyle(localFormatColumn);
-
-        TableColumn<VariableUserDTO, String> delimiterColumn = new TableColumn<>("CSV Delimiter");
-        delimiterColumn.setCellValueFactory(new PropertyValueFactory<>("delimiter"));
-        applyStyledColumn(delimiterColumn, item -> {
-            if (",".equals(item)) {
-                return "Comma \",\"";
-            } else if ("|".equals(item)) {
-                return "Pipe \"|\"";
-            } else {
-                return String.valueOf(item);
-            }
-        });
-
-        List<TableColumn<VariableUserDTO, String>> columns =
-                List.of(idColumn, typeColumn, nameColumn, valueColumn, localFormatColumn, delimiterColumn);
-        tableView.getColumns().addAll(columns);
-        tableView.setItems(performLists.getListVariablesUser());
 
         // Add listener to TableView selection
         //        tableView
         //                .getColumns()
         //                .addAll(idColumn, typeColumn, nameColumn, valueColumn, localFormatColumn, delimiterColumn);
         //        tableView.setItems(variablesList);
+
+        // Ensure only one checkbox can be selected at a time
+        stringCheckBox.selectedProperty().addListener((obs, oldValue, newValue) -> {
+            if (newValue) {
+                numericCheckBox.setSelected(false);
+                numberFormatLabel.setDisable(true);
+                comboBoxLocalFormat.setDisable(true);
+            }
+        });
+
+        numericCheckBox.selectedProperty().addListener((obs, oldValue, newValue) -> {
+            if (newValue) {
+                stringCheckBox.setSelected(false);
+                numberFormatLabel.setDisable(false);
+                comboBoxLocalFormat.setDisable(false);
+            } else {
+                numberFormatLabel.setDisable(true);
+                comboBoxLocalFormat.setDisable(true);
+            }
+        });
 
         tableView.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
             if (newSelection != null) {
@@ -526,72 +594,7 @@ public class ARElementValuePane extends ARPane {
                 clearData();
             }
         });
-
-        // Wrap the TableView in a VBox for more control
-        VBox tableViewContainer = new VBox(tableView);
-        tableViewContainer.setAlignment(Pos.BOTTOM_CENTER);
-        tableViewContainer.setSpacing(10); // Spacing around the TableView
-        tableViewContainer.setPadding(new Insets(10)); // Padding inside the TableView container
-
-        // Create the main layout
-        VBox mainLayout = new VBox(20, hBoxGridPane, tableViewContainer);
-        mainLayout.setAlignment(Pos.CENTER);
-        mainLayout.setPadding(new Insets(10)); // Padding around the VBox
-
-        // Adjust VBox properties for better alignment
-        VBox.setVgrow(tableViewContainer, Priority.ALWAYS);
-
-        // Use AnchorPane to ensure the VBox resizes with the window
-        mainPane = new AnchorPane(mainLayout);
-        AnchorPane.setTopAnchor(mainLayout, 0.0);
-        AnchorPane.setBottomAnchor(mainLayout, 0.0);
-        AnchorPane.setLeftAnchor(mainLayout, 0.0);
-        AnchorPane.setRightAnchor(mainLayout, 0.0);
     }
-
-    private void clearData() {
-        idField.clear();
-        nameField.clear();
-        valueField.clear();
-        usedVarsField.clear();
-        stringCheckBox.setSelected(false);
-        numericCheckBox.setSelected(false);
-        numberFormatLabel.setDisable(true);
-        comboBoxLocalFormat.setDisable(true);
-        deleteButton.setDisable(true);
-        updateButton.setDisable(true);
-    }
-
-    //    private List<BankingDTO> loadFromDB() {
-    //
-    //        PerformDataBase..refreshEntity(null, HomeBankingDTO.class);
-    //
-    //        List<BankingDTO> dtoList = new ArrayList<>();
-    //
-    //        List<HomeBankingDTO> listHomeBankingDTO =
-    //                PerformDataBase..getEntityList(HomeBankingDTO.class);
-    //
-    //        // Iterate through the result set and populate the DTO list
-    //        for (HomeBankingDTO homeBankingDTO : listHomeBankingDTO) {
-    //            List<JobDTO> listJobsDto = new ArrayList<>();
-    //            for (BotJobDTO botJobDTO : homeBankingDTO.getBotJobs()) {
-    //                JobDTO jobsDto = new JobDTO(botJobDTO.getName(), botJobDTO.getDescription(), new ArrayList<>());
-    //                listJobsDto.add(jobsDto);
-    //            }
-    //
-    //            dtoList.add(new BankingDTO(
-    //                    homeBankingDTO.getId(),
-    //                    homeBankingDTO.getName(),
-    //                    homeBankingDTO.getUrl(),
-    //                    homeBankingDTO.getPriority(),
-    //                    listJobsDto.size(),
-    //                    listJobsDto));
-    //        }
-    //        return dtoList;
-    //    }
-
-    @Override
-    public void initUIBehaviour() {}
 
     private void updateFields() {}
 

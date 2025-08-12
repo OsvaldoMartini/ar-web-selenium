@@ -102,7 +102,7 @@ public class ARNewHomeBankingPane extends ARPane {
     private static final Pattern URL_PATTERN = Pattern.compile(URL_REGEX, Pattern.CASE_INSENSITIVE);
 
     private Connection conn = null;
-    private TableView<DatabaseUserDTO> tableView;
+    private TableView<HomeBankingLoadDTO> tableViewOrg;
     private TableView<HomeUrlDTO> tableViewHomeUrl;
     private List<BankingDTO> dtoList;
 
@@ -198,7 +198,7 @@ public class ARNewHomeBankingPane extends ARPane {
         optionsConfigField.setPrefHeight(110);
         HBox.setHgrow(optionsConfigField, Priority.ALWAYS); // Allow this field to expand horizontally
 
-        // Home URL ID Field (Read-only, grey background)
+        // Environment URL ID Field (Read-only, grey background)
         homeUrlIdField = new TextField();
         homeUrlIdField.setPromptText("ID");
         homeUrlIdField.setEditable(false);
@@ -207,7 +207,7 @@ public class ARNewHomeBankingPane extends ARPane {
         homeUrlIdField.setMaxWidth(50); // Max 50
         homeUrlIdField.setPrefHeight(28);
 
-        // Home URL Value Field (Editable, yellow background)
+        // Environment URL Value Field (Editable, yellow background)
         homeUrlValueField = new TextField();
         homeUrlValueField.setPromptText("Environment");
         homeUrlValueField.setStyle("-fx-control-inner-background: #FFDA33;");
@@ -272,29 +272,29 @@ public class ARNewHomeBankingPane extends ARPane {
         organizationsLabel.setAlignment(Pos.CENTER);
 
         // --- 5. TableView for Organizations ---
-        tableView = new TableView<>();
-        tableView.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY); // Columns fill available width
+        tableViewOrg = new TableView<>();
+        tableViewOrg.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY); // Columns fill available width
 
         // Define columns for Organizations Table
-        TableColumn<DatabaseUserDTO, String> idColumn = new TableColumn<>("ID");
+        TableColumn<HomeBankingLoadDTO, String> idColumn = new TableColumn<>("ID");
         idColumn.setCellValueFactory(new PropertyValueFactory<>("id"));
         idColumn.setPrefWidth(50);
         idColumn.setMinWidth(30);
         idColumn.setMaxWidth(80); // Fixed width
 
-        TableColumn<DatabaseUserDTO, String> jobColumn = new TableColumn<>("Active Jobs");
+        TableColumn<HomeBankingLoadDTO, String> jobColumn = new TableColumn<>("Active Jobs");
         jobColumn.setCellValueFactory(new PropertyValueFactory<>("jobs"));
         jobColumn.setPrefWidth(90);
         jobColumn.setMinWidth(80);
         jobColumn.setMaxWidth(90); // Fixed width
 
-        TableColumn<DatabaseUserDTO, String> nameColumn = new TableColumn<>("Organization");
+        TableColumn<HomeBankingLoadDTO, String> nameColumn = new TableColumn<>("Organization");
         nameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
         nameColumn.setPrefWidth(150);
         nameColumn.setMinWidth(150);
         nameColumn.setMaxWidth(150);
 
-        TableColumn<DatabaseUserDTO, String> urlColumn = new TableColumn<>("Url");
+        TableColumn<HomeBankingLoadDTO, String> urlColumn = new TableColumn<>("Url");
         urlColumn.setCellValueFactory(new PropertyValueFactory<>("url"));
 
         // Removed table columns for priority, search config, options config as they are now in the detail section
@@ -305,12 +305,12 @@ public class ARNewHomeBankingPane extends ARPane {
         // TableColumn<DatabaseUserDTO, String> optionsConfigColumn = new TableColumn<>("WebDriver Options");
         // optionsConfigColumn.setCellValueFactory(new PropertyValueFactory<>("optionsConfig"));
 
-        tableView.getColumns().addAll(idColumn, jobColumn, nameColumn, urlColumn);
-        tableView.setItems(performLists.getListDatabaseUsers()); // Set data to the table
+        tableViewOrg.getColumns().addAll(idColumn, jobColumn, nameColumn, urlColumn);
+        tableViewOrg.setItems(performLists.getListHomeBanking()); // Set data to the table
 
         orgDetailsContainer
                 .getChildren()
-                .addAll(organizationsLabel, topFieldsRow, middleFieldsRow, orgButtonsBox, tableView);
+                .addAll(organizationsLabel, topFieldsRow, middleFieldsRow, orgButtonsBox, tableViewOrg);
 
         VBox homeUrlDetailsContainer = new VBox(10); // Use VBox to stack label and then fields/buttons
         homeUrlDetailsContainer.setPadding(new Insets(10, 10, 5, 10)); // Padding
@@ -330,11 +330,11 @@ public class ARNewHomeBankingPane extends ARPane {
         HBox buttonBox = new HBox(10, insertURLButton, updateURLButton, deleteURLButton); // Buttons
         buttonBox.setAlignment(Pos.CENTER_RIGHT);
 
-        // TableView for Home URLs
+        // TableView for Environment URLs
         tableViewHomeUrl = new TableView<>();
         tableViewHomeUrl.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
 
-        // Define columns for Home URL Table
+        // Define columns for Environment URL Table
         TableColumn<HomeUrlDTO, Integer> homeUrlIdColumn = new TableColumn<>("ID");
         homeUrlIdColumn.setCellValueFactory(new PropertyValueFactory<>("id"));
         homeUrlIdColumn.setPrefWidth(50);
@@ -353,7 +353,7 @@ public class ARNewHomeBankingPane extends ARPane {
         homeUrlColumn.setMaxWidth(Double.MAX_VALUE); // Allow URL column to grow
 
         tableViewHomeUrl.getColumns().addAll(homeUrlIdColumn, orgNameColumn, homeUrlColumn);
-        performDataBase.loadHomeUrls(null);
+        //        performDataBase.loadHomeUrls(null);
         tableViewHomeUrl.setItems(FXCollections.observableArrayList(performLists.getListHomeUrl()));
 
         homeUrlDetailsContainer
@@ -374,7 +374,7 @@ public class ARNewHomeBankingPane extends ARPane {
         rootVBox.setPadding(new Insets(15)); // Overall padding around the entire content
 
         // Set vertical grow priority for tables to fill available space
-        VBox.setVgrow(tableView, Priority.ALWAYS);
+        VBox.setVgrow(tableViewOrg, Priority.ALWAYS);
         VBox.setVgrow(tableViewHomeUrl, Priority.ALWAYS);
 
         // --- 8. Final Setup of the Root Pane (this class) ---
@@ -392,36 +392,34 @@ public class ARNewHomeBankingPane extends ARPane {
         // No global styling for labels needed here anymore as they are styled when added to their specific containers.
     }
 
-    private void updateHomeBankList(List<DatabaseUserDTO> databaseList) {
-        performLists.getListHomeBanking().clear();
-
-        for (DatabaseUserDTO user : databaseList) {
-            HomeBankingLoadDTO homeBanking = new HomeBankingLoadDTO();
-
-            homeBanking.setId(user.getId() != null ? Integer.parseInt(user.getId()) : null);
-            homeBanking.setUrl(user.getUrl() != null ? user.getUrl() : null);
-            homeBanking.setName(user.getName() != null ? user.getName() : null);
-            homeBanking.setPriority(user.getPriority() != null ? user.getPriority() : null);
-            homeBanking.setSearchConfig(user.getSearchConfig() != null ? user.getSearchConfig() : null);
-            homeBanking.setOptionsConfig(user.getOptionsConfig() != null ? user.getOptionsConfig() : null);
-            homeBanking.setUsername(user.getUsername() != null ? user.getUsername() : null);
-            homeBanking.setPassword(user.getPassword() != null ? user.getPassword() : null);
-
-            performLists.getListHomeBanking().add(homeBanking);
-        }
-    }
-
     public void updateTableBankingView() {
         Platform.runLater(() -> {
             performDataBase.loadAllDataUsers();
-            updateHomeBankList(performLists.getListDatabaseUsers());
-            tableView.setItems(performLists.getListDatabaseUsers());
+            performDataBase.loadHomeBanking(null);
+
+            if (tableViewOrg != null) {
+                tableViewOrg.setItems(performLists.getListHomeBanking());
+            }
         });
     }
 
     @Override
     public void initUIBehaviour() {
         insertORGButton.setOnAction(event -> {
+            if (nameField.getText() == null
+                    || urlField.getText() == null
+                    || nameField.getText().trim().isEmpty()
+                    || urlField.getText().trim().isEmpty()) {
+                performMessage.errorMessage(
+                        "Validation Failed ❌",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Name and URL cannot be empty.</span>",
+                        "<span style='color: #E65100; font-weight: bold;'>Both fields are required to proceed.</span>",
+                        "<span style='font-style: italic;'>Please enter a valid name and URL, then try again.</span>",
+                        null,
+                        0);
+                return;
+            }
+
             DatabaseUserDTO user = new DatabaseUserDTO(
                     null,
                     nameField.getText().trim(),
@@ -443,18 +441,15 @@ public class ARNewHomeBankingPane extends ARPane {
             }
 
             if (nameExists(nameField.getText().trim())) {
-                showAlert(
-                        Alert.AlertType.ERROR,
-                        "Error",
-                        "Env Name Already Exist",
-                        String.format("This '%s' cannot be inserted with same name.\n", nameField.getText()));
-                return;
-            }
+                performMessage.errorMessage(
+                        "Environment Creation Failed ❌",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Environment name already exists.</span>",
+                        "<span style='font-weight: bold;'>" + nameField.getText()
+                                + "</span> cannot be inserted with the same name.",
+                        "<span style='color: #E65100; font-weight: bold;'>Please choose a different environment name.</span>",
+                        "<span style='font-style: italic;'>Tip: Use descriptive and unique names for easier management.</span>",
+                        0);
 
-            if (nameField.getText().trim().isEmpty()
-                    || urlField.getText().trim().isEmpty()) {
-                showAlert(
-                        Alert.AlertType.ERROR, "Error", "Name and URL Cannot be Empty", "Name and URL Cannot be Empty");
                 return;
             }
 
@@ -513,12 +508,27 @@ public class ARNewHomeBankingPane extends ARPane {
 
             Platform.runLater(() -> {
                 performDataBase.loadAllDataUsers();
-                updateHomeBankList(performLists.getListDatabaseUsers());
+                performDataBase.loadHomeBanking(null);
             });
         });
 
         updateORGButton.setOnAction(event -> {
+            if (nameField.getText() == null
+                    || urlField.getText() == null
+                    || nameField.getText().trim().isEmpty()
+                    || urlField.getText().trim().isEmpty()) {
+                performMessage.errorMessage(
+                        "Validation Failed ❌",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Name and URL cannot be empty.</span>",
+                        "<span style='color: #E65100; font-weight: bold;'>Both fields are required to proceed.</span>",
+                        "<span style='font-style: italic;'>Please enter a valid name and URL, then try again.</span>",
+                        null,
+                        0);
+                return;
+            }
+
             String id = idField.getText();
+
             DatabaseUserDTO user = new DatabaseUserDTO(
                     id,
                     nameField.getText(),
@@ -529,7 +539,7 @@ public class ARNewHomeBankingPane extends ARPane {
             updateUserData(id, user);
             Platform.runLater(() -> {
                 performDataBase.loadAllDataUsers();
-                updateHomeBankList(performLists.getListDatabaseUsers());
+                performDataBase.loadHomeBanking(null);
             });
         });
         deleteORGButton.setOnAction(event -> {
@@ -561,7 +571,7 @@ public class ARNewHomeBankingPane extends ARPane {
                 deleteUserData(id);
                 Platform.runLater(() -> {
                     performDataBase.loadAllDataUsers();
-                    updateHomeBankList(performLists.getListDatabaseUsers());
+                    performDataBase.loadHomeBanking(null);
                 });
             }
         });
@@ -629,16 +639,28 @@ public class ARNewHomeBankingPane extends ARPane {
         });
 
         insertURLButton.setOnAction(event -> {
+            if (homeUrlValueField.getText() == null
+                    || homeUrlValueField.getText().trim().isEmpty()) {
+                performMessage.errorMessage(
+                        "Validation Failed ❌",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Environment cannot be empty.</span>",
+                        "<span style='color: #E65100; font-weight: bold;'>This field is required to proceed.</span>",
+                        "<span style='font-style: italic;'>Please enter a valid Environment, then try again.</span>",
+                        null,
+                        0);
+                return;
+            }
+
             String homeBankIdStr = idField.getText().trim();
             String homeUrl = homeUrlValueField.getText().trim();
 
             // Check if fields are empty
             if (homeBankIdStr.isEmpty() || homeUrl.isEmpty()) {
                 performMessage.errorMessage(
-                        "Insert Environment Failed",
-                        "Missing Fields",
-                        "You must select an Organization and fill the Environment field.",
-                        null,
+                        "Insert Environment Failed ❌",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Missing required fields.</span>",
+                        "<span style='color: #E65100; font-weight: bold;'>You must select an Organization and fill the Environment field.</span>",
+                        "<span style='font-style: italic;'>Please complete all required fields before proceeding.</span>",
                         null,
                         0);
 
@@ -651,15 +673,18 @@ public class ARNewHomeBankingPane extends ARPane {
                 ErrorMessage errorMessage = performDataBase.insertNewHomeUrl(homeBankId, homeUrl);
                 if (errorMessage != null) {
                     performMessage.errorMessage(
-                            "Insert Environment Failed",
-                            errorMessage.getErrorTitle(),
-                            errorMessage.getErrorHeader(),
-                            errorMessage.getErrorMessage(),
+                            "Insert Environment Failed ❌",
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>"
+                                    + errorMessage.getErrorTitle() + "</span>",
+                            "<span style='color: #E65100; font-weight: bold;'>" + errorMessage.getErrorHeader()
+                                    + "</span>",
+                            "<span style='font-style: italic;'>" + errorMessage.getErrorMessage() + "</span>",
                             null,
                             0);
+
                 } else {
                     // ✅ Reload the table after successful insert
-                    performDataBase.loadHomeUrls(null);
+                    performDataBase.loadHomeUrls(homeBankId);
                     tableViewHomeUrl.setItems(FXCollections.observableArrayList(performLists.getListHomeUrl()));
 
                     homeUrlIdField.clear();
@@ -678,6 +703,20 @@ public class ARNewHomeBankingPane extends ARPane {
         });
 
         updateURLButton.setOnAction(event -> {
+            if (homeUrlIdField.getText() == null
+                    || homeUrlValueField.getText() == null
+                    || homeUrlIdField.getText().trim().isEmpty()
+                    || homeUrlValueField.getText().trim().isEmpty()) {
+                performMessage.errorMessage(
+                        "Validation Failed ❌",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Environment URL cannot be empty.</span>",
+                        "<span style='color: #E65100; font-weight: bold;'>Please select an Organization and an Environment row.</span>",
+                        "<span style='color: #E65100; font-weight: bold;'>Also, make sure to fill in a valid URL.</span>",
+                        "<span style='font-style: italic;'>All these fields are mandatory to successfully update the environment.</span>",
+                        0);
+                return;
+            }
+
             String homeBankIdStr = idField.getText().trim();
             String homeUrlIdStr = homeUrlIdField.getText().trim();
             String homeUrl = homeUrlValueField.getText().trim();
@@ -685,11 +724,11 @@ public class ARNewHomeBankingPane extends ARPane {
             // Validate fields
             if (homeBankIdStr.isEmpty() || homeUrl.isEmpty() || homeUrlIdStr.isEmpty()) {
                 performMessage.errorMessage(
-                        "Update Environment Failed",
-                        "Missing Fields",
-                        "You must select an Organization and a Environment row, and fill in the URL.",
-                        null,
-                        null,
+                        "Update Environment Failed ❌",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Missing Required Fields</span>",
+                        "<span style='color: #E65100; font-weight: bold;'>Please select an Organization and an Environment row.</span>",
+                        "<span style='color: #E65100; font-weight: bold;'>Also, make sure to fill in a valid URL.</span>",
+                        "<span style='font-style: italic;'>All these fields are mandatory to successfully update the environment.</span>",
                         0);
 
                 return;
@@ -702,15 +741,19 @@ public class ARNewHomeBankingPane extends ARPane {
                 ErrorMessage errorMessage = performDataBase.updateHomeUrl(homeUrlId, homeBankId, homeUrl);
                 if (errorMessage != null) {
                     performMessage.errorMessage(
-                            "Update Environment Failed",
-                            errorMessage.getErrorTitle(),
-                            errorMessage.getErrorHeader(),
-                            errorMessage.getErrorMessage(),
-                            null,
+                            "Update Environment Failed ❌",
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>"
+                                    + errorMessage.getErrorTitle() + "</span>",
+                            "<span style='color: #E65100; font-weight: bold;'>" + errorMessage.getErrorHeader()
+                                    + "</span>",
+                            "<span style='color: #E65100; font-weight: bold;'>" + errorMessage.getErrorMessage()
+                                    + "</span>",
+                            "<span style='font-style: italic;'>Please check all required fields and try again.</span>",
                             0);
+
                 } else {
                     // ✅ Reload the table after successful update
-                    performDataBase.loadHomeUrls(null);
+                    performDataBase.loadHomeUrls(homeBankId);
                     tableViewHomeUrl.setItems(FXCollections.observableArrayList(performLists.getListHomeUrl()));
 
                     // Optionally clear the fields
@@ -736,14 +779,11 @@ public class ARNewHomeBankingPane extends ARPane {
 
             // Validate required fields
             if (homeBankIdStr.isEmpty() || homeUrlIdStr.isEmpty() || homeUrl.isEmpty()) {
-                performMessage.showCustomModalDialogDragWin11(
-                        "Delete Environment Failed",
-                        "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>Missing Fields/Row selection</span>",
-                        "<span style='font-style: italic;'>You must select an Organization and/or an Environment row.</span>",
-                        null,
-                        null,
-                        true, // or false depending on whether you want modal draggable or not
-                        "OK",
+                performMessage.errorMessage(
+                        "Delete Environment Failed ❌",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Missing Fields or Row Selection</span>",
+                        "<span style='color: #E65100; font-weight: bold;'>You must select an Environment row to proceed.</span>",
+                        "<span style='font-style: italic;'>Please ensure all required selections are made before deleting.</span>",
                         null,
                         0);
 
@@ -818,17 +858,18 @@ public class ARNewHomeBankingPane extends ARPane {
             }
         });
 
-        tableView.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
+        tableViewOrg.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
             if (newSelection != null) {
                 // Get the selected UserDTO object
-                DatabaseUserDTO selectedUser = tableView.getSelectionModel().getSelectedItem();
+                HomeBankingLoadDTO selectedUser =
+                        tableViewOrg.getSelectionModel().getSelectedItem();
 
                 // Set the values of the selected row to the text fields
-                idField.setText(selectedUser.getId());
+                idField.setText(String.valueOf(selectedUser.getId()));
                 nameField.setText(selectedUser.getName());
                 urlField.setText(selectedUser.getUrl());
                 priorityField.setText(selectedUser.getPriority());
-                jobsField.setText(selectedUser.getJobs()); // Update the hidden field
+                jobsField.setText(String.valueOf(selectedUser.getJobs())); // Update the hidden field
                 scanConfigField.setText(selectedUser.getSearchConfig()); // Update the hidden field
                 optionsConfigField.setText(selectedUser.getOptionsConfig()); // Update the hidden field
             } else {
@@ -844,13 +885,14 @@ public class ARNewHomeBankingPane extends ARPane {
             }
         });
 
-        tableView.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
+        tableViewOrg.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
             if (newSelection != null) {
-                DatabaseUserDTO selectedUser = tableView.getSelectionModel().getSelectedItem();
+                HomeBankingLoadDTO selectedUser =
+                        tableViewOrg.getSelectionModel().getSelectedItem();
                 // ... populate form fields
 
                 // Load URLs related to the selected home banking ID
-                performDataBase.loadHomeUrls(Integer.parseInt(selectedUser.getId()));
+                performDataBase.loadHomeUrls(Integer.parseInt(String.valueOf(selectedUser.getId())));
                 tableViewHomeUrl.setItems(FXCollections.observableArrayList(performLists.getListHomeUrl()));
             } else {
                 tableViewHomeUrl.getItems().clear();

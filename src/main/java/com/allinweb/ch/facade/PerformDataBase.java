@@ -42,6 +42,7 @@ public class PerformDataBase {
     public static final ARPropertyManager arPropertyManager;
     public static final PerformMessage performMessage;
     public static final PerformInitializer performInitializer;
+    public static final PerformDBScripts performDBScripts;
     public static final PerformLists performLists;
 
     static {
@@ -49,6 +50,7 @@ public class PerformDataBase {
         performMessage = PerformMessage.getInstance();
         arPropertyManager = ARPropertyManager.getInstance();
         performInitializer = PerformInitializer.getInstance();
+        performDBScripts = PerformDBScripts.getInstance();
     }
 
     public String previousDB;
@@ -785,13 +787,7 @@ public class PerformDataBase {
         // Build the SQL delete statement
         try (Statement stmt = getConnection().createStatement()) {
 
-            String deleteSQL = "DELETE FROM block b "
-                    + "WHERE b.bot_job_id = " + botJobId
-                    //                    + " AND b.block_order_number != 1 " // Exclude block with blockOrderNumber = 1
-                    + " AND NOT EXISTS ( "
-                    + "     SELECT 1 "
-                    + "     FROM instruction bli "
-                    + "     WHERE bli.block_id = b.id);";
+            String deleteSQL = performDBScripts.deleteNullBlocksSQL(botJobId);
 
             // Execute the update statement and check if any rows were affected
             int rowsAffected = stmt.executeUpdate(deleteSQL);
@@ -1865,7 +1861,7 @@ public class PerformDataBase {
         } catch (SQLException e) {
             ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
-                            "Error loadBotJobWithBlock for botJobId %d\nError: %s", botJobId, e.getMessage()));
+                            "Error loadCompleteJobs for Bot Job Id %d. Error: %s", botJobId, e.getMessage()));
             performLists.getListBotJob().clear();
         }
 
@@ -2015,7 +2011,8 @@ public class PerformDataBase {
         } catch (SQLException error) {
             ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
-                            "Error loadBotJobWithBlock for botJobId %d\nError: %s", homeBankingId, error.getMessage()));
+                            "Error loadComponentsComplete for Home Bank %d. Error: %s",
+                            homeBankingId, error.getMessage()));
             performLists.getListBotJobComp().clear();
         }
 
@@ -3505,14 +3502,18 @@ ORDER BY bot.id ASC;
         StringBuilder selectSQLBuilder = new StringBuilder();
         selectSQLBuilder.append("SELECT hb.id AS hb_id, hb.cookies, hb.driver_session, hb.name, hb.options_config, ");
         selectSQLBuilder.append("hb.password, hb.priority, hb.search_config, hb.url AS hb_url, hb.username, ");
-        selectSQLBuilder.append("hu.id AS hu_id, hu.url AS hu_url, hu.home_banking_id ");
+        selectSQLBuilder.append("COUNT(bot.id) AS jobs ");
         selectSQLBuilder.append("FROM home_banking hb ");
-        selectSQLBuilder.append("LEFT JOIN home_url hu ON hb.id = hu.home_banking_id ");
+        selectSQLBuilder.append("LEFT JOIN bot_job bot ON hb.id = bot.home_banking_id ");
 
         if (homeBankingId != null) {
             selectSQLBuilder.append("WHERE hb.id = ? ");
         }
-        selectSQLBuilder.append("ORDER BY hb.id, hu.id");
+
+        selectSQLBuilder.append("GROUP BY hb.id, hb.cookies, hb.driver_session, hb.name, hb.options_config, ");
+        selectSQLBuilder.append("hb.password, hb.priority, hb.search_config, hb.url, hb.username ");
+
+        selectSQLBuilder.append("ORDER BY hb.id");
 
         try (Connection conn = getConnection();
                 PreparedStatement pstmt = conn.prepareStatement(selectSQLBuilder.toString())) {
@@ -3524,32 +3525,25 @@ ORDER BY bot.id ASC;
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
                     Integer currentHomeBankingId = rs.getInt("hb_id");
-                    String orgName = rs.getString("name");
 
-                    HomeBankingLoadDTO homeBanking = homeBankingMap.get(currentHomeBankingId);
-                    if (homeBanking == null) {
-                        homeBanking = new HomeBankingLoadDTO();
-                        homeBanking.setId(currentHomeBankingId);
-                        homeBanking.setCookies(rs.getString("cookies"));
-                        homeBanking.setDriverSession(rs.getString("driver_session"));
-                        homeBanking.setName(orgName);
-                        homeBanking.setOptionsConfig(rs.getString("options_config"));
-                        homeBanking.setPassword(rs.getString("password"));
-                        homeBanking.setPriority(rs.getString("priority"));
-                        homeBanking.setSearchConfig(rs.getString("search_config"));
-                        homeBanking.setUrl(rs.getString("hb_url"));
-                        homeBanking.setUsername(rs.getString("username"));
-                        homeBanking.setHomeUrlDTOs(new ArrayList<>());
-                        homeBankingMap.put(currentHomeBankingId, homeBanking);
-                    }
+                    HomeBankingLoadDTO homeBanking = new HomeBankingLoadDTO();
+                    homeBanking.setId(currentHomeBankingId);
+                    homeBanking.setCookies(rs.getString("cookies"));
+                    homeBanking.setDriverSession(rs.getString("driver_session"));
+                    homeBanking.setName(rs.getString("name"));
+                    homeBanking.setOptionsConfig(rs.getString("options_config"));
+                    homeBanking.setPassword(rs.getString("password"));
+                    homeBanking.setPriority(rs.getString("priority"));
+                    homeBanking.setSearchConfig(rs.getString("search_config"));
+                    homeBanking.setUrl(rs.getString("hb_url"));
+                    homeBanking.setUsername(rs.getString("username"));
 
-                    int homeUrlId = rs.getInt("hu_id");
-                    if (!rs.wasNull()) {
-                        String homeUrlUrl = rs.getString("hu_url");
-                        int homeUrlHomeBankingId = rs.getInt("home_banking_id");
-                        HomeUrlDTO urlDTO = new HomeUrlDTO(homeUrlId, homeUrlUrl, homeUrlHomeBankingId, orgName);
-                        homeBanking.getHomeUrlDTOs().add(urlDTO);
-                    }
+                    // Set the number of jobs linked to this home_banking
+                    homeBanking.setJobs(rs.getInt("jobs")); // Add a field for this in your DTO!
+
+                    // Since you don't want home_url, do not set homeUrlDTOs
+
+                    homeBankingMap.put(currentHomeBankingId, homeBanking);
                 }
             }
 
@@ -4697,7 +4691,8 @@ GROUP BY
   bank.search_config,
   bank.options_config,
   bank.username,
-  bank.password;
+  bank.password
+  order by bank.ID;
                         """;
 
         try (Statement stmt = getConnection().createStatement();
