@@ -4,6 +4,7 @@ import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.HomeUrlDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARViewBotJobScene;
+import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
@@ -15,12 +16,7 @@ import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.TextField;
-import javafx.scene.layout.AnchorPane;
-import javafx.scene.layout.Pane;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
 
@@ -28,9 +24,7 @@ public class ARNewBotJobPane extends ARPane {
 
     protected static volatile ARNewBotJobPane instance;
 
-    // Private constructor to prevent instantiation
     private ARNewBotJobPane() {
-        // Initialize if necessary
         super();
     }
 
@@ -45,15 +39,6 @@ public class ARNewBotJobPane extends ARPane {
         return instance;
     }
 
-    //    private final ListView<BotJobLoadDTO> viewBotJobListView;
-    public void initialize(ARViewBotJobScene arViewBotJobScene, ARWebDriver arWebDriver) {
-        //        this.viewBotJobListView = viewBotJobListView;
-        this.arViewBotJobScene = arViewBotJobScene;
-        this.arWebDriver = arWebDriver;
-        //        this.viewBotJobListView.setItems(botJobList);
-    }
-
-    // UI components
     private Label labelBotJobName;
     private Label labelBotJobDescription;
     private Label labelHomeBanking;
@@ -62,21 +47,28 @@ public class ARNewBotJobPane extends ARPane {
     private TextField botJobDescription;
 
     private Button createBotJobButton;
-
-    private Pane mainPane;
+    private Button refreshEnvsButton;
 
     private ChoiceBox<HomeUrlDTO> homeURLChoiceBox;
 
+    private Pane mainPane;
+
     private ARViewBotJobScene arViewBotJobScene;
     private ARWebDriver arWebDriver;
-    private static final PerformLists performLists;
-    private static final PerformDataBase performDataBase;
-    private static final PerformMessage performMessage;
 
-    static {
-        performLists = PerformLists.getInstance();
-        performDataBase = PerformDataBase.getInstance();
-        performMessage = PerformMessage.getInstance();
+    private static final PerformLists performLists = PerformLists.getInstance();
+    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
+    private static final PerformMessage performMessage = PerformMessage.getInstance();
+
+    private static final ARComponentBuilder componentBuilder = new ARComponentBuilder();
+
+    // You mentioned this is the button creator, adapted here
+    private Button createPathButton() {
+        Button button = componentBuilder.buildButton(
+                "", ARConstants.SPACE_L, ARConstants.ICON_REFRESH, ARConstants.SPACE_M, new Insets(3D));
+        button.setMaxWidth(ARConstants.SPACE_L);
+        AnchorPane.setRightAnchor(button, 0D);
+        return button;
     }
 
     @Override
@@ -88,29 +80,51 @@ public class ARNewBotJobPane extends ARPane {
     public void initUIComponents() {
         labelBotJobName = new Label("Name:");
         botJobName = new TextField();
+        botJobName.setPromptText("Enter Bot Job Name");
+
         labelBotJobDescription = new Label("Description:");
         botJobDescription = new TextField();
-        createBotJobButton = new Button("Create Bot Job");
-        labelHomeBanking = new Label("Url:");
+        botJobDescription.setPromptText("Enter Description (optional)");
 
-        //        ObservableList<HomeBankingDTO> homeBankingUrlList =
-        //                PerformDataBase..getEntityList(HomeBankingDTO.class);
+        labelHomeBanking = new Label("Url / Environment:");
 
+        // Load home URLs before creating the ChoiceBox
         performDataBase.loadHomeUrls(null);
-        homeURLChoiceBox = new ChoiceBox<>(performLists.getListHomeUrl());
+
+        homeURLChoiceBox = new ChoiceBox<>();
+        refreshEnvsButton = createPathButton();
+
+        // Create HBox to hold choicebox + refresh button horizontally
+        HBox homeURLBox = new HBox(5, homeURLChoiceBox, refreshEnvsButton);
+        homeURLBox.setPadding(new Insets(0, 0, 10, 0));
+        homeURLBox.setFillHeight(true);
+        HBox.setHgrow(homeURLChoiceBox, Priority.ALWAYS);
+
+        populateHomeUrlChoiceBox();
+
+        Tooltip tooltip = new Tooltip("Select the target URL / environment for the Bot Job");
+        homeURLChoiceBox.setTooltip(tooltip);
+
+        createBotJobButton = new Button("Create Bot Job");
+        createBotJobButton.setDefaultButton(true);
+
+        // Associate labels with inputs (for accessibility)
+        labelBotJobName.setLabelFor(botJobName);
+        labelBotJobDescription.setLabelFor(botJobDescription);
+        labelHomeBanking.setLabelFor(homeURLChoiceBox);
 
         VBox mainLayout = new VBox(
-                10,
+                12,
                 labelBotJobName,
                 botJobName,
                 labelBotJobDescription,
                 botJobDescription,
                 labelHomeBanking,
-                homeURLChoiceBox,
+                homeURLBox,
                 createBotJobButton);
 
-        mainLayout.setPadding(new Insets(10));
-        mainLayout.setFillWidth(true); // Ensure components stretch horizontally
+        mainLayout.setPadding(new Insets(15));
+        mainLayout.setFillWidth(true);
 
         AnchorPane.setTopAnchor(mainLayout, ARConstants.SPACE_M);
         AnchorPane.setBottomAnchor(mainLayout, ARConstants.SPACE_M);
@@ -120,15 +134,43 @@ public class ARNewBotJobPane extends ARPane {
         mainPane = new AnchorPane(mainLayout);
     }
 
+    private void populateHomeUrlChoiceBox() {
+        // Clear old items
+        homeURLChoiceBox.getItems().clear();
+
+        // Add "Select Environment" first
+        HomeUrlDTO selectEnv = new HomeUrlDTO(-2, null, -2, "Select the Environment");
+        homeURLChoiceBox.getItems().add(selectEnv);
+
+        // Add all real environments from performLists
+        homeURLChoiceBox.getItems().addAll(performLists.getListHomeUrl());
+
+        // If list is empty (no real envs), add "No Environment Defined"
+        if (performLists.getListHomeUrl().isEmpty()) {
+            HomeUrlDTO noEnv = new HomeUrlDTO(-1, null, -1, "No Environment Defined");
+            homeURLChoiceBox.getItems().add(noEnv);
+            homeURLChoiceBox.setDisable(true);
+        } else {
+            homeURLChoiceBox.setDisable(false);
+        }
+
+        // Select first item ("Select Environment")
+        homeURLChoiceBox.getSelectionModel().selectFirst();
+    }
+
     @Override
     public void initUIBehaviour() {
         homeURLChoiceBox.setConverter(new StringConverter<>() {
             @Override
             public String toString(HomeUrlDTO object) {
                 if (object != null) {
-                    return object.getOrgName() + " | " + object.getUrl();
+                    if (object.getUrl() != null) {
+                        return object.getOrgName() + " | " + object.getUrl();
+                    } else {
+                        return object.getOrgName();
+                    }
                 }
-                return null;
+                return "";
             }
 
             @Override
@@ -137,13 +179,29 @@ public class ARNewBotJobPane extends ARPane {
             }
         });
 
-        createBotJobButton.setOnMouseClicked(e -> launchBotJobCreation());
+        createBotJobButton.setOnAction(e -> launchBotJobCreation());
+
+        refreshEnvsButton.setOnAction(e -> {
+            // Reload from performLists after reloading from DB
+            performDataBase.loadHomeUrls(null);
+
+            // If homeURLChoiceBox was initialized, refresh its items
+            if (homeURLChoiceBox != null) {
+                populateHomeUrlChoiceBox();
+            }
+        });
+    }
+
+    // Initialize references for Scene and WebDriver
+    public void initialize(ARViewBotJobScene arViewBotJobScene, ARWebDriver arWebDriver) {
+        this.arViewBotJobScene = arViewBotJobScene;
+        this.arWebDriver = arWebDriver;
     }
 
     private void launchBotJobCreation() {
         Task<Void> botJobCreationTask = new Task<>() {
             @Override
-            protected Void call() throws Exception {
+            protected Void call() {
                 createBotJob();
                 return null;
             }
@@ -155,10 +213,10 @@ public class ARNewBotJobPane extends ARPane {
         Platform.runLater(() -> {
             if (Strings.isNullOrEmpty(botJobName.getText().trim())) {
                 performMessage.errorMessage(
-                        "Missing Bot Job Name", // Clearer, more direct title
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>The Bot Job Name cannot be empty.</span>", // Stronger emphasis on the issue
-                        "<span style='color: #000080; font-weight: bold;'>Please enter a name for the Bot Job to proceed.</span>", // Clear instruction
-                        null, // No need for redundant messages
+                        "Missing Bot Job Name",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>The Bot Job Name cannot be empty.</span>",
+                        "<span style='color: #000080; font-weight: bold;'>Please enter a name for the Bot Job to proceed.</span>",
+                        null,
                         null,
                         0);
                 return;
@@ -169,24 +227,25 @@ public class ARNewBotJobPane extends ARPane {
 
             if (existName) {
                 performMessage.errorMessage(
-                        "Bot Job Name Already Exists", // Clearer, more direct title
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>The name you have entered is already in use.</span>", // Stronger emphasis on the issue
+                        "Bot Job Name Already Exists",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>The name you have entered is already in use.</span>",
                         "<span style='color: #000080; font-weight: bold;'>"
                                 + botJobName.getText().trim() + "</span>",
-                        null, // No need for redundant messages
+                        null,
                         null,
                         0);
-
                 return;
             }
 
             if (homeURLChoiceBox.getValue() == null
-                    || Strings.isNullOrEmpty(homeURLChoiceBox.getValue().getOrgName())) {
+                    || Strings.isNullOrEmpty(homeURLChoiceBox.getValue().getOrgName())
+                    || homeURLChoiceBox.getValue().getId() < 0 // -1 or -2 means not valid selection
+                    || homeURLChoiceBox.getValue().getId() == -2) {
                 performMessage.errorMessage(
-                        "Missing Website", // Clearer, more direct title
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>The Website cannot be empty.</span>", // Stronger emphasis on the issue
-                        "<span style='color: #000080; font-weight: bold;'>Please select a Website for the Bot Job to proceed.</span>", // Clear instruction
-                        null, // No need for redundant messages
+                        "Missing Website",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>The Website cannot be empty or undefined.</span>",
+                        "<span style='color: #000080; font-weight: bold;'>Please select a valid Website for the Bot Job to proceed.</span>",
+                        null,
                         null,
                         0);
                 return;
@@ -202,20 +261,14 @@ public class ARNewBotJobPane extends ARPane {
 
             if (newJobId > 0) {
                 createdBotJob.setId(newJobId);
-                //                this.botJobList.add(createdBotJob); // Add the new bot job to the ObservableList
 
-                // Refresh the ListView after adding the new bot job
-                //                this.botJobList.clear();
                 if (performDataBase.getConn() != null) {
                     performDataBase.loadQuickBotJobs();
                 }
-                //                viewBotJobListView.setItems(botJobList);
-                //                viewBotJobListView.refresh(); // Explicitly refresh the ListView
 
                 arViewBotJobScene.initialize(arWebDriver, createdBotJob);
                 arViewBotJobScene.showModal();
 
-                // Close the current window
                 ARLogger.getInstance(ARNewBotJobPane.class).finer("ARNewBotJobPane CurrentStage close()");
                 Platform.runLater(() -> {
                     Stage currentStage = (Stage) createBotJobButton.getScene().getWindow();

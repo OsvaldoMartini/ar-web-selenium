@@ -45,7 +45,7 @@ public class ARNewHomeBankingScene extends ARScene {
 
     private static final Double SCENE_HEIGHT = 750D;
     private static final Double SCENE_WIDTH = 1200D;
-    private static final String TITLE = "New Url";
+    private static final String TITLE = "New Organization";
 
     public void initialize() {
 
