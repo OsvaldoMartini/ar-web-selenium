@@ -291,20 +291,6 @@ public class ARNewBotJobPane extends ARPane {
                 return;
             }
 
-            HomeUrlDTO homeUrlDTO = performLists.getHomeUrlByBankId(
-                    homeURLChoiceBox.getValue().getHomeBankingId(),
-                    homeURLChoiceBox.getValue().getId());
-            if (homeUrlDTO == null) {
-                performMessage.errorMessage(
-                        "Missing or Removed Environment",
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Environment Not Found ❌</span>",
-                        "<span style='color: #E65100; font-weight: bold;'>Possible cause:</span> It may have been deleted or is no longer available.",
-                        "<span style='font-style: italic;'>Action:</span> Select a valid Website / Environment.",
-                        "<span style='font-style: italic;'>Tip:</span> Click 'Refresh' to reload the list.",
-                        0);
-                return;
-            }
-
             if (homeURLChoiceBox.getValue() == null
                     || Strings.isNullOrEmpty(homeURLChoiceBox.getValue().getOrgName())
                     || homeURLChoiceBox.getValue().getId() < 0 // -1 or -2 means not valid selection
@@ -315,6 +301,20 @@ public class ARNewBotJobPane extends ARPane {
                         "<span style='color: #000080; font-weight: bold;'>Please select a valid Website for the Bot Job to proceed.</span>",
                         null,
                         null,
+                        0);
+                return;
+            }
+
+            HomeUrlDTO homeUrlDTO = performLists.getHomeUrlByBankId(
+                    homeURLChoiceBox.getValue().getHomeBankingId(),
+                    homeURLChoiceBox.getValue().getId());
+            if (homeUrlDTO == null) {
+                performMessage.errorMessage(
+                        "Missing or Removed Environment",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Environment Not Found ❌</span>",
+                        "<span style='color: #E65100; font-weight: bold;'>Possible cause:</span> It may have been deleted or is no longer available.",
+                        "<span style='font-style: italic;'>Action:</span> Select a valid Website / Environment.",
+                        "<span style='font-style: italic;'>Tip:</span> Click 'Refresh' to reload the list.",
                         0);
                 return;
             }
