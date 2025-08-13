@@ -14,6 +14,26 @@ import javafx.scene.layout.*;
 
 public class ARComponentBuilder {
 
+    // Static final variable to hold the singleton instance
+    protected static volatile ARComponentBuilder instance;
+
+    // Private constructor to prevent instantiation
+    private ARComponentBuilder() {
+        // Initialize if necessary
+    }
+
+    // Public method to access the singleton instance
+    public static ARComponentBuilder getInstance() {
+        if (instance == null) {
+            synchronized (ARComponentBuilder.class) {
+                if (instance == null) {
+                    instance = new ARComponentBuilder();
+                }
+            }
+        }
+        return instance;
+    }
+
     public HBox createTopPanel(Double topPanelHeight, Double edgeSpace) {
         HBox topPane = new HBox();
         topPane.setMaxHeight(topPanelHeight);

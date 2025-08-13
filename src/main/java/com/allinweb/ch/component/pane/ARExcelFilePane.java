@@ -105,7 +105,7 @@ public class ARExcelFilePane extends ARPane {
         performMessage = PerformMessage.getInstance();
     }
 
-    private static final ARComponentBuilder builder = new ARComponentBuilder();
+    private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
 
     // UI Components
     Label titleLabel;

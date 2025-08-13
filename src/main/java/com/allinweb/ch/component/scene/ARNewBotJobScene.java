@@ -49,9 +49,14 @@ public class ARNewBotJobScene extends ARScene {
     private ARViewBotJobScene arViewBotJobScene;
     private ARWebDriver arWebDriver;
     private ObservableList<WebDriver> webDriverList;
+    private boolean isEnabledLicence;
 
     public void initialize(
-            ARViewBotJobScene arViewBotJobScene, ARWebDriver arWebDriver, ObservableList<WebDriver> webDriverList) {
+            ARViewBotJobScene arViewBotJobScene,
+            ARWebDriver arWebDriver,
+            ObservableList<WebDriver> webDriverList,
+            boolean isEnabledLicence) {
+        this.isEnabledLicence = isEnabledLicence;
         this.arViewBotJobScene = arViewBotJobScene;
         this.arWebDriver = arWebDriver;
         this.webDriverList = webDriverList;
@@ -81,7 +86,7 @@ public class ARNewBotJobScene extends ARScene {
 
     public void showModal() {
 
-        arNewBotJobPane.initialize(arViewBotJobScene, arWebDriver);
+        arNewBotJobPane.initialize(arViewBotJobScene, arWebDriver, isEnabledLicence);
 
         if (modalStage == null) {
             modalStage = new Stage();

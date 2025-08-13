@@ -64,7 +64,7 @@ public class ARLicensePane extends ARPane {
 
     private static final ARPropertyManager arPropertyManager;
     private static final PerformMessage performMessage;
-    private static final ARComponentBuilder builder = new ARComponentBuilder();
+    private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
 
     static {
         arPropertyManager = ARPropertyManager.getInstance();

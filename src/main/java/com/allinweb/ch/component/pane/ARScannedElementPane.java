@@ -997,7 +997,7 @@ public class ARScannedElementPane extends ARPane {
 
     private static JavascriptExecutor jsExecutor;
 
-    private final ARComponentBuilder componentBuilder = new ARComponentBuilder();
+    private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
 
     private DatabaseUserDTO databaseUserDto;
 
@@ -1420,21 +1420,21 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private void buildUIComponents() {
-        topPane = componentBuilder.createTopPanel(ARConstants.SPACE_L, ARConstants.SPACE_SM);
-        mainPane = componentBuilder.createContentPanel(ARConstants.SPACE_L, ARConstants.SPACE_XL, ARConstants.SPACE_SM);
+        topPane = builder.createTopPanel(ARConstants.SPACE_L, ARConstants.SPACE_SM);
+        mainPane = builder.createContentPanel(ARConstants.SPACE_L, ARConstants.SPACE_XL, ARConstants.SPACE_SM);
 
-        cloneElementsButton = componentBuilder.buildButton(
+        cloneElementsButton = builder.buildButton(
                 "Clone", ARConstants.SPACE_L, ARConstants.ICON_TICK, ARConstants.SPACE_SM, new Insets(5));
-        pageScannerButton = componentBuilder.buildButton(
+        pageScannerButton = builder.buildButton(
                 "Page Scanner", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
 
         turnOnOffButton = new Button("Search Hidden Fields: Off");
         turnOnOffButton.setStyle("-fx-background-color: grey; -fx-text-fill: white;");
 
-        refreshWebPageButton = componentBuilder.buildButton(
+        refreshWebPageButton = builder.buildButton(
                 "Refresh Web Page", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
 
-        cleanListButton = componentBuilder.buildButton(
+        cleanListButton = builder.buildButton(
                 "Clear Grid", // No text
                 25.0, // Smaller height
                 "/cross.png", // Icon source
@@ -1457,13 +1457,13 @@ public class ARScannedElementPane extends ARPane {
         iFrameText = new Text("");
         iFrameText.setStyle("-fx-font-size: 12px; -fx-fill: blue;");
 
-        configureButton = componentBuilder.buildButton(
+        configureButton = builder.buildButton(
                 "Config", ARConstants.SPACE_M, ARConstants.ICON_CONFIG, ARConstants.SPACE_M, new Insets(5.0D));
 
-        launchBotJobButton = componentBuilder.buildButton(
+        launchBotJobButton = builder.buildButton(
                 "Pre-Launch", ARConstants.SPACE_ZERO, "/play.png", ARConstants.SPACE_M, new Insets(5.0D));
-        stopBotJobButton = componentBuilder.buildButton(
-                "STOP", ARConstants.SPACE_ZERO, "/stop.png", ARConstants.SPACE_M, new Insets(5.0D));
+        stopBotJobButton =
+                builder.buildButton("STOP", ARConstants.SPACE_ZERO, "/stop.png", ARConstants.SPACE_M, new Insets(5.0D));
 
         stopBotJobButton.setPrefWidth(100);
 
@@ -1494,11 +1494,11 @@ public class ARScannedElementPane extends ARPane {
         coordsTextField = new TextField();
         coordsTextField.setPromptText("Coordinates");
 
-        leftButton = componentBuilder.buildButton(
+        leftButton = builder.buildButton(
                 "Previous", ARConstants.SPACE_M, ARConstants.ICON_LEFT, ARConstants.SPACE_M, new Insets(5.0D));
-        rightButton = componentBuilder.buildButton(
+        rightButton = builder.buildButton(
                 "Next", ARConstants.SPACE_M, ARConstants.ICON_RIGHT, ARConstants.SPACE_M, new Insets(5.0D));
-        searchButton = componentBuilder.buildButton(
+        searchButton = builder.buildButton(
                 "", ARConstants.SPACE_M, ARConstants.ICON_SEARCH, ARConstants.SPACE_M, new Insets(5.0D));
 
         leftButton.setDisable(true);
@@ -5101,7 +5101,7 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private Button createPathButton() {
-        Button button = componentBuilder.buildButton(
+        Button button = builder.buildButton(
                 "", ARConstants.SPACE_L, ARConstants.ICON_REFRESH, ARConstants.SPACE_M, new Insets(3D));
         button.setMaxWidth(ARConstants.SPACE_L);
         AnchorPane.setRightAnchor(button, 0D);

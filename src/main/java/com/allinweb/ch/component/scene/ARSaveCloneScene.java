@@ -35,6 +35,8 @@ public class ARSaveCloneScene extends ARScene {
     private Stage modalStage;
     private Scene modalScene;
 
+    private boolean isEnabledLicence;
+
     private static final ARSaveClonePane arSaveClonePane;
 
     static {
@@ -48,7 +50,8 @@ public class ARSaveCloneScene extends ARScene {
     private BotJobLoadDTO selecBotJobDTO;
     private List<BotJobLoadDTO> botJobList;
 
-    public void initialize(BotJobLoadDTO selecBotJobDTO, List<BotJobLoadDTO> botJobList) {
+    public void initialize(BotJobLoadDTO selecBotJobDTO, List<BotJobLoadDTO> botJobList, boolean isEnabledLicence) {
+        this.isEnabledLicence = isEnabledLicence;
         this.selecBotJobDTO = selecBotJobDTO;
         this.botJobList = botJobList;
     }
@@ -76,7 +79,7 @@ public class ARSaveCloneScene extends ARScene {
 
     public void showModal(Stage primareStage) {
 
-        arSaveClonePane.initialize(selecBotJobDTO, botJobList);
+        arSaveClonePane.initialize(selecBotJobDTO, botJobList, isEnabledLicence);
 
         if (modalStage == null) {
             modalStage = new Stage();

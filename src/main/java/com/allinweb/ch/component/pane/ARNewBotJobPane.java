@@ -3,21 +3,24 @@ package com.allinweb.ch.component.pane;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.HomeUrlDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
+import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
 import com.allinweb.ch.component.scene.ARViewBotJobScene;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARLogger;
-import com.allinweb.ch.util.ErrorMessage;
+import com.allinweb.ch.license.LicenceVal;
+import com.allinweb.ch.license.LicenseManager;
+import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
+import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
 
@@ -49,23 +52,26 @@ public class ARNewBotJobPane extends ARPane {
 
     private Button createBotJobButton;
     private Button refreshEnvsButton;
+    private Button insertSitesdButton;
 
     private ChoiceBox<HomeUrlDTO> homeURLChoiceBox;
 
     private Pane mainPane;
 
+    private boolean isEnabledLicence;
     private ARViewBotJobScene arViewBotJobScene;
     private ARWebDriver arWebDriver;
 
+    private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
     private static final PerformLists performLists = PerformLists.getInstance();
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
     private static final PerformMessage performMessage = PerformMessage.getInstance();
-
-    private static final ARComponentBuilder componentBuilder = new ARComponentBuilder();
+    private static final ARNewHomeBankingScene arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
+    private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
 
     // You mentioned this is the button creator, adapted here
     private Button createPathButton() {
-        Button button = componentBuilder.buildButton(
+        Button button = builder.buildButton(
                 "", ARConstants.SPACE_L, ARConstants.ICON_REFRESH, ARConstants.SPACE_M, new Insets(3D));
         button.setMaxWidth(ARConstants.SPACE_L);
         AnchorPane.setRightAnchor(button, 0D);
@@ -79,15 +85,25 @@ public class ARNewBotJobPane extends ARPane {
 
     @Override
     public void initUIComponents() {
+        String labelStyle = "-fx-text-fill: blue; -fx-font-weight: bold; -fx-font-size: 14;";
+
         labelBotJobName = new Label("Name:");
+        labelBotJobName.setStyle(labelStyle);
+
         botJobName = new TextField();
         botJobName.setPromptText("Enter Bot Job Name");
 
         labelBotJobDescription = new Label("Description:");
+        labelBotJobDescription.setStyle(labelStyle);
+
         botJobDescription = new TextField();
         botJobDescription.setPromptText("Enter Description (optional)");
 
-        labelHomeBanking = new Label("Url / Environment:");
+        labelHomeBanking = new Label("URL / Environment:");
+        labelHomeBanking.setStyle(labelStyle);
+        labelHomeBanking.setAlignment(Pos.CENTER); // Works if label is in an HBox/VBox
+        labelHomeBanking.setMaxWidth(Double.MAX_VALUE); // Allow stretching so CENTER alignment works
+        VBox.setVgrow(labelHomeBanking, Priority.NEVER);
 
         // Load home URLs before creating the ChoiceBox
         if (performLists.getListHomeUrl().isEmpty()) {
@@ -95,17 +111,17 @@ public class ARNewBotJobPane extends ARPane {
         }
 
         homeURLChoiceBox = new ChoiceBox<>();
-        homeURLChoiceBox.setPrefWidth(250); // Set fixed preferred width, adjust as needed
+        homeURLChoiceBox.setPrefWidth(250);
         homeURLChoiceBox.setMaxWidth(250);
         homeURLChoiceBox.setMinWidth(250);
 
         refreshEnvsButton = createPathButton();
 
-        // Create HBox to hold choicebox + refresh button horizontally
+        // Center the ChoiceBox + Button together
         HBox homeURLBox = new HBox(5, homeURLChoiceBox, refreshEnvsButton);
+        homeURLBox.setAlignment(Pos.CENTER); // Center them horizontally
         homeURLBox.setPadding(new Insets(0, 0, 10, 0));
         homeURLBox.setFillHeight(true);
-        HBox.setHgrow(homeURLChoiceBox, Priority.ALWAYS);
 
         populateHomeUrlChoiceBox();
 
@@ -113,9 +129,15 @@ public class ARNewBotJobPane extends ARPane {
         homeURLChoiceBox.setTooltip(tooltip);
 
         createBotJobButton = new Button("Create Bot Job");
-        createBotJobButton.setDefaultButton(true);
+        createBotJobButton.setStyle("-fx-font-weight: bold; -fx-background-color: #4CAF50; -fx-text-fill: white;");
 
-        // Associate labels with inputs (for accessibility)
+        insertSitesdButton = new Button("Orgs / Environments");
+        insertSitesdButton.setDefaultButton(true);
+        HBox.setMargin(insertSitesdButton, new Insets(0, 0, 0, 50)); // 50px gap to the left
+
+        HBox buttonsBox = new HBox(createBotJobButton, insertSitesdButton);
+        buttonsBox.setAlignment(Pos.CENTER);
+
         labelBotJobName.setLabelFor(botJobName);
         labelBotJobDescription.setLabelFor(botJobDescription);
         labelHomeBanking.setLabelFor(homeURLChoiceBox);
@@ -128,7 +150,7 @@ public class ARNewBotJobPane extends ARPane {
                 botJobDescription,
                 labelHomeBanking,
                 homeURLBox,
-                createBotJobButton);
+                buttonsBox);
 
         mainLayout.setPadding(new Insets(15));
         mainLayout.setFillWidth(true);
@@ -167,6 +189,26 @@ public class ARNewBotJobPane extends ARPane {
 
     @Override
     public void initUIBehaviour() {
+        insertSitesdButton.setOnMouseClicked(e -> {
+            if (isEnabledLicence && !checkLicense()) {
+                return;
+            }
+            if (performLists.getListHomeBanking().isEmpty()) {
+                performDataBase.loadHomeBanking(null);
+            }
+            if (performLists.getListHomeUrl().isEmpty()) {
+                performDataBase.loadHomeUrls(null);
+            }
+
+            arNewHomeBankingScene.initialize();
+            Stage currentStage = (Stage) insertSitesdButton.getScene().getWindow();
+            arNewHomeBankingScene.showModal(currentStage);
+            // If homeURLChoiceBox was initialized, refresh its items
+            if (homeURLChoiceBox != null) {
+                populateHomeUrlChoiceBox();
+            }
+        });
+
         homeURLChoiceBox.setConverter(new StringConverter<>() {
             @Override
             public String toString(HomeUrlDTO object) {
@@ -200,7 +242,8 @@ public class ARNewBotJobPane extends ARPane {
     }
 
     // Initialize references for Scene and WebDriver
-    public void initialize(ARViewBotJobScene arViewBotJobScene, ARWebDriver arWebDriver) {
+    public void initialize(ARViewBotJobScene arViewBotJobScene, ARWebDriver arWebDriver, boolean isEnabledLicence) {
+        this.isEnabledLicence = isEnabledLicence;
         this.arViewBotJobScene = arViewBotJobScene;
         this.arWebDriver = arWebDriver;
     }
@@ -240,6 +283,20 @@ public class ARNewBotJobPane extends ARPane {
                                 + botJobName.getText().trim() + "</span>",
                         null,
                         null,
+                        0);
+                return;
+            }
+
+            HomeUrlDTO homeUrlDTO = performLists.getHomeUrlByBankId(
+                    homeURLChoiceBox.getValue().getHomeBankingId(),
+                    homeURLChoiceBox.getValue().getId());
+            if (homeUrlDTO == null) {
+                performMessage.errorMessage(
+                        "Missing or Removed Environment",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Environment Not Found ❌</span>",
+                        "<span style='color: #E65100; font-weight: bold;'>Possible cause:</span> It may have been deleted or is no longer available.",
+                        "<span style='font-style: italic;'>Action:</span> Select a valid Website / Environment.",
+                        "<span style='font-style: italic;'>Tip:</span> Click 'Refresh' to reload the list.",
                         0);
                 return;
             }
@@ -296,5 +353,44 @@ public class ARNewBotJobPane extends ARPane {
                         0);
             }
         });
+    }
+
+    private boolean checkLicense() {
+        try {
+            String licensePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_LICENSE);
+            if (Strings.isNullOrEmpty(licensePath)) {
+                licensePath = System.getProperty("user.dir");
+            }
+
+            LicenceVal licenseStatus = LicenseManager.checkLicenseFile(licensePath);
+
+            String msgValid = "The license file is valid and the application is authorized for use.";
+            String msgNextStep = "You can now proceed with normal application usage.";
+
+            String msgColor = "#0277BD";
+            if (!licenseStatus.equals(LicenceVal.VALID)) {
+                msgValid = "The license file is not valid and the application is not authorized for use.";
+                msgNextStep = "Application access is restricted. Please obtain a valid license to continue.";
+                msgColor = "#C62828"; // Soft, elegant red tone
+
+                performMessage.showCustomModalDialogDragWin11(
+                        "License Status Verification",
+                        "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>License status has been successfully verified.</span>",
+                        "<span style='color: " + msgColor + "; font-weight: bold;'>" + msgValid + "</span>",
+                        "<span style='font-style: italic;'>" + msgNextStep + "</span>",
+                        "<span style='color: #E65100; font-weight: bold;'>Current license status:</span> <span style='font-weight: bold;'>"
+                                + licenseStatus.getStaus() + "</span>",
+                        false,
+                        "OK",
+                        null,
+                        0);
+                return false;
+            }
+            return true;
+        } catch (Exception error) {
+            ARLogger.getInstance(ARConfigurationPane.class)
+                    .severe("Cannot read/validate the License path/file. Error: " + error.getMessage());
+            return false;
+        }
     }
 }

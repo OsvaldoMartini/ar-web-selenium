@@ -70,7 +70,7 @@ public class ARSaveComponentPane extends ARPane {
     private static Map<String, Session> activeSessions;
     private Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
-    private final ARComponentBuilder builder = new ARComponentBuilder();
+    private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
     private BlockDetailsDTO blockDetailsDTO;
 
     private static final int SECONDS = 3; // Total seconds for the countdown

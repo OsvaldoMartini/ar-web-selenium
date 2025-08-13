@@ -1254,17 +1254,6 @@ public class PerformDataBase {
     }
 
     public ErrorMessage initiateNewBlock(BlockDetailsDTO blockDTO, int botJobId) {
-        Integer nextBlockOrder = blockDTO.getBlockOrderNumber() != null
-                ? blockDTO.getBlockOrderNumber()
-                : loadNextBlockOrderNumber(blockDTO.getBotJobId()) + 1;
-
-        if (nextBlockOrder < 0) {
-            return new ErrorMessage(
-                    "Error Initiate New Block",
-                    "nextBlockOrder is less than '-1'",
-                    "nextBlockOrder: " + nextBlockOrder);
-        }
-
         String selectIdsSQL = "SELECT id FROM block ORDER BY id";
         String insertSQL =
                 "INSERT INTO block (block_order_number, description, name, type_id, active, wait, bot_job_id) "
@@ -1284,7 +1273,7 @@ public class PerformDataBase {
             }
 
             // Step 2: Set parameters and insert new block
-            insertStmt.setInt(1, nextBlockOrder);
+            insertStmt.setInt(1, 1);
             insertStmt.setString(2, blockDTO.getBlockName() + " description");
             insertStmt.setString(3, blockDTO.getBlockName());
             insertStmt.setInt(4, 1); // type_id
@@ -1728,20 +1717,6 @@ public class PerformDataBase {
                             botJobId, blockId, e.getMessage()));
         }
         return false;
-    }
-
-    public int loadNextBlockOrderNumber(int botJobId) {
-        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
-        String selectSQL = "SELECT COUNT(*) AS quantity FROM block WHERE bot_job_id = " + botJobId;
-        try (Statement stmt = getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
-            while (rs.next()) {
-                return rs.getInt("quantity");
-            }
-        } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
-        }
-        return -1;
     }
 
     public List<BotJobLoadDTO> loadCompleteJobs(int botJobId) {
@@ -4568,7 +4543,7 @@ GROUP BY
             sql.append("WHERE hu.home_banking_id = ? ");
         }
 
-        sql.append("ORDER BY hu.id");
+        sql.append("ORDER BY hb.name , hu.id");
 
         try (PreparedStatement pstmt = getConnection().prepareStatement(sql.toString())) {
             if (homeBankingId != null && homeBankingId > 0) {

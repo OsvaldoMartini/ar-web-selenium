@@ -83,7 +83,7 @@ public class ARNewCommandPane extends ARPane {
     private boolean loadeAllCompleted = false;
     private final Gson gson = new Gson();
 
-    private final ARComponentBuilder componentBuilder = new ARComponentBuilder();
+    private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
 
     // Postgres
     private Connection conn = null;
@@ -323,36 +323,36 @@ public class ARNewCommandPane extends ARPane {
 
     @Override
     public void initUIComponents() {
-        addNewInstructionButton = componentBuilder.buildButton("OK", ARConstants.SPACE_L, Insets.EMPTY);
+        addNewInstructionButton = builder.buildButton("OK", ARConstants.SPACE_L, Insets.EMPTY);
         addNewInstructionButton.getStyleClass().add("ok-button");
 
-        cancelButton = componentBuilder.buildButton("Close", ARConstants.SPACE_L, Insets.EMPTY);
+        cancelButton = builder.buildButton("Close", ARConstants.SPACE_L, Insets.EMPTY);
         cancelButton.getStyleClass().add("cancel-button");
 
-        variableButton = componentBuilder.buildButton(
+        variableButton = builder.buildButton(
                 "Variables", ARConstants.SPACE_L, ARConstants.ICON_VARIABLES, ARConstants.SPACE_M, Insets.EMPTY);
 
         variableButton.setDisable(variablesDisable);
 
-        addExcelNextRowButton = componentBuilder.buildButton(
+        addExcelNextRowButton = builder.buildButton(
                 "Data Next Row", ARConstants.SPACE_L, ARConstants.ICON_EXCEL2, ARConstants.SPACE_M, new Insets(5));
-        addPauseButton = componentBuilder.buildButton(
+        addPauseButton = builder.buildButton(
                 "", ARConstants.SPACE_L, ARConstants.ICON_PAUSE, ARConstants.SPACE_M, new Insets(5));
-        addWaitButton30 = componentBuilder.buildButton(
+        addWaitButton30 = builder.buildButton(
                 "30s", ARConstants.SPACE_L, ARConstants.ICON_WAIT, ARConstants.SPACE_M, new Insets(5));
 
-        addWaitButton15 = componentBuilder.buildButton(
+        addWaitButton15 = builder.buildButton(
                 "15s", ARConstants.SPACE_L, ARConstants.ICON_WAIT, ARConstants.SPACE_M, new Insets(5));
 
-        addWaitButton5 = componentBuilder.buildButton(
+        addWaitButton5 = builder.buildButton(
                 "5s", ARConstants.SPACE_L, ARConstants.ICON_WAIT, ARConstants.SPACE_M, new Insets(5));
 
-        addWaitButton2 = componentBuilder.buildButton(
+        addWaitButton2 = builder.buildButton(
                 "2s", ARConstants.SPACE_L, ARConstants.ICON_WAIT, ARConstants.SPACE_M, new Insets(5));
 
-        addCloseActionButton = componentBuilder.buildButton(
+        addCloseActionButton = builder.buildButton(
                 "Add Close Browser", ARConstants.SPACE_L, ARConstants.ICON_CROSS, ARConstants.SPACE_M, new Insets(5));
-        addScreenButton = componentBuilder.buildButton(
+        addScreenButton = builder.buildButton(
                 "Add Screenshot", ARConstants.SPACE_L, ARConstants.ICON_SCREEN, ARConstants.SPACE_M, new Insets(5));
 
         refreshWebButton = createPathButton();
@@ -2635,7 +2635,7 @@ public class ARNewCommandPane extends ARPane {
     }
 
     private Button createPathButton() {
-        Button button = componentBuilder.buildButton(
+        Button button = builder.buildButton(
                 "", ARConstants.SPACE_L, ARConstants.ICON_REFRESH, ARConstants.SPACE_M, new Insets(3D));
         button.setMaxWidth(ARConstants.SPACE_L);
         AnchorPane.setRightAnchor(button, 0D);

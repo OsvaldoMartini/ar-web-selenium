@@ -6,9 +6,7 @@ import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.persistence.*;
 import com.allinweb.ch.util.ARConstants;
-import java.util.*;
 import javafx.application.Platform;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -55,7 +53,7 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
         super.updateItem(item, empty);
         Node graphic = null;
         if (!empty && item != null && item.getHomeBankingLoadDTO() != null) {
-            ARComponentBuilder builder = new ARComponentBuilder();
+            ARComponentBuilder builder = ARComponentBuilder.getInstance();
 
             HBox uiBotJob = new HBox(10); // 10 pixels spacing
             uiBotJob.setPadding(new Insets(5));

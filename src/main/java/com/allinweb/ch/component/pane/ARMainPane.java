@@ -111,7 +111,7 @@ public class ARMainPane extends ARPane {
         arWebDriver = ARWebDriver.getInstance();
     }
 
-    private static final ARComponentBuilder builder = new ARComponentBuilder();
+    private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
     private Properties properties = new Properties();
 
     // UI components
@@ -201,7 +201,7 @@ public class ARMainPane extends ARPane {
                 BotJobListCell.class, arViewBotJobScene, arWebDriver, botJobList, webDriverList)::call);
 
         arConfigurationScene.initialize(viewBotJobListView, botJobList, isEnabledLicence);
-        arNewBotJobScene.initialize(arViewBotJobScene, arWebDriver, webDriverList);
+        arNewBotJobScene.initialize(arViewBotJobScene, arWebDriver, webDriverList, isEnabledLicence);
         arWebDriver.initialize(webDriverList);
 
         // 🔹 Wrap buttonPane + aiTextArea
@@ -235,7 +235,7 @@ public class ARMainPane extends ARPane {
 
             if (!performLists.getListHomeUrl().isEmpty()) {
 
-                arNewBotJobScene.initialize(arViewBotJobScene, arWebDriver, webDriverList);
+                arNewBotJobScene.initialize(arViewBotJobScene, arWebDriver, webDriverList, isEnabledLicence);
                 arNewBotJobScene.showModal();
 
                 botJobList.clear();
@@ -278,7 +278,7 @@ public class ARMainPane extends ARPane {
             var selecBotJobDTO = viewBotJobListView.getSelectionModel().getSelectedItem();
             if (selecBotJobDTO != null) {
                 if (performDataBase.getConn() != null) {
-                    arSaveCloneScene.initialize(selecBotJobDTO, botJobList);
+                    arSaveCloneScene.initialize(selecBotJobDTO, botJobList, isEnabledLicence);
 
                     Stage currentStage = (Stage) cloneBotJobButton.getScene().getWindow();
                     arSaveCloneScene.showModal(currentStage);

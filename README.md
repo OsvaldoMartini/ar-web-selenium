@@ -136,7 +136,7 @@ Pane class example:
 ```java
 public class ARMainPane extends ARPane {
 
-    private static final ARComponentBuilder builder = new ARComponentBuilder();
+    private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
 
     //UI components
     Button newBotJobButton;

@@ -84,7 +84,7 @@ public class ARConfigurationPane extends ARPane {
         this.botJobList = botJobList;
     }
 
-    private static final ARComponentBuilder builder = new ARComponentBuilder();
+    private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
 
     private static final int SECONDS = 3; // Total seconds for the countdown
     private int remainingSeconds = SECONDS;

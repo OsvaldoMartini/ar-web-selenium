@@ -10,7 +10,7 @@ import javafx.scene.layout.Pane;
 
 public class ARAlertPane extends ARPane {
 
-    private static final ARComponentBuilder builder = new ARComponentBuilder();
+    private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
 
     private final String message;
 

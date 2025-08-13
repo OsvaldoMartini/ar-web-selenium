@@ -40,7 +40,6 @@ import javafx.geometry.HPos;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
-import javafx.scene.control.*;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
@@ -80,7 +79,7 @@ public class ARViewBotJobPane extends ARPane {
     private String sessionId;
     private Gson gson = new Gson();
 
-    private static final ARComponentBuilder builder = new ARComponentBuilder();
+    private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
 
     private PayloadJson payloadEmpty;
     private boolean firstLoad = true;
