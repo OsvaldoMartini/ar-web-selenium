@@ -236,7 +236,9 @@ public class ARMainPane extends ARPane {
             if (!performLists.getListHomeUrl().isEmpty()) {
 
                 arNewBotJobScene.initialize(arViewBotJobScene, arWebDriver, webDriverList, isEnabledLicence);
-                arNewBotJobScene.showModal();
+
+                Stage currentStage = (Stage) cloneBotJobButton.getScene().getWindow();
+                arNewBotJobScene.showModal(currentStage);
 
                 botJobList.clear();
                 performDataBase.loadQuickBotJobs();

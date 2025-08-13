@@ -20,7 +20,6 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
-import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
 
@@ -44,7 +43,7 @@ public class ARNewBotJobPane extends ARPane {
     }
 
     private Label labelBotJobName;
-    private Label labelBotJobDescription;
+    private Label descriptionLabel;
     private Label labelHomeBanking;
 
     private TextField botJobName;
@@ -87,44 +86,44 @@ public class ARNewBotJobPane extends ARPane {
     public void initUIComponents() {
         String labelStyle = "-fx-text-fill: blue; -fx-font-weight: bold; -fx-font-size: 14;";
 
+        // Top description label for the pane
+        Label paneTitleLabel = new Label("Create New Bot Job");
+        paneTitleLabel.setStyle("-fx-text-fill: blue; -fx-font-weight: bold; -fx-font-size: 16;");
+        paneTitleLabel.setMaxWidth(Double.MAX_VALUE);
+        paneTitleLabel.setAlignment(Pos.CENTER);
+
         labelBotJobName = new Label("Name:");
         labelBotJobName.setStyle(labelStyle);
 
         botJobName = new TextField();
         botJobName.setPromptText("Enter Bot Job Name");
 
-        labelBotJobDescription = new Label("Description:");
-        labelBotJobDescription.setStyle(labelStyle);
+        descriptionLabel = new Label("Description:");
+        descriptionLabel.setStyle(labelStyle);
 
         botJobDescription = new TextField();
         botJobDescription.setPromptText("Enter Description (optional)");
 
-        labelHomeBanking = new Label("URL / Environment:");
-        labelHomeBanking.setStyle(labelStyle);
-        labelHomeBanking.setAlignment(Pos.CENTER); // Works if label is in an HBox/VBox
-        labelHomeBanking.setMaxWidth(Double.MAX_VALUE); // Allow stretching so CENTER alignment works
-        VBox.setVgrow(labelHomeBanking, Priority.NEVER);
-
-        // Load home URLs before creating the ChoiceBox
-        if (performLists.getListHomeUrl().isEmpty()) {
-            performDataBase.loadHomeUrls(null);
-        }
+        labelHomeBanking = new Label("Select the URL / Environment:");
+        labelHomeBanking.setStyle(
+                "-fx-font-size: 1.2em; -fx-font-weight: bold; -fx-text-fill: #1565C0; -fx-padding: 0 0 10 0;");
+        labelHomeBanking.setMaxWidth(Double.MAX_VALUE);
+        labelHomeBanking.setAlignment(Pos.CENTER);
 
         homeURLChoiceBox = new ChoiceBox<>();
-        homeURLChoiceBox.setPrefWidth(250);
-        homeURLChoiceBox.setMaxWidth(250);
-        homeURLChoiceBox.setMinWidth(250);
+        homeURLChoiceBox.setPrefWidth(300);
+        homeURLChoiceBox.setMaxWidth(300);
+        homeURLChoiceBox.setMinWidth(300);
 
         refreshEnvsButton = createPathButton();
 
         // Center the ChoiceBox + Button together
-        HBox homeURLBox = new HBox(5, homeURLChoiceBox, refreshEnvsButton);
-        homeURLBox.setAlignment(Pos.CENTER); // Center them horizontally
-        homeURLBox.setPadding(new Insets(0, 0, 10, 0));
-        homeURLBox.setFillHeight(true);
+        HBox choiceAndRefreshBox = new HBox(5, homeURLChoiceBox, refreshEnvsButton);
+        choiceAndRefreshBox.setAlignment(Pos.CENTER); // Center them horizontally
+        choiceAndRefreshBox.setPadding(new Insets(0, 0, 10, 0));
+        choiceAndRefreshBox.setFillHeight(true);
 
         populateHomeUrlChoiceBox();
-
         Tooltip tooltip = new Tooltip("Select the target URL / environment for the Bot Job");
         homeURLChoiceBox.setTooltip(tooltip);
 
@@ -139,19 +138,24 @@ public class ARNewBotJobPane extends ARPane {
         buttonsBox.setAlignment(Pos.CENTER);
 
         labelBotJobName.setLabelFor(botJobName);
-        labelBotJobDescription.setLabelFor(botJobDescription);
+        descriptionLabel.setLabelFor(botJobDescription);
         labelHomeBanking.setLabelFor(homeURLChoiceBox);
+
+        // URL details container (everything related to URL + buttons)
+        VBox homeUrlDetailsContainer = new VBox(10);
+        homeUrlDetailsContainer.setPadding(new Insets(10, 10, 10, 10));
+        homeUrlDetailsContainer.setStyle(
+                "-fx-background-color: #E8F5E9; -fx-border-color: #ccc; -fx-border-width: 1px; -fx-border-radius: 5px;");
+        homeUrlDetailsContainer.getChildren().addAll(labelHomeBanking, choiceAndRefreshBox, buttonsBox);
 
         VBox mainLayout = new VBox(
                 12,
+                paneTitleLabel,
                 labelBotJobName,
                 botJobName,
-                labelBotJobDescription,
+                descriptionLabel,
                 botJobDescription,
-                labelHomeBanking,
-                homeURLBox,
-                buttonsBox);
-
+                homeUrlDetailsContainer);
         mainLayout.setPadding(new Insets(15));
         mainLayout.setFillWidth(true);
 
@@ -193,13 +197,6 @@ public class ARNewBotJobPane extends ARPane {
             if (isEnabledLicence && !checkLicense()) {
                 return;
             }
-            if (performLists.getListHomeBanking().isEmpty()) {
-                performDataBase.loadHomeBanking(null);
-            }
-            if (performLists.getListHomeUrl().isEmpty()) {
-                performDataBase.loadHomeUrls(null);
-            }
-
             arNewHomeBankingScene.initialize();
             Stage currentStage = (Stage) insertSitesdButton.getScene().getWindow();
             arNewHomeBankingScene.showModal(currentStage);
@@ -246,6 +243,13 @@ public class ARNewBotJobPane extends ARPane {
         this.isEnabledLicence = isEnabledLicence;
         this.arViewBotJobScene = arViewBotJobScene;
         this.arWebDriver = arWebDriver;
+
+        if (performLists.getListHomeBanking().isEmpty()) {
+            performDataBase.loadHomeBanking(null);
+        }
+        if (performLists.getListHomeUrl().isEmpty()) {
+            performDataBase.loadHomeUrls(null);
+        }
     }
 
     private void launchBotJobCreation() {

@@ -39,6 +39,7 @@ public class PerformLists {
     // Lists for tables
     private ObservableList<HomeBankingLoadDTO> listHomeBanking = FXCollections.observableArrayList();
     private ObservableList<HomeUrlDTO> listHomeUrl = FXCollections.observableArrayList();
+    private ObservableList<BotJobLoadDTO> quickBotJobs = FXCollections.observableArrayList();
     private ObservableList<BotJobLoadDTO> listBotJob = FXCollections.observableArrayList();
     private List<BotJobLoadDTO> listBotJobComp = new ArrayList<>();
     private List<BlockLoadDTO> listBlock = new ArrayList<>();
@@ -52,7 +53,6 @@ public class PerformLists {
 
     // Quick Lists
     private List<InstructionOperationDTO> instrucOperList = new ArrayList<>();
-    private List<BotJobLoadDTO> quickBotJobs = new ArrayList<>();
 
     // Observable lists
     private ObservableList<DatabaseUserDTO> listDatabaseUsers = FXCollections.observableArrayList();

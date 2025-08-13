@@ -121,6 +121,9 @@ public class ARViewBotJobScene extends ARScene {
         //                    .info(String.format("Failed to Update ALL Bot Job Active = 1"));
         //        }
 
+        // IN CASE the ADDED New Bot Job tomREfresh Main List as Observable
+        performDataBase.loadQuickBotJobs();
+
         performDataBase.loadBlocks(selectedBojJob.getId(), selectedBojJob.getName(), "block");
         //        this.botLoadJobs = performDataBase.loadBotJobWithBlock(this.botJobId);
 

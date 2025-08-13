@@ -42,8 +42,8 @@ public class ARNewBotJobScene extends ARScene {
         arNewBotJobPane = ARNewBotJobPane.getInstance();
     }
 
-    private static final Double SCENE_HEIGHT = 300D;
-    private static final Double SCENE_WIDTH = 350D;
+    private static final Double SCENE_HEIGHT = 380D;
+    private static final Double SCENE_WIDTH = 450D;
     private static final String TITLE = "New Bot Job";
     //    ListView<BotJobLoadDTO> viewBotJobListView;
     private ARViewBotJobScene arViewBotJobScene;
@@ -84,7 +84,7 @@ public class ARNewBotJobScene extends ARScene {
         return TITLE;
     }
 
-    public void showModal() {
+    public void showModal(Stage primareStage) {
 
         arNewBotJobPane.initialize(arViewBotJobScene, arWebDriver, isEnabledLicence);
 
@@ -96,6 +96,7 @@ public class ARNewBotJobScene extends ARScene {
                 modalScene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
                 modalStage.setScene(modalScene);
                 modalStage.setTitle(getTitle());
+                modalStage.initOwner(primareStage);
                 modalStage.initModality(Modality.WINDOW_MODAL);
                 modalStage.setAlwaysOnTop(true); // Set always on top
                 modalStage.toFront();

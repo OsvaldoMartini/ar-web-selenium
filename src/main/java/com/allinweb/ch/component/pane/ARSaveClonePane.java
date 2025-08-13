@@ -12,7 +12,6 @@ import com.allinweb.ch.license.LicenceVal;
 import com.allinweb.ch.license.LicenseManager;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
-import java.io.*;
 import java.util.List;
 import java.util.Optional;
 import javafx.application.Platform;
@@ -22,7 +21,6 @@ import javafx.scene.control.*;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
-import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
@@ -53,10 +51,17 @@ public class ARSaveClonePane extends ARPane {
         this.selecBotJobDTO = selecBotJobDTO;
         this.botJobList = botJobList;
 
-        if (nameField != null) {
-            nameField.setText(selecBotJobDTO.getName().trim());
-            descriptionField.setText(selecBotJobDTO.getDescription().trim());
+        if (botJobName != null) {
+            botJobName.setText(selecBotJobDTO.getName().trim());
+            botJobDescription.setText(selecBotJobDTO.getDescription().trim());
             newUrl.setText(selecBotJobDTO.getHomeBankingLoadDTO().getUrl());
+        }
+
+        if (performLists.getListHomeBanking().isEmpty()) {
+            performDataBase.loadHomeBanking(null);
+        }
+        if (performLists.getListHomeUrl().isEmpty()) {
+            performDataBase.loadHomeUrls(null);
         }
     }
 
@@ -72,17 +77,17 @@ public class ARSaveClonePane extends ARPane {
     private List<BotJobLoadDTO> botJobList;
     // UI
 
-    private Label nameLabel;
+    private Label labelBotJobName;
     private Label descriptionLabel;
-    private Label defaultURLLabel;
+    private Label labelHomeBanking;
 
-    private TextField nameField;
-    private TextField descriptionField;
+    private TextField botJobName;
+    private TextField botJobDescription;
     private TextField newUrl;
 
     private Button cloneBotJobButton;
-    private Button insertSitesdButton;
     private Button refreshEnvsButton;
+    private Button insertSitesdButton;
 
     private ChoiceBox<HomeUrlDTO> homeURLChoiceBox;
 
@@ -97,45 +102,50 @@ public class ARSaveClonePane extends ARPane {
     public void initUIComponents() {
         String labelStyle = "-fx-text-fill: blue; -fx-font-weight: bold; -fx-font-size: 14;";
 
+        // Top description label for the pane
+        Label paneTitleLabel = new Label("Clone Bot Jobs");
+        paneTitleLabel.setStyle("-fx-text-fill: blue; -fx-font-weight: bold; -fx-font-size: 16;");
+        paneTitleLabel.setMaxWidth(Double.MAX_VALUE);
+        paneTitleLabel.setAlignment(Pos.CENTER);
+
         // Labels
-        nameLabel = new Label("Name of new Bot Job:");
-        nameLabel.setStyle(labelStyle);
+        labelBotJobName = new Label("Name of new Bot Job:");
+        labelBotJobName.setStyle(labelStyle);
 
         descriptionLabel = new Label("Description:");
         descriptionLabel.setStyle(labelStyle);
 
-        defaultURLLabel = new Label("URL Bot Job OR INSERT NEW");
-        defaultURLLabel.setStyle(labelStyle);
-        defaultURLLabel.setAlignment(Pos.CENTER);
-        defaultURLLabel.setMaxWidth(Double.MAX_VALUE);
-        VBox.setVgrow(defaultURLLabel, Priority.NEVER);
+        // This is your urlEnviromentLabel (defaultURLLabel)
+        labelHomeBanking = new Label("Enter a New URL or Choose from the List Below");
+        labelHomeBanking.setStyle(
+                "-fx-font-size: 1.2em; -fx-font-weight: bold; -fx-text-fill: #1565C0; -fx-padding: 0 0 10 0;");
+        labelHomeBanking.setMaxWidth(Double.MAX_VALUE);
+        labelHomeBanking.setAlignment(Pos.CENTER);
 
         // Text fields
-        nameField = new TextField(selecBotJobDTO.getName().trim());
-        nameField.setPrefWidth(400);
+        botJobName = new TextField(selecBotJobDTO.getName().trim());
+        botJobName.setPrefWidth(400);
 
-        descriptionField = new TextField("Description");
-        descriptionField.setPrefWidth(400);
+        botJobDescription = new TextField("Description");
+        botJobDescription.setPrefWidth(400);
 
         newUrl = new TextField(selecBotJobDTO.getHomeBankingLoadDTO().getUrl());
-        newUrl.setPrefWidth(250); // match choice box size from other screen
+        newUrl.setPrefWidth(250);
 
+        // ChoiceBox + Button
         homeURLChoiceBox = new ChoiceBox<>();
-        homeURLChoiceBox.setPrefWidth(250);
-        homeURLChoiceBox.setMaxWidth(250);
-        homeURLChoiceBox.setMinWidth(250);
+        homeURLChoiceBox.setPrefWidth(300);
+        homeURLChoiceBox.setMaxWidth(300);
+        homeURLChoiceBox.setMinWidth(300);
 
-        // Refresh button for environments
         refreshEnvsButton = createPathButton();
 
-        // Center the URL field + refresh button
-        HBox urlBox = new HBox(5, newUrl, homeURLChoiceBox, refreshEnvsButton);
-        urlBox.setAlignment(Pos.CENTER);
-        urlBox.setPadding(new Insets(0, 0, 10, 0));
-        urlBox.setFillHeight(true);
+        // Side-by-side: ChoiceBox and refresh button
+        HBox choiceAndRefreshBox = new HBox(5, homeURLChoiceBox, refreshEnvsButton);
+        choiceAndRefreshBox.setAlignment(Pos.CENTER); // Center horizontally
+        choiceAndRefreshBox.setPadding(new Insets(0, 0, 10, 0));
 
         populateHomeUrlChoiceBox();
-
         Tooltip tooltip = new Tooltip("Select the target URL / environment for the Bot Job");
         homeURLChoiceBox.setTooltip(tooltip);
 
@@ -145,15 +155,28 @@ public class ARSaveClonePane extends ARPane {
 
         insertSitesdButton = new Button("Orgs / Environments");
         insertSitesdButton.setDefaultButton(true);
-        HBox.setMargin(insertSitesdButton, new Insets(0, 0, 0, 50));
+        HBox.setMargin(insertSitesdButton, new Insets(0, 0, 0, 20));
 
-        HBox buttonsBox = new HBox(cloneBotJobButton, insertSitesdButton);
+        // Buttons in one line
+        HBox buttonsBox = new HBox(15, cloneBotJobButton, insertSitesdButton);
         buttonsBox.setAlignment(Pos.CENTER);
 
-        // Layout
-        VBox mainLayout = new VBox(
-                12, nameLabel, nameField, descriptionLabel, descriptionField, defaultURLLabel, urlBox, buttonsBox);
+        // URL details container (everything related to URL + buttons)
+        VBox homeUrlDetailsContainer = new VBox(10);
+        homeUrlDetailsContainer.setPadding(new Insets(10, 10, 10, 10));
+        homeUrlDetailsContainer.setStyle(
+                "-fx-background-color: #E8F5E9; -fx-border-color: #ccc; -fx-border-width: 1px; -fx-border-radius: 5px;");
+        homeUrlDetailsContainer.getChildren().addAll(labelHomeBanking, newUrl, choiceAndRefreshBox, buttonsBox);
 
+        // Main layout
+        VBox mainLayout = new VBox(
+                12,
+                paneTitleLabel, // Top title
+                labelBotJobName,
+                botJobName,
+                descriptionLabel,
+                botJobDescription,
+                homeUrlDetailsContainer);
         mainLayout.setPadding(new Insets(15));
         mainLayout.setFillWidth(true);
 
@@ -216,14 +239,20 @@ public class ARSaveClonePane extends ARPane {
             }
         });
 
+        homeURLChoiceBox.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null) {
+                newUrl.setText(newVal.getUrl().trim());
+            }
+        });
+
         cloneBotJobButton.setOnMouseClicked(e -> {
-            String newBotJobName = nameField.getText().trim();
-            String newDescription = descriptionField.getText().trim();
+            String newBotJobName = botJobName.getText().trim();
+            String newDescription = botJobDescription.getText().trim();
 
             // Clean Spaces
-            Platform.runLater(() -> nameField.setText(newBotJobName));
+            Platform.runLater(() -> botJobName.setText(newBotJobName));
 
-            if (Strings.isNullOrEmpty(nameField.getText().trim())) {
+            if (Strings.isNullOrEmpty(botJobName.getText().trim())) {
                 performMessage.errorMessage(
                         "Select a new Bot Job name", "There is NOT a name defined", null, null, null, 0);
                 return;
@@ -398,39 +427,6 @@ public class ARSaveClonePane extends ARPane {
         Platform.runLater(() -> {
             stage.close();
         });
-    }
-
-    private boolean checkFilesExist(String originalFilePath, String newFilePath) {
-        File originalFile = new File(originalFilePath);
-        File newFile = new File(newFilePath);
-
-        // Check if original file exists
-        if (!originalFile.exists()) {
-            performMessage.errorMessage(
-                    "Excel File Missing",
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Original Excel file does not exist!</span>",
-                    "<span style='color: #E65100; font-weight: bold;'>Attempted to read:</span> <span style='font-weight: bold;'>"
-                            + originalFilePath + "</span>",
-                    "<span style='font-style: italic;'>Please ensure the file exists and the application has read permissions.</span>",
-                    null,
-                    0);
-            return false;
-        }
-
-        // Check if new file exists
-        if (!newFile.exists()) {
-            performMessage.errorMessage(
-                    "Excel File Missing",
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Target Excel file does not exist!</span>",
-                    "<span style='color: #E65100; font-weight: bold;'>Expected path:</span> <span style='font-weight: bold;'>"
-                            + newFilePath + "</span>",
-                    "<span style='font-style: italic;'>Please ensure the file exists and the application has read/write permissions.</span>",
-                    null,
-                    0);
-            return false;
-        }
-
-        return true;
     }
 
     private void populateHomeUrlChoiceBox() {
