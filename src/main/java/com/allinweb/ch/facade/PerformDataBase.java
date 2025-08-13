@@ -2225,34 +2225,43 @@ public class PerformDataBase {
         return blockLoadDTO;
     }
 
-    public List<BotJobLoadDTO> loadQuickBotJobs() {
+    public ErrorMessage loadQuickBotJobs() {
         performLists.getQuickBotJobs().clear();
+
         String query =
                 """
-SELECT bot.id AS bot_job_id, bot.name AS bot_job_name,
-bot.description AS bot_job_description, bot.priority AS bot_job_priority,
-bot.home_banking_id, bot.home_url_id,
-hu.url AS home_banking_url,
-hb.name AS home_banking_name,
-hb.priority AS home_banking_priority, hb.search_config,
-hb.options_config, hb.cookies, hb.driver_session,
-hb.username, hb.password,
-bot.active
-FROM bot_job bot
-LEFT JOIN home_banking hb ON bot.home_banking_id = hb.id
-LEFT JOIN home_url hu ON bot.home_url_id = hu.id and hu.home_banking_id = hb.id
-ORDER BY bot.id ASC;
-            """;
+                SELECT bot.id AS bot_job_id, bot.name AS bot_job_name,
+                       bot.description AS bot_job_description, bot.priority AS bot_job_priority,
+                       bot.home_banking_id, bot.home_url_id,
+                       hu.url AS home_banking_url,
+                       hb.name AS home_banking_name,
+                       hb.priority AS home_banking_priority, hb.search_config,
+                       hb.options_config, hb.cookies, hb.driver_session,
+                       hb.username, hb.password,
+                       bot.active,
+                       b.id AS block_id, b.block_order_number, b.name AS block_name,
+                       b.description AS block_description, b.type_id, b.active AS block_active, b.wait
+                FROM bot_job bot
+                LEFT JOIN home_banking hb ON bot.home_banking_id = hb.id
+                LEFT JOIN home_url hu ON bot.home_url_id = hu.id AND hu.home_banking_id = hb.id
+                LEFT JOIN block b ON b.bot_job_id = bot.id
+                ORDER BY bot.id ASC, b.block_order_number ASC;
+                """;
 
-        try (PreparedStatement pstmt = getConnection().prepareStatement(query)) {
-            //            pstmt.setInt(1, true);  // Set active = true (Access might need `pstmt.setInt(1, -1);`)
+        Map<Integer, BotJobLoadDTO> botJobMap = new HashMap<>();
+        Map<Integer, BlockLoadDTO> blockMap = new HashMap<>();
 
-            try (ResultSet rs = pstmt.executeQuery()) {
-                while (rs.next()) {
-                    BotJobLoadDTO botJobDTO = new BotJobLoadDTO();
+        try (PreparedStatement pstmt = getConnection().prepareStatement(query);
+                ResultSet rs = pstmt.executeQuery()) {
 
-                    // Map BotJobLoadDTO fields
-                    botJobDTO.setId(rs.getInt("bot_job_id"));
+            while (rs.next()) {
+                int botJobId = rs.getInt("bot_job_id");
+
+                // Get or create BotJobLoadDTO
+                BotJobLoadDTO botJobDTO = botJobMap.get(botJobId);
+                if (botJobDTO == null) {
+                    botJobDTO = new BotJobLoadDTO();
+                    botJobDTO.setId(botJobId);
                     botJobDTO.setName(rs.getString("bot_job_name"));
                     botJobDTO.setDescription(rs.getString("bot_job_description"));
                     botJobDTO.setPriority(rs.getString("bot_job_priority"));
@@ -2260,11 +2269,11 @@ ORDER BY bot.id ASC;
                     botJobDTO.setHomeUrlId(rs.getInt("home_url_id"));
                     botJobDTO.setActive(rs.getBoolean("active"));
 
-                    // Map HomeBankingLoadDTO fields if home banking details exist
+                    // Set HomeBankingLoadDTO
                     Integer homeBankingId = rs.getObject("home_banking_id", Integer.class);
                     if (homeBankingId != null) {
                         HomeBankingLoadDTO homeBankingDTO = new HomeBankingLoadDTO();
-                        homeBankingDTO.setId(rs.getInt("home_banking_id"));
+                        homeBankingDTO.setId(homeBankingId);
                         homeBankingDTO.setUrl(rs.getString("home_banking_url"));
                         homeBankingDTO.setName(rs.getString("home_banking_name"));
                         homeBankingDTO.setPriority(rs.getString("home_banking_priority"));
@@ -2278,123 +2287,41 @@ ORDER BY bot.id ASC;
                         botJobDTO.setHomeBankingLoadDTO(homeBankingDTO);
                     }
 
+                    botJobDTO.setBlockLoadDTOList(new ArrayList<>());
+                    botJobMap.put(botJobId, botJobDTO);
                     performLists.getQuickBotJobs().add(botJobDTO);
                 }
-            }
-        } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("Error loadQuickBotJobs Error: %s", error.getMessage()));
-        }
 
-        return performLists.getQuickBotJobs();
-    }
+                // Add BlockLoadDTO if present
+                int blockId = rs.getInt("block_id");
+                if (!rs.wasNull()) {
+                    BlockLoadDTO blockDTO = blockMap.get(blockId);
+                    if (blockDTO == null) {
+                        blockDTO = new BlockLoadDTO();
+                        blockDTO.setId(blockId);
+                        blockDTO.setBlockOrderNumber(rs.getInt("block_order_number"));
+                        blockDTO.setName(rs.getString("block_name"));
+                        blockDTO.setDescription(rs.getString("block_description"));
+                        blockDTO.setTypeId(rs.getInt("type_id"));
+                        blockDTO.setActive(rs.getBoolean("block_active"));
+                        blockDTO.setWait(rs.getInt("wait"));
 
-    public void loadQuickBotJobs(int botJobId) {
-        performLists.getQuickBotJobs().clear();
+                        blockDTO.setBotJobId(botJobId);
+                        blockDTO.setBotJobName(botJobDTO.getName());
 
-        String baseQuery =
-                """
-                SELECT bot.id AS bot_job_id, bot.name AS bot_job_name,
-                       bot.description AS bot_job_description, bot.priority AS bot_job_priority,
-                       bot.home_banking_id, bot.home_url_id,
-                       hu.url AS home_banking_url,
-                       hb.name AS home_banking_name,
-                       hb.priority AS home_banking_priority, hb.search_config,
-                       hb.options_config, hb.cookies, hb.driver_session,
-                       hb.username, hb.password,
-                       bot.active
-                FROM bot_job bot
-                LEFT JOIN home_banking hb ON bot.home_banking_id = hb.id
-                LEFT JOIN home_url hu ON bot.home_url_id = hu.id AND hu.home_banking_id = hb.id
-                """;
-
-        // If botJobId > 0, join blocks and filter by that botJobId
-        String query;
-        if (botJobId > 0) {
-            query = baseQuery + " LEFT JOIN block b ON b.bot_job_id = bot.id "
-                    + " WHERE bot.active = 1 AND bot.id = ? "
-                    + " ORDER BY bot.id, b.block_order_number ASC";
-        } else {
-            query = baseQuery + " ORDER BY bot.id ASC";
-        }
-
-        Map<Integer, BotJobLoadDTO> botJobMap = new HashMap<>();
-        Map<Integer, BlockLoadDTO> blockMap = new HashMap<>();
-
-        try (PreparedStatement pstmt = getConnection().prepareStatement(query)) {
-            if (botJobId > 0) {
-                pstmt.setInt(1, botJobId);
-            }
-
-            try (ResultSet rs = pstmt.executeQuery()) {
-                while (rs.next()) {
-                    int currentBotJobId = rs.getInt("bot_job_id");
-                    BotJobLoadDTO botJobDTO = botJobMap.get(currentBotJobId);
-                    if (botJobDTO == null) {
-                        botJobDTO = new BotJobLoadDTO();
-                        botJobDTO.setId(currentBotJobId);
-                        botJobDTO.setName(rs.getString("bot_job_name"));
-                        botJobDTO.setDescription(rs.getString("bot_job_description"));
-                        botJobDTO.setPriority(rs.getString("bot_job_priority"));
-                        botJobDTO.setHomeBankingId(rs.getInt("home_banking_id"));
-                        botJobDTO.setHomeUrlId(rs.getInt("home_url_id"));
-                        botJobDTO.setActive(rs.getBoolean("active"));
-
-                        // Set HomeBankingLoadDTO if home banking data present
-                        Integer homeBankingId = rs.getObject("home_banking_id", Integer.class);
-                        if (homeBankingId != null) {
-                            HomeBankingLoadDTO homeBankingDTO = new HomeBankingLoadDTO();
-                            homeBankingDTO.setId(homeBankingId);
-                            homeBankingDTO.setUrl(rs.getString("home_banking_url"));
-                            homeBankingDTO.setName(rs.getString("home_banking_name"));
-                            homeBankingDTO.setPriority(rs.getString("home_banking_priority"));
-                            homeBankingDTO.setSearchConfig(rs.getString("search_config"));
-                            homeBankingDTO.setOptionsConfig(rs.getString("options_config"));
-                            homeBankingDTO.setCookies(rs.getString("cookies"));
-                            homeBankingDTO.setDriverSession(rs.getString("driver_session"));
-                            homeBankingDTO.setUsername(rs.getString("username"));
-                            homeBankingDTO.setPassword(rs.getString("password"));
-
-                            botJobDTO.setHomeBankingLoadDTO(homeBankingDTO);
-                        }
-
-                        if (botJobId > 0) {
-                            botJobDTO.setBlockLoadDTOList(new ArrayList<>());
-                        }
-
-                        botJobMap.put(currentBotJobId, botJobDTO);
-                        performLists.getQuickBotJobs().add(botJobDTO);
-                    }
-
-                    // If we requested a specific botJob, load blocks
-                    if (botJobId > 0) {
-                        int blockId = rs.getInt("block_id");
-                        if (!rs.wasNull()) {
-                            BlockLoadDTO blockDTO = blockMap.get(blockId);
-                            if (blockDTO == null) {
-                                blockDTO = new BlockLoadDTO();
-                                blockDTO.setId(blockId);
-                                blockDTO.setBlockOrderNumber(rs.getInt("block_order_number"));
-                                blockDTO.setName(rs.getString("block_name"));
-                                blockDTO.setDescription(rs.getString("block_description"));
-                                blockDTO.setTypeId(rs.getInt("type_id"));
-                                blockDTO.setActive(rs.getBoolean("active"));
-                                blockDTO.setWait(rs.getInt("wait"));
-
-                                blockDTO.setBotJobId(currentBotJobId);
-                                blockDTO.setBotJobName(botJobDTO.getName());
-
-                                blockMap.put(blockId, blockDTO);
-                                botJobDTO.getBlockLoadDTOList().add(blockDTO);
-                            }
-                        }
+                        blockMap.put(blockId, blockDTO);
+                        botJobDTO.getBlockLoadDTOList().add(blockDTO);
                     }
                 }
             }
+
+            return null;
+
         } catch (SQLException e) {
             ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
-                            "Error loadQuickBotJobs for botJobId %d\nError: %s", botJobId, e.getMessage()));
+                    .severe(String.format("Error loadQuickBotJobs: %s", e.getMessage()));
+
+            return new ErrorMessage("Failed to load Quick Bot Jobs", "Database query error", e.getMessage());
         }
     }
 
@@ -3282,7 +3209,9 @@ ORDER BY bot.id ASC;
 
         List<BlockLoadDTO> matchingBlocks = null;
 
-        loadQuickBotJobs(rowMoveDTO.getBotJobId());
+        if (performLists.getQuickBotJobs().isEmpty()) {
+            loadQuickBotJobs();
+        }
         loadBlocks(rowMoveDTO.getBotJobId(), rowMoveDTO.getBotJobName(), "block");
 
         if (!rowMoveDTO.getUpdatedRows().isEmpty()) {

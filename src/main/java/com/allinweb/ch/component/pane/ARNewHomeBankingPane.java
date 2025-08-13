@@ -657,9 +657,7 @@ public class ARNewHomeBankingPane extends ARPane {
 
             } else {
                 // ✅ Reload the table after successful insert
-                if (performLists.getListHomeUrl().isEmpty()) {
-                    performDataBase.loadHomeUrls(null);
-                }
+                performDataBase.loadHomeUrls(null);
                 List<HomeUrlDTO> filteredHomeUrl = performLists.getHomeUrlsByBankId(homeBankId);
                 tableViewHomeUrl.setItems(FXCollections.observableArrayList(filteredHomeUrl));
 
@@ -719,9 +717,7 @@ public class ARNewHomeBankingPane extends ARPane {
 
                 } else {
                     // ✅ Reload the table after successful update
-                    if (performLists.getListHomeUrl().isEmpty()) {
-                        performDataBase.loadHomeUrls(null);
-                    }
+                    performDataBase.loadHomeUrls(null);
                     List<HomeUrlDTO> filteredHomeUrl = performLists.getHomeUrlsByBankId(homeBankId);
                     tableViewHomeUrl.setItems(FXCollections.observableArrayList(filteredHomeUrl));
                     tableViewHomeUrl.getSelectionModel().clearSelection();
@@ -760,9 +756,7 @@ public class ARNewHomeBankingPane extends ARPane {
                 return;
             }
 
-            if (performLists.getListHomeUrl().isEmpty()) {
-                performDataBase.loadHomeUrls(null);
-            }
+            performDataBase.loadHomeUrls(null);
             List<HomeUrlDTO> filteredHomeUrl = performLists.getHomeUrlsByBankId(Integer.parseInt(homeBankIdStr));
             if (filteredHomeUrl.size() == 1) {
 
@@ -866,9 +860,7 @@ public class ARNewHomeBankingPane extends ARPane {
                 // ... populate form fields
 
                 // Load URLs related to the selected home banking ID
-                if (performLists.getListHomeUrl().isEmpty()) {
-                    performDataBase.loadHomeUrls(null);
-                }
+                performDataBase.loadHomeUrls(null);
                 List<HomeUrlDTO> filteredHomeUrl = performLists.getHomeUrlsByBankId(selectedUser.getId());
                 tableViewHomeUrl.setItems(FXCollections.observableArrayList(filteredHomeUrl));
             } else {

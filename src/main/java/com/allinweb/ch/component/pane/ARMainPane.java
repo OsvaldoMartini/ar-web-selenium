@@ -65,7 +65,9 @@ public class ARMainPane extends ARPane {
         this.webDriverList = webDriverList;
 
         if (performDataBase.getConn() != null) {
-            botJobList.addAll(performDataBase.loadQuickBotJobs());
+            botJobList.clear();
+            performDataBase.loadQuickBotJobs();
+            botJobList.addAll(performLists.getQuickBotJobs());
         }
     }
 
@@ -235,10 +237,11 @@ public class ARMainPane extends ARPane {
 
                 arNewBotJobScene.initialize(arViewBotJobScene, arWebDriver, webDriverList);
                 arNewBotJobScene.showModal();
+
                 botJobList.clear();
-                if (performDataBase.getConn() != null) {
-                    botJobList.addAll(performDataBase.loadQuickBotJobs());
-                }
+                performDataBase.loadQuickBotJobs();
+                botJobList.addAll(performLists.getQuickBotJobs());
+
                 viewBotJobListView.setItems(botJobList);
             } else {
                 performMessage.showCustomModalDialogDragWin11(
@@ -276,11 +279,13 @@ public class ARMainPane extends ARPane {
             if (selecBotJobDTO != null) {
                 if (performDataBase.getConn() != null) {
                     arSaveCloneScene.initialize(selecBotJobDTO, botJobList);
+
                     Stage currentStage = (Stage) cloneBotJobButton.getScene().getWindow();
                     arSaveCloneScene.showModal(currentStage);
 
+                    performDataBase.loadQuickBotJobs();
                     ObservableList<BotJobLoadDTO> botJobList =
-                            FXCollections.observableArrayList(performDataBase.loadQuickBotJobs());
+                            FXCollections.observableArrayList(performLists.getQuickBotJobs());
                     viewBotJobListView.setItems(botJobList);
                     viewBotJobListView.refresh();
                 }
@@ -300,8 +305,11 @@ public class ARMainPane extends ARPane {
             }
             if (performDataBase.getConn() != null) {
                 try {
+                    if (performLists.getQuickBotJobs().isEmpty()) {
+                        performDataBase.loadQuickBotJobs();
+                    }
                     ObservableList<BotJobLoadDTO> botJobList =
-                            FXCollections.observableArrayList(performDataBase.loadQuickBotJobs());
+                            FXCollections.observableArrayList(performLists.getQuickBotJobs());
 
                     viewBotJobListView.setItems(botJobList);
                 } catch (Exception error) {

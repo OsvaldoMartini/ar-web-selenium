@@ -6,17 +6,9 @@ import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARLogger;
-import com.allinweb.ch.util.ARPropertyEnum;
-import com.allinweb.ch.util.ARPropertyManager;
-import com.allinweb.ch.util.ErrorMessage;
+import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.util.List;
 import java.util.Optional;
 import javafx.application.Platform;
@@ -28,8 +20,6 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 public class ARSaveClonePane extends ARPane {
 
@@ -89,7 +79,7 @@ public class ARSaveClonePane extends ARPane {
     private TextField descriptionField;
     private TextField newUrl;
 
-    private Button saveButton;
+    private Button cloneBotJobButton;
 
     private Pane mainPane;
 
@@ -120,9 +110,9 @@ public class ARSaveClonePane extends ARPane {
         newUrl.setPrefWidth(400);
 
         // Button
-        saveButton = new Button("Clone Bot Job");
-        saveButton.setPrefWidth(200);
-        saveButton.setStyle("-fx-font-weight: bold; -fx-background-color: #4CAF50; -fx-text-fill: white;");
+        cloneBotJobButton = new Button("Clone Bot Job");
+        cloneBotJobButton.setPrefWidth(200);
+        cloneBotJobButton.setStyle("-fx-font-weight: bold; -fx-background-color: #4CAF50; -fx-text-fill: white;");
 
         // VBoxes for each field group
         VBox nameBox = new VBox(5, nameLabel, nameField);
@@ -130,7 +120,7 @@ public class ARSaveClonePane extends ARPane {
         VBox urlBox = new VBox(5, defaultURLLabel, newUrl);
 
         // Centered button
-        HBox buttonBox = new HBox(saveButton);
+        HBox buttonBox = new HBox(cloneBotJobButton);
         buttonBox.setAlignment(Pos.CENTER);
 
         // Main vertical layout
@@ -151,7 +141,7 @@ public class ARSaveClonePane extends ARPane {
     @Override
     public void initUIBehaviour() {
 
-        saveButton.setOnMouseClicked(e -> {
+        cloneBotJobButton.setOnMouseClicked(e -> {
             String newBotJobName = nameField.getText().trim();
             String newDescription = descriptionField.getText().trim();
 
@@ -180,22 +170,27 @@ public class ARSaveClonePane extends ARPane {
                 return;
             }
 
-            String excelPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
-            String originalFilePath =
-                    excelPath + "\\" + selecBotJobDTO.getName().trim() + ".xlsx";
-            String newFilePath = excelPath + "\\" + newBotJobName + ".xlsx";
-            boolean excelCreation = duplicateExcelFile(originalFilePath, newFilePath);
-            if (!excelCreation) {
-                performMessage.errorMessage(
-                        "Error Duplicating File Excel",
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Excel File Name:</span> ❌",
-                        "<span style='color: #E65100; font-weight: bold;'>" + newBotJobName + ".xlsx" + "</span> ",
-                        null,
-                        null,
-                        0);
+            //            String excelPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
+            //            String originalFilePath =
+            //                    excelPath + "\\" + selecBotJobDTO.getName().trim() + ".xlsx";
+            //            String newFilePath = excelPath + "\\" + newBotJobName + ".xlsx";
 
-                return;
-            }
+            ExcelUtils.createExcelDataFile(selecBotJobDTO, newBotJobName);
+
+            //            boolean excelCreation = checkFilesExist(originalFilePath, newFilePath);
+            //            if (!excelCreation) {
+            //                performMessage.errorMessage(
+            //                        "Error Duplicating File Excel",
+            //                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Excel File
+            // Name:</span> ❌",
+            //                        "<span style='color: #E65100; font-weight: bold;'>" + newBotJobName + ".xlsx" +
+            // "</span> ",
+            //                        null,
+            //                        null,
+            //                        0);
+            //
+            //                return;
+            //            }
 
             if (!Strings.isNullOrEmpty(newUrl.getText())) {
 
@@ -362,50 +357,36 @@ public class ARSaveClonePane extends ARPane {
         });
     }
 
-    //    private void clearBotJob(BotJobDTO botJob) {
-    //        Queue<BlockDTO> blocks = new LinkedList<>(botJob.getBlocks());
-    //        PerformDataBase..removeAllEntity(blocks, BlockDTO.class);
-    //    }
+    private boolean checkFilesExist(String originalFilePath, String newFilePath) {
+        File originalFile = new File(originalFilePath);
+        File newFile = new File(newFilePath);
 
-    private boolean duplicateExcelFile(String originalFilePath, String newFilePath) {
-        try {
-            // Load the existing Excel file
-            FileInputStream fis = new FileInputStream(new File(originalFilePath));
-            Workbook workbook = new XSSFWorkbook(fis);
-
-            // Create a new file output stream for the new file (to a restricted folder)
-            FileOutputStream fos = new FileOutputStream(new File(newFilePath));
-
-            // Write the workbook data to the new file
-            workbook.write(fos);
-
-            // Close all streams
-            fos.close();
-            fis.close();
-            return true;
-        } catch (IOException e) {
-            String errorMessage = "Error occurred while copying the Excel file.";
-            String errorDetails = "An error occurred while attempting to clone the file.";
-
-            // Check if the exception message contains "Access is denied"
-            if (e.getMessage() != null && e.getMessage().contains("Access is denied")) {
-                errorDetails =
-                        "Access Denied: You do not have permission to write to this location. Please check your permissions.";
-            } else if (e instanceof FileNotFoundException) {
-                File file = new File(newFilePath);
-                if (!file.exists()
-                        && file.getParentFile() != null
-                        && !file.getParentFile().canWrite()) {
-                    errorDetails =
-                            "You don't have permission to write in the specified folder. Please check the folder's write permissions.";
-                } else {
-                    errorDetails = "The specified file path is invalid or the file is already in use.";
-                }
-            }
-
-            // Show the error message
-            performMessage.errorMessage("Excel File Cloning Error", errorMessage, errorDetails, null, null, 0);
+        // Check if original file exists
+        if (!originalFile.exists()) {
+            performMessage.errorMessage(
+                    "Excel File Missing",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Original Excel file does not exist!</span>",
+                    "<span style='color: #E65100; font-weight: bold;'>Attempted to read:</span> <span style='font-weight: bold;'>"
+                            + originalFilePath + "</span>",
+                    "<span style='font-style: italic;'>Please ensure the file exists and the application has read permissions.</span>",
+                    null,
+                    0);
             return false;
         }
+
+        // Check if new file exists
+        if (!newFile.exists()) {
+            performMessage.errorMessage(
+                    "Excel File Missing",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Target Excel file does not exist!</span>",
+                    "<span style='color: #E65100; font-weight: bold;'>Expected path:</span> <span style='font-weight: bold;'>"
+                            + newFilePath + "</span>",
+                    "<span style='font-style: italic;'>Please ensure the file exists and the application has read/write permissions.</span>",
+                    null,
+                    0);
+            return false;
+        }
+
+        return true;
     }
 }

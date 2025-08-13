@@ -82,4 +82,12 @@ public class PerformLists {
                 .findFirst()
                 .orElse(null); // null if not found
     }
+
+    // Get BotJobLoadDTO by botJobId
+    public BotJobLoadDTO getQuickBotJobById(Integer botJobId) {
+        return getQuickBotJobs().stream()
+                .filter(job -> Objects.equals(job.getId(), botJobId))
+                .findFirst()
+                .orElse(null); // null if not found
+    }
 }

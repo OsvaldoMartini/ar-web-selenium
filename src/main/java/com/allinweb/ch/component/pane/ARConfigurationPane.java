@@ -4,7 +4,6 @@ import com.allinweb.ch.component.listCell.ARCellFactory;
 import com.allinweb.ch.component.listCell.HomeBankingListCell;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.HomeBankingLoadDTO;
-import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARAlertScene;
 import com.allinweb.ch.component.scene.ARElementValueScene;
@@ -28,7 +27,6 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -569,12 +567,7 @@ public class ARConfigurationPane extends ARPane {
         if (performDataBase.getConn() != null) {
             try (Connection conn = performDataBase.getConnection()) {
                 if (conn != null) {
-                    performDataBase.loadQuickBotJobs();
-
-                    List<InstructionLoadDTO> instList = null;
-
-                    if ((instList != null && instList.size() > 0)
-                            || performLists.getListBlock().isEmpty()) {
+                    if (performLists.getListHomeBanking().isEmpty()) {
                         backupDBButton.setDisable(true);
                     }
                 }
@@ -1064,7 +1057,10 @@ public class ARConfigurationPane extends ARPane {
             arNewHomeBankingScene.initialize();
 
             try {
-                botJobList = FXCollections.observableArrayList(performDataBase.loadQuickBotJobs());
+                if (performLists.getQuickBotJobs().isEmpty()) {
+                    performDataBase.loadQuickBotJobs();
+                }
+                botJobList = FXCollections.observableArrayList(performLists.getQuickBotJobs());
             } catch (Exception error) {
                 throw error;
             }

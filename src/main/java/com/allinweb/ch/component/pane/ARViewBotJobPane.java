@@ -154,6 +154,8 @@ public class ARViewBotJobPane extends ARPane {
         this.arScene = arScene;
         this.selectedBojJob = selectedBojJob;
 
+        ExcelUtils.createExcelDataFile(selectedBojJob, null);
+
         Platform.runLater(() -> performDataBase.loadAllVariablesByCriteria(selectedBojJob.getId(), -1, "variable"));
         Platform.runLater(() -> {
             performDataBase.loadWebPageFields(selectedBojJob.getId(), "bot_job");
@@ -238,10 +240,6 @@ public class ARViewBotJobPane extends ARPane {
 
         // Load blocks based on the BotJobLoadDTO instead of blockDTOObservableList
         if (!performLists.getListBotJob().isEmpty()) {
-            if (performLists.getListBotJob().get(0).getBlockLoadDTOList().isEmpty()) {
-                performDataBase.loadCompleteJobs(selectedBojJob.getId());
-            }
-
             List<InstructionLoadDTO> instructions =
                     performDataBase.buildJsonViewData(performLists.getListBotJob(), "instruction");
             if (!instructions.isEmpty()) {
@@ -271,11 +269,6 @@ public class ARViewBotJobPane extends ARPane {
                 selectedBojJob.getHomeBankingId(), selectedBojJob.getId(), selectedBojJob.getName());
 
         if (!performLists.getListBotJobComp().isEmpty()) {
-            if (performLists.getListBotJobComp().get(0).getBlockLoadDTOList().isEmpty()) {
-                performDataBase.loadComponentsComplete(
-                        selectedBojJob.getHomeBankingId(), selectedBojJob.getId(), selectedBojJob.getName());
-            }
-
             List<InstructionLoadDTO> instructions =
                     performDataBase.buildJsonViewData(performLists.getListBotJobComp(), "component_instruction");
             if (!instructions.isEmpty()) {
@@ -424,7 +417,6 @@ public class ARViewBotJobPane extends ARPane {
         performDataBase.updateBlockOrderNumber(performDataBase.selectAllBlocks(selectedBojJob.getId()), true);
 
         performDataBase.loadCompleteJobs(selectedBojJob.getId());
-        createExcelDataFile(performLists.getListBotJob());
 
         componentBox = new HBox(new Node[] {this.webViewTasks});
         firstLoad = false;
@@ -468,65 +460,6 @@ public class ARViewBotJobPane extends ARPane {
         button.setMaxWidth(ARConstants.SPACE_L);
         AnchorPane.setRightAnchor(button, 0D);
         return button;
-    }
-
-    private void createExcelDataFile(List<BotJobLoadDTO> botJobList) {
-
-        // Retrieve the updated BotJobDTO
-        //        BotJobDTO botJobUpdated = (BotJobDTO) PerformDataBase..getEntityById(BotJobDTO.class,
-        // botJobId);
-
-        if (selectedBojJob != null) {
-
-            List<BlockLoadDTO> blocksLoaded = new ArrayList<>(); // Initialize to null
-            if (botJobList != null && !botJobList.isEmpty() && botJobList.get(0) != null) {
-                List<BlockLoadDTO> tempList = botJobList.get(0).getBlockLoadDTOList();
-                if (tempList != null) {
-                    blocksLoaded = tempList;
-                } else {
-                    System.out.println("getBlockLoadDTOList() returned null for the first element.");
-                }
-            }
-
-            List<String> allActions = performDataBase.loadAllActionsPerBlock(blocksLoaded);
-
-            String excelFolderPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
-            String fileName =
-                    String.format("%s/%s%s", excelFolderPath, selectedBojJob.getName(), ARConstants.FILE_FORMAT_EXCEL);
-
-            // Create a File object
-            File fileCheck = new File(fileName);
-            if (!fileCheck.exists() && !fileCheck.isDirectory()) {
-
-                // Check if the Excel file already exists
-                ExtractedData extractedData = ExcelUtils.isFileExists(selectedBojJob.getName(), allActions);
-
-                if (extractedData == null
-                        || (extractedData.getErrorTitle() != null
-                                && !extractedData.getErrorTitle().contains("No Actions Provided"))) {
-
-                    // Create a task for generating the Excel file
-                    Task<Void> excelTask = new Task<>() {
-                        @Override
-                        protected Void call() throws Exception {
-                            new ExcelUtils().generateExcelFiles(selectedBojJob, allActions, extractedData, false);
-                            return null;
-                        }
-                    };
-
-                    new Thread(excelTask).start();
-                }
-            }
-        } else {
-
-            performMessage.errorMessage(
-                    "Not Able to Create a Excel File",
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to create a excel file!</span>",
-                    "<span style='color: #E65100; font-weight: bold;'>Not Bot Job Found</span>",
-                    "<span style='font-style: italic;'>Bot-Job List is empty!</span>",
-                    null,
-                    0);
-        }
     }
 
     private void buildWebView(
@@ -631,8 +564,9 @@ public class ARViewBotJobPane extends ARPane {
         this.generateExcelButton.setOnMouseClicked((e) -> {
             // Cache entities from the database
             //            PerformDataBase..changeDbConnection(previousDB);
-
-            performDataBase.loadQuickBotJobs(selectedBojJob.getId());
+            if (performLists.getQuickBotJobs().isEmpty()) {
+                performDataBase.loadQuickBotJobs();
+            }
 
             // Retrieve the updated BotJobDTO
             //            BotJobDTO botJobUpdated = (BotJobDTO)
@@ -650,11 +584,11 @@ public class ARViewBotJobPane extends ARPane {
             //                            && instruction.getActions().startsWith("I:"));
 
             if (!performLists.getListBotJob().isEmpty()) {
+                if (performLists.getListBlock().isEmpty()) {
+                    performDataBase.loadBlocks(selectedBojJob.getId(), selectedBojJob.getName(), "block");
+                }
 
-                List<BlockLoadDTO> blocksLoaded =
-                        performLists.getListBotJob().get(0).getBlockLoadDTOList();
-
-                List<String> allActions = performDataBase.loadAllActionsPerBlock(blocksLoaded);
+                List<String> allActions = performDataBase.loadAllActionsPerBlock(performLists.getListBlock());
 
                 // Check if the Excel file already exists
                 ExtractedData extractedData = ExcelUtils.isFileExists(selectedBojJob.getName(), allActions);
@@ -676,7 +610,7 @@ public class ARViewBotJobPane extends ARPane {
                 Task<Void> excelTask = new Task<>() {
                     @Override
                     protected Void call() throws Exception {
-                        new ExcelUtils().generateExcelFiles(selectedBojJob, allActions, extractedData, true);
+                        new ExcelUtils().generateExcelFiles(extractedData, selectedBojJob.getName(), null, true);
                         return null;
                     }
                 };

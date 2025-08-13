@@ -9,6 +9,7 @@ import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.*;
 import com.allinweb.ch.readersAndWriters.ExcelReader;
+import com.google.common.base.Strings;
 import java.awt.*;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -21,6 +22,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import javafx.concurrent.Task;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import org.apache.poi.ss.usermodel.Cell;
@@ -38,7 +40,6 @@ public class ExcelUtils {
 
     private List<BotJobLoadDTO> botLoadJobs = new ArrayList<>();
     private static List<BlockLoadDTO> blocksLoaded;
-    private ExtractedData extractedData;
 
     private static final ARPropertyManager arPropertyManager;
     private static final PerformMessage performMessage;
@@ -54,28 +55,35 @@ public class ExcelUtils {
     }
 
     public void generateExcelFiles(
-            BotJobLoadDTO botJobLoad, List<String> allActions, ExtractedData extractedData, boolean openExcel) {
+            ExtractedData extractedData, String newFileName, String nameToDuplicate, boolean openExcel) {
 
         //        BotJobLoadDTO botJobLoad = botLoadJobs.get(0);
         //        this.blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
-        this.extractedData = extractedData;
-
         File excelFolder = new File(arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL));
         if (!excelFolder.exists()) {
             excelFolder.mkdirs();
         }
         //        generateUnfilteredCSVFile(botJob);
-        File file = generateUnfilteredExcelFile(botJobLoad, allActions, extractedData);
+        File file = generateUnfilteredExcelFile(extractedData, newFileName, nameToDuplicate);
 
         if (openExcel) {
             try {
                 Desktop.getDesktop().open(file);
             } catch (IOException e) {
-                new ARAlertScene(
-                        Alert.AlertType.ERROR,
-                        "Couldn't open the file",
-                        "The file could not be opened. Reason: " + e,
-                        ButtonType.OK);
+                //                new ARAlertScene(
+                //                        Alert.AlertType.ERROR,
+                //                        "Couldn't open the file",
+                //                        "The file could not be opened. Reason: " + e,
+                //                        ButtonType.OK);
+
+                performMessage.errorMessage(
+                        "Excel File Opening Error",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Couldn't open the file!</span>",
+                        "<span style='color: #E65100; font-weight: bold;'>File:</span> <span style='font-weight: bold;'>"
+                                + file.getAbsolutePath() + "</span>",
+                        "<span style='font-style: italic;'>The application was unable to access or read the file. It might be in use or you lack permissions.</span>",
+                        "<span style='font-style: italic;'>Details: " + e.getMessage() + "</span>",
+                        0);
             }
         }
     }
@@ -89,11 +97,11 @@ public class ExcelUtils {
         try {
             bufferedWriter = new BufferedWriter(new FileWriter(file));
 
-            performDataBase.loadQuickBotJobs(botJob.getId());
+            BotJobLoadDTO botJobLoadDTO = performLists.getQuickBotJobById(botJob.getId());
 
             Set<String> fieldAddedSet = new HashSet<>();
 
-            for (BlockLoadDTO block : performLists.getQuickBotJobs().get(0).getBlockLoadDTOList()) {
+            for (BlockLoadDTO block : botJobLoadDTO.getBlockLoadDTOList()) {
                 String firstRow = "#" + block.getName();
                 bufferedWriter.write(firstRow);
                 bufferedWriter.newLine();
@@ -162,9 +170,8 @@ public class ExcelUtils {
         }
     }
 
-    private File generateUnfilteredExcelFile(
-            BotJobLoadDTO botJobLoad, List<String> allActions, ExtractedData extractedData) {
-        String fileName = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL) + "/" + botJobLoad.getName()
+    private File generateUnfilteredExcelFile(ExtractedData extractedData, String newFileName, String nameToDuplicate) {
+        String fileName = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL) + "/" + newFileName
                 + ARConstants.FILE_FORMAT_EXCEL;
 
         File file = new File(fileName);
@@ -174,7 +181,22 @@ public class ExcelUtils {
             System.out.println(e.getMessage());
         }
 
-        performDataBase.loadBlocks(botJobLoad.getId(), botJobLoad.getName(), "block");
+        boolean duplicate = false;
+        if (!Strings.isNullOrEmpty(nameToDuplicate)) {
+            duplicate = true;
+        }
+
+        File fileDuplica = null;
+        if (duplicate) {
+            String fileNameDuplica = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL) + "/" + nameToDuplicate
+                    + ARConstants.FILE_FORMAT_EXCEL;
+            fileDuplica = new File(fileNameDuplica);
+            try {
+                fileDuplica.createNewFile();
+            } catch (IOException e) {
+                System.out.println(e.getMessage());
+            }
+        }
 
         Set<String> fieldAddedSet = new HashSet<>();
 
@@ -279,7 +301,7 @@ public class ExcelUtils {
             }
         } else {
             Cell blockNameCell = blockNameRow.createCell(currentIndex, CellType.STRING);
-            blockNameCell.setCellValue("#" + botJobLoad.getName() + " default block");
+            blockNameCell.setCellValue("#" + newFileName + " default block");
         }
 
         // Auto-resize all columns after content is added
@@ -289,6 +311,9 @@ public class ExcelUtils {
 
         // Write the workbook to the file
         writeExcelWorkbookOnDisk(workbook, file);
+        if (duplicate && fileDuplica != null) {
+            writeExcelWorkbookOnDisk(workbook, fileDuplica);
+        }
         return file;
     }
 
@@ -305,6 +330,55 @@ public class ExcelUtils {
                     null,
                     null,
                     0);
+        }
+    }
+
+    public static void createExcelDataFile(BotJobLoadDTO selectedBojJob, String nameToDuplicate) {
+        if (selectedBojJob == null) {
+            performMessage.errorMessage(
+                    "Not Able to Create an Excel File",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to create an Excel file!</span>",
+                    "<span style='color: #E65100; font-weight: bold;'>No Bot Job Found</span>",
+                    "<span style='font-style: italic;'>Bot-Job List is empty!</span>",
+                    null,
+                    0);
+            return;
+        }
+
+        String excelFolderPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
+        String fileName = String.format(
+                "%s/%s%s", excelFolderPath, selectedBojJob.getName().trim(), ARConstants.FILE_FORMAT_EXCEL);
+
+        File fileCheck = new File(fileName);
+
+        // Load blocks and actions
+        performDataBase.loadBlocks(selectedBojJob.getId(), selectedBojJob.getName(), "block");
+        List<String> allActions = performDataBase.loadAllActionsPerBlock(performLists.getListBlock());
+
+        // Check if the Excel file already exists
+        ExtractedData extractedData = ExcelUtils.isFileExists(selectedBojJob.getName(), allActions);
+
+        if (!fileCheck.exists() || fileCheck.isDirectory()) {
+            // File does not exist or is a directory → create normally
+            Task<Void> excelTask = new Task<>() {
+                @Override
+                protected Void call() throws Exception {
+                    new ExcelUtils()
+                            .generateExcelFiles(extractedData, selectedBojJob.getName(), nameToDuplicate, false);
+                    return null;
+                }
+            };
+            new Thread(excelTask).start();
+        } else if (fileCheck.exists() && nameToDuplicate != null && !nameToDuplicate.isBlank()) {
+            // File exists, but nameToDuplicate is provided → create new Excel with new name
+            Task<Void> excelTask = new Task<>() {
+                @Override
+                protected Void call() throws Exception {
+                    new ExcelUtils().generateExcelFiles(extractedData, nameToDuplicate, null, false);
+                    return null;
+                }
+            };
+            new Thread(excelTask).start();
         }
     }
 

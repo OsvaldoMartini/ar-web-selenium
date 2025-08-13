@@ -8,6 +8,7 @@ import com.allinweb.ch.component.scene.ARViewBotJobScene;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.util.ARConstants;
 import javafx.collections.FXCollections;
@@ -47,11 +48,13 @@ public class ARViewBotJobListPane extends ARPane {
     private ARWebDriver arWebDriver;
     private ObservableList<WebDriver> webDriverList;
 
+    private static final PerformLists performLists;
     private static final PerformDataBase performDataBase;
     private static final PerformActions performActions;
     private static final PerformMessage performMessage;
 
     static {
+        performLists = PerformLists.getInstance();
         performDataBase = PerformDataBase.getInstance();
         performActions = PerformActions.getInstance();
         performMessage = PerformMessage.getInstance();
@@ -73,8 +76,9 @@ public class ARViewBotJobListPane extends ARPane {
 
     @Override
     public void initUIComponents() {
-        ObservableList<BotJobLoadDTO> botJobList =
-                FXCollections.observableArrayList(performDataBase.loadQuickBotJobs());
+
+        performDataBase.loadQuickBotJobs();
+        ObservableList<BotJobLoadDTO> botJobList = FXCollections.observableArrayList(performLists.getQuickBotJobs());
         uiBotJobList = new ListView<>(botJobList);
 
         // Setting the cell factory correctly

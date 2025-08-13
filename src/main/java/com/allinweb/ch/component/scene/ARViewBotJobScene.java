@@ -124,10 +124,7 @@ public class ARViewBotJobScene extends ARScene {
         performDataBase.loadBlocks(selectedBojJob.getId(), selectedBojJob.getName(), "block");
         //        this.botLoadJobs = performDataBase.loadBotJobWithBlock(this.botJobId);
 
-        BotJobLoadDTO botJobLoad = performLists.getQuickBotJobs().stream()
-                .filter(job -> job.getId().equals(selectedBojJob.getId()))
-                .findFirst()
-                .orElse(null); // orElseThrow(...) if you want an exception when not found
+        BotJobLoadDTO botJobLoad = performLists.getQuickBotJobById(selectedBojJob.getId());
 
         if (performLists.getListHomeUrl().isEmpty()) {
             performDataBase.loadHomeUrls(null);
