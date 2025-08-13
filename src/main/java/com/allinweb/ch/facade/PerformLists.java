@@ -6,6 +6,7 @@ import com.allinweb.ch.persistence.ReferenceDTO;
 import com.allinweb.ch.util.ComboBoxVars;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import lombok.Getter;
@@ -57,4 +58,28 @@ public class PerformLists {
     private ObservableList<DatabaseUserDTO> listDatabaseUsers = FXCollections.observableArrayList();
     private ObservableList<VariableUserDTO> listVariablesUser = FXCollections.observableArrayList();
     private ObservableList<ComboBoxVars> listWebPageItems = FXCollections.observableArrayList();
+
+    public List<HomeUrlDTO> getHomeUrlsByBankId(Integer homeBankingId) {
+        return getListHomeUrl().stream()
+                .filter(dto ->
+                        dto.getHomeBankingId() != null && dto.getHomeBankingId().equals(homeBankingId))
+                .toList(); // Java 16+; use .collect(Collectors.toList()) for older versions
+    }
+
+    // Get HomeBankingLoadDTO by homeBankingId
+    public HomeBankingLoadDTO getHomeBankingById(Integer homeBankingId) {
+        return getListHomeBanking().stream()
+                .filter(hb -> Objects.equals(hb.getId(), homeBankingId))
+                .findFirst()
+                .orElse(null); // null if not found
+    }
+
+    // Get HomeUrlDTO by homeBankingId and homeUrlId
+    public HomeUrlDTO getHomeUrlByBankId(Integer homeBankingId, Integer homeUrlId) {
+        return getListHomeUrl().stream()
+                .filter(url ->
+                        Objects.equals(url.getHomeBankingId(), homeBankingId) && Objects.equals(url.getId(), homeUrlId))
+                .findFirst()
+                .orElse(null); // null if not found
+    }
 }

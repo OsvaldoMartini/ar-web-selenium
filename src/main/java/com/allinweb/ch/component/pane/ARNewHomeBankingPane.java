@@ -657,8 +657,11 @@ public class ARNewHomeBankingPane extends ARPane {
 
             } else {
                 // ✅ Reload the table after successful insert
-                performDataBase.loadHomeUrls(homeBankId);
-                tableViewHomeUrl.setItems(FXCollections.observableArrayList(performLists.getListHomeUrl()));
+                if (performLists.getListHomeUrl().isEmpty()) {
+                    performDataBase.loadHomeUrls(null);
+                }
+                List<HomeUrlDTO> filteredHomeUrl = performLists.getHomeUrlsByBankId(homeBankId);
+                tableViewHomeUrl.setItems(FXCollections.observableArrayList(filteredHomeUrl));
 
                 homeUrlIdField.clear();
                 homeUrlValueField.clear();
@@ -716,8 +719,11 @@ public class ARNewHomeBankingPane extends ARPane {
 
                 } else {
                     // ✅ Reload the table after successful update
-                    performDataBase.loadHomeUrls(homeBankId);
-                    tableViewHomeUrl.setItems(FXCollections.observableArrayList(performLists.getListHomeUrl()));
+                    if (performLists.getListHomeUrl().isEmpty()) {
+                        performDataBase.loadHomeUrls(null);
+                    }
+                    List<HomeUrlDTO> filteredHomeUrl = performLists.getHomeUrlsByBankId(homeBankId);
+                    tableViewHomeUrl.setItems(FXCollections.observableArrayList(filteredHomeUrl));
                     tableViewHomeUrl.getSelectionModel().clearSelection();
 
                     // Optionally clear the fields
@@ -754,8 +760,11 @@ public class ARNewHomeBankingPane extends ARPane {
                 return;
             }
 
-            performDataBase.loadHomeUrls(Integer.parseInt(homeBankIdStr));
-            if (performLists.getListHomeUrl().size() == 1) {
+            if (performLists.getListHomeUrl().isEmpty()) {
+                performDataBase.loadHomeUrls(null);
+            }
+            List<HomeUrlDTO> filteredHomeUrl = performLists.getHomeUrlsByBankId(Integer.parseInt(homeBankIdStr));
+            if (filteredHomeUrl.size() == 1) {
 
                 performMessage.showCustomModalDialogDragWin11(
                         "Only One Environment",
@@ -804,8 +813,9 @@ public class ARNewHomeBankingPane extends ARPane {
 
                 } else {
                     // ✅ Refresh list
-                    performDataBase.loadHomeUrls(homeBankId);
-                    tableViewHomeUrl.setItems(FXCollections.observableArrayList(performLists.getListHomeUrl()));
+                    performDataBase.loadHomeUrls(null);
+                    filteredHomeUrl = performLists.getHomeUrlsByBankId(homeBankId);
+                    tableViewHomeUrl.setItems(FXCollections.observableArrayList(filteredHomeUrl));
 
                     homeUrlIdField.clear();
                     homeUrlValueField.clear();
@@ -856,8 +866,11 @@ public class ARNewHomeBankingPane extends ARPane {
                 // ... populate form fields
 
                 // Load URLs related to the selected home banking ID
-                performDataBase.loadHomeUrls(Integer.parseInt(String.valueOf(selectedUser.getId())));
-                tableViewHomeUrl.setItems(FXCollections.observableArrayList(performLists.getListHomeUrl()));
+                if (performLists.getListHomeUrl().isEmpty()) {
+                    performDataBase.loadHomeUrls(null);
+                }
+                List<HomeUrlDTO> filteredHomeUrl = performLists.getHomeUrlsByBankId(selectedUser.getId());
+                tableViewHomeUrl.setItems(FXCollections.observableArrayList(filteredHomeUrl));
             } else {
                 tableViewHomeUrl.getItems().clear();
             }

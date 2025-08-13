@@ -200,7 +200,11 @@ public class ARSaveClonePane extends ARPane {
             if (!Strings.isNullOrEmpty(newUrl.getText())) {
 
                 Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
-                performDataBase.loadHomeUrls(
+                if (performLists.getListHomeUrl().isEmpty()) {
+                    performDataBase.loadHomeUrls(null);
+                }
+
+                List<HomeUrlDTO> filteredHomeUrl = performLists.getHomeUrlsByBankId(
                         selecBotJobDTO.getHomeBankingLoadDTO().getId());
 
                 if (!newUrl.getText()
@@ -208,7 +212,7 @@ public class ARSaveClonePane extends ARPane {
                         .equals(selecBotJobDTO.getHomeBankingLoadDTO().getUrl())) {
 
                     // Check if homeURLList contains a HomeUrlDTO with matching id and url
-                    Optional<HomeUrlDTO> matchHomeUrl = performLists.getListHomeUrl().stream()
+                    Optional<HomeUrlDTO> matchHomeUrl = filteredHomeUrl.stream()
                             .filter(homeUrl -> homeUrl.getId() != null
                                     && selecBotJobDTO.getHomeBankingId().equals(homeUrl.getHomeBankingId())
                                     && newUrl.getText().trim().equals(homeUrl.getUrl()))
@@ -254,7 +258,7 @@ public class ARSaveClonePane extends ARPane {
                 } else {
 
                     // Check if homeURLList contains a HomeUrlDTO with matching id and url
-                    Optional<HomeUrlDTO> matchHomeUrl = performLists.getListHomeUrl().stream()
+                    Optional<HomeUrlDTO> matchHomeUrl = filteredHomeUrl.stream()
                             .filter(homeUrl -> homeUrl.getId() != null
                                     && selecBotJobDTO.getHomeBankingId().equals(homeUrl.getHomeBankingId())
                                     && newUrl.getText().trim().equals(homeUrl.getUrl()))

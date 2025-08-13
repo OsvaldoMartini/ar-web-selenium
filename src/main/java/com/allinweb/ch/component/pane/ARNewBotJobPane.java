@@ -90,7 +90,9 @@ public class ARNewBotJobPane extends ARPane {
         labelHomeBanking = new Label("Url / Environment:");
 
         // Load home URLs before creating the ChoiceBox
-        performDataBase.loadHomeUrls(null);
+        if (performLists.getListHomeUrl().isEmpty()) {
+            performDataBase.loadHomeUrls(null);
+        }
 
         homeURLChoiceBox = new ChoiceBox<>();
         homeURLChoiceBox.setPrefWidth(250); // Set fixed preferred width, adjust as needed

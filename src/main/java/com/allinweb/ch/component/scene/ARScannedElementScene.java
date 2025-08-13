@@ -180,13 +180,7 @@ public class ARScannedElementScene extends ARScene {
 
     public void showModal() {
 
-        arScannedElementPane.initialize(
-                arWebDriver,
-                homeBankingLoadDTO,
-                botJobLoadDTO,
-                blockLoadDTO,
-                executorWebSocket,
-                executorServicePreLaunch);
+        arScannedElementPane.initialize(arWebDriver, botJobLoadDTO, executorWebSocket, executorServicePreLaunch);
 
         try {
 

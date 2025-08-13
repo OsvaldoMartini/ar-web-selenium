@@ -2,8 +2,6 @@ package com.allinweb.ch.component.scene;
 
 import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
-import com.allinweb.ch.component.model.HomeBankingLoadDTO;
-import com.allinweb.ch.component.model.HomeUrlDTO;
 import com.allinweb.ch.component.pane.ARMainPane;
 import com.allinweb.ch.component.pane.ARViewBotJobPane;
 import com.allinweb.ch.component.pane.base.IARPane;
@@ -131,19 +129,10 @@ public class ARViewBotJobScene extends ARScene {
                 .findFirst()
                 .orElse(null); // orElseThrow(...) if you want an exception when not found
 
-        performDataBase.loadHomeBanking(selectedBojJob.getHomeBankingId());
-        HomeBankingLoadDTO homeBankingLoadDTO = performLists.getListHomeBanking().stream()
-                .filter(job -> job.getId().equals(selectedBojJob.getHomeBankingId()))
-                .findFirst()
-                .orElse(null); // orElseThrow(...) if you want an exception when not found
-
-        if (botJobLoad != null && homeBankingLoadDTO != null) {
-            HomeUrlDTO homeUrlDTO = findMatchingHomeUrlDTO(botJobLoad);
-            if (homeUrlDTO != null) {
-                botJobLoad.setHomeUrlId(homeUrlDTO.getId());
-                homeBankingLoadDTO.setUrl(homeUrlDTO.getUrl()); // TO GET FROM HOME URL
-            }
+        if (performLists.getListHomeUrl().isEmpty()) {
+            performDataBase.loadHomeUrls(null);
         }
+        //        performDataBase.loadHomeBanking(selectedBojJob.getHomeBankingId());
 
         if (botJobLoad != null && botJobLoad.getBlockLoadDTOList() == null) {
             botJobLoad.setBlockLoadDTOList(performLists.getListBlock());
@@ -177,20 +166,6 @@ public class ARViewBotJobScene extends ARScene {
                         0);
             }
         }
-    }
-
-    public HomeUrlDTO findMatchingHomeUrlDTO(BotJobLoadDTO botJobLoadDTO) {
-        Integer targetHomeUrlId = botJobLoadDTO.getHomeUrlId();
-        HomeBankingLoadDTO homeBanking = botJobLoadDTO.getHomeBankingLoadDTO();
-
-        if (homeBanking != null && homeBanking.getHomeUrlDTOs() != null) {
-            return homeBanking.getHomeUrlDTOs().stream()
-                    .filter(dto -> dto.getId().equals(targetHomeUrlId))
-                    .findFirst()
-                    .orElse(null);
-        }
-
-        return null;
     }
 
     private static final Double SCENE_HEIGHT = 600D;

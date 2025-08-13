@@ -3,17 +3,7 @@ package com.allinweb.ch.component.pane;
 import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
-import com.allinweb.ch.component.model.AttributeData;
-import com.allinweb.ch.component.model.BlockLoadDTO;
-import com.allinweb.ch.component.model.BotJobLoadDTO;
-import com.allinweb.ch.component.model.ElementDTO;
-import com.allinweb.ch.component.model.ElementSplitDTO;
-import com.allinweb.ch.component.model.HomeBankingLoadDTO;
-import com.allinweb.ch.component.model.InstructionLoadDTO;
-import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
-import com.allinweb.ch.component.model.PayloadJson;
-import com.allinweb.ch.component.model.RowStatus;
-import com.allinweb.ch.component.model.VariableLoadDTO;
+import com.allinweb.ch.component.model.*;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
 import com.allinweb.ch.component.scene.ARScannedElementScene;
@@ -539,7 +529,7 @@ public class ARScannedElementPane extends ARPane {
             jsonData = gson.toJson(blockLoopInstructions);
         }
         webSocketSessionManager.sendMessageJson(
-                homeBanking.getId(),
+                botJobLoad.getHomeBankingId(),
                 "botJobTasks", // + currentBotJobId,
                 jsonData,
                 "updateInstructions");
@@ -1012,14 +1002,11 @@ public class ARScannedElementPane extends ARPane {
     private DatabaseUserDTO databaseUserDto;
 
     private BotJobLoadDTO botJobLoad;
-    private BlockLoadDTO blockLoad;
 
     private int currentBlockId;
     private String currentBlockName;
 
     double comboWidth = 200;
-
-    private HomeBankingLoadDTO homeBanking;
 
     private ComboBox<ComboBoxVars> comboBoxBlocks;
     private final ObservableList<ComboBoxVars> blocksItems = FXCollections.observableArrayList();
@@ -1152,13 +1139,10 @@ public class ARScannedElementPane extends ARPane {
 
     public void initialize(
             ARWebDriver currentARWebDriver,
-            HomeBankingLoadDTO homeBanking,
-            BotJobLoadDTO botJobLoadDTO,
-            BlockLoadDTO blockLoadDTO,
+            BotJobLoadDTO botJobLoad,
             ExecutorService executorWebSocket,
             ExecutorService executorServicePreLaunch) {
         this.currentARWebDriver = currentARWebDriver;
-        this.homeBanking = homeBanking;
 
         this.executorWebSocket = executorWebSocket;
         this.executorServicePreLaunch = executorServicePreLaunch;
@@ -1186,6 +1170,7 @@ public class ARScannedElementPane extends ARPane {
                 arPriorities.setJobId(this.botJobLoad.getId());
 
                 // Check for non-null HomeBanking and Priority
+                HomeBankingLoadDTO homeBanking = performLists.getHomeBankingById(botJobLoad.getHomeBankingId());
                 if (homeBanking != null) {
                     String priorityValue = homeBanking.getPriority();
                     String searchConfig = homeBanking.getSearchConfig();
@@ -1207,12 +1192,13 @@ public class ARScannedElementPane extends ARPane {
         }
 
         // Assign instance variables
-        this.botJobLoad = botJobLoadDTO;
-        this.blockLoad = blockLoadDTO;
+        this.botJobLoad = botJobLoad;
         performActions.initialize(arPriorities);
         performActions.setCurrentDriver(currentARWebDriver.getCurrentDriver());
 
-        updateSceneTitleWithCurrentURL(homeBanking.getUrl());
+        HomeUrlDTO homeUrlDTO =
+                performLists.getHomeUrlByBankId(botJobLoad.getHomeBankingId(), botJobLoad.getHomeUrlId());
+        updateSceneTitleWithCurrentURL(homeUrlDTO.getUrl());
 
         //        if (!initializeWebView()) {
         //            return;
@@ -1261,13 +1247,13 @@ public class ARScannedElementPane extends ARPane {
 
         // sessionIdFromJava
         // (SENDER: scannerTool) -> scannerGrid /  (SENDER: insertTool) -> botJobTasks /
-        sessionIdFromJava = "scannerGrid"; // + this.homeBanking.getId();
+        sessionIdFromJava = "scannerGrid"; // + this.botJobLoad.getHomeBankingId();
         buildWebView(
                 webEngine,
                 jsonData,
                 portSocketInitial,
                 sessionIdFromJava,
-                homeBanking.getId(),
+                botJobLoad.getHomeBankingId(),
                 this.botJobLoad.getId(),
                 this.botJobLoad.getName());
 
@@ -1317,7 +1303,7 @@ public class ARScannedElementPane extends ARPane {
         //                    "closeBrowser",
         //                    "scannerGrid",
         //                    "closeBrowser",
-        //                    homeBanking.getId(),
+        //                    botJobLoad.getHomeBankingId(),
         //                    homeBanking.getUrl());
         //        });
 
@@ -1354,10 +1340,14 @@ public class ARScannedElementPane extends ARPane {
         }
 
         if (firstLoad) {
+            HomeUrlDTO homeUrlDTO =
+                    performLists.getHomeUrlByBankId(botJobLoad.getHomeBankingId(), botJobLoad.getHomeUrlId());
+            HomeBankingLoadDTO homeBanking = performLists.getHomeBankingById(botJobLoad.getHomeBankingId());
+
             WebDriver returned = currentARWebDriver.openDriver(
                     browserType,
                     webDriverPath,
-                    homeBanking.getUrl(),
+                    homeUrlDTO.getUrl(),
                     homeBanking.getOptionsConfig(),
                     defaultSearch,
                     searchHiddenFields,
@@ -1372,7 +1362,9 @@ public class ARScannedElementPane extends ARPane {
         } else {
 
             if (currentARWebDriver.getCurrentDriver() != null) {
-                currentARWebDriver.getCurrentDriver().get(homeBanking.getUrl());
+                HomeUrlDTO homeUrlDTO =
+                        performLists.getHomeUrlByBankId(botJobLoad.getHomeBankingId(), botJobLoad.getHomeUrlId());
+                currentARWebDriver.getCurrentDriver().get(homeUrlDTO.getUrl());
             }
         }
 
@@ -1535,7 +1527,7 @@ public class ARScannedElementPane extends ARPane {
             //                        "closeBrowser",
             //                        "scannerGrid",
             //                        "closeBrowser",
-            //                        homeBanking.getId(),
+            //                        botJobLoad.getHomeBankingId(),
             //                        homeBanking.getUrl());
             //            });
         });
@@ -1545,12 +1537,12 @@ public class ARScannedElementPane extends ARPane {
                 //                webEngine.reload();
 
                 var processDTO = new ElementSplitDTO();
-                processDTO.setHomeBankingId(homeBanking.getId());
-                processDTO.setSessionId("scannerGrid"); // + homeBanking.getId());
+                processDTO.setHomeBankingId(botJobLoad.getHomeBankingId());
+                processDTO.setSessionId("scannerGrid"); // + botJobLoad.getHomeBankingId());
                 processDTO.setOperationId("searchTerms");
                 processDTO.setDetails(new ElementDTO[0]);
                 webSocketSessionManager.sendMessageJson(
-                        homeBanking.getId(), "scannerGrid", gson.toJson(processDTO), "searchTerms");
+                        botJobLoad.getHomeBankingId(), "scannerGrid", gson.toJson(processDTO), "searchTerms");
 
                 Platform.runLater(() -> {
                     countdownTextField.setText("Pre-Launch status: Ready");
@@ -1562,7 +1554,9 @@ public class ARScannedElementPane extends ARPane {
         currentURL.setFill(Color.BLUE);
         currentURL.setStyle("-fx-font-size: 16px;");
 
-        updateSceneTitleWithCurrentURL(homeBanking.getUrl());
+        HomeUrlDTO homeUrlDTO =
+                performLists.getHomeUrlByBankId(botJobLoad.getHomeBankingId(), botJobLoad.getHomeUrlId());
+        updateSceneTitleWithCurrentURL(homeUrlDTO.getUrl());
 
         performDataBase.loadBlocks(this.botJobLoad.getId(), this.botJobLoad.getName(), "block");
         loadAllBlockItems(performLists.getListBlock());
@@ -1969,7 +1963,7 @@ public class ARScannedElementPane extends ARPane {
                 // String[] dataArrayClone = {"*"};
                 int finalPort = portSocketInitial;
                 String socketSessionId = "scannerTool";
-                String destinationId = "scannerGrid"; // + homeBanking.getId();
+                String destinationId = "scannerGrid"; // + botJobLoad.getHomeBankingId();
                 Platform.runLater(() -> periodicPickOneCloneThread(
                         performActions.getCurrentDriver(),
                         false,
@@ -1977,7 +1971,7 @@ public class ARScannedElementPane extends ARPane {
                         socketSessionId,
                         destinationId,
                         "addPickOne",
-                        homeBanking.getId(),
+                        botJobLoad.getHomeBankingId(),
                         performActions.getCurrentDriver().getCurrentUrl()));
             }
 
@@ -2060,7 +2054,7 @@ public class ARScannedElementPane extends ARPane {
             elementDTO.setSomeText(defineNameField.getText().trim());
 
             var processDTO = new ElementSplitDTO();
-            processDTO.setHomeBankingId(homeBanking.getId());
+            processDTO.setHomeBankingId(botJobLoad.getHomeBankingId());
             processDTO.setSessionId("scannerGrid");
             processDTO.setOperationId("clonedElement");
 
@@ -2100,7 +2094,7 @@ public class ARScannedElementPane extends ARPane {
             }
 
             webSocketSessionManager.sendMessageJson(
-                    homeBanking.getId(), "scannerGrid", gson.toJson(processDTO), "clonedElement");
+                    botJobLoad.getHomeBankingId(), "scannerGrid", gson.toJson(processDTO), "clonedElement");
         }
     }
 
@@ -2362,7 +2356,7 @@ public class ARScannedElementPane extends ARPane {
                 socketSessionId,
                 destinationId,
                 "searchTerms",
-                homeBanking.getId());
+                botJobLoad.getHomeBankingId());
 
         //        Platform.runLater(() -> periodicSearchThread(
         //                performActions.getCurrentDriver(),
@@ -3019,7 +3013,8 @@ public class ARScannedElementPane extends ARPane {
         boolean webElementWork = false;
 
         if (extractedData.getNumberOfDataRows() > 0) {
-            List<InstructionLoadDTO> excelDataGoto = performDataBase.loadExcelGotoBlock(homeBanking.getId(), botJobId);
+            List<InstructionLoadDTO> excelDataGoto =
+                    performDataBase.loadExcelGotoBlock(botJobLoad.getHomeBankingId(), botJobId);
 
             if (extractedData.getNumberOfDataRows() > 1 && excelDataGoto.isEmpty()) {
 
@@ -3357,13 +3352,13 @@ public class ARScannedElementPane extends ARPane {
                                 rowStatus.setColor("yellow"); // #fcba03 deep carmine yellow
                                 jsonStatus = gson.toJson(rowStatus);
                                 webSocketSessionManager.sendMessageJson(
-                                        homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
+                                        botJobLoad.getHomeBankingId(), sessionRowStatus, jsonStatus, "rowStatus");
                             } else {
                                 // Previous
                                 rowStatus.setColor("green"); // #1d9c06 green
                                 jsonStatus = gson.toJson(rowStatus);
                                 webSocketSessionManager.sendMessageJson(
-                                        homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
+                                        botJobLoad.getHomeBankingId(), sessionRowStatus, jsonStatus, "rowStatus");
                                 try {
                                     Thread.sleep(300);
                                 } catch (Exception e) {
@@ -3373,7 +3368,7 @@ public class ARScannedElementPane extends ARPane {
                                 rowStatus.setColor("yellow"); // #fcba03 deep carmine yellow
                                 jsonStatus = gson.toJson(rowStatus);
                                 webSocketSessionManager.sendMessageJson(
-                                        homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
+                                        botJobLoad.getHomeBankingId(), sessionRowStatus, jsonStatus, "rowStatus");
                             }
 
                             //                        String[] operation =
@@ -4607,7 +4602,8 @@ public class ARScannedElementPane extends ARPane {
             if (!isInterceptBotJob()) {
                 rowStatus.setColor("green"); // #1d9c06 deep carmine green
                 jsonStatus = gson.toJson(rowStatus);
-                webSocketSessionManager.sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
+                webSocketSessionManager.sendMessageJson(
+                        botJobLoad.getHomeBankingId(), sessionRowStatus, jsonStatus, "rowStatus");
 
                 performMessage.showCustomModalDialogDragWin11(
                         "Bot-Job Finished - successfully",
@@ -4622,7 +4618,8 @@ public class ARScannedElementPane extends ARPane {
             } else {
                 rowStatus.setColor("yellow"); // #fcba03 deep carmine yellow
                 jsonStatus = gson.toJson(rowStatus);
-                webSocketSessionManager.sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
+                webSocketSessionManager.sendMessageJson(
+                        botJobLoad.getHomeBankingId(), sessionRowStatus, jsonStatus, "rowStatus");
 
                 performMessage.showCustomModalDialogDragWin11(
                         "Bot-Job Interrupted successfully",
@@ -4654,7 +4651,8 @@ public class ARScannedElementPane extends ARPane {
             if (isInterceptBotJob()) {
                 rowStatus.setColor("yellow"); // #fcba03 deep carmine yellow
                 jsonStatus = gson.toJson(rowStatus);
-                webSocketSessionManager.sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
+                webSocketSessionManager.sendMessageJson(
+                        botJobLoad.getHomeBankingId(), sessionRowStatus, jsonStatus, "rowStatus");
 
                 performMessage.showCustomModalDialogDragWin11(
                         "Bot-Job Interrupted successfully",
@@ -4670,7 +4668,8 @@ public class ARScannedElementPane extends ARPane {
 
                 rowStatus.setColor("red"); // #FF3131 deep carmine red
                 jsonStatus = gson.toJson(rowStatus);
-                webSocketSessionManager.sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
+                webSocketSessionManager.sendMessageJson(
+                        botJobLoad.getHomeBankingId(), sessionRowStatus, jsonStatus, "rowStatus");
 
                 performMessage.errorMessage(
                         "Failed finding element (5 attempts).",
@@ -4683,7 +4682,8 @@ public class ARScannedElementPane extends ARPane {
 
                 rowStatus.setColor("red"); // #FF3131 deep carmine red
                 jsonStatus = gson.toJson(rowStatus);
-                webSocketSessionManager.sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
+                webSocketSessionManager.sendMessageJson(
+                        botJobLoad.getHomeBankingId(), sessionRowStatus, jsonStatus, "rowStatus");
 
                 performMessage.errorMessage(
                         "Process Execution Terminated",

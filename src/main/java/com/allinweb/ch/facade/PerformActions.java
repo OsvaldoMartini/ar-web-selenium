@@ -4006,7 +4006,7 @@ public class PerformActions {
                         && performDataBase.getIdsBlockAfter().get(0) > 0) {
                     return performDataBase.getIdsBlockAfter().get(0);
                 } else {
-                    return -9999;
+                    return -1;
                 }
             } else {
 

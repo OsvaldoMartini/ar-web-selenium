@@ -227,7 +227,10 @@ public class ARMainPane extends ARPane {
         });
 
         newBotJobButton.setOnMouseClicked(e -> {
-            performDataBase.loadHomeUrls(null);
+            if (performLists.getListHomeUrl().isEmpty()) {
+                performDataBase.loadHomeUrls(null);
+            }
+
             if (!performLists.getListHomeUrl().isEmpty()) {
 
                 arNewBotJobScene.initialize(arViewBotJobScene, arWebDriver, webDriverList);

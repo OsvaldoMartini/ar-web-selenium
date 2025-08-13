@@ -4627,7 +4627,7 @@ GROUP BY
         }
     }
 
-    public List<HomeUrlDTO> loadHomeUrls(Integer homeBankingId) {
+    public ErrorMessage loadHomeUrls(Integer homeBankingId) {
         performLists.getListHomeUrl().clear();
 
         StringBuilder sql = new StringBuilder(
@@ -4656,11 +4656,13 @@ GROUP BY
                     performLists.getListHomeUrl().add(new HomeUrlDTO(id, url, hbId, orgName));
                 }
             }
-        } catch (SQLException e) {
-            System.out.println(e.getMessage());
-        }
 
-        return performLists.getListHomeUrl();
+            return null; // success → no error
+
+        } catch (SQLException error) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Failed to load Home URLs");
+            return new ErrorMessage("Failed to load Home URLs", "Home URL Load Failure", error.getMessage());
+        }
     }
 
     public void selectHomeBankinOneRow() {
