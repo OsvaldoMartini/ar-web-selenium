@@ -170,27 +170,7 @@ public class ARSaveClonePane extends ARPane {
                 return;
             }
 
-            //            String excelPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
-            //            String originalFilePath =
-            //                    excelPath + "\\" + selecBotJobDTO.getName().trim() + ".xlsx";
-            //            String newFilePath = excelPath + "\\" + newBotJobName + ".xlsx";
-
             ExcelUtils.createExcelDataFile(selecBotJobDTO, newBotJobName);
-
-            //            boolean excelCreation = checkFilesExist(originalFilePath, newFilePath);
-            //            if (!excelCreation) {
-            //                performMessage.errorMessage(
-            //                        "Error Duplicating File Excel",
-            //                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Excel File
-            // Name:</span> ❌",
-            //                        "<span style='color: #E65100; font-weight: bold;'>" + newBotJobName + ".xlsx" +
-            // "</span> ",
-            //                        null,
-            //                        null,
-            //                        0);
-            //
-            //                return;
-            //            }
 
             if (!Strings.isNullOrEmpty(newUrl.getText())) {
 
@@ -338,18 +318,6 @@ public class ARSaveClonePane extends ARPane {
                     null,
                     0);
         }
-        //            } else {
-        //                performMessage.errorMessage(
-        //                        "Access Denied",
-        //                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Access
-        // Denied!</span> 🔒",
-        //                        "<span style='color: #E65100;'>Cannot access the file.</span>",
-        //                        "<span style='font-style: italic;'>Verify if the file is currently open in another
-        // application.</span>",
-        //                        "<span style='font-style: italic;'>Please close the file in other applications and try
-        // again.</span>",
-        //                        0);
-        //            }
 
         ARLogger.getInstance(ARSaveClonePane.class).finer("ARSaveClonePane Close()");
         Platform.runLater(() -> {
