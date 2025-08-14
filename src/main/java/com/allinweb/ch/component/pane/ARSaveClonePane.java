@@ -408,7 +408,7 @@ public class ARSaveClonePane extends ARPane {
 
             Integer newBotJobId = performDataBase.getNewBotBojId(selecBotJobDTO.getId());
             if (newBotJobId != null) {
-                performDataBase.deleteBotJob(newBotJobId);
+                performDataBase.deleteBotJobData(newBotJobId);
             }
 
             String errorType = "Database error";

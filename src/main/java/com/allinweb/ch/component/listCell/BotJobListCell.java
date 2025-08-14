@@ -7,6 +7,7 @@ import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.util.ARConstants;
+import com.allinweb.ch.util.ErrorMessage;
 import javafx.application.Platform;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -217,28 +218,29 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
     }
 
     private void deleteBotJob(BotJobLoadDTO botJob) {
-        int rowsAffected = performDataBase.deleteBotJob(botJob.getId());
+        ErrorMessage errorMessage = performDataBase.deleteBotJobData(botJob.getId());
 
-        if (rowsAffected == 0) {
+        if (errorMessage == null) {
             performMessage.showCustomModalDialogDragWin11(
                     "Action Delete Bot-Job",
-                    "Bot-Job deleted successfully!",
-                    String.format("The Bot Job \"%s\" was Deleted!", botJob.getName()),
-                    null,
-                    null,
+                    "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>Operation Successful!</span> ✅",
+                    "<span style='color: #388E3C; font-weight: bold;'>Success:</span> Bot Job Deletion",
+                    "<span style='color: #2E7D32; font-weight: bold;'>" + botJob.getName() + "</span>",
+                    "<span style='font-style: italic;'>Detail:</span> The Bot Job \"" + botJob.getName()
+                            + "\" was deleted successfully!",
                     false,
                     "Close",
                     null,
                     0);
-        } else if (rowsAffected < 0) {
+        } else {
             performMessage.errorMessage(
-                    "I cannot delete the BotJob Now",
-                    "This Bot Job was Flagged as Inactive!",
-                    "Some Access ROW still in use",
-                    null,
-                    null,
+                    errorMessage.getErrorTitle(),
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> Bot Job Deletion Error",
+                    "<span style='color: #2E7D32; font-weight: bold;'>" + errorMessage.getErrorHeader() + "</span>",
+                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
                     0);
-            performDataBase.updateStatusBotJob(botJob.getId(), 0);
+            //            performDataBase.updateStatusBotJob(botJob.getId(), 0);
         }
     }
 }

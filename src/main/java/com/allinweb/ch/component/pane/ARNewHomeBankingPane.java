@@ -1070,7 +1070,6 @@ public class ARNewHomeBankingPane extends ARPane {
                             .finer("Deleted " + urlRows + " rows from home_url and " + bankRows
                                     + " rows from home_banking for ID: " + Id);
                 } catch (SQLException error) {
-                    conn.rollback(); // rollback if either delete fails
                     ARLogger.getInstance(Thread.class).finer("Error Deleting: " + error.getMessage());
                 } finally {
                     conn.setAutoCommit(true); // restore auto-commit mode

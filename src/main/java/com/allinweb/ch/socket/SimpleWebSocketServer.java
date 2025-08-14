@@ -689,7 +689,7 @@ public class SimpleWebSocketServer {
             }
         } else {
             performMessage.errorMessage(
-                    errorMessage.getErrorTitle(),
+                    "Database Creation Error",
                     "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
                     "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
                             + errorMessage.getErrorTitle(),

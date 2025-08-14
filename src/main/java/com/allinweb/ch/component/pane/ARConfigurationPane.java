@@ -879,6 +879,9 @@ public class ARConfigurationPane extends ARPane {
                             0);
                 } else {
 
+                    ARLogger.getInstance(ARConfigurationPane.class)
+                            .severe("Restore Database error: " + errorMessage.getErrorMessage());
+
                     performMessage.errorMessage(
                             "Restore Database error",
                             "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>"
@@ -889,8 +892,8 @@ public class ARConfigurationPane extends ARPane {
                             null,
                             0);
                 }
-            } catch (SQLException ex) {
-                System.out.println(ex.getMessage());
+            } catch (SQLException error) {
+                ARLogger.getInstance(ARConfigurationPane.class).severe("Restore Database error: " + error.getMessage());
             }
         }
     }

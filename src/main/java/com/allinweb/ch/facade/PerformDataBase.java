@@ -189,7 +189,6 @@ public class PerformDataBase {
             if (!dbFile.exists()) {
                 performInitializer.initialize(getConn());
                 performInitializer.initializeMainDatabaseAccess(dbFile);
-                performInitializer.addForeignKeyConstraintsAccess();
             } else {
                 ARLogger.getInstance(PerformDataBase.class)
                         .info(String.format("Database '%s' detected!", dbFile.getName()));
@@ -2051,32 +2050,23 @@ public class PerformDataBase {
         }
     }
 
-    public int deleteBotJob(int botJobId) {
-        // Build the SQL delete statement
-        try (Statement stmt = getConnection().createStatement()) {
+    public ErrorMessage deleteBotJobData(int botJobId) {
+        String deleteSQL = "DELETE FROM bot_job WHERE id = ?";
 
-            // Saved Blocks
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false);
 
-            int rowsAffected = stmt.executeUpdate("DELETE FROM variable where bot_job_id = " + botJobId);
-            rowsAffected += stmt.executeUpdate("DELETE FROM reference where bot_job_id = " + botJobId);
-            rowsAffected += stmt.executeUpdate("DELETE FROM instruction where bot_job_id = " + botJobId);
-            rowsAffected += stmt.executeUpdate("DELETE FROM block " + " WHERE bot_job_id = " + botJobId);
-            String deleteSQL = "DELETE FROM bot_job " + " WHERE id = " + botJobId;
-
-            // Execute the update statement and check if any rows were affected
-            rowsAffected += stmt.executeUpdate(deleteSQL);
-            if (rowsAffected > 0) {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .info(String.format("The Bot Job  id %d has been successfully deleted!", botJobId));
-            } else {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .warning(String.format("No matching record found for botJobId %d.", botJobId));
+            try (PreparedStatement ps = conn.prepareStatement(deleteSQL)) {
+                ps.setInt(1, botJobId);
+                ps.executeUpdate();
+                conn.commit();
+                return null; // success
+            } catch (SQLException error) {
+                return new ErrorMessage("Error deleting Bot Job", "I cannot delete the BotJob Now", error.getMessage());
             }
-            return rowsAffected;
-        } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("Error deleting BotJobId ID %d. Error: %s", botJobId, e.getMessage()));
-            return -1;
+
+        } catch (SQLException error) {
+            return new ErrorMessage("Error deleting Bot Job", "I cannot delete the BotJob Now", error.getMessage());
         }
     }
 

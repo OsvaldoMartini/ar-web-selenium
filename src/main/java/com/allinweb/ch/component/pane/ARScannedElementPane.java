@@ -333,9 +333,13 @@ public class ARScannedElementPane extends ARPane {
                                     .getDefinedName()
                                     .equalsIgnoreCase(defineNameField.getText().trim())) {
                         targetEach.setDefinedName(defineNameField.getText().trim());
+                        Platform.runLater(() -> {
+                            defineNameField.clear();
+                            searchAttribValueField.clear();
+                        });
                     }
                     targetSelected = targetEach;
-                    itPrintsElementDTO();
+                    //                    itPrintsElementDTO();
                 }
 
                 prepareToInsertElementDTO(currentBlockId, nextOrder, targetEach, true);
@@ -1979,7 +1983,10 @@ public class ARScannedElementPane extends ARPane {
                 launchBotJobButton.setDisable(checkCloneElement.isSelected());
 
                 if (!checkCloneElement.isSelected()) {
-                    defineNameField.clear();
+                    Platform.runLater(() -> {
+                        defineNameField.clear();
+                        searchAttribValueField.clear();
+                    });
                 }
             });
         });
@@ -1987,6 +1994,10 @@ public class ARScannedElementPane extends ARPane {
         cloneElementsButton.setOnAction(e -> {
             if (targetSelected != null && targetSelected.getElement() != null) {
                 cloneElementDTO(targetSelected);
+                Platform.runLater(() -> {
+                    defineNameField.clear();
+                    searchAttribValueField.clear();
+                });
             } else {
 
                 performMessage.showCustomModalDialogDragWin11(

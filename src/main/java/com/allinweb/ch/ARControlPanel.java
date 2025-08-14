@@ -10,10 +10,7 @@ import com.allinweb.ch.license.LicenseManager;
 import com.allinweb.ch.socket.ARWebSocketServer;
 import com.allinweb.ch.socket.ARWebSocketServerIP;
 import com.allinweb.ch.socket.WebSocketSessionManager;
-import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARLogger;
-import com.allinweb.ch.util.ARPropertyEnum;
-import com.allinweb.ch.util.ARPropertyManager;
+import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import java.io.File;
 import java.io.FileInputStream;
@@ -332,8 +329,22 @@ public class ARControlPanel extends Application {
                         && performInitializer.doesNotInstructionTableExistAccess(performDataBase.getConnection())) {
                     if (performDataBase.getConn() != null) {
                         performInitializer.initialize(performDataBase.getConn());
-                        performInitializer.initializeMainDatabaseAccess(dbFile);
-                        performInitializer.addForeignKeyConstraintsAccess();
+
+                        ErrorMessage errorMessage = performInitializer.initializeMainDatabaseAccess(dbFile);
+                        if (errorMessage != null) {
+                            ARLogger.getInstance(ARMainPane.class)
+                                    .severe("Database Creation Error: " + errorMessage.getErrorMessage());
+
+                            performMessage.errorMessage(
+                                    errorMessage.getErrorTitle(),
+                                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> Database Creation Error",
+                                    "<span style='color: #2E7D32; font-weight: bold;'>" + errorMessage.getErrorHeader()
+                                            + "</span>",
+                                    "<span style='font-style: italic;'>Detail:</span> "
+                                            + errorMessage.getErrorMessage(),
+                                    0);
+                        }
                     }
                 } else {
                     //                performDataBase.disableForeignKeyConstraints(dbUrl);
@@ -345,6 +356,8 @@ public class ARControlPanel extends Application {
                 }
 
             } catch (Exception error) {
+                ARLogger.getInstance(ARMainPane.class).severe("Database Creation Error: " + error.getMessage());
+
                 performMessage.errorMessage(
                         "Configuration Needed", // Using configurationFileName as the title
                         "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: Set the path for the Database!</span>",
@@ -389,7 +402,7 @@ public class ARControlPanel extends Application {
                 //                performDataBase.exportCompReferencesAccess();
 
             } catch (Exception error) {
-                ARLogger.getInstance(ARMainPane.class).severe("Error Export to Postgres: " + error.getMessage());
+                ARLogger.getInstance(ARMainPane.class).severe("Error Access: " + error.getMessage());
             }
 
             //            performDataBase.updatePossibleMigrationColumnsTable(dbUrl, dbFile);
@@ -430,7 +443,7 @@ public class ARControlPanel extends Application {
             try {
                 Connection conn = performDataBase.getConnection();
                 if (conn != null) {
-                    ARLogger.getInstance(ARMainPane.class).severe("Access Database connected!");
+                    ARLogger.getInstance(ARMainPane.class).severe("SQLite Database connected!");
                 }
 
                 //                // Access to SQLite
@@ -451,26 +464,12 @@ public class ARControlPanel extends Application {
                 //                exportAccessToSQLite.exportCompReferences();
 
             } catch (Exception error) {
-                ARLogger.getInstance(ARMainPane.class).severe("Error Export to Postgres: " + error.getMessage());
+                ARLogger.getInstance(ARMainPane.class).severe("Error SQLite: " + error.getMessage());
             }
 
             //            performDataBase.updatePossibleMigrationColumnsTable(dbUrl, dbFile);
 
         }
-
-        //        dbResource.setPreviousDB(previousDB);
-
-        //        if (pathDB == null || pathDB.isBlank()) {
-        //            arConfigurationScene.showModal();
-        //            performMessage.errorMessage(
-        //                    "Configuration Needed", // Using configurationFileName as the title
-        //                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: Set the path
-        // for the Database!</span>",
-        //                    "<span style='color: #2E7D32; font-weight: bold;'>The Path for Database is Blank!</span>",
-        //                    "<span style='font-weight: bold;'>Please configure the application before use.</span>.",
-        //                    null,
-        //                    0);
-        //        }
     }
 
     private static void webSocketControl() {
