@@ -283,54 +283,6 @@ public class PerformDataBase {
         return conn;
     }
 
-    // Handle DELETE_INSTRUCTION message
-    public void deleteInstruction(int botJobId, InstructionLoadDTO toDelete, boolean blockDeletion) {
-
-        if (toDelete.getParentId() != null) {
-            List<ParentOperations> listParents =
-                    loadParents(botJobId, toDelete.getInstructionId(), toDelete.getParentId());
-            if (!listParents.isEmpty()) {
-
-                boolean isIF = toDelete.getActions().equalsIgnoreCase("IF")
-                        || toDelete.getActions().equalsIgnoreCase("ELSE")
-                        || toDelete.getActions().equalsIgnoreCase("ENDIF")
-                        || toDelete.getActions().equalsIgnoreCase("ELSEIF");
-
-                if (!blockDeletion && !isIF) {
-
-                    List<String> lstMsg = performMessage.distributeMsg(
-                            listParents.stream().map(ParentOperations::getName).collect(Collectors.toList()));
-
-                    ARConstants.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
-                            "Steps Attached",
-                            "Are you Sure you want to delete?",
-                            lstMsg.get(0),
-                            lstMsg.get(1),
-                            lstMsg.get(2),
-                            false,
-                            "Confirm",
-                            "Cancel",
-                            0);
-
-                    if (respModal.equals(ARConstants.DialogModal.STOP)) {
-                        return;
-                    }
-                }
-
-                deleteRowParents(toDelete.getBotJobId(), toDelete.getBlockId(), toDelete.getInstructionId());
-            }
-        }
-
-        if (toDelete.getInstructionId() > 0) {
-            if (deleteVariable(botJobId, toDelete.getInstructionId()))
-                if (deleteReferences(botJobId, toDelete.getInstructionId()))
-                    if (deleteRow(toDelete)) {
-                        deleteNullBlocks(botJobId);
-                        updateBlockOrderNumber(selectAllBlocks(toDelete.getBlockId()), true);
-                    }
-        }
-    }
-
     public boolean deleteVariable(int bot_job_id, int instructionId) {
         // Build the SQL delete statement
 
@@ -421,155 +373,123 @@ public class PerformDataBase {
         return parentList;
     }
 
-    public List<ParentOperations> loadParents(int bot_job_id, int instructionId, int parentId) {
+    public List<ParentOperations> loadParents(String tableName, int whereId, int instructionId, int parentId) {
         List<ParentOperations> parentList = new ArrayList<>();
 
-        try (Statement stmt = getConnection().createStatement()) {
+        // Determine the foreign key column based on table
+        String foreignKeyColumn = "instruction".equalsIgnoreCase(tableName) ? "bot_job_id" : "home_banking_id";
 
-            String selectSQL = MessageFormat.format(
-                    """
-                    SELECT
-                        parent.name as parent_name,
-                        child.name as child_name,
-                        child.parent_id
-                    FROM instruction AS child
-                    LEFT JOIN instruction AS parent ON child.parent_id = parent.id
-                    WHERE child.id != {0}
-                      AND child.parent_id = {1}
-                      AND child.bot_job_id = {2}
-                    ORDER BY child.id;
-            """,
-                    parentId, instructionId, bot_job_id);
+        String selectSQL = MessageFormat.format(
+                """
+                SELECT
+                    parent.name as parent_name,
+                    child.name as child_name,
+                    child.parent_id
+                FROM {0} AS child
+                LEFT JOIN {0} AS parent ON child.parent_id = parent.id
+                WHERE child.id != {1}
+                  AND child.parent_id = {2}
+                  AND child.{3} = {4}
+                ORDER BY child.id;
+                """,
+                tableName, parentId, instructionId, foreignKeyColumn, whereId);
 
-            try (ResultSet rs = stmt.executeQuery(selectSQL)) {
-                while (rs.next()) {
-                    String name = (rs.getString("child_name") + " --> (" + rs.getString("parent_id") + ")-"
-                            + rs.getString("parent_name"));
+        try (Statement stmt = getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(selectSQL)) {
 
-                    ParentOperations parentOper = new ParentOperations();
-                    parentOper.setName(name);
-                    parentOper.setInstructionId(instructionId);
-                    parentOper.setParentId(rs.getInt("parent_id"));
+            while (rs.next()) {
+                String name = rs.getString("child_name") + " --> (" + rs.getString("parent_id") + ")-"
+                        + rs.getString("parent_name");
 
-                    parentList.add(parentOper);
-                }
+                ParentOperations parentOper = new ParentOperations();
+                parentOper.setName(name);
+                parentOper.setInstructionId(instructionId);
+                parentOper.setParentId(rs.getInt("parent_id"));
+
+                parentList.add(parentOper);
             }
 
             if (!parentList.isEmpty()) {
                 ARLogger.getInstance(PerformDataBase.class)
                         .info(String.format(
-                                "Loaded parents for instruction ID %d from botJobId %d", instructionId, bot_job_id));
+                                "Loaded parents for instruction ID %d from %s = %d",
+                                instructionId, foreignKeyColumn, whereId));
             } else {
                 ARLogger.getInstance(PerformDataBase.class)
                         .warning(String.format(
-                                "No parents found for instruction ID %d in botJobId %d.", instructionId, bot_job_id));
+                                "No parents found for instruction ID %d in %s = %d",
+                                instructionId, foreignKeyColumn, whereId));
             }
 
         } catch (SQLException e) {
             ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
-                            "Error loading parents for instruction ID %d from botJobId %d. Error: %s",
-                            instructionId, bot_job_id, e.getMessage()));
+                            "Error loading parents for instruction ID %d in %s = %d. Error: %s",
+                            instructionId, foreignKeyColumn, whereId, e.getMessage()));
         }
 
         return parentList;
     }
 
-    public List<ParentOperations> loadParentsComp(int homeBankId, int blockId, int instructionId, int parentId) {
-        List<ParentOperations> parentList = new ArrayList<>();
+    public ErrorMessage deleteVariable(
+            String tableName, // e.g., "instruction_variable" or "component_instruction_variable"
+            int whereId, // e.g., bot_job_id or home_banking_id
+            InstructionLoadDTO dto // contains instructionId, variableId
+            ) {
+        // Determine the foreign key column based on table type
+        String foreignKeyColumn = "instruction_variable".equalsIgnoreCase(tableName) ? "bot_job_id" : "home_banking_id";
 
-        try (Statement stmt = getConnection().createStatement()) {
+        String deleteSQL = "DELETE FROM " + tableName + " WHERE instruction_id = ? AND variable_id = ? AND "
+                + foreignKeyColumn + " = ?";
 
-            String selectSQL = MessageFormat.format(
-                    """
-                    SELECT
-                        parent.name as parent_name,
-                        child.name as child_name,
-                        child.parent_id
-                    FROM component_instruction AS child
-                    LEFT JOIN component_instruction AS parent ON child.parent_id = parent.id
-                    WHERE child.id != {0}
-                      AND child.parent_id = {1}
-                      AND child.home_banking_id = {2}
-                      AND child.block_id = {3}
-                    ORDER BY child.id;
-            """,
-                    parentId, instructionId, homeBankId, blockId);
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false); // disable auto-commit
 
-            try (ResultSet rs = stmt.executeQuery(selectSQL)) {
-                while (rs.next()) {
-                    String name = (rs.getString("child_name") + " --> (" + rs.getString("parent_id") + ")-"
-                            + rs.getString("parent_name"));
+            try (PreparedStatement pstmt = conn.prepareStatement(deleteSQL)) {
+                pstmt.setInt(1, dto.getInstructionId());
+                pstmt.setInt(2, dto.getVariableId());
+                pstmt.setInt(3, whereId);
 
-                    ParentOperations parentOper = new ParentOperations();
-                    parentOper.setName(name);
-                    parentOper.setInstructionId(instructionId);
-                    parentOper.setParentId(rs.getInt("parent_id"));
+                int rowsAffected = pstmt.executeUpdate();
+                conn.commit();
 
-                    parentList.add(parentOper);
+                if (rowsAffected > 0) {
+                    ARLogger.getInstance(PerformDataBase.class)
+                            .info(String.format(
+                                    "Deleted variable ID %d for instruction ID %d in %s = %d",
+                                    dto.getVariableId(), dto.getInstructionId(), foreignKeyColumn, whereId));
+                } else {
+                    ARLogger.getInstance(PerformDataBase.class)
+                            .warning(String.format(
+                                    "No variable found to delete - variable ID %d, instruction ID %d in %s = %d",
+                                    dto.getVariableId(), dto.getInstructionId(), foreignKeyColumn, whereId));
                 }
-            }
 
-            if (!parentList.isEmpty()) {
+                return null; // success
+            } catch (SQLException e) {
+                conn.rollback();
                 ARLogger.getInstance(PerformDataBase.class)
-                        .info(String.format(
-                                "Loaded parents for instruction ID %d from homeBankId %d and blockId %d",
-                                instructionId, homeBankId, blockId));
-            } else {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .warning(String.format(
-                                "No parents found for instruction ID %d in homeBankId %d and blockId %d.",
-                                instructionId, homeBankId, blockId));
-            }
+                        .severe(String.format(
+                                "Error deleting variable ID %d for instruction ID %d in %s = %d. Error: %s",
+                                dto.getVariableId(),
+                                dto.getInstructionId(),
+                                foreignKeyColumn,
+                                whereId,
+                                e.getMessage()));
 
-        } catch (SQLException e) {
+                return new ErrorMessage(
+                        "Delete Variable Error",
+                        "Failed to delete variable ID: " + dto.getVariableId(),
+                        e.getMessage());
+            }
+        } catch (SQLException ex) {
             ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
-                            "Error loading component parents for instruction ID %d from homeBankId %d and blockId %d. Error: %s",
-                            instructionId, homeBankId, blockId, e.getMessage()));
+                            "Connection error while deleting variable ID %d for instruction ID %d in %s = %d. Error: %s",
+                            dto.getVariableId(), dto.getInstructionId(), foreignKeyColumn, whereId, ex.getMessage()));
+
+            return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
-
-        return parentList;
-    }
-
-    public boolean deleteCompVariable(InstructionLoadDTO deleteInstructionLoadDTO) {
-        // Validate input
-        if (deleteInstructionLoadDTO == null || deleteInstructionLoadDTO.getInstructionId() <= 0) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .warning("Invalid Instruction provided. Skipping reference deletion.");
-            return false;
-        }
-
-        // Define SQL delete query
-        String deleteSQL = "DELETE FROM component_variable WHERE instruction_id = ?";
-
-        // Use PreparedStatement for security
-        try (PreparedStatement stmt = getConnection().prepareStatement(deleteSQL)) {
-            stmt.setInt(1, deleteInstructionLoadDTO.getInstructionId()); // Use instruction ID
-
-            int rowsAffected = stmt.executeUpdate();
-
-            // Logging success/failure
-            if (rowsAffected > 0) {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .info(String.format(
-                                "Deleted all variables for Instruction ID %d.",
-                                deleteInstructionLoadDTO.getInstructionId()));
-            } else {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .warning(String.format(
-                                "No variables found for Instruction ID %d.",
-                                deleteInstructionLoadDTO.getInstructionId()));
-            }
-            return true;
-
-        } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
-                            "Error deleting variables for Instruction ID %d. Error: %s",
-                            deleteInstructionLoadDTO.getInstructionId(), e.getMessage()));
-        }
-        return false;
     }
 
     public boolean deleteReferences(int botJobId, int instructionId) {
@@ -590,44 +510,46 @@ public class PerformDataBase {
         }
     }
 
-    public boolean deleteCompReferences(InstructionLoadDTO deleteInstructionLoadDTO) {
-        // Validate input
-        if (deleteInstructionLoadDTO == null || deleteInstructionLoadDTO.getInstructionId() <= 0) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .warning("Invalid InstructionLoadDTO provided. Skipping reference deletion.");
-            return false;
+    public ErrorMessage deleteReferences(
+            String tableName, // e.g., "component_reference" or "reference"
+            int whereId, // e.g., bot_job_id or home_banking_id
+            InstructionLoadDTO dto // contains instructionId
+            ) {
+        if (dto == null || dto.getInstructionId() <= 0) {
+            return new ErrorMessage(
+                    "Invalid Input",
+                    "InstructionLoadDTO is null or has invalid instructionId",
+                    "Cannot delete references");
         }
 
-        // Define SQL delete query
-        String deleteSQL = "DELETE FROM component_reference WHERE instruction_id = ?";
+        // Determine foreign key column if needed
+        String foreignKeyColumn = "component_reference".equalsIgnoreCase(tableName) ? "home_banking_id" : "bot_job_id";
 
-        // Use PreparedStatement for security
-        try (PreparedStatement stmt = getConnection().prepareStatement(deleteSQL)) {
-            stmt.setInt(1, deleteInstructionLoadDTO.getInstructionId()); // Use instruction ID
+        String deleteSQL = "DELETE FROM " + tableName + " WHERE instruction_id = ? AND " + foreignKeyColumn + " = ?";
 
-            int rowsAffected = stmt.executeUpdate();
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false); // disable auto-commit
 
-            // Logging success/failure
-            if (rowsAffected > 0) {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .info(String.format(
-                                "Deleted all component_references for Instruction ID %d.",
-                                deleteInstructionLoadDTO.getInstructionId()));
-            } else {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .warning(String.format(
-                                "No component_references found for Instruction ID %d.",
-                                deleteInstructionLoadDTO.getInstructionId()));
+            try (PreparedStatement pstmt = conn.prepareStatement(deleteSQL)) {
+                pstmt.setInt(1, dto.getInstructionId());
+                pstmt.setInt(2, whereId);
+
+                int rowsAffected = pstmt.executeUpdate();
+                conn.commit();
+
+                return null; // success
+
+            } catch (SQLException e) {
+                conn.rollback();
+                return new ErrorMessage(
+                        "Delete References Error",
+                        "Failed to delete references for instruction ID: " + dto.getInstructionId(),
+                        e.getMessage());
             }
-            return true;
 
-        } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
-                            "Error deleting component_references for Instruction ID %d. Error: %s",
-                            deleteInstructionLoadDTO.getInstructionId(), e.getMessage()));
+        } catch (SQLException ex) {
+            return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
-        return false;
     }
 
     public boolean deleteRow(InstructionLoadDTO deleteInstructionLoadDTO) {
@@ -680,299 +602,231 @@ public class PerformDataBase {
         return false;
     }
 
-    public boolean deleteRowParents(int botJobId, int blockId, int parentId) {
-        // Build the SQL delete statement
-        String deleteSQL = MessageFormat.format(
-                """
-                DELETE FROM instruction
-                 WHERE parent_id = {0}
-                 AND bot_job_id = {1}
-                 AND block_id = {2}
-                 """,
-                parentId, botJobId, blockId);
+    public ErrorMessage deleteRowParents(
+            String tableName, // "instruction" or "component_instruction"
+            int whereId, // bot_job_id or home_banking_id
+            int parentId) {
+        // Determine foreign key column
+        String foreignKeyColumn = "instruction".equalsIgnoreCase(tableName) ? "bot_job_id" : "home_banking_id";
 
-        try (Statement stmt = getConnection().createStatement()) {
-            int rowsAffected = stmt.executeUpdate(deleteSQL);
-            if (rowsAffected > 0) {
+        String deleteSQL = "DELETE FROM " + tableName + " WHERE parent_id = ? AND " + foreignKeyColumn + " = ?";
+
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false); // disable auto-commit
+
+            try (PreparedStatement pstmt = conn.prepareStatement(deleteSQL)) {
+                pstmt.setInt(1, parentId);
+                pstmt.setInt(2, whereId);
+
+                int rowsAffected = pstmt.executeUpdate();
+                conn.commit();
+
+                if (rowsAffected > 0) {
+                    ARLogger.getInstance(PerformDataBase.class)
+                            .info(String.format(
+                                    "Deleted %d parents - parent ID %d in %s = %d",
+                                    rowsAffected, parentId, foreignKeyColumn, whereId));
+                } else {
+                    ARLogger.getInstance(PerformDataBase.class)
+                            .warning(String.format(
+                                    "No parents found to delete - parent ID %d in %s = %d",
+                                    parentId, foreignKeyColumn, whereId));
+                }
+
+                return null; // success
+            } catch (SQLException e) {
+                conn.rollback();
                 ARLogger.getInstance(PerformDataBase.class)
-                        .info(String.format(
-                                "Deleted %d parents - parent with ID %d - bot job %d - block %d. ",
-                                rowsAffected, parentId, botJobId, blockId));
-            }
-            return true;
+                        .severe(String.format(
+                                "Error deleting parent ID %d in %s = %d. Error: %s",
+                                parentId, foreignKeyColumn, whereId, e.getMessage()));
 
-        } catch (SQLException e) {
+                return new ErrorMessage(
+                        "Delete Parent Error", "Failed to delete parent ID: " + parentId, e.getMessage());
+            }
+        } catch (SQLException ex) {
             ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
-                            "Error deleting parent ID %d from bot job %d block %d. Error: %s",
-                            parentId, botJobId, blockId, e.getMessage()));
+                            "Connection error while deleting parent ID %d in %s = %d. Error: %s",
+                            parentId, foreignKeyColumn, whereId, ex.getMessage()));
+
+            return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
-        return false;
     }
 
-    public boolean deleteCompRowParents(int homeBankId, int blockId, int parentId) {
-        // Build the SQL delete statement
-        String deleteSQL = MessageFormat.format(
-                """
-                DELETE FROM component_instruction
-                 WHERE parent_id = {0}
-                 AND home_banking_id = {1}
-                 AND block_id = {2}
-                 """,
-                parentId, homeBankId, blockId);
-
-        try (Statement stmt = getConnection().createStatement()) {
-            int rowsAffected = stmt.executeUpdate(deleteSQL);
-            if (rowsAffected > 0) {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .info(String.format(
-                                "Deleted %d parents - parent with ID %d - home bank %d - block %d.",
-                                rowsAffected, parentId, homeBankId, blockId));
-            }
-            return true;
-
-        } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
-                            "Error deleting parent ID %d from home bank %d - block %d. Error: %s",
-                            parentId, homeBankId, blockId, e.getMessage()));
-        }
-        return false;
-    }
-
-    public boolean deleteCompInstruction(InstructionLoadDTO deleteInstructionLoadDTO) {
-        // Validate input
-        if (deleteInstructionLoadDTO == null || deleteInstructionLoadDTO.getInstructionId() <= 0) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .warning("Invalid InstructionLoadDTO provided. Skipping instruction deletion.");
-            return false;
+    public ErrorMessage deleteCompInstruction(
+            String tableName,
+            int whereId, // e.g., home_banking_id or bot_job_id
+            InstructionLoadDTO dto) {
+        if (dto == null || dto.getInstructionId() <= 0) {
+            return new ErrorMessage(
+                    "Invalid Input",
+                    "InstructionLoadDTO is null or has invalid instructionId",
+                    "Cannot delete instruction");
         }
 
-        boolean isConditional = deleteInstructionLoadDTO.getActions() != null
-                && (deleteInstructionLoadDTO.getActions().equals("IF")
-                        || deleteInstructionLoadDTO.getActions().equals("ELSE")
-                        || deleteInstructionLoadDTO.getActions().equals("ENDIF"));
+        boolean isConditional = dto.getActions() != null
+                && (dto.getActions().equals("IF")
+                        || dto.getActions().equals("ELSE")
+                        || dto.getActions().equals("ENDIF"));
 
         String deleteSQL;
 
         if (isConditional) {
-            // Delete conditional instructions along with related parent, block, and bot job
-            deleteSQL =
-                    "DELETE FROM component_instruction WHERE (id = ? OR parent_id = ?) AND block_id = ? AND home_banking_id = ?";
+            deleteSQL = "DELETE FROM " + tableName + " WHERE (id = ? OR parent_id = ?) AND block_id = ? AND "
+                    + (tableName.equalsIgnoreCase("component_instruction") ? "home_banking_id" : "bot_job_id") + " = ?";
         } else {
-            // Simple deletion by instruction ID
-            deleteSQL = "DELETE FROM component_instruction WHERE id = ?";
+            deleteSQL = "DELETE FROM " + tableName + " WHERE id = ? AND "
+                    + (tableName.equalsIgnoreCase("component_instruction") ? "home_banking_id" : "bot_job_id") + " = ?";
         }
 
-        try (PreparedStatement stmt = getConnection().prepareStatement(deleteSQL)) {
-            stmt.setInt(1, deleteInstructionLoadDTO.getInstructionId());
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false);
 
-            if (isConditional) {
-                stmt.setInt(2, deleteInstructionLoadDTO.getParentId());
-                stmt.setInt(3, deleteInstructionLoadDTO.getBlockId());
-                stmt.setInt(4, deleteInstructionLoadDTO.getHomeBankingId());
+            try (PreparedStatement pstmt = conn.prepareStatement(deleteSQL)) {
+                pstmt.setInt(1, dto.getInstructionId());
+
+                if (isConditional) {
+                    pstmt.setInt(2, dto.getParentId());
+                    pstmt.setInt(3, dto.getBlockId());
+                    pstmt.setInt(4, whereId);
+                } else {
+                    pstmt.setInt(2, whereId);
+                }
+
+                pstmt.executeUpdate();
+                conn.commit();
+                return null; // success
+
+            } catch (SQLException e) {
+                conn.rollback();
+                return new ErrorMessage(
+                        "Delete Instruction Error",
+                        "Failed to delete instruction ID: " + dto.getInstructionId(),
+                        e.getMessage());
             }
 
-            int rowsAffected = stmt.executeUpdate();
+        } catch (SQLException ex) {
+            return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
+        }
+    }
 
-            if (rowsAffected > 0) {
+    public ErrorMessage deleteNullBlocks(String tableName, int whereId) {
+        // Build the DELETE SQL using the tableName and correct foreign key
+        String deleteSQL = performDBScripts.deleteNullBlocksSQL(tableName);
+
+        String foreignKeyColumn = "block".equalsIgnoreCase(tableName) ? "bot_job_id" : "home_banking_id";
+
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false); // Disable auto-commit
+
+            try (PreparedStatement pstmt = conn.prepareStatement(deleteSQL)) {
+                pstmt.setInt(1, whereId); // Set the generic whereId
+
+                int rowsAffected = pstmt.executeUpdate();
+                conn.commit();
+
                 ARLogger.getInstance(PerformDataBase.class)
                         .info(String.format(
-                                "Deleted component_instruction ID %d%s.",
-                                deleteInstructionLoadDTO.getInstructionId(),
-                                isConditional ? " and related conditional component_instruction" : ""));
-            } else {
+                                "Deleted %d null blocks from table %s where %s = %d",
+                                rowsAffected, tableName, foreignKeyColumn, whereId));
+
+                return null; // success
+            } catch (SQLException e) {
+                conn.rollback();
                 ARLogger.getInstance(PerformDataBase.class)
-                        .warning(String.format(
-                                "No matching component_instruction found for ID %d.",
-                                deleteInstructionLoadDTO.getInstructionId()));
+                        .severe(String.format(
+                                "Error deleting null blocks from table %s where %s = %d. Error: %s",
+                                tableName, foreignKeyColumn, whereId, e.getMessage()));
+
+                return new ErrorMessage(
+                        "Delete Null Blocks Error",
+                        "Failed to delete null blocks from table " + tableName + " where " + foreignKeyColumn + " = "
+                                + whereId,
+                        e.getMessage());
             }
-
-            return true;
-
-        } catch (SQLException e) {
+        } catch (SQLException ex) {
             ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
-                            "Error deleting component_instruction ID %d. Error: %s",
-                            deleteInstructionLoadDTO.getInstructionId(), e.getMessage()));
+                            "Connection error while deleting null blocks from table %s where %s = %d. Error: %s",
+                            tableName, foreignKeyColumn, whereId, ex.getMessage()));
+
+            return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
-        return false;
     }
 
-    public void deleteNullBlocks(int botJobId) {
-        // Build the SQL delete statement
-        try (Statement stmt = getConnection().createStatement()) {
+    public ErrorMessage updateBlockOrderNumber(
+            String tableName,
+            int whereIdColumn, // either "bot_job_id" or "home_banking_id"
+            List<BlockLoadDTO> blockList,
+            boolean reorderAll) {
+        final int BATCH_SIZE = 100;
+        blockList.sort(Comparator.comparingInt(BlockLoadDTO::getBlockOrderNumber));
 
-            String deleteSQL = performDBScripts.deleteNullBlocksSQL(botJobId);
+        String updateSQL =
+                "UPDATE " + tableName + " SET block_order_number = ? WHERE id = ? AND " + whereIdColumn + " = ?";
 
-            // Execute the update statement and check if any rows were affected
-            int rowsAffected = stmt.executeUpdate(deleteSQL);
-            if (rowsAffected > 0) {
-                //                ARLogger.getInstance(PerformDataBase.class)
-                //                        .info(String.format(
-                //                                "The %d Nulls Blocks successfully deleted from botJobId %d.",
-                // rowsAffected, botJobId));
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false); // Disable auto-commit
+
+            try (PreparedStatement pstmt = conn.prepareStatement(updateSQL)) {
+                int newOrderNumber = 1;
+                int count = 0;
+
+                for (BlockLoadDTO blockOrder : blockList) {
+                    int orderNumber = reorderAll ? newOrderNumber : blockOrder.getBlockOrderNumber();
+                    pstmt.setInt(1, orderNumber);
+                    pstmt.setInt(2, blockOrder.getId());
+
+                    // Choose the correct ID value based on the column
+                    if ("block".equalsIgnoreCase(tableName)) {
+                        pstmt.setInt(3, blockOrder.getBotJobId());
+                    } else if ("component_block".equalsIgnoreCase(tableName)) {
+                        pstmt.setInt(3, blockOrder.getHomeBankingId());
+                    } else {
+                        return new ErrorMessage("Invalid Table naem", "Invalid 'tableName' value", tableName);
+                    }
+
+                    pstmt.addBatch();
+                    count++;
+                    newOrderNumber++;
+
+                    if (count % BATCH_SIZE == 0) {
+                        pstmt.executeBatch();
+                        conn.commit();
+                        ARLogger.getInstance(PerformDataBase.class)
+                                .info("Executed batch of " + BATCH_SIZE + " block order updates for table: "
+                                        + tableName);
+                    }
+                }
+
+                // Execute remaining updates
+                if (count % BATCH_SIZE != 0) {
+                    pstmt.executeBatch();
+                    conn.commit();
+                    ARLogger.getInstance(PerformDataBase.class)
+                            .info("Executed final batch of " + (count % BATCH_SIZE) + " block order updates for table: "
+                                    + tableName);
+                }
+
+                return null; // Success
+            } catch (SQLException e) {
+                conn.rollback();
+                ARLogger.getInstance(PerformDataBase.class)
+                        .severe(String.format(
+                                "Error updating block order numbers in table '%s'. Error: %s",
+                                tableName, e.getMessage()));
+                return new ErrorMessage(
+                        "Update Block Order Error", "Failed to update block order numbers", e.getMessage());
             }
-
-        } catch (SQLException e) {
+        } catch (SQLException ex) {
             ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
-                            "Error deleting Null Blocks with BotJobId ID %d. Error: %s", botJobId, e.getMessage()));
+                            "Connection error while updating block order numbers in table '%s'. Error: %s",
+                            tableName, ex.getMessage()));
+            return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
     }
-
-    public void deleteCompNullBlocks(int homeBanking) {
-        // Validate input
-        if (homeBanking <= 0) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .warning("Invalid home Banking Id provided. Skipping block deletion.");
-            return;
-        }
-
-        String deleteSQL = "DELETE FROM component_block b " + "WHERE b.home_banking_id = ? "
-                + "AND NOT EXISTS ( "
-                + "    SELECT 1 FROM component_instruction bli "
-                + "    WHERE bli.block_id = b.id );";
-
-        try (PreparedStatement stmt = getConnection().prepareStatement(deleteSQL)) {
-            stmt.setInt(1, homeBanking);
-
-            int rowsAffected = stmt.executeUpdate();
-
-            if (rowsAffected > 0) {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .info(String.format("%d Null Blocks successfully deleted.", rowsAffected));
-            } else {
-                ARLogger.getInstance(PerformDataBase.class).warning("No matching null blocks found for deletion.");
-            }
-
-        } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("Error deleting Null Blocks. Error: %s", e.getMessage()));
-        }
-    }
-
-    public void updateBlockOrderNumber(List<BlockOrderDetailDTO> blockOrderDetailDTOList, boolean reorderAll) {
-        //         Sort the blockOrderDetailDTOList based on the previous blockOrderNumber in ascending order
-        blockOrderDetailDTOList.sort(Comparator.comparingInt(BlockOrderDetailDTO::getBlockOrderNumber));
-
-        try (Statement stmt = getConnection().createStatement()) {
-            int newOrderNumber = 1; // Start reordering from 1
-
-            for (BlockOrderDetailDTO blockOrderDetailDTO : blockOrderDetailDTOList) {
-                // Update each block's block_order_number starting from 1
-                String updateSQL = "UPDATE block SET block_order_number = "
-                        + (reorderAll ? newOrderNumber : blockOrderDetailDTO.getBlockOrderNumber())
-                        + " WHERE id = "
-                        + blockOrderDetailDTO.getBlockId()
-                        + " AND bot_job_id = " + blockOrderDetailDTO.getBotJobId();
-
-                int rowsAffected = stmt.executeUpdate(updateSQL);
-
-                if (rowsAffected > 0) {
-                    //                    ARLogger.getInstance(PerformDataBase.class)
-                    //                            .info(String.format(
-                    //                                    "Block Order Number updated blockId: %s, newBlockOrderNumber:
-                    // %s",
-                    //                                    blockOrderDetailDTO.getBlockId(), newOrderNumber));
-                } else {
-                    //                    ARLogger.getInstance(PerformDataBase.class)
-                    //                            .warning(String.format(
-                    //                                    "UpdateBlockOrderNumber - No matching record found to update
-                    // botJobId: %d blockId: %d",
-                    //                                    blockOrderDetailDTO.getBotJobId(),
-                    // blockOrderDetailDTO.getBlockId()));
-                }
-
-                newOrderNumber++; // Increment the new order number for the next block
-            }
-
-        } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("Error UpdateBlockOrderNumber. Error: %s", e.getMessage()));
-        }
-    }
-
-    public void updateCompBlockOrderNumber(List<BlockOrderDetailDTO> blockOrderDetailDTOList, boolean reorderAll) {
-        //         Sort the blockOrderDetailDTOList based on the previous blockOrderNumber in ascending order
-        blockOrderDetailDTOList.sort(Comparator.comparingInt(BlockOrderDetailDTO::getBlockOrderNumber));
-
-        try (Statement stmt = getConnection().createStatement()) {
-            int newOrderNumber = 1; // Start reordering from 1
-
-            for (BlockOrderDetailDTO blockOrderDetailDTO : blockOrderDetailDTOList) {
-                // Update each block's block_order_number starting from 1
-                String updateSQL = "UPDATE component_block SET block_order_number = "
-                        + (reorderAll ? newOrderNumber : blockOrderDetailDTO.getBlockOrderNumber())
-                        + " WHERE id = "
-                        + blockOrderDetailDTO.getBlockId()
-                        + " AND home_banking_id = " + blockOrderDetailDTO.getHomeBankId();
-
-                int rowsAffected = stmt.executeUpdate(updateSQL);
-
-                if (rowsAffected > 0) {
-                    //                    ARLogger.getInstance(PerformDataBase.class)
-                    //                            .info(String.format(
-                    //                                    "Block Order Number updated blockId: %s, newBlockOrderNumber:
-                    // %s",
-                    //                                    blockOrderDetailDTO.getBlockId(), newOrderNumber));
-                } else {
-                    //                    ARLogger.getInstance(PerformDataBase.class)
-                    //                            .warning(String.format(
-                    //                                    "UpdateBlockOrderNumber - No matching record found to update
-                    // botJobId: %d blockId: %d",
-                    //                                    blockOrderDetailDTO.getBotJobId(),
-                    // blockOrderDetailDTO.getBlockId()));
-                }
-
-                newOrderNumber++; // Increment the new order number for the next block
-            }
-
-        } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("Error UpdateCompBlockOrderNumber. Error: %s", e.getMessage()));
-        }
-    }
-
-    //    public void updateCompBlockOrderNumber(List<BlockOrderDetailDTO> blockOrderDetailDTOList, boolean reorderAll)
-    // {
-    //        //         Sort the blockOrderDetailDTOList based on the previous blockOrderNumber in ascending order
-    //        blockOrderDetailDTOList.sort(Comparator.comparingInt(BlockOrderDetailDTO::getBlockOrderNumber));
-    //
-    //        try (Statement stmt = getConnection().createStatement()) {
-    //            int newOrderNumber = 1; // Start reordering from 1
-    //
-    //            for (BlockOrderDetailDTO blockOrderDetailDTO : blockOrderDetailDTOList) {
-    //                // Update each block's block_order_number starting from 1
-    //                String updateSQL = "UPDATE component_block SET block_order_number = "
-    //                        + (reorderAll ? newOrderNumber : blockOrderDetailDTO.getBlockOrderNumber())
-    //                        + " WHERE id = "
-    //                        + blockOrderDetailDTO.getBlockId()
-    //                        + " AND bot_job_id = " + blockOrderDetailDTO.getBotJobId();
-    //
-    //                int rowsAffected = stmt.executeUpdate(updateSQL);
-    //
-    //                if (rowsAffected > 0) {
-    //                    ARLogger.getInstance(PerformDataBase.class)
-    //                            .info(String.format(
-    //                                    "Block Order Number updated blockId: %s, newBlockOrderNumber: %s",
-    //                                    blockOrderDetailDTO.getBlockId(), newOrderNumber));
-    //                } else {
-    //                    ARLogger.getInstance(PerformDataBase.class)
-    //                            .warning(String.format(
-    //                                    "updateCompBlockOrderNumber - No matching record found to update botJobId: %d
-    // blockId: %d",
-    //                                    blockOrderDetailDTO.getBotJobId(), blockOrderDetailDTO.getBlockId()));
-    //                }
-    //
-    //                newOrderNumber++; // Increment the new order number for the next block
-    //            }
-    //
-    //        } catch (SQLException e) {
-    //            ARLogger.getInstance(PerformDataBase.class)
-    //                    .severe(String.format("Error updateCompBlockOrderNumber. Error: %s", e.getMessage()));
-    //        }
-    //    }
 
     public List<BlockOrderDetailDTO> selectAllBlocks(int botJobId) {
         List<BlockOrderDetailDTO> blockOrderDetails = new ArrayList<>();
@@ -1205,52 +1059,53 @@ public class PerformDataBase {
         return false;
     }
 
-    // Handle DELETE_BLOCK message
-    public boolean deleteBlock(DeleteBlockDTO deleteBlockDTO) {
-        boolean blockDeletion = false;
-        String tableName = "instruction";
-        if (deleteBlockDTO.getSessionId().equals("componentTasks")) {
-            tableName = "component_instruction";
-        }
-        List<InstructionLoadDTO> deleteList =
-                getInstructionsList(deleteBlockDTO.getBotJobId(), deleteBlockDTO.getBlockId(), -1, tableName);
-        if (deleteList.size() > 0) {
-            for (InstructionLoadDTO deleteDTO : deleteList) {
-                deleteDTO.setHomeBankingId(deleteBlockDTO.getHomeBankingId());
-                deleteInstruction(deleteBlockDTO.getBotJobId(), deleteDTO, true);
-                //                updateOtherBlocks()
-            }
-        }
-        blockDeletion = deleteBlockDirect((int) deleteBlockDTO.getBotJobId(), (int) deleteBlockDTO.getBlockId());
-        //        updateOtherBlocks(deleteBlockDTO.getUpdatedBlockDTO());
-        deleteNullBlocks((int) deleteBlockDTO.getBotJobId());
-        if (deleteBlockDTO.getUpdatedBlocks() != null
-                && deleteBlockDTO.getUpdatedBlocks().size() > 0) {
-            updateBlockOrderNumber(
-                    selectAllBlocks(deleteBlockDTO.getUpdatedBlocks().get(0).getBotJobId()), true);
-        }
+    //    // Handle DELETE_BLOCK message
+    //    public boolean deleteBlock(String tableName, int whereId, int blockId, int homeBankId) {
+    //        boolean blockDeletion = false;
+    //
+    //        String extraTable = tableName.equals("block") ? "instruction" : "component_instruction";
+    //        List<InstructionLoadDTO> deleteList = getInstructionsList(whereId, blockId, -1, extraTable);
+    //
+    //        if (deleteList.size() > 0) {
+    //            for (InstructionLoadDTO deleteDTO : deleteList) {
+    //                deleteInstruction(tableName, whereId, homeBankId, blockId, true);
+    //                //                updateOtherBlocks()
+    //            }
+    //        }
+    //        ErrorMessage errorMessage = deleteBlockDirect(tableName, botJobId, blockId);
+    //        if (errorMessage == null) {
+    //            blockDeletion = true;
+    //            deleteNullBlocks(botJobId);
+    //            if (deleteBlockDTO.getUpdatedBlocks() != null
+    //                    && deleteBlockDTO.getUpdatedBlocks().size() > 0) {
+    //
+    //                loadBlocks(botJobId, "", tableName);
+    //                updateBlockOrderNumber(tableName, botJobId, performLists.getListBlock(), true);
+    //            }
+    //        }
+    //
+    //        return blockDeletion;
+    //    }
 
-        return blockDeletion;
-    }
-
-    // Handle DELETE_BLOCK message
-    public boolean deleteCompBlock(DeleteBlockDTO deleteBlockDTO) {
-        boolean blockDeletion = false;
-        String tableName = "instruction";
-        if (deleteBlockDTO.getSessionId().equals("componentTasks")) {
-            tableName = "component_instruction";
-        }
-        List<InstructionLoadDTO> instructionsList =
-                getInstructionsList(deleteBlockDTO.getHomeBankingId(), deleteBlockDTO.getBlockId(), -1, tableName);
-        if (instructionsList.size() > 0) {
-            for (InstructionLoadDTO deleteDTO : instructionsList) {
-                deleteDTO.setHomeBankingId(deleteBlockDTO.getHomeBankingId());
-                deleteComponent(deleteBlockDTO.getHomeBankingId(), deleteBlockDTO.getBlockId(), deleteDTO, true);
-                //                updateOtherBlocks()
-            }
-        }
-        return blockDeletion;
-    }
+    //    // Handle DELETE_BLOCK message
+    //    public boolean deleteCompBlock(DeleteBlockDTO deleteBlockDTO) {
+    //        boolean blockDeletion = false;
+    //        String tableName = "instruction";
+    //        if (deleteBlockDTO.getSessionId().equals("componentTasks")) {
+    //            tableName = "component_instruction";
+    //        }
+    //        List<InstructionLoadDTO> instructionsList =
+    //                getInstructionsList(deleteBlockDTO.getHomeBankingId(), deleteBlockDTO.getBlockId(), -1,
+    // tableName);
+    //        if (instructionsList.size() > 0) {
+    //            for (InstructionLoadDTO deleteDTO : instructionsList) {
+    //                deleteDTO.setHomeBankingId(deleteBlockDTO.getHomeBankingId());
+    //                deleteComponent(deleteBlockDTO.getHomeBankingId(), deleteBlockDTO.getBlockId(), deleteDTO, true);
+    //                //                updateOtherBlocks()
+    //            }
+    //        }
+    //        return blockDeletion;
+    //    }
 
     public ErrorMessage initiateNewBlock(BlockDetailsDTO blockDTO, int botJobId) {
         String selectIdsSQL = "SELECT id FROM block ORDER BY id";
@@ -1497,103 +1352,97 @@ public class PerformDataBase {
         return false;
     }
 
-    public boolean updateMoveRowsOrder(List<InstructionLoadDTO> instructions) {
-        // Build the SQL update statement
-        try (Statement stmt = getConnection().createStatement()) {
+    public ErrorMessage updateMoveRowsOrder(
+            String tableName,
+            int whereId, // either bot_job_id or home_banking_id
+            List<InstructionLoadDTO> instructions) {
+        if (instructions == null || instructions.isEmpty()) {
+            return null; // nothing to do
+        }
+
+        String idColumn = "id";
+        String blockIdColumn = "block_id";
+        String orderColumn = "instruction_order_number";
+        String whereColumn = tableName.equals("block") ? "bot_job_id" : "home_banking_id";
+
+        String updateSQL = "UPDATE " + tableName + " SET "
+                + orderColumn + " = ?, "
+                + blockIdColumn + " = ? "
+                + "WHERE " + idColumn + " = ? AND " + whereColumn + " = ?";
+
+        try (Connection conn = getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(updateSQL)) {
+
+            conn.setAutoCommit(false);
+
             for (InstructionLoadDTO instruction : instructions) {
-
-                String updateSQL = "UPDATE instruction SET  "
-                        + " instruction_order_number = " + instruction.getInstructionOrderNumber() + ","
-                        + " block_id = " + instruction.getBlockId()
-                        + " WHERE id = " + instruction.getInstructionId();
-
-                int rowsAffected = stmt.executeUpdate(updateSQL);
-                if (rowsAffected > 0) {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .warning(String.format(
-                                    "UpdateMoveRowsOrder - InstructionId: %s now have order number: %d",
-                                    instruction.getInstructionId(), instruction.getInstructionOrderNumber()));
-                } else {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .warning(String.format(
-                                    "UpdateMoveRowsOrder - No matching record found to update blockId: %d and InstructionId: %d",
-                                    instruction.getBlockId(), instruction.getInstructionId()));
-                }
+                pstmt.setInt(1, instruction.getInstructionOrderNumber());
+                pstmt.setInt(2, instruction.getBlockId());
+                pstmt.setInt(3, instruction.getInstructionId());
+                pstmt.setInt(4, whereId);
+                pstmt.addBatch();
             }
 
-            return true;
+            pstmt.executeBatch();
+            conn.commit();
+
+            return null; // success
         } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
-                            "This Order Number for Instructions\n cannot be updated.\nError: %s", e.getMessage()));
+            return new ErrorMessage(
+                    "Update Move Rows Order Error", "Failed to update instruction order numbers", e.getMessage());
         }
-        return false;
     }
 
-    public boolean updateCompMoveRowsOrder(List<InstructionLoadDTO> instructions) {
-        // Build the SQL update statement
-        try (Statement stmt = getConnection().createStatement()) {
-            for (InstructionLoadDTO instruction : instructions) {
+    public ErrorMessage rollBackBlocksRows(String targetTable, RollBackBlocksDTO rollBackBlocksDTO) {
+        final int BATCH_SIZE = 100; // Batch size for executeBatch()
+        String updateSQL = "UPDATE " + targetTable + " SET instruction_order_number = ?, block_id = ? WHERE id = ?";
 
-                String updateSQL = "UPDATE component_instruction SET  "
-                        + " instruction_order_number = " + instruction.getInstructionOrderNumber() + ","
-                        + " block_id = " + instruction.getBlockId()
-                        + " WHERE id = " + instruction.getInstructionId();
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false); // Disable auto-commit
 
-                int rowsAffected = stmt.executeUpdate(updateSQL);
-                if (rowsAffected > 0) {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .warning(String.format(
-                                    "updateCompMoveRowsOrder - InstructionId: %s now have order number: %d",
-                                    instruction.getInstructionId(), instruction.getInstructionOrderNumber()));
-                } else {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .warning(String.format(
-                                    "updateCompMoveRowsOrder - No matching record found to update blockId: %d and InstructionId: %d",
-                                    instruction.getBlockId(), instruction.getInstructionId()));
+            try (PreparedStatement pstmt = conn.prepareStatement(updateSQL)) {
+                int count = 0;
+
+                for (InstructionLoadDTO instruction : rollBackBlocksDTO.getInstructions()) {
+                    pstmt.setInt(1, instruction.getInstructionOrderNumber());
+                    pstmt.setInt(2, rollBackBlocksDTO.getBlockId());
+                    pstmt.setInt(3, instruction.getInstructionId());
+                    pstmt.addBatch();
+                    count++;
+
+                    if (count % BATCH_SIZE == 0) {
+                        int[] rowsAffected = pstmt.executeBatch();
+                        conn.commit();
+                        ARLogger.getInstance(PerformDataBase.class)
+                                .info("Executed batch of " + BATCH_SIZE + " updates for blockId "
+                                        + rollBackBlocksDTO.getBlockId());
+                    }
                 }
-            }
 
-            return true;
-        } catch (SQLException e) {
+                // Execute any remaining batch
+                if (count % BATCH_SIZE != 0) {
+                    int[] rowsAffected = pstmt.executeBatch();
+                    conn.commit();
+                    ARLogger.getInstance(PerformDataBase.class)
+                            .info("Executed final batch of " + (count % BATCH_SIZE) + " updates for blockId "
+                                    + rollBackBlocksDTO.getBlockId());
+                }
+
+                return null; // Success
+            } catch (SQLException e) {
+                conn.rollback();
+                ARLogger.getInstance(PerformDataBase.class)
+                        .severe(String.format(
+                                "RollBackBlocks - Error updating BlockId %d. Error: %s",
+                                rollBackBlocksDTO.getBlockId(), e.getMessage()));
+                return new ErrorMessage("RollBack Error", "Failed to roll back instructions", e.getMessage());
+            }
+        } catch (SQLException ex) {
             ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
-                            "This Order Number for Instructions\n cannot be updated.\nError: %s", e.getMessage()));
-        }
-        return false;
-    }
-
-    public void rollBackBlocksRows(String targetTable, RollBackBlocksDTO rollBackBlocksDTO) {
-        // Build the SQL update statement
-
-        try (Statement stmt = getConnection().createStatement()) {
-            for (InstructionLoadDTO instruction : rollBackBlocksDTO.getInstructions()) {
-
-                String updateSQL = "UPDATE " + targetTable + " SET  "
-                        + " instruction_order_number = " + instruction.getInstructionOrderNumber() + ","
-                        + " block_id = " + rollBackBlocksDTO.getBlockId()
-                        + " WHERE id = " + instruction.getInstructionId();
-
-                int rowsAffected = stmt.executeUpdate(updateSQL);
-                if (rowsAffected > 0) {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .warning(String.format(
-                                    "RollBackBlocks - InstructionId %d for blockId: %d updated successfully",
-                                    instruction.getInstructionId(), rollBackBlocksDTO.getBlockId()));
-
-                } else {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .warning(String.format(
-                                    "RollBackBlocks - No matching record found to update InstructionId %d for blockId: %d",
-                                    instruction.getInstructionId(), rollBackBlocksDTO.getBlockId()));
-                }
-            }
-        } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
-                            "This BlockId '%d' \n cannot be updated.\nError: %s",
-                            rollBackBlocksDTO.getBlockId(), error.getMessage()));
-            return;
+                            "Connection error while rolling back BlockId %d. Error: %s",
+                            rollBackBlocksDTO.getBlockId(), ex.getMessage()));
+            return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
     }
 
@@ -1659,63 +1508,60 @@ public class PerformDataBase {
         return instructions;
     }
 
-    public boolean deleteBlockDirect(int botJobId, int blockId) {
-        // Build the SQL delete statement
-        try (Statement stmt = getConnection().createStatement()) {
+    public ErrorMessage deleteBlockDirect(
+            String tableName,
+            int whereId, // bot_job_id or home_banking_id
+            int blockId) {
+        // Determine the correct column based on the table
+        String whereColumn;
+        if ("block".equalsIgnoreCase(tableName)) {
+            whereColumn = "bot_job_id";
+        } else if ("component_block".equalsIgnoreCase(tableName)) {
+            whereColumn = "home_banking_id";
+        } else {
+            return new ErrorMessage("Invalid Table", "Unknown table: " + tableName, null);
+        }
 
-            String deleteSQL = "DELETE FROM block " + " WHERE id = " + blockId + " and bot_job_id = " + botJobId;
+        String deleteSQL = "DELETE FROM " + tableName + " WHERE id = ? AND " + whereColumn + " = ?";
 
-            // Execute the update statement and check if any rows were affected
-            int rowsAffected = stmt.executeUpdate(deleteSQL);
-            if (rowsAffected > 0) {
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false); // disable auto-commit
+
+            try (PreparedStatement pstmt = conn.prepareStatement(deleteSQL)) {
+                pstmt.setInt(1, blockId);
+                pstmt.setInt(2, whereId);
+
+                int rowsAffected = pstmt.executeUpdate();
+                conn.commit();
+
+                if (rowsAffected > 0) {
+                    ARLogger.getInstance(PerformDataBase.class)
+                            .info(String.format(
+                                    "The Block id %d has been successfully deleted from %s = %d.",
+                                    blockId, whereColumn, whereId));
+                } else {
+                    ARLogger.getInstance(PerformDataBase.class)
+                            .warning(String.format(
+                                    "No matching record found for blockId %d in %s = %d.",
+                                    blockId, whereColumn, whereId));
+                }
+
+                return null; // success
+            } catch (SQLException e) {
+                conn.rollback();
                 ARLogger.getInstance(PerformDataBase.class)
-                        .info(String.format(
-                                "The Block id %d has been successfully deleted from botJobId %d.", blockId, botJobId));
-            } else {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .warning(String.format(
-                                "No matching record found for blockId ID %d in botJobId %d.", blockId, botJobId));
+                        .severe(String.format(
+                                "Error deleting blockId %d from %s = %d. Error: %s",
+                                blockId, whereColumn, whereId, e.getMessage()));
+                return new ErrorMessage("Delete Block Error", "Failed to delete block", e.getMessage());
             }
-
-            return true;
-
-        } catch (SQLException e) {
+        } catch (SQLException ex) {
             ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
-                            "Error deleting BotJobId ID %d from block ID %d. Error: %s",
-                            botJobId, blockId, e.getMessage()));
+                            "Connection error while deleting blockId %d from %s = %d. Error: %s",
+                            blockId, whereColumn, whereId, ex.getMessage()));
+            return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
-        return false;
-    }
-
-    public boolean deleteCompBlockDirect(int botJobId, int blockId) {
-        // Build the SQL delete statement
-        try (Statement stmt = getConnection().createStatement()) {
-
-            String deleteSQL =
-                    "DELETE FROM component_block " + " WHERE id = " + blockId + " and bot_job_id = " + botJobId;
-
-            // Execute the update statement and check if any rows were affected
-            int rowsAffected = stmt.executeUpdate(deleteSQL);
-            if (rowsAffected > 0) {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .info(String.format(
-                                "The Block id %d has been successfully deleted from botJobId %d.", blockId, botJobId));
-            } else {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .warning(String.format(
-                                "No matching record found for blockId ID %d in botJobId %d.", blockId, botJobId));
-            }
-
-            return true;
-
-        } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
-                            "Error deleting BotJobId ID %d from block ID %d. Error: %s",
-                            botJobId, blockId, e.getMessage()));
-        }
-        return false;
     }
 
     public List<BotJobLoadDTO> loadCompleteJobs(int botJobId) {
@@ -2070,28 +1916,43 @@ public class PerformDataBase {
         }
     }
 
-    public boolean updateBotJobNme(int botJobId, String name, String description) {
-        // Build the SQL delete statement
-        try (Statement stmt = getConnection().createStatement()) {
+    public ErrorMessage updateBotJobDetails(int botJobId, int homeUrlId, String name, String description) {
+        String updateSQL = "UPDATE bot_job SET name = ?, description = ?, home_url_id = ? WHERE id = ?";
 
-            String updateSQL = "UPDATE bot_job set name = '" + name + "', description = '" + description
-                    + "' WHERE id = " + botJobId;
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false); // Disable auto-commit
 
-            // Execute the update statement and check if any rows were affected
-            int rowsAffected = stmt.executeUpdate(updateSQL);
-            if (rowsAffected > 0) {
+            try (PreparedStatement pstmt = conn.prepareStatement(updateSQL)) {
+                pstmt.setString(1, name);
+                pstmt.setString(2, description);
+                pstmt.setInt(3, homeUrlId);
+                pstmt.setInt(4, botJobId);
+
+                int rowsAffected = pstmt.executeUpdate();
+                if (rowsAffected > 0) {
+                    ARLogger.getInstance(PerformDataBase.class)
+                            .info(String.format("Bot Job id %d successfully updated!", botJobId));
+                } else {
+                    conn.commit(); // Commit even though nothing changed
+                    return new ErrorMessage(
+                            "No matching record found for Bot Job",
+                            "Update Warning",
+                            "No Bot Job with ID '" + botJobId + "' exists.");
+                }
+
+                conn.commit(); // Commit transaction
+                return null; // Success, no error
+            } catch (SQLException e) {
                 ARLogger.getInstance(PerformDataBase.class)
-                        .info(String.format("The Bot Job  id %d has been successfully updated!", botJobId));
-            } else {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .warning(String.format("No matching record found for botJobId %d.", botJobId));
+                        .severe(String.format("Error updating BotJobId %d. Error: %s", botJobId, e.getMessage()));
+                return new ErrorMessage("Bot Job Update Error", "Error updating Bot Job", e.getMessage());
             }
-            return true;
-        } catch (SQLException e) {
+        } catch (SQLException ex) {
             ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("Error updating BotJobId ID %d. Error: %s", botJobId, e.getMessage()));
+                    .severe(String.format(
+                            "Connection error while updating BotJobId %d. Error: %s", botJobId, ex.getMessage()));
+            return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
-        return false;
     }
 
     public boolean updateStatusBotJob(int botJobId, int status) {
@@ -3938,11 +3799,12 @@ public class PerformDataBase {
     }
 
     // Handle DELETE_INSTRUCTION message
-    public void deleteComponent(int homeBankId, int blockId, InstructionLoadDTO toDelete, boolean blockDeletion) {
+    public ErrorMessage deleteInstruction(
+            String tableName, int homeBankId, InstructionLoadDTO toDelete, boolean blockDeletion) {
 
         if (toDelete.getParentId() != null) {
             List<ParentOperations> listParents =
-                    loadParentsComp(homeBankId, blockId, toDelete.getInstructionId(), toDelete.getParentId());
+                    loadParents(tableName, homeBankId, toDelete.getInstructionId(), toDelete.getParentId());
             if (!listParents.isEmpty()) {
 
                 boolean isIF = toDelete.getActions().equalsIgnoreCase("IF")
@@ -3966,20 +3828,30 @@ public class PerformDataBase {
                             0);
 
                     if (respModal.equals(ARConstants.DialogModal.STOP)) {
-                        return;
+                        return null;
                     }
                 }
 
-                deleteCompRowParents(homeBankId, blockId, toDelete.getInstructionId());
+                deleteRowParents(tableName, homeBankId, toDelete.getInstructionId());
             }
         }
 
-        if (deleteCompVariable(toDelete))
-            if (deleteCompReferences(toDelete))
-                if (deleteCompInstruction(toDelete)) {
-                    deleteCompNullBlocks(toDelete.getHomeBankingId());
-                    updateCompBlockOrderNumber(selectCompAllBlocks(homeBankId, blockId), true);
-                }
+        ErrorMessage errorMessage = deleteVariable(tableName, homeBankId, toDelete);
+        if (errorMessage == null) {
+            errorMessage = deleteReferences(tableName, homeBankId, toDelete);
+        }
+        if (errorMessage == null) {
+            errorMessage = deleteCompInstruction(tableName, homeBankId, toDelete);
+        }
+        if (errorMessage == null) {
+            errorMessage = deleteNullBlocks(tableName, homeBankId);
+        }
+        if (errorMessage == null) {
+            loadBlocks(homeBankId, "", tableName);
+            errorMessage = updateBlockOrderNumber(tableName, homeBankId, performLists.getListBlock(), true);
+        }
+
+        return errorMessage;
     }
 
     public void updateDatabaseSchema(String dbUrl, File dbFile) {

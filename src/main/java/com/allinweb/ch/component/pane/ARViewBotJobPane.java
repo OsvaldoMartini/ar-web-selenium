@@ -15,14 +15,11 @@ import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
+import com.allinweb.ch.license.LicenceVal;
+import com.allinweb.ch.license.LicenseManager;
 import com.allinweb.ch.persistence.ComponentBlockDTO;
 import com.allinweb.ch.socket.WebSocketSessionManager;
-import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARLogger;
-import com.allinweb.ch.util.ARPropertyEnum;
-import com.allinweb.ch.util.ARPropertyManager;
-import com.allinweb.ch.util.ExcelUtils;
-import com.allinweb.ch.util.ExtractedData;
+import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import java.awt.*;
@@ -40,11 +37,12 @@ import javafx.geometry.HPos;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.control.*;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.*;
+import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontPosture;
@@ -52,6 +50,7 @@ import javafx.scene.text.FontWeight;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import javafx.stage.Stage;
+import javafx.util.StringConverter;
 
 public class ARViewBotJobPane extends ARPane {
 
@@ -87,27 +86,17 @@ public class ARViewBotJobPane extends ARPane {
 
     private BlockLoadDTO blockLoad;
 
-    private static final WebSocketSessionManager webSocketSessionManager;
-    private static final ARPropertyManager arPropertyManager;
-    private static final ARScannedElementScene arScannedElementScene;
-    private static final ARNewCommandScene arNewCommandScene;
-    private static final ARElementValueScene arElementValueScene;
-    private static final ARWebDriver arWebDriver;
-    private static final PerformLists performLists;
-    private static final PerformDataBase performDataBase;
-    private static final PerformMessage performMessage;
-
-    static {
-        webSocketSessionManager = WebSocketSessionManager.getInstance();
-        arPropertyManager = ARPropertyManager.getInstance();
-        arScannedElementScene = ARScannedElementScene.getInstance();
-        arNewCommandScene = ARNewCommandScene.getInstance();
-        arElementValueScene = ARElementValueScene.getInstance();
-        performLists = PerformLists.getInstance();
-        performDataBase = PerformDataBase.getInstance();
-        performMessage = PerformMessage.getInstance();
-        arWebDriver = ARWebDriver.getInstance();
-    }
+    private boolean isEnabledLicence;
+    private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
+    private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
+    private static final ARScannedElementScene arScannedElementScene = ARScannedElementScene.getInstance();
+    private static final ARNewCommandScene arNewCommandScene = ARNewCommandScene.getInstance();
+    private static final ARElementValueScene arElementValueScene = ARElementValueScene.getInstance();
+    private static final ARWebDriver arWebDriver = ARWebDriver.getInstance();
+    private static final PerformLists performLists = PerformLists.getInstance();
+    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
+    private static final PerformMessage performMessage = PerformMessage.getInstance();
+    private static final ARNewHomeBankingScene arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
 
     private SimpleBooleanProperty isEditingBotJob = new SimpleBooleanProperty(false);
     // Define a flag to prevent double clicks
@@ -119,11 +108,15 @@ public class ARViewBotJobPane extends ARPane {
     Button launchBotJobButton;
     Button saveBotJobButton;
     //    Button saveAsBotJobButton;
-    Button printBotJobButton;
     Button openExcelFileButton;
     Button generateExcelButton;
     Button closeBotJobButton;
     Button createBATButton;
+
+    private Label currentUrlLabel;
+    private ChoiceBox<HomeUrlDTO> homeURLChoiceBox;
+    private Button refreshEnvsButton;
+    private Button insertSitesdButton;
 
     Label webSiteInfoLabel;
     Label botJobNameLabel;
@@ -131,6 +124,10 @@ public class ARViewBotJobPane extends ARPane {
     private TextField botJobNameTextField;
     private TextField botJobDescriptionTextField;
     private VBox botJobContainer;
+
+    private HBox currentURLGroup;
+    private HBox botJobNameGroup;
+    private HBox botJobDescriptionGroup;
 
     private Pane mainPane;
 
@@ -149,7 +146,8 @@ public class ARViewBotJobPane extends ARPane {
     private ARScene arScene;
     private BotJobLoadDTO selectedBojJob;
 
-    public void initialize(ARScene arScene, BotJobLoadDTO selectedBojJob) {
+    public void initialize(ARScene arScene, BotJobLoadDTO selectedBojJob, boolean isEnabledLicence) {
+        this.isEnabledLicence = isEnabledLicence;
         this.arScene = arScene;
         this.selectedBojJob = selectedBojJob;
 
@@ -175,11 +173,11 @@ public class ARViewBotJobPane extends ARPane {
             callScannerTool();
         }
 
-        if (this.botJobNameLabel != null) {
-            this.webSiteInfoLabel.setText(
+        if (botJobNameLabel != null) {
+            webSiteInfoLabel.setText(
                     "Web-site Id: " + selectedBojJob.getHomeBankingId() + " Bot Job Id: " + selectedBojJob.getId());
-            this.botJobNameLabel.setText("Bot Job name: " + selectedBojJob.getName());
-            this.botJobDescriptionLabel.setText("Description: " + selectedBojJob.getDescription());
+            botJobNameLabel.setText("Bot Job name: " + selectedBojJob.getName());
+            botJobDescriptionLabel.setText("Description: " + selectedBojJob.getDescription());
             botJobNameTextField.setText(selectedBojJob.getName());
             botJobDescriptionTextField.setText(selectedBojJob.getDescription());
         }
@@ -190,8 +188,25 @@ public class ARViewBotJobPane extends ARPane {
             }
         }
 
+        updateHomeUrlLabels();
+
         if (!webSocketSessionManager.getAllSessions().isEmpty()) {
             refreshGrids();
+        }
+    }
+
+    private void updateHomeUrlLabels() {
+        if (currentUrlLabel != null) {
+            HomeUrlDTO homeUrlDTO =
+                    performLists.getHomeUrlByBankId(selectedBojJob.getHomeBankingId(), selectedBojJob.getHomeUrlId());
+            String urlEntryPoint = homeUrlDTO != null
+                    ? homeUrlDTO.getUrl()
+                    : selectedBojJob.getHomeBankingLoadDTO().getUrl();
+            currentUrlLabel.setText(urlEntryPoint);
+        }
+
+        if (homeURLChoiceBox != null) {
+            populateHomeUrlChoiceBox(selectedBojJob.getHomeBankingId(), selectedBojJob.getHomeUrlId());
         }
     }
 
@@ -295,6 +310,8 @@ public class ARViewBotJobPane extends ARPane {
 
     @Override
     public void initUIComponents() {
+        String labelStyle = "-fx-text-fill: blue; -fx-font-weight: bold; -fx-font-size: 14;";
+
         sessionId = "botJobTasks"; // + selectedBojJob.getId();
         if (Strings.isNullOrEmpty(previousBotTasks) || !previousBotTasks.equals(sessionId)) {
             builViewComponent();
@@ -309,15 +326,10 @@ public class ARViewBotJobPane extends ARPane {
 
         this.launchBotJobButton = builder.buildButton(
                 "Launch", ARConstants.SPACE_ZERO, "/play.png", ARConstants.SPACE_M, new Insets(5.0D));
-        this.saveBotJobButton = builder.buildButton(
+        saveBotJobButton = builder.buildButton(
                 "Save Job ", ARConstants.SPACE_ZERO, ARConstants.ICON_SAVE, ARConstants.SPACE_M, new Insets(5.0D));
-        this.saveBotJobButton.setDisable(true);
+        saveBotJobButton.setDisable(true);
 
-        //        this.saveAsBotJobButton = builder.buildButton(
-        //                "Save As", ARConstants.SPACE_ZERO, ARConstants.ICON_SAVE, ARConstants.SPACE_M, new
-        // Insets(5.0D));
-        this.printBotJobButton = builder.buildButton(
-                "Print", ARConstants.SPACE_ZERO, ARConstants.ICON_PRINT, ARConstants.SPACE_M, new Insets(5.0D));
         this.openExcelFileButton = builder.buildButton(
                 "Excel File", ARConstants.SPACE_ZERO, ARConstants.ICON_EXCEL, ARConstants.SPACE_M, new Insets(5.0D));
         this.generateExcelButton = builder.buildButton(
@@ -343,21 +355,11 @@ public class ARViewBotJobPane extends ARPane {
         saveBotJobButton.setPrefWidth(buttonWidth);
         leftGridPane.add(saveBotJobButton, 2, 0);
 
-        //        saveAsBotJobButton.setPrefWidth(buttonWidth);
-        //        leftGridPane.add(saveAsBotJobButton, 3, 0);
-
         editBotJobButton.setPrefWidth(buttonWidth);
         leftGridPane.add(editBotJobButton, 3, 0);
 
         launchBotJobButton.setPrefWidth(buttonWidth);
         leftGridPane.add(launchBotJobButton, 4, 0);
-
-        // Add the bottom row of buttons
-        //        saveBotJobButton.setPrefWidth(buttonWidth);
-        //        leftGridPane.add(saveBotJobButton, 0, 1);
-
-        //        saveAsBotJobButton.setPrefWidth(buttonWidth);
-        //        leftGridPane.add(saveAsBotJobButton, 1, 1);
 
         openExcelFileButton.setPrefWidth(buttonWidth);
         leftGridPane.add(openExcelFileButton, 2, 1);
@@ -373,75 +375,166 @@ public class ARViewBotJobPane extends ARPane {
             GridPane.setHalignment(node, HPos.CENTER);
         }
 
-        // Other UI components
+        //        double botJobNameWidth = 450;
 
-        double botJobNameWidth = 450;
+        createBATButton = createPathButton(ARConstants.ICON_BURN);
 
-        createBATButton = createPathButton();
-
-        this.webSiteInfoLabel = new Label(
+        webSiteInfoLabel = new Label(
                 "Web-site Id: " + selectedBojJob.getHomeBankingId() + " Bot Job Id: " + selectedBojJob.getId());
-        this.webSiteInfoLabel.setStyle(
+        webSiteInfoLabel.setStyle(
                 "-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: darkgreen;"); // Green dark
-        this.botJobNameLabel = new Label(selectedBojJob.getName());
-        this.botJobNameLabel.setPrefWidth(botJobNameWidth);
-        this.botJobNameLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;"); // Basic styling
-        this.botJobNameTextField = new TextField(selectedBojJob.getName());
-        this.botJobNameTextField.setPrefWidth(botJobNameWidth);
-        this.botJobNameTextField.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
 
+        // ChoiceBox + Button
+        homeURLChoiceBox = new ChoiceBox<>();
+        homeURLChoiceBox.setPrefWidth(300);
+        homeURLChoiceBox.setMaxWidth(300);
+        homeURLChoiceBox.setMinWidth(300);
+
+        populateHomeUrlChoiceBox(selectedBojJob.getHomeBankingId(), selectedBojJob.getHomeUrlId());
+        Tooltip tooltip = new Tooltip("Select the target URL / environment for the Bot Job");
+        homeURLChoiceBox.setTooltip(tooltip);
+
+        refreshEnvsButton = createPathButton(ARConstants.ICON_REFRESH);
+
+        insertSitesdButton = new Button("Orgs / Environments");
+        insertSitesdButton.setDefaultButton(true);
+        HBox.setMargin(insertSitesdButton, new Insets(0, 0, 0, 20));
+
+        HomeUrlDTO homeUrlDTO =
+                performLists.getHomeUrlByBankId(selectedBojJob.getHomeBankingId(), selectedBojJob.getHomeUrlId());
+        String urlEntryPoint = homeUrlDTO != null
+                ? homeUrlDTO.getUrl()
+                : selectedBojJob.getHomeBankingLoadDTO().getUrl();
+        currentUrlLabel = new Label(urlEntryPoint);
+        currentUrlLabel.setStyle(labelStyle);
+        currentUrlLabel.setMaxWidth(Double.MAX_VALUE);
+        currentUrlLabel.setAlignment(Pos.CENTER);
+        HBox.setHgrow(currentUrlLabel, Priority.ALWAYS);
+
+        botJobNameLabel = new Label(selectedBojJob.getName());
+        botJobNameLabel.setStyle(labelStyle); // Basic styling
+
+        botJobNameTextField = new TextField(selectedBojJob.getName());
+        botJobNameTextField.setStyle(labelStyle);
+
+        botJobDescriptionLabel = new Label(selectedBojJob.getDescription());
+        botJobDescriptionLabel.setStyle(labelStyle);
+
+        botJobDescriptionTextField = new TextField(selectedBojJob.getDescription());
+        botJobDescriptionTextField.setStyle(labelStyle);
+        HBox.setHgrow(botJobDescriptionTextField, Priority.ALWAYS);
+
+        // componentButton Creation
         initComponentButton();
+        componentButton.setMinWidth(40); // keep small button size
 
-        StackPane botJobNameGroup =
-                new StackPane(new Node[] {this.botJobNameLabel, this.botJobNameTextField, this.componentButton});
-        StackPane.setAlignment(this.componentButton, Pos.CENTER_RIGHT);
-        StackPane.setMargin(this.componentButton, new Insets(5.0D, 0.0D, 0.0D, 0.0D));
+        // Create Bot Job Name row: Label + Button in HBox
+        botJobNameGroup = new HBox(5);
+        botJobNameGroup.setAlignment(Pos.CENTER_LEFT);
+        botJobNameGroup.getChildren().addAll(botJobNameLabel, botJobNameTextField);
 
-        this.botJobDescriptionLabel = new Label(selectedBojJob.getDescription());
-        this.botJobDescriptionLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
-        this.botJobDescriptionLabel.setPrefWidth(botJobNameWidth);
-        this.botJobDescriptionTextField = new TextField(selectedBojJob.getDescription());
-        this.botJobDescriptionTextField.setPrefWidth(botJobNameWidth);
-        this.botJobDescriptionTextField.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
+        // Initially, start in "view mode"
+        botJobNameLabel.visibleProperty().bind(isEditingBotJob.not());
+        botJobNameLabel.managedProperty().bind(isEditingBotJob.not());
 
-        StackPane botJobDescriptionGroup =
-                new StackPane(new Node[] {this.botJobDescriptionLabel, this.botJobDescriptionTextField});
+        botJobNameTextField.visibleProperty().bind(isEditingBotJob);
+        botJobNameTextField.managedProperty().bind(isEditingBotJob);
 
-        List<InstructionLoadDTO> listForDeletion =
-                performDataBase.getBlockLoopInstructionIdsWithNullBlock(selectedBojJob.getId());
-        for (InstructionLoadDTO instruction : listForDeletion) {
-            performDataBase.deleteInstruction(selectedBojJob.getId(), instruction, false);
+        // Create Bot Job Description row
+        botJobDescriptionGroup = new HBox(5);
+        botJobDescriptionGroup.setAlignment(Pos.CENTER_LEFT);
+        botJobDescriptionGroup.getChildren().addAll(botJobDescriptionLabel, botJobDescriptionTextField);
+
+        botJobDescriptionLabel.visibleProperty().bind(isEditingBotJob.not());
+        botJobDescriptionLabel.managedProperty().bind(isEditingBotJob.not());
+
+        botJobDescriptionTextField.visibleProperty().bind(isEditingBotJob);
+        botJobDescriptionTextField.managedProperty().bind(isEditingBotJob);
+
+        // Create Bot Job Name row: Label + Button in HBox
+        currentURLGroup = new HBox(5);
+        currentURLGroup.setAlignment(Pos.CENTER_LEFT);
+        currentURLGroup.getChildren().addAll(currentUrlLabel, homeURLChoiceBox, refreshEnvsButton, insertSitesdButton);
+        currentURLGroup.setPadding(new Insets(0, 0, 10, 0));
+
+        currentUrlLabel.visibleProperty().bind(isEditingBotJob.not());
+        currentUrlLabel.managedProperty().bind(isEditingBotJob.not());
+
+        homeURLChoiceBox.visibleProperty().bind(isEditingBotJob);
+        homeURLChoiceBox.managedProperty().bind(isEditingBotJob);
+
+        insertSitesdButton.visibleProperty().bind(isEditingBotJob);
+        insertSitesdButton.managedProperty().bind(isEditingBotJob);
+
+        //        List<InstructionLoadDTO> listForDeletion =
+        //                performDataBase.getBlockLoopInstructionIdsWithNullBlock(selectedBojJob.getId());
+        //
+        //        for (InstructionLoadDTO instruction : listForDeletion) {
+        //            performDataBase.deleteInstruction(selectedBojJob.getId(), instruction, false);
+        //        }
+        performDataBase.deleteNullBlocks("block", selectedBojJob.getId());
+
+        if (performLists.getListBlock().isEmpty()) {
+            performDataBase.loadBlocks(selectedBojJob.getId(), selectedBojJob.getName(), "block");
         }
-        performDataBase.deleteNullBlocks(selectedBojJob.getId());
-        performDataBase.updateBlockOrderNumber(performDataBase.selectAllBlocks(selectedBojJob.getId()), true);
+        performDataBase.updateBlockOrderNumber("block", selectedBojJob.getId(), performLists.getListBlock(), true);
 
         performDataBase.loadCompleteJobs(selectedBojJob.getId());
 
-        componentBox = new HBox(new Node[] {this.webViewTasks});
+        componentBox = new HBox(new Node[] {webViewTasks});
         firstLoad = false;
 
         // Make webView expand both horizontally and vertically
-        HBox.setHgrow(this.webViewTasks, Priority.ALWAYS);
-        VBox.setVgrow(this.webViewTasks, Priority.ALWAYS); // Ensures vertical growth
+        HBox.setHgrow(webViewTasks, Priority.ALWAYS);
+        VBox.setVgrow(webViewTasks, Priority.ALWAYS); // Ensures vertical growth
 
         // Prevent componentContainer from growing too much
         HBox.setHgrow(this.componentContainer, Priority.NEVER);
 
+        // Add the urlGroup below the botJobDescriptionGroup in a VBox
+        VBox botJobInfoBox = new VBox(5); // 5px vertical spacing
+        botJobInfoBox.setAlignment(Pos.CENTER_LEFT);
+        botJobInfoBox
+                .getChildren()
+                .addAll(botJobNameGroup, botJobDescriptionGroup, currentURLGroup); // <-- urlGroup added here
+        VBox.setVgrow(botJobNameGroup, Priority.ALWAYS);
+        VBox.setVgrow(botJobDescriptionGroup, Priority.ALWAYS);
+        VBox.setVgrow(currentURLGroup, Priority.ALWAYS); // optional
+
+        // Make labels center-aligned and stretch full width
+        botJobNameLabel.setMaxWidth(Double.MAX_VALUE);
+        botJobNameLabel.setAlignment(Pos.CENTER);
+        HBox.setHgrow(botJobNameLabel, Priority.ALWAYS);
+
+        botJobDescriptionLabel.setMaxWidth(Double.MAX_VALUE);
+        botJobDescriptionLabel.setAlignment(Pos.CENTER);
+        HBox.setHgrow(botJobDescriptionLabel, Priority.ALWAYS);
+
+        // Make text fields stretch full width
+        botJobNameTextField.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(botJobNameTextField, Priority.ALWAYS);
+
+        botJobDescriptionTextField.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(botJobDescriptionTextField, Priority.ALWAYS);
+
+        // HBox to hold botJobInfoBox + componentBox
+        HBox mainInfoRow = new HBox(10, botJobInfoBox, componentButton);
+        HBox.setHgrow(botJobInfoBox, Priority.ALWAYS);
+        HBox.setHgrow(componentBox, Priority.ALWAYS);
+
         // Create the BAT Website vs Bot Job
         HBox batCreate = new HBox(10, createBATButton, webSiteInfoLabel); // Put labels in an HBox
-        //        batCreate.setAlignment(Pos.CENTER); // Align the labels in the center of the HBox
+        batCreate.setAlignment(Pos.CENTER_LEFT); // This centers vertically, keeps horizontal left
 
-        //        batCreate.setVisible(false);
-        // Create botJobContainer AFTER defining compBox
-        botJobContainer =
-                new VBox(new Node[] {leftGridPane, batCreate, botJobNameGroup, botJobDescriptionGroup, componentBox});
+        HBox.setHgrow(webSiteInfoLabel, Priority.ALWAYS);
+        webSiteInfoLabel.setAlignment(Pos.CENTER); // Center text inside labe
 
-        // Allow botJobContainer to grow vertically as well
-        // Ensure botJobContainer and webView grow properly
+        botJobContainer = new VBox(new Node[] {leftGridPane, batCreate, mainInfoRow, componentBox});
+
         VBox.setVgrow(botJobContainer, Priority.ALWAYS);
 
-        VBox.setVgrow(this.componentBox, Priority.ALWAYS);
-        HBox.setHgrow(this.componentBox, Priority.ALWAYS);
+        VBox.setVgrow(componentBox, Priority.ALWAYS);
+        HBox.setHgrow(componentBox, Priority.ALWAYS);
 
         // Use AnchorPane to ensure the VBox resizes with the window
         mainPane = new AnchorPane(botJobContainer);
@@ -453,9 +546,8 @@ public class ARViewBotJobPane extends ARPane {
         AnchorPane.setRightAnchor(botJobContainer, ARConstants.SPACE_M);
     }
 
-    private Button createPathButton() {
-        Button button = builder.buildButton(
-                "", ARConstants.SPACE_L, ARConstants.ICON_BURN, ARConstants.SPACE_M, new Insets(3D));
+    private Button createPathButton(String icon) {
+        Button button = builder.buildButton("", ARConstants.SPACE_L, icon, ARConstants.SPACE_M, new Insets(3D));
         button.setMaxWidth(ARConstants.SPACE_L);
         AnchorPane.setRightAnchor(button, 0D);
         return button;
@@ -486,6 +578,53 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     public void initUIBehaviour() {
+        refreshEnvsButton.setOnAction(e -> {
+            // Reload from performLists after reloading from DB
+            performDataBase.loadHomeUrls(null);
+
+            // If homeURLChoiceBox was initialized, refresh its items
+            if (homeURLChoiceBox != null) {
+                populateHomeUrlChoiceBox(selectedBojJob.getHomeBankingId(), selectedBojJob.getHomeUrlId());
+            }
+        });
+        homeURLChoiceBox.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(HomeUrlDTO object) {
+                if (object != null) {
+                    if (object.getUrl() != null) {
+                        return object.getOrgName() + " | " + object.getUrl();
+                    } else {
+                        return object.getOrgName();
+                    }
+                }
+                return "";
+            }
+
+            @Override
+            public HomeUrlDTO fromString(String string) {
+                return null;
+            }
+        });
+
+        insertSitesdButton.setOnMouseClicked(e -> {
+            if (isEnabledLicence && !checkLicense()) {
+                return;
+            }
+            if (performLists.getListHomeBanking().isEmpty()) {
+                performDataBase.loadHomeBanking(null);
+            }
+            if (performLists.getListHomeUrl().isEmpty()) {
+                performDataBase.loadHomeUrls(null);
+            }
+
+            arNewHomeBankingScene.initialize();
+            Stage currentStage = (Stage) insertSitesdButton.getScene().getWindow();
+            arNewHomeBankingScene.showModal(currentStage);
+            // If homeURLChoiceBox was initialized, refresh its items
+            if (homeURLChoiceBox != null) {
+                populateHomeUrlChoiceBox(selectedBojJob.getHomeBankingId(), selectedBojJob.getHomeUrlId());
+            }
+        });
 
         createBATButton.setOnMouseClicked(e -> {
             ARPropertyManager managerProps = arPropertyManager;
@@ -513,46 +652,70 @@ public class ARViewBotJobPane extends ARPane {
             refreshGrids();
         });
         //        saveAsBotJobButton.setOnMouseClicked(e -> new ARSaveBotJobAsScene(selectedBojJob.getId()).show());
-        this.botJobNameLabel.visibleProperty().bind(this.isEditingBotJob.not());
-        this.botJobDescriptionLabel.visibleProperty().bind(this.isEditingBotJob.not());
-        this.botJobNameTextField.visibleProperty().bind(this.isEditingBotJob);
-        this.botJobDescriptionTextField.visibleProperty().bind(this.isEditingBotJob);
+        botJobNameLabel.visibleProperty().bind(this.isEditingBotJob.not());
+        botJobDescriptionLabel.visibleProperty().bind(this.isEditingBotJob.not());
+        botJobNameTextField.visibleProperty().bind(this.isEditingBotJob);
+        botJobDescriptionTextField.visibleProperty().bind(this.isEditingBotJob);
         this.editBotJobButton.setOnMouseClicked((e) -> {
             this.isEditingBotJob.set(this.isEditingBotJob.not().getValue());
-            this.saveBotJobButton.setDisable(this.isEditingBotJob.not().getValue());
+            saveBotJobButton.setDisable(this.isEditingBotJob.not().getValue());
         });
-        this.saveBotJobButton.setOnMouseClicked((e) -> {
+        saveBotJobButton.setOnMouseClicked((e) -> {
             this.isEditingBotJob.set(false);
             this.isEditingBotJob.set(false);
-            this.botJobNameLabel.setText(this.botJobNameTextField.getText());
-            this.botJobDescriptionLabel.setText(this.botJobDescriptionTextField.getText());
-            selectedBojJob.setName(this.botJobNameLabel.getText());
-            selectedBojJob.setDescription(this.botJobDescriptionLabel.getText());
-            this.saveBotJobButton.setDisable(true);
+            saveBotJobButton.setDisable(true);
 
-            boolean botJobUpdate = performDataBase.updateBotJobNme(
-                    selectedBojJob.getId(), botJobNameTextField.getText(), botJobDescriptionTextField.getText());
+            if (homeURLChoiceBox.getValue() != null
+                    && homeURLChoiceBox.getValue().getId() > 0) {
+                ErrorMessage errorMessage = performDataBase.updateBotJobDetails(
+                        selectedBojJob.getId(),
+                        homeURLChoiceBox.getValue().getId(),
+                        botJobNameTextField.getText(),
+                        botJobDescriptionTextField.getText());
 
-            //            PerformDataBase..updateEntity(selectedBojJob, BotJobDTO.class);
+                if (errorMessage == null) {
 
-            // PerformDataBase..changeDbConnection();
+                    botJobNameLabel.setText(botJobNameTextField.getText());
+                    botJobDescriptionLabel.setText(botJobDescriptionTextField.getText());
 
-            String msgBotJob = botJobUpdate ? "Bot-Job Updated successfully!" : "Bot-Job NOT Update!";
+                    selectedBojJob.setName(botJobNameLabel.getText());
+                    selectedBojJob.setDescription(botJobDescriptionLabel.getText());
+                    selectedBojJob.setHomeUrlId(homeURLChoiceBox.getValue().getId());
 
-            performMessage.errorMessage(
-                    "Update Bot-Job",
-                    "<span style='color: #000080; font-weight: bold; font-size: 14px;'>" + msgBotJob + "</span>",
-                    "<span style='color: #000080; font-weight: bold;'>" + selectedBojJob.getName() + "</span>",
-                    null,
-                    null,
-                    0);
+                    updateHomeUrlLabels();
 
-            // Refresh the ListView after adding the new bot job
-            if (performDataBase.getConn() != null) {
-                try {
-                    performDataBase.loadQuickBotJobs();
-                } catch (Exception error) {
-                    throw error;
+                    performMessage.showCustomModalDialogDragWin11(
+                            "Update Bot Job Details ✅",
+                            "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>Bot Job updated successfully!</span>",
+                            "<span style='color: #1565C0; font-weight: bold;'>The Bot Job details have been saved and are now active.</span>",
+                            "<span style='color: #6A1B9A; font-weight: bold;'>Bot Job:</span> "
+                                    + botJobNameTextField.getText(),
+                            "<span style='color: #E65100; font-weight: bold;'>💡 Tip:</span> You can now refresh your view to see the updated details.",
+                            false,
+                            "OK",
+                            null,
+                            0);
+                } else {
+                    performMessage.showCustomModalDialogDragWin11(
+                            "Update Bot Job Details ❌",
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to update Bot Job!</span>",
+                            "<span style='color: #1565C0; font-weight: bold;'>There was an error while saving the Bot Job details.</span>",
+                            "<span style='color: #6A1B9A; font-weight: bold;'>Bot Job:</span> "
+                                    + botJobNameTextField.getText(),
+                            "<span style='color: #E65100; font-weight: bold;'>💡 Tip:</span> Please check the input values and try again.",
+                            false,
+                            "OK",
+                            null,
+                            0);
+                }
+
+                // Refresh the ListView after adding the new bot job
+                if (performDataBase.getConn() != null) {
+                    try {
+                        performDataBase.loadQuickBotJobs();
+                    } catch (Exception error) {
+                        throw error;
+                    }
                 }
             }
         });
@@ -566,21 +729,6 @@ public class ARViewBotJobPane extends ARPane {
             if (performLists.getQuickBotJobs().isEmpty()) {
                 performDataBase.loadQuickBotJobs();
             }
-
-            // Retrieve the updated BotJobDTO
-            //            BotJobDTO botJobUpdated = (BotJobDTO)
-            //                    PerformDataBase..getEntityById(BotJobDTO.class,
-            // selectedBojJob.getId());
-
-            //            List<BlockLoadDTO> blockList = selectedBojJob.getBlockLoadDTOList();
-
-            //            boolean hasInputFields = blockList.stream()
-            //                    .flatMap(
-            //                            block -> block
-            //                                    .getBlockLoopInstructionLoadDTOS()
-            //                                    .stream()) // Flatten all BlockLoopInstructionLoadDTOs from each block
-            //                    .anyMatch(instruction -> instruction.getActions() != null
-            //                            && instruction.getActions().startsWith("I:"));
 
             if (!performLists.getListBotJob().isEmpty()) {
                 if (performLists.getListBlock().isEmpty()) {
@@ -800,11 +948,11 @@ public class ARViewBotJobPane extends ARPane {
                 }
             }
         });
-        this.componentButton.setOnMouseClicked((e) -> {
+        componentButton.setOnMouseClicked((e) -> {
             if (isComponentBoxVisible) {
                 componentBox.getChildren().clear();
 
-                componentBox.getChildren().add(this.webViewTasks);
+                componentBox.getChildren().add(webViewTasks);
                 componentBox.requestLayout();
                 componentContainer.requestLayout();
                 this.componentContainer.setManaged(false);
@@ -812,8 +960,8 @@ public class ARViewBotJobPane extends ARPane {
             } else {
 
                 componentBox.getChildren().clear();
-                componentBox.getChildren().addAll(this.webViewTasks, this.componentContainer);
-                //                componentBox.getChildren().addAll(this.webViewTasks, this.webViewComp);
+                componentBox.getChildren().addAll(webViewTasks, this.componentContainer);
+                //                componentBox.getChildren().addAll(webViewTasks, this.webViewComp);
 
                 componentBox.requestLayout();
                 componentContainer.requestLayout();
@@ -1044,7 +1192,7 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     private void initComponentButton() {
-        this.componentButton = builder.buildButton(
+        componentButton = builder.buildButton(
                 "",
                 ARConstants.SPACE_L,
                 "/Cubes.png",
@@ -1120,5 +1268,69 @@ public class ARViewBotJobPane extends ARPane {
         botJobDTO.setBlockLoadDTOList(new ArrayList<>());
 
         this.payloadEmpty = new PayloadJson(selectedBojJob.getId(), selectedBojJob.getName(), 0);
+    }
+
+    private void populateHomeUrlChoiceBox(int homeBankId, int currentHomeUrlId) {
+        // Clear old items
+        homeURLChoiceBox.getItems().clear();
+
+        List<HomeUrlDTO> homeUrlFiltered = performLists.getHomeUrlsByBankId(homeBankId);
+
+        // If list is empty (no real envs), add "No Environment Defined"
+        if (homeUrlFiltered.isEmpty()) {
+            HomeUrlDTO noEnv = new HomeUrlDTO(-1, null, -1, "No Environment Defined");
+            homeURLChoiceBox.getItems().add(noEnv);
+            homeURLChoiceBox.setDisable(true);
+        } else {
+            homeURLChoiceBox.getItems().addAll(homeUrlFiltered);
+            homeURLChoiceBox.setDisable(false);
+
+            // Select the item matching currentHomeUrlId
+            for (HomeUrlDTO item : homeUrlFiltered) {
+                if (item.getId() == currentHomeUrlId) { // assuming getId() returns homeUrlId
+                    homeURLChoiceBox.getSelectionModel().select(item);
+                    break;
+                }
+            }
+        }
+    }
+
+    private boolean checkLicense() {
+        try {
+            String licensePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_LICENSE);
+            if (Strings.isNullOrEmpty(licensePath)) {
+                licensePath = System.getProperty("user.dir");
+            }
+
+            LicenceVal licenseStatus = LicenseManager.checkLicenseFile(licensePath);
+
+            String msgValid = "The license file is valid and the application is authorized for use.";
+            String msgNextStep = "You can now proceed with normal application usage.";
+
+            String msgColor = "#0277BD";
+            if (!licenseStatus.equals(LicenceVal.VALID)) {
+                msgValid = "The license file is not valid and the application is not authorized for use.";
+                msgNextStep = "Application access is restricted. Please obtain a valid license to continue.";
+                msgColor = "#C62828"; // Soft, elegant red tone
+
+                performMessage.showCustomModalDialogDragWin11(
+                        "License Status Verification",
+                        "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>License status has been successfully verified.</span>",
+                        "<span style='color: " + msgColor + "; font-weight: bold;'>" + msgValid + "</span>",
+                        "<span style='font-style: italic;'>" + msgNextStep + "</span>",
+                        "<span style='color: #E65100; font-weight: bold;'>Current license status:</span> <span style='font-weight: bold;'>"
+                                + licenseStatus.getStaus() + "</span>",
+                        false,
+                        "OK",
+                        null,
+                        0);
+                return false;
+            }
+            return true;
+        } catch (Exception error) {
+            ARLogger.getInstance(ARConfigurationPane.class)
+                    .severe("Cannot read/validate the License path/file. Error: " + error.getMessage());
+            return false;
+        }
     }
 }

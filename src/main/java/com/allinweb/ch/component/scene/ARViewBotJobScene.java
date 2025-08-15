@@ -62,21 +62,13 @@ public class ARViewBotJobScene extends ARScene {
     private Stage modalStage;
     private Scene modalScene;
 
-    private static final ARPropertyManager arPropertyManager;
-    private static final PerformLists performLists;
-    private static final PerformDataBase performDataBase;
-    private static ARNewCommandScene arNewCommandScene;
-    private static final ARViewBotJobPane arViewBotJobPane;
-    private static final PerformMessage performMessage;
-
-    static {
-        arPropertyManager = ARPropertyManager.getInstance();
-        performLists = PerformLists.getInstance();
-        performDataBase = PerformDataBase.getInstance();
-        arNewCommandScene = ARNewCommandScene.getInstance();
-        arViewBotJobPane = ARViewBotJobPane.getInstance();
-        performMessage = PerformMessage.getInstance();
-    }
+    private boolean isEnabledLicence;
+    private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
+    private static final PerformLists performLists = PerformLists.getInstance();
+    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
+    private static ARNewCommandScene arNewCommandScene = ARNewCommandScene.getInstance();
+    private static final ARViewBotJobPane arViewBotJobPane = ARViewBotJobPane.getInstance();
+    private static final PerformMessage performMessage = PerformMessage.getInstance();
 
     private int portSocketInitial = 54525;
     private boolean isConnectWebSocket = false;
@@ -91,7 +83,8 @@ public class ARViewBotJobScene extends ARScene {
 
     private BotJobLoadDTO selectedBojJob;
 
-    public void initialize(ARWebDriver arWebDriver, BotJobLoadDTO selectedBojJob) {
+    public void initialize(ARWebDriver arWebDriver, BotJobLoadDTO selectedBojJob, boolean isEnabledLicence) {
+        this.isEnabledLicence = isEnabledLicence;
         this.arWebDriver = arWebDriver;
         this.selectedBojJob = selectedBojJob;
         reloadList();
@@ -233,7 +226,7 @@ public class ARViewBotJobScene extends ARScene {
 
     public void showModal() {
 
-        arViewBotJobPane.initialize(this, selectedBojJob);
+        arViewBotJobPane.initialize(this, selectedBojJob, isEnabledLicence);
 
         if (modalStage == null) {
             modalStage = new Stage();

@@ -115,6 +115,10 @@ public class ARNewBotJobPane extends ARPane {
         homeURLChoiceBox.setMaxWidth(300);
         homeURLChoiceBox.setMinWidth(300);
 
+        populateHomeUrlChoiceBox();
+        Tooltip tooltip = new Tooltip("Select the target URL / environment for the Bot Job");
+        homeURLChoiceBox.setTooltip(tooltip);
+
         refreshEnvsButton = createPathButton();
 
         // Center the ChoiceBox + Button together
@@ -122,10 +126,6 @@ public class ARNewBotJobPane extends ARPane {
         choiceAndRefreshBox.setAlignment(Pos.CENTER); // Center them horizontally
         choiceAndRefreshBox.setPadding(new Insets(0, 0, 10, 0));
         choiceAndRefreshBox.setFillHeight(true);
-
-        populateHomeUrlChoiceBox();
-        Tooltip tooltip = new Tooltip("Select the target URL / environment for the Bot Job");
-        homeURLChoiceBox.setTooltip(tooltip);
 
         createBotJobButton = new Button("Create Bot Job");
         createBotJobButton.setStyle("-fx-font-weight: bold; -fx-background-color: #4CAF50; -fx-text-fill: white;");
@@ -335,7 +335,7 @@ public class ARNewBotJobPane extends ARPane {
                     performDataBase.loadQuickBotJobs();
                 }
 
-                arViewBotJobScene.initialize(arWebDriver, createdBotJob);
+                arViewBotJobScene.initialize(arWebDriver, createdBotJob, isEnabledLicence);
                 arViewBotJobScene.showModal();
 
                 ARLogger.getInstance(ARNewBotJobPane.class).info("Success creating new Bot Job ID: " + newBotJobId);

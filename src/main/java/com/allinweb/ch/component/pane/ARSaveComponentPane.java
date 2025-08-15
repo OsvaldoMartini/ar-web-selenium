@@ -250,7 +250,7 @@ public class ARSaveComponentPane extends ARPane {
 
                     try (Connection conn = performDataBase.getConnection()) {
 
-                        performDataBase.deleteCompNullBlocks(blockDetailsDTO.getHomeBankingId());
+                        performDataBase.deleteNullBlocks("component_block", blockDetailsDTO.getHomeBankingId());
                         ErrorMessage errorMessage = performDataBase.createCompBlock(blockDetailsDTO);
                         if (errorMessage == null) {
                             errorMessage = performDataBase.createCompInstructions(blockDetailsDTO);

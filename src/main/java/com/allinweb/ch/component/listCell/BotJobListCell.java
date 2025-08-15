@@ -26,6 +26,7 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
     private ObservableList<BotJobLoadDTO> botJobList;
     private ObservableList<WebDriver> webDriverList;
 
+    private boolean isEnabledLicence;
     private static final PerformDataBase performDataBase;
     private static final PerformMessage performMessage;
 
@@ -38,11 +39,13 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
             ARViewBotJobScene arViewBotJobScene,
             ARWebDriver arWebDriver,
             ObservableList<BotJobLoadDTO> botJobList,
-            ObservableList<WebDriver> webDriverList) {
+            ObservableList<WebDriver> webDriverList,
+            Boolean isEnabledLicence) {
         this.arViewBotJobScene = arViewBotJobScene;
         this.arWebDriver = arWebDriver;
         this.botJobList = botJobList;
         this.webDriverList = webDriverList;
+        this.isEnabledLicence = isEnabledLicence;
     }
 
     public BotJobListCell() {
@@ -165,7 +168,7 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
 
             row.setOnMouseClicked(mouseEvent -> {
                 if (mouseEvent.getClickCount() == 2) {
-                    arViewBotJobScene.initialize(arWebDriver, item);
+                    arViewBotJobScene.initialize(arWebDriver, item, isEnabledLicence);
                     arViewBotJobScene.showModal();
                 }
             });

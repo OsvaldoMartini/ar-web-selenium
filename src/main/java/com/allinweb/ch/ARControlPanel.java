@@ -183,7 +183,10 @@ public class ARControlPanel extends Application {
                         databaseControl();
                         webSocketControl();
 
-                        Platform.runLater(() -> arMainScene.showModal());
+                        Platform.runLater(() -> {
+                            arMainScene.initialize(isEnabledLicence);
+                            arMainScene.showModal();
+                        });
 
                     } else {
                         licenseMessages(license.get());
@@ -207,7 +210,10 @@ public class ARControlPanel extends Application {
             // Ensure launch(args) is only called once: JavaFX does not allow calling Application.launch() twice.
             //            launch();
             webSocketControl();
-            Platform.runLater(() -> arMainScene.showModal());
+            Platform.runLater(() -> {
+                arMainScene.initialize(isEnabledLicence);
+                arMainScene.showModal();
+            });
             if (performDataBase.getConn() == null) {
                 Platform.runLater(() -> {
                     arConfigurationScene.showModal();

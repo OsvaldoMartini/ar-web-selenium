@@ -197,8 +197,14 @@ public class ARMainPane extends ARPane {
         initHeader();
 
         viewBotJobListView.setItems(botJobList);
-        viewBotJobListView.setCellFactory(new ARCellFactory<>(
-                BotJobListCell.class, arViewBotJobScene, arWebDriver, botJobList, webDriverList)::call);
+        viewBotJobListView.setCellFactory(
+                new ARCellFactory<>(
+                        BotJobListCell.class,
+                        arViewBotJobScene,
+                        arWebDriver,
+                        botJobList,
+                        webDriverList,
+                        isEnabledLicence)::call);
 
         arConfigurationScene.initialize(viewBotJobListView, botJobList, isEnabledLicence);
         arNewBotJobScene.initialize(arViewBotJobScene, arWebDriver, webDriverList, isEnabledLicence);
@@ -339,7 +345,7 @@ public class ARMainPane extends ARPane {
                 try {
                     Platform.runLater(() -> {
                         // new ARViewBotJobScene(selecBotJobDTO).showModal();
-                        arViewBotJobScene.initialize(arWebDriver, selecBotJobDTO);
+                        arViewBotJobScene.initialize(arWebDriver, selecBotJobDTO, isEnabledLicence);
                         arViewBotJobScene.showModal();
 
                         // new Alert(AlertType.WARNING, "Error" + selecBotJobDTO.getName()).show();

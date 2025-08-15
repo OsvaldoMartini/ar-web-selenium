@@ -125,8 +125,8 @@ public class PerformInitializer {
                         + "export_to_abr INTEGER, "
                         + "active INTEGER NOT NULL, "
                         + "block_id INTEGER REFERENCES block(id) ON DELETE CASCADE, "
-                        + "variable_id INTEGER, "
-                        + "parent_block_id INTEGER REFERENCES block(id) ON DELETE CASCADE, "
+                        + "variable_id INTEGER REFERENCES variable(id) ON DELETE SET NULL, "
+                        + "parent_block_id INTEGER REFERENCES block(id) ON DELETE SET NULL, "
                         + "parent_id INTEGER, "
                         + "bot_job_id INTEGER REFERENCES bot_job(id) ON DELETE CASCADE)";
                 stmt.executeUpdate(createInstructionTableSQL);
@@ -186,8 +186,8 @@ public class PerformInitializer {
                         + "export_to_abr INTEGER, "
                         + "active INTEGER NOT NULL, "
                         + "block_id INTEGER REFERENCES component_block(id) ON DELETE CASCADE, "
-                        + "variable_id INTEGER, "
-                        + "parent_block_id INTEGER REFERENCES block(id) ON DELETE CASCADE, "
+                        + "variable_id INTEGER REFERENCES component_variable(id) ON DELETE SET NULL, "
+                        + "parent_block_id INTEGER REFERENCES component_block(id) ON DELETE SET NULL, "
                         + "parent_id INTEGER, "
                         + "home_banking_id INTEGER REFERENCES home_banking(id) ON DELETE CASCADE)";
                 stmt.executeUpdate(createComponentInstructionTableSQL);
@@ -533,7 +533,8 @@ public class PerformInitializer {
                         + "parent_block_id INTEGER, "
                         + "parent_id INTEGER, "
                         + "bot_job_id INTEGER, "
-                        + "FOREIGN KEY(parent_block_id) REFERENCES block(id) ON DELETE CASCADE, "
+                        + "FOREIGN KEY(variable_id) REFERENCES variable(id) ON DELETE SET NULL, "
+                        + "FOREIGN KEY(parent_block_id) REFERENCES block(id) ON DELETE SET NULL, "
                         + "FOREIGN KEY(block_id) REFERENCES block(id) ON DELETE CASCADE, "
                         + "FOREIGN KEY(bot_job_id) REFERENCES bot_job(id) ON DELETE CASCADE)";
                 stmt.executeUpdate(createInstructionTableSQL);
@@ -602,7 +603,8 @@ public class PerformInitializer {
                         + "parent_block_id INTEGER, "
                         + "parent_id INTEGER, "
                         + "home_banking_id INTEGER, "
-                        + "FOREIGN KEY(parent_block_id) REFERENCES block(id) ON DELETE CASCADE, "
+                        + "FOREIGN KEY(variable_id) REFERENCES variable(id) ON DELETE SET NULL, "
+                        + "FOREIGN KEY(parent_block_id) REFERENCES block(id) ON DELETE SET NULL, "
                         + "FOREIGN KEY(block_id) REFERENCES component_block(id) ON DELETE CASCADE, "
                         + "FOREIGN KEY(home_banking_id) REFERENCES home_banking(id) ON DELETE CASCADE)";
                 stmt.executeUpdate(createComponentInstructionTableSQL);

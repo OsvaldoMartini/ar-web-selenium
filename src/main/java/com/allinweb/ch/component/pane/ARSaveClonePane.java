@@ -18,10 +18,7 @@ import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
-import javafx.scene.layout.AnchorPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Pane;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
 
@@ -49,7 +46,6 @@ public class ARSaveClonePane extends ARPane {
     public void initialize(BotJobLoadDTO selecBotJobDTO, List<BotJobLoadDTO> botJobList, boolean isEnabledLicence) {
         this.isEnabledLicence = isEnabledLicence;
         this.selecBotJobDTO = selecBotJobDTO;
-        this.botJobList = botJobList;
 
         if (botJobName != null) {
             botJobName.setText(selecBotJobDTO.getName().trim());
@@ -74,7 +70,7 @@ public class ARSaveClonePane extends ARPane {
     private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
 
     private BotJobLoadDTO selecBotJobDTO;
-    private List<BotJobLoadDTO> botJobList;
+    //    private List<BotJobLoadDTO> botJobList;
     // UI
 
     private Label labelBotJobName;
@@ -138,16 +134,16 @@ public class ARSaveClonePane extends ARPane {
         homeURLChoiceBox.setMaxWidth(300);
         homeURLChoiceBox.setMinWidth(300);
 
+        populateHomeUrlChoiceBox();
+        Tooltip tooltip = new Tooltip("Select the target URL / environment for the Bot Job");
+        homeURLChoiceBox.setTooltip(tooltip);
+
         refreshEnvsButton = createPathButton();
 
         // Side-by-side: ChoiceBox and refresh button
         HBox choiceAndRefreshBox = new HBox(5, homeURLChoiceBox, refreshEnvsButton);
         choiceAndRefreshBox.setAlignment(Pos.CENTER); // Center horizontally
         choiceAndRefreshBox.setPadding(new Insets(0, 0, 10, 0));
-
-        populateHomeUrlChoiceBox();
-        Tooltip tooltip = new Tooltip("Select the target URL / environment for the Bot Job");
-        homeURLChoiceBox.setTooltip(tooltip);
 
         // Buttons
         cloneBotJobButton = new Button("Clone Bot Job");
@@ -161,12 +157,23 @@ public class ARSaveClonePane extends ARPane {
         HBox buttonsBox = new HBox(15, cloneBotJobButton, insertSitesdButton);
         buttonsBox.setAlignment(Pos.CENTER);
 
+        // Organization label
+        Label organizationLabel = new Label("Organization: ACC");
+        organizationLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 1em;");
+        organizationLabel.setMinWidth(Region.USE_PREF_SIZE); // Prevent stretching
+
+        // HBox containing Organization label + newUrl TextField
+        VBox organizationBox = new VBox(5, organizationLabel, newUrl);
+        organizationBox.setAlignment(Pos.CENTER_LEFT); // Align items to the left
+
         // URL details container (everything related to URL + buttons)
         VBox homeUrlDetailsContainer = new VBox(10);
         homeUrlDetailsContainer.setPadding(new Insets(10, 10, 10, 10));
         homeUrlDetailsContainer.setStyle(
                 "-fx-background-color: #E8F5E9; -fx-border-color: #ccc; -fx-border-width: 1px; -fx-border-radius: 5px;");
-        homeUrlDetailsContainer.getChildren().addAll(labelHomeBanking, newUrl, choiceAndRefreshBox, buttonsBox);
+        homeUrlDetailsContainer
+                .getChildren()
+                .addAll(labelHomeBanking, organizationBox, choiceAndRefreshBox, buttonsBox);
 
         // Main layout
         VBox mainLayout = new VBox(
@@ -258,7 +265,7 @@ public class ARSaveClonePane extends ARPane {
                 return;
             }
 
-            BotJobLoadDTO existBotJob = botJobList.stream()
+            BotJobLoadDTO existBotJob = performLists.getQuickBotJobs().stream()
                     .filter(botJob -> botJob.getName().equals(newBotJobName))
                     .findFirst()
                     .orElse(null); //

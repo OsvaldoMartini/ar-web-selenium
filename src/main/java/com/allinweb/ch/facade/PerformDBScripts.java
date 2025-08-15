@@ -49,26 +49,23 @@ public class PerformDBScripts {
         this.conn = conn;
     }
 
-    public String deleteNullBlocksSQL(int botJobId) {
+    public String deleteNullBlocksSQL(String tableName) {
         String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
+        String foreignKeyColumn = "block".equalsIgnoreCase(tableName) ? "bot_job_id" : "home_banking_id";
+        String alias = "";
 
-        String sql;
-
-        if ("SQLite".equalsIgnoreCase(dataBaseType)) {
-            // SQLite does not allow table alias in DELETE
-            sql = "DELETE FROM block " + "WHERE bot_job_id = "
-                    + botJobId + " " + "AND NOT EXISTS ("
-                    + "  SELECT 1 FROM instruction bli "
-                    + "  WHERE bli.block_id = block.id"
-                    + ")";
-        } else {
-            // Postgres & Access support aliasing in DELETE
-            sql = "DELETE FROM block b " + "WHERE b.bot_job_id = "
-                    + botJobId + " " + "AND NOT EXISTS ("
-                    + "  SELECT 1 FROM instruction bli "
-                    + "  WHERE bli.block_id = b.id"
-                    + ")";
+        // SQLite does not support table alias in DELETE
+        if (!"SQLite".equalsIgnoreCase(dataBaseType)) {
+            alias = tableName + " ";
         }
+
+        String sql = "DELETE FROM " + tableName + (alias.isEmpty() ? "" : alias)
+                + "WHERE " + foreignKeyColumn + " = ? "
+                + "AND NOT EXISTS ("
+                + "  SELECT 1 FROM instruction bli "
+                + "  WHERE bli.block_id = " + (alias.isEmpty() ? tableName + ".id" : alias + ".id")
+                + ")";
+
         return sql;
     }
 }
