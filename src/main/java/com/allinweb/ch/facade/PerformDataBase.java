@@ -437,7 +437,7 @@ public class PerformDataBase {
             InstructionLoadDTO dto // contains instructionId, variableId
             ) {
         // Determine the foreign key column based on table type
-        String foreignKeyColumn = "instruction_variable".equalsIgnoreCase(tableName) ? "bot_job_id" : "home_banking_id";
+        String foreignKeyColumn = "variable".equalsIgnoreCase(tableName) ? "bot_job_id" : "home_banking_id";
 
         String deleteSQL = "DELETE FROM " + tableName + " WHERE instruction_id = ? AND variable_id = ? AND "
                 + foreignKeyColumn + " = ?";
@@ -492,63 +492,144 @@ public class PerformDataBase {
         }
     }
 
-    public boolean deleteReferences(int botJobId, int instructionId) {
-        String deleteSQL =
-                "DELETE FROM reference WHERE " + " bot_job_id = " + botJobId + " and instruction_id = " + instructionId;
+    public ErrorMessage deleteInstructionsBatch(
+            String tableName, // "instruction" or "component_instruction"
+            int whereId, // bot_job_id or home_banking_id
+            List<InstructionLoadDTO> dtos // contains list of instructionId(s)
+            ) {
+        if (dtos == null || dtos.isEmpty()) {
+            return new ErrorMessage("Invalid Input", "Instruction list is null or empty", "Cannot delete instructions");
+        }
 
-        try (Statement stmt = getConnection().createStatement()) {
-            int rowsAffected = stmt.executeUpdate(deleteSQL);
-            if (rowsAffected > 0) {
-                System.out.println("Data deleted successfully.");
-            } else {
-                System.out.println("No matching record found to delete.");
+        // Validate table name to avoid SQL injection
+        List<String> allowedTables = Arrays.asList("instruction", "component_instruction");
+        if (!allowedTables.contains(tableName)) {
+            return new ErrorMessage(
+                    "Invalid Table",
+                    "Invalid table name: " + tableName,
+                    "Only instruction/component_instruction are allowed");
+        }
+
+        // Determine foreign key column
+        String foreignKeyColumn =
+                "component_instruction".equalsIgnoreCase(tableName) ? "home_banking_id" : "bot_job_id";
+
+        final int BATCH_SIZE = 100;
+        int count = 0;
+
+        String deleteSQL = "DELETE FROM " + tableName + " WHERE id = ? AND " + foreignKeyColumn + " = ?";
+
+        try (Connection conn = getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(deleteSQL)) {
+
+            conn.setAutoCommit(false); // transaction control
+
+            for (InstructionLoadDTO dto : dtos) {
+                if (dto == null || dto.getInstructionId() == null || dto.getInstructionId() <= 0) {
+                    continue; // skip invalid
+                }
+
+                pstmt.setInt(1, dto.getInstructionId()); // "id" in instruction table
+                pstmt.setInt(2, whereId);
+                pstmt.addBatch();
+
+                if (++count % BATCH_SIZE == 0) {
+                    pstmt.executeBatch();
+                    pstmt.clearBatch();
+                }
             }
-            return true;
-        } catch (SQLException error) {
-            //            dataBaseInUse(error.getMessage());
-            return true;
+
+            // final flush
+            if (count % BATCH_SIZE != 0) {
+                pstmt.executeBatch();
+                pstmt.clearBatch();
+            }
+
+            conn.commit();
+
+            ARLogger.getInstance(PerformDataBase.class)
+                    .info(String.format(
+                            "Batch delete completed for %d instruction records in %s", count, tableName.toUpperCase()));
+
+            return null; // success
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe("Batch delete error for " + tableName + ": " + e.getMessage());
+            return new ErrorMessage(
+                    "Delete Instructions Error",
+                    "Failed batch deletion for instructions in table: " + tableName,
+                    e.getMessage());
         }
     }
 
-    public ErrorMessage deleteReferences(
-            String tableName, // e.g., "component_reference" or "reference"
-            int whereId, // e.g., bot_job_id or home_banking_id
-            InstructionLoadDTO dto // contains instructionId
+    public ErrorMessage deleteReferencesBatch(
+            String tableName, // "component_reference" or "reference"
+            int whereId, // bot_job_id or home_banking_id
+            List<InstructionLoadDTO> dtos // contains list of instructionId(s)
             ) {
-        if (dto == null || dto.getInstructionId() <= 0) {
-            return new ErrorMessage(
-                    "Invalid Input",
-                    "InstructionLoadDTO is null or has invalid instructionId",
-                    "Cannot delete references");
+        if (dtos == null || dtos.isEmpty()) {
+            return new ErrorMessage("Invalid Input", "Instruction list is null or empty", "Cannot delete references");
         }
 
-        // Determine foreign key column if needed
+        // Validate table name to avoid SQL injection
+        List<String> allowedTables = Arrays.asList("reference", "component_reference");
+        if (!allowedTables.contains(tableName)) {
+            return new ErrorMessage(
+                    "Invalid Table",
+                    "Invalid table name: " + tableName,
+                    "Only reference/component_reference are allowed");
+        }
+
+        // Determine foreign key column
         String foreignKeyColumn = "component_reference".equalsIgnoreCase(tableName) ? "home_banking_id" : "bot_job_id";
+
+        final int BATCH_SIZE = 100;
+        int count = 0;
 
         String deleteSQL = "DELETE FROM " + tableName + " WHERE instruction_id = ? AND " + foreignKeyColumn + " = ?";
 
-        try (Connection conn = getConnection()) {
-            conn.setAutoCommit(false); // disable auto-commit
+        try (Connection conn = getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(deleteSQL)) {
 
-            try (PreparedStatement pstmt = conn.prepareStatement(deleteSQL)) {
+            conn.setAutoCommit(false); // transaction control
+
+            for (InstructionLoadDTO dto : dtos) {
+                if (dto == null || dto.getInstructionId() == null || dto.getInstructionId() <= 0) {
+                    continue; // skip invalid
+                }
+
                 pstmt.setInt(1, dto.getInstructionId());
                 pstmt.setInt(2, whereId);
+                pstmt.addBatch();
 
-                int rowsAffected = pstmt.executeUpdate();
-                conn.commit();
-
-                return null; // success
-
-            } catch (SQLException e) {
-                conn.rollback();
-                return new ErrorMessage(
-                        "Delete References Error",
-                        "Failed to delete references for instruction ID: " + dto.getInstructionId(),
-                        e.getMessage());
+                if (++count % BATCH_SIZE == 0) {
+                    pstmt.executeBatch();
+                    pstmt.clearBatch();
+                }
             }
 
-        } catch (SQLException ex) {
-            return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
+            // final flush
+            if (count % BATCH_SIZE != 0) {
+                pstmt.executeBatch();
+                pstmt.clearBatch();
+            }
+
+            conn.commit();
+
+            ARLogger.getInstance(PerformDataBase.class)
+                    .info(String.format(
+                            "Batch delete completed for %d reference records in %s", count, tableName.toUpperCase()));
+
+            return null; // success
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe("Batch delete error for " + tableName + ": " + e.getMessage());
+            return new ErrorMessage(
+                    "Delete References Error",
+                    "Failed batch deletion for references in table: " + tableName,
+                    e.getMessage());
         }
     }
 
@@ -650,63 +731,6 @@ public class PerformDataBase {
                             "Connection error while deleting parent ID %d in %s = %d. Error: %s",
                             parentId, foreignKeyColumn, whereId, ex.getMessage()));
 
-            return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
-        }
-    }
-
-    public ErrorMessage deleteCompInstruction(
-            String tableName,
-            int whereId, // e.g., home_banking_id or bot_job_id
-            InstructionLoadDTO dto) {
-        if (dto == null || dto.getInstructionId() <= 0) {
-            return new ErrorMessage(
-                    "Invalid Input",
-                    "InstructionLoadDTO is null or has invalid instructionId",
-                    "Cannot delete instruction");
-        }
-
-        boolean isConditional = dto.getActions() != null
-                && (dto.getActions().equals("IF")
-                        || dto.getActions().equals("ELSE")
-                        || dto.getActions().equals("ENDIF"));
-
-        String deleteSQL;
-
-        if (isConditional) {
-            deleteSQL = "DELETE FROM " + tableName + " WHERE (id = ? OR parent_id = ?) AND block_id = ? AND "
-                    + (tableName.equalsIgnoreCase("component_instruction") ? "home_banking_id" : "bot_job_id") + " = ?";
-        } else {
-            deleteSQL = "DELETE FROM " + tableName + " WHERE id = ? AND "
-                    + (tableName.equalsIgnoreCase("component_instruction") ? "home_banking_id" : "bot_job_id") + " = ?";
-        }
-
-        try (Connection conn = getConnection()) {
-            conn.setAutoCommit(false);
-
-            try (PreparedStatement pstmt = conn.prepareStatement(deleteSQL)) {
-                pstmt.setInt(1, dto.getInstructionId());
-
-                if (isConditional) {
-                    pstmt.setInt(2, dto.getParentId());
-                    pstmt.setInt(3, dto.getBlockId());
-                    pstmt.setInt(4, whereId);
-                } else {
-                    pstmt.setInt(2, whereId);
-                }
-
-                pstmt.executeUpdate();
-                conn.commit();
-                return null; // success
-
-            } catch (SQLException e) {
-                conn.rollback();
-                return new ErrorMessage(
-                        "Delete Instruction Error",
-                        "Failed to delete instruction ID: " + dto.getInstructionId(),
-                        e.getMessage());
-            }
-
-        } catch (SQLException ex) {
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
     }
@@ -1522,6 +1546,24 @@ public class PerformDataBase {
             return new ErrorMessage("Invalid Table", "Unknown table: " + tableName, null);
         }
 
+        ErrorMessage errorMessage;
+        String instructionTable = tableName.equals("block") ? "instruction" : "component_instruction";
+        List<InstructionLoadDTO> lstInstruc = getInstructionsList(whereId, blockId, -1, instructionTable);
+
+        if (!lstInstruc.isEmpty()) {
+            String referenceTable = tableName.equals("block") ? "reference" : "component_reference";
+            errorMessage = deleteReferencesBatch(referenceTable, whereId, lstInstruc);
+
+            if (errorMessage == null) {
+                errorMessage = deleteInstructionsBatch(instructionTable, whereId, lstInstruc);
+            }
+
+            if (errorMessage != null) {
+                ARLogger.getInstance(PerformDataBase.class)
+                        .severe("Error: " + errorMessage.getErrorTitle() + "-" + errorMessage.getErrorMessage());
+            }
+        }
+
         String deleteSQL = "DELETE FROM " + tableName + " WHERE id = ? AND " + whereColumn + " = ?";
 
         try (Connection conn = getConnection()) {
@@ -1667,17 +1709,17 @@ public class PerformDataBase {
 
                     instruction.setInstructionActive(rs.getBoolean("instruction_active"));
 
-                    instruction.setInstructionReferenceLoadDTOList(new ArrayList<>());
+                    instruction.setReferenceLoadDTOList(new ArrayList<>());
                     blockDTO.getInstructionLoadDTOS().add(instruction);
                     instructionMapDTO.put(instructionId, instruction);
                 }
 
                 String referenceType = rs.getString("reference_type");
                 if (referenceType != null) {
-                    InstructionReferenceLoadDTO reference = new InstructionReferenceLoadDTO();
+                    ReferenceLoadDTO reference = new ReferenceLoadDTO();
                     reference.setReferenceType(referenceType);
                     reference.setValue(rs.getString("value"));
-                    instruction.getInstructionReferenceLoadDTOList().add(reference);
+                    instruction.getReferenceLoadDTOList().add(reference);
                 }
             }
         } catch (SQLException e) {
@@ -1817,17 +1859,17 @@ public class PerformDataBase {
 
                     instruction.setInstructionActive(rs.getBoolean("instruction_active"));
 
-                    instruction.setInstructionReferenceLoadDTOList(new ArrayList<>());
+                    instruction.setReferenceLoadDTOList(new ArrayList<>());
                     blockDTO.getInstructionLoadDTOS().add(instruction);
                     instructionMapDTO.put(instructionId, instruction);
                 }
 
                 String referenceType = rs.getString("reference_type");
                 if (referenceType != null) {
-                    InstructionReferenceLoadDTO reference = new InstructionReferenceLoadDTO();
+                    ReferenceLoadDTO reference = new ReferenceLoadDTO();
                     reference.setReferenceType(referenceType);
                     reference.setValue(rs.getString("reference_value"));
-                    instruction.getInstructionReferenceLoadDTOList().add(reference);
+                    instruction.getReferenceLoadDTOList().add(reference);
                 }
             }
         } catch (SQLException error) {
@@ -3558,80 +3600,6 @@ public class PerformDataBase {
         return new ArrayList<>();
     }
 
-    private void deleteBlockInstruction(int instructionId) throws SQLException {
-        String deleteBlockInstruction = "delete FROM instruction " + " where id = " + instructionId;
-
-        try (Statement stmt = getConnection().createStatement()) {
-            int rowsAffected = stmt.executeUpdate(deleteBlockInstruction);
-            if (rowsAffected > 0) {
-                ARLogger.getInstance(PerformDataBase.class).finer("Data deleted successfully for: " + instructionId);
-            } else {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .finer("No matching record found to delete for: " + instructionId);
-            }
-        }
-    }
-
-    private void deleteInstrReference(int instructionId) throws SQLException {
-        String deleteSQL = "delete FROM reference " + " where instruction_id =  " + instructionId;
-
-        try (Statement stmt = getConnection().createStatement()) {
-            int rowsAffected = stmt.executeUpdate(deleteSQL);
-            if (rowsAffected > 0) {
-                ARLogger.getInstance(PerformDataBase.class).finer("Data deleted successfully for: " + instructionId);
-            } else {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .finer("No matching record found to delete for: " + instructionId);
-            }
-        }
-    }
-
-    private boolean existVariables(int instructionId) throws SQLException {
-        String query = "select id FROM variable " + " where instruction_id =  " + instructionId;
-        try (Statement stmt = getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(query)) {
-            while (rs.next()) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private void forceDeleteOrphan(int instructionId) throws SQLException {
-        String deleteSQL = "delete FROM reference " + " where instruction_id is null ";
-
-        try (Statement stmt = getConnection().createStatement()) {
-            int rowsAffected = stmt.executeUpdate(deleteSQL);
-            if (rowsAffected > 0) {
-                ARLogger.getInstance(PerformDataBase.class).finer("Data deleted successfully for: " + instructionId);
-            } else {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .finer("No matching record found to delete for: " + instructionId);
-            }
-        }
-    }
-
-    private void forceDeleteFatherNoChild(int instructionId) throws SQLException {
-        String deleteSQL = "DELETE FROM instruction " + "WHERE id IN ( "
-                + "    SELECT bli.id "
-                + "    FROM instruction bli "
-                + "    LEFT JOIN reference irl ON irl.instruction_id = bli.id "
-                + "    WHERE irl.id IS NULL "
-                + "    AND bli.name NOT IN ('Check', 'GetValue', 'SetValue')"
-                + ") ";
-
-        try (Statement stmt = getConnection().createStatement()) {
-            int rowsAffected = stmt.executeUpdate(deleteSQL);
-            if (rowsAffected > 0) {
-                ARLogger.getInstance(PerformDataBase.class).finer("Data deleted successfully for: " + instructionId);
-            } else {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .finer("No matching record found to delete for: " + instructionId);
-            }
-        }
-    }
-
     public List<BlockLoadDTO> loadSavedBlocksForBotJob(int homeBankingId, Integer botJobId, String botJobName) {
         // SQL query to get the blocks for a specific bot job
         String query = "\n" + "SELECT \n"
@@ -3706,9 +3674,9 @@ public class PerformDataBase {
                 Integer instructionId = instruction.getId();
                 Integer botJobId = instruction.getBotJobId();
 
-                if (instruction.getInstructionReferenceLoadDTOList() == null) continue;
+                if (instruction.getReferenceLoadDTOList() == null) continue;
 
-                for (InstructionReferenceLoadDTO reference : instruction.getInstructionReferenceLoadDTOList()) {
+                for (ReferenceLoadDTO reference : instruction.getReferenceLoadDTOList()) {
                     if ("customXPath".equalsIgnoreCase(reference.getReferenceType())) {
                         continue; // Skip this type
                     }
@@ -3750,7 +3718,7 @@ public class PerformDataBase {
         }
     }
 
-    public ErrorMessage insertReferences(List<InstructionReferenceLoadDTO> queue, int instructionId) {
+    public ErrorMessage insertReferences(List<ReferenceLoadDTO> queue, int instructionId) {
         String insertSQL =
                 "INSERT INTO reference(reference_type, value, instruction_id, bot_job_id) VALUES (?, ?, ?, ?)";
 
@@ -3760,7 +3728,7 @@ public class PerformDataBase {
             final int BATCH_SIZE = 100;
             int count = 0;
 
-            for (InstructionReferenceLoadDTO reference : queue) {
+            for (ReferenceLoadDTO reference : queue) {
                 if ("customXPath".equalsIgnoreCase(reference.getReferenceType())) {
                     continue; // Skip this type
                 }
@@ -3800,11 +3768,12 @@ public class PerformDataBase {
 
     // Handle DELETE_INSTRUCTION message
     public ErrorMessage deleteInstruction(
-            String tableName, int homeBankId, InstructionLoadDTO toDelete, boolean blockDeletion) {
+            String tableName, int whereId, InstructionLoadDTO toDelete, boolean blockDeletion) {
 
         if (toDelete.getParentId() != null) {
             List<ParentOperations> listParents =
-                    loadParents(tableName, homeBankId, toDelete.getInstructionId(), toDelete.getParentId());
+                    loadParents(tableName, whereId, toDelete.getInstructionId(), toDelete.getParentId());
+
             if (!listParents.isEmpty()) {
 
                 boolean isIF = toDelete.getActions().equalsIgnoreCase("IF")
@@ -3832,23 +3801,25 @@ public class PerformDataBase {
                     }
                 }
 
-                deleteRowParents(tableName, homeBankId, toDelete.getInstructionId());
+                deleteRowParents(tableName, whereId, toDelete.getInstructionId());
             }
         }
 
-        ErrorMessage errorMessage = deleteVariable(tableName, homeBankId, toDelete);
+        ErrorMessage errorMessage = deleteVariable(tableName, whereId, toDelete);
+        List<InstructionLoadDTO> listInstruc = new ArrayList<>();
         if (errorMessage == null) {
-            errorMessage = deleteReferences(tableName, homeBankId, toDelete);
+            listInstruc.add(toDelete);
+            errorMessage = deleteReferencesBatch(tableName, whereId, listInstruc);
         }
         if (errorMessage == null) {
-            errorMessage = deleteCompInstruction(tableName, homeBankId, toDelete);
+            errorMessage = deleteInstructionsBatch(tableName, whereId, listInstruc);
         }
         if (errorMessage == null) {
-            errorMessage = deleteNullBlocks(tableName, homeBankId);
+            errorMessage = deleteNullBlocks(tableName, whereId);
         }
         if (errorMessage == null) {
-            loadBlocks(homeBankId, "", tableName);
-            errorMessage = updateBlockOrderNumber(tableName, homeBankId, performLists.getListBlock(), true);
+            loadBlocks(whereId, "", tableName);
+            errorMessage = updateBlockOrderNumber(tableName, whereId, performLists.getListBlock(), true);
         }
 
         return errorMessage;
@@ -8690,7 +8661,7 @@ GROUP BY
         if (blockId > 0) {
             querySQL.append(" AND block_id = ?");
         }
-        if (instrucId > 0) {
+        if (instrucId > -1) {
             querySQL.append(" AND id = ?");
         }
         querySQL.append(" ORDER BY instruction_order_number ASC");
@@ -8701,7 +8672,7 @@ GROUP BY
             if (blockId > 0) {
                 pstmt.setInt(paramIndex++, blockId);
             }
-            if (instrucId > 0) {
+            if (instrucId > -1) {
                 pstmt.setInt(paramIndex++, instrucId);
             }
 
@@ -8754,16 +8725,96 @@ GROUP BY
                                 instructions.size(),
                                 tableName,
                                 blockId > 0 ? " for Block ID " + blockId : "",
-                                instrucId > 0 ? " and Instruction ID " + instrucId : ""));
+                                instrucId > -1 ? " and Instruction ID " + instrucId : ""));
             }
         } catch (SQLException e) {
             ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
-                            "Error fetching instructions from table %s%s. Error: %s",
-                            tableName, blockId > 0 ? " for Block ID " + blockId : "", e.getMessage()));
+                            "Error fetching instructions from table %s%s%s. Error: %s",
+                            tableName,
+                            blockId > 0 ? " for Block ID " + blockId : "",
+                            instrucId > -1 ? " and Instruction ID " + instrucId : "",
+                            e.getMessage()));
         }
 
         return instructions;
+    }
+
+    public List<ReferenceLoadDTO> getReferencesList(
+            int whereID, List<InstructionLoadDTO> lstInstruc, String tableName) {
+        List<ReferenceLoadDTO> references = new ArrayList<>();
+
+        // Validate table name to avoid SQL injection
+        List<String> allowedTables = Arrays.asList("reference", "component_reference");
+        if (!allowedTables.contains(tableName)) {
+            throw new IllegalArgumentException("Invalid table name: " + tableName);
+        }
+
+        // Determine filter column
+        String whereColumn = tableName.equals("component_reference") ? "home_banking_id" : "bot_job_id";
+
+        // Collect instruction IDs
+        List<Integer> instrucIds = lstInstruc.stream()
+                .map(InstructionLoadDTO::getId) // adjust if your DTO uses another method name for ID
+                .filter(id -> id != null && id > -1)
+                .toList();
+
+        // Build query dynamically
+        StringBuilder querySQL = new StringBuilder("SELECT * FROM ")
+                .append(tableName)
+                .append(" WHERE ")
+                .append(whereColumn)
+                .append(" = ?");
+
+        if (!instrucIds.isEmpty()) {
+            querySQL.append(" AND block_loop_instruction_id IN (")
+                    .append(instrucIds.stream().map(i -> "?").collect(Collectors.joining(",")))
+                    .append(")");
+        }
+
+        querySQL.append(" ORDER BY id ASC");
+
+        try (PreparedStatement pstmt = getConnection().prepareStatement(querySQL.toString())) {
+            int paramIndex = 1;
+            pstmt.setInt(paramIndex++, whereID);
+
+            // Bind instruction IDs if present
+            for (Integer id : instrucIds) {
+                pstmt.setInt(paramIndex++, id);
+            }
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    ReferenceLoadDTO reference = new ReferenceLoadDTO();
+
+                    reference.setId(rs.getInt("id"));
+
+                    if (tableName.equals("component_reference")) {
+                        reference.setHomeBankingId(rs.getInt("home_banking_id"));
+                    } else {
+                        reference.setBotJobId(rs.getInt("bot_job_id"));
+                    }
+
+                    reference.setReferenceType(rs.getString("reference_type"));
+                    reference.setValue(rs.getString("value"));
+                    reference.setBlockLoopInstructionId(rs.getInt("block_loop_instruction_id"));
+
+                    references.add(reference);
+                }
+
+                ARLogger.getInstance(PerformDataBase.class)
+                        .info(String.format(
+                                "Fetched %d references from table %s where %s=%d and instrucIds=%s",
+                                references.size(), tableName, whereColumn, whereID, instrucIds));
+            }
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format(
+                            "Error fetching references from table %s where %s=%d. Error: %s",
+                            tableName, whereColumn, whereID, e.getMessage()));
+        }
+
+        return references;
     }
 
     /**
@@ -8777,5 +8828,38 @@ GROUP BY
             }
         }
         return false;
+    }
+
+    public ErrorMessage updateColumns() {
+        try (Connection conn = getConnection()) {
+
+            // Check and add parent_block_id column if missing in both tables
+            addColumnIfNotExists(conn, "instruction", "parent_block_id", "INTEGER");
+            addColumnIfNotExists(conn, "component_instruction", "parent_block_id", "INTEGER");
+
+            return null;
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe("Error ensuring parent_block_id column: " + e.getMessage());
+            return new ErrorMessage(
+                    "Database Column Error", "Error ensuring parent_block_id column exists in tables", e.getMessage());
+        }
+    }
+
+    /** Helper method to add column if it does not exist */
+    private void addColumnIfNotExists(Connection conn, String tableName, String columnName, String columnType)
+            throws SQLException {
+        boolean columnExists = false;
+        try (ResultSet rs = conn.getMetaData().getColumns(null, null, tableName, columnName)) {
+            if (rs.next()) {
+                columnExists = true;
+            }
+        }
+        if (!columnExists) {
+            try (Statement stmt = conn.createStatement()) {
+                stmt.executeUpdate("ALTER TABLE " + tableName + " ADD COLUMN " + columnName + " " + columnType);
+            }
+        }
     }
 }

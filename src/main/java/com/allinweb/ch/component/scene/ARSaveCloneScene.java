@@ -43,7 +43,7 @@ public class ARSaveCloneScene extends ARScene {
         arSaveClonePane = ARSaveClonePane.getInstance();
     }
 
-    private static final Double SCENE_HEIGHT = 400D;
+    private static final Double SCENE_HEIGHT = 450D;
     private static final Double SCENE_WIDTH = 800D;
     private static final String TITLE = "Clone Job";
 

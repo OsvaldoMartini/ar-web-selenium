@@ -144,18 +144,18 @@ public class ARViewBotJobPane extends ARPane {
     private WebView webViewComp = new WebView();
     private WebEngine webEngineComp;
     private ARScene arScene;
-    private BotJobLoadDTO selectedBojJob;
+    private BotJobLoadDTO selectedBotJob;
 
-    public void initialize(ARScene arScene, BotJobLoadDTO selectedBojJob, boolean isEnabledLicence) {
+    public void initialize(ARScene arScene, BotJobLoadDTO selectedBotJob, boolean isEnabledLicence) {
         this.isEnabledLicence = isEnabledLicence;
         this.arScene = arScene;
-        this.selectedBojJob = selectedBojJob;
+        this.selectedBotJob = selectedBotJob;
 
-        ExcelUtils.createExcelDataFile(selectedBojJob, null);
+        ExcelUtils.createExcelDataFile(selectedBotJob, null);
 
-        Platform.runLater(() -> performDataBase.loadAllVariablesByCriteria(selectedBojJob.getId(), -1, "variable"));
+        Platform.runLater(() -> performDataBase.loadAllVariablesByCriteria(selectedBotJob.getId(), -1, "variable"));
         Platform.runLater(() -> {
-            performDataBase.loadWebPageFields(selectedBojJob.getId(), "bot_job");
+            performDataBase.loadWebPageFields(selectedBotJob.getId(), "bot_job");
         });
 
         if (arNewCommandScene.getRowMoveDTO() != null) {
@@ -169,17 +169,17 @@ public class ARViewBotJobPane extends ARPane {
         }
 
         if (arScannedElementScene.getBotJobLoadDTO() != null
-                && !arScannedElementScene.getBotJobLoadDTO().getId().equals(selectedBojJob.getId())) {
+                && !arScannedElementScene.getBotJobLoadDTO().getId().equals(selectedBotJob.getId())) {
             callScannerTool();
         }
 
         if (botJobNameLabel != null) {
             webSiteInfoLabel.setText(
-                    "Web-site Id: " + selectedBojJob.getHomeBankingId() + " Bot Job Id: " + selectedBojJob.getId());
-            botJobNameLabel.setText("Bot Job name: " + selectedBojJob.getName());
-            botJobDescriptionLabel.setText("Description: " + selectedBojJob.getDescription());
-            botJobNameTextField.setText(selectedBojJob.getName());
-            botJobDescriptionTextField.setText(selectedBojJob.getDescription());
+                    "Web-site Id: " + selectedBotJob.getHomeBankingId() + " Bot Job Id: " + selectedBotJob.getId());
+            botJobNameLabel.setText("Bot Job name: " + selectedBotJob.getName());
+            botJobDescriptionLabel.setText("Description: " + selectedBotJob.getDescription());
+            botJobNameTextField.setText(selectedBotJob.getName());
+            botJobDescriptionTextField.setText(selectedBotJob.getDescription());
         }
         if (Strings.isNullOrEmpty(previousBotTasks)) {
             String portSocket = arPropertyManager.getProperty(ARPropertyEnum.PORT_SOCKET);
@@ -198,15 +198,15 @@ public class ARViewBotJobPane extends ARPane {
     private void updateHomeUrlLabels() {
         if (currentUrlLabel != null) {
             HomeUrlDTO homeUrlDTO =
-                    performLists.getHomeUrlByBankId(selectedBojJob.getHomeBankingId(), selectedBojJob.getHomeUrlId());
+                    performLists.getHomeUrlByBankId(selectedBotJob.getHomeBankingId(), selectedBotJob.getHomeUrlId());
             String urlEntryPoint = homeUrlDTO != null
                     ? homeUrlDTO.getUrl()
-                    : selectedBojJob.getHomeBankingLoadDTO().getUrl();
+                    : selectedBotJob.getHomeBankingLoadDTO().getUrl();
             currentUrlLabel.setText(urlEntryPoint);
         }
 
         if (homeURLChoiceBox != null) {
-            populateHomeUrlChoiceBox(selectedBojJob.getHomeBankingId(), selectedBojJob.getHomeUrlId());
+            populateHomeUrlChoiceBox(selectedBotJob.getHomeBankingId(), selectedBotJob.getHomeUrlId());
         }
     }
 
@@ -214,7 +214,7 @@ public class ARViewBotJobPane extends ARPane {
         setPayloadEmpty("botJobTasks");
         String jsonData = gson.toJson(payloadEmpty);
 
-        performDataBase.loadCompleteJobs(selectedBojJob.getId());
+        performDataBase.loadCompleteJobs(selectedBotJob.getId());
 
         if (!performLists.getListBotJob().isEmpty()) {
             List<InstructionLoadDTO> instructions =
@@ -225,12 +225,12 @@ public class ARViewBotJobPane extends ARPane {
         }
 
         webSocketSessionManager.sendMessageJson(
-                selectedBojJob.getHomeBankingId(), "botJobTasks", jsonData, "updateInstructions");
+                selectedBotJob.getHomeBankingId(), "botJobTasks", jsonData, "updateInstructions");
 
         setPayloadEmpty("componentTasks");
         jsonData = gson.toJson(payloadEmpty);
         performDataBase.loadComponentsComplete(
-                selectedBojJob.getHomeBankingId(), selectedBojJob.getId(), selectedBojJob.getName());
+                selectedBotJob.getHomeBankingId(), selectedBotJob.getId(), selectedBotJob.getName());
         if (!performLists.getListBotJobComp().isEmpty()) {
             List<InstructionLoadDTO> instructions =
                     performDataBase.buildJsonViewData(performLists.getListBotJobComp(), "component_instruction");
@@ -240,24 +240,24 @@ public class ARViewBotJobPane extends ARPane {
         }
 
         webSocketSessionManager.sendMessageJson(
-                selectedBojJob.getHomeBankingId(), "componentTasks", jsonData, "componentsUpdate");
+                selectedBotJob.getHomeBankingId(), "componentTasks", jsonData, "componentsUpdate");
 
         //        webSocketSessionManager.broadcastMessageToAll(
-        //                selectedBojJob.getHomeBankingId(), "componentTasks", jsonData, "componentsUpdate");
+        //                selectedBotJob.getHomeBankingId(), "componentTasks", jsonData, "componentsUpdate");
     }
 
     private void builViewComponent() {
         setPayloadEmpty("botJobTasks");
         String jsonData = gson.toJson(payloadEmpty);
 
-        performDataBase.loadCompleteJobs(selectedBojJob.getId());
+        performDataBase.loadCompleteJobs(selectedBotJob.getId());
 
         // Load blocks based on the BotJobLoadDTO instead of blockDTOObservableList
         if (!performLists.getListBotJob().isEmpty()) {
             List<InstructionLoadDTO> instructions =
                     performDataBase.buildJsonViewData(performLists.getListBotJob(), "instruction");
             if (!instructions.isEmpty()) {
-                performMessage.outputJson(instructions, "botJobTasks-" + selectedBojJob.getId(), false);
+                performMessage.outputJson(instructions, "botJobTasks-" + selectedBotJob.getId(), false);
                 jsonData = gson.toJson(instructions);
             }
         }
@@ -266,27 +266,27 @@ public class ARViewBotJobPane extends ARPane {
         webEngineTasks.javaScriptEnabledProperty().set(true);
 
         // (SENDER: insertTool) -> botJobTasks
-        sessionId = "botJobTasks"; // + selectedBojJob.getId();
+        sessionId = "botJobTasks"; // + selectedBotJob.getId();
         buildWebView(
                 webEngineTasks,
                 jsonData,
                 portInitial,
                 sessionId,
-                selectedBojJob.getHomeBankingId(),
-                selectedBojJob.getId(),
-                selectedBojJob.getName());
+                selectedBotJob.getHomeBankingId(),
+                selectedBotJob.getId(),
+                selectedBotJob.getName());
 
         setPayloadEmpty("componentTasks");
         jsonData = gson.toJson(payloadEmpty);
 
         performDataBase.loadComponentsComplete(
-                selectedBojJob.getHomeBankingId(), selectedBojJob.getId(), selectedBojJob.getName());
+                selectedBotJob.getHomeBankingId(), selectedBotJob.getId(), selectedBotJob.getName());
 
         if (!performLists.getListBotJobComp().isEmpty()) {
             List<InstructionLoadDTO> instructions =
                     performDataBase.buildJsonViewData(performLists.getListBotJobComp(), "component_instruction");
             if (!instructions.isEmpty()) {
-                performMessage.outputJson(instructions, "componentTasks-" + selectedBojJob.getId(), false);
+                performMessage.outputJson(instructions, "componentTasks-" + selectedBotJob.getId(), false);
                 jsonData = gson.toJson(instructions);
             }
         }
@@ -295,15 +295,15 @@ public class ARViewBotJobPane extends ARPane {
         webEngineComp.javaScriptEnabledProperty().set(true);
 
         // (SENDER: insertTool) -> botJobTasks -> componentTasks
-        sessionId = "componentTasks"; // + selectedBojJob.getId();
+        sessionId = "componentTasks"; // + selectedBotJob.getId();
         buildWebView(
                 webEngineComp,
                 jsonData,
                 portInitial,
                 sessionId,
-                selectedBojJob.getHomeBankingId(),
-                selectedBojJob.getId(),
-                selectedBojJob.getName());
+                selectedBotJob.getHomeBankingId(),
+                selectedBotJob.getId(),
+                selectedBotJob.getName());
 
         previousBotTasks = sessionId;
     }
@@ -312,7 +312,7 @@ public class ARViewBotJobPane extends ARPane {
     public void initUIComponents() {
         String labelStyle = "-fx-text-fill: blue; -fx-font-weight: bold; -fx-font-size: 14;";
 
-        sessionId = "botJobTasks"; // + selectedBojJob.getId();
+        sessionId = "botJobTasks"; // + selectedBotJob.getId();
         if (Strings.isNullOrEmpty(previousBotTasks) || !previousBotTasks.equals(sessionId)) {
             builViewComponent();
         }
@@ -380,47 +380,65 @@ public class ARViewBotJobPane extends ARPane {
         createBATButton = createPathButton(ARConstants.ICON_BURN);
 
         webSiteInfoLabel = new Label(
-                "Web-site Id: " + selectedBojJob.getHomeBankingId() + " Bot Job Id: " + selectedBojJob.getId());
+                "Web-site Id: " + selectedBotJob.getHomeBankingId() + " Bot Job Id: " + selectedBotJob.getId());
         webSiteInfoLabel.setStyle(
                 "-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: darkgreen;"); // Green dark
 
         // ChoiceBox + Button
         homeURLChoiceBox = new ChoiceBox<>();
-        homeURLChoiceBox.setPrefWidth(300);
-        homeURLChoiceBox.setMaxWidth(300);
-        homeURLChoiceBox.setMinWidth(300);
+        // Remove fixed width
+        // homeURLChoiceBox.setPrefWidth(300);
+        // homeURLChoiceBox.setMaxWidth(300);
+        // homeURLChoiceBox.setMinWidth(300);
 
-        populateHomeUrlChoiceBox(selectedBojJob.getHomeBankingId(), selectedBojJob.getHomeUrlId());
+        // Apply CSS style for font size, padding, background, and text color
+        homeURLChoiceBox.setStyle("-fx-font-size: 1.1em;" + "-fx-padding: 4 8 4 8;"
+                + "-fx-background-radius: 5;"
+                + "-fx-border-radius: 5;"
+                + "-fx-text-fill: white;");
+
+        //        homeURLChoiceBox.setDefaultButton(true);
+
+        populateHomeUrlChoiceBox(selectedBotJob.getHomeBankingId(), selectedBotJob.getHomeUrlId());
         Tooltip tooltip = new Tooltip("Select the target URL / environment for the Bot Job");
         homeURLChoiceBox.setTooltip(tooltip);
 
         refreshEnvsButton = createPathButton(ARConstants.ICON_REFRESH);
+
+        // Side-by-side: ChoiceBox and refresh button
+        HBox choiceAndRefreshBox = new HBox(5, homeURLChoiceBox, refreshEnvsButton);
+        choiceAndRefreshBox.setAlignment(Pos.CENTER); // Center horizontally
+        choiceAndRefreshBox.setPadding(new Insets(0, 0, 10, 0));
+
+        // Allow ChoiceBox to grow horizontally
+        HBox.setHgrow(homeURLChoiceBox, Priority.ALWAYS);
+        homeURLChoiceBox.setMaxWidth(Double.MAX_VALUE);
 
         insertSitesdButton = new Button("Orgs / Environments");
         insertSitesdButton.setDefaultButton(true);
         HBox.setMargin(insertSitesdButton, new Insets(0, 0, 0, 20));
 
         HomeUrlDTO homeUrlDTO =
-                performLists.getHomeUrlByBankId(selectedBojJob.getHomeBankingId(), selectedBojJob.getHomeUrlId());
+                performLists.getHomeUrlByBankId(selectedBotJob.getHomeBankingId(), selectedBotJob.getHomeUrlId());
         String urlEntryPoint = homeUrlDTO != null
                 ? homeUrlDTO.getUrl()
-                : selectedBojJob.getHomeBankingLoadDTO().getUrl();
+                : selectedBotJob.getHomeBankingLoadDTO().getUrl();
         currentUrlLabel = new Label(urlEntryPoint);
         currentUrlLabel.setStyle(labelStyle);
         currentUrlLabel.setMaxWidth(Double.MAX_VALUE);
         currentUrlLabel.setAlignment(Pos.CENTER);
         HBox.setHgrow(currentUrlLabel, Priority.ALWAYS);
 
-        botJobNameLabel = new Label(selectedBojJob.getName());
+        botJobNameLabel = new Label(selectedBotJob.getName());
         botJobNameLabel.setStyle(labelStyle); // Basic styling
 
-        botJobNameTextField = new TextField(selectedBojJob.getName());
+        botJobNameTextField = new TextField(selectedBotJob.getName());
         botJobNameTextField.setStyle(labelStyle);
 
-        botJobDescriptionLabel = new Label(selectedBojJob.getDescription());
+        botJobDescriptionLabel = new Label(selectedBotJob.getDescription());
         botJobDescriptionLabel.setStyle(labelStyle);
 
-        botJobDescriptionTextField = new TextField(selectedBojJob.getDescription());
+        botJobDescriptionTextField = new TextField(selectedBotJob.getDescription());
         botJobDescriptionTextField.setStyle(labelStyle);
         HBox.setHgrow(botJobDescriptionTextField, Priority.ALWAYS);
 
@@ -466,20 +484,23 @@ public class ARViewBotJobPane extends ARPane {
         insertSitesdButton.visibleProperty().bind(isEditingBotJob);
         insertSitesdButton.managedProperty().bind(isEditingBotJob);
 
+        refreshEnvsButton.visibleProperty().bind(isEditingBotJob);
+        refreshEnvsButton.managedProperty().bind(isEditingBotJob);
+
         //        List<InstructionLoadDTO> listForDeletion =
-        //                performDataBase.getBlockLoopInstructionIdsWithNullBlock(selectedBojJob.getId());
+        //                performDataBase.getBlockLoopInstructionIdsWithNullBlock(selectedBotJob.getId());
         //
         //        for (InstructionLoadDTO instruction : listForDeletion) {
-        //            performDataBase.deleteInstruction(selectedBojJob.getId(), instruction, false);
+        //            performDataBase.deleteInstruction(selectedBotJob.getId(), instruction, false);
         //        }
-        performDataBase.deleteNullBlocks("block", selectedBojJob.getId());
+        performDataBase.deleteNullBlocks("block", selectedBotJob.getId());
 
         if (performLists.getListBlock().isEmpty()) {
-            performDataBase.loadBlocks(selectedBojJob.getId(), selectedBojJob.getName(), "block");
+            performDataBase.loadBlocks(selectedBotJob.getId(), selectedBotJob.getName(), "block");
         }
-        performDataBase.updateBlockOrderNumber("block", selectedBojJob.getId(), performLists.getListBlock(), true);
+        performDataBase.updateBlockOrderNumber("block", selectedBotJob.getId(), performLists.getListBlock(), true);
 
-        performDataBase.loadCompleteJobs(selectedBojJob.getId());
+        performDataBase.loadCompleteJobs(selectedBotJob.getId());
 
         componentBox = new HBox(new Node[] {webViewTasks});
         firstLoad = false;
@@ -584,7 +605,7 @@ public class ARViewBotJobPane extends ARPane {
 
             // If homeURLChoiceBox was initialized, refresh its items
             if (homeURLChoiceBox != null) {
-                populateHomeUrlChoiceBox(selectedBojJob.getHomeBankingId(), selectedBojJob.getHomeUrlId());
+                populateHomeUrlChoiceBox(selectedBotJob.getHomeBankingId(), selectedBotJob.getHomeUrlId());
             }
         });
         homeURLChoiceBox.setConverter(new StringConverter<>() {
@@ -617,12 +638,13 @@ public class ARViewBotJobPane extends ARPane {
                 performDataBase.loadHomeUrls(null);
             }
 
-            arNewHomeBankingScene.initialize();
+            HomeBankingLoadDTO homeBank = performLists.getFirstHomeBanking();
+            arNewHomeBankingScene.initialize(homeBank);
             Stage currentStage = (Stage) insertSitesdButton.getScene().getWindow();
             arNewHomeBankingScene.showModal(currentStage);
             // If homeURLChoiceBox was initialized, refresh its items
             if (homeURLChoiceBox != null) {
-                populateHomeUrlChoiceBox(selectedBojJob.getHomeBankingId(), selectedBojJob.getHomeUrlId());
+                populateHomeUrlChoiceBox(selectedBotJob.getHomeBankingId(), selectedBotJob.getHomeUrlId());
             }
         });
 
@@ -630,7 +652,7 @@ public class ARViewBotJobPane extends ARPane {
             ARPropertyManager managerProps = arPropertyManager;
             String enginePath = managerProps.getProperty(ARPropertyEnum.PATH_ENGINE); // + "\\AR_Web_Engine.jar";
             String excelPath = managerProps.getProperty(ARPropertyEnum.PATH_EXCEL);
-            excelPath = excelPath + "\\" + selectedBojJob.getName() + ".xlsx";
+            excelPath = excelPath + "\\" + selectedBotJob.getName() + ".xlsx";
             if (!new File(excelPath).exists()) {
                 performMessage.errorMessage(
                         "Action Required: Prepare Excel Data",
@@ -651,7 +673,7 @@ public class ARViewBotJobPane extends ARPane {
         refreshButton.setOnMouseClicked(e -> {
             refreshGrids();
         });
-        //        saveAsBotJobButton.setOnMouseClicked(e -> new ARSaveBotJobAsScene(selectedBojJob.getId()).show());
+        //        saveAsBotJobButton.setOnMouseClicked(e -> new ARSaveBotJobAsScene(selectedBotJob.getId()).show());
         botJobNameLabel.visibleProperty().bind(this.isEditingBotJob.not());
         botJobDescriptionLabel.visibleProperty().bind(this.isEditingBotJob.not());
         botJobNameTextField.visibleProperty().bind(this.isEditingBotJob);
@@ -668,7 +690,7 @@ public class ARViewBotJobPane extends ARPane {
             if (homeURLChoiceBox.getValue() != null
                     && homeURLChoiceBox.getValue().getId() > 0) {
                 ErrorMessage errorMessage = performDataBase.updateBotJobDetails(
-                        selectedBojJob.getId(),
+                        selectedBotJob.getId(),
                         homeURLChoiceBox.getValue().getId(),
                         botJobNameTextField.getText(),
                         botJobDescriptionTextField.getText());
@@ -678,9 +700,9 @@ public class ARViewBotJobPane extends ARPane {
                     botJobNameLabel.setText(botJobNameTextField.getText());
                     botJobDescriptionLabel.setText(botJobDescriptionTextField.getText());
 
-                    selectedBojJob.setName(botJobNameLabel.getText());
-                    selectedBojJob.setDescription(botJobDescriptionLabel.getText());
-                    selectedBojJob.setHomeUrlId(homeURLChoiceBox.getValue().getId());
+                    selectedBotJob.setName(botJobNameLabel.getText());
+                    selectedBotJob.setDescription(botJobDescriptionLabel.getText());
+                    selectedBotJob.setHomeUrlId(homeURLChoiceBox.getValue().getId());
 
                     updateHomeUrlLabels();
 
@@ -732,13 +754,13 @@ public class ARViewBotJobPane extends ARPane {
 
             if (!performLists.getListBotJob().isEmpty()) {
                 if (performLists.getListBlock().isEmpty()) {
-                    performDataBase.loadBlocks(selectedBojJob.getId(), selectedBojJob.getName(), "block");
+                    performDataBase.loadBlocks(selectedBotJob.getId(), selectedBotJob.getName(), "block");
                 }
 
                 List<String> allActions = performDataBase.loadAllActionsPerBlock(performLists.getListBlock());
 
                 // Check if the Excel file already exists
-                ExtractedData extractedData = ExcelUtils.isFileExists(selectedBojJob.getName(), allActions);
+                ExtractedData extractedData = ExcelUtils.isFileExists(selectedBotJob.getName(), allActions);
 
                 if (extractedData != null && extractedData.getErrorMessage() != null) {
 
@@ -757,11 +779,11 @@ public class ARViewBotJobPane extends ARPane {
                 Task<Void> excelTask = new Task<>() {
                     @Override
                     protected Void call() throws Exception {
-                        new ExcelUtils().generateExcelFiles(extractedData, selectedBojJob.getName(), null, true);
+                        new ExcelUtils().generateExcelFiles(extractedData, selectedBotJob.getName(), null, true);
                         return null;
                     }
                 };
-                String excelFile = selectedBojJob.getName() + ARConstants.FILE_FORMAT_EXCEL;
+                String excelFile = selectedBotJob.getName() + ARConstants.FILE_FORMAT_EXCEL;
 
                 if (extractedData != null) {
 
@@ -810,7 +832,7 @@ public class ARViewBotJobPane extends ARPane {
             ARPropertyManager managerProps = arPropertyManager;
             String enginePath = managerProps.getProperty(ARPropertyEnum.PATH_ENGINE); // + "\\AR_Web_Engine.jar";
             String excelPath = managerProps.getProperty(ARPropertyEnum.PATH_EXCEL);
-            excelPath = excelPath + "\\" + selectedBojJob.getName() + ".xlsx";
+            excelPath = excelPath + "\\" + selectedBotJob.getName() + ".xlsx";
             if (!new File(excelPath).exists()) {
                 performMessage.errorMessage(
                         "Action Required: Prepare Excel Data",
@@ -858,8 +880,8 @@ public class ARViewBotJobPane extends ARPane {
                 "-jar",
                 "\"" + enginePath + "\"",
                 "execute/j",
-                String.valueOf(selectedBojJob.getHomeBankingLoadDTO().getId()),
-                String.valueOf(selectedBojJob.getId()),
+                String.valueOf(selectedBotJob.getHomeBankingLoadDTO().getId()),
+                String.valueOf(selectedBotJob.getId()),
                 "\"" + excelPath + "\"",
                 "-c",
                 arPropertyManager.getConfigurationFileName()
@@ -909,7 +931,7 @@ public class ARViewBotJobPane extends ARPane {
         this.openExcelFileButton.setOnMouseClicked((e) -> {
             String excelFolderPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
             String fileName =
-                    String.format("%s/%s%s", excelFolderPath, selectedBojJob.getName(), ARConstants.FILE_FORMAT_EXCEL);
+                    String.format("%s/%s%s", excelFolderPath, selectedBotJob.getName(), ARConstants.FILE_FORMAT_EXCEL);
 
             //        List<BlockLoadDTO> blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
 
@@ -929,7 +951,7 @@ public class ARViewBotJobPane extends ARPane {
 
                 try {
                     String excelFilePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
-                    excelFilePath = excelFilePath + "\\" + selectedBojJob.getName() + ".xlsx";
+                    excelFilePath = excelFilePath + "\\" + selectedBotJob.getName() + ".xlsx";
                     File file = new File(excelFilePath);
                     Desktop.getDesktop().open(file);
                     //                    Runtime.getRuntime().exec("rundll32 url.dll, FileProtocolHandler " +
@@ -974,13 +996,13 @@ public class ARViewBotJobPane extends ARPane {
 
     public void createBatFile(String excelFilePath, String enginePath, String configPath) {
         String batFileName =
-                "execute_Website_" + selectedBojJob.getHomeBankingId() + "_Botjob_" + selectedBojJob.getId() + ".bat";
+                "execute_Website_" + selectedBotJob.getHomeBankingId() + "_Botjob_" + selectedBotJob.getId() + ".bat";
 
         String basePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
         String batFilePath = basePath + File.separator + batFileName; // Corrected path
 
         String javaCommand = "java.exe -jar \"" + enginePath + "\" execute/j "
-                + selectedBojJob.getHomeBankingId() + " " + selectedBojJob.getId() + " \"" + excelFilePath + "\" -c \""
+                + selectedBotJob.getHomeBankingId() + " " + selectedBotJob.getId() + " \"" + excelFilePath + "\" -c \""
                 + configPath + "\"";
 
         try (FileWriter writer = new FileWriter(batFilePath)) {
@@ -1022,7 +1044,7 @@ public class ARViewBotJobPane extends ARPane {
 
             ARLogger.getInstance(ARViewBotJobPane.class).fine("Calling openScannerButton");
 
-            String threadName = "botJob-" + selectedBojJob.getId();
+            String threadName = "botJob-" + selectedBotJob.getId();
             arScene.startNewThread(threadName, () -> {
                 executeScannerTask();
                 isScannerButtonClicked = false; // Reset the flag after task completes
@@ -1032,7 +1054,7 @@ public class ARViewBotJobPane extends ARPane {
 
     // Method where you start the thread (e.g., in a button's event handler)
     private void handleStartScanner() {
-        String threadName = "botJob-" + selectedBojJob.getId(); // Use the ID for the thread name
+        String threadName = "botJob-" + selectedBotJob.getId(); // Use the ID for the thread name
         arScene.startNewThread(threadName, () -> {
             executeScannerTask();
             Platform.runLater(() -> {
@@ -1058,23 +1080,23 @@ public class ARViewBotJobPane extends ARPane {
 
     private void executeScannerTask() {
 
-        performDataBase.loadHomeBanking(selectedBojJob.getHomeBankingId());
+        performDataBase.loadHomeBanking(selectedBotJob.getHomeBankingId());
         HomeBankingLoadDTO homeBanking = performLists.getListHomeBanking().isEmpty()
                 ? null
                 : performLists.getListHomeBanking().get(0);
 
-        HomeUrlDTO homeUrlDTO = findMatchingHomeUrlDTO(selectedBojJob);
+        HomeUrlDTO homeUrlDTO = findMatchingHomeUrlDTO(selectedBotJob);
         if (homeUrlDTO != null) {
-            selectedBojJob.setHomeUrlId(homeUrlDTO.getId());
+            selectedBotJob.setHomeUrlId(homeUrlDTO.getId());
             homeBanking.setUrl(homeUrlDTO.getUrl());
         }
 
-        if (selectedBojJob.getBlockLoadDTOList() != null
-                && !selectedBojJob.getBlockLoadDTOList().isEmpty()) {
-            this.blockLoad = selectedBojJob.getBlockLoadDTOList().get(0);
+        if (selectedBotJob.getBlockLoadDTOList() != null
+                && !selectedBotJob.getBlockLoadDTOList().isEmpty()) {
+            this.blockLoad = selectedBotJob.getBlockLoadDTOList().get(0);
         } else {
 
-            performDataBase.loadBlocks(selectedBojJob.getId(), selectedBojJob.getName(), "block");
+            performDataBase.loadBlocks(selectedBotJob.getId(), selectedBotJob.getName(), "block");
             if (!performLists.getListBlock().isEmpty()) {
                 this.blockLoad = performLists.getListBlock().get(0);
             }
@@ -1085,7 +1107,7 @@ public class ARViewBotJobPane extends ARPane {
                 try {
 
                     // Call the ARScannedElementScene here
-                    arScannedElementScene.initialize(homeBanking, selectedBojJob, this.blockLoad);
+                    arScannedElementScene.initialize(homeBanking, selectedBotJob, this.blockLoad);
 
                     arScannedElementScene.showModal(); // Make sure the scene is shown
                 } catch (Exception ex) {
@@ -1235,7 +1257,7 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     public BotJobLoadDTO getBotJobDTO() {
-        return selectedBojJob;
+        return selectedBotJob;
     }
 
     private static int getMajorJavaVersion(String version) {
@@ -1259,15 +1281,15 @@ public class ARViewBotJobPane extends ARPane {
     private void setPayloadEmpty(String destination) {
         BotJobLoadDTO botJobDTO = new BotJobLoadDTO();
         if (destination.equalsIgnoreCase("botJobTasks")) {
-            botJobDTO.setId(selectedBojJob.getId() != null ? selectedBojJob.getId() : 0);
+            botJobDTO.setId(selectedBotJob.getId() != null ? selectedBotJob.getId() : 0);
         } else if (destination.equalsIgnoreCase("componentTasks")) {
             botJobDTO.setHomeBankingId(
-                    selectedBojJob.getHomeBankingId() != null ? selectedBojJob.getHomeBankingId() : 0);
+                    selectedBotJob.getHomeBankingId() != null ? selectedBotJob.getHomeBankingId() : 0);
         }
-        botJobDTO.setName(selectedBojJob.getName() != null ? selectedBojJob.getName() : "Bot Job Name Default");
+        botJobDTO.setName(selectedBotJob.getName() != null ? selectedBotJob.getName() : "Bot Job Name Default");
         botJobDTO.setBlockLoadDTOList(new ArrayList<>());
 
-        this.payloadEmpty = new PayloadJson(selectedBojJob.getId(), selectedBojJob.getName(), 0);
+        this.payloadEmpty = new PayloadJson(selectedBotJob.getId(), selectedBotJob.getName(), 0);
     }
 
     private void populateHomeUrlChoiceBox(int homeBankId, int currentHomeUrlId) {

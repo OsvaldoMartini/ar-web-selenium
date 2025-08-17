@@ -81,12 +81,12 @@ public class ARViewBotJobScene extends ARScene {
 
     private ARWebDriver arWebDriver;
 
-    private BotJobLoadDTO selectedBojJob;
+    private BotJobLoadDTO selectedBotJob;
 
-    public void initialize(ARWebDriver arWebDriver, BotJobLoadDTO selectedBojJob, boolean isEnabledLicence) {
+    public void initialize(ARWebDriver arWebDriver, BotJobLoadDTO selectedBotJob, boolean isEnabledLicence) {
         this.isEnabledLicence = isEnabledLicence;
         this.arWebDriver = arWebDriver;
-        this.selectedBojJob = selectedBojJob;
+        this.selectedBotJob = selectedBotJob;
         reloadList();
 
         String port = arPropertyManager.getProperty(ARPropertyEnum.PORT_SOCKET);
@@ -117,15 +117,15 @@ public class ARViewBotJobScene extends ARScene {
         // IN CASE the ADDED New Bot Job tomREfresh Main List as Observable
         performDataBase.loadQuickBotJobs();
 
-        performDataBase.loadBlocks(selectedBojJob.getId(), selectedBojJob.getName(), "block");
+        performDataBase.loadBlocks(selectedBotJob.getId(), selectedBotJob.getName(), "block");
         //        this.botLoadJobs = performDataBase.loadBotJobWithBlock(this.botJobId);
 
-        BotJobLoadDTO botJobLoad = performLists.getQuickBotJobById(selectedBojJob.getId());
+        BotJobLoadDTO botJobLoad = performLists.getQuickBotJobById(selectedBotJob.getId());
 
         if (performLists.getListHomeUrl().isEmpty()) {
             performDataBase.loadHomeUrls(null);
         }
-        //        performDataBase.loadHomeBanking(selectedBojJob.getHomeBankingId());
+        //        performDataBase.loadHomeBanking(selectedBotJob.getHomeBankingId());
 
         if (botJobLoad != null && botJobLoad.getBlockLoadDTOList() == null) {
             botJobLoad.setBlockLoadDTOList(performLists.getListBlock());
@@ -135,19 +135,19 @@ public class ARViewBotJobScene extends ARScene {
 
             // It Prevents Start without blocks
             BlockDetailsDTO newBlockDetails = new BlockDetailsDTO();
-            newBlockDetails.setBlockName(selectedBojJob.getName() + " default block");
-            newBlockDetails.setBlockDescription(selectedBojJob.getName() + " block description");
+            newBlockDetails.setBlockName(selectedBotJob.getName() + " default block");
+            newBlockDetails.setBlockDescription(selectedBotJob.getName() + " block description");
             newBlockDetails.setTypeId(1);
             newBlockDetails.setActive(true);
             newBlockDetails.setWait(3);
             newBlockDetails.setBlockOrderNumber(1);
 
-            newBlockDetails.setBotJobId(selectedBojJob.getId());
+            newBlockDetails.setBotJobId(selectedBotJob.getId());
 
-            ErrorMessage errorMessage = performDataBase.initiateNewBlock(newBlockDetails, selectedBojJob.getId());
+            ErrorMessage errorMessage = performDataBase.initiateNewBlock(newBlockDetails, selectedBotJob.getId());
             if (errorMessage == null) {
                 ARLogger.getInstance(Thread.class)
-                        .info(String.format("A new Block was created for bot job Id %d", selectedBojJob.getId()));
+                        .info(String.format("A new Block was created for bot job Id %d", selectedBotJob.getId()));
             } else {
                 performMessage.errorMessage(
                         errorMessage.getErrorTitle(),
@@ -217,8 +217,8 @@ public class ARViewBotJobScene extends ARScene {
 
     @Override
     public String getTitle() {
-        if (selectedBojJob.getId() != null) {
-            return TITLE + " WebSite Id: " + selectedBojJob.getHomeBankingId() + " Id: " + selectedBojJob.getId();
+        if (selectedBotJob.getId() != null) {
+            return TITLE + " WebSite Id: " + selectedBotJob.getHomeBankingId() + " Id: " + selectedBotJob.getId();
         }
 
         return TITLE;
@@ -226,7 +226,7 @@ public class ARViewBotJobScene extends ARScene {
 
     public void showModal() {
 
-        arViewBotJobPane.initialize(this, selectedBojJob, isEnabledLicence);
+        arViewBotJobPane.initialize(this, selectedBotJob, isEnabledLicence);
 
         if (modalStage == null) {
             modalStage = new Stage();

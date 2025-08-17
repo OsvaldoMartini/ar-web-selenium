@@ -1,6 +1,7 @@
 package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.model.BotJobLoadDTO;
+import com.allinweb.ch.component.model.HomeBankingLoadDTO;
 import com.allinweb.ch.component.model.HomeUrlDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
@@ -20,6 +21,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
+import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
 
@@ -110,10 +112,20 @@ public class ARNewBotJobPane extends ARPane {
         labelHomeBanking.setMaxWidth(Double.MAX_VALUE);
         labelHomeBanking.setAlignment(Pos.CENTER);
 
+        // ChoiceBox + Button
         homeURLChoiceBox = new ChoiceBox<>();
-        homeURLChoiceBox.setPrefWidth(300);
-        homeURLChoiceBox.setMaxWidth(300);
-        homeURLChoiceBox.setMinWidth(300);
+        // Remove fixed width
+        // homeURLChoiceBox.setPrefWidth(300);
+        // homeURLChoiceBox.setMaxWidth(300);
+        // homeURLChoiceBox.setMinWidth(300);
+
+        // Apply CSS style for font size, padding, background, and text color
+        homeURLChoiceBox.setStyle("-fx-font-size: 1.1em;" + "-fx-padding: 4 8 4 8;"
+                + "-fx-background-radius: 5;"
+                + "-fx-border-radius: 5;"
+                + "-fx-text-fill: white;");
+
+        //        homeURLChoiceBox.setDefaultButton(true);
 
         populateHomeUrlChoiceBox();
         Tooltip tooltip = new Tooltip("Select the target URL / environment for the Bot Job");
@@ -121,11 +133,14 @@ public class ARNewBotJobPane extends ARPane {
 
         refreshEnvsButton = createPathButton();
 
-        // Center the ChoiceBox + Button together
+        // Side-by-side: ChoiceBox and refresh button
         HBox choiceAndRefreshBox = new HBox(5, homeURLChoiceBox, refreshEnvsButton);
-        choiceAndRefreshBox.setAlignment(Pos.CENTER); // Center them horizontally
+        choiceAndRefreshBox.setAlignment(Pos.CENTER); // Center horizontally
         choiceAndRefreshBox.setPadding(new Insets(0, 0, 10, 0));
-        choiceAndRefreshBox.setFillHeight(true);
+
+        // Allow ChoiceBox to grow horizontally
+        HBox.setHgrow(homeURLChoiceBox, Priority.ALWAYS);
+        homeURLChoiceBox.setMaxWidth(Double.MAX_VALUE);
 
         createBotJobButton = new Button("Create Bot Job");
         createBotJobButton.setStyle("-fx-font-weight: bold; -fx-background-color: #4CAF50; -fx-text-fill: white;");
@@ -197,7 +212,8 @@ public class ARNewBotJobPane extends ARPane {
             if (isEnabledLicence && !checkLicense()) {
                 return;
             }
-            arNewHomeBankingScene.initialize();
+            HomeBankingLoadDTO homeBank = performLists.getFirstHomeBanking();
+            arNewHomeBankingScene.initialize(homeBank);
             Stage currentStage = (Stage) insertSitesdButton.getScene().getWindow();
             arNewHomeBankingScene.showModal(currentStage);
             // If homeURLChoiceBox was initialized, refresh its items

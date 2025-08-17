@@ -353,6 +353,8 @@ public class ARControlPanel extends Application {
                         }
                     }
                 } else {
+                    //                    performDataBase.updateColumns();
+
                     //                performDataBase.disableForeignKeyConstraints(dbUrl);
                     //                                    performDataBase.updateTableAccess(dbUrl, dbFile);
                     //                                    performDataBase.updateDatabaseSchema(dbUrl, dbFile);

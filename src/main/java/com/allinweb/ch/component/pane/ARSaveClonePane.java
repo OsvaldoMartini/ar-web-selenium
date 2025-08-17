@@ -1,6 +1,7 @@
 package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.model.BotJobLoadDTO;
+import com.allinweb.ch.component.model.HomeBankingLoadDTO;
 import com.allinweb.ch.component.model.HomeUrlDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
@@ -19,6 +20,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
+import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
 
@@ -45,7 +47,7 @@ public class ARSaveClonePane extends ARPane {
 
     public void initialize(BotJobLoadDTO selecBotJobDTO, List<BotJobLoadDTO> botJobList, boolean isEnabledLicence) {
         this.isEnabledLicence = isEnabledLicence;
-        this.selecBotJobDTO = selecBotJobDTO;
+        this.selectedBotJob = selecBotJobDTO;
 
         if (botJobName != null) {
             botJobName.setText(selecBotJobDTO.getName().trim());
@@ -69,7 +71,7 @@ public class ARSaveClonePane extends ARPane {
     private static final ARNewHomeBankingScene arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
     private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
 
-    private BotJobLoadDTO selecBotJobDTO;
+    private BotJobLoadDTO selectedBotJob;
     //    private List<BotJobLoadDTO> botJobList;
     // UI
 
@@ -119,22 +121,31 @@ public class ARSaveClonePane extends ARPane {
         labelHomeBanking.setAlignment(Pos.CENTER);
 
         // Text fields
-        botJobName = new TextField(selecBotJobDTO.getName().trim());
+        botJobName = new TextField(selectedBotJob.getName().trim());
         botJobName.setPrefWidth(400);
 
         botJobDescription = new TextField("Description");
         botJobDescription.setPrefWidth(400);
 
-        newUrl = new TextField(selecBotJobDTO.getHomeBankingLoadDTO().getUrl());
+        newUrl = new TextField(selectedBotJob.getHomeBankingLoadDTO().getUrl());
         newUrl.setPrefWidth(250);
 
         // ChoiceBox + Button
         homeURLChoiceBox = new ChoiceBox<>();
-        homeURLChoiceBox.setPrefWidth(300);
-        homeURLChoiceBox.setMaxWidth(300);
-        homeURLChoiceBox.setMinWidth(300);
+        // Remove fixed width
+        // homeURLChoiceBox.setPrefWidth(300);
+        // homeURLChoiceBox.setMaxWidth(300);
+        // homeURLChoiceBox.setMinWidth(300);
 
-        populateHomeUrlChoiceBox();
+        // Apply CSS style for font size, padding, background, and text color
+        homeURLChoiceBox.setStyle("-fx-font-size: 1.1em;" + "-fx-padding: 4 8 4 8;"
+                + "-fx-background-radius: 5;"
+                + "-fx-border-radius: 5;"
+                + "-fx-text-fill: white;");
+
+        //        homeURLChoiceBox.setDefaultButton(true);
+
+        populateHomeUrlChoiceBox(selectedBotJob.getHomeBankingId(), selectedBotJob.getHomeUrlId());
         Tooltip tooltip = new Tooltip("Select the target URL / environment for the Bot Job");
         homeURLChoiceBox.setTooltip(tooltip);
 
@@ -144,6 +155,10 @@ public class ARSaveClonePane extends ARPane {
         HBox choiceAndRefreshBox = new HBox(5, homeURLChoiceBox, refreshEnvsButton);
         choiceAndRefreshBox.setAlignment(Pos.CENTER); // Center horizontally
         choiceAndRefreshBox.setPadding(new Insets(0, 0, 10, 0));
+
+        // Allow ChoiceBox to grow horizontally
+        HBox.setHgrow(homeURLChoiceBox, Priority.ALWAYS);
+        homeURLChoiceBox.setMaxWidth(Double.MAX_VALUE);
 
         // Buttons
         cloneBotJobButton = new Button("Clone Bot Job");
@@ -158,12 +173,21 @@ public class ARSaveClonePane extends ARPane {
         buttonsBox.setAlignment(Pos.CENTER);
 
         // Organization label
-        Label organizationLabel = new Label("Organization: ACC");
+        Label organizationLabel = new Label("Organization: ");
         organizationLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 1em;");
         organizationLabel.setMinWidth(Region.USE_PREF_SIZE); // Prevent stretching
 
+        // OrgName label to the right
+        Label orgNameLabel = new Label(selectedBotJob.getHomeBankingLoadDTO().getName());
+        orgNameLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 1.2em; -fx-text-fill: #1E90FF;"); // nice blue
+
+        // Combine in an HBox
+        HBox labelsBox = new HBox(10); // spacing of 10
+        labelsBox.getChildren().addAll(organizationLabel, orgNameLabel);
+        labelsBox.setAlignment(Pos.CENTER_LEFT); // align to left
+
         // HBox containing Organization label + newUrl TextField
-        VBox organizationBox = new VBox(5, organizationLabel, newUrl);
+        VBox organizationBox = new VBox(5, labelsBox, newUrl);
         organizationBox.setAlignment(Pos.CENTER_LEFT); // Align items to the left
 
         // URL details container (everything related to URL + buttons)
@@ -208,12 +232,13 @@ public class ARSaveClonePane extends ARPane {
                 performDataBase.loadHomeUrls(null);
             }
 
-            arNewHomeBankingScene.initialize();
+            HomeBankingLoadDTO homeBank = performLists.getFirstHomeBanking();
+            arNewHomeBankingScene.initialize(homeBank);
             Stage currentStage = (Stage) insertSitesdButton.getScene().getWindow();
             arNewHomeBankingScene.showModal(currentStage);
             // If homeURLChoiceBox was initialized, refresh its items
             if (homeURLChoiceBox != null) {
-                populateHomeUrlChoiceBox();
+                populateHomeUrlChoiceBox(selectedBotJob.getHomeBankingId(), selectedBotJob.getHomeUrlId());
             }
         });
 
@@ -223,7 +248,7 @@ public class ARSaveClonePane extends ARPane {
 
             // If homeURLChoiceBox was initialized, refresh its items
             if (homeURLChoiceBox != null) {
-                populateHomeUrlChoiceBox();
+                populateHomeUrlChoiceBox(selectedBotJob.getHomeBankingId(), selectedBotJob.getHomeUrlId());
             }
         });
 
@@ -281,7 +306,7 @@ public class ARSaveClonePane extends ARPane {
                 return;
             }
 
-            ExcelUtils.createExcelDataFile(selecBotJobDTO, newBotJobName);
+            ExcelUtils.createExcelDataFile(selectedBotJob, newBotJobName);
 
             if (!Strings.isNullOrEmpty(newUrl.getText())) {
 
@@ -291,16 +316,16 @@ public class ARSaveClonePane extends ARPane {
                 }
 
                 List<HomeUrlDTO> filteredHomeUrl = performLists.getHomeUrlsByBankId(
-                        selecBotJobDTO.getHomeBankingLoadDTO().getId());
+                        selectedBotJob.getHomeBankingLoadDTO().getId());
 
                 if (!newUrl.getText()
                         .trim()
-                        .equals(selecBotJobDTO.getHomeBankingLoadDTO().getUrl())) {
+                        .equals(selectedBotJob.getHomeBankingLoadDTO().getUrl())) {
 
                     // Check if homeURLList contains a HomeUrlDTO with matching id and url
                     Optional<HomeUrlDTO> matchHomeUrl = filteredHomeUrl.stream()
                             .filter(homeUrl -> homeUrl.getId() != null
-                                    && selecBotJobDTO.getHomeBankingId().equals(homeUrl.getHomeBankingId())
+                                    && selectedBotJob.getHomeBankingId().equals(homeUrl.getHomeBankingId())
                                     && newUrl.getText().trim().equals(homeUrl.getUrl()))
                             .findFirst();
 
@@ -316,7 +341,7 @@ public class ARSaveClonePane extends ARPane {
                         System.out.println("No matching HomeUrlDTO found.");
 
                         ErrorMessage errorMessage = performDataBase.createNewHomeUrl(
-                                selecBotJobDTO.getHomeBankingId(),
+                                selectedBotJob.getHomeBankingId(),
                                 newUrl.getText().trim());
                         if (errorMessage == null) {
                             // After the Insert
@@ -324,7 +349,7 @@ public class ARSaveClonePane extends ARPane {
 
                             HomeUrlDTO homeUrlDTO = new HomeUrlDTO();
                             homeUrlDTO.setId(newHomeUrlId);
-                            homeUrlDTO.setHomeBankingId(selecBotJobDTO.getHomeBankingId());
+                            homeUrlDTO.setHomeBankingId(selectedBotJob.getHomeBankingId());
                             homeUrlDTO.setUrl(newUrl.getText().trim());
 
                             cloneBotJobSteps(homeUrlDTO, newBotJobName, newDescription, stage);
@@ -346,7 +371,7 @@ public class ARSaveClonePane extends ARPane {
                     // Check if homeURLList contains a HomeUrlDTO with matching id and url
                     Optional<HomeUrlDTO> matchHomeUrl = filteredHomeUrl.stream()
                             .filter(homeUrl -> homeUrl.getId() != null
-                                    && selecBotJobDTO.getHomeBankingId().equals(homeUrl.getHomeBankingId())
+                                    && selectedBotJob.getHomeBankingId().equals(homeUrl.getHomeBankingId())
                                     && newUrl.getText().trim().equals(homeUrl.getUrl()))
                             .findFirst();
 
@@ -374,30 +399,30 @@ public class ARSaveClonePane extends ARPane {
 
     private void cloneBotJobSteps(HomeUrlDTO homeUrlDTO, String newBotJobName, String newDescription, Stage stage) {
         ErrorMessage errorMessage =
-                performDataBase.cloneBotJob(homeUrlDTO, selecBotJobDTO.getId(), newBotJobName, newDescription);
+                performDataBase.cloneBotJob(homeUrlDTO, selectedBotJob.getId(), newBotJobName, newDescription);
 
         if (errorMessage == null) {
-            errorMessage = performDataBase.cloneBlock(selecBotJobDTO.getId());
+            errorMessage = performDataBase.cloneBlock(selectedBotJob.getId());
         }
 
         if (errorMessage == null) {
-            errorMessage = performDataBase.cloneInstructions(selecBotJobDTO.getId());
+            errorMessage = performDataBase.cloneInstructions(selectedBotJob.getId());
         }
 
         if (errorMessage == null) {
-            errorMessage = performDataBase.cloneVariables(selecBotJobDTO.getId());
+            errorMessage = performDataBase.cloneVariables(selectedBotJob.getId());
         }
 
         if (errorMessage == null) {
-            errorMessage = performDataBase.cloneUpdateInstruction(selecBotJobDTO.getId());
+            errorMessage = performDataBase.cloneUpdateInstruction(selectedBotJob.getId());
         }
 
         if (errorMessage == null) {
-            errorMessage = performDataBase.cloneReferences(selecBotJobDTO.getId());
+            errorMessage = performDataBase.cloneReferences(selectedBotJob.getId());
         }
 
         if (errorMessage == null) {
-            Integer newBotJobId = performDataBase.getNewBotBojId(selecBotJobDTO.getId());
+            Integer newBotJobId = performDataBase.getNewBotBojId(selectedBotJob.getId());
 
             performMessage.showCustomModalDialogDragWin11(
                     "Success: Bot Job Cloned",
@@ -413,7 +438,7 @@ public class ARSaveClonePane extends ARPane {
 
         } else {
 
-            Integer newBotJobId = performDataBase.getNewBotBojId(selecBotJobDTO.getId());
+            Integer newBotJobId = performDataBase.getNewBotBojId(selectedBotJob.getId());
             if (newBotJobId != null) {
                 performDataBase.deleteBotJobData(newBotJobId);
             }
@@ -436,28 +461,29 @@ public class ARSaveClonePane extends ARPane {
         });
     }
 
-    private void populateHomeUrlChoiceBox() {
+    private void populateHomeUrlChoiceBox(int homeBankId, int currentHomeUrlId) {
         // Clear old items
         homeURLChoiceBox.getItems().clear();
 
-        // Add "Select Environment" first
-        HomeUrlDTO selectEnv = new HomeUrlDTO(-2, null, -2, "Select the Environment");
-        homeURLChoiceBox.getItems().add(selectEnv);
-
-        // Add all real environments from performLists
-        homeURLChoiceBox.getItems().addAll(performLists.getListHomeUrl());
+        List<HomeUrlDTO> homeUrlFiltered = performLists.getHomeUrlsByBankId(homeBankId);
 
         // If list is empty (no real envs), add "No Environment Defined"
-        if (performLists.getListHomeUrl().isEmpty()) {
+        if (homeUrlFiltered.isEmpty()) {
             HomeUrlDTO noEnv = new HomeUrlDTO(-1, null, -1, "No Environment Defined");
             homeURLChoiceBox.getItems().add(noEnv);
             homeURLChoiceBox.setDisable(true);
         } else {
+            homeURLChoiceBox.getItems().addAll(homeUrlFiltered);
             homeURLChoiceBox.setDisable(false);
-        }
 
-        // Select first item ("Select Environment")
-        homeURLChoiceBox.getSelectionModel().selectFirst();
+            // Select the item matching currentHomeUrlId
+            for (HomeUrlDTO item : homeUrlFiltered) {
+                if (item.getId() == currentHomeUrlId) { // assuming getId() returns homeUrlId
+                    homeURLChoiceBox.getSelectionModel().select(item);
+                    break;
+                }
+            }
+        }
     }
 
     // You mentioned this is the button creator, adapted here

@@ -511,16 +511,16 @@ public class ARScannedElementPane extends ARPane {
         }
 
         // Set references
-        List<InstructionReferenceLoadDTO> referenceList = new ArrayList<>();
+        List<ReferenceLoadDTO> referenceList = new ArrayList<>();
         for (Map.Entry<String, String> entry : targetInsert.getSavedReferences().entrySet()) {
-            InstructionReferenceLoadDTO reference = new InstructionReferenceLoadDTO();
+            ReferenceLoadDTO reference = new ReferenceLoadDTO();
             reference.setReferenceType(entry.getKey());
             reference.setValue(entry.getValue());
             reference.setBotJobId(currentBotJobId);
             referenceList.add(reference);
         }
 
-        instruction.setInstructionReferenceLoadDTOList(referenceList);
+        instruction.setReferenceLoadDTOList(referenceList);
         instructionList.add(instruction);
     }
 
@@ -3323,9 +3323,8 @@ public class ARScannedElementPane extends ARPane {
                             mapSavedLocators.clear();
 
                             // Loop through the instructionReferenceLoadDTOList
-                            if (currentInstruction.getInstructionReferenceLoadDTOList() != null) {
-                                for (InstructionReferenceLoadDTO reference :
-                                        currentInstruction.getInstructionReferenceLoadDTOList()) {
+                            if (currentInstruction.getReferenceLoadDTOList() != null) {
+                                for (ReferenceLoadDTO reference : currentInstruction.getReferenceLoadDTOList()) {
                                     // Populate the map with referenceType as the key and value as the value
                                     mapSavedLocators.put(reference.getReferenceType(), reference.getValue());
                                 }

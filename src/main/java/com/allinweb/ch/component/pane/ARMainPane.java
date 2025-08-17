@@ -494,7 +494,7 @@ public class ARMainPane extends ARPane {
         descriptionLabel.setMaxWidth(150); // Set maximum width
         descriptionLabel.setWrapText(true);
 
-        Label environmentLabel = new Label("Environment");
+        Label environmentLabel = new Label("Organization");
         environmentLabel.setMinWidth(100); // Set minimum width
         environmentLabel.setMaxWidth(100); // Set maximum width
         environmentLabel.setWrapText(true);

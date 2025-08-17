@@ -580,7 +580,8 @@ public class ARConfigurationPane extends ARPane {
             if (isEnabledLicence && !checkLicense()) {
                 return;
             }
-            arNewHomeBankingScene.initialize();
+            HomeBankingLoadDTO homeBank = performLists.getFirstHomeBanking();
+            arNewHomeBankingScene.initialize(homeBank);
             Stage currentStage = (Stage) insertSitesdButton.getScene().getWindow();
             arNewHomeBankingScene.showModal(currentStage);
         });
@@ -1057,7 +1058,8 @@ public class ARConfigurationPane extends ARPane {
 
             performDataBase.loadHomeBanking(null);
             homeBankingListView = new ListView<>(performLists.getListHomeBanking());
-            arNewHomeBankingScene.initialize();
+            HomeBankingLoadDTO homeBank = performLists.getFirstHomeBanking();
+            arNewHomeBankingScene.initialize(homeBank);
 
             try {
                 if (performLists.getQuickBotJobs().isEmpty()) {

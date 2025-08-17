@@ -74,6 +74,11 @@ public class PerformLists {
                 .orElse(null); // null if not found
     }
 
+    // Get the first HomeBankingLoadDTO from the list
+    public HomeBankingLoadDTO getFirstHomeBanking() {
+        return getListHomeBanking().stream().findFirst().orElse(null); // null if the list is empty
+    }
+
     // Get HomeUrlDTO by homeBankingId and homeUrlId
     public HomeUrlDTO getHomeUrlByBankId(Integer homeBankingId, Integer homeUrlId) {
         return getListHomeUrl().stream()

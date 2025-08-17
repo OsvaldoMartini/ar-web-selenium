@@ -9,7 +9,7 @@ import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.ComplexInstructionLoadDTO;
 import com.allinweb.ch.component.model.ElementDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
-import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
+import com.allinweb.ch.component.model.ReferenceLoadDTO;
 import com.allinweb.ch.component.model.VariableLoadDTO;
 import com.allinweb.ch.persistence.TargetElement;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
@@ -531,8 +531,7 @@ public class PerformActions {
                             "Error RemoveTrailingSlash for %s -> xPath  %s -> Cause: %s",
                             tagName, instructionPath, e.getMessage()));
         }
-        List<InstructionReferenceLoadDTO> instructionReferenceList =
-                currentInstruction.getInstructionReferenceLoadDTOList();
+        List<ReferenceLoadDTO> instructionReferenceList = currentInstruction.getReferenceLoadDTOList();
 
         if (instructionReferenceList.size() == 0) {
             ARLogger.getInstance(PerformActions.class)
@@ -594,7 +593,7 @@ public class PerformActions {
                 //                    .findFirst();
 
                 // Find the first matching instruction reference
-                Optional<InstructionReferenceLoadDTO> instructionReference = instructionReferenceList.stream()
+                Optional<ReferenceLoadDTO> instructionReference = instructionReferenceList.stream()
                         .filter(reference -> priority.getName().stream()
                                 .anyMatch(p -> p.equalsIgnoreCase(reference.getReferenceType())))
                         .findFirst();
@@ -779,8 +778,7 @@ public class PerformActions {
                             tagName, instructionPath, e.getMessage()));
         }
 
-        List<InstructionReferenceLoadDTO> instructionReferenceList =
-                currentInstruction.getInstructionReferenceLoadDTOList();
+        List<ReferenceLoadDTO> instructionReferenceList = currentInstruction.getReferenceLoadDTOList();
 
         if (instructionReferenceList.isEmpty()) {
             ARLogger.getInstance(PerformActions.class)
@@ -868,7 +866,7 @@ public class PerformActions {
                     return null;
                 }
 
-                Optional<InstructionReferenceLoadDTO> instructionReference = instructionReferenceList.stream()
+                Optional<ReferenceLoadDTO> instructionReference = instructionReferenceList.stream()
                         .filter(reference -> priority.getName().stream()
                                 .anyMatch(p -> p.equalsIgnoreCase(reference.getReferenceType())))
                         .findFirst();

@@ -333,8 +333,8 @@ public class ExcelUtils {
         }
     }
 
-    public static void createExcelDataFile(BotJobLoadDTO selectedBojJob, String nameToDuplicate) {
-        if (selectedBojJob == null) {
+    public static void createExcelDataFile(BotJobLoadDTO selectedBotJob, String nameToDuplicate) {
+        if (selectedBotJob == null) {
             performMessage.errorMessage(
                     "Not Able to Create an Excel File",
                     "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to create an Excel file!</span>",
@@ -347,16 +347,16 @@ public class ExcelUtils {
 
         String excelFolderPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
         String fileName = String.format(
-                "%s/%s%s", excelFolderPath, selectedBojJob.getName().trim(), ARConstants.FILE_FORMAT_EXCEL);
+                "%s/%s%s", excelFolderPath, selectedBotJob.getName().trim(), ARConstants.FILE_FORMAT_EXCEL);
 
         File fileCheck = new File(fileName);
 
         // Load blocks and actions
-        performDataBase.loadBlocks(selectedBojJob.getId(), selectedBojJob.getName(), "block");
+        performDataBase.loadBlocks(selectedBotJob.getId(), selectedBotJob.getName(), "block");
         List<String> allActions = performDataBase.loadAllActionsPerBlock(performLists.getListBlock());
 
         // Check if the Excel file already exists
-        ExtractedData extractedData = ExcelUtils.isFileExists(selectedBojJob.getName(), allActions);
+        ExtractedData extractedData = ExcelUtils.isFileExists(selectedBotJob.getName(), allActions);
 
         if (!fileCheck.exists() || fileCheck.isDirectory()) {
             // File does not exist or is a directory → create normally
@@ -364,7 +364,7 @@ public class ExcelUtils {
                 @Override
                 protected Void call() throws Exception {
                     new ExcelUtils()
-                            .generateExcelFiles(extractedData, selectedBojJob.getName(), nameToDuplicate, false);
+                            .generateExcelFiles(extractedData, selectedBotJob.getName(), nameToDuplicate, false);
                     return null;
                 }
             };

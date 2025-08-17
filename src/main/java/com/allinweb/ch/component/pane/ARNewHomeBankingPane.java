@@ -51,16 +51,13 @@ public class ARNewHomeBankingPane extends ARPane {
         return instance;
     }
 
-    public void initialize() {}
+    private static final PerformMessage performMessage = PerformMessage.getInstance();
+    private static final PerformLists performLists = PerformLists.getInstance();
+    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
+    private static HomeBankingLoadDTO homeBank;
 
-    private static final PerformMessage performMessage;
-    private static final PerformLists performLists;
-    private static final PerformDataBase performDataBase;
-    // Static block to initialize
-    static {
-        performMessage = PerformMessage.getInstance();
-        performLists = PerformLists.getInstance();
-        performDataBase = PerformDataBase.getInstance();
+    public void initialize(HomeBankingLoadDTO homeBank) {
+        this.homeBank = homeBank;
     }
 
     private Button insertORGButton;
@@ -352,7 +349,9 @@ public class ARNewHomeBankingPane extends ARPane {
 
         tableViewHomeUrl.getColumns().addAll(homeUrlIdColumn, orgNameColumn, homeUrlColumn);
         //        performDataBase.loadHomeUrls(null);
-        tableViewHomeUrl.setItems(FXCollections.observableArrayList(performLists.getListHomeUrl()));
+
+        List<HomeUrlDTO> filteredHomeUrl = performLists.getHomeUrlsByBankId(homeBank.getId());
+        tableViewHomeUrl.setItems(FXCollections.observableArrayList(filteredHomeUrl));
 
         homeUrlDetailsContainer
                 .getChildren()

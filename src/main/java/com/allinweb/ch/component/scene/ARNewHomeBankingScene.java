@@ -1,5 +1,6 @@
 package com.allinweb.ch.component.scene;
 
+import com.allinweb.ch.component.model.HomeBankingLoadDTO;
 import com.allinweb.ch.component.pane.ARNewHomeBankingPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
@@ -35,19 +36,16 @@ public class ARNewHomeBankingScene extends ARScene {
     private Stage modalStage;
     private Scene modalScene;
 
-    private static final PerformLists performLists;
-    private static final ARNewHomeBankingPane arNewHomeBankingPane;
-
-    static {
-        performLists = PerformLists.getInstance();
-        arNewHomeBankingPane = ARNewHomeBankingPane.getInstance();
-    }
+    private static final PerformLists performLists = PerformLists.getInstance();
+    private static final ARNewHomeBankingPane arNewHomeBankingPane = ARNewHomeBankingPane.getInstance();
+    private static HomeBankingLoadDTO homeBank;
 
     private static final Double SCENE_HEIGHT = 750D;
     private static final Double SCENE_WIDTH = 1200D;
     private static final String TITLE = "New Organization";
 
-    public void initialize() {
+    public void initialize(HomeBankingLoadDTO homeBank) {
+        this.homeBank = homeBank;
 
         if (!isNullOrEmpty(performLists.getListHomeBanking())) {
             arNewHomeBankingPane.updateTableBankingView();
@@ -60,7 +58,7 @@ public class ARNewHomeBankingScene extends ARScene {
 
     public void showModal(Stage parentStage) {
 
-        arNewHomeBankingPane.initialize();
+        arNewHomeBankingPane.initialize(homeBank);
 
         if (modalStage == null) {
             modalStage = new Stage();

@@ -2404,11 +2404,6 @@ public class ARNewCommandPane extends ARPane {
             variableText3.setText("");
         }
 
-        // Handle loop outside Platform.runLater to ensure multiple iterations
-        int endifCount = actions.equalsIgnoreCase(ARConstants.IF) ? 3 : 1;
-
-        // Run the loop for adding multiple instructions
-
         // Run the instruction add in a separate Task
         ErrorMessage errorMessage = performDataBase.preFillNewInstruction(
                 name, description, actions, operation, onHold, rowMoveDTO, blockIdChanged);
