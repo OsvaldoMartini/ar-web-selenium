@@ -15,7 +15,8 @@ Map<String, String> dataExcel = null;
 // int executeSpecificBlock = comboBoxBlocks.getValue().getVarId();
 String sessionRowStatus = "botJobTasks-" + botJobId;
 
-variablesLoaded = performDataBase.loadAllVariables(botJobId);
+performDataBase.loadAllVariables(botJobId);
+variablesLoaded = performLists.getListVariable();
 Map<String, String> mapSavedLocators = new HashMap<>();
 
 Set<Integer> parentIdsForLoop = null;

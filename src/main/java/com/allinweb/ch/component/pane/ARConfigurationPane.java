@@ -650,7 +650,7 @@ public class ARConfigurationPane extends ARPane {
         }
 
         Label newInstruction = new Label(
-                "DB BACKUP\nDatabase Selected: \"" + dataBaseType + "\" \nDatabase Folder : \"v4.1f Beta Test\"");
+                "DB BACKUP\nDatabase Selected: \"" + dataBaseType + "\" \nDatabase Folder : \"v4.2f Beta Test\"");
         newInstruction.setStyle("-fx-font-size: 18px; -fx-text-fill: red;");
 
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION, null, ButtonType.YES, ButtonType.NO);
@@ -800,7 +800,7 @@ public class ARConfigurationPane extends ARPane {
         }
 
         Label newInstruction = new Label(
-                "DB RESTORE\nDatabase Selected: \"" + dataBaseType + "\" \nDatabase Folder : \"v4.1f Beta Test\"");
+                "DB RESTORE\nDatabase Selected: \"" + dataBaseType + "\" \nDatabase Folder : \"v4.2f Beta Test\"");
         newInstruction.setStyle("-fx-font-size: 18px; -fx-text-fill: red;");
 
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION, null, ButtonType.YES, ButtonType.NO);

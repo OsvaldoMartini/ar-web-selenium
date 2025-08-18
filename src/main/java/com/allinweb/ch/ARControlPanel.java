@@ -118,8 +118,8 @@ public class ARControlPanel extends Application {
             ARLogger.getInstance(ARControlPanel.class).fine("Configuration file path: " + defaultConfigurationFileName);
         }
 
-        arPropertyManager.setProperty(ARPropertyEnum.VERSION.getValue(), "AR Web v4.1f Beta Test");
-        arPropertyManager.setProperty(ARPropertyEnum.BUILD.getValue(), "Build: 23/07/2025"); //
+        arPropertyManager.setProperty(ARPropertyEnum.VERSION.getValue(), "AR Web v4.2f Beta Test");
+        arPropertyManager.setProperty(ARPropertyEnum.BUILD.getValue(), "Build: 18/08/2025"); //
     }
 
     private static void licenseControl() {

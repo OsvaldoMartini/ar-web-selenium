@@ -17,6 +17,7 @@ int executeSpecificBlock = comboBoxBlocks.getValue().getInstructionId();
 sessionRowStatus = "botJobTasks"; // + botJobId;
 
 performDataBase.loadAllVariables(botJobId);
+variablesLoaded = performLists.getListVariable();
 Map<String, String> mapSavedLocators = new HashMap<>();
 
 Set<Integer> parentIdsForLoop = null;
