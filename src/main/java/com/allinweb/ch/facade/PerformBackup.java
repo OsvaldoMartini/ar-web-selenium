@@ -780,8 +780,23 @@ public class PerformBackup {
                         new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
                 PreparedStatement pstmt = conn.prepareStatement(insertQuery);
                 Statement idStmtBefore = conn.createStatement();
-                Statement idStmtAfter = conn.createStatement()) {
+                Statement idStmtAfter = conn.createStatement();
+                Statement deleteStmt = conn.createStatement()) {
             conn.setAutoCommit(false);
+
+            // 🔹 Step 0: Delete in correct order
+            deleteStmt.executeUpdate("DELETE FROM component_reference");
+            deleteStmt.executeUpdate("DELETE FROM component_variable");
+            deleteStmt.executeUpdate("DELETE FROM component_instruction");
+            deleteStmt.executeUpdate("DELETE FROM component_block");
+
+            deleteStmt.executeUpdate("DELETE FROM reference");
+            deleteStmt.executeUpdate("DELETE FROM variable");
+            deleteStmt.executeUpdate("DELETE FROM instruction");
+            deleteStmt.executeUpdate("DELETE FROM block");
+            deleteStmt.executeUpdate("DELETE FROM bot_job");
+            deleteStmt.executeUpdate("DELETE FROM home_url");
+            deleteStmt.executeUpdate("DELETE FROM home_banking");
 
             // Step 1: Get current home_banking IDs before insert
             List<Integer> idsBefore = new ArrayList<>();
@@ -1345,17 +1360,31 @@ public class PerformBackup {
                 if (line.endsWith(";")) {
                     List<String> values = extractValuesFromInsert(currentInsert.toString());
 
-                    if (values.size() != 26) {
+                    if (values.size() != 26 && values.size() != 27) {
                         return new ErrorMessage(
-                                "Parse Error", "Expected 26 values for instruction", currentInsert.toString());
+                                "Parse Error",
+                                "Expected 26 or 27 values for instruction, but got " + values.size(),
+                                currentInsert.toString());
                     }
 
-                    // Extract old block_id (index 22) and bot_job_id (index 25)
+                    // Extract old block_id (index 22) and bot_job_id (index 25 / index 26)
                     Integer oldBlockId = parseIntSafe(values.get(22));
-                    Integer oldBotJobId = parseIntSafe(values.get(25));
+                    Integer oldBotJobId =
+                            parseIntSafe(values.get(values.size() == 26 ? 25 : 26)); // index depends on 26/27 cols
 
                     Integer newBlockId = oldBlockId != null ? blockMap.get(oldBlockId) : null;
                     Integer newBotJobId = oldBotJobId != null ? botJobMap.get(oldBotJobId) : null;
+
+                    if (newBlockId == null) {
+                        System.out.println("Skipped instruction with unknown block_id: " + oldBlockId);
+                        currentInsert.setLength(0);
+                        continue;
+                    }
+                    if (newBotJobId == null) {
+                        System.out.println("Skipped instruction with unknown bot_job_id: " + oldBotJobId);
+                        currentInsert.setLength(0);
+                        continue;
+                    }
 
                     if (newBlockId == null) {
                         System.out.println("Skipped instruction with unknown block_id: " + oldBlockId);
@@ -1426,7 +1455,7 @@ public class PerformBackup {
                             }
                             case 24 -> {
                                 String action = values.get(2);
-                                if (action.equalsIgnoreCase("GOTO") || action.equalsIgnoreCase("EXCEL GOTO")) {
+                                if ("GOTO".equalsIgnoreCase(action) || "EXCEL GOTO".equalsIgnoreCase(action)) {
                                     setSafeParam(pstmt, 25, values.get(24), Types.INTEGER); // parent_block_id
                                     setSafeParam(pstmt, 26, null, Types.INTEGER); // parent_id
                                 } else {
@@ -1434,9 +1463,16 @@ public class PerformBackup {
                                     setSafeParam(pstmt, 26, values.get(24), Types.INTEGER); // parent_id
                                 }
                             }
-                            case 25 -> {
-                                // bot_job_id replaced with newBotJobId
-                                setSafeParam(pstmt, 27, String.valueOf(newBotJobId), Types.INTEGER);
+                            case 25, 26 -> {
+                                // Regardless of 26 or 27 columns, bot_job_id is always parameter 27
+                                Integer botJobVal;
+                                if (values.size() == 26) {
+                                    botJobVal = newBotJobId; // override with mapped value
+                                } else { // values.size() == 27
+                                    botJobVal = parseIntSafe(values.get(26)); // last value in file
+                                    if (botJobVal == null) botJobVal = newBotJobId;
+                                }
+                                setSafeParam(pstmt, 27, String.valueOf(botJobVal), Types.INTEGER);
                             }
                             default -> throw new IllegalArgumentException("Unexpected column index: " + i);
                         }
@@ -2014,14 +2050,17 @@ public class PerformBackup {
                 if (line.endsWith(";")) {
                     List<String> values = extractValuesFromInsert(currentInsert.toString());
 
-                    if (values.size() != 26) {
+                    if (values.size() != 26 && values.size() != 27) {
                         return new ErrorMessage(
-                                "Parse Error", "Expected 26 values for instruction", currentInsert.toString());
+                                "Parse Error",
+                                "Expected 26 or 27 values for instruction, but got " + values.size(),
+                                currentInsert.toString());
                     }
 
-                    // Extract old block_id (index 22) and home_banking_id (index 25)
+                    // Extract old block_id (index 22) and bot_job_id (index 25 / index 26)
                     Integer oldBlockId = parseIntSafe(values.get(22));
-                    Integer oldHomeBankId = parseIntSafe(values.get(25));
+                    Integer oldHomeBankId =
+                            parseIntSafe(values.get(values.size() == 26 ? 25 : 26)); // index depends on 26/27 cols
 
                     Integer newBlockId = oldBlockId != null ? blockMap.get(oldBlockId) : null;
                     Integer newHomeBankId = oldHomeBankId != null ? homeBankMap.get(oldHomeBankId) : null;
@@ -2032,8 +2071,7 @@ public class PerformBackup {
                         continue;
                     }
                     if (newHomeBankId == null) {
-                        System.out.println(
-                                "Skipped component_instruction with unknown home_banking_id: " + oldHomeBankId);
+                        System.out.println("Skipped instruction with unknown home_banking_id: " + oldHomeBankId);
                         currentInsert.setLength(0);
                         continue;
                     }
@@ -2043,7 +2081,10 @@ public class PerformBackup {
                             case 0 -> setSafeParam(pstmt, 1, values.get(0), Types.INTEGER); // id
                             case 1 -> setSafeParam(pstmt, 2, values.get(1), Types.INTEGER); // instruction_order_number
                             case 2 -> setSafeParam(pstmt, 3, values.get(2), Types.VARCHAR); // actions
-                            case 3 -> setSafeParam(pstmt, 4, values.get(3), Types.VARCHAR); // name
+                            case 3 -> {
+                                String val = values.get(3);
+                                setSafeParam(pstmt, 4, val, Types.VARCHAR);
+                            } // name
                             case 4 -> setSafeParam(pstmt, 5, values.get(4), Types.VARCHAR); // xpath
                             case 5 -> setSafeParam(pstmt, 6, values.get(5), Types.VARCHAR); // coordinates
                             case 6 -> setSafeParam(pstmt, 7, values.get(6), Types.INTEGER); // force_coordinates
@@ -2093,7 +2134,7 @@ public class PerformBackup {
                             }
                             case 24 -> {
                                 String action = values.get(2);
-                                if (action.equalsIgnoreCase("GOTO") || action.equalsIgnoreCase("EXCEL GOTO")) {
+                                if ("GOTO".equalsIgnoreCase(action) || "EXCEL GOTO".equalsIgnoreCase(action)) {
                                     setSafeParam(pstmt, 25, values.get(24), Types.INTEGER); // parent_block_id
                                     setSafeParam(pstmt, 26, null, Types.INTEGER); // parent_id
                                 } else {
@@ -2101,9 +2142,16 @@ public class PerformBackup {
                                     setSafeParam(pstmt, 26, values.get(24), Types.INTEGER); // parent_id
                                 }
                             }
-                            case 25 -> {
-                                // home_banking_id replaced with newBotJobId
-                                setSafeParam(pstmt, 27, String.valueOf(newHomeBankId), Types.INTEGER);
+                            case 25, 26 -> {
+                                // Regardless of 26 or 27 columns, home_banking_id is always parameter 27
+                                Integer homeBankVal;
+                                if (values.size() == 26) {
+                                    homeBankVal = newHomeBankId; // override with mapped value
+                                } else { // values.size() == 27
+                                    homeBankVal = parseIntSafe(values.get(26)); // last value in file
+                                    if (homeBankVal == null) homeBankVal = newHomeBankId;
+                                }
+                                setSafeParam(pstmt, 27, String.valueOf(homeBankVal), Types.INTEGER);
                             }
                             default -> throw new IllegalArgumentException("Unexpected column index: " + i);
                         }

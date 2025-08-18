@@ -16,10 +16,7 @@ import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.license.LicenceVal;
 import com.allinweb.ch.license.LicenseManager;
-import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARLogger;
-import com.allinweb.ch.util.ARPropertyEnum;
-import com.allinweb.ch.util.ARPropertyManager;
+import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import java.io.File;
 import java.io.IOException;
@@ -35,6 +32,7 @@ import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.layout.*;
+import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import lombok.Getter;
 import org.openqa.selenium.WebDriver;
@@ -306,16 +304,28 @@ public class ARMainPane extends ARPane {
         configureButton.setOnMouseClicked(e -> {
             arConfigurationScene.initialize(viewBotJobListView, botJobList, isEnabledLicence);
             arConfigurationScene.showModal();
+
             try {
                 performDataBase.changeDbConnection();
             } catch (Exception error) {
                 throw new RuntimeException(error);
             }
+
+            String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
+            try {
+
+                Connection conn = performDataBase.getConnection();
+                if (conn != null) {
+                    ARLogger.getInstance(ARMainPane.class).info(dataBaseType + " Database connected!");
+                }
+            } catch (Exception error) {
+                ARLogger.getInstance(ARMainPane.class)
+                        .severe(dataBaseType + " Database Connection failed : " + error.getMessage());
+            }
+
             if (performDataBase.getConn() != null) {
                 try {
-                    if (performLists.getQuickBotJobs().isEmpty()) {
-                        performDataBase.loadQuickBotJobs();
-                    }
+                    performDataBase.loadQuickBotJobs();
                     ObservableList<BotJobLoadDTO> botJobList =
                             FXCollections.observableArrayList(performLists.getQuickBotJobs());
 

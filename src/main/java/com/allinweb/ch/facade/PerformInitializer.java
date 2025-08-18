@@ -1,8 +1,7 @@
 package com.allinweb.ch.facade;
 
-import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARLogger;
-import com.allinweb.ch.util.ErrorMessage;
+import com.allinweb.ch.component.pane.ARMainPane;
+import com.allinweb.ch.util.*;
 import java.io.File;
 import java.sql.*;
 import lombok.Getter;
@@ -41,19 +40,31 @@ public class PerformInitializer {
     public final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
     public final String CONNECTION_TYPE_SQLITE = "jdbc:sqlite:"; // no parameters needed
 
-    private static final PerformDataBase performDataBase;
-
-    static {
-        performDataBase = PerformDataBase.getInstance();
-    }
+    private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
+    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
+    private static final PerformMessage performMessage = PerformMessage.getInstance();
 
     public void initialize(Connection conn) {
         this.conn = conn;
     }
 
-    public void initializeMainDatabasePostgres() {
+    public ErrorMessage initializeMainDatabasePostgres() {
         try (Connection conn = performDataBase.getConnection()) {
-            try (Statement stmt = conn.createStatement()) {
+            try (Statement stmt = conn.createStatement();
+                    Statement dropTableStmt = conn.createStatement()) {
+
+                dropTableStmt.executeUpdate("DROP TABLE IF EXISTS component_reference CASCADE");
+                dropTableStmt.executeUpdate("DROP TABLE IF EXISTS component_variable CASCADE");
+                dropTableStmt.executeUpdate("DROP TABLE IF EXISTS component_instruction CASCADE");
+                dropTableStmt.executeUpdate("DROP TABLE IF EXISTS component_block CASCADE");
+
+                dropTableStmt.executeUpdate("DROP TABLE IF EXISTS reference CASCADE");
+                dropTableStmt.executeUpdate("DROP TABLE IF EXISTS variable CASCADE");
+                dropTableStmt.executeUpdate("DROP TABLE IF EXISTS instruction CASCADE");
+                dropTableStmt.executeUpdate("DROP TABLE IF EXISTS block CASCADE");
+                dropTableStmt.executeUpdate("DROP TABLE IF EXISTS bot_job CASCADE");
+                dropTableStmt.executeUpdate("DROP TABLE IF EXISTS home_url CASCADE");
+                dropTableStmt.executeUpdate("DROP TABLE IF EXISTS home_banking CASCADE");
 
                 // Create home_banking table
                 String createHomeBankingTableSQL = "CREATE TABLE home_banking ("
@@ -125,7 +136,7 @@ public class PerformInitializer {
                         + "export_to_abr INTEGER, "
                         + "active INTEGER NOT NULL, "
                         + "block_id INTEGER REFERENCES block(id) ON DELETE CASCADE, "
-                        + "variable_id INTEGER REFERENCES variable(id) ON DELETE SET NULL, "
+                        + "variable_id INTEGER, "
                         + "parent_block_id INTEGER REFERENCES block(id) ON DELETE SET NULL, "
                         + "parent_id INTEGER, "
                         + "bot_job_id INTEGER REFERENCES bot_job(id) ON DELETE CASCADE)";
@@ -186,7 +197,7 @@ public class PerformInitializer {
                         + "export_to_abr INTEGER, "
                         + "active INTEGER NOT NULL, "
                         + "block_id INTEGER REFERENCES component_block(id) ON DELETE CASCADE, "
-                        + "variable_id INTEGER REFERENCES component_variable(id) ON DELETE SET NULL, "
+                        + "variable_id INTEGER, "
                         + "parent_block_id INTEGER REFERENCES component_block(id) ON DELETE SET NULL, "
                         + "parent_id INTEGER, "
                         + "home_banking_id INTEGER REFERENCES home_banking(id) ON DELETE CASCADE)";
@@ -210,10 +221,25 @@ public class PerformInitializer {
                         + "instruction_id INTEGER REFERENCES component_instruction(id) ON DELETE CASCADE, "
                         + "home_banking_id INTEGER REFERENCES home_banking(id) ON DELETE CASCADE)";
                 stmt.executeUpdate(createComponentVariableTableSQL);
+
+                // Foreign Keys with ON DELETE CASCADE
+                stmt.executeUpdate(
+                        "ALTER TABLE variable ADD CONSTRAINT fk_variable_instruction FOREIGN KEY (instruction_id) REFERENCES instruction(id) ON DELETE CASCADE");
+                stmt.executeUpdate(
+                        "ALTER TABLE instruction ADD CONSTRAINT fk_instruction_variable FOREIGN KEY (variable_id) REFERENCES variable(id) ON DELETE SET NULL");
+
+                stmt.executeUpdate(
+                        "ALTER TABLE component_variable ADD CONSTRAINT fk_component_variable_instruction FOREIGN KEY (instruction_id) REFERENCES component_instruction(id) ON DELETE CASCADE");
+
+                stmt.executeUpdate(
+                        "ALTER TABLE component_instruction ADD CONSTRAINT fk_component_instruction_variable FOREIGN KEY (variable_id) REFERENCES component_variable(id) ON DELETE SET NULL");
             }
-            System.out.println("Database %s has been created!");
+            return null;
         } catch (SQLException error) {
-            System.out.println("initializeDatabase\nError: " + error.getMessage());
+            return new ErrorMessage(
+                    "Postgres Database Creation Error",
+                    "An error occurred while creating a new database",
+                    error.getMessage());
         }
     }
 
@@ -450,11 +476,13 @@ public class PerformInitializer {
             return null;
         } catch (SQLException error) {
             return new ErrorMessage(
-                    "Database Creation Error", "An error occurred while creating a new database", error.getMessage());
+                    "Access Database Creation Error",
+                    "An error occurred while creating a new database",
+                    error.getMessage());
         }
     }
 
-    public void initializeMainDatabaseSQLite(File dbFile) {
+    public ErrorMessage initializeMainDatabaseSQLite(File dbFile) {
         try (Connection conn = performDataBase.getConnection()) {
             try (Statement stmt = conn.createStatement()) {
                 // Enable foreign keys in SQLite
@@ -633,9 +661,12 @@ public class PerformInitializer {
                 stmt.executeUpdate(createComponentVariableTableSQL);
             }
 
-            System.out.printf("SQLite Database %s has been created!%n", dbFile.getName());
+            return null;
         } catch (SQLException error) {
-            System.out.println("initializeDatabase\nError: " + error.getMessage());
+            return new ErrorMessage(
+                    "SQLite Database Creation Error",
+                    "An error occurred while creating a new database",
+                    error.getMessage());
         }
     }
 
@@ -745,6 +776,90 @@ public class PerformInitializer {
                 } catch (SQLException e) {
                     System.out.println("Error closing connection: " + e.getMessage());
                 }
+            }
+        }
+    }
+
+    public void initializeDBS() {
+        if (performDataBase.POSTGRES_DB) {
+            try {
+                if (doesNotInstructionTableExist(performDataBase.getConnection())) {
+                    if (getConn() != null) {
+                        ErrorMessage errorMessage = initializeMainDatabasePostgres();
+                        if (errorMessage != null) {
+                            ARLogger.getInstance(ARMainPane.class)
+                                    .severe("Database Creation Error: " + errorMessage.getErrorMessage());
+
+                            performMessage.errorMessage(
+                                    errorMessage.getErrorTitle(),
+                                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> Database Creation Error",
+                                    "<span style='color: #2E7D32; font-weight: bold;'>" + errorMessage.getErrorHeader()
+                                            + "</span>",
+                                    "<span style='font-style: italic;'>Detail:</span> "
+                                            + errorMessage.getErrorMessage(),
+                                    0);
+                        }
+                    }
+                }
+            } catch (Exception error) {
+                ARLogger.getInstance(ARMainPane.class).severe("Error connection with Postgres: " + error.getMessage());
+            }
+        } else if (performDataBase.SQLITE_DB) {
+            String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+            File dbFile = new File(dbPath + ARConstants.FILE_NAME_SQLITE);
+
+            try {
+                if (doesNotInstructionTableExistSQLITE(performDataBase.getConnection())) {
+                    if (getConn() != null) {
+                        ErrorMessage errorMessage = initializeMainDatabaseSQLite(dbFile);
+
+                        if (errorMessage != null) {
+                            ARLogger.getInstance(ARMainPane.class)
+                                    .severe("Database Creation Error: " + errorMessage.getErrorMessage());
+
+                            performMessage.errorMessage(
+                                    errorMessage.getErrorTitle(),
+                                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> Database Creation Error",
+                                    "<span style='color: #2E7D32; font-weight: bold;'>" + errorMessage.getErrorHeader()
+                                            + "</span>",
+                                    "<span style='font-style: italic;'>Detail:</span> "
+                                            + errorMessage.getErrorMessage(),
+                                    0);
+                        }
+                    }
+                }
+            } catch (Exception error) {
+                ARLogger.getInstance(ARMainPane.class).severe("Error connection with SQLite: " + error.getMessage());
+            }
+        } else if (performDataBase.ACCESS_DB) {
+            String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+            File dbFile = new File(dbPath + ARConstants.FILE_NAME_ACCESS);
+
+            try {
+                if (doesNotInstructionTableExistAccess(performDataBase.getConnection())) {
+                    if (getConn() != null) {
+                        ErrorMessage errorMessage = initializeMainDatabaseAccess(dbFile);
+
+                        if (errorMessage != null) {
+                            ARLogger.getInstance(ARMainPane.class)
+                                    .severe("Database Creation Error: " + errorMessage.getErrorMessage());
+
+                            performMessage.errorMessage(
+                                    errorMessage.getErrorTitle(),
+                                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> Database Creation Error",
+                                    "<span style='color: #2E7D32; font-weight: bold;'>" + errorMessage.getErrorHeader()
+                                            + "</span>",
+                                    "<span style='font-style: italic;'>Detail:</span> "
+                                            + errorMessage.getErrorMessage(),
+                                    0);
+                        }
+                    }
+                }
+            } catch (Exception error) {
+                ARLogger.getInstance(ARMainPane.class).severe("Error connection with Access: " + error.getMessage());
             }
         }
     }

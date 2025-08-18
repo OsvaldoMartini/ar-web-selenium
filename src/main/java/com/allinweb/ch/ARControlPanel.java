@@ -265,9 +265,6 @@ public class ARControlPanel extends Application {
             ARLogger.getInstance(ARMainPane.class).severe("Error Database Connections: " + error.getMessage());
         }
 
-        //        performDataBase.migrationAccessToAccess();
-        //        System.exit(0);
-
         if ("Postgres".equalsIgnoreCase(dataBaseType)) {
             // Postgres-specific logic
             performDataBase.POSTGRES_DB = true;
@@ -280,7 +277,6 @@ public class ARControlPanel extends Application {
         }
 
         if (performDataBase.POSTGRES_DB) {
-
             try {
                 if (performInitializer.doesNotInstructionTableExist(performDataBase.getConnection())) {
 

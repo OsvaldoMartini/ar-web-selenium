@@ -172,8 +172,8 @@ public class ARConfigurationPane extends ARPane {
     ObservableList<String> browserList =
             FXCollections.observableArrayList(ARConstants.CHROME, ARConstants.EDGE, ARConstants.FIREFOX);
 
-    ObservableList<String> databaseList = FXCollections.observableArrayList(
-            ARConstants.ACCESS, ARConstants.POSTGRES, ARConstants.SQLSERVER, ARConstants.SQLITE);
+    ObservableList<String> databaseList =
+            FXCollections.observableArrayList(ARConstants.ACCESS, ARConstants.POSTGRES, ARConstants.SQLITE);
 
     Button pathExcelButton;
     Button pathLicenseButton;
@@ -774,6 +774,30 @@ public class ARConfigurationPane extends ARPane {
 
         String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
         String dataBaseFolder = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+
+        if (dataBaseType.equalsIgnoreCase(databaseChoiceBox.getValue().trim())) {
+
+            try {
+                performDataBase.changeDbConnection();
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            performMessage.showCustomModalDialogDragWin11(
+                    "Database Selection Mismatch ⚠️",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>The selected database type does not match the saved database!</span>",
+                    "<span style='color: #1565C0; font-weight: bold;'>Please select the database that matches the saved type, or reload configurations to apply your selection.</span>",
+                    "<span style='color: #6A1B9A; font-weight: bold;'>Selected Database:</span> "
+                            + databaseChoiceBox.getValue().trim(),
+                    "<span style='color: #6A1B9A; font-weight: bold;'>Saved Database:</span> "
+                            + dataBaseType + "<br/>"
+                            + "<span style='color: #E65100; font-weight: bold;'>💡 Reminder:</span> Press the <span style='text-decoration: underline;'>Reload Configs</span> button to save and apply your database choice before continuing.",
+                    false,
+                    "OK",
+                    null,
+                    0);
+            return;
+        }
 
         Label newInstruction = new Label(
                 "DB RESTORE\nDatabase Selected: \"" + dataBaseType + "\" \nDatabase Folder : \"v4.1f Beta Test\"");
