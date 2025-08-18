@@ -2884,6 +2884,8 @@ public class ARScannedElementPane extends ARPane {
             System.out.println(e.getMessage());
         }
 
+        //        performDataBase.loadBlocks(this.botJobLoad.getId(), this.botJobLoad.getName(), "block");
+
         List<BlockLoadDTO> blocksLoaded = performLists.getListBotJob().get(0).getBlockLoadDTOList();
         String botJobName = performLists.getListBotJob().get(0).getName();
 
@@ -2907,13 +2909,7 @@ public class ARScannedElementPane extends ARPane {
         Properties labelsValue = Labels.labelsValue;
 
         // Assuming blocksLoaded is your List<BlockLoadDTO>
-        List<String> allActions = blocksLoaded.stream()
-                .flatMap(blockLoadDTO ->
-                        blockLoadDTO
-                                .getInstructionLoadDTOS()
-                                .stream()) // Flatten the stream of BlockLoopInstructionLoadDTO
-                .map(InstructionLoadDTO::getActions) // Extract the actions
-                .collect(Collectors.toList()); // Collect all actions into a List
+        List<String> allActions = performDataBase.loadAllActionsPerBlock(performLists.getListBlock());
 
         if (!new File(excelPath).exists()) {
             performMessage.errorMessage(

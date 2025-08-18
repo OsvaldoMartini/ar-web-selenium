@@ -2422,6 +2422,8 @@ public class PerformDataBase {
                     .append("b.name AS block_name, ")
                     .append("b.description AS block_description, ")
                     .append("b.type_id, ")
+                    .append("b.wait, ")
+                    .append("b.active AS block_active, ")
                     .append("bot.id AS bot_job_id, ")
                     .append("bot.name AS bot_job_name ")
                     .append("FROM bot_job bot ")
@@ -2434,6 +2436,8 @@ public class PerformDataBase {
                     .append("b.name AS block_name, ")
                     .append("b.description AS block_description, ")
                     .append("b.type_id, ")
+                    .append("b.wait, ")
+                    .append("b.active AS block_active, ")
                     .append("hb.id AS home_banking_id ")
                     .append("FROM home_banking hb ")
                     .append("JOIN component_block b ON b.home_banking_id = hb.id ")
@@ -2469,6 +2473,8 @@ public class PerformDataBase {
                         blockDTO.setName(rs.getString("block_name"));
                         blockDTO.setDescription(rs.getString("block_description"));
                         blockDTO.setTypeId(rs.getInt("type_id"));
+                        blockDTO.setWait(rs.getInt("wait"));
+                        blockDTO.setActive(rs.getBoolean("block_active"));
 
                         if ("block".equals(tableName)) {
                             blockDTO.setBotJobId(rs.getInt("bot_job_id"));

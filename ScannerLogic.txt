@@ -16,7 +16,7 @@ int botJobId = this.botJobLoad.getId();
 int executeSpecificBlock = comboBoxBlocks.getValue().getInstructionId();
 sessionRowStatus = "botJobTasks"; // + botJobId;
 
-variablesLoaded = performDataBase.loadAllVariables(botJobId);
+performDataBase.loadAllVariables(botJobId);
 Map<String, String> mapSavedLocators = new HashMap<>();
 
 Set<Integer> parentIdsForLoop = null;
@@ -35,7 +35,16 @@ int exportIndex = 1;
 boolean webElementWork = false;
 
 if (extractedData.getNumberOfDataRows() > 0) {
-	List<InstructionLoadDTO> excelDataGoto = performDataBase.loadExcelGotoBlock(homeBanking.getId(), botJobId);
+
+	List<InstructionLoadDTO> excelDataGoto = new ArrayList<>();
+	String tableName = "instruction";
+	int whereId = botJobId;
+	try {
+		excelDataGoto = performDataBase.loadExcelGotoBlock(whereId, tableName);
+	} catch (Exception error) {
+		ARLogger.getInstance(ARNewCommandScene.class)
+				.severe("Error reading 'EXCEL GOTO' instructions: " + error.getMessage());
+	}
 
 	if (extractedData.getNumberOfDataRows() > 1 && excelDataGoto.isEmpty()) {
 
@@ -68,8 +77,9 @@ if (extractedData.getNumberOfDataRows() > 0) {
 	int blockInitial = currentBlock;
 
 	if (!excelDataGoto.isEmpty() && !blocksLoaded.isEmpty()) {
-		Integer parentId = excelDataGoto.get(excelDataGoto.size() - 1).getParentId();
-		blockInitial = performActions.getBlockOrderNumber(blocksLoaded, parentId) - 1;
+		Integer parentBlockId =
+				excelDataGoto.get(excelDataGoto.size() - 1).getParentBlockId();
+		blockInitial = performActions.getBlockOrderNumber(blocksLoaded, parentBlockId) - 1;
 	}
 
 	int xExcelCurrentRow = 0;
@@ -332,9 +342,8 @@ if (extractedData.getNumberOfDataRows() > 0) {
 					mapSavedLocators.clear();
 
 					// Loop through the instructionReferenceLoadDTOList
-					if (currentInstruction.getInstructionReferenceLoadDTOList() != null) {
-						for (InstructionReferenceLoadDTO reference :
-								currentInstruction.getInstructionReferenceLoadDTOList()) {
+					if (currentInstruction.getReferenceLoadDTOList() != null) {
+						for (ReferenceLoadDTO reference : currentInstruction.getReferenceLoadDTOList()) {
 							// Populate the map with referenceType as the key and value as the value
 							mapSavedLocators.put(reference.getReferenceType(), reference.getValue());
 						}
@@ -372,13 +381,13 @@ if (extractedData.getNumberOfDataRows() > 0) {
 						rowStatus.setColor("yellow"); // #fcba03 deep carmine yellow
 						jsonStatus = gson.toJson(rowStatus);
 						webSocketSessionManager.sendMessageJson(
-								homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
+								botJobLoad.getHomeBankingId(), sessionRowStatus, jsonStatus, "rowStatus");
 					} else {
 						// Previous
 						rowStatus.setColor("green"); // #1d9c06 green
 						jsonStatus = gson.toJson(rowStatus);
 						webSocketSessionManager.sendMessageJson(
-								homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
+								botJobLoad.getHomeBankingId(), sessionRowStatus, jsonStatus, "rowStatus");
 						try {
 							Thread.sleep(300);
 						} catch (Exception e) {
@@ -388,7 +397,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 						rowStatus.setColor("yellow"); // #fcba03 deep carmine yellow
 						jsonStatus = gson.toJson(rowStatus);
 						webSocketSessionManager.sendMessageJson(
-								homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
+								botJobLoad.getHomeBankingId(), sessionRowStatus, jsonStatus, "rowStatus");
 					}
 
 					//                        String[] operation =

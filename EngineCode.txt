@@ -34,8 +34,16 @@ int exportIndex = 1;
 boolean webElementWork = false;
 
 if (extractedData.getNumberOfDataRows() > 0) {
-	List<InstructionLoadDTO> excelDataGoto =
-			performDataBase.loadExcelGotoBlock(homeBanking.getId(), botJobId);
+
+	List<InstructionLoadDTO> excelDataGoto = new ArrayList<>();
+	String tableName = "instruction";
+	int whereId = botJobId;
+	try {
+		excelDataGoto = performDataBase.loadExcelGotoBlock(whereId, tableName);
+	} catch (Exception error) {
+		ARLogger.getInstance(Engine.class)
+				.severe("Error reading 'EXCEL GOTO' instructions: " + error.getMessage());
+	}
 
 	//                if (extractedData.getNumberOfDataRows() > 1 && excelDataGoto.isEmpty()) {
 	//
@@ -74,9 +82,9 @@ if (extractedData.getNumberOfDataRows() > 0) {
 	int blockInitial = currentBlock;
 
 	if (!excelDataGoto.isEmpty() && !blocksLoaded.isEmpty()) {
-		Integer parentId =
-				excelDataGoto.get(excelDataGoto.size() - 1).getParentId();
-		blockInitial = performActions.getBlockOrderNumber(blocksLoaded, parentId) - 1;
+		Integer parentBlockId =
+				excelDataGoto.get(excelDataGoto.size() - 1).getParentBlockId();
+		blockInitial = performActions.getBlockOrderNumber(blocksLoaded, parentBlockId) - 1;
 	}
 
 	int xExcelCurrentRow = 0;
@@ -342,9 +350,8 @@ if (extractedData.getNumberOfDataRows() > 0) {
 					mapSavedLocators.clear();
 
 					// Loop through the instructionReferenceLoadDTOList
-					if (currentInstruction.getInstructionReferenceLoadDTOList() != null) {
-						for (InstructionReferenceLoadDTO reference :
-								currentInstruction.getInstructionReferenceLoadDTOList()) {
+					if (currentInstruction.getReferenceLoadDTOList() != null) {
+						for (ReferenceLoadDTO reference : currentInstruction.getReferenceLoadDTOList()) {
 							// Populate the map with referenceType as the key and value as the value
 							mapSavedLocators.put(reference.getReferenceType(), reference.getValue());
 						}

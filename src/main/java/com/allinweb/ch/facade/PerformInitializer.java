@@ -1,6 +1,5 @@
 package com.allinweb.ch.facade;
 
-import com.allinweb.ch.component.pane.ARMainPane;
 import com.allinweb.ch.util.*;
 import java.io.File;
 import java.sql.*;
@@ -787,12 +786,12 @@ public class PerformInitializer {
                     if (getConn() != null) {
                         ErrorMessage errorMessage = initializeMainDatabasePostgres();
                         if (errorMessage != null) {
-                            ARLogger.getInstance(ARMainPane.class)
+                            ARLogger.getInstance(PerformInitializer.class)
                                     .severe("Database Creation Error: " + errorMessage.getErrorMessage());
 
                             performMessage.errorMessage(
                                     errorMessage.getErrorTitle(),
-                                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span>",
                                     "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> Database Creation Error",
                                     "<span style='color: #2E7D32; font-weight: bold;'>" + errorMessage.getErrorHeader()
                                             + "</span>",
@@ -803,7 +802,8 @@ public class PerformInitializer {
                     }
                 }
             } catch (Exception error) {
-                ARLogger.getInstance(ARMainPane.class).severe("Error connection with Postgres: " + error.getMessage());
+                ARLogger.getInstance(PerformInitializer.class)
+                        .severe("Error connection with Postgres: " + error.getMessage());
             }
         } else if (performDataBase.SQLITE_DB) {
             String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
@@ -815,12 +815,12 @@ public class PerformInitializer {
                         ErrorMessage errorMessage = initializeMainDatabaseSQLite(dbFile);
 
                         if (errorMessage != null) {
-                            ARLogger.getInstance(ARMainPane.class)
+                            ARLogger.getInstance(PerformInitializer.class)
                                     .severe("Database Creation Error: " + errorMessage.getErrorMessage());
 
                             performMessage.errorMessage(
                                     errorMessage.getErrorTitle(),
-                                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span>",
                                     "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> Database Creation Error",
                                     "<span style='color: #2E7D32; font-weight: bold;'>" + errorMessage.getErrorHeader()
                                             + "</span>",
@@ -831,7 +831,8 @@ public class PerformInitializer {
                     }
                 }
             } catch (Exception error) {
-                ARLogger.getInstance(ARMainPane.class).severe("Error connection with SQLite: " + error.getMessage());
+                ARLogger.getInstance(PerformInitializer.class)
+                        .severe("Error connection with SQLite: " + error.getMessage());
             }
         } else if (performDataBase.ACCESS_DB) {
             String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
@@ -843,12 +844,12 @@ public class PerformInitializer {
                         ErrorMessage errorMessage = initializeMainDatabaseAccess(dbFile);
 
                         if (errorMessage != null) {
-                            ARLogger.getInstance(ARMainPane.class)
+                            ARLogger.getInstance(PerformInitializer.class)
                                     .severe("Database Creation Error: " + errorMessage.getErrorMessage());
 
                             performMessage.errorMessage(
                                     errorMessage.getErrorTitle(),
-                                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span>",
                                     "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> Database Creation Error",
                                     "<span style='color: #2E7D32; font-weight: bold;'>" + errorMessage.getErrorHeader()
                                             + "</span>",
@@ -859,7 +860,8 @@ public class PerformInitializer {
                     }
                 }
             } catch (Exception error) {
-                ARLogger.getInstance(ARMainPane.class).severe("Error connection with Access: " + error.getMessage());
+                ARLogger.getInstance(PerformInitializer.class)
+                        .severe("Error connection with Access: " + error.getMessage());
             }
         }
     }
