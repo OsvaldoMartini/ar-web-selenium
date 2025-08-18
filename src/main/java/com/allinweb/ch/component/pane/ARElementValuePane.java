@@ -102,10 +102,12 @@ public class ARElementValuePane extends ARPane {
         this.instructionType = instructionType;
 
         String tableName = "variable";
+        int whereId = rowMoveDTO.getBotJobId();
         if (rowMoveDTO.getSessionId().equals("componentTasks")) {
             tableName = "component_variable";
+            whereId = rowMoveDTO.getHomeBankingId();
         }
-        performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId, tableName);
+        performDataBase.loadAllVariablesByCriteria(whereId, instructionId, tableName);
 
         if (this.varId > -1) {
             selectRowById(varId);
@@ -487,12 +489,15 @@ public class ARElementValuePane extends ARPane {
 
             performDataBase.createVariable(user);
             String tableName = "variable";
+            int whereId = rowMoveDTO.getBotJobId();
             if (rowMoveDTO.getSessionId().equals("componentTasks")) {
                 tableName = "component_variable";
+                whereId = rowMoveDTO.getHomeBankingId();
             }
-            performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId, tableName);
+            performDataBase.loadAllVariablesByCriteria(whereId, instructionId, tableName);
             arNewCommandPane.reloadComboVars(instructionId, true, -1);
         });
+
         updateButton.setOnAction(event -> {
             VariableUserDTO selectedUser = tableView.getSelectionModel().getSelectedItem();
 

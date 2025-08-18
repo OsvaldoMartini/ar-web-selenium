@@ -5,6 +5,7 @@ import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.component.model.*;
 import com.allinweb.ch.component.pane.base.ARPane;
+import com.allinweb.ch.component.scene.ARNewCommandScene;
 import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
 import com.allinweb.ch.component.scene.ARScannedElementScene;
 import com.allinweb.ch.control.ARComponentBuilder;
@@ -254,11 +255,13 @@ public class ARScannedElementPane extends ARPane {
                             && processDTO.getOperationId().equalsIgnoreCase("TEST_STEP")) {
 
                         String tableName = "instruction";
+                        int whereId = processDTO.getBotJobId();
                         if (processDTO.getSessionId().equals("componentTasks")) {
                             tableName = "component_instruction";
+                            whereId = processDTO.getHomeBankingId();
                         }
                         List<InstructionLoadDTO> instruc = performDataBase.getInstructionsList(
-                                processDTO.getBotJobId(), -1, processDTO.getDetails()[0].getId(), tableName);
+                                whereId, -1, processDTO.getDetails()[0].getId(), tableName);
                         if (!instruc.isEmpty() && instruc.get(0).getId() != null) {
                             ElementDTO elementDTO = performActions.buildElementDTO(instruc.get(0));
                             targetSelected = extractPickClone(elementDTO);
@@ -529,7 +532,7 @@ public class ARScannedElementPane extends ARPane {
         String jsonData = "[]";
         if (!botJobLoadList.isEmpty()) {
             List<InstructionLoadDTO> blockLoopInstructions =
-                    performDataBase.buildJsonViewData(botJobLoadList, "instruction");
+                    performDataBase.buildJsonViewData(botJobLoadList, currentBotJobId, "instruction");
             jsonData = gson.toJson(blockLoopInstructions);
         }
         webSocketSessionManager.sendMessageJson(
@@ -3024,8 +3027,16 @@ public class ARScannedElementPane extends ARPane {
         boolean webElementWork = false;
 
         if (extractedData.getNumberOfDataRows() > 0) {
-            List<InstructionLoadDTO> excelDataGoto =
-                    performDataBase.loadExcelGotoBlock(botJobLoad.getHomeBankingId(), botJobId);
+
+            List<InstructionLoadDTO> excelDataGoto = new ArrayList<>();
+            String tableName = "instruction";
+            int whereId = botJobId;
+            try {
+                excelDataGoto = performDataBase.loadExcelGotoBlock(whereId, tableName);
+            } catch (Exception error) {
+                ARLogger.getInstance(ARNewCommandScene.class)
+                        .severe("Error reading 'EXCEL GOTO' instructions: " + error.getMessage());
+            }
 
             if (extractedData.getNumberOfDataRows() > 1 && excelDataGoto.isEmpty()) {
 

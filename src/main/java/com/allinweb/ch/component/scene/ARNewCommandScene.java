@@ -226,11 +226,22 @@ public class ARNewCommandScene extends ARScene {
     public void showModal() {
         if (rowMoveDTO.getUpdatedRows().get(0).getActions() != null
                 && rowMoveDTO.getUpdatedRows().get(0).getActions().equals("EXCEL GOTO")) {
-            List<InstructionLoadDTO> excelDataGoto =
-                    performDataBase.loadExcelGotoBlock(rowMoveDTO.getHomeBankingId(), rowMoveDTO.getBotJobId());
 
-            if (!excelDataGoto.isEmpty()) {
-                rowMoveDTO.setType("EDIT_OPERATION");
+            String tableName =
+                    rowMoveDTO.getSessionId().equals("componentTasks") ? "component_instruction" : "instruction";
+            int whereId = rowMoveDTO.getSessionId().equals("componentTasks")
+                    ? rowMoveDTO.getHomeBankingId()
+                    : rowMoveDTO.getBotJobId();
+            try {
+                List<InstructionLoadDTO> excelDataGoto = performDataBase.loadExcelGotoBlock(whereId, tableName);
+
+                if (!excelDataGoto.isEmpty()) {
+                    rowMoveDTO.setType("EDIT_OPERATION");
+                }
+
+            } catch (Exception error) {
+                ARLogger.getInstance(ARNewCommandScene.class)
+                        .severe("Error reading 'EXCEL GOTO' instructions: " + error.getMessage());
                 //                    performMessage.errorMessage(
                 //                            "Excel GOTO Detected",
                 //                            "<span style='font-weight: bold;'>This Bot Job already has an </span><span
@@ -246,6 +257,7 @@ public class ARNewCommandScene extends ARScene {
                 //                            0);
                 //
                 //                    return;
+
             }
         }
 

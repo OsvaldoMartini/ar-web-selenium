@@ -217,8 +217,8 @@ public class ARViewBotJobPane extends ARPane {
         performDataBase.loadCompleteJobs(selectedBotJob.getId());
 
         if (!performLists.getListBotJob().isEmpty()) {
-            List<InstructionLoadDTO> instructions =
-                    performDataBase.buildJsonViewData(performLists.getListBotJob(), "instruction");
+            List<InstructionLoadDTO> instructions = performDataBase.buildJsonViewData(
+                    performLists.getListBotJob(), selectedBotJob.getId(), "instruction");
             if (!instructions.isEmpty()) {
                 jsonData = gson.toJson(instructions);
             }
@@ -232,8 +232,8 @@ public class ARViewBotJobPane extends ARPane {
         performDataBase.loadComponentsComplete(
                 selectedBotJob.getHomeBankingId(), selectedBotJob.getId(), selectedBotJob.getName());
         if (!performLists.getListBotJobComp().isEmpty()) {
-            List<InstructionLoadDTO> instructions =
-                    performDataBase.buildJsonViewData(performLists.getListBotJobComp(), "component_instruction");
+            List<InstructionLoadDTO> instructions = performDataBase.buildJsonViewData(
+                    performLists.getListBotJobComp(), selectedBotJob.getHomeBankingId(), "component_instruction");
             if (!instructions.isEmpty()) {
                 jsonData = gson.toJson(instructions);
             }
@@ -254,8 +254,8 @@ public class ARViewBotJobPane extends ARPane {
 
         // Load blocks based on the BotJobLoadDTO instead of blockDTOObservableList
         if (!performLists.getListBotJob().isEmpty()) {
-            List<InstructionLoadDTO> instructions =
-                    performDataBase.buildJsonViewData(performLists.getListBotJob(), "instruction");
+            List<InstructionLoadDTO> instructions = performDataBase.buildJsonViewData(
+                    performLists.getListBotJob(), selectedBotJob.getId(), "instruction");
             if (!instructions.isEmpty()) {
                 performMessage.outputJson(instructions, "botJobTasks-" + selectedBotJob.getId(), false);
                 jsonData = gson.toJson(instructions);
@@ -283,8 +283,8 @@ public class ARViewBotJobPane extends ARPane {
                 selectedBotJob.getHomeBankingId(), selectedBotJob.getId(), selectedBotJob.getName());
 
         if (!performLists.getListBotJobComp().isEmpty()) {
-            List<InstructionLoadDTO> instructions =
-                    performDataBase.buildJsonViewData(performLists.getListBotJobComp(), "component_instruction");
+            List<InstructionLoadDTO> instructions = performDataBase.buildJsonViewData(
+                    performLists.getListBotJobComp(), selectedBotJob.getHomeBankingId(), "component_instruction");
             if (!instructions.isEmpty()) {
                 performMessage.outputJson(instructions, "componentTasks-" + selectedBotJob.getId(), false);
                 jsonData = gson.toJson(instructions);
@@ -498,7 +498,7 @@ public class ARViewBotJobPane extends ARPane {
         if (performLists.getListBlock().isEmpty()) {
             performDataBase.loadBlocks(selectedBotJob.getId(), selectedBotJob.getName(), "block");
         }
-        performDataBase.updateBlockOrderNumber("block", selectedBotJob.getId(), performLists.getListBlock(), true);
+        performDataBase.updateBlockOrderNumber("block", selectedBotJob.getId(), true);
 
         performDataBase.loadCompleteJobs(selectedBotJob.getId());
 

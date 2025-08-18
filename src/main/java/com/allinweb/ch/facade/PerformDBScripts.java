@@ -51,19 +51,24 @@ public class PerformDBScripts {
 
     public String deleteNullBlocksSQL(String tableName) {
         String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
+
+        // Pick correct foreign key column based on table family
         String foreignKeyColumn = "block".equalsIgnoreCase(tableName) ? "bot_job_id" : "home_banking_id";
-        String alias = "";
 
-        // SQLite does not support table alias in DELETE
-        if (!"SQLite".equalsIgnoreCase(dataBaseType)) {
-            alias = tableName + " ";
-        }
+        // Pick correct relation (block → instruction, component_block → component_instruction)
+        String tableRelation = "block".equalsIgnoreCase(tableName) ? "instruction" : "component_instruction";
 
-        String sql = "DELETE FROM " + tableName + (alias.isEmpty() ? "" : alias)
-                + "WHERE " + foreignKeyColumn + " = ? "
+        // Only use alias in databases that support it
+        boolean useAlias = !"SQLite".equalsIgnoreCase(dataBaseType) && !"Access".equalsIgnoreCase(dataBaseType);
+
+        String alias = useAlias ? " t" : "";
+        String fromPart = tableName + (useAlias ? alias : "");
+
+        String sql = "DELETE FROM " + fromPart
+                + " WHERE " + foreignKeyColumn + " = ? "
                 + "AND NOT EXISTS ("
-                + "  SELECT 1 FROM instruction bli "
-                + "  WHERE bli.block_id = " + (alias.isEmpty() ? tableName + ".id" : alias + ".id")
+                + "  SELECT 1 FROM " + tableRelation + " bli "
+                + "  WHERE bli.block_id = " + (useAlias ? alias + ".id" : tableName + ".id")
                 + ")";
 
         return sql;

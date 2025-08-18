@@ -414,15 +414,11 @@ public class SimpleWebSocketServer {
 
                     errorMessage = performDataBase.updateMoveRowsOrder(tableName, whereId, rowMoveDTO.getUpdatedRows());
                     if (errorMessage == null) {
-                        errorMessage =
-                                performDataBase.deleteBlockDirect(tableName, whereId, rowMoveDTO.getDeleteBlockId());
+                        errorMessage = performDataBase.deleteNullBlocks(tableName, rowMoveDTO.getHomeBankingId());
                     }
                     if (errorMessage == null) {
                         performDataBase.loadBlocks(whereId, "", tableName);
-                        List<BlockLoadDTO> listBlocks = tableName.equals("block")
-                                ? performLists.getListBlock()
-                                : performLists.getListBlockComp();
-                        errorMessage = performDataBase.updateBlockOrderNumber(tableName, whereId, listBlocks, true);
+                        errorMessage = performDataBase.updateBlockOrderNumber(tableName, whereId, true);
                     }
 
                     if (errorMessage != null) {
@@ -495,8 +491,7 @@ public class SimpleWebSocketServer {
 
                     errorMessage = null;
                     if (tableName != null) {
-                        errorMessage = performDataBase.updateBlockOrderNumber(
-                                tableName, whereId, performLists.getListBlock(), true);
+                        errorMessage = performDataBase.updateBlockOrderNumber(tableName, whereId, true);
 
                         if (errorMessage == null) {
                             performDataBase.deleteNullBlocks(tableName, whereId);
@@ -593,10 +588,10 @@ public class SimpleWebSocketServer {
                 whereId = -1;
                 if (sessionIdToSend != null) {
                     if (sessionIdToSend.matches(".*botJobTasks.*")) {
-                        tableName = "block";
+                        tableName = "instruction";
                         whereId = toDelete.getBotJobId();
                     } else if (sessionIdToSend.matches(".*componentTasks.*")) {
-                        tableName = "component_block";
+                        tableName = "component_instruction";
                         whereId = toDelete.getHomeBankingId();
                     }
                 }
@@ -708,7 +703,7 @@ public class SimpleWebSocketServer {
             String jsonData = "[]";
             if (!botJobLoadList.isEmpty()) {
                 List<InstructionLoadDTO> blockLoopInstructions =
-                        performDataBase.buildJsonViewData(botJobLoadList, "instruction");
+                        performDataBase.buildJsonViewData(botJobLoadList, botJobIdTask, "instruction");
                 jsonData = gson.toJson(blockLoopInstructions);
             }
             webSocketSessionManager.sendMessageJson(homeBankingId, sessionIdToSend, jsonData, "updateInstructions");
@@ -719,7 +714,7 @@ public class SimpleWebSocketServer {
             String jsonData = "[]";
             if (!botJobLoadList.isEmpty()) {
                 List<InstructionLoadDTO> blockLoopInstructions =
-                        performDataBase.buildJsonViewData(botJobLoadList, "component_instruction");
+                        performDataBase.buildJsonViewData(botJobLoadList, homeBankingId, "component_instruction");
                 jsonData = gson.toJson(blockLoopInstructions);
             }
 
@@ -768,10 +763,8 @@ public class SimpleWebSocketServer {
                 if (updatedBlock.size() > 0) {
 
                     // Work directly with the List<BlockLoadDTO> in performLists
-                    List<BlockLoadDTO> currentBlocks = performLists.getListBlock();
-
                     for (BlockOrderDetailDTO updated : updatedBlock) {
-                        for (BlockLoadDTO current : currentBlocks) {
+                        for (BlockLoadDTO current : performLists.getListBlock()) {
                             if (current.getId() != null && current.getId().equals(updated.getBlockId())) {
                                 current.setBlockOrderNumber(updated.getBlockOrderNumber());
                                 break;
@@ -780,8 +773,7 @@ public class SimpleWebSocketServer {
                     }
 
                     performDataBase.loadBlocks(blockSplitDTO.getBotJobId(), "", "block");
-                    errorMessage = performDataBase.updateBlockOrderNumber(
-                            "block", blockSplitDTO.getBotJobId(), currentBlocks, true);
+                    errorMessage = performDataBase.updateBlockOrderNumber("block", blockSplitDTO.getBotJobId(), true);
 
                     if (errorMessage != null) {
                         performMessage.errorMessage(
@@ -824,7 +816,7 @@ public class SimpleWebSocketServer {
         }
 
         // Persist updated order numbers
-        performDataBase.updateBlockOrderNumber("block", blockMoveDTO.getBotJobId(), currentBlocks, true);
+        performDataBase.updateBlockOrderNumber("block", blockMoveDTO.getBotJobId(), true);
     }
 
     private void injectStepAfterOrBefore(String sessionId, RowMoveDTO rowMoveDTO) {
@@ -911,6 +903,13 @@ public class SimpleWebSocketServer {
         if (errorMessage == null) {
             errorMessage = performDataBase.createInjectBlock(blockDetailsDTO);
         }
+
+        int newBlockId = -9999;
+        if (!performDataBase.getIdsBlockAfter().isEmpty()
+                && performDataBase.getIdsBlockAfter().get(0) > 0) {
+            newBlockId = performDataBase.getIdsBlockAfter().get(0);
+        }
+
         if (errorMessage == null) {
             errorMessage = performDataBase.createInjectInstructions(blockDetailsDTO);
         }
@@ -925,18 +924,24 @@ public class SimpleWebSocketServer {
         }
 
         if (errorMessage == null) {
+            performDataBase.loadBlocks(blockDetailsDTO.getBotJobId(), "", "block");
+            errorMessage = performDataBase.updateBlockOrderNumber("block", blockDetailsDTO.getBotJobId(), true);
+        }
+
+        if (errorMessage == null) {
             List<BotJobLoadDTO> botJobLoadList = performDataBase.loadCompleteJobs(blockDetailsDTO.getBotJobId());
 
             String jsonData = "[]";
             if (!botJobLoadList.isEmpty()) {
                 List<InstructionLoadDTO> blockLoopInstructions =
-                        performDataBase.buildJsonViewData(botJobLoadList, "instruction");
+                        performDataBase.buildJsonViewData(botJobLoadList, blockDetailsDTO.getBotJobId(), "instruction");
                 jsonData = gson.toJson(blockLoopInstructions);
             }
             webSocketSessionManager.sendMessageJson(
                     blockDetailsDTO.getHomeBankingId(), blockDetailsDTO.getSessionId(), jsonData, "updateInstructions");
 
         } else {
+            performDataBase.deleteBlockDirect("block", blockDetailsDTO.getBotJobId(), newBlockId);
             performMessage.errorMessage(
                     "Access Database error",
                     errorMessage.getErrorTitle(),

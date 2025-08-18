@@ -264,6 +264,13 @@ public class ARSaveComponentPane extends ARPane {
                         if (errorMessage == null) {
                             errorMessage = performDataBase.createCompReferences(blockDetailsDTO);
                         }
+
+                        if (errorMessage == null) {
+                            performDataBase.loadBlocks(blockDetailsDTO.getHomeBankingId(), "", "component_block");
+                            errorMessage = performDataBase.updateBlockOrderNumber(
+                                    "component_block", blockDetailsDTO.getHomeBankingId(), true);
+                        }
+
                         if (errorMessage == null) {
                             List<BotJobLoadDTO> botJobLoadList = performDataBase.loadComponentsComplete(
                                     blockDetailsDTO.getHomeBankingId(),
@@ -272,8 +279,8 @@ public class ARSaveComponentPane extends ARPane {
 
                             String jsonData = "[]";
                             if (!botJobLoadList.isEmpty()) {
-                                List<InstructionLoadDTO> blockLoopInstructions =
-                                        performDataBase.buildJsonViewData(botJobLoadList, "component_instruction");
+                                List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(
+                                        botJobLoadList, blockDetailsDTO.getHomeBankingId(), "component_instruction");
                                 jsonData = gson.toJson(blockLoopInstructions);
                             }
                             // simpleWebSocketServer.sendMessageJson(blockDetailsDTO.getSessionId(), jsonData,
@@ -281,6 +288,8 @@ public class ARSaveComponentPane extends ARPane {
                             webSocketSessionManager.sendMessageJson(
                                     blockDetailsDTO.getHomeBankingId(), "componentTasks", jsonData, "componentsUpdate");
                         } else {
+                            performDataBase.deleteNullBlocks("component_block", blockDetailsDTO.getHomeBankingId());
+
                             performMessage.errorMessage(
                                     "Access Database error",
                                     errorMessage.getErrorTitle(),

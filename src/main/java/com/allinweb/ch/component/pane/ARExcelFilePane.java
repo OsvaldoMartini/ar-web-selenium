@@ -443,7 +443,7 @@ public class ARExcelFilePane extends ARPane {
             String jsonData = "[]";
             if (!botJobLoadList.isEmpty()) {
                 List<InstructionLoadDTO> blockLoopInstructions =
-                        performDataBase.buildJsonViewData(botJobLoadList, "instruction");
+                        performDataBase.buildJsonViewData(botJobLoadList, blockExcelDTO.getBotJobId(), "instruction");
                 jsonData = gson.toJson(blockLoopInstructions);
             }
             webSocketSessionManager.sendMessageJson(
@@ -454,8 +454,8 @@ public class ARExcelFilePane extends ARPane {
                     blockExcelDTO.getHomeBankingId(), blockExcelDTO.getBotJobId(), blockExcelDTO.getBotJobName());
             String jsonData = "[]";
             if (!botJobLoadList.isEmpty()) {
-                List<InstructionLoadDTO> instructions =
-                        performDataBase.buildJsonViewData(botJobLoadList, "component_instruction");
+                List<InstructionLoadDTO> instructions = performDataBase.buildJsonViewData(
+                        botJobLoadList, blockExcelDTO.getHomeBankingId(), "component_instruction");
                 jsonData = gson.toJson(instructions);
             }
             //            webSocketSessionManager.sendMessageJson(sessionId, jsonData, "componentsUpdate");

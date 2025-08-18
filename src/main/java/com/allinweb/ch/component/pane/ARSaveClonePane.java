@@ -353,6 +353,12 @@ public class ARSaveClonePane extends ARPane {
                             homeUrlDTO.setUrl(newUrl.getText().trim());
 
                             cloneBotJobSteps(homeUrlDTO, newBotJobName, newDescription, stage);
+
+                            if (homeURLChoiceBox != null) {
+                                populateHomeUrlChoiceBox(
+                                        selectedBotJob.getHomeBankingId(), selectedBotJob.getHomeUrlId());
+                            }
+
                         } else {
                             performMessage.errorMessage(
                                     "Insert New Environment Failed ❌",

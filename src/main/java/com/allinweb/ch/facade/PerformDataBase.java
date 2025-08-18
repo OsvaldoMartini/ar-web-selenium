@@ -72,6 +72,8 @@ public class PerformDataBase {
     private TreeMap<Integer, Integer> botJobMap = new TreeMap<>();
     private TreeMap<Integer, Integer> blockMap = new TreeMap<>();
     private TreeMap<Integer, Integer> instructionMap = new TreeMap<>();
+    private TreeMap<Integer, Integer> instrVariablesMap = new TreeMap<>();
+    private TreeMap<Integer, Integer> instrNewInverted = new TreeMap<>();
     private TreeMap<Integer, Integer> variableMap = new TreeMap<>();
     private TreeMap<Integer, Integer> referenceMap = new TreeMap<>();
 
@@ -283,41 +285,6 @@ public class PerformDataBase {
         return conn;
     }
 
-    public boolean deleteVariable(int bot_job_id, int instructionId) {
-        // Build the SQL delete statement
-
-        try (Statement stmt = getConnection().createStatement()) {
-
-            String deleteSQL = "DELETE FROM variable WHERE "
-                    + " instruction_id = " + instructionId
-                    + " AND bot_job_id = " + bot_job_id;
-
-            // Execute the update statement and check if any rows were affected
-            int rowsAffected = stmt.executeUpdate(deleteSQL);
-            if (rowsAffected > 0) {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .info(String.format(
-                                "Delete Variables for instruction ID %d has been successfully deleted from botJobId %d:",
-                                instructionId, bot_job_id));
-            } else {
-                /*ARLogger.getInstance(PerformDataBase.class)
-                       .warning(String.format(
-                               "No matching record found for instruction ID %d in botJobId %d:",
-                               instructionId, bot_job_id));
-
-                */
-            }
-            return true;
-
-        } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
-                            "Error deleting  Variable ID %d from botJobId ID %d. Error: %s: ",
-                            instructionId, bot_job_id, e.getMessage()));
-        }
-        return false;
-    }
-
     public List<ParentOperations> loadAllParents(int bot_job_id, int instructionId) {
         List<ParentOperations> parentList = new ArrayList<>();
 
@@ -431,64 +398,80 @@ public class PerformDataBase {
         return parentList;
     }
 
-    public ErrorMessage deleteVariable(
+    public ErrorMessage deleteVariablesBatch(
             String tableName, // e.g., "instruction_variable" or "component_instruction_variable"
             int whereId, // e.g., bot_job_id or home_banking_id
-            InstructionLoadDTO dto // contains instructionId, variableId
+            List<InstructionLoadDTO> dtos // contains instructionId(s) + variableId(s)
             ) {
-        // Determine the foreign key column based on table type
+        if (dtos == null || dtos.isEmpty()) {
+            return new ErrorMessage(
+                    "Invalid Input", "Variable deletion list is null or empty", "Cannot delete variables");
+        }
+
+        // Validate table name to avoid SQL injection
+        List<String> allowedTables = Arrays.asList("variable", "component_variable");
+        if (!allowedTables.contains(tableName)) {
+            return new ErrorMessage(
+                    "Invalid Table",
+                    "Invalid table name: " + tableName,
+                    "Only variable/component_variable are allowed");
+        }
+
+        // Determine foreign key column
         String foreignKeyColumn = "variable".equalsIgnoreCase(tableName) ? "bot_job_id" : "home_banking_id";
 
-        String deleteSQL = "DELETE FROM " + tableName + " WHERE instruction_id = ? AND variable_id = ? AND "
-                + foreignKeyColumn + " = ?";
+        final int BATCH_SIZE = 100;
+        int count = 0;
 
-        try (Connection conn = getConnection()) {
-            conn.setAutoCommit(false); // disable auto-commit
+        String deleteSQL =
+                "DELETE FROM " + tableName + " WHERE instruction_id = ? AND id = ? AND " + foreignKeyColumn + " = ?";
 
-            try (PreparedStatement pstmt = conn.prepareStatement(deleteSQL)) {
+        try (Connection conn = getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(deleteSQL)) {
+
+            conn.setAutoCommit(false); // transaction control
+
+            for (InstructionLoadDTO dto : dtos) {
+                if (dto == null
+                        || dto.getInstructionId() == null
+                        || dto.getInstructionId() <= 0
+                        || dto.getVariableId() == null
+                        || dto.getVariableId() <= 0) {
+                    continue; // skip invalid
+                }
+
                 pstmt.setInt(1, dto.getInstructionId());
                 pstmt.setInt(2, dto.getVariableId());
                 pstmt.setInt(3, whereId);
+                pstmt.addBatch();
 
-                int rowsAffected = pstmt.executeUpdate();
-                conn.commit();
-
-                if (rowsAffected > 0) {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .info(String.format(
-                                    "Deleted variable ID %d for instruction ID %d in %s = %d",
-                                    dto.getVariableId(), dto.getInstructionId(), foreignKeyColumn, whereId));
-                } else {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .warning(String.format(
-                                    "No variable found to delete - variable ID %d, instruction ID %d in %s = %d",
-                                    dto.getVariableId(), dto.getInstructionId(), foreignKeyColumn, whereId));
+                if (++count % BATCH_SIZE == 0) {
+                    pstmt.executeBatch();
+                    pstmt.clearBatch();
                 }
-
-                return null; // success
-            } catch (SQLException e) {
-                conn.rollback();
-                ARLogger.getInstance(PerformDataBase.class)
-                        .severe(String.format(
-                                "Error deleting variable ID %d for instruction ID %d in %s = %d. Error: %s",
-                                dto.getVariableId(),
-                                dto.getInstructionId(),
-                                foreignKeyColumn,
-                                whereId,
-                                e.getMessage()));
-
-                return new ErrorMessage(
-                        "Delete Variable Error",
-                        "Failed to delete variable ID: " + dto.getVariableId(),
-                        e.getMessage());
             }
-        } catch (SQLException ex) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
-                            "Connection error while deleting variable ID %d for instruction ID %d in %s = %d. Error: %s",
-                            dto.getVariableId(), dto.getInstructionId(), foreignKeyColumn, whereId, ex.getMessage()));
 
-            return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
+            // Final flush
+            if (count % BATCH_SIZE != 0) {
+                pstmt.executeBatch();
+                pstmt.clearBatch();
+            }
+
+            conn.commit();
+
+            ARLogger.getInstance(PerformDataBase.class)
+                    .info(String.format(
+                            "Batch delete completed for %d variable records in %s", count, tableName.toUpperCase()));
+
+            return null; // success
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe("Batch delete error for " + tableName + ": " + e.getMessage());
+            return new ErrorMessage(
+                    "Delete Variables Error",
+                    "Failed batch deletion for variables in table: " + tableName,
+                    e.getMessage());
         }
     }
 
@@ -716,7 +699,7 @@ public class PerformDataBase {
 
                 return null; // success
             } catch (SQLException e) {
-                conn.rollback();
+
                 ARLogger.getInstance(PerformDataBase.class)
                         .severe(String.format(
                                 "Error deleting parent ID %d in %s = %d. Error: %s",
@@ -750,14 +733,16 @@ public class PerformDataBase {
                 int rowsAffected = pstmt.executeUpdate();
                 conn.commit();
 
-                ARLogger.getInstance(PerformDataBase.class)
-                        .info(String.format(
-                                "Deleted %d null blocks from table %s where %s = %d",
-                                rowsAffected, tableName, foreignKeyColumn, whereId));
+                if (rowsAffected > 0) {
+                    ARLogger.getInstance(PerformDataBase.class)
+                            .info(String.format(
+                                    "Deleted %d null blocks from table %s where %s = %d",
+                                    rowsAffected, tableName, foreignKeyColumn, whereId));
+                }
 
                 return null; // success
             } catch (SQLException e) {
-                conn.rollback();
+
                 ARLogger.getInstance(PerformDataBase.class)
                         .severe(String.format(
                                 "Error deleting null blocks from table %s where %s = %d. Error: %s",
@@ -781,14 +766,15 @@ public class PerformDataBase {
 
     public ErrorMessage updateBlockOrderNumber(
             String tableName,
-            int whereIdColumn, // either "bot_job_id" or "home_banking_id"
-            List<BlockLoadDTO> blockList,
+            int whereId, // either "bot_job_id" or "home_banking_id"
             boolean reorderAll) {
         final int BATCH_SIZE = 100;
-        blockList.sort(Comparator.comparingInt(BlockLoadDTO::getBlockOrderNumber));
+        List<BlockLoadDTO> listBlocks =
+                tableName.equals("block") ? performLists.getListBlock() : performLists.getListBlockComp();
 
-        String updateSQL =
-                "UPDATE " + tableName + " SET block_order_number = ? WHERE id = ? AND " + whereIdColumn + " = ?";
+        listBlocks.sort(Comparator.comparingInt(BlockLoadDTO::getBlockOrderNumber));
+
+        String updateSQL = "UPDATE " + tableName + " SET block_order_number = ? WHERE id = ? AND " + whereId + " = ?";
 
         try (Connection conn = getConnection()) {
             conn.setAutoCommit(false); // Disable auto-commit
@@ -797,7 +783,7 @@ public class PerformDataBase {
                 int newOrderNumber = 1;
                 int count = 0;
 
-                for (BlockLoadDTO blockOrder : blockList) {
+                for (BlockLoadDTO blockOrder : listBlocks) {
                     int orderNumber = reorderAll ? newOrderNumber : blockOrder.getBlockOrderNumber();
                     pstmt.setInt(1, orderNumber);
                     pstmt.setInt(2, blockOrder.getId());
@@ -833,9 +819,10 @@ public class PerformDataBase {
                                     + tableName);
                 }
 
+                loadBlocks(whereId, "", tableName);
                 return null; // Success
             } catch (SQLException e) {
-                conn.rollback();
+
                 ARLogger.getInstance(PerformDataBase.class)
                         .severe(String.format(
                                 "Error updating block order numbers in table '%s'. Error: %s",
@@ -1389,7 +1376,8 @@ public class PerformDataBase {
         String orderColumn = "instruction_order_number";
         String whereColumn = tableName.equals("block") ? "bot_job_id" : "home_banking_id";
 
-        String updateSQL = "UPDATE " + tableName + " SET "
+        String instructionTable = tableName.equals("block") ? "instruction" : "component_instruction";
+        String updateSQL = "UPDATE " + instructionTable + " SET "
                 + orderColumn + " = ?, "
                 + blockIdColumn + " = ? "
                 + "WHERE " + idColumn + " = ? AND " + whereColumn + " = ?";
@@ -1454,7 +1442,7 @@ public class PerformDataBase {
 
                 return null; // Success
             } catch (SQLException e) {
-                conn.rollback();
+
                 ARLogger.getInstance(PerformDataBase.class)
                         .severe(String.format(
                                 "RollBackBlocks - Error updating BlockId %d. Error: %s",
@@ -1590,7 +1578,7 @@ public class PerformDataBase {
 
                 return null; // success
             } catch (SQLException e) {
-                conn.rollback();
+
                 ARLogger.getInstance(PerformDataBase.class)
                         .severe(String.format(
                                 "Error deleting blockId %d from %s = %d. Error: %s",
@@ -3057,11 +3045,13 @@ public class PerformDataBase {
         if (!updateRow) {
             List<InstructionLoadDTO> rowList = null;
             String tableName = "instruction";
+            int whereId = rowMoveDTO.getBotJobId();
             if (rowMoveDTO.getSessionId().equals("componentTasks")) {
                 tableName = "component_instruction";
+                whereId = rowMoveDTO.getHomeBankingId();
             }
 
-            rowList = getInstructionsList(rowMoveDTO.getBotJobId(), rowMoveDTO.getBlockId(), -1, tableName);
+            rowList = getInstructionsList(whereId, rowMoveDTO.getBlockId(), -1, tableName);
 
             if (!blockIdChanged) {
                 if (isIF) {
@@ -3080,7 +3070,14 @@ public class PerformDataBase {
         if (performLists.getQuickBotJobs().isEmpty()) {
             loadQuickBotJobs();
         }
-        loadBlocks(rowMoveDTO.getBotJobId(), rowMoveDTO.getBotJobName(), "block");
+
+        String blockTable = "block";
+        int whereId = rowMoveDTO.getBotJobId();
+        if (rowMoveDTO.getSessionId().equals("componentTasks")) {
+            blockTable = "component_block";
+            whereId = rowMoveDTO.getHomeBankingId();
+        }
+        loadBlocks(whereId, "", blockTable);
 
         if (!rowMoveDTO.getUpdatedRows().isEmpty()) {
 
@@ -3090,14 +3087,30 @@ public class PerformDataBase {
                 targetBlockId = rowMoveDTO.getBlockOrderNumber();
 
                 Integer finalTargetBlockId = targetBlockId;
-                matchingBlocks = performLists.getListBlock().stream()
+
+                List<BlockLoadDTO> listBlock = null;
+                if (rowMoveDTO.getSessionId().equals("componentTasks")) {
+                    listBlock = performLists.getListBlockComp();
+                } else {
+                    listBlock = performLists.getListBlock();
+                }
+
+                matchingBlocks = listBlock.stream()
                         .filter(block -> block.getBlockOrderNumber().equals(finalTargetBlockId))
                         .collect(Collectors.toList());
 
             } else {
                 targetBlockId = rowMoveDTO.getBlockId();
                 Integer finalTargetBlockId1 = targetBlockId;
-                matchingBlocks = performLists.getListBlock().stream()
+
+                List<BlockLoadDTO> listBlock = null;
+                if (rowMoveDTO.getSessionId().equals("componentTasks")) {
+                    listBlock = performLists.getListBlockComp();
+                } else {
+                    listBlock = performLists.getListBlock();
+                }
+
+                matchingBlocks = listBlock.stream()
                         .filter(block -> block.getId().equals(finalTargetBlockId1))
                         .collect(Collectors.toList());
             }
@@ -3156,43 +3169,43 @@ public class PerformDataBase {
 
         // Define where to get the BlockId
         //        instruction.setBlockId(rowMoveDTO.getBotJobId());
-        if (!rowMoveDTO.getSessionId().equals("componentTasks")) {
-            if (finalMatchingBlocks != null && !finalMatchingBlocks.isEmpty()) {
-                instruction.setBlockId(finalMatchingBlocks.get(0).getId());
-            } else {
+        //        if (!rowMoveDTO.getSessionId().equals("componentTasks")) {
+        if (finalMatchingBlocks != null && !finalMatchingBlocks.isEmpty()) {
+            instruction.setBlockId(finalMatchingBlocks.get(0).getId());
+        } else {
 
-                BlockDetailsDTO newBlockDetails = new BlockDetailsDTO();
-                newBlockDetails.setBlockName("Default Block");
-                newBlockDetails.setBlockDescription("Default Block description");
-                newBlockDetails.setTypeId(1);
-                newBlockDetails.setActive(true);
-                newBlockDetails.setWait(3);
+            BlockDetailsDTO newBlockDetails = new BlockDetailsDTO();
+            newBlockDetails.setBlockName("Default Block");
+            newBlockDetails.setBlockDescription("Default Block description");
+            newBlockDetails.setTypeId(1);
+            newBlockDetails.setActive(true);
+            newBlockDetails.setWait(3);
 
-                newBlockDetails.setBotJobId(rowMoveDTO.getBotJobId());
-                newBlockDetails.setBlockId(rowMoveDTO.getBlockId());
+            newBlockDetails.setBotJobId(rowMoveDTO.getBotJobId());
+            newBlockDetails.setBlockId(rowMoveDTO.getBlockId());
 
-                ErrorMessage errorMessage = initiateNewBlock(newBlockDetails, rowMoveDTO.getBotJobId());
+            ErrorMessage errorMessage = initiateNewBlock(newBlockDetails, rowMoveDTO.getBotJobId());
 
-                if (errorMessage == null) {
-                    int newBlockId = -9999;
-                    if (!getIdsBlockAfter().isEmpty() && getIdsBlockAfter().get(0) > 0) {
-                        newBlockId = getIdsBlockAfter().get(0);
-                    }
-
-                    // IT SETS THE NEW TARGET IN CASE TO ADD MORE INSTRUCTIONS
-                    rowMoveDTO.setBlockId(newBlockId);
-
-                    String tableName = "block";
-                    if (rowMoveDTO.getSessionId().equals("componentTasks")) {
-                        tableName = "component_block";
-                    }
-                    loadBlocks(rowMoveDTO.getBotJobId(), rowMoveDTO.getBotJobName(), tableName);
-                    instruction.setBlockId(newBlockId);
-                } else {
-                    return errorMessage;
+            if (errorMessage == null) {
+                int newBlockId = -9999;
+                if (!getIdsBlockAfter().isEmpty() && getIdsBlockAfter().get(0) > 0) {
+                    newBlockId = getIdsBlockAfter().get(0);
                 }
+
+                // IT SETS THE NEW TARGET IN CASE TO ADD MORE INSTRUCTIONS
+                rowMoveDTO.setBlockId(newBlockId);
+
+                String tableName = "block";
+                if (rowMoveDTO.getSessionId().equals("componentTasks")) {
+                    tableName = "component_block";
+                }
+                loadBlocks(rowMoveDTO.getBotJobId(), rowMoveDTO.getBotJobName(), tableName);
+                instruction.setBlockId(newBlockId);
+            } else {
+                return errorMessage;
             }
         }
+        //        }
         instruction.setInstructionActive(true);
         // Wrap the persistence in a try-catch block
         ErrorMessage errorMessage = null;
@@ -3527,7 +3540,8 @@ public class PerformDataBase {
                 .collect(Collectors.toList());
     }
 
-    public List<InstructionLoadDTO> buildJsonViewData(List<BotJobLoadDTO> listInstruction, String tableName) {
+    public List<InstructionLoadDTO> buildJsonViewData(
+            List<BotJobLoadDTO> listInstruction, int whereId, String tableName) {
         if (!listInstruction.isEmpty()
                 && !listInstruction.get(0).getBlockLoadDTOList().isEmpty()) {
 
@@ -3535,7 +3549,7 @@ public class PerformDataBase {
             try {
 
                 for (BlockLoadDTO block : listInstruction.get(0).getBlockLoadDTOList()) {
-                    rowList = getInstructionsList(listInstruction.get(0).getId(), block.getId(), -1, tableName);
+                    rowList = getInstructionsList(whereId, block.getId(), -1, tableName);
                     reorderInstructions(rowList, tableName, false);
                 }
 
@@ -3770,6 +3784,11 @@ public class PerformDataBase {
     public ErrorMessage deleteInstruction(
             String tableName, int whereId, InstructionLoadDTO toDelete, boolean blockDeletion) {
 
+        List<InstructionLoadDTO> listInstruc = new ArrayList<>();
+        listInstruc.add(toDelete);
+
+        ErrorMessage errorMessage = null;
+
         if (toDelete.getParentId() != null) {
             List<ParentOperations> listParents =
                     loadParents(tableName, whereId, toDelete.getInstructionId(), toDelete.getParentId());
@@ -3801,25 +3820,39 @@ public class PerformDataBase {
                     }
                 }
 
-                deleteRowParents(tableName, whereId, toDelete.getInstructionId());
+                errorMessage = deleteRowParents(tableName, whereId, toDelete.getInstructionId());
             }
         }
 
-        ErrorMessage errorMessage = deleteVariable(tableName, whereId, toDelete);
-        List<InstructionLoadDTO> listInstruc = new ArrayList<>();
         if (errorMessage == null) {
-            listInstruc.add(toDelete);
-            errorMessage = deleteReferencesBatch(tableName, whereId, listInstruc);
+            String variableTable = tableName.equals("instruction") ? "variable" : "component_variable";
+            errorMessage = deleteVariablesBatch(variableTable, whereId, listInstruc);
+        }
+
+        if (errorMessage == null) {
+
+            String referenceTable = tableName.equals("instruction") ? "reference" : "component_reference";
+            errorMessage = deleteReferencesBatch(referenceTable, whereId, listInstruc);
+        }
+
+        if (errorMessage == null) {
+            String instructionTable = tableName.equals("instruction") ? "instruction" : "component_instruction";
+            errorMessage = deleteInstructionsBatch(instructionTable, whereId, listInstruc);
+        }
+
+        if (errorMessage == null) {
+            String blockTable = tableName.equals("instruction") ? "block" : "component_block";
+            errorMessage = deleteNullBlocks(blockTable, whereId);
         }
         if (errorMessage == null) {
-            errorMessage = deleteInstructionsBatch(tableName, whereId, listInstruc);
+            String blockTable = tableName.equals("instruction") ? "block" : "component_block";
+            loadBlocks(whereId, "", blockTable);
+            errorMessage = updateBlockOrderNumber(blockTable, whereId, true);
         }
-        if (errorMessage == null) {
-            errorMessage = deleteNullBlocks(tableName, whereId);
-        }
-        if (errorMessage == null) {
-            loadBlocks(whereId, "", tableName);
-            errorMessage = updateBlockOrderNumber(tableName, whereId, performLists.getListBlock(), true);
+
+        if (errorMessage != null) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe("Error: " + errorMessage.getErrorTitle() + "-" + errorMessage.getErrorMessage());
         }
 
         return errorMessage;
@@ -5442,7 +5475,7 @@ GROUP BY
 
         final int BATCH_SIZE = 100;
 
-        String selectSQL = "SELECT id, name, parent_id, variable_id, parent_block_id " + "FROM instruction "
+        String selectSQL = "SELECT id, name, parent_id, variable_id, parent_block_id FROM instruction "
                 + "WHERE parent_id IS NOT NULL OR variable_id IS NOT NULL OR parent_block_id IS NOT NULL "
                 + "ORDER BY id";
 
@@ -6325,6 +6358,7 @@ GROUP BY
                         + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
                 instructionMap.clear();
+                instrVariablesMap.clear();
 
                 try (PreparedStatement insertStmt = conn.prepareStatement(insertSQL)) {
 
@@ -6373,7 +6407,17 @@ GROUP BY
                         insertStmt.setInt(21, rsInstruction.getInt("active"));
                         insertStmt.setInt(22, newBlockId);
 
-                        insertOrNull(insertStmt, 23, rsInstruction, "variable_id");
+                        // variable_id + tracking
+                        Integer variableId = rsInstruction.getInt("variable_id");
+                        if (rsInstruction.wasNull()) {
+                            variableId = null;
+                        }
+
+                        if (variableId != null) {
+                            instrVariablesMap.put(id, variableId);
+                        }
+                        insertStmt.setNull(23, Types.INTEGER); // TO BE SOLVED LATER
+
                         insertOrNull(insertStmt, 24, rsInstruction, "parent_id");
 
                         insertStmt.setInt(25, newHomeBankId);
@@ -6428,7 +6472,8 @@ GROUP BY
             return null;
 
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class).severe("Failed to create saved component_instruction");
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe("Failed to create saved component_instruction: " + error.getMessage());
             return new ErrorMessage(
                     "Failed to create saved component_instruction",
                     "component_instruction Insertion Failure",
@@ -6581,6 +6626,12 @@ GROUP BY
     public ErrorMessage createUpdateCompInstruction(BlockDetailsDTO blockDetailsDTO) {
         final int BATCH_SIZE = 100;
 
+        instrNewInverted.clear();
+
+        for (Map.Entry<Integer, Integer> entry : instructionMap.entrySet()) {
+            instrNewInverted.put(entry.getValue(), entry.getKey());
+        }
+
         try (Connection conn = getConnection();
                 Statement postgresStmt = conn.createStatement()) {
             conn.setAutoCommit(false);
@@ -6590,16 +6641,18 @@ GROUP BY
 
             String idsBlock = blockMap.values().stream().map(String::valueOf).collect(Collectors.joining(","));
 
-            String selectAccessSQL = "SELECT id, name, parent_id, variable_id " + "FROM component_instruction "
-                    + "WHERE (parent_id IS NOT NULL OR variable_id IS NOT NULL) "
-                    + "AND home_banking_id = "
-                    + blockDetailsDTO.getHomeBankingId() + " AND id IN ("
-                    + idsInstruction + ") AND block_id IN ("
-                    + idsBlock + ") ORDER BY id";
+            String selectAccessSQL =
+                    "SELECT id, name, parent_id, parent_block_id, variable_id " + "FROM component_instruction "
+                            + "WHERE (parent_id IS NOT NULL OR variable_id IS NOT NULL) "
+                            + "AND home_banking_id = "
+                            + blockDetailsDTO.getHomeBankingId() + " AND id IN ("
+                            + idsInstruction + ") " + "AND block_id IN ("
+                            + idsBlock + ") " + "ORDER BY id";
 
             try (ResultSet rsInstruction = postgresStmt.executeQuery(selectAccessSQL)) {
 
-                String updateSQL = "UPDATE component_instruction SET variable_id = ?, parent_id = ? WHERE id = ? ";
+                String updateSQL =
+                        "UPDATE component_instruction SET variable_id = ?, parent_block_id = ?, parent_id = ? WHERE id = ?";
 
                 try (PreparedStatement updateStmt = conn.prepareStatement(updateSQL)) {
                     int count = 0;
@@ -6608,10 +6661,19 @@ GROUP BY
                         int id = rsInstruction.getInt("id");
                         String name = rsInstruction.getString("name");
 
-                        // Set variable_id directly from Access
-                        int originalVariableId = rsInstruction.getInt("variable_id");
-                        // Map old bot_job_id to new
-                        Integer newVariableId = variableMap.get(originalVariableId);
+                        // ---- variable_id ----
+                        Integer originalOldID = instrNewInverted.get(id);
+                        Integer originalVarId = null;
+
+                        if (originalOldID != null) {
+                            originalVarId = instrVariablesMap.get(originalOldID);
+                        }
+
+                        Integer newVariableId = null;
+                        if (originalVarId != null) {
+                            newVariableId = variableMap.get(originalVarId);
+                        }
+
                         if (newVariableId == null) {
                             System.out.println("Skipped variable_id column with unknown variable_id: " + newVariableId);
                             updateStmt.setNull(1, Types.INTEGER);
@@ -6619,26 +6681,26 @@ GROUP BY
                             updateStmt.setInt(1, newVariableId);
                         }
 
-                        // Handle parent_id based on name
+                        // Handle parent_id or parent_block_id based on name
                         if ("GOTO".equalsIgnoreCase(name) || "EXCEL GOTO".equalsIgnoreCase(name)) {
-                            int parentBlockId = rsInstruction.getInt("parent_id");
-                            Integer newParentBlockId = blockMap.get(parentBlockId);
-                            if (newParentBlockId != null) {
-                                updateStmt.setInt(2, newParentBlockId);
-                            } else {
+                            int parentBlockId = rsInstruction.getInt("parent_block_id");
+                            if (rsInstruction.wasNull() || !blockMap.containsKey(parentBlockId)) {
                                 updateStmt.setNull(2, Types.INTEGER);
+                            } else {
+                                updateStmt.setInt(2, blockMap.get(parentBlockId));
                             }
+                            updateStmt.setNull(3, Types.INTEGER); // Skip parent_id
                         } else {
                             int parentInstructionId = rsInstruction.getInt("parent_id");
-                            Integer newParentInstructionId = instructionMap.get(parentInstructionId);
-                            if (newParentInstructionId != null) {
-                                updateStmt.setInt(2, newParentInstructionId);
+                            if (rsInstruction.wasNull() || !instructionMap.containsKey(parentInstructionId)) {
+                                updateStmt.setNull(3, Types.INTEGER);
                             } else {
-                                updateStmt.setNull(2, Types.INTEGER);
+                                updateStmt.setInt(3, instructionMap.get(parentInstructionId));
                             }
+                            updateStmt.setNull(2, Types.INTEGER); // Skip parent_block_id
                         }
 
-                        updateStmt.setInt(3, id); // WHERE clause: name = ?
+                        updateStmt.setInt(4, id); // WHERE clause: name = ?
 
                         updateStmt.addBatch();
                         count++;
@@ -6820,7 +6882,7 @@ GROUP BY
 
             conn.setAutoCommit(false);
 
-            // Step 1: get current component_block ids before insert
+            // Step 1: get current block ids before insert
             List<Integer> blockIdsBefore = new ArrayList<>();
             try (ResultSet rsIdsBefore = idStmtBefore.executeQuery(selectComponentIdsSQL)) {
                 while (rsIdsBefore.next()) {
@@ -6836,7 +6898,7 @@ GROUP BY
 
                 String insertSQL = "INSERT INTO block "
                         + "(block_order_number, name, description, type_id, export_file, active, wait, bot_job_id) "
-                        + "VALUES ( ?, ?, ?, ?, ?, ?, ?, ?)";
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
                 blockMap.clear();
 
@@ -6847,8 +6909,6 @@ GROUP BY
                     while (rs.next()) {
                         int id = rs.getInt("id");
                         int blockOrderNumber = rs.getInt("block_order_number");
-                        //                        String name = rs.getString("name");
-                        //                        String description = rs.getString("description");
                         Integer typeId = rs.getObject("type_id") != null ? rs.getInt("type_id") : null;
                         String exportFile = rs.getString("export_file");
                         int active = rs.getInt("active");
@@ -6898,16 +6958,16 @@ GROUP BY
                 }
             }
 
-            // Step 3: get component_block ids after insert
-            List<Integer> blockIdsAfter = new ArrayList<>();
+            // Step 3: get block ids after insert
+            idsBlockAfter.clear();
             try (ResultSet rsIdsAfter = idStmtAfter.executeQuery(selectComponentIdsSQL)) {
                 while (rsIdsAfter.next()) {
-                    blockIdsAfter.add(rsIdsAfter.getInt("id"));
+                    idsBlockAfter.add(rsIdsAfter.getInt("id"));
                 }
             }
 
             // Step 4: compute new IDs
-            List<Integer> newComponentIds = new ArrayList<>(blockIdsAfter);
+            List<Integer> newComponentIds = new ArrayList<>(idsBlockAfter);
             newComponentIds.removeAll(blockIdsBefore);
 
             // You can now use `newComponentIds` as needed
@@ -6971,6 +7031,7 @@ GROUP BY
                         + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
                 instructionMap.clear();
+                instrVariablesMap.clear();
 
                 try (PreparedStatement insertStmt = conn.prepareStatement(insertSQL)) {
 
@@ -7019,7 +7080,17 @@ GROUP BY
                         insertStmt.setInt(21, rsInstruction.getInt("active"));
                         insertStmt.setInt(22, newBlockId);
 
-                        insertOrNull(insertStmt, 23, rsInstruction, "variable_id");
+                        // variable_id + tracking
+                        Integer variableId = rsInstruction.getInt("variable_id");
+                        if (rsInstruction.wasNull()) {
+                            variableId = null;
+                        }
+
+                        if (variableId != null) {
+                            instrVariablesMap.put(id, variableId);
+                        }
+                        insertStmt.setNull(23, Types.INTEGER); // TO BE SOLVED LATER
+
                         insertOrNull(insertStmt, 24, rsInstruction, "parent_id");
 
                         insertStmt.setInt(25, newBotJobId);
@@ -7223,6 +7294,12 @@ GROUP BY
     public ErrorMessage createUpdateInjectInstruction(BlockDetailsDTO blockDetailsDTO) {
         final int BATCH_SIZE = 100;
 
+        instrNewInverted.clear();
+
+        for (Map.Entry<Integer, Integer> entry : instructionMap.entrySet()) {
+            instrNewInverted.put(entry.getValue(), entry.getKey());
+        }
+
         try (Connection conn = getConnection();
                 Statement postgresStmt = conn.createStatement()) {
             conn.setAutoCommit(false);
@@ -7232,16 +7309,17 @@ GROUP BY
 
             String idsBlock = blockMap.values().stream().map(String::valueOf).collect(Collectors.joining(","));
 
-            String selectAccessSQL = "SELECT id, name, parent_id, variable_id " + "FROM instruction "
-                    + "WHERE (parent_id IS NOT NULL OR variable_id IS NOT NULL) "
+            String selectAccessSQL = "SELECT id, name, parent_id, parent_block_id, variable_id " + "FROM instruction "
+                    + "WHERE (parent_block_id IS NOT NULL OR parent_id IS NOT NULL OR variable_id IS NOT NULL) "
                     + "AND bot_job_id = "
                     + blockDetailsDTO.getBotJobId() + " AND id IN ("
-                    + idsInstruction + ") AND block_id IN ("
-                    + idsBlock + ") ORDER BY id";
+                    + idsInstruction + ") " + "AND block_id IN ("
+                    + idsBlock + ") " + "ORDER BY id";
 
             try (ResultSet rsInstruction = postgresStmt.executeQuery(selectAccessSQL)) {
 
-                String updateSQL = "UPDATE instruction SET variable_id = ?, parent_id = ? WHERE id = ? ";
+                String updateSQL =
+                        "UPDATE instruction SET variable_id = ?, parent_block_id = ?, parent_id = ? WHERE id = ?";
 
                 try (PreparedStatement updateStmt = conn.prepareStatement(updateSQL)) {
                     int count = 0;
@@ -7250,10 +7328,19 @@ GROUP BY
                         int id = rsInstruction.getInt("id");
                         String name = rsInstruction.getString("name");
 
-                        // Set variable_id directly from Access
-                        int originalVariableId = rsInstruction.getInt("variable_id");
-                        // Map old bot_job_id to new
-                        Integer newVariableId = variableMap.get(originalVariableId);
+                        // ---- variable_id ----
+                        Integer originalOldID = instrNewInverted.get(id);
+                        Integer originalVarId = null;
+
+                        if (originalOldID != null) {
+                            originalVarId = instrVariablesMap.get(originalOldID);
+                        }
+
+                        Integer newVariableId = null;
+                        if (originalVarId != null) {
+                            newVariableId = variableMap.get(originalVarId);
+                        }
+
                         if (newVariableId == null) {
                             System.out.println("Skipped variable_id column with unknown variable_id: " + newVariableId);
                             updateStmt.setNull(1, Types.INTEGER);
@@ -7261,26 +7348,26 @@ GROUP BY
                             updateStmt.setInt(1, newVariableId);
                         }
 
-                        // Handle parent_id based on name
+                        // Handle parent_id or parent_block_id based on name
                         if ("GOTO".equalsIgnoreCase(name) || "EXCEL GOTO".equalsIgnoreCase(name)) {
-                            int parentBlockId = rsInstruction.getInt("parent_id");
-                            Integer newParentBlockId = blockMap.get(parentBlockId);
-                            if (newParentBlockId != null) {
-                                updateStmt.setInt(2, newParentBlockId);
-                            } else {
+                            int parentBlockId = rsInstruction.getInt("parent_block_id");
+                            if (rsInstruction.wasNull() || !blockMap.containsKey(parentBlockId)) {
                                 updateStmt.setNull(2, Types.INTEGER);
+                            } else {
+                                updateStmt.setInt(2, blockMap.get(parentBlockId));
                             }
+                            updateStmt.setNull(3, Types.INTEGER); // Skip parent_id
                         } else {
                             int parentInstructionId = rsInstruction.getInt("parent_id");
-                            Integer newParentInstructionId = instructionMap.get(parentInstructionId);
-                            if (newParentInstructionId != null) {
-                                updateStmt.setInt(2, newParentInstructionId);
+                            if (rsInstruction.wasNull() || !instructionMap.containsKey(parentInstructionId)) {
+                                updateStmt.setNull(3, Types.INTEGER);
                             } else {
-                                updateStmt.setNull(2, Types.INTEGER);
+                                updateStmt.setInt(3, instructionMap.get(parentInstructionId));
                             }
+                            updateStmt.setNull(2, Types.INTEGER); // Skip parent_block_id
                         }
 
-                        updateStmt.setInt(3, id); // WHERE clause: name = ?
+                        updateStmt.setInt(4, id); // WHERE clause: name = ?
 
                         updateStmt.addBatch();
                         count++;
@@ -7685,6 +7772,7 @@ GROUP BY
                         + "VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
                 instructionMap.clear();
+                instrVariablesMap.clear();
 
                 try (PreparedStatement insertStmt = conn.prepareStatement(insertSQL)) {
 
@@ -7735,7 +7823,17 @@ GROUP BY
                         insertStmt.setInt(21, rsInstruction.getInt("active"));
                         insertStmt.setInt(22, newBlockId);
 
-                        insertOrNull(insertStmt, 23, rsInstruction, "variable_id");
+                        // variable_id + tracking
+                        Integer variableId = rsInstruction.getInt("variable_id");
+                        if (rsInstruction.wasNull()) {
+                            variableId = null;
+                        }
+
+                        if (variableId != null) {
+                            instrVariablesMap.put(id, variableId);
+                        }
+                        insertStmt.setNull(23, Types.INTEGER); // TO BE SOLVED LATER
+
                         insertOrNull(insertStmt, 24, rsInstruction, "parent_id");
 
                         insertStmt.setInt(25, newBotJobId);
@@ -7933,6 +8031,12 @@ GROUP BY
     public ErrorMessage cloneUpdateInstruction(int previosBotJob) {
         final int BATCH_SIZE = 100;
 
+        instrNewInverted.clear();
+
+        for (Map.Entry<Integer, Integer> entry : instructionMap.entrySet()) {
+            instrNewInverted.put(entry.getValue(), entry.getKey());
+        }
+
         try (Connection conn = getConnection();
                 Statement postgresStmt = conn.createStatement()) {
             conn.setAutoCommit(false);
@@ -7944,16 +8048,17 @@ GROUP BY
 
             int newBotJobId = botJobMap.get(previosBotJob);
 
-            String selectAccessSQL = "SELECT id, name, parent_id, variable_id " + "FROM instruction "
-                    + "WHERE (parent_id IS NOT NULL OR variable_id IS NOT NULL) "
+            String selectAccessSQL = "SELECT id, name, parent_id, parent_block_id, variable_id " + "FROM instruction "
+                    + "WHERE (parent_block_id IS NOT NULL OR parent_id IS NOT NULL OR variable_id IS NOT NULL) "
                     + "AND bot_job_id = "
                     + newBotJobId + " AND id IN ("
-                    + idsInstruction + ") AND block_id IN ("
-                    + idsBlock + ") ORDER BY id";
+                    + idsInstruction + ") " + "AND block_id IN ("
+                    + idsBlock + ") " + "ORDER BY id";
 
             try (ResultSet rsInstruction = postgresStmt.executeQuery(selectAccessSQL)) {
 
-                String updateSQL = "UPDATE instruction SET variable_id = ?, parent_id = ? WHERE id = ? ";
+                String updateSQL =
+                        "UPDATE instruction SET variable_id = ?, parent_block_id = ?, parent_id = ? WHERE id = ?";
 
                 try (PreparedStatement updateStmt = conn.prepareStatement(updateSQL)) {
                     int count = 0;
@@ -7962,10 +8067,19 @@ GROUP BY
                         int id = rsInstruction.getInt("id");
                         String name = rsInstruction.getString("name");
 
-                        // Set variable_id directly from Access
-                        int originalVariableId = rsInstruction.getInt("variable_id");
-                        // Map old bot_job_id to new
-                        Integer newVariableId = variableMap.get(originalVariableId);
+                        // ---- variable_id ----
+                        Integer originalOldID = instrNewInverted.get(id);
+                        Integer originalVarId = null;
+
+                        if (originalOldID != null) {
+                            originalVarId = instrVariablesMap.get(originalOldID);
+                        }
+
+                        Integer newVariableId = null;
+                        if (originalVarId != null) {
+                            newVariableId = variableMap.get(originalVarId);
+                        }
+
                         if (newVariableId == null) {
                             System.out.println("Skipped variable_id column with unknown variable_id: " + newVariableId);
                             updateStmt.setNull(1, Types.INTEGER);
@@ -7973,26 +8087,26 @@ GROUP BY
                             updateStmt.setInt(1, newVariableId);
                         }
 
-                        // Handle parent_id based on name
+                        // Handle parent_id or parent_block_id based on name
                         if ("GOTO".equalsIgnoreCase(name) || "EXCEL GOTO".equalsIgnoreCase(name)) {
-                            int parentBlockId = rsInstruction.getInt("parent_id");
-                            Integer newParentBlockId = blockMap.get(parentBlockId);
-                            if (newParentBlockId != null) {
-                                updateStmt.setInt(2, newParentBlockId);
-                            } else {
+                            int parentBlockId = rsInstruction.getInt("parent_block_id");
+                            if (rsInstruction.wasNull() || !blockMap.containsKey(parentBlockId)) {
                                 updateStmt.setNull(2, Types.INTEGER);
+                            } else {
+                                updateStmt.setInt(2, blockMap.get(parentBlockId));
                             }
+                            updateStmt.setNull(3, Types.INTEGER); // Skip parent_id
                         } else {
                             int parentInstructionId = rsInstruction.getInt("parent_id");
-                            Integer newParentInstructionId = instructionMap.get(parentInstructionId);
-                            if (newParentInstructionId != null) {
-                                updateStmt.setInt(2, newParentInstructionId);
+                            if (rsInstruction.wasNull() || !instructionMap.containsKey(parentInstructionId)) {
+                                updateStmt.setNull(3, Types.INTEGER);
                             } else {
-                                updateStmt.setNull(2, Types.INTEGER);
+                                updateStmt.setInt(3, instructionMap.get(parentInstructionId));
                             }
+                            updateStmt.setNull(2, Types.INTEGER); // Skip parent_block_id
                         }
 
-                        updateStmt.setInt(3, id); // WHERE clause: name = ?
+                        updateStmt.setInt(4, id); // WHERE clause: name = ?
 
                         updateStmt.addBatch();
                         count++;
@@ -8369,75 +8483,72 @@ GROUP BY
         }
     }
 
-    public List<InstructionLoadDTO> loadExcelGotoBlock(int homeBankingId, int botJobId) {
-
-        String query = "SELECT * FROM instruction " + " WHERE 1=1 " + " and actions = " + "'EXCEL GOTO'";
-
-        // Add conditional filters based on provided IDs
-        if (botJobId > 0) { // Only apply filter if botJobId is a valid, positive ID
-            query += " AND bot_job_id = " + botJobId;
-        }
-
-        //        if (homeBankingId > 0) { // Only apply filter if homeBankingId is a valid, positive ID
-        //            query += " AND home_banking_id = " + homeBankingId;
-        //        }
-
-        query += " ORDER BY instruction_order_number"; // Ordering by instruction order, as block_order_number is not
-        // available
-
+    public List<InstructionLoadDTO> loadExcelGotoBlock(int whereId, String tableName) {
         List<InstructionLoadDTO> instructionLoadDTOList = new ArrayList<>();
 
-        // Using Statement to execute the query
-        try (Statement stmt = getConnection().createStatement()) {
-            ResultSet rs = stmt.executeQuery(query); // Execute the query
+        // Build base SQL
+        String sql = "SELECT * FROM " + tableName + " WHERE actions = 'EXCEL GOTO'";
 
-            while (rs.next()) {
-                InstructionLoadDTO instructionLoadDTO = new InstructionLoadDTO();
-                instructionLoadDTO.setId(rs.getInt("id"));
-                instructionLoadDTO.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
-                instructionLoadDTO.setActions(rs.getString("actions"));
-                instructionLoadDTO.setInstructionActive(rs.getBoolean("active"));
-                instructionLoadDTO.setBlockMarked(rs.getBoolean("block_marked"));
-                instructionLoadDTO.setCodified(rs.getBoolean("codified"));
-                instructionLoadDTO.setDefaultValue(rs.getString("default_value"));
-                instructionLoadDTO.setDescription(rs.getString("description"));
-                instructionLoadDTO.setExportToABR(rs.getBoolean("export_to_abr"));
-                instructionLoadDTO.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
-                instructionLoadDTO.setInstructionName(rs.getString("name"));
-                instructionLoadDTO.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
-                instructionLoadDTO.setOperation(rs.getString("operation"));
-                instructionLoadDTO.setOptional(rs.getBoolean("optional"));
-                instructionLoadDTO.setXpath(rs.getString("xpath"));
-                instructionLoadDTO.setCoordinates(rs.getString("coordinates"));
-                instructionLoadDTO.setForceCoordinates(rs.getBoolean("force_coordinates"));
-                instructionLoadDTO.setIFrameXPath(rs.getString("iframe_xpath"));
+        // Add condition depending on table
+        if ("instruction".equalsIgnoreCase(tableName)) {
+            sql += " AND bot_job_id = ?";
+        } else if ("component_instruction".equalsIgnoreCase(tableName)) {
+            sql += " AND home_banking_id = ?";
+        } else {
+            throw new IllegalArgumentException("Unsupported table: " + tableName);
+        }
 
-                instructionLoadDTO.setTagName(rs.getString("tag_name"));
-                instructionLoadDTO.setShadowHost(rs.getString("shadow_host"));
-                instructionLoadDTO.setShadowRoot(rs.getString("shadow_root"));
-                instructionLoadDTO.setCssSelector(rs.getString("css_selector"));
+        sql += " ORDER BY instruction_order_number";
 
-                instructionLoadDTO.setVariableId(rs.getInt("variable_id"));
+        try (PreparedStatement stmt = getConnection().prepareStatement(sql)) {
+            stmt.setInt(1, whereId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    InstructionLoadDTO instructionLoadDTO = new InstructionLoadDTO();
+                    instructionLoadDTO.setId(rs.getInt("id"));
+                    instructionLoadDTO.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
+                    instructionLoadDTO.setActions(rs.getString("actions"));
+                    instructionLoadDTO.setInstructionActive(rs.getBoolean("active"));
+                    instructionLoadDTO.setBlockMarked(rs.getBoolean("block_marked"));
+                    instructionLoadDTO.setCodified(rs.getBoolean("codified"));
+                    instructionLoadDTO.setDefaultValue(rs.getString("default_value"));
+                    instructionLoadDTO.setDescription(rs.getString("description"));
+                    instructionLoadDTO.setExportToABR(rs.getBoolean("export_to_abr"));
+                    instructionLoadDTO.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
+                    instructionLoadDTO.setInstructionName(rs.getString("name"));
+                    instructionLoadDTO.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
+                    instructionLoadDTO.setOperation(rs.getString("operation"));
+                    instructionLoadDTO.setOptional(rs.getBoolean("optional"));
+                    instructionLoadDTO.setXpath(rs.getString("xpath"));
+                    instructionLoadDTO.setCoordinates(rs.getString("coordinates"));
+                    instructionLoadDTO.setForceCoordinates(rs.getBoolean("force_coordinates"));
+                    instructionLoadDTO.setIFrameXPath(rs.getString("iframe_xpath"));
 
-                instructionLoadDTO.setParentBlockId(rs.getInt("parent_block_id"));
+                    instructionLoadDTO.setTagName(rs.getString("tag_name"));
+                    instructionLoadDTO.setShadowHost(rs.getString("shadow_host"));
+                    instructionLoadDTO.setShadowRoot(rs.getString("shadow_root"));
+                    instructionLoadDTO.setCssSelector(rs.getString("css_selector"));
 
-                instructionLoadDTO.setParentId(rs.getInt("parent_id"));
+                    instructionLoadDTO.setVariableId(rs.getInt("variable_id"));
+                    instructionLoadDTO.setParentBlockId(rs.getInt("parent_block_id"));
+                    instructionLoadDTO.setParentId(rs.getInt("parent_id"));
+                    instructionLoadDTO.setBlockId(rs.getInt("block_id"));
 
-                instructionLoadDTO.setBlockId(rs.getInt("block_id"));
-                // Removed: setBlockOrderNumber as 'block_order_number' is not available without joining the 'block'
-                // table.
+                    // Conditional mapping for IDs
+                    if ("instruction".equalsIgnoreCase(tableName)) {
+                        instructionLoadDTO.setBotJobId(rs.getInt("bot_job_id"));
+                    } else {
+                        instructionLoadDTO.setHomeBankingId(rs.getInt("home_banking_id"));
+                    }
 
-                // Assuming both bot_job_id and home_banking_id exist in the 'instruction' table
-                instructionLoadDTO.setBotJobId(rs.getInt("bot_job_id"));
-
-                instructionLoadDTOList.add(instructionLoadDTO);
+                    instructionLoadDTOList.add(instructionLoadDTO);
+                }
             }
-
         } catch (SQLException error) {
             ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
-                            "Error getting All Excel data GOTO Homebanking ID %d BotJob ID %d. Error: %s",
-                            homeBankingId, botJobId, error.getMessage()));
+                            "Error getting All Excel data GOTO from table %s whereId %d. Error: %s",
+                            tableName, whereId, error.getMessage()));
         }
 
         return instructionLoadDTOList;
