@@ -48,7 +48,7 @@ public class ARSaveComponentPane extends ARPane {
 
     // Private constructor to prevent instantiation
     private ARSaveComponentPane() {
-        // Initialize if necessary
+
         super();
     }
 

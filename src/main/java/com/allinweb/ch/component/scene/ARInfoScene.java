@@ -15,7 +15,7 @@ public class ARInfoScene extends ARScene {
 
     // Private constructor to prevent instantiation
     private ARInfoScene() {
-        // Initialize if necessary
+
         super();
     }
 

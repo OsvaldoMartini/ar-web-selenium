@@ -18,7 +18,7 @@ public class ARNewHomeBankingScene extends ARScene {
 
     // Private constructor to prevent instantiation
     private ARNewHomeBankingScene() {
-        // Initialize if necessary
+
         super();
     }
 

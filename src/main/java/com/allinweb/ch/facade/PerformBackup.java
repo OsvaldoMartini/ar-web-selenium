@@ -31,14 +31,13 @@ public class PerformBackup {
     private TreeMap<Integer, Integer> blockMap = new TreeMap<>();
     private TreeMap<Integer, Integer> instructionMap = new TreeMap<>();
     private TreeMap<Integer, Integer> instrVariablesMap = new TreeMap<>();
+    private TreeMap<Integer, Integer> instrParentBlockMap = new TreeMap<>();
     private TreeMap<Integer, Integer> instrNewInverted = new TreeMap<>();
     private TreeMap<Integer, Integer> variableMap = new TreeMap<>();
     private TreeMap<Integer, Integer> referenceMap = new TreeMap<>();
 
     // Private constructor to prevent instantiation
-    private PerformBackup() {
-        // Initialize if necessary
-    }
+    private PerformBackup() {}
 
     public static PerformBackup getInstance() {
         if (instance == null) {
@@ -769,9 +768,9 @@ public class PerformBackup {
         String insertQuery =
                 """
         INSERT INTO home_banking (
-            id, url, name, priority, search_config, options_config,
+            url, name, priority, search_config, options_config,
             cookies, driver_session, username, password
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
         """;
 
         String selectHomeBankingIdsSQL = "SELECT id FROM home_banking ORDER BY id";
@@ -826,12 +825,19 @@ public class PerformBackup {
                         return new ErrorMessage("Parse Error", "Expected 10 values", currentInsert.toString());
                     }
 
-                    for (int i = 0; i < values.size(); i++) {
+                    for (int i = 1; i < values.size(); i++) { // start from 1 to skip old ID
                         String val = values.get(i);
-                        if (i == 0) {
-                            setSafeParam(pstmt, i + 1, val, Types.INTEGER);
-                        } else {
-                            setSafeParam(pstmt, i + 1, val, Types.VARCHAR);
+                        switch (i) {
+                            case 1 -> setSafeParam(pstmt, 1, val, Types.VARCHAR); // url
+                            case 2 -> setSafeParam(pstmt, 2, val, Types.VARCHAR); // name
+                            case 3 -> setSafeParam(pstmt, 3, val, Types.VARCHAR); // priority
+                            case 4 -> setSafeParam(pstmt, 4, val, Types.VARCHAR); // search_config
+                            case 5 -> setSafeParam(pstmt, 5, val, Types.VARCHAR); // options_config
+                            case 6 -> setSafeParam(pstmt, 6, val, Types.VARCHAR); // cookies
+                            case 7 -> setSafeParam(pstmt, 7, val, Types.VARCHAR); // driver_session
+                            case 8 -> setSafeParam(pstmt, 8, val, Types.VARCHAR); // username
+                            case 9 -> setSafeParam(pstmt, 9, val, Types.VARCHAR); // password
+                            default -> System.err.println("Unexpected value index: " + i);
                         }
                     }
 
@@ -915,8 +921,8 @@ public class PerformBackup {
         String insertQuery =
                 """
                 INSERT INTO home_url (
-                    id, url, home_banking_id
-                ) VALUES (?, ?, ?);
+                    url, home_banking_id
+                ) VALUES (?, ?);
                 """;
 
         String selectHomeUrlIdsSQL = "SELECT id FROM home_url ORDER BY id";
@@ -977,12 +983,13 @@ public class PerformBackup {
                         continue; // skip this row
                     }
 
-                    for (int i = 0; i < values.size(); i++) {
+                    for (int i = 1; i < values.size(); i++) {
                         String val = values.get(i);
                         switch (i) {
-                            case 0 -> setSafeParam(pstmt, 1, val, Types.INTEGER); // id
-                            case 1 -> setSafeParam(pstmt, 2, val, Types.VARCHAR); // url
-                            case 2 -> pstmt.setInt(3, newHomeBankId); // home_banking_id (mapped)
+                                //                            case 0 -> setSafeParam(pstmt, 1, val, Types.INTEGER); //
+                                // id
+                            case 1 -> setSafeParam(pstmt, 1, val, Types.VARCHAR); // url
+                            case 2 -> pstmt.setInt(2, newHomeBankId); // home_banking_id (mapped)
                         }
                     }
 
@@ -1040,9 +1047,9 @@ public class PerformBackup {
         String insertQuery =
                 """
                 INSERT INTO block (
-                    id, block_order_number, name, description, type_id,
+                    block_order_number, name, description, type_id,
                     export_file, active, wait, bot_job_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
                 """;
 
         String selectBlockIdsSQL = "SELECT id FROM block ORDER BY id";
@@ -1102,19 +1109,20 @@ public class PerformBackup {
                         continue; // skip this row
                     }
 
-                    for (int i = 0; i < values.size(); i++) {
+                    for (int i = 1; i < values.size(); i++) {
                         String val = values.get(i);
 
                         switch (i) {
-                            case 0 -> setSafeParam(pstmt, 1, val, Types.INTEGER); // id
-                            case 1 -> setSafeParam(pstmt, 2, val, Types.INTEGER); // block_order_number
-                            case 2 -> setSafeParam(pstmt, 3, val, Types.VARCHAR); // name
-                            case 3 -> setSafeParam(pstmt, 4, val, Types.VARCHAR); // description
-                            case 4 -> setSafeParam(pstmt, 5, val, Types.INTEGER); // type_id
-                            case 5 -> setSafeParam(pstmt, 6, val, Types.VARCHAR); // export_file
-                            case 6 -> setSafeParam(pstmt, 7, val, Types.INTEGER); // active
-                            case 7 -> setSafeParam(pstmt, 8, val, Types.INTEGER); // wait
-                            case 8 -> pstmt.setInt(9, newBotJobId); // bot_job_id (already mapped)
+                                //                            case 0 -> setSafeParam(pstmt, 1, val, Types.INTEGER); //
+                                // id
+                            case 1 -> setSafeParam(pstmt, 1, val, Types.INTEGER); // block_order_number
+                            case 2 -> setSafeParam(pstmt, 2, val, Types.VARCHAR); // name
+                            case 3 -> setSafeParam(pstmt, 3, val, Types.VARCHAR); // description
+                            case 4 -> setSafeParam(pstmt, 4, val, Types.INTEGER); // type_id
+                            case 5 -> setSafeParam(pstmt, 5, val, Types.VARCHAR); // export_file
+                            case 6 -> setSafeParam(pstmt, 6, val, Types.INTEGER); // active
+                            case 7 -> setSafeParam(pstmt, 7, val, Types.INTEGER); // wait
+                            case 8 -> pstmt.setInt(8, newBotJobId); // bot_job_id (already mapped)
                         }
                     }
 
@@ -1171,8 +1179,8 @@ public class PerformBackup {
         String insertQuery =
                 """
                 INSERT INTO bot_job (
-                    id, name, description, priority, home_banking_id, home_url_id, active
-                ) VALUES (?, ?, ?, ?, ?, ?, ?);
+                    name, description, priority, home_banking_id, home_url_id, active
+                ) VALUES (?, ?, ?, ?, ?, ?);
                 """;
 
         String selectBotJobIdsSQL = "SELECT id FROM bot_job ORDER BY id";
@@ -1253,17 +1261,18 @@ public class PerformBackup {
                     }
 
                     // Now set parameters
-                    for (int i = 0; i < values.size(); i++) {
+                    for (int i = 1; i < values.size(); i++) {
                         String val = values.get(i);
 
                         switch (i) {
-                            case 0 -> setSafeParam(pstmt, 1, val, Types.INTEGER); // id
-                            case 1 -> setSafeParam(pstmt, 2, val, Types.VARCHAR); // name
-                            case 2 -> setSafeParam(pstmt, 3, val, Types.VARCHAR); // description
-                            case 3 -> setSafeParam(pstmt, 4, val, Types.VARCHAR); // priority
-                            case 4 -> pstmt.setInt(5, newHomeBankId); // home_banking_id (mapped)
-                            case 5 -> pstmt.setInt(6, newHomeUrlId); // home_url_id (mapped)
-                            case 6 -> setSafeParam(pstmt, 7, val, Types.INTEGER); // active
+                                //                            case 0 -> setSafeParam(pstmt, 1, val, Types.INTEGER); //
+                                // id
+                            case 1 -> setSafeParam(pstmt, 1, val, Types.VARCHAR); // name
+                            case 2 -> setSafeParam(pstmt, 2, val, Types.VARCHAR); // description
+                            case 3 -> setSafeParam(pstmt, 3, val, Types.VARCHAR); // priority
+                            case 4 -> pstmt.setInt(4, newHomeBankId); // home_banking_id (mapped)
+                            case 5 -> pstmt.setInt(5, newHomeUrlId); // home_url_id (mapped)
+                            case 6 -> setSafeParam(pstmt, 6, val, Types.INTEGER); // active
                         }
                     }
 
@@ -1320,12 +1329,12 @@ public class PerformBackup {
         String insertQuery =
                 """
                 INSERT INTO instruction (
-                    id, instruction_order_number, actions, name, xpath, coordinates,
+                    instruction_order_number, actions, name, xpath, coordinates,
                     force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root,
                     css_selector, description, operation, optional, block_marked,
                     default_value, action_custom_max_wait_sec, on_hold_seconds, codified,
                     export_to_abr, active, block_id, variable_id, parent_block_id, parent_id, bot_job_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                 """;
 
         String selectInstructionIdsSQL = "SELECT id FROM instruction ORDER BY id";
@@ -1350,6 +1359,7 @@ public class PerformBackup {
             List<Integer> insertedOldIds = new ArrayList<>();
             instructionMap.clear();
             instrVariablesMap.clear();
+            instrParentBlockMap.clear();
 
             String line;
             while ((line = reader.readLine()) != null) {
@@ -1397,38 +1407,43 @@ public class PerformBackup {
                         continue;
                     }
 
-                    for (int i = 0; i < values.size(); i++) {
+                    for (int i = 1; i < values.size(); i++) {
                         switch (i) {
-                            case 0 -> setSafeParam(pstmt, 1, values.get(0), Types.INTEGER); // id
-                            case 1 -> setSafeParam(pstmt, 2, values.get(1), Types.INTEGER); // instruction_order_number
-                            case 2 -> setSafeParam(pstmt, 3, values.get(2), Types.VARCHAR); // actions
+                                //                            case 0 -> setSafeParam(pstmt, 1, values.get(0),
+                                // Types.INTEGER); // id
+                            case 1 -> setSafeParam(pstmt, 1, values.get(1), Types.INTEGER); // instruction_order_number
+                            case 2 -> setSafeParam(pstmt, 2, values.get(2), Types.VARCHAR); // actions
                             case 3 -> {
                                 String val = values.get(3);
-                                setSafeParam(pstmt, 4, val, Types.VARCHAR);
+                                setSafeParam(pstmt, 3, val, Types.VARCHAR);
                             } // name
-                            case 4 -> setSafeParam(pstmt, 5, values.get(4), Types.VARCHAR); // xpath
-                            case 5 -> setSafeParam(pstmt, 6, values.get(5), Types.VARCHAR); // coordinates
-                            case 6 -> setSafeParam(pstmt, 7, values.get(6), Types.INTEGER); // force_coordinates
-                            case 7 -> setSafeParam(pstmt, 8, values.get(7), Types.VARCHAR); // iframe_xpath
-                            case 8 -> setSafeParam(pstmt, 9, values.get(8), Types.VARCHAR); // tag_name
-                            case 9 -> setSafeParam(pstmt, 10, values.get(9), Types.VARCHAR); // shadow_host
-                            case 10 -> setSafeParam(pstmt, 11, values.get(10), Types.VARCHAR); // shadow_root
-                            case 11 -> setSafeParam(pstmt, 12, values.get(11), Types.VARCHAR); // css_selector
-                            case 12 -> setSafeParam(pstmt, 13, values.get(12), Types.VARCHAR); // description
-                            case 13 -> setSafeParam(pstmt, 14, values.get(13), Types.VARCHAR); // operation
-                            case 14 -> setSafeParam(pstmt, 15, values.get(14), Types.INTEGER); // optional
-                            case 15 -> setSafeParam(pstmt, 16, values.get(15), Types.INTEGER); // block_marked
-                            case 16 -> setSafeParam(pstmt, 17, values.get(16), Types.VARCHAR); // default_value
+                            case 4 -> setSafeParam(pstmt, 4, values.get(4), Types.VARCHAR); // xpath
+                            case 5 -> setSafeParam(pstmt, 5, values.get(5), Types.VARCHAR); // coordinates
+                            case 6 -> setSafeParam(pstmt, 6, values.get(6), Types.INTEGER); // force_coordinates
+                            case 7 -> setSafeParam(pstmt, 7, values.get(7), Types.VARCHAR); // iframe_xpath
+                            case 8 -> setSafeParam(pstmt, 8, values.get(8), Types.VARCHAR); // tag_name
+                            case 9 -> setSafeParam(pstmt, 9, values.get(9), Types.VARCHAR); // shadow_host
+                            case 10 -> setSafeParam(pstmt, 10, values.get(10), Types.VARCHAR); // shadow_root
+                            case 11 -> setSafeParam(pstmt, 11, values.get(11), Types.VARCHAR); // css_selector
+                            case 12 -> setSafeParam(pstmt, 12, values.get(12), Types.VARCHAR); // description
+                            case 13 -> setSafeParam(pstmt, 13, values.get(13), Types.VARCHAR); // operation
+                            case 14 -> setSafeParam(pstmt, 14, values.get(14), Types.INTEGER); // optional
+                            case 15 -> setSafeParam(pstmt, 15, values.get(15), Types.INTEGER); // block_marked
+                            case 16 -> setSafeParam(pstmt, 16, values.get(16), Types.VARCHAR); // default_value
                             case 17 -> setSafeParam(
-                                    pstmt, 18, values.get(17), Types.INTEGER); // action_custom_max_wait_sec
-                            case 18 -> setSafeParam(pstmt, 19, values.get(18), Types.INTEGER); // on_hold_seconds
-                            case 19 -> setSafeParam(pstmt, 20, values.get(19), Types.INTEGER); // codified
-                            case 20 -> setSafeParam(pstmt, 21, values.get(20), Types.INTEGER); // export_to_abr
-                            case 21 -> setSafeParam(pstmt, 22, values.get(21), Types.INTEGER); // active
+                                    pstmt, 17, values.get(17), Types.INTEGER); // action_custom_max_wait_sec
+                            case 18 -> setSafeParam(pstmt, 18, values.get(18), Types.INTEGER); // on_hold_seconds
+                            case 19 -> setSafeParam(pstmt, 19, values.get(19), Types.INTEGER); // codified
+                            case 20 -> setSafeParam(pstmt, 20, values.get(20), Types.INTEGER); // export_to_abr
+                            case 21 -> setSafeParam(pstmt, 21, values.get(21), Types.INTEGER); // active
 
                             case 22 -> {
                                 // block_id replaced with newBlockId
-                                setSafeParam(pstmt, 23, String.valueOf(newBlockId), Types.INTEGER);
+                                setSafeParam(
+                                        pstmt,
+                                        22,
+                                        String.valueOf(newBlockId),
+                                        Types.INTEGER); // block_id already mapped
                             }
                             case 23 -> {
                                 // variable_id + tracking
@@ -1451,28 +1466,45 @@ public class PerformBackup {
                                 }
 
                                 // Firts to Be mapped after INSERTS into Variable TABLE
-                                setSafeParam(pstmt, 24, "NULL", Types.INTEGER);
+                                setSafeParam(pstmt, 23, "NULL", Types.INTEGER);
                             }
                             case 24 -> {
                                 String action = values.get(2);
                                 if ("GOTO".equalsIgnoreCase(action) || "EXCEL GOTO".equalsIgnoreCase(action)) {
-                                    setSafeParam(pstmt, 25, values.get(24), Types.INTEGER); // parent_block_id
-                                    setSafeParam(pstmt, 26, null, Types.INTEGER); // parent_id
+                                    // parent_block_id + tracking
+                                    Integer instructionId =
+                                            values.get(0) != null ? Integer.valueOf(values.get(0)) : null;
+                                    String parBlockValue = values.get(24);
+                                    Integer parentBlockId = null;
+                                    if (parBlockValue != null
+                                            && !parBlockValue.isBlank()
+                                            && !parBlockValue.equalsIgnoreCase("null")
+                                            && !parBlockValue.equalsIgnoreCase("[null]")) {
+                                        try {
+                                            parentBlockId = Integer.valueOf(parBlockValue.trim());
+                                        } catch (NumberFormatException e) {
+                                            // Ignore parsing errors and keep variableId as null
+                                        }
+                                    }
+
+                                    if (instructionId != null && parentBlockId != null) {
+                                        instrParentBlockMap.put(instructionId, parentBlockId);
+                                    }
+
+                                    // Firts to Be mapped after INSERTS into Parent Block TABLE
+                                    setSafeParam(pstmt, 24, null, Types.INTEGER); // parent_block_id
+                                    setSafeParam(pstmt, 25, null, Types.INTEGER); // parent_id
                                 } else {
-                                    setSafeParam(pstmt, 25, null, Types.INTEGER); // parent_block_id
-                                    setSafeParam(pstmt, 26, values.get(24), Types.INTEGER); // parent_id
+                                    setSafeParam(pstmt, 24, null, Types.INTEGER); // parent_block_id
+                                    setSafeParam(pstmt, 25, values.get(24), Types.INTEGER); // parent_id
                                 }
                             }
                             case 25, 26 -> {
-                                // Regardless of 26 or 27 columns, bot_job_id is always parameter 27
-                                Integer botJobVal;
-                                if (values.size() == 26) {
-                                    botJobVal = newBotJobId; // override with mapped value
-                                } else { // values.size() == 27
-                                    botJobVal = parseIntSafe(values.get(26)); // last value in file
-                                    if (botJobVal == null) botJobVal = newBotJobId;
-                                }
-                                setSafeParam(pstmt, 27, String.valueOf(botJobVal), Types.INTEGER);
+                                setSafeParam(
+                                        pstmt,
+                                        26,
+                                        String.valueOf(newBotJobId),
+                                        Types.INTEGER); // bot_job_id already mapped
                             }
                             default -> throw new IllegalArgumentException("Unexpected column index: " + i);
                         }
@@ -1519,8 +1551,8 @@ public class PerformBackup {
             System.out.println("instructionMap populated: " + instructionMap);
             return null;
 
-        } catch (Exception e) {
-            return new ErrorMessage("Restore Failed", "Failed to load instruction data", e.getMessage());
+        } catch (Exception error) {
+            return new ErrorMessage("Restore Failed", "Failed to load instruction data", error.getMessage());
         }
     }
 
@@ -1528,8 +1560,8 @@ public class PerformBackup {
         String insertQuery =
                 """
                 INSERT INTO variable (
-                    id, type, name, value, instruction_id, bot_job_id, local_format, delimiter
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+                    type, name, value, instruction_id, bot_job_id, local_format, delimiter
+                ) VALUES (?, ?, ?, ?, ?, ?, ?);
                 """;
 
         String selectVariableIdsSQL = "SELECT id FROM variable ORDER BY id";
@@ -1598,36 +1630,34 @@ public class PerformBackup {
                         continue;
                     }
 
-                    for (int i = 0; i < values.size(); i++) {
+                    for (int i = 1; i < values.size(); i++) {
                         String val = values.get(i);
 
                         switch (i) {
-                            case 0 -> {
-                                // id column - integer, store old id for mapping
-                                try {
-                                    int oldId = Integer.parseInt(val);
-                                    insertedOldIds.add(oldId);
-                                    variableMap.put(oldId, -1);
-                                    setSafeParam(pstmt, 1, val, Types.INTEGER);
-                                } catch (NumberFormatException ex) {
-                                    setSafeParam(pstmt, 1, val, Types.VARCHAR);
-                                }
-                            }
-                            case 1 -> setSafeParam(pstmt, 2, val, Types.VARCHAR); // type
-                            case 2 -> setSafeParam(pstmt, 3, val, Types.VARCHAR); // name
-                            case 3 -> setSafeParam(pstmt, 4, val, Types.VARCHAR); // value
+                                //                            case 0 -> setSafeParam(pstmt, 1, val, Types.INTEGER);
+                            case 1 -> setSafeParam(pstmt, 1, val, Types.VARCHAR); // type
+                            case 2 -> setSafeParam(pstmt, 2, val, Types.VARCHAR); // name
+                            case 3 -> setSafeParam(pstmt, 3, val, Types.VARCHAR); // value
                             case 4 -> {
                                 // instruction_id replaced with newInstructionId
-                                setSafeParam(pstmt, 5, String.valueOf(newInstructionId), Types.INTEGER);
+                                setSafeParam(pstmt, 4, String.valueOf(newInstructionId), Types.INTEGER);
                             }
                             case 5 -> {
                                 // bot_job_id replaced with newBotJobId
-                                setSafeParam(pstmt, 6, String.valueOf(newBotJobId), Types.INTEGER);
+                                setSafeParam(pstmt, 5, String.valueOf(newBotJobId), Types.INTEGER);
                             }
-                            case 6 -> setSafeParam(pstmt, 7, val, Types.VARCHAR); // local_format
-                            case 7 -> setSafeParam(pstmt, 8, val, Types.VARCHAR); // delimiter
+                            case 6 -> setSafeParam(pstmt, 6, val, Types.VARCHAR); // local_format
+                            case 7 -> setSafeParam(pstmt, 7, val, Types.VARCHAR); // delimiter
                             default -> throw new IllegalArgumentException("Unexpected column index: " + i);
                         }
+                    }
+
+                    try {
+                        int oldId = Integer.parseInt(values.get(0));
+                        insertedOldIds.add(oldId);
+                        variableMap.put(oldId, -1);
+                    } catch (Exception ex) {
+                        System.out.println("Error parsing variableMap entry: " + ex.getMessage());
                     }
 
                     pstmt.addBatch();
@@ -1700,16 +1730,20 @@ public class PerformBackup {
                         // ---- variable_id ----
                         Integer originalOldID = instrNewInverted.get(id);
                         Integer originalVarId = null;
+                        Integer originalParBlockId = null;
 
                         if (originalOldID != null) {
                             originalVarId = instrVariablesMap.get(originalOldID);
+                        }
+
+                        if (originalOldID != null) {
+                            originalParBlockId = instrParentBlockMap.get(originalOldID);
                         }
 
                         Integer newVariableId = null;
                         if (originalVarId != null) {
                             newVariableId = variableMap.get(originalVarId);
                         }
-
                         setSafeParam(
                                 updateStmt,
                                 1,
@@ -1723,6 +1757,7 @@ public class PerformBackup {
                         if (!isParentIdNull) {
                             newParentId = instructionMap.get(originalParentId);
                         }
+
                         setSafeParam(
                                 updateStmt,
                                 2,
@@ -1731,10 +1766,8 @@ public class PerformBackup {
 
                         // ---- parent_block_id ----
                         Integer newParentBlockId = null;
-                        int originalParentBlockId = rsInstruction.getInt("parent_block_id");
-                        boolean isParentBlockIdNull = rsInstruction.wasNull();
-                        if (!isParentBlockIdNull) {
-                            newParentBlockId = blockMap.get(originalParentBlockId);
+                        if (originalParBlockId != null) {
+                            newParentBlockId = blockMap.get(originalParBlockId);
                         }
                         setSafeParam(
                                 updateStmt,
@@ -1777,8 +1810,8 @@ public class PerformBackup {
         String insertQuery =
                 """
                 INSERT INTO reference (
-                    id, reference_type, value, instruction_id, bot_job_id
-                ) VALUES (?, ?, ?, ?, ?);
+                    reference_type, value, instruction_id, bot_job_id
+                ) VALUES (?, ?, ?, ?);
                 """;
 
         String selectReferenceIdsSQL = "SELECT id FROM reference ORDER BY id";
@@ -1831,15 +1864,16 @@ public class PerformBackup {
                         continue;
                     }
 
-                    for (int i = 0; i < values.size(); i++) {
+                    for (int i = 1; i < values.size(); i++) {
                         String val = values.get(i);
                         switch (i) {
-                            case 0 -> setSafeParam(pstmt, 1, val, Types.INTEGER); // id
-                            case 1 -> setSafeParam(pstmt, 2, val, Types.VARCHAR); // reference_type
-                            case 2 -> setSafeParam(pstmt, 3, val, Types.VARCHAR); // value
+                                //                            case 0 -> setSafeParam(pstmt, 1, val, Types.INTEGER); //
+                                // id
+                            case 1 -> setSafeParam(pstmt, 1, val, Types.VARCHAR); // reference_type
+                            case 2 -> setSafeParam(pstmt, 2, val, Types.VARCHAR); // value
                             case 3 -> setSafeParam(
-                                    pstmt, 4, String.valueOf(newInstructionId), Types.INTEGER); // instruction_id
-                            case 4 -> setSafeParam(pstmt, 5, String.valueOf(newBotJobId), Types.INTEGER); // bot_job_id
+                                    pstmt, 3, String.valueOf(newInstructionId), Types.INTEGER); // instruction_id
+                            case 4 -> setSafeParam(pstmt, 4, String.valueOf(newBotJobId), Types.INTEGER); // bot_job_id
                             default -> throw new IllegalArgumentException("Unexpected column index: " + i);
                         }
                     }
@@ -1895,9 +1929,9 @@ public class PerformBackup {
         String insertQuery =
                 """
                 INSERT INTO component_block (
-                    id, home_banking_id, block_order_number, name, description,
+                    home_banking_id, block_order_number, name, description,
                     type_id, export_file, active, wait
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
                 """;
 
         String selectCompBlockIdsSQL = "SELECT id FROM component_block ORDER BY id";
@@ -1939,21 +1973,41 @@ public class PerformBackup {
                                 "Parse Error", "Expected 9 values for component_block", currentInsert.toString());
                     }
 
-                    // No home_banking_id mapping here unless you add it; you can add it if necessary
+                    // Extract old bot_job_id (index 8)
+                    Integer oldHomeBankId = null;
+                    try {
+                        String oldHomeBankIdStr = values.get(1);
+                        oldHomeBankId = Integer.parseInt(oldHomeBankIdStr);
+                    } catch (NumberFormatException ex) {
+                        System.out.println("Invalid home_banking_id format: " + values.get(1));
+                    }
 
-                    for (int i = 0; i < values.size(); i++) {
+                    // Lookup newBotJobId from botJobMap
+                    Integer newHomeBankId = null;
+                    if (oldHomeBankId != null) {
+                        newHomeBankId = homeBankMap.get(oldHomeBankId);
+                    }
+
+                    if (newHomeBankId == null) {
+                        System.out.println("Skipped block with unknown home_banking_id: " + oldHomeBankId);
+                        currentInsert.setLength(0);
+                        continue; // skip this row
+                    }
+
+                    for (int i = 1; i < values.size(); i++) {
                         String val = values.get(i);
 
                         switch (i) {
-                            case 0 -> setSafeParam(pstmt, 1, val, Types.INTEGER); // id
-                            case 1 -> setSafeParam(pstmt, 2, val, Types.INTEGER); // home_banking_id
-                            case 2 -> setSafeParam(pstmt, 3, val, Types.INTEGER); // block_order_number
-                            case 3 -> setSafeParam(pstmt, 4, val, Types.VARCHAR); // name
-                            case 4 -> setSafeParam(pstmt, 5, val, Types.VARCHAR); // description
-                            case 5 -> setSafeParam(pstmt, 6, val, Types.INTEGER); // type_id
-                            case 6 -> setSafeParam(pstmt, 7, val, Types.VARCHAR); // export_file
-                            case 7 -> setSafeParam(pstmt, 8, val, Types.INTEGER); // active
-                            case 8 -> setSafeParam(pstmt, 9, val, Types.INTEGER); // wait
+                                //                            case 0 -> setSafeParam(pstmt, 1, val, Types.INTEGER); //
+                                // id
+                            case 1 -> pstmt.setInt(1, newHomeBankId); // home_banking_id (already mapped)
+                            case 2 -> setSafeParam(pstmt, 2, val, Types.INTEGER); // block_order_number
+                            case 3 -> setSafeParam(pstmt, 3, val, Types.VARCHAR); // name
+                            case 4 -> setSafeParam(pstmt, 4, val, Types.VARCHAR); // description
+                            case 5 -> setSafeParam(pstmt, 5, val, Types.INTEGER); // type_id
+                            case 6 -> setSafeParam(pstmt, 6, val, Types.VARCHAR); // export_file
+                            case 7 -> setSafeParam(pstmt, 7, val, Types.INTEGER); // active
+                            case 8 -> setSafeParam(pstmt, 8, val, Types.INTEGER); // wait
                         }
                     }
 
@@ -2010,12 +2064,12 @@ public class PerformBackup {
         String insertQuery =
                 """
                 INSERT INTO component_instruction (
-                    id, instruction_order_number, actions, name, xpath, coordinates,
+                    instruction_order_number, actions, name, xpath, coordinates,
                     force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root,
                     css_selector, description, operation, optional, block_marked,
                     default_value, action_custom_max_wait_sec, on_hold_seconds, codified,
                     export_to_abr, active, block_id, variable_id, parent_block_id, parent_id, home_banking_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                 """;
 
         String selectInstructionIdsSQL = "SELECT id FROM component_instruction ORDER BY id";
@@ -2076,38 +2130,39 @@ public class PerformBackup {
                         continue;
                     }
 
-                    for (int i = 0; i < values.size(); i++) {
+                    for (int i = 1; i < values.size(); i++) {
                         switch (i) {
-                            case 0 -> setSafeParam(pstmt, 1, values.get(0), Types.INTEGER); // id
-                            case 1 -> setSafeParam(pstmt, 2, values.get(1), Types.INTEGER); // instruction_order_number
-                            case 2 -> setSafeParam(pstmt, 3, values.get(2), Types.VARCHAR); // actions
+                                //                            case 0 -> setSafeParam(pstmt, 1, values.get(0),
+                                // Types.INTEGER); // id
+                            case 1 -> setSafeParam(pstmt, 1, values.get(1), Types.INTEGER); // instruction_order_number
+                            case 2 -> setSafeParam(pstmt, 2, values.get(2), Types.VARCHAR); // actions
                             case 3 -> {
                                 String val = values.get(3);
-                                setSafeParam(pstmt, 4, val, Types.VARCHAR);
+                                setSafeParam(pstmt, 3, val, Types.VARCHAR);
                             } // name
-                            case 4 -> setSafeParam(pstmt, 5, values.get(4), Types.VARCHAR); // xpath
-                            case 5 -> setSafeParam(pstmt, 6, values.get(5), Types.VARCHAR); // coordinates
-                            case 6 -> setSafeParam(pstmt, 7, values.get(6), Types.INTEGER); // force_coordinates
-                            case 7 -> setSafeParam(pstmt, 8, values.get(7), Types.VARCHAR); // iframe_xpath
-                            case 8 -> setSafeParam(pstmt, 9, values.get(8), Types.VARCHAR); // tag_name
-                            case 9 -> setSafeParam(pstmt, 10, values.get(9), Types.VARCHAR); // shadow_host
-                            case 10 -> setSafeParam(pstmt, 11, values.get(10), Types.VARCHAR); // shadow_root
-                            case 11 -> setSafeParam(pstmt, 12, values.get(11), Types.VARCHAR); // css_selector
-                            case 12 -> setSafeParam(pstmt, 13, values.get(12), Types.VARCHAR); // description
-                            case 13 -> setSafeParam(pstmt, 14, values.get(13), Types.VARCHAR); // operation
-                            case 14 -> setSafeParam(pstmt, 15, values.get(14), Types.INTEGER); // optional
-                            case 15 -> setSafeParam(pstmt, 16, values.get(15), Types.INTEGER); // block_marked
-                            case 16 -> setSafeParam(pstmt, 17, values.get(16), Types.VARCHAR); // default_value
+                            case 4 -> setSafeParam(pstmt, 4, values.get(4), Types.VARCHAR); // xpath
+                            case 5 -> setSafeParam(pstmt, 5, values.get(5), Types.VARCHAR); // coordinates
+                            case 6 -> setSafeParam(pstmt, 6, values.get(6), Types.INTEGER); // force_coordinates
+                            case 7 -> setSafeParam(pstmt, 7, values.get(7), Types.VARCHAR); // iframe_xpath
+                            case 8 -> setSafeParam(pstmt, 8, values.get(8), Types.VARCHAR); // tag_name
+                            case 9 -> setSafeParam(pstmt, 9, values.get(9), Types.VARCHAR); // shadow_host
+                            case 10 -> setSafeParam(pstmt, 10, values.get(10), Types.VARCHAR); // shadow_root
+                            case 11 -> setSafeParam(pstmt, 11, values.get(11), Types.VARCHAR); // css_selector
+                            case 12 -> setSafeParam(pstmt, 12, values.get(12), Types.VARCHAR); // description
+                            case 13 -> setSafeParam(pstmt, 13, values.get(13), Types.VARCHAR); // operation
+                            case 14 -> setSafeParam(pstmt, 14, values.get(14), Types.INTEGER); // optional
+                            case 15 -> setSafeParam(pstmt, 15, values.get(15), Types.INTEGER); // block_marked
+                            case 16 -> setSafeParam(pstmt, 16, values.get(16), Types.VARCHAR); // default_value
                             case 17 -> setSafeParam(
-                                    pstmt, 18, values.get(17), Types.INTEGER); // action_custom_max_wait_sec
-                            case 18 -> setSafeParam(pstmt, 19, values.get(18), Types.INTEGER); // on_hold_seconds
-                            case 19 -> setSafeParam(pstmt, 20, values.get(19), Types.INTEGER); // codified
-                            case 20 -> setSafeParam(pstmt, 21, values.get(20), Types.INTEGER); // export_to_abr
-                            case 21 -> setSafeParam(pstmt, 22, values.get(21), Types.INTEGER); // active
+                                    pstmt, 17, values.get(17), Types.INTEGER); // action_custom_max_wait_sec
+                            case 18 -> setSafeParam(pstmt, 18, values.get(18), Types.INTEGER); // on_hold_seconds
+                            case 19 -> setSafeParam(pstmt, 19, values.get(19), Types.INTEGER); // codified
+                            case 20 -> setSafeParam(pstmt, 20, values.get(20), Types.INTEGER); // export_to_abr
+                            case 21 -> setSafeParam(pstmt, 21, values.get(21), Types.INTEGER); // active
 
                             case 22 -> {
                                 // block_id replaced with newBlockId
-                                setSafeParam(pstmt, 23, String.valueOf(newBlockId), Types.INTEGER);
+                                setSafeParam(pstmt, 22, String.valueOf(newBlockId), Types.INTEGER);
                             }
                             case 23 -> {
                                 // variable_id + tracking
@@ -2130,28 +2185,25 @@ public class PerformBackup {
                                 }
 
                                 // Firts to Be mapped after INSERTS into Variable TABLE
-                                setSafeParam(pstmt, 24, "NULL", Types.INTEGER);
+                                setSafeParam(pstmt, 23, "NULL", Types.INTEGER);
                             }
                             case 24 -> {
                                 String action = values.get(2);
                                 if ("GOTO".equalsIgnoreCase(action) || "EXCEL GOTO".equalsIgnoreCase(action)) {
-                                    setSafeParam(pstmt, 25, values.get(24), Types.INTEGER); // parent_block_id
-                                    setSafeParam(pstmt, 26, null, Types.INTEGER); // parent_id
+                                    setSafeParam(pstmt, 24, values.get(24), Types.INTEGER); // parent_block_id
+                                    setSafeParam(pstmt, 25, null, Types.INTEGER); // parent_id
                                 } else {
-                                    setSafeParam(pstmt, 25, null, Types.INTEGER); // parent_block_id
-                                    setSafeParam(pstmt, 26, values.get(24), Types.INTEGER); // parent_id
+                                    setSafeParam(pstmt, 24, null, Types.INTEGER); // parent_block_id
+                                    setSafeParam(pstmt, 25, values.get(24), Types.INTEGER); // parent_id
                                 }
                             }
                             case 25, 26 -> {
                                 // Regardless of 26 or 27 columns, home_banking_id is always parameter 27
-                                Integer homeBankVal;
-                                if (values.size() == 26) {
-                                    homeBankVal = newHomeBankId; // override with mapped value
-                                } else { // values.size() == 27
-                                    homeBankVal = parseIntSafe(values.get(26)); // last value in file
-                                    if (homeBankVal == null) homeBankVal = newHomeBankId;
-                                }
-                                setSafeParam(pstmt, 27, String.valueOf(homeBankVal), Types.INTEGER);
+                                setSafeParam(
+                                        pstmt,
+                                        26,
+                                        String.valueOf(newHomeBankId),
+                                        Types.INTEGER); // home_banking_id already mapped
                             }
                             default -> throw new IllegalArgumentException("Unexpected column index: " + i);
                         }
@@ -2207,8 +2259,8 @@ public class PerformBackup {
         String insertQuery =
                 """
                 INSERT INTO component_variable (
-                    id, type, name, value, instruction_id, home_banking_id, local_format, delimiter
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+                    type, name, value, instruction_id, home_banking_id, local_format, delimiter
+                ) VALUES (?, ?, ?, ?, ?, ?, ?);
                 """;
 
         String selectVariableIdsSQL = "SELECT id FROM component_variable ORDER BY id";
@@ -2268,38 +2320,36 @@ public class PerformBackup {
                         continue;
                     }
 
-                    for (int i = 0; i < values.size(); i++) {
+                    for (int i = 1; i < values.size(); i++) {
                         String val = values.get(i);
 
                         switch (i) {
-                            case 0 -> {
-                                // id column - integer, store old id for mapping
-                                try {
-                                    int oldId = Integer.parseInt(val);
-                                    insertedOldIds.add(oldId);
-                                    variableMap.put(oldId, -1);
-                                    setSafeParam(pstmt, 1, val, Types.INTEGER);
-                                } catch (NumberFormatException ex) {
-                                    setSafeParam(pstmt, 1, val, Types.VARCHAR);
-                                }
-                            }
-                            case 1 -> setSafeParam(pstmt, 2, val, Types.VARCHAR); // type
-                            case 2 -> setSafeParam(pstmt, 3, val, Types.VARCHAR); // name
-                            case 3 -> setSafeParam(pstmt, 4, val, Types.VARCHAR); // value
+                                //                            case 0 -> setSafeParam(pstmt, 1, val, Types.INTEGER);
+                            case 1 -> setSafeParam(pstmt, 1, val, Types.VARCHAR); // type
+                            case 2 -> setSafeParam(pstmt, 2, val, Types.VARCHAR); // name
+                            case 3 -> setSafeParam(pstmt, 3, val, Types.VARCHAR); // value
                             case 4 -> setSafeParam(
                                     pstmt,
-                                    5,
+                                    4,
                                     String.valueOf(newInstructionId),
                                     Types.INTEGER); // instruction_id replaced
                             case 5 -> setSafeParam(
                                     pstmt,
-                                    6,
+                                    5,
                                     String.valueOf(newHomeBankingId),
                                     Types.INTEGER); // home_banking_id replaced
-                            case 6 -> setSafeParam(pstmt, 7, val, Types.VARCHAR); // local_format
-                            case 7 -> setSafeParam(pstmt, 8, val, Types.VARCHAR); // delimiter
+                            case 6 -> setSafeParam(pstmt, 6, val, Types.VARCHAR); // local_format
+                            case 7 -> setSafeParam(pstmt, 7, val, Types.VARCHAR); // delimiter
                             default -> throw new IllegalArgumentException("Unexpected column index: " + i);
                         }
+                    }
+
+                    try {
+                        int oldId = Integer.parseInt(values.get(0));
+                        insertedOldIds.add(oldId);
+                        variableMap.put(oldId, -1);
+                    } catch (Exception ex) {
+                        System.out.println("Error parsing variableMap entry: " + ex.getMessage());
                     }
 
                     pstmt.addBatch();
@@ -2451,8 +2501,8 @@ public class PerformBackup {
         String insertQuery =
                 """
                 INSERT INTO component_reference (
-                    id, reference_type, value, instruction_id, home_banking_id
-                ) VALUES (?, ?, ?, ?, ?);
+                    reference_type, value, instruction_id, home_banking_id
+                ) VALUES (?, ?, ?, ?);
                 """;
 
         String selectReferenceIdsSQL = "SELECT id FROM component_reference ORDER BY id";
@@ -2505,16 +2555,17 @@ public class PerformBackup {
                         continue;
                     }
 
-                    for (int i = 0; i < values.size(); i++) {
+                    for (int i = 1; i < values.size(); i++) {
                         String val = values.get(i);
                         switch (i) {
-                            case 0 -> setSafeParam(pstmt, 1, val, Types.INTEGER); // id
-                            case 1 -> setSafeParam(pstmt, 2, val, Types.VARCHAR); // reference_type
-                            case 2 -> setSafeParam(pstmt, 3, val, Types.VARCHAR); // value
+                                //                            case 0 -> setSafeParam(pstmt, 1, val, Types.INTEGER); //
+                                // id
+                            case 1 -> setSafeParam(pstmt, 1, val, Types.VARCHAR); // reference_type
+                            case 2 -> setSafeParam(pstmt, 2, val, Types.VARCHAR); // value
                             case 3 -> setSafeParam(
-                                    pstmt, 4, String.valueOf(newInstructionId), Types.INTEGER); // instruction_id
+                                    pstmt, 3, String.valueOf(newInstructionId), Types.INTEGER); // instruction_id
                             case 4 -> setSafeParam(
-                                    pstmt, 5, String.valueOf(newHomeBankId), Types.INTEGER); // home_banking_id
+                                    pstmt, 4, String.valueOf(newHomeBankId), Types.INTEGER); // home_banking_id
                             default -> throw new IllegalArgumentException("Unexpected column index: " + i);
                         }
                     }

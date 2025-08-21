@@ -365,11 +365,12 @@ public class ARNewBotJobPane extends ARPane {
                 ARLogger.getInstance(ARNewBotJobPane.class)
                         .severe("Error creating BotJobDTO. Check the Block Creation!");
                 performMessage.errorMessage(
-                        "Access Database error",
-                        errorMessage.getErrorTitle(),
-                        errorMessage.getErrorHeader(),
+                        "Create New Bot Job Failed ❌",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>"
+                                + errorMessage.getErrorTitle() + "</span>",
+                        "<span style='color: #E65100; font-weight: bold;'>" + errorMessage.getErrorHeader() + "</span>",
                         "Verify  [INSERT] or [UPDATE] or [SELECT]",
-                        null,
+                        "<span style='font-style: italic;'>" + errorMessage.getErrorMessage() + "</span>",
                         0);
             }
         });

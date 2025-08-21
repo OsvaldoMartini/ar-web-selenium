@@ -74,9 +74,7 @@ public class ARScannedElementPane extends ARPane {
     protected static volatile ARScannedElementPane instance;
 
     // Private constructor to prevent instantiation
-    private ARScannedElementPane() {
-        // Initialize if necessary
-    }
+    private ARScannedElementPane() {}
 
     public static ARScannedElementPane getInstance() {
         if (instance == null) {
@@ -89,12 +87,12 @@ public class ARScannedElementPane extends ARPane {
         return instance;
     }
 
-    private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-    //    private static final ScheduledExecutorService pingScheduler = Executors.newScheduledThreadPool(1);
-
     private final Gson gson = new Gson();
 
     private List<InstructionLoadDTO> instructionList = new ArrayList<>();
+
+    private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    //    private static final ScheduledExecutorService pingScheduler = Executors.newScheduledThreadPool(1);
 
     private void stopKeepAlivePings() {
         scheduler.shutdownNow();
@@ -994,6 +992,10 @@ public class ARScannedElementPane extends ARPane {
 
     private ExecutorService executorWebSocket;
     private ExecutorService executorServicePreLaunch;
+
+    private int portSocketInitial = 54525;
+    private boolean isConnectWebSocket = false;
+
     private final AtomicBoolean isJobRunning = new AtomicBoolean(false);
     private BooleanProperty interceptBotJob = new SimpleBooleanProperty(false);
 
@@ -1079,9 +1081,6 @@ public class ARScannedElementPane extends ARPane {
     String delimiterCSV = null;
 
     private List<VariableLoadDTO> variablesLoaded;
-
-    private int portSocketInitial = 54525;
-    private boolean isConnectWebSocket = false;
 
     private String[] defaultSearch;
     private boolean searchHiddenFields;

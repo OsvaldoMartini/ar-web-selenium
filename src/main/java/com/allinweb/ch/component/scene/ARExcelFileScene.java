@@ -16,7 +16,7 @@ public class ARExcelFileScene extends ARScene {
 
     // Private constructor to prevent instantiation
     private ARExcelFileScene() {
-        // Initialize if necessary
+
         super();
     }
 

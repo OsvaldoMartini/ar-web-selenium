@@ -17,9 +17,7 @@ public class PerformPreLoad {
     protected static volatile PerformPreLoad instance;
 
     // Private constructor to prevent instantiation
-    private PerformPreLoad() {
-        // Initialize if necessary
-    }
+    private PerformPreLoad() {}
 
     public static PerformPreLoad getInstance() {
         if (instance == null) {

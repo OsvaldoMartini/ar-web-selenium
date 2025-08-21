@@ -14,9 +14,7 @@ public class PerformCloneLoad {
     protected static volatile PerformCloneLoad instance;
 
     // Private constructor to prevent instantiation
-    private PerformCloneLoad() {
-        // Initialize if necessary
-    }
+    private PerformCloneLoad() {}
 
     public static PerformCloneLoad getInstance() {
         if (instance == null) {

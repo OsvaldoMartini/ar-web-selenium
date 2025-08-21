@@ -7,7 +7,6 @@ import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.util.ARLogger;
 import java.time.format.DateTimeFormatter;
 import javafx.application.Platform;
-import javafx.collections.ObservableList;
 import javafx.scene.Scene;
 import javafx.scene.control.ListView;
 import javafx.stage.Modality;
@@ -19,7 +18,7 @@ public class ARConfigurationScene extends ARScene {
 
     // Private constructor to prevent instantiation
     private ARConfigurationScene() {
-        // Initialize if necessary
+
         super();
     }
 
@@ -52,7 +51,6 @@ public class ARConfigurationScene extends ARScene {
     private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
 
     private ListView<BotJobLoadDTO> viewBotJobListView;
-    private ObservableList<BotJobLoadDTO> botJobList;
 
     @Override
     public IARPane buildPane() {
@@ -85,7 +83,7 @@ public class ARConfigurationScene extends ARScene {
 
     public void showModal() {
 
-        arConfigurationPane.initialize(modalStage, viewBotJobListView, botJobList, isEnabledLicence);
+        arConfigurationPane.initialize(modalStage, viewBotJobListView, isEnabledLicence);
 
         if (modalStage == null) {
             modalStage = new Stage();
@@ -134,13 +132,9 @@ public class ARConfigurationScene extends ARScene {
         }
     }
 
-    public void initialize(
-            ListView<BotJobLoadDTO> viewBotJobListView,
-            ObservableList<BotJobLoadDTO> botJobList,
-            boolean isEnabledLicence) {
+    public void initialize(ListView<BotJobLoadDTO> viewBotJobListView, boolean isEnabledLicence) {
         this.isEnabledLicence = isEnabledLicence;
         this.viewBotJobListView = viewBotJobListView;
-        this.botJobList = botJobList;
     }
 
     public void initializeLicense(boolean isEnabledLicence) {

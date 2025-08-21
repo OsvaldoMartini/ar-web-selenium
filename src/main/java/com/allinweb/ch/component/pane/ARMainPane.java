@@ -43,7 +43,7 @@ public class ARMainPane extends ARPane {
 
     // Private constructor to prevent instantiation
     private ARMainPane() {
-        // Initialize if necessary
+
         super();
     }
 
@@ -204,7 +204,7 @@ public class ARMainPane extends ARPane {
                         webDriverList,
                         isEnabledLicence)::call);
 
-        arConfigurationScene.initialize(viewBotJobListView, botJobList, isEnabledLicence);
+        arConfigurationScene.initialize(viewBotJobListView, isEnabledLicence);
         arNewBotJobScene.initialize(arViewBotJobScene, arWebDriver, webDriverList, isEnabledLicence);
         arWebDriver.initialize(webDriverList);
 
@@ -302,14 +302,14 @@ public class ARMainPane extends ARPane {
         });
 
         configureButton.setOnMouseClicked(e -> {
-            arConfigurationScene.initialize(viewBotJobListView, botJobList, isEnabledLicence);
+            arConfigurationScene.initialize(viewBotJobListView, isEnabledLicence);
             arConfigurationScene.showModal();
 
-            try {
-                performDataBase.changeDbConnection();
-            } catch (Exception error) {
-                throw new RuntimeException(error);
-            }
+            //            try {
+            //                performDataBase.changeDbConnection();
+            //            } catch (Exception error) {
+            //                throw new RuntimeException(error);
+            //            }
 
             String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
             try {
@@ -325,11 +325,13 @@ public class ARMainPane extends ARPane {
 
             if (performDataBase.getConn() != null) {
                 try {
-                    performDataBase.loadQuickBotJobs();
-                    ObservableList<BotJobLoadDTO> botJobList =
-                            FXCollections.observableArrayList(performLists.getQuickBotJobs());
+                    if (performLists.getQuickBotJobs().isEmpty()) {
+                        performDataBase.loadQuickBotJobs();
+                        //                    ObservableList<BotJobLoadDTO> botJobList =
+                        //                            FXCollections.observableArrayList(performLists.getQuickBotJobs());
 
-                    viewBotJobListView.setItems(botJobList);
+                        viewBotJobListView.setItems(performLists.getQuickBotJobs());
+                    }
                 } catch (Exception error) {
                     throw new RuntimeException(error);
                 }

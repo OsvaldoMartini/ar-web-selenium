@@ -22,7 +22,7 @@ public class ARMainScene extends ARScene {
 
     // Private constructor to prevent instantiation
     private ARMainScene() {
-        // Initialize if necessary
+
         super();
     }
 

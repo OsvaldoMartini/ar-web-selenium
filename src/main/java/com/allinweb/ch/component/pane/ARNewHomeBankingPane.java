@@ -36,7 +36,7 @@ public class ARNewHomeBankingPane extends ARPane {
 
     // Private constructor to prevent instantiation
     private ARNewHomeBankingPane() {
-        // Initialize if necessary
+
         super();
     }
 
@@ -473,11 +473,12 @@ public class ARNewHomeBankingPane extends ARPane {
 
             } else {
                 performMessage.errorMessage(
-                        "Clone Bot Job Failed",
-                        errorMessage.getErrorTitle(),
-                        errorMessage.getErrorHeader(),
+                        "Insert New Organization Failed ❌",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>"
+                                + errorMessage.getErrorTitle() + "</span>",
+                        "<span style='color: #E65100; font-weight: bold;'>" + errorMessage.getErrorHeader() + "</span>",
                         "Verify  [INSERT] or [UPDATE] or [SELECT]",
-                        null,
+                        "<span style='font-style: italic;'>" + errorMessage.getErrorMessage() + "</span>",
                         0);
             }
             Platform.runLater(() -> {
@@ -650,8 +651,8 @@ public class ARNewHomeBankingPane extends ARPane {
                         "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>"
                                 + errorMessage.getErrorTitle() + "</span>",
                         "<span style='color: #E65100; font-weight: bold;'>" + errorMessage.getErrorHeader() + "</span>",
+                        "Verify  [INSERT] or [UPDATE] or [SELECT]",
                         "<span style='font-style: italic;'>" + errorMessage.getErrorMessage() + "</span>",
-                        null,
                         0);
 
             } else {

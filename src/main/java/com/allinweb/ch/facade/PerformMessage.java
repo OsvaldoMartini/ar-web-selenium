@@ -42,9 +42,7 @@ public class PerformMessage {
     protected static volatile PerformMessage instance;
 
     // Private constructor to prevent instantiation
-    private PerformMessage() {
-        // Initialize if necessary
-    }
+    private PerformMessage() {}
 
     // Public method to access the singleton instance
     public static PerformMessage getInstance() {

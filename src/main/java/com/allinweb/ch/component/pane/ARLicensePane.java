@@ -42,7 +42,7 @@ public class ARLicensePane extends ARPane {
 
     // Private constructor to prevent instantiation
     private ARLicensePane() {
-        // Initialize if necessary
+
         super();
     }
 

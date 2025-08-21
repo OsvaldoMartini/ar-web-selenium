@@ -58,7 +58,7 @@ public class ARViewBotJobPane extends ARPane {
 
     // Private constructor to prevent instantiation
     private ARViewBotJobPane() {
-        // Initialize if necessary
+
         super();
     }
 
@@ -153,7 +153,7 @@ public class ARViewBotJobPane extends ARPane {
 
         ExcelUtils.createExcelDataFile(selectedBotJob, null);
 
-        Platform.runLater(() -> performDataBase.loadAllVariablesByCriteria(selectedBotJob.getId(), -1, "variable"));
+        Platform.runLater(() -> performDataBase.loadAllVariablesByCriteria("variable", selectedBotJob.getId(), -1));
         Platform.runLater(() -> {
             performDataBase.loadWebPageFields(selectedBotJob.getId(), "bot_job");
         });

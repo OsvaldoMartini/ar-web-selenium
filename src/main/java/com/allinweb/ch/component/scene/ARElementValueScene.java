@@ -18,7 +18,7 @@ public class ARElementValueScene extends ARScene {
 
     // Private constructor to prevent instantiation
     private ARElementValueScene() {
-        // Initialize if necessary
+
         super();
     }
 

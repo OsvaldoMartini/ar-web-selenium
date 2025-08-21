@@ -52,7 +52,7 @@ public class ARConfigurationPane extends ARPane {
 
     // Private constructor to prevent instantiation
     private ARConfigurationPane() {
-        // Initialize if necessary
+
         super();
     }
 
@@ -68,20 +68,17 @@ public class ARConfigurationPane extends ARPane {
     }
 
     private ListView<BotJobLoadDTO> viewBotJobListView;
-    private ObservableList<BotJobLoadDTO> botJobList;
     private Stage modalStage;
 
     private boolean isEnabledLicence;
 
-    public void initialize(
-            Stage modalStage,
-            ListView<BotJobLoadDTO> viewBotJobListView,
-            ObservableList<BotJobLoadDTO> botJobList,
-            boolean isEnabledLicence) {
+    private String previousDB;
+    private String previousDBUrl;
+
+    public void initialize(Stage modalStage, ListView<BotJobLoadDTO> viewBotJobListView, boolean isEnabledLicence) {
         this.isEnabledLicence = isEnabledLicence;
         this.modalStage = modalStage;
         this.viewBotJobListView = viewBotJobListView;
-        this.botJobList = botJobList;
     }
 
     private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
@@ -208,6 +205,10 @@ public class ARConfigurationPane extends ARPane {
 
     @Override
     public void initUIComponents() {
+
+        this.previousDB = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
+        this.previousDBUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
+
         //  Alert Timer Components
         // Create a label to display the countdown
         Label countdownLabel = new Label(String.valueOf(remainingSeconds));
@@ -344,7 +345,7 @@ public class ARConfigurationPane extends ARPane {
         browserLabel = new Label("Browser");
         databaseLabel = new Label("DB Type");
         backupDBLabel = new Label("Backup/Restore DB");
-        restoreDateLabel = new Label("Date/Restore");
+        restoreDateLabel = new Label("Date Restore");
         reloadDBLabel = new Label("Reload DB");
         deleteAllDBLabel = new Label("Delete ALL DB");
         insertSitesLabel = new Label("Insert Sites");
@@ -620,6 +621,29 @@ public class ARConfigurationPane extends ARPane {
         String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
         String date = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy_MM_dd"));
 
+        if (dataBaseType.equalsIgnoreCase(databaseChoiceBox.getValue().trim())) {
+            try {
+                performDataBase.changeDbConnection();
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            performMessage.showCustomModalDialogDragWin11(
+                    "Database Selection Mismatch ⚠️",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>The selected database type does not match the saved database!</span>",
+                    "<span style='color: #1565C0; font-weight: bold;'>Please select the database that matches the saved type, or reload configurations to apply your selection.</span>",
+                    "<span style='color: #6A1B9A; font-weight: bold;'>Selected Database:</span> "
+                            + databaseChoiceBox.getValue().trim(),
+                    "<span style='color: #6A1B9A; font-weight: bold;'>Saved Database:</span> "
+                            + dataBaseType + "<br/>"
+                            + "<span style='color: #E65100; font-weight: bold;'>💡 Reminder:</span> Press the <span style='text-decoration: underline;'>Reload Configs</span> button to save and apply your database choice before continuing.",
+                    false,
+                    "OK",
+                    null,
+                    0);
+            return;
+        }
+
         if (dataBaseType.equalsIgnoreCase("ACCESS")) {
             String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
             File dbFile = new File(dbPath + ARConstants.FILE_NAME_ACCESS);
@@ -890,6 +914,13 @@ public class ARConfigurationPane extends ARPane {
                 }
 
                 if (errorMessage == null) {
+                    performDataBase.loadHomeBanking(null);
+                    backupDBButton.setDisable(performLists.getListHomeBanking().isEmpty());
+                    homeBankingListView = new ListView<>(performLists.getListHomeBanking());
+                    HomeBankingLoadDTO homeBank = performLists.getFirstHomeBanking();
+                    arNewHomeBankingScene.initialize(homeBank);
+                    performDataBase.loadQuickBotJobs();
+                    viewBotJobListView.setItems(performLists.getQuickBotJobs());
 
                     performMessage.showCustomModalDialogDragWin11(
                             "Restore DB Success! ✅",
@@ -1061,7 +1092,8 @@ public class ARConfigurationPane extends ARPane {
             arPropertyManager.setProperty(
                     ARPropertyEnum.PATH_DB.getValue(), pathAccessDB.getText().trim());
 
-            arPropertyManager.setProperty(ARPropertyEnum.DB_URL.getValue(), dbUrl.getText());
+            arPropertyManager.setProperty(
+                    ARPropertyEnum.DB_URL.getValue(), dbUrl.getText().trim());
 
             arPropertyManager.setProperty(
                     ARPropertyEnum.DB_USER.getValue(), dbUser.getText().trim());
@@ -1081,19 +1113,24 @@ public class ARConfigurationPane extends ARPane {
             //            performDataBase.exportReferences();
 
             performDataBase.loadHomeBanking(null);
+            backupDBButton.setDisable(performLists.getListHomeBanking().isEmpty());
             homeBankingListView = new ListView<>(performLists.getListHomeBanking());
             HomeBankingLoadDTO homeBank = performLists.getFirstHomeBanking();
             arNewHomeBankingScene.initialize(homeBank);
 
             try {
-                if (performLists.getQuickBotJobs().isEmpty()) {
+
+                if (!this.previousDB.equalsIgnoreCase(databaseChoiceBox.getValue())
+                        || !this.previousDBUrl.equalsIgnoreCase(dbUrl.getText().trim())) {
                     performDataBase.loadQuickBotJobs();
+                    this.previousDB = databaseChoiceBox.getValue();
+                    this.previousDBUrl = dbUrl.getText().trim();
                 }
-                botJobList = FXCollections.observableArrayList(performLists.getQuickBotJobs());
+                //                botJobList = FXCollections.observableArrayList(performLists.getQuickBotJobs());
             } catch (Exception error) {
                 throw error;
             }
-            viewBotJobListView.setItems(botJobList);
+            viewBotJobListView.setItems(performLists.getQuickBotJobs());
 
             new ARAlertScene(
                     Alert.AlertType.INFORMATION,
@@ -1109,6 +1146,30 @@ public class ARConfigurationPane extends ARPane {
         }
 
         String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
+
+        if (dataBaseType.equalsIgnoreCase(databaseChoiceBox.getValue().trim())) {
+
+            try {
+                performDataBase.changeDbConnection();
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            performMessage.showCustomModalDialogDragWin11(
+                    "Database Selection Mismatch ⚠️",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>The selected database type does not match the saved database!</span>",
+                    "<span style='color: #1565C0; font-weight: bold;'>Please select the database that matches the saved type, or reload configurations to apply your selection.</span>",
+                    "<span style='color: #6A1B9A; font-weight: bold;'>Selected Database:</span> "
+                            + databaseChoiceBox.getValue().trim(),
+                    "<span style='color: #6A1B9A; font-weight: bold;'>Saved Database:</span> "
+                            + dataBaseType + "<br/>"
+                            + "<span style='color: #E65100; font-weight: bold;'>💡 Reminder:</span> Press the <span style='text-decoration: underline;'>Reload Configs</span> button to save and apply your database choice before continuing.",
+                    false,
+                    "OK",
+                    null,
+                    0);
+            return;
+        }
 
         Label newInstruction = new Label("DELETE ALL JOB DETAILS\nDatabase Selected: \"" + dataBaseType + "\"");
         newInstruction.setStyle("-fx-font-size: 18px; -fx-text-fill: red;");

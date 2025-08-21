@@ -34,9 +34,7 @@ public class ExportAccessToSQLite {
     private TreeMap<Integer, Integer> referenceMap = new TreeMap<>();
 
     // Private constructor to prevent instantiation
-    private ExportAccessToSQLite() {
-        // Initialize if necessary
-    }
+    private ExportAccessToSQLite() {}
 
     public static ExportAccessToSQLite getInstance() {
         if (instance == null) {

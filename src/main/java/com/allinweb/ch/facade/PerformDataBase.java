@@ -24,9 +24,7 @@ public class PerformDataBase {
     protected static volatile PerformDataBase instance;
 
     // Private constructor to prevent instantiation
-    private PerformDataBase() {
-        // Initialize if necessary
-    }
+    private PerformDataBase() {}
 
     // Public method to access the singleton instance
     public static PerformDataBase getInstance() {
@@ -53,8 +51,6 @@ public class PerformDataBase {
         performInitializer = PerformInitializer.getInstance();
         performDBScripts = PerformDBScripts.getInstance();
     }
-
-    public String previousDB;
 
     @Getter
     @Setter
@@ -106,9 +102,7 @@ public class PerformDataBase {
     public boolean POSTGRES_DB = false;
     public boolean SQLITE_DB = false;
 
-    public void initialize(String databaseType) {
-        this.previousDB = databaseType;
-    }
+    public void initialize(String databaseType) {}
 
     public void closeConnection() {
         if (conn != null) {
@@ -146,7 +140,6 @@ public class PerformDataBase {
 
         closeConnection();
 
-        previousDB = dataBaseType;
         POSTGRES_DB = false;
         SQLITE_DB = false;
         ACCESS_DB = false;
@@ -923,59 +916,58 @@ public class PerformDataBase {
         return blockOrderDetails;
     }
 
-    // Handle BLOCK_UPDATE message
-    public void updateBlockName(int botJobId, int blockId, String blockName) {
-        try (Statement stmt = getConnection().createStatement()) {
+    // Generic Update Block Name
+    public ErrorMessage updateBlockName(
+            int whereId,
+            String tableName, // "block" or "component_block"
+            int blockId,
+            String blockName) {
 
-            // Update each block's block_order_number starting from 1
-            String updateSQL = "UPDATE block SET name = '" + blockName + "',"
-                    + " description = '" + blockName + "'"
-                    + " WHERE id = " + blockId
-                    + " and bot_job_id = " + botJobId;
+        // Determine foreign key column
+        String foreignKeyColumn = "block".equalsIgnoreCase(tableName) ? "bot_job_id" : "home_banking_id";
 
-            int rowsAffected = stmt.executeUpdate(updateSQL);
+        String updateSQL = "UPDATE " + tableName + " SET name = ?" + " WHERE id = ? AND " + foreignKeyColumn + " = ?";
 
-            if (rowsAffected > 0) {
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false); // disable auto-commit
+
+            try (PreparedStatement pstmt = conn.prepareStatement(updateSQL)) {
+                pstmt.setString(1, blockName);
+                pstmt.setInt(2, blockId);
+                pstmt.setInt(3, whereId);
+
+                int rowsAffected = pstmt.executeUpdate();
+                conn.commit();
+
+                if (rowsAffected > 0) {
+                    ARLogger.getInstance(PerformDataBase.class)
+                            .info(String.format(
+                                    "Updated block name in table %s - blockId %d, whereId %d, name: %s",
+                                    tableName, blockId, whereId, blockName));
+                    return null; // success
+                } else {
+                    ARLogger.getInstance(PerformDataBase.class)
+                            .warning(String.format(
+                                    "No record found to update in %s - blockId %d, whereId %d",
+                                    tableName, blockId, whereId));
+                    return new ErrorMessage(
+                            "Update Block Name",
+                            "No matching record found",
+                            String.format("table: %s, blockId: %d, whereId: %d", tableName, blockId, whereId));
+                }
+            } catch (SQLException e) {
                 ARLogger.getInstance(PerformDataBase.class)
-                        .info(String.format("Block Name updated blockId: %s, name: %s", blockId, blockName));
-            } else {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .warning(String.format(
-                                "UpdateBlockOrderName - No matching record found to update botJobId: %d blockId: %d",
-                                botJobId, blockId));
+                        .severe(String.format(
+                                "Error updating block name in %s - blockId %d, whereId %d. Error: %s",
+                                tableName, blockId, whereId, e.getMessage()));
+                return new ErrorMessage("Update Block Name", "Failed to update block name", e.getMessage());
             }
-
-        } catch (SQLException e) {
+        } catch (SQLException ex) {
             ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("Error UpdateBlockOrderNumber. Error: %s", e.getMessage()));
-        }
-    }
-
-    // Handle BLOCK_UPDATE message
-    public void updateCompBlockName(int botJobId, int blockId, String blockName) {
-        try (Statement stmt = getConnection().createStatement()) {
-
-            // Update each block's block_order_number starting from 1
-            String updateSQL = "UPDATE component_block SET name = '" + blockName + "',"
-                    + " description = '" + blockName + "'"
-                    + " WHERE id = " + blockId;
-            //                    + " and bot_job_id = " + botJobId;
-
-            int rowsAffected = stmt.executeUpdate(updateSQL);
-
-            if (rowsAffected > 0) {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .info(String.format("Block Name updated blockId: %s, name: %s", blockId, blockName));
-            } else {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .warning(String.format(
-                                "updateCompBlockName - No matching record found to update botJobId: %d blockId: %d",
-                                botJobId, blockId));
-            }
-
-        } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("Error UpdateBlockOrderNumber. Error: %s", e.getMessage()));
+                    .severe(String.format(
+                            "Connection error while updating block name in %s - blockId %d, whereId %d. Error: %s",
+                            tableName, blockId, whereId, ex.getMessage()));
+            return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
     }
 
@@ -3292,28 +3284,34 @@ public class PerformDataBase {
         performLists.getListHomeBanking().clear();
         Map<Integer, HomeBankingLoadDTO> homeBankingMap = new HashMap<>();
 
-        StringBuilder selectSQLBuilder = new StringBuilder();
-        selectSQLBuilder.append("SELECT hb.id AS hb_id, hb.cookies, hb.driver_session, hb.name, hb.options_config, ");
-        selectSQLBuilder.append("hb.password, hb.priority, hb.search_config, hb.url AS hb_url, hb.username, ");
-        selectSQLBuilder.append("COUNT(bot.id) AS jobs ");
-        selectSQLBuilder.append("FROM home_banking hb ");
-        selectSQLBuilder.append("LEFT JOIN bot_job bot ON hb.id = bot.home_banking_id ");
-
-        if (homeBankingId != null) {
-            selectSQLBuilder.append("WHERE hb.id = ? ");
-        }
-
-        selectSQLBuilder.append("GROUP BY hb.id, hb.cookies, hb.driver_session, hb.name, hb.options_config, ");
-        selectSQLBuilder.append("hb.password, hb.priority, hb.search_config, hb.url, hb.username ");
-
-        selectSQLBuilder.append("ORDER BY hb.id");
+        String selectSQL = "SELECT hb.id AS hb_id, " + "       hb.cookies, "
+                + "       hb.driver_session, "
+                + "       hb.name, "
+                + "       hb.options_config, "
+                + "       hb.password, "
+                + "       hb.priority, "
+                + "       hb.search_config, "
+                + "       hb.url AS hb_url, "
+                + "       hb.username, "
+                + "       COUNT(bot.id) AS jobs "
+                + "FROM home_banking hb "
+                + "LEFT JOIN bot_job bot ON hb.id = bot.home_banking_id "
+                +
+                //                        "WHERE (? IS NULL OR hb.id = ?) " +
+                "GROUP BY hb.id "
+                + "ORDER BY hb.id";
 
         try (Connection conn = getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(selectSQLBuilder.toString())) {
+                PreparedStatement pstmt = conn.prepareStatement(selectSQL)) {
 
-            if (homeBankingId != null) {
-                pstmt.setInt(1, homeBankingId);
-            }
+            //            // set parameter twice (because of "? IS NULL OR hb.id = ?")
+            //            if (homeBankingId != null) {
+            //                pstmt.setInt(1, homeBankingId);
+            //                pstmt.setInt(2, homeBankingId);
+            //            } else {
+            //                pstmt.setNull(1, java.sql.Types.INTEGER);
+            //                pstmt.setNull(2, java.sql.Types.INTEGER);
+            //            }
 
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
@@ -3330,11 +3328,7 @@ public class PerformDataBase {
                     homeBanking.setSearchConfig(rs.getString("search_config"));
                     homeBanking.setUrl(rs.getString("hb_url"));
                     homeBanking.setUsername(rs.getString("username"));
-
-                    // Set the number of jobs linked to this home_banking
-                    homeBanking.setJobs(rs.getInt("jobs")); // Add a field for this in your DTO!
-
-                    // Since you don't want home_url, do not set homeUrlDTOs
+                    homeBanking.setJobs(rs.getInt("jobs"));
 
                     homeBankingMap.put(currentHomeBankingId, homeBanking);
                 }
@@ -8370,7 +8364,7 @@ GROUP BY
         return false;
     }
 
-    public void loadAllVariablesByCriteria(int whereId, int parentId, String tableName) {
+    public void loadAllVariablesByCriteria(String tableName, int whereId, int parentId) {
         performLists.getListVariablesUser().clear();
 
         // Determine related table and columns based on tableName

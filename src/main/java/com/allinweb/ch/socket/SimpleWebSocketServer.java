@@ -33,9 +33,7 @@ public class SimpleWebSocketServer {
     protected static volatile SimpleWebSocketServer instance;
 
     // Private constructor to prevent instantiation
-    public SimpleWebSocketServer() {
-        // Initialize if necessary
-    }
+    public SimpleWebSocketServer() {}
 
     public static SimpleWebSocketServer getInstance() {
         if (instance == null) {
@@ -299,26 +297,38 @@ public class SimpleWebSocketServer {
                 alreadySentMgsSocket = true;
                 break;
             case "BLOCKS_COMPONENT":
-                BlockSplitDTO blockComponentDTO = gson.fromJson(jsonEntry, BlockSplitDTO.class);
+                BlockSplitDTO creteComp = gson.fromJson(jsonEntry, BlockSplitDTO.class);
 
-                homeBankingId = blockComponentDTO.getHomeBankingId();
-                sessionIdToSend = blockComponentDTO.getSessionId();
-                botJobIdTask = blockComponentDTO.getBotJobId();
+                homeBankingId = creteComp.getHomeBankingId();
+                sessionIdToSend = creteComp.getSessionId();
+                botJobIdTask = creteComp.getBotJobId();
 
-                createBlockComponent(blockComponentDTO);
+                createBlockComponent(creteComp);
 
                 alreadySentMgsSocket = true;
+
+                // calls perform list block update
+                creteComp.setType("UPDATE_BLOCKS_COMP");
+                jsonData = gson.toJson(creteComp);
+                webSocketSessionManager.sendMessageJson(
+                        homeBankingId, "perform-list-data", jsonData, "UPDATE_BLOCKS_COMP");
+
                 break;
             case "COMPONENT_INJECT":
-                BlockSplitDTO componentToInjectDTO = gson.fromJson(jsonEntry, BlockSplitDTO.class);
+                BlockSplitDTO injectComp = gson.fromJson(jsonEntry, BlockSplitDTO.class);
 
-                homeBankingId = componentToInjectDTO.getHomeBankingId();
-                sessionIdToSend = componentToInjectDTO.getSessionId();
-                botJobIdTask = componentToInjectDTO.getBotJobId();
+                homeBankingId = injectComp.getHomeBankingId();
+                sessionIdToSend = injectComp.getSessionId();
+                botJobIdTask = injectComp.getBotJobId();
 
-                injectBlockComponent(componentToInjectDTO);
+                injectBlockComponent(injectComp);
 
                 alreadySentMgsSocket = true;
+
+                // calls perform list block update
+                injectComp.setType("UPDATE_BLOCKS");
+                jsonData = gson.toJson(injectComp);
+                webSocketSessionManager.sendMessageJson(homeBankingId, "perform-list-data", jsonData, "UPDATE_BLOCKS");
 
                 break;
             case "BLOCKS_SPLITTER":
@@ -335,6 +345,11 @@ public class SimpleWebSocketServer {
                 } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
                 }
 
+                // calls perform list block update
+                blockSplitDTO.setType("UPDATE_BLOCKS");
+                jsonData = gson.toJson(blockSplitDTO);
+                webSocketSessionManager.sendMessageJson(homeBankingId, "perform-list-data", jsonData, "UPDATE_BLOCKS");
+
                 break;
             case "BLOCK_MOVE":
                 BlockMoveDTO blockMoveDTO = gson.fromJson(jsonEntry, BlockMoveDTO.class);
@@ -349,6 +364,11 @@ public class SimpleWebSocketServer {
                     moveBlock(blockMoveDTO);
                 } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
                 }
+
+                // calls perform list block update
+                blockMoveDTO.setType("UPDATE_BLOCKS");
+                jsonData = gson.toJson(blockMoveDTO);
+                webSocketSessionManager.sendMessageJson(homeBankingId, "perform-list-data", jsonData, "UPDATE_BLOCKS");
 
                 break;
             case "ROW_UPDATE":
@@ -477,15 +497,18 @@ public class SimpleWebSocketServer {
                     alreadySentMgsSocket = false;
 
                     tableName = null;
+                    String updteBlocks = null;
                     whereId = -1;
 
                     if (sessionIdToSend != null) {
                         if (sessionIdToSend.matches(".*botJobTasks.*")) {
                             tableName = "block";
                             whereId = blockReorder.getBotJobId();
+                            updteBlocks = "UPDATE_BLOCKS";
                         } else if (sessionIdToSend.matches(".*componentTasks.*")) {
                             tableName = "component_block";
                             whereId = blockReorder.getHomeBankingId();
+                            updteBlocks = "UPDATE_BLOCKS_COMP";
                         }
                     }
 
@@ -495,6 +518,12 @@ public class SimpleWebSocketServer {
 
                         if (errorMessage == null) {
                             performDataBase.deleteNullBlocks(tableName, whereId);
+
+                            // calls perform list block update
+                            blockReorder.setType(updteBlocks);
+                            jsonData = gson.toJson(blockReorder);
+                            webSocketSessionManager.sendMessageJson(
+                                    homeBankingId, "perform-list-data", jsonData, updteBlocks);
                         }
                     }
 
@@ -509,6 +538,7 @@ public class SimpleWebSocketServer {
                                 0);
                     }
                 }
+
                 break;
             case "INSTRUCTION_STATUS":
                 InstructionLoadDTO InstructionLoadDTO = gson.fromJson(jsonEntry, InstructionLoadDTO.class);
@@ -566,13 +596,40 @@ public class SimpleWebSocketServer {
 
                 alreadySentMgsSocket = false;
 
-                if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
-                    performDataBase.updateBlockName(
-                            blockUpdateDTO.getBotJobId(), blockUpdateDTO.getBlockId(), blockUpdateDTO.getBlockName());
-                } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
-                    performDataBase.updateCompBlockName(
-                            blockUpdateDTO.getBotJobId(), blockUpdateDTO.getBlockId(), blockUpdateDTO.getBlockName());
+                tableName = null;
+                String updteBlocks = null;
+                whereId = -1;
+                errorMessage = null;
+
+                if (sessionIdToSend != null) {
+                    if (sessionIdToSend.matches(".*botJobTasks.*")) {
+                        tableName = "block";
+                        whereId = blockUpdateDTO.getBotJobId();
+                        updteBlocks = "UPDATE_BLOCKS";
+                    } else if (sessionIdToSend.matches(".*componentTasks.*")) {
+                        tableName = "component_block";
+                        whereId = blockUpdateDTO.getHomeBankingId();
+                        updteBlocks = "UPDATE_BLOCKS_COMP";
+                    }
                 }
+                if (tableName != null) {
+                    errorMessage = performDataBase.updateBlockName(
+                            whereId, tableName, blockUpdateDTO.getBlockId(), blockUpdateDTO.getBlockName());
+                    blockUpdateDTO.setType(updteBlocks);
+                    jsonData = gson.toJson(blockUpdateDTO);
+                    webSocketSessionManager.sendMessageJson(homeBankingId, "perform-list-data", jsonData, updteBlocks);
+                }
+
+                if (errorMessage != null) {
+                    performMessage.errorMessage(
+                            errorMessage.getErrorTitle(),
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                    + errorMessage.getErrorHeader(),
+                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                            null,
+                            0);
+                } // calls perform list block update
 
                 break;
             case "DELETE_INSTRUCTION":
@@ -797,6 +854,7 @@ public class SimpleWebSocketServer {
                     null,
                     0);
         }
+        performDataBase.loadBlocks(blockSplitDTO.getBotJobId(), "", "block");
     }
 
     // Handle BLOCK_MOVE message

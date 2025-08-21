@@ -22,7 +22,7 @@ public class ARInfoPane extends ARPane {
 
     // Private constructor to prevent instantiation
     private ARInfoPane() {
-        // Initialize if necessary
+
         super();
     }
 

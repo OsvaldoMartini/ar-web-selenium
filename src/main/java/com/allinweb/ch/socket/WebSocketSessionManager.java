@@ -12,9 +12,7 @@ public class WebSocketSessionManager {
     protected static volatile WebSocketSessionManager instance;
 
     // Private constructor to prevent instantiation
-    public WebSocketSessionManager() {
-        // Initialize if necessary
-    }
+    public WebSocketSessionManager() {}
 
     public static WebSocketSessionManager getInstance() {
         if (instance == null) {

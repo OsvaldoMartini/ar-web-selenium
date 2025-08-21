@@ -17,7 +17,7 @@ public class ARSaveCloneScene extends ARScene {
 
     // Private constructor to prevent instantiation
     private ARSaveCloneScene() {
-        // Initialize if necessary
+
         super();
     }
 

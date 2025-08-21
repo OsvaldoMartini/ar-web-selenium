@@ -16,9 +16,7 @@ public class ARPropertyManager {
     protected static volatile ARPropertyManager instance;
 
     // Private constructor to prevent instantiation
-    private ARPropertyManager() {
-        // Initialize if necessary
-    }
+    private ARPropertyManager() {}
 
     public static ARPropertyManager getInstance() {
         if (instance == null) {
@@ -131,7 +129,7 @@ public class ARPropertyManager {
 
             missingMandatoryPats();
 
-            setProperty(ARPropertyEnum.VERSION.getValue(), "AR Web v4.1f Beta Test");
+            setProperty(ARPropertyEnum.VERSION.getValue(), "AR Web v4.2f Beta Test");
             setProperty(ARPropertyEnum.BUILD.getValue(), "Build: 23/07/2025");
 
             //        } catch (Exception e) {

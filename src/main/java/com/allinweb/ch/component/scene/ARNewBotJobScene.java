@@ -18,7 +18,7 @@ public class ARNewBotJobScene extends ARScene {
 
     // Private constructor to prevent instantiation
     private ARNewBotJobScene() {
-        // Initialize if necessary
+
         super();
     }
 

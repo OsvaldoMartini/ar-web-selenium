@@ -43,7 +43,7 @@ public class ARExcelFilePane extends ARPane {
 
     // Private constructor to prevent instantiation
     private ARExcelFilePane() {
-        // Initialize if necessary
+
         super();
     }
 

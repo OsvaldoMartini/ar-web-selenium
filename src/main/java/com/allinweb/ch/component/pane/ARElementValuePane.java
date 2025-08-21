@@ -26,9 +26,7 @@ public class ARElementValuePane extends ARPane {
     protected static volatile ARElementValuePane instance;
 
     // Private constructor to prevent instantiation
-    private ARElementValuePane() {
-        // Initialize if necessary
-    }
+    private ARElementValuePane() {}
 
     public static ARElementValuePane getInstance() {
         if (instance == null) {
@@ -101,13 +99,11 @@ public class ARElementValuePane extends ARPane {
         this.varName = varName;
         this.instructionType = instructionType;
 
-        String tableName = "variable";
-        int whereId = rowMoveDTO.getBotJobId();
-        if (rowMoveDTO.getSessionId().equals("componentTasks")) {
-            tableName = "component_variable";
-            whereId = rowMoveDTO.getHomeBankingId();
-        }
-        performDataBase.loadAllVariablesByCriteria(whereId, instructionId, tableName);
+        String varTable = rowMoveDTO.getSessionId().equals("componentTasks") ? "component_variable" : "variable";
+        int whereId = rowMoveDTO.getSessionId().equals("componentTasks")
+                ? rowMoveDTO.getHomeBankingId()
+                : rowMoveDTO.getBotJobId();
+        performDataBase.loadAllVariablesByCriteria(varTable, whereId, instructionId);
 
         if (this.varId > -1) {
             selectRowById(varId);
@@ -488,14 +484,12 @@ public class ARElementValuePane extends ARPane {
             }
 
             performDataBase.createVariable(user);
-            String tableName = "variable";
-            int whereId = rowMoveDTO.getBotJobId();
-            if (rowMoveDTO.getSessionId().equals("componentTasks")) {
-                tableName = "component_variable";
-                whereId = rowMoveDTO.getHomeBankingId();
-            }
-            performDataBase.loadAllVariablesByCriteria(whereId, instructionId, tableName);
-            arNewCommandPane.reloadComboVars(instructionId, true, -1);
+            String varTable = rowMoveDTO.getSessionId().equals("componentTasks") ? "component_variable" : "variable";
+            int whereId = rowMoveDTO.getSessionId().equals("componentTasks")
+                    ? rowMoveDTO.getHomeBankingId()
+                    : rowMoveDTO.getBotJobId();
+            performDataBase.loadAllVariablesByCriteria(varTable, whereId, instructionId);
+            arNewCommandPane.reloadComboVars(varTable, whereId, instructionId, true, -1);
         });
 
         updateButton.setOnAction(event -> {
@@ -528,12 +522,12 @@ public class ARElementValuePane extends ARPane {
 
             performDataBase.updateUserData(selectedUser.getId(), selectedUser);
 
-            String tableName = "variable";
-            if (rowMoveDTO.getSessionId().equals("componentTasks")) {
-                tableName = "component_variable";
-            }
-            performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId, tableName);
-            arNewCommandPane.reloadComboVars(instructionId, true, varId);
+            String varTable = rowMoveDTO.getSessionId().equals("componentTasks") ? "component_variable" : "variable";
+            int whereId = rowMoveDTO.getSessionId().equals("componentTasks")
+                    ? rowMoveDTO.getHomeBankingId()
+                    : rowMoveDTO.getBotJobId();
+            performDataBase.loadAllVariablesByCriteria(varTable, whereId, instructionId);
+            arNewCommandPane.reloadComboVars(varTable, whereId, instructionId, true, varId);
         });
         deleteButton.setOnAction(event -> {
             String id = idField.getText();
@@ -550,12 +544,12 @@ public class ARElementValuePane extends ARPane {
             }
 
             performDataBase.deleteUserData(id);
-            String tableName = "variable";
-            if (rowMoveDTO.getSessionId().equals("componentTasks")) {
-                tableName = "component_variable";
-            }
-            performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId, tableName);
-            arNewCommandPane.reloadComboVars(instructionId, true, -1);
+            String varTable = rowMoveDTO.getSessionId().equals("componentTasks") ? "component_variable" : "variable";
+            int whereId = rowMoveDTO.getSessionId().equals("componentTasks")
+                    ? rowMoveDTO.getHomeBankingId()
+                    : rowMoveDTO.getBotJobId();
+            performDataBase.loadAllVariablesByCriteria(varTable, whereId, instructionId);
+            arNewCommandPane.reloadComboVars(varTable, whereId, instructionId, true, -1);
         });
 
         // Add listener to TableView selection
@@ -647,11 +641,12 @@ public class ARElementValuePane extends ARPane {
         if (rowMoveDTO != null && rowMoveDTO.getBotJobId() != null) {
 
             if (performLists.getListVariablesUser().isEmpty()) {
-                String tableName = "variable";
-                if (rowMoveDTO.getSessionId().equals("componentTasks")) {
-                    tableName = "component_variable";
-                }
-                performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId, tableName);
+                String varTable =
+                        rowMoveDTO.getSessionId().equals("componentTasks") ? "component_variable" : "variable";
+                int whereId = rowMoveDTO.getSessionId().equals("componentTasks")
+                        ? rowMoveDTO.getHomeBankingId()
+                        : rowMoveDTO.getBotJobId();
+                performDataBase.loadAllVariablesByCriteria(varTable, whereId, instructionId);
             }
 
             if (tableView == null) {

@@ -44,7 +44,7 @@ public class ARViewBotJobScene extends ARScene {
 
     // Private constructor to prevent instantiation
     private ARViewBotJobScene() {
-        // Initialize if necessary
+
         super();
     }
 
@@ -76,7 +76,6 @@ public class ARViewBotJobScene extends ARScene {
     private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private static final CountDownLatch latch = new CountDownLatch(1);
     private Session session;
-
     private ExecutorService executorWebSocket = Executors.newSingleThreadExecutor();
 
     private ARWebDriver arWebDriver;

@@ -15,7 +15,7 @@ public class ARLicenseScene extends ARScene {
 
     // Private constructor to prevent instantiation
     private ARLicenseScene() {
-        // Initialize if necessary
+
         super();
     }
 

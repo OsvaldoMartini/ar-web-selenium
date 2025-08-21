@@ -34,9 +34,7 @@ public class ExportAccessToPostgres {
     private TreeMap<Integer, Integer> referenceMap = new TreeMap<>();
 
     // Private constructor to prevent instantiation
-    private ExportAccessToPostgres() {
-        // Initialize if necessary
-    }
+    private ExportAccessToPostgres() {}
 
     public static ExportAccessToPostgres getInstance() {
         if (instance == null) {

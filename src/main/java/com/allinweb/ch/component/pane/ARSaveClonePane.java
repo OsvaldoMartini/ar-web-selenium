@@ -30,7 +30,7 @@ public class ARSaveClonePane extends ARPane {
 
     // Private constructor to prevent instantiation
     private ARSaveClonePane() {
-        // Initialize if necessary
+
         super();
     }
 

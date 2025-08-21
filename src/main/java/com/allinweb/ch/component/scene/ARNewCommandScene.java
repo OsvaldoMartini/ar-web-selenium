@@ -1,5 +1,6 @@
 package com.allinweb.ch.component.scene;
 
+import com.allinweb.ch.component.model.BlockMoveDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.pane.ARNewCommandPane;
@@ -41,7 +42,7 @@ public class ARNewCommandScene extends ARScene {
 
     // Private constructor to prevent instantiation
     private ARNewCommandScene() {
-        // Initialize if necessary
+
         super();
     }
 
@@ -89,25 +90,54 @@ public class ARNewCommandScene extends ARScene {
 
     @OnMessage
     public void onMessage(String message, Session session) {
+        System.out.println("Received: " + message);
         if (message == null || message.contains("CONNECT") || message.contains("ping")) {
-            // Ignore null or empty messages
+            // Ignore null, CONNECT, or ping messages
             message = message.replaceAll("ping-", "");
             System.out.println("Active : " + message);
             return;
         }
-        String type = null;
+
         int homeBankingId = -1;
+        String sessionId = null;
+        String type = "unknown";
+        String body = null;
+
         try {
             // Parse the incoming message (assuming JSON format)
             JsonObject jsonObjMSG = JsonParser.parseString(message).getAsJsonObject();
-            homeBankingId = jsonObjMSG.has("homeBankingId")
-                    ? Integer.parseInt(jsonObjMSG.get("homeBankingId").getAsString())
-                    : -1;
 
-            type = jsonObjMSG.has("type") ? jsonObjMSG.get("type").getAsString() : "unknown";
-            String sessionId =
-                    jsonObjMSG.has("sessionId") ? jsonObjMSG.get("sessionId").getAsString() : "unknown";
+            // Extract homeBankingId
+            if (jsonObjMSG.has("homeBankingId")) {
+                homeBankingId = jsonObjMSG.get("homeBankingId").getAsInt();
+            }
 
+            // Extract body
+            body = jsonObjMSG.has("body") ? jsonObjMSG.get("body").getAsString() : "unknown";
+
+            // Determine type (priority: body.type → json.type → operationId)
+            if (!"unknown".equalsIgnoreCase(body)) {
+                JsonObject objSecond = JsonParser.parseString(body).getAsJsonObject();
+                if (objSecond.has("type")) {
+                    type = objSecond.get("type").getAsString();
+                }
+            }
+
+            if ("unknown".equals(type) && jsonObjMSG.has("type")) {
+                type = jsonObjMSG.get("type").getAsString();
+            }
+
+            if ("unknown".equals(type) && jsonObjMSG.has("operationId")) {
+                type = jsonObjMSG.get("operationId").getAsString();
+            }
+
+            // Extract sessionId
+            sessionId =
+                    jsonObjMSG.has("sessionId") ? jsonObjMSG.get("sessionId").getAsString() : null;
+
+            // Debug print (optional)
+            System.out.printf(
+                    "homeBankingId=%d, sessionId=%s, type=%s, body=%s%n", homeBankingId, sessionId, type, body);
             // After Decoding
             if (type == null || type.trim().isEmpty() || type.contains("CONNECT") || type.contains("ping")) {
                 // Ignore null or empty messages
@@ -116,18 +146,43 @@ public class ARNewCommandScene extends ARScene {
                 return;
             }
 
-            try {
+            // Process the message based on its type
+            switch (type) {
+                case "UPDATE_BLOCKS":
+                    BlockMoveDTO blockMoveDTO = gson.fromJson(body, BlockMoveDTO.class);
+                    arNewCommandPane.reloadDBBlocks(blockMoveDTO.getBotJobId(), "block");
+                    break;
+                case "UPDATE_BLOCKS_COMP":
+                    blockMoveDTO = gson.fromJson(body, BlockMoveDTO.class);
+                    arNewCommandPane.reloadDBBlocks(blockMoveDTO.getHomeBankingId(), "component_block");
+                    break;
+                case "INSERT_BEFORE":
+                case "INSERT_AFTER":
+                case "INSERT_NEW":
+                case "INSERT_AFTER_ELSEIF":
+                case "INSERT_BEFORE_ELSEIF":
+                case "EDIT_OPERATION":
+                    try {
+                        RowMoveDTO rowUpdateDTO = gson.fromJson(jsonObjMSG, RowMoveDTO.class);
+                        //                this.webPageItems =
+                        // performDataBase.loadWebPageFields(rowUpdateDTO.getBotJobId());
 
-                RowMoveDTO rowUpdateDTO = gson.fromJson(jsonObjMSG, RowMoveDTO.class);
-                //                this.webPageItems = performDataBase.loadWebPageFields(rowUpdateDTO.getBotJobId());
-
-                // Ensure JavaFX UI updates are done on the JavaFX Application Thread
-                initialize(rowUpdateDTO);
-                Platform.runLater(() -> showModal());
-            } catch (Exception error) {
-                ARLogger.getInstance(ARNewCommandScene.class).finer("Cannot Missing Value from  RowMoveDTO");
+                        // Ensure JavaFX UI updates are done on the JavaFX Application Thread
+                        String blockTable =
+                                rowUpdateDTO.getSessionId().equals("componentTasks") ? "component_block" : "block";
+                        int whereId = rowUpdateDTO.getSessionId().equals("componentTasks")
+                                ? rowUpdateDTO.getHomeBankingId()
+                                : rowUpdateDTO.getBotJobId();
+                        arNewCommandPane.reloadDBBlocks(whereId, blockTable);
+                        initialize(rowUpdateDTO);
+                        Platform.runLater(() -> showModal());
+                    } catch (Exception error) {
+                        ARLogger.getInstance(ARNewCommandScene.class).finer("Cannot Missing Value from  RowMoveDTO");
+                    }
+                    break;
+                default:
+                    break;
             }
-            //                });
 
         } catch (Exception error) {
             System.err.println("Closed processing message: " + error.getMessage());
@@ -260,7 +315,6 @@ public class ARNewCommandScene extends ARScene {
 
             }
         }
-
         arNewCommandPane.initialize(rowMoveDTO);
 
         if (modalStage == null) {

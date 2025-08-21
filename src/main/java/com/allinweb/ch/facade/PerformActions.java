@@ -71,9 +71,7 @@ public class PerformActions {
     protected static volatile PerformActions instance;
 
     // Private constructor to prevent instantiation
-    private PerformActions() {
-        // Initialize if necessary
-    }
+    private PerformActions() {}
 
     // Public method to access the singleton instance
     public static PerformActions getInstance() {

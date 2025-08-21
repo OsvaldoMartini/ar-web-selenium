@@ -18,9 +18,7 @@ public class ARComponentBuilder {
     protected static volatile ARComponentBuilder instance;
 
     // Private constructor to prevent instantiation
-    private ARComponentBuilder() {
-        // Initialize if necessary
-    }
+    private ARComponentBuilder() {}
 
     // Public method to access the singleton instance
     public static ARComponentBuilder getInstance() {

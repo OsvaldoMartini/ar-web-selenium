@@ -15,7 +15,6 @@ import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -33,15 +32,15 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
 import javafx.stage.Stage;
+import javax.websocket.*;
 
+@ClientEndpoint
 public class ARNewCommandPane extends ARPane {
 
     protected static volatile ARNewCommandPane instance;
 
     // Private constructor to prevent instantiation
-    private ARNewCommandPane() {
-        // Initialize if necessary
-    }
+    private ARNewCommandPane() {}
 
     public static ARNewCommandPane getInstance() {
         if (instance == null) {
@@ -54,20 +53,13 @@ public class ARNewCommandPane extends ARPane {
         return instance;
     }
 
-    private static final WebSocketSessionManager webSocketSessionManager;
-    private static final PerformLists performLists;
-    private static final PerformDataBase performDataBase;
-    private static final PerformMessage performMessage;
-    private static final ARElementValueScene arElementValueScene;
-
-    // Static block to initialize
-    static {
-        webSocketSessionManager = WebSocketSessionManager.getInstance();
-        performMessage = PerformMessage.getInstance();
-        performLists = PerformLists.getInstance();
-        performDataBase = PerformDataBase.getInstance();
-        arElementValueScene = ARElementValueScene.getInstance();
-    }
+    // Lists for tables
+    private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
+    private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
+    private static final PerformMessage performMessage = PerformMessage.getInstance();
+    private static final PerformLists performLists = PerformLists.getInstance();
+    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
+    private static final ARElementValueScene arElementValueScene = ARElementValueScene.getInstance();
 
     private List<String> allowedActions = Arrays.asList(
             WebElementIcon.SET_VALUE.getValue().toUpperCase(),
@@ -174,26 +166,21 @@ public class ARNewCommandPane extends ARPane {
     private ObservableList<ComboBoxImage> filteredPageItems = FXCollections.observableArrayList();
 
     private ComboBox<BlockOptions> comboBoxAllBlocks;
-    private ObservableList<BlockOptions> allBlocksItems = FXCollections.observableArrayList();
-
     private ComboBox<BlockOptions> comboBoxBlocksGoto;
-    private ObservableList<BlockOptions> blocksGotoItems = FXCollections.observableArrayList();
+
+    private ObservableList<BlockOptions> currentListBlock = FXCollections.observableArrayList();
 
     private ComboBox<ComboBoxOperator> comboBoxOperator;
     private ObservableList<ComboBoxOperator> operatorsItems = FXCollections.observableArrayList();
 
-    private List<BlockLoadDTO> currentListBlock = new ArrayList<>();
-    private boolean isComponent = false;
-
     public void initialize(RowMoveDTO rowMoveDTO) {
+        this.rowMoveDTO = rowMoveDTO;
 
-        if (rowMoveDTO.getSessionId().equals("componentTasks")) {
+        if (this.rowMoveDTO.getSessionId().equals("componentTasks")) {
             performDataBase.loadWebPageFields(rowMoveDTO.getHomeBankingId(), "home_banking");
         } else {
             performDataBase.loadWebPageFields(rowMoveDTO.getBotJobId(), "bot_job");
         }
-
-        this.rowMoveDTO = rowMoveDTO;
 
         this.filteredPageItems.clear();
         this.filteredPageItems.addAll(performLists.getListWebPageItems().stream()
@@ -275,62 +262,37 @@ public class ARNewCommandPane extends ARPane {
                     "No Web Fields", new Image(ARConstants.ICON_BLANK), ARConstants.NO_VALUE, -1, -1, -1));
         }
 
-        String tableName = "variable";
-        String blockTable = "block";
-        int whereId = rowMoveDTO.getBotJobId();
-        if (rowMoveDTO.getSessionId().equals("componentTasks")) {
-            tableName = "component_variable";
-            blockTable = "component_block";
-            whereId = rowMoveDTO.getHomeBankingId();
-        }
+        String varTable = rowMoveDTO.getSessionId().equals("componentTasks") ? "component_variable" : "variable";
+        int whereId = rowMoveDTO.getSessionId().equals("componentTasks")
+                ? rowMoveDTO.getHomeBankingId()
+                : rowMoveDTO.getBotJobId();
 
         if (this.filteredPageItems != null && this.filteredPageItems.size() > 0) {
             variablesItems.clear();
             performDataBase.loadAllVariablesByCriteria(
-                    whereId, filteredPageItems.get(0).getInstructionId(), tableName);
-
-        } else {
-            tableName = "variable";
-            whereId = rowMoveDTO.getBotJobId();
-            if (rowMoveDTO.getSessionId().equals("componentTasks")) {
-                tableName = "component_variable";
-                whereId = rowMoveDTO.getHomeBankingId();
-                blockTable = "component_block";
-            }
-            performDataBase.loadAllVariablesByCriteria(
-                    whereId, filteredPageItems.get(0).getInstructionId(), tableName);
-        }
-        performDataBase.loadBlocks(whereId, rowMoveDTO.getBotJobName(), blockTable);
-
-        isComponent = rowMoveDTO.getSessionId().equals("componentTasks");
-
-        if (isComponent) {
-            currentListBlock = performLists.getListBlockComp();
-        } else {
-            currentListBlock = performLists.getListBlock();
+                    varTable, whereId, filteredPageItems.get(0).getInstructionId());
         }
 
-        if (!currentListBlock.isEmpty()) {
-            //            for (BotJobLoadDTO botJobLoadDTO : this.botJobLoadList) {
-
-            if (rowMoveDTO.getUpdatedRows().get(0).getActions() != null
-                    && rowMoveDTO.getUpdatedRows().get(0).getActions().equals("EXCEL GOTO")) {
-                loadBlockItems(currentListBlock, -99);
-            } else {
-                loadBlockItems(currentListBlock, rowMoveDTO.getBlockId());
+        if (currentListBlock.isEmpty()) {
+            // If list is empty, populate AllBlocks with a default block
+            ObservableList<BlockOptions> defaultAll =
+                    FXCollections.observableArrayList(new BlockOptions("#1 Default Block", "Default Block", 1, 1));
+            if (comboBoxAllBlocks != null) {
+                comboBoxAllBlocks.setItems(defaultAll);
+                comboBoxAllBlocks.getSelectionModel().selectFirst();
             }
 
-            //            }
-
-            //            for (BotJobLoadDTO botJobLoadDTO : this.botJobLoadList) {
-            loadAllBlockItems(currentListBlock);
-            //            }
-        } else {
-            allBlocksItems.add(new BlockOptions("#1 Default Block", "Default Block", 1, 1));
+            // And also for Goto combo
+            ObservableList<BlockOptions> defaultGoto =
+                    FXCollections.observableArrayList(new BlockOptions("no blocks added", "", -1, -1));
+            if (comboBoxBlocksGoto != null) {
+                comboBoxBlocksGoto.setItems(defaultGoto);
+                comboBoxBlocksGoto.getSelectionModel().selectFirst();
+            }
         }
 
         if (loadeAllCompleted) {
-            setCombosAndLabels();
+            setCombosAndLabels(varTable, whereId);
             titleDescription();
         }
     }
@@ -620,10 +582,7 @@ public class ARNewCommandPane extends ARPane {
             }
         });
 
-        comboBoxBlocksGoto = new ComboBox<>(blocksGotoItems);
-        if (blocksGotoItems.size() == 0) {
-            blocksGotoItems.add(new BlockOptions("no blocks added", "", -1, -1));
-        }
+        comboBoxBlocksGoto = new ComboBox<>();
         comboBoxBlocksGoto.setPrefWidth(buttonWidth);
         comboBoxBlocksGoto.getSelectionModel().selectFirst();
         comboBoxBlocksGoto.setButtonCell(new ListCell<>() {
@@ -705,7 +664,7 @@ public class ARNewCommandPane extends ARPane {
             }
         });
 
-        comboBoxAllBlocks = new ComboBox<>(allBlocksItems);
+        comboBoxAllBlocks = new ComboBox<>();
         comboBoxAllBlocks.setPrefWidth(50);
         comboBoxAllBlocks.setButtonCell(new ListCell<>() {
             @Override
@@ -879,8 +838,15 @@ public class ARNewCommandPane extends ARPane {
         AnchorPane.setLeftAnchor(vboxAll, 0.0);
         AnchorPane.setRightAnchor(vboxAll, 0.0);
 
+        reloadCombosBlocks();
         loadeAllCompleted = true;
-        setCombosAndLabels();
+        String varTable = "variable";
+        int whereId = rowMoveDTO.getBotJobId();
+        if (rowMoveDTO.getSessionId().equals("componentTasks")) {
+            varTable = "component_variable";
+            whereId = rowMoveDTO.getHomeBankingId();
+        }
+        setCombosAndLabels(varTable, whereId);
     }
 
     private void titleDescription() {
@@ -920,7 +886,7 @@ public class ARNewCommandPane extends ARPane {
         operationSelected.requestLayout();
     }
 
-    private void setCombosAndLabels() {
+    private void setCombosAndLabels(String tableName, int whereId) {
         if (rowMoveDTO.getType().equals("EDIT_OPERATION")) {
             String actions = rowMoveDTO.getUpdatedRows().get(0).getInstructionName();
             String[] operations = rowMoveDTO.getUpdatedRows().get(0).getOperation() != null
@@ -941,7 +907,7 @@ public class ARNewCommandPane extends ARPane {
             } else {
                 comboBoxInstruc.getSelectionModel().selectFirst();
                 comboBoxWebFields.getSelectionModel().selectFirst();
-                reloadComboVars(comboBoxWebFields.getValue().getInstructionId(), false, -1);
+                reloadComboVars(tableName, whereId, comboBoxWebFields.getValue().getInstructionId(), false, -1);
                 comboBoxVars.getSelectionModel().selectFirst();
                 comboBoxOperator.getSelectionModel().selectFirst();
 
@@ -953,7 +919,7 @@ public class ARNewCommandPane extends ARPane {
         } else {
             comboBoxInstruc.getSelectionModel().selectFirst();
             comboBoxWebFields.getSelectionModel().selectFirst();
-            reloadComboVars(comboBoxWebFields.getValue().getInstructionId(), false, -1);
+            reloadComboVars(tableName, whereId, comboBoxWebFields.getValue().getInstructionId(), false, -1);
             comboBoxVars.getSelectionModel().selectFirst();
             comboBoxOperator.getSelectionModel().selectFirst();
 
@@ -1006,7 +972,11 @@ public class ARNewCommandPane extends ARPane {
                 "Screenshot Browser", "Screenshot Browser", ARConstants.SCREEN, 0, "", null, null, null, rowMoveDTO));
 
         refreshWebButton.setOnMouseClicked(e -> {
-            updateFields();
+            String tableName = rowMoveDTO.getSessionId().equals("componentTasks") ? "home_banking" : "bot_job";
+            int whereId = rowMoveDTO.getSessionId().equals("componentTasks")
+                    ? rowMoveDTO.getHomeBankingId()
+                    : rowMoveDTO.getBotJobId();
+            updateFields(tableName, whereId);
         });
 
         comboBoxOperator.setVisible(false);
@@ -1062,7 +1032,7 @@ public class ARNewCommandPane extends ARPane {
                                 .getBlockId()
                                 .equals(comboBoxWebFields.getValue().getBlockId())) {
 
-                    String outsideBlock = allBlocksItems.stream()
+                    String outsideBlock = currentListBlock.stream()
                             .filter(f -> f.getBlockId()
                                     .equals(comboBoxWebFields.getValue().getBlockId()))
                             .map(BlockOptions::getText)
@@ -1083,7 +1053,7 @@ public class ARNewCommandPane extends ARPane {
 
             if ((comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.GOTO)
                             || comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.EXCEL_GOTO))
-                    && blocksGotoItems.size() == 1
+                    && currentListBlock.size() == 1
                     && (comboBoxBlocksGoto.getValue().getBlockId() == -1)) {
 
                 performMessage.errorMessage(
@@ -1246,6 +1216,13 @@ public class ARNewCommandPane extends ARPane {
         });
 
         variableButton.setOnAction(e -> {
+            String varTable = "variable";
+            int whereId = rowMoveDTO.getBotJobId();
+            if (rowMoveDTO.getSessionId().equals("componentTasks")) {
+                varTable = "component_variable";
+                whereId = rowMoveDTO.getHomeBankingId();
+            }
+
             if (this.rowMoveDTO != null && !rowMoveDTO.getUpdatedRows().isEmpty()) {
                 ARLogger.getInstance(ARNewCommandPane.class)
                         .info("creating variable for instruction Name "
@@ -1260,7 +1237,7 @@ public class ARNewCommandPane extends ARPane {
                         comboBoxInstruc.getValue().getValue());
                 arElementValueScene.showModal();
 
-                reloadComboVars(comboBoxWebFields.getValue().getInstructionId(), false, -1);
+                reloadComboVars(varTable, whereId, comboBoxWebFields.getValue().getInstructionId(), false, -1);
                 // Set ComboBox to first item
                 comboBoxVars.getSelectionModel().selectFirst();
                 if (!firstLoad) {
@@ -1282,7 +1259,7 @@ public class ARNewCommandPane extends ARPane {
                         comboBoxInstruc.getValue().getValue());
                 arElementValueScene.showModal();
             }
-            reloadComboVars(comboBoxWebFields.getValue().getInstructionId(), false, -1);
+            reloadComboVars(varTable, whereId, comboBoxWebFields.getValue().getInstructionId(), false, -1);
             // Set ComboBox to first item
             comboBoxVars.getSelectionModel().selectFirst();
             if (comboBoxVars.getValue() != null) {
@@ -1299,7 +1276,7 @@ public class ARNewCommandPane extends ARPane {
         //                    ComboBoxImage newValue) {
         //                if (newValue != null) {
         //                    if (!firstLoad)  {
-        //                        reloadComboVars(newValue.getInstructionId(), false, -1);
+        //                        reloadComboVars(tableName, whereId, newValue.getInstructionId(), false, -1);
         //                        comboBoxVars.getSelectionModel().selectFirst();
         //                        recallMessages(comboBoxInstruc.getValue().getValue());
         //                    }
@@ -1311,7 +1288,13 @@ public class ARNewCommandPane extends ARPane {
         comboBoxWebFields.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue != null) {
                 if (!firstLoad) {
-                    reloadComboVars(newValue.getInstructionId(), false, -1);
+                    String varTable = "variable";
+                    int whereId = rowMoveDTO.getBotJobId();
+                    if (rowMoveDTO.getSessionId().equals("componentTasks")) {
+                        varTable = "component_variable";
+                        whereId = rowMoveDTO.getHomeBankingId();
+                    }
+                    reloadComboVars(varTable, whereId, newValue.getInstructionId(), false, -1);
                     comboBoxVars.getSelectionModel().selectFirst();
                     recallMessages(comboBoxInstruc.getValue().getValue());
                 }
@@ -1322,11 +1305,16 @@ public class ARNewCommandPane extends ARPane {
         comboBoxInstruc.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue != null) {
                 if (!firstLoad) {
-                    if (ARConstants.EXCEL_GOTO.equalsIgnoreCase(String.valueOf(newValue.getValue())) || isComponent) {
-                        loadBlockItems(currentListBlock, -99);
+                    if (newValue.getValue().equals("EXCEL GOTO")) {
+                        loadBlockGoto(-99);
                     } else {
-                        loadBlockItems(currentListBlock, rowMoveDTO.getBlockId());
+                        if (comboBoxBlocksGoto != null) {
+                            loadBlockGoto(comboBoxAllBlocks.getValue().getBlockId());
+                        } else {
+                            loadBlockGoto(-99);
+                        }
                     }
+
                     recallMessages(comboBoxInstruc.getValue().getValue());
                     if (comboBoxVars.getValue() != null
                             && comboBoxVars.getValue().getVarId() > -1) {
@@ -1374,15 +1362,10 @@ public class ARNewCommandPane extends ARPane {
             if (newValue != null) {
                 if (!firstLoad) {
                     if (rowMoveDTO.getUpdatedRows().get(0).getActions() != null
-                                    && rowMoveDTO
-                                            .getUpdatedRows()
-                                            .get(0)
-                                            .getActions()
-                                            .equals("EXCEL GOTO")
-                            || isComponent) {
-                        loadBlockItems(currentListBlock, -99);
+                            && rowMoveDTO.getUpdatedRows().get(0).getActions().equals("EXCEL GOTO")) {
+                        loadBlockGoto(-99);
                     } else {
-                        loadBlockItems(currentListBlock, newValue.getBlockId());
+                        loadBlockGoto(newValue.getBlockId());
                     }
                     recallMessages(comboBoxInstruc.getValue().getValue());
                 }
@@ -2210,15 +2193,9 @@ public class ARNewCommandPane extends ARPane {
         }
     }
 
-    public void reloadComboVars(int instructionId, boolean selectLast, int variableId) {
+    public void reloadComboVars(String varTable, int whereId, int instructionId, boolean selectLast, int variableId) {
         variablesItems.clear();
-        String tableName = "variable";
-        int whereId = rowMoveDTO.getBotJobId();
-        if (isComponent) {
-            tableName = "component_variable";
-            whereId = rowMoveDTO.getHomeBankingId();
-        }
-        performDataBase.loadAllVariablesByCriteria(whereId, instructionId, tableName);
+        performDataBase.loadAllVariablesByCriteria(varTable, whereId, instructionId);
 
         if (!performLists.getListVariablesUser().isEmpty()) {
             List<ComboBoxVars> variablesNames = performLists.getListVariablesUser().stream()
@@ -2260,13 +2237,8 @@ public class ARNewCommandPane extends ARPane {
         }
     }
 
-    private void updateFields() {
-        if (isComponent) {
-            performDataBase.loadWebPageFields(rowMoveDTO.getHomeBankingId(), "home_banking");
-        } else {
-            performDataBase.loadWebPageFields(rowMoveDTO.getBotJobId(), "bot_job");
-        }
-
+    private void updateFields(String tableName, int whereId) {
+        performDataBase.loadWebPageFields(whereId, tableName);
         this.filteredPageItems.clear();
         this.filteredPageItems.addAll(performLists.getListWebPageItems().stream()
                 //                .filter(item -> !"button".equals(item.getTagType()) && !"a".equals(item.getTagType()))
@@ -2299,35 +2271,64 @@ public class ARNewCommandPane extends ARPane {
         return false;
     }
 
-    private void loadBlockItems(List<BlockLoadDTO> blockLoadDTOList, int blockToAvoid) {
-        blocksGotoItems.clear();
-        if (blockLoadDTOList.size() > 1) {
-            for (BlockLoadDTO block : blockLoadDTOList) {
-                if (block.getId() != blockToAvoid)
-                    blocksGotoItems.add(new BlockOptions(
-                            block.getBlockOrderNumber() + "# " + block.getName(),
-                            block.getName(),
-                            block.getBlockOrderNumber(),
-                            block.getId()));
+    private void loadBlockGoto(int blockToAvoid) {
+        ObservableList<BlockOptions> filtered = FXCollections.observableArrayList();
+
+        if (!currentListBlock.isEmpty()) {
+            for (BlockOptions option : currentListBlock) {
+                if (comboBoxInstruc.getValue() != null
+                        && comboBoxInstruc.getValue().getText().equalsIgnoreCase("EXCEL GOTO")) {
+                    filtered.add(option);
+                } else if (!option.getBlockId().equals(blockToAvoid)) {
+                    filtered.add(option);
+                }
             }
+
+            if (filtered.isEmpty()) {
+                filtered.add(new BlockOptions("no blocks available", "", -1, -1));
+            }
+        } else {
+            filtered.add(new BlockOptions("no blocks added", "", -1, -1));
         }
+
         if (comboBoxBlocksGoto != null) {
-            comboBoxBlocksGoto.setItems(blocksGotoItems);
-            comboBoxBlocksGoto.getSelectionModel().selectFirst();
+            Platform.runLater(() -> {
+                comboBoxBlocksGoto.setItems(filtered);
+                comboBoxBlocksGoto.getSelectionModel().selectFirst();
+            });
         }
     }
 
-    private void loadAllBlockItems(List<BlockLoadDTO> blockLoadDTOList) {
-        allBlocksItems.clear();
-        if (blockLoadDTOList.size() > 1) {
-            allBlocksItems.add(new BlockOptions("Select the Block", "", -1, -1));
+    private void loadAllBlocks() {
+        ObservableList<BlockOptions> all = FXCollections.observableArrayList();
+
+        if (!currentListBlock.isEmpty()) {
+            if (currentListBlock.size() > 1) {
+                all.add(new BlockOptions("Select the Block", "", -1, -1));
+            }
+            all.addAll(currentListBlock);
+        } else {
+            all.add(new BlockOptions("#1 Default Block", "Default Block", 1, 1));
         }
-        for (BlockLoadDTO block : blockLoadDTOList) {
-            allBlocksItems.add(new BlockOptions(
-                    block.getBlockOrderNumber() + "# " + block.getName().trim(),
-                    block.getName().trim(),
-                    block.getBlockOrderNumber(),
-                    block.getId()));
+
+        if (comboBoxAllBlocks != null) {
+            Platform.runLater(() -> {
+                comboBoxAllBlocks.setItems(all);
+                if (rowMoveDTO.getBlockId() > -1) {
+                    // Get the blockId to match
+                    int targetBlockId = rowMoveDTO.getBlockId();
+
+                    // Iterate through items in comboBoxAllBlocks
+                    for (BlockOptions item : comboBoxAllBlocks.getItems()) {
+                        if (item.getBlockId() != null && item.getBlockId() == targetBlockId) {
+                            comboBoxAllBlocks.getSelectionModel().select(item); // Select the matching item
+                        }
+                    }
+                } else {
+                    // If blockId is not valid, select the first item
+                    comboBoxAllBlocks.getSelectionModel().selectFirst();
+                }
+            });
         }
     }
 
@@ -2448,17 +2449,23 @@ public class ARNewCommandPane extends ARPane {
 
         if (errorMessage == null) {
 
-            List<BotJobLoadDTO> botJobLoadList = new ArrayList<>();
-            String tableName = "instruction";
-            int whereId = rowMoveDTO.getBotJobId();
-            if (isComponent) {
+            List<BotJobLoadDTO> botJobLoadList;
+            String tableName;
+            Integer whereId;
+
+            tableName = "instruction";
+            whereId = rowMoveDTO.getBotJobId();
+            rowMoveDTO.setOperationId("updateInstructions");
+
+            // Check componentTasks case
+            if ("componentTasks".equalsIgnoreCase(rowMoveDTO.getSessionId())) {
                 tableName = "component_instruction";
                 whereId = rowMoveDTO.getHomeBankingId();
                 rowMoveDTO.setOperationId("componentsUpdate");
+
                 botJobLoadList = performDataBase.loadComponentsComplete(
                         rowMoveDTO.getHomeBankingId(), rowMoveDTO.getBotJobId(), rowMoveDTO.getBotJobName());
             } else {
-                rowMoveDTO.setOperationId("updateInstructions");
                 botJobLoadList = performDataBase.loadCompleteJobs(rowMoveDTO.getBotJobId());
             }
 
@@ -2533,7 +2540,14 @@ public class ARNewCommandPane extends ARPane {
                 }
             }
 
-            reloadComboVars(instrunctionId, false, -1);
+            String varTable = "variable";
+            int whereId = rowMoveDTO.getBotJobId();
+            if (rowMoveDTO.getSessionId().equals("componentTasks")) {
+                varTable = "component_variable";
+                whereId = rowMoveDTO.getHomeBankingId();
+            }
+
+            reloadComboVars(varTable, whereId, instrunctionId, false, -1);
 
             if (indexGeneric == -1) {
                 comboBoxWebFields.getSelectionModel().selectFirst();
@@ -2595,8 +2609,8 @@ public class ARNewCommandPane extends ARPane {
 
             indexGeneric = -1;
             if (instrValue.equals("GOTO")) {
-                for (int i = 0; i < blocksGotoItems.size(); i++) {
-                    if (blocksGotoItems.get(i).getValue().equals(operations[0])) {
+                for (int i = 0; i < currentListBlock.size(); i++) {
+                    if (currentListBlock.get(i).getValue().equals(operations[0])) {
                         comboBoxBlocksGoto.getSelectionModel().select(i);
                         indexGeneric = i;
                         break;
@@ -2623,8 +2637,8 @@ public class ARNewCommandPane extends ARPane {
 
             indexGeneric = -1;
             if (instrValue.equals("EXCEL GOTO")) {
-                for (int i = 0; i < blocksGotoItems.size(); i++) {
-                    if (blocksGotoItems
+                for (int i = 0; i < currentListBlock.size(); i++) {
+                    if (currentListBlock
                             .get(i)
                             .getBlockId()
                             .equals(rowMoveDTO.getUpdatedRows().get(0).getParentBlockId())) {
@@ -2676,5 +2690,40 @@ public class ARNewCommandPane extends ARPane {
         button.setMaxWidth(ARConstants.SPACE_L);
         AnchorPane.setRightAnchor(button, 0D);
         return button;
+    }
+
+    public void reloadDBBlocks(int whereId, String tableName) {
+        currentListBlock.clear();
+        if (currentListBlock != null) {
+            if (tableName.equals("block")) {
+                performDataBase.loadBlocks(whereId, "", tableName);
+                performLists.getListBlock().forEach(b -> currentListBlock.add(BlockOptions.fromBlockLoadDTO(b)));
+            } else {
+                performDataBase.loadBlocks(whereId, "", tableName);
+                performLists.getListBlockComp().forEach(b -> currentListBlock.add(BlockOptions.fromBlockLoadDTO(b)));
+            }
+
+            if (rowMoveDTO != null) {
+                if ("EXCEL GOTO".equals(rowMoveDTO.getUpdatedRows().get(0).getActions())) {
+                    loadBlockGoto(-99);
+                } else {
+                    loadBlockGoto(rowMoveDTO.getBlockId());
+                }
+            }
+            loadAllBlocks();
+        }
+    }
+
+    public void reloadCombosBlocks() {
+        if (currentListBlock != null) {
+            if (rowMoveDTO != null) {
+                if ("EXCEL GOTO".equals(rowMoveDTO.getUpdatedRows().get(0).getActions())) {
+                    loadBlockGoto(-99);
+                } else {
+                    loadBlockGoto(rowMoveDTO.getBlockId());
+                }
+            }
+            loadAllBlocks();
+        }
     }
 }

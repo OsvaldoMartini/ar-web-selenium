@@ -16,7 +16,7 @@ public class ARSaveComponentScene extends ARScene {
 
     // Private constructor to prevent instantiation
     private ARSaveComponentScene() {
-        // Initialize if necessary
+
         super();
     }
 

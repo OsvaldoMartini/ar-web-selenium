@@ -25,7 +25,7 @@ public class ARViewBotJobListPane extends ARPane {
 
     // Private constructor to prevent instantiation
     private ARViewBotJobListPane() {
-        // Initialize if necessary
+
         super();
     }
 

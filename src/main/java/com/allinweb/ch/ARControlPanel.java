@@ -26,6 +26,10 @@ import javafx.stage.Stage;
 
 public class ARControlPanel extends Application {
 
+    private static WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
+    private static ARWebSocketServerIP arWebSocketServerIP = ARWebSocketServerIP.getInstance();
+    private static ARWebSocketServer arWebSocketServer = ARWebSocketServer.getInstance(); // Static block to initialize
+
     private static final PerformMessage performMessage;
     private static final ARPropertyManager arPropertyManager;
     private static final PerformDataBase performDataBase;
@@ -35,9 +39,6 @@ public class ARControlPanel extends Application {
     private static String defaultConfigurationFileName = ARConstants.USER_PATH + ARConstants.FILE_NAME_CONFIGURATION;
     private static final ARConfigurationScene arConfigurationScene;
     private static final ARMainScene arMainScene;
-    private static WebSocketSessionManager webSocketSessionManager;
-    private static ARWebSocketServerIP arWebSocketServerIP;
-    private static ARWebSocketServer arWebSocketServer; // Static block to initialize
 
     static {
         performDataBase = PerformDataBase.getInstance();
@@ -81,6 +82,8 @@ public class ARControlPanel extends Application {
             File configurationFile = new File(configurationValue);
             try (FileInputStream conf = new FileInputStream(configurationFile)) {
                 arPropertyManager.loadProperties(conf);
+                String porSocketInUse = System.getProperty("ARWebChosenPort");
+                arPropertyManager.setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), porSocketInUse);
                 licenseControl();
             } catch (Exception error) {
                 if (!configurationFile.exists()) {
@@ -104,6 +107,8 @@ public class ARControlPanel extends Application {
             File configurationFile = new File(defaultConfigurationFileName);
             try (FileInputStream conf = new FileInputStream(configurationFile)) {
                 arPropertyManager.loadProperties(conf);
+                String porSocketInUse = System.getProperty("ARWebChosenPort");
+                arPropertyManager.setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), porSocketInUse);
                 licenseControl();
             } catch (Exception error) {
                 if (!configurationFile.exists()) {
@@ -158,7 +163,7 @@ public class ARControlPanel extends Application {
                             license.set(LicenseManager.checkLicenseFile(finalLicensePath));
                             if (license.get().isActive()) {
                                 databaseControl();
-                                webSocketControl();
+                                // webSocketControl();
 
                                 arMainScene.initialize(isEnabledLicence);
                                 arMainScene.showModal();
@@ -181,7 +186,7 @@ public class ARControlPanel extends Application {
                     license.set(LicenseManager.checkLicenseFile(licensePath));
                     if (license.get().isActive()) {
                         databaseControl();
-                        webSocketControl();
+                        // webSocketControl();
 
                         Platform.runLater(() -> {
                             arMainScene.initialize(isEnabledLicence);
@@ -209,7 +214,7 @@ public class ARControlPanel extends Application {
             // If the license is disabled, directly proceed with the main application
             // Ensure launch(args) is only called once: JavaFX does not allow calling Application.launch() twice.
             //            launch();
-            webSocketControl();
+            // webSocketControl();
             Platform.runLater(() -> {
                 arMainScene.initialize(isEnabledLicence);
                 arMainScene.showModal();
@@ -476,20 +481,22 @@ public class ARControlPanel extends Application {
         }
     }
 
-    private static void webSocketControl() {
-        webSocketSessionManager = WebSocketSessionManager.getInstance();
-        try {
-            arWebSocketServerIP = ARWebSocketServerIP.getInstance();
-        } catch (Exception error) {
-            ARLogger.getInstance(ARMainScene.class).severe("ARWebSocketServerIP with IP failed " + error.getMessage());
-
-            throw new RuntimeException(error);
-        }
-        try {
-            arWebSocketServer = ARWebSocketServer.getInstance();
-        } catch (Exception error) {
-            ARLogger.getInstance(ARMainScene.class).severe("ARWebSocketServer NO IP failed " + error.getMessage());
-            throw new RuntimeException(error);
-        }
-    }
+    //    private static void webSocketControl() {
+    //        webSocketSessionManager = WebSocketSessionManager.getInstance();
+    //        try {
+    //            arWebSocketServerIP = ARWebSocketServerIP.getInstance();
+    //        } catch (Exception error) {
+    //            ARLogger.getInstance(ARMainScene.class).severe("ARWebSocketServerIP with IP failed " +
+    // error.getMessage());
+    //
+    //            throw new RuntimeException(error);
+    //        }
+    //        try {
+    //            arWebSocketServer = ARWebSocketServer.getInstance();
+    //        } catch (Exception error) {
+    //            ARLogger.getInstance(ARMainScene.class).severe("ARWebSocketServer NO IP failed " +
+    // error.getMessage());
+    //            throw new RuntimeException(error);
+    //        }
+    //    }
 }

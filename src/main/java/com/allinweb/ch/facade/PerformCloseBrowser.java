@@ -14,9 +14,7 @@ public class PerformCloseBrowser {
     protected static volatile PerformCloseBrowser instance;
 
     // Private constructor to prevent instantiation
-    private PerformCloseBrowser() {
-        // Initialize if necessary
-    }
+    private PerformCloseBrowser() {}
 
     public static PerformCloseBrowser getInstance() {
         if (instance == null) {

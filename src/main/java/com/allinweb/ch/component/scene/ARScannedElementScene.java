@@ -29,7 +29,7 @@ public class ARScannedElementScene extends ARScene {
 
     // Private constructor to prevent instantiation
     private ARScannedElementScene() {
-        // Initialize if necessary
+
         super();
     }
 
