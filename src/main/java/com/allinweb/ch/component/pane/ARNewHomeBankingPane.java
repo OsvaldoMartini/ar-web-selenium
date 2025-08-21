@@ -397,18 +397,30 @@ public class ARNewHomeBankingPane extends ARPane {
                                 null,
                                 0);
                     } else {
-
-                        performMessage.errorMessage(
-                                "Cannot Create New Environment ",
-                                "Verify  [INSERT] or [UPDATE] or [SELECT]",
-                                null,
-                                null,
+                        performMessage.showCustomModalDialogDragWin11(
+                                "New Environment Created Successfully",
+                                "<span style='color: #388E3C; font-weight: bold; font-size: 1.1em;'>The test environment has been successfully created for the organization.</span>",
+                                "<span style='font-weight: bold; color: #1976D2;'>Organization: " + user.getName()
+                                        + "</span>",
+                                "<span style='color: #0288D1; font-weight: bold;'>This environment is now ready for testing and further configuration.</span>",
+                                "<span style='font-style: italic; color: #1976D2;'>Environment URL: " + user.getUrl()
+                                        + "</span>",
+                                false,
+                                "OK",
                                 null,
                                 0);
                     }
 
-                } catch (SQLException error) {
-                    System.out.println(error.getMessage());
+                } catch (Exception error) {
+                    ARLogger.getInstance(PerformDataBase.class).severe("getConnection Error: " + error.getMessage());
+                    String database = performDataBase.POSTGRES_DB ? "Postgress" : "Access";
+                    performMessage.errorMessage(
+                            "Database connection Failed",
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>An error occurred during the Database connection.</span>",
+                            "<span style='font-weight: bold;'>" + database + "</span>.",
+                            "<span style='color: #E65100; font-weight: bold;'>Please ensure the Database connections are correct.</span>",
+                            "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
+                            0);
                 }
             }
 
@@ -880,20 +892,39 @@ public class ARNewHomeBankingPane extends ARPane {
 
     private void deleteUserData(String Id) {
         try {
-            int honeBankingId = Integer.parseInt(Id);
-            String deleteSQL = "DELETE FROM home_banking WHERE ID = " + honeBankingId;
-            try (Statement stmt = performDataBase.getConnection().createStatement()) {
-                int rowsAffected = stmt.executeUpdate(deleteSQL);
-                if (rowsAffected > 0) {
-                    ARLogger.getInstance(Thread.class).finer("Data deleted successfully.\n " + Id);
-                } else {
-                    ARLogger.getInstance(Thread.class).finer("Data NOT deleted successfully.\n " + Id);
+            int homeBankId = Integer.parseInt(Id);
+
+            String deleteHomeUrlSQL = "DELETE FROM home_url WHERE home_banking_id = ?";
+            String deleteHomeBankingSQL = "DELETE FROM home_banking WHERE id = ?";
+
+            try (Connection conn = performDataBase.getConnection()) {
+                // Optional: wrap in a transaction
+                conn.setAutoCommit(false);
+
+                try (PreparedStatement deleteHomeUrlStmt = conn.prepareStatement(deleteHomeUrlSQL);
+                        PreparedStatement deleteHomeBankingStmt = conn.prepareStatement(deleteHomeBankingSQL)) {
+                    deleteHomeUrlStmt.setInt(1, homeBankId);
+                    deleteHomeBankingStmt.setInt(1, homeBankId);
+
+                    int urlRows = deleteHomeUrlStmt.executeUpdate();
+                    int bankRows = deleteHomeBankingStmt.executeUpdate();
+
+                    conn.commit();
+
+                    ARLogger.getInstance(Thread.class)
+                            .finer("Deleted " + urlRows + " rows from home_url and " + bankRows
+                                    + " rows from home_banking for ID: " + Id);
+                } catch (SQLException error) {
+                    conn.rollback(); // rollback if either delete fails
+                    ARLogger.getInstance(Thread.class).finer("Error Deleting: " + error.getMessage());
+                } finally {
+                    conn.setAutoCommit(true); // restore auto-commit mode
                 }
-            } catch (SQLException e) {
-                ARLogger.getInstance(Thread.class).finer("Error Deleting\n " + Id);
+            } catch (SQLException connError) {
+                ARLogger.getInstance(Thread.class).finer("Database connection error: " + connError.getMessage());
             }
-        } catch (NumberFormatException e) {
-            ARLogger.getInstance(Thread.class).finer("Invalid Format ID:\n " + Id);
+        } catch (NumberFormatException error) {
+            ARLogger.getInstance(Thread.class).finer("Invalid Format ID: " + Id);
         }
     }
 
