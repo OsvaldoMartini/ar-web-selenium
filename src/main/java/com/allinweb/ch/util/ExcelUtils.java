@@ -14,12 +14,8 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashSet;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import org.apache.poi.ss.usermodel.Cell;
@@ -196,7 +192,7 @@ public class ExcelUtils {
 
                 // Iterate over the instructions and apply filtering manually
                 for (InstructionLoadDTO instruction : allInstructions) {
-                    if (instruction.getBlockId() == block.getId()
+                    if (Objects.equals(instruction.getBlockId(), block.getId())
                             && instruction.getActions().contains(ARConstants.INSERT + ":")) {
                         filteredInstructions.add(instruction);
                     }
