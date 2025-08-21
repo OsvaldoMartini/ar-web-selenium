@@ -67,8 +67,8 @@ public class PerformLists {
     private List<BotJobLoadDTO> listBotJobComp = FXCollections.observableArrayList();
     private ObservableList<BlockLoadDTO> listBlock = FXCollections.observableArrayList();
     private ObservableList<BlockLoadDTO> listBlockComp = FXCollections.observableArrayList();
-    private List<InstructionLoadDTO> listInstruction = new ArrayList<>();
-    private List<InstructionLoadDTO> listInstructionComp = new ArrayList<>();
+    private ObservableList<InstructionLoadDTO> listInstruction = FXCollections.observableArrayList();
+    private ObservableList<InstructionLoadDTO> listInstructionComp = FXCollections.observableArrayList();
     private List<VariableLoadDTO> listVariable = new ArrayList<>();
     private List<VariableLoadDTO> listVariableComp = new ArrayList<>();
     private List<ReferenceDTO> listReference = new ArrayList<>();

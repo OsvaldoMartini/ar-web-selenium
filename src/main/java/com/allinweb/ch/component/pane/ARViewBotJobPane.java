@@ -159,12 +159,12 @@ public class ARViewBotJobPane extends ARPane {
         });
 
         if (arNewCommandScene.getRowMoveDTO() != null) {
-            arNewCommandScene.setRowMoveDTO(null);
+//            arNewCommandScene.setRowMoveDTO(null);
             arNewCommandScene.closeModal();
         }
 
         if (arElementValueScene.getRowMoveDTO() != null) {
-            arElementValueScene.setRowMoveDTO(null);
+//            arElementValueScene.setRowMoveDTO(null);
             arElementValueScene.closeModal();
         }
 
@@ -493,7 +493,7 @@ public class ARViewBotJobPane extends ARPane {
         //        for (InstructionLoadDTO instruction : listForDeletion) {
         //            performDataBase.deleteInstruction(selectedBotJob.getId(), instruction, false);
         //        }
-        performDataBase.deleteNullBlocks("block", selectedBotJob.getId());
+        //        performDataBase.deleteNullBlocks("block", selectedBotJob.getId());
 
         if (performLists.getListBlock().isEmpty()) {
             performDataBase.loadBlocks(selectedBotJob.getId(), selectedBotJob.getName(), "block");
@@ -1284,17 +1284,27 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     private void setPayloadEmpty(String destination) {
-        BotJobLoadDTO botJobDTO = new BotJobLoadDTO();
         if (destination.equalsIgnoreCase("botJobTasks")) {
-            botJobDTO.setId(selectedBotJob.getId() != null ? selectedBotJob.getId() : 0);
+            performDataBase.loadBlocks(selectedBotJob.getId(), "", "block");
+            if (selectedBotJob.getBlockId() == null
+                    && !performLists.getListBlock().isEmpty()) {
+                selectedBotJob.setBlockId(performLists.getListBlock().get(0).getId());
+                selectedBotJob.setName(performLists.getListBlock().get(0).getName());
+                selectedBotJob.setDescription(performLists.getListBlock().get(0).getDescription());
+            }
         } else if (destination.equalsIgnoreCase("componentTasks")) {
-            botJobDTO.setHomeBankingId(
-                    selectedBotJob.getHomeBankingId() != null ? selectedBotJob.getHomeBankingId() : 0);
+            performDataBase.loadBlocks(selectedBotJob.getHomeBankingId(), "", "component_block");
+            if (selectedBotJob.getBlockId() == null
+                    && !performLists.getListBlock().isEmpty()) {
+                selectedBotJob.setBlockId(performLists.getListBlockComp().get(0).getId());
+                selectedBotJob.setName(performLists.getListBlockComp().get(0).getName());
+                selectedBotJob.setDescription(
+                        performLists.getListBlockComp().get(0).getDescription());
+            }
         }
-        botJobDTO.setName(selectedBotJob.getName() != null ? selectedBotJob.getName() : "Bot Job Name Default");
-        botJobDTO.setBlockLoadDTOList(new ArrayList<>());
 
-        this.payloadEmpty = new PayloadJson(selectedBotJob.getId(), selectedBotJob.getName(), 0);
+        this.payloadEmpty =
+                new PayloadJson(selectedBotJob.getId(), selectedBotJob.getBlockId(), selectedBotJob.getName(), 0);
     }
 
     private void populateHomeUrlChoiceBox(int homeBankId, int currentHomeUrlId) {

@@ -250,7 +250,9 @@ public class ARSaveComponentPane extends ARPane {
 
                     try (Connection conn = performDataBase.getConnection()) {
 
-                        performDataBase.deleteNullBlocks("component_block", blockDetailsDTO.getHomeBankingId());
+                        //                        performDataBase.deleteNullBlocks("component_block",
+                        // blockDetailsDTO.getHomeBankingId());
+
                         ErrorMessage errorMessage = performDataBase.createCompBlock(blockDetailsDTO);
                         if (errorMessage == null) {
                             errorMessage = performDataBase.createCompInstructions(blockDetailsDTO);
@@ -288,7 +290,8 @@ public class ARSaveComponentPane extends ARPane {
                             webSocketSessionManager.sendMessageJson(
                                     blockDetailsDTO.getHomeBankingId(), "componentTasks", jsonData, "componentsUpdate");
                         } else {
-                            performDataBase.deleteNullBlocks("component_block", blockDetailsDTO.getHomeBankingId());
+                            //                            performDataBase.deleteNullBlocks("component_block",
+                            // blockDetailsDTO.getHomeBankingId());
 
                             performMessage.errorMessage(
                                     "Access Database error",

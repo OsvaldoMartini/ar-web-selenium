@@ -258,8 +258,11 @@ public class ARScannedElementPane extends ARPane {
                             tableName = "component_instruction";
                             whereId = processDTO.getHomeBankingId();
                         }
-                        List<InstructionLoadDTO> instruc = performDataBase.getInstructionsList(
-                                whereId, -1, processDTO.getDetails()[0].getId(), tableName);
+                        performDataBase.loadInstructions(whereId, -1, processDTO.getDetails()[0].getId(), tableName);
+
+                        List<InstructionLoadDTO> instruc = tableName.equals("instruction")
+                                ? performLists.getListInstruction()
+                                : performLists.getListInstructionComp();
                         if (!instruc.isEmpty() && instruc.get(0).getId() != null) {
                             ElementDTO elementDTO = performActions.buildElementDTO(instruc.get(0));
                             targetSelected = extractPickClone(elementDTO);
@@ -311,10 +314,10 @@ public class ARScannedElementPane extends ARPane {
     private void stepsInsertManyDTO(ElementSplitDTO processDTO, boolean isMany) {
         validateBlockDB("Default Block", this.currentBotJob.getId(), isMany);
         if (currentBlockId > 0) {
-            List<InstructionLoadDTO> listInstructions =
-                    performDataBase.getInstructionsList(currentBotJob.getId(), currentBlockId, -1, "instruction");
+            performDataBase.loadInstructions(currentBotJob.getId(), currentBlockId, -1, "instruction");
+            List<InstructionLoadDTO> instruc = performLists.getListInstruction();
 
-            int nextOrder = listInstructions.size() + 1;
+            int nextOrder = instruc.size() + 1;
 
             instructionList.clear();
             for (ElementDTO elementDTO : processDTO.getDetails()) {
@@ -5222,25 +5225,39 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private void setPayloadEmpty() {
-        BotJobLoadDTO botJobDTO = new BotJobLoadDTO();
-        botJobDTO.setId(this.currentBotJob.getId() != null ? this.currentBotJob.getId() : 0);
-        botJobDTO.setName(this.currentBotJob.getName() != null ? this.currentBotJob.getName() : "Bot Job Name Default");
-        botJobDTO.setBlockLoadDTOList(new ArrayList<>());
-        this.payloadEmpty = new PayloadJson(this.currentBotJob.getId(), this.currentBotJob.getName(), 0);
+        performDataBase.loadBlocks(this.currentBotJob.getId(), "", "block");
+        if (this.currentBotJob.getBlockId() == null
+                && !performLists.getListBlock().isEmpty()) {
+            this.currentBotJob.setBlockId(performLists.getListBlock().get(0).getId());
+            this.currentBotJob.setName(performLists.getListBlock().get(0).getName());
+            this.currentBotJob.setDescription(performLists.getListBlock().get(0).getDescription());
+        }
+
+        this.payloadEmpty = new PayloadJson(
+                this.currentBotJob.getId(), this.currentBotJob.getBlockId(), this.currentBotJob.getName(), 0);
     }
 
     private void setPayloadEmpty(String destination) {
-        BotJobLoadDTO botJobDTO = new BotJobLoadDTO();
         if (destination.equalsIgnoreCase("botJobTasks")) {
-            botJobDTO.setId(this.currentBotJob.getId() != null ? this.currentBotJob.getId() : 0);
+            performDataBase.loadBlocks(currentBotJob.getId(), "", "block");
+            if (currentBotJob.getBlockId() == null
+                    && !performLists.getListBlock().isEmpty()) {
+                currentBotJob.setBlockId(performLists.getListBlock().get(0).getId());
+                currentBotJob.setName(performLists.getListBlock().get(0).getName());
+                currentBotJob.setDescription(performLists.getListBlock().get(0).getDescription());
+            }
         } else if (destination.equalsIgnoreCase("componentTasks")) {
-            botJobDTO.setHomeBankingId(
-                    this.currentBotJob.getHomeBankingId() != null ? this.currentBotJob.getHomeBankingId() : 0);
+            performDataBase.loadBlocks(currentBotJob.getHomeBankingId(), "", "component_block");
+            if (currentBotJob.getBlockId() == null
+                    && !performLists.getListBlock().isEmpty()) {
+                currentBotJob.setBlockId(performLists.getListBlockComp().get(0).getId());
+                currentBotJob.setName(performLists.getListBlockComp().get(0).getName());
+                currentBotJob.setDescription(
+                        performLists.getListBlockComp().get(0).getDescription());
+            }
         }
-        botJobDTO.setName(this.currentBotJob.getName() != null ? this.currentBotJob.getName() : "Bot Job Name Default");
-        botJobDTO.setBlockLoadDTOList(new ArrayList<>());
-
-        this.payloadEmpty = new PayloadJson(this.currentBotJob.getId(), this.currentBotJob.getName(), 0);
+        this.payloadEmpty = new PayloadJson(
+                this.currentBotJob.getId(), this.currentBotJob.getBlockId(), this.currentBotJob.getName(), 0);
     }
 
     /**

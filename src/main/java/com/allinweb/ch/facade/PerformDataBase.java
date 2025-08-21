@@ -686,47 +686,57 @@ public class PerformDataBase {
         }
     }
 
-    public ErrorMessage deleteNullBlocks(String tableName, int whereId) {
-        // Build the DELETE SQL using the tableName and correct foreign key
-        String deleteSQL = performDBScripts.deleteNullBlocksSQL(tableName);
+    public ErrorMessage deleteNullBlocks(String tableName, int whereId, List<Integer> restIds) {
+        if (restIds == null || restIds.isEmpty()) {
+            return null; // Nothing to delete
+        }
 
+        // Determine foreign key column
         String foreignKeyColumn = "block".equalsIgnoreCase(tableName) ? "bot_job_id" : "home_banking_id";
 
+        // Build dynamic delete SQL
+        String deleteSQL = "DELETE FROM " + tableName + " WHERE id = ? AND " + foreignKeyColumn + " = ?";
+
         try (Connection conn = getConnection()) {
-            conn.setAutoCommit(false); // Disable auto-commit
+            conn.setAutoCommit(false);
 
             try (PreparedStatement pstmt = conn.prepareStatement(deleteSQL)) {
-                pstmt.setInt(1, whereId); // Set the generic whereId
+                for (Integer id : restIds) {
+                    pstmt.setInt(1, id);
+                    pstmt.setInt(2, whereId);
+                    pstmt.addBatch();
+                }
 
-                int rowsAffected = pstmt.executeUpdate();
+                int[] results = pstmt.executeBatch();
                 conn.commit();
 
-                if (rowsAffected > 0) {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .info(String.format(
-                                    "Deleted %d null blocks from table %s where %s = %d",
-                                    rowsAffected, tableName, foreignKeyColumn, whereId));
-                }
+                int totalDeleted = Arrays.stream(results).sum();
+
+                ARLogger.getInstance(PerformDataBase.class)
+                        .info(String.format(
+                                "Deleted %d blocks from table %s where %s = %d (IDs: %s)",
+                                totalDeleted, tableName, foreignKeyColumn, whereId, restIds));
 
                 return null; // success
             } catch (SQLException e) {
+                conn.rollback();
 
                 ARLogger.getInstance(PerformDataBase.class)
                         .severe(String.format(
-                                "Error deleting null blocks from table %s where %s = %d. Error: %s",
-                                tableName, foreignKeyColumn, whereId, e.getMessage()));
+                                "Error deleting blocks from table %s where %s = %d. IDs: %s. Error: %s",
+                                tableName, foreignKeyColumn, whereId, restIds, e.getMessage()));
 
                 return new ErrorMessage(
-                        "Delete Null Blocks Error",
-                        "Failed to delete null blocks from table " + tableName + " where " + foreignKeyColumn + " = "
+                        "Delete Blocks Error",
+                        "Failed to delete blocks from table " + tableName + " where " + foreignKeyColumn + " = "
                                 + whereId,
                         e.getMessage());
             }
         } catch (SQLException ex) {
             ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
-                            "Connection error while deleting null blocks from table %s where %s = %d. Error: %s",
-                            tableName, foreignKeyColumn, whereId, ex.getMessage()));
+                            "Connection error while deleting blocks from table %s where %s = %d. IDs: %s. Error: %s",
+                            tableName, foreignKeyColumn, whereId, restIds, ex.getMessage()));
 
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
@@ -1503,7 +1513,10 @@ public class PerformDataBase {
 
         ErrorMessage errorMessage;
         String instructionTable = tableName.equals("block") ? "instruction" : "component_instruction";
-        List<InstructionLoadDTO> lstInstruc = getInstructionsList(whereId, blockId, -1, instructionTable);
+        loadInstructions(whereId, blockId, -1, instructionTable);
+        List<InstructionLoadDTO> lstInstruc = instructionTable.equals("instruction")
+                ? performLists.getListInstruction()
+                : performLists.getListInstructionComp();
 
         if (!lstInstruc.isEmpty()) {
             String referenceTable = tableName.equals("block") ? "reference" : "component_reference";
@@ -2395,15 +2408,15 @@ public class PerformDataBase {
         return false;
     }
 
-    public void loadBlocks(
+    public ErrorMessage loadBlocks(
             Integer whereId, // botJobId or homeBankingId depending on tableName
             String botJobName,
             String tableName // "block" or "component_block"
             ) {
-
         // Validate tableName
         if (!"block".equals(tableName) && !"component_block".equals(tableName)) {
-            throw new IllegalArgumentException("tableName must be 'block' or 'component_block'");
+            return new ErrorMessage(
+                    "Invalid Table Name", "tableName must be 'block' or 'component_block'", "Provided: " + tableName);
         }
 
         // Build SQL dynamically based on tableName
@@ -2433,7 +2446,6 @@ public class PerformDataBase {
                     .append("hb.id AS home_banking_id ")
                     .append("FROM home_banking hb ")
                     .append("JOIN component_block b ON b.home_banking_id = hb.id ")
-                    // Assuming the component_instruction join is required as in your original method
                     .append("JOIN component_instruction ci ON ci.home_banking_id = hb.id AND ci.block_id = b.id ")
                     .append("WHERE hb.id = ? ")
                     .append("ORDER BY b.block_order_number ASC");
@@ -2473,7 +2485,7 @@ public class PerformDataBase {
                             blockDTO.setBotJobName(rs.getString("bot_job_name"));
                         } else {
                             blockDTO.setHomeBankingId(rs.getInt("home_banking_id"));
-                            blockDTO.setBotJobId(whereId != null ? whereId : 0); // optional: set passed botJobId
+                            blockDTO.setBotJobId(whereId != null ? whereId : 0);
                             blockDTO.setBotJobName(botJobName);
                         }
 
@@ -2482,10 +2494,14 @@ public class PerformDataBase {
                     }
                 }
             }
+            return null; // ✅ success
         } catch (SQLException e) {
             ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "Error loading blocks for %s id %d\nError: %s", tableName, whereId, e.getMessage()));
+
+            return new ErrorMessage(
+                    "Load Blocks Error", "Failed to load blocks from table: " + tableName, e.getMessage());
         }
     }
 
@@ -3024,7 +3040,10 @@ public class PerformDataBase {
                 whereId = rowMoveDTO.getHomeBankingId();
             }
 
-            rowList = getInstructionsList(whereId, rowMoveDTO.getBlockId(), -1, tableName);
+            loadInstructions(whereId, rowMoveDTO.getBlockId(), -1, tableName);
+            rowList = tableName.equals("instruction")
+                    ? performLists.getListInstruction()
+                    : performLists.getListInstructionComp();
 
             if (!blockIdChanged) {
                 if (isIF) {
@@ -3524,7 +3543,10 @@ public class PerformDataBase {
             try {
 
                 for (BlockLoadDTO block : listInstruction.get(0).getBlockLoadDTOList()) {
-                    rowList = getInstructionsList(whereId, block.getId(), -1, tableName);
+                    loadInstructions(whereId, block.getId(), -1, tableName);
+                    rowList = tableName.equals("instruction")
+                            ? performLists.getListInstruction()
+                            : performLists.getListInstructionComp();
                     reorderInstructions(rowList, tableName, false);
                 }
 
@@ -3815,10 +3837,10 @@ public class PerformDataBase {
             errorMessage = deleteInstructionsBatch(instructionTable, whereId, listInstruc);
         }
 
-        if (errorMessage == null) {
-            String blockTable = tableName.equals("instruction") ? "block" : "component_block";
-            errorMessage = deleteNullBlocks(blockTable, whereId);
-        }
+        //        if (errorMessage == null) {
+        //            String blockTable = tableName.equals("instruction") ? "block" : "component_block";
+        //            errorMessage = deleteNullBlocks(blockTable, whereId);
+        //        }
         if (errorMessage == null) {
             String blockTable = tableName.equals("instruction") ? "block" : "component_block";
             loadBlocks(whereId, "", blockTable);
@@ -8649,13 +8671,14 @@ GROUP BY
                 .build();
     }
 
-    public List<InstructionLoadDTO> getInstructionsList(int whereID, int blockId, int instrucId, String tableName) {
+    public ErrorMessage loadInstructions(int whereID, int blockId, int instrucId, String tableName) {
         List<InstructionLoadDTO> instructions = new ArrayList<>();
 
         // Validate table name to avoid SQL injection
         List<String> allowedTables = Arrays.asList("instruction", "component_instruction");
         if (!allowedTables.contains(tableName)) {
-            throw new IllegalArgumentException("Invalid table name: " + tableName);
+            return new ErrorMessage(
+                    "Invalid Table Name", "tableName must be 'instruction' or 'component_instruction'", tableName);
         }
 
         // Determine filter column
@@ -8675,9 +8698,20 @@ GROUP BY
         }
         querySQL.append(" ORDER BY instruction_order_number ASC");
 
+        // Choose target list depending on tableName
+        List<InstructionLoadDTO> targetList;
+        if ("instruction".equals(tableName)) {
+            performLists.getListInstruction().clear();
+            targetList = performLists.getListInstruction();
+        } else {
+            performLists.getListInstructionComp().clear();
+            targetList = performLists.getListInstructionComp();
+        }
+
         try (PreparedStatement pstmt = getConnection().prepareStatement(querySQL.toString())) {
             int paramIndex = 1;
             pstmt.setInt(paramIndex++, whereID);
+
             if (blockId > 0) {
                 pstmt.setInt(paramIndex++, blockId);
             }
@@ -8726,6 +8760,7 @@ GROUP BY
                     }
 
                     instructions.add(instruction);
+                    targetList.add(instruction);
                 }
 
                 ARLogger.getInstance(PerformDataBase.class)
@@ -8736,6 +8771,7 @@ GROUP BY
                                 blockId > 0 ? " for Block ID " + blockId : "",
                                 instrucId > -1 ? " and Instruction ID " + instrucId : ""));
             }
+            return null;
         } catch (SQLException e) {
             ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
@@ -8744,9 +8780,10 @@ GROUP BY
                             blockId > 0 ? " for Block ID " + blockId : "",
                             instrucId > -1 ? " and Instruction ID " + instrucId : "",
                             e.getMessage()));
-        }
 
-        return instructions;
+            return new ErrorMessage(
+                    "Load Instructions Error", "Failed to load instructions from table: " + tableName, e.getMessage());
+        }
     }
 
     public List<ReferenceLoadDTO> getReferencesList(

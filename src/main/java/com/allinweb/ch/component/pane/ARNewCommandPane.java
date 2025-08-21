@@ -2321,6 +2321,7 @@ public class ARNewCommandPane extends ARPane {
                     for (BlockOptions item : comboBoxAllBlocks.getItems()) {
                         if (item.getBlockId() != null && item.getBlockId() == targetBlockId) {
                             comboBoxAllBlocks.getSelectionModel().select(item); // Select the matching item
+                            break;
                         }
                     }
                 } else {
@@ -2691,15 +2692,23 @@ public class ARNewCommandPane extends ARPane {
         return button;
     }
 
-    public void reloadDBBlocks(int whereId, String tableName) {
+    public ErrorMessage reloadDBBlocks(int whereId, String tableName) {
         currentListBlock.clear();
+        ErrorMessage errorMessage = null;
         if (currentListBlock != null) {
             if (tableName.equals("block")) {
-                performDataBase.loadBlocks(whereId, "", tableName);
+                errorMessage = performDataBase.loadBlocks(whereId, "", tableName);
                 performLists.getListBlock().forEach(b -> currentListBlock.add(BlockOptions.fromBlockLoadDTO(b)));
+                if (rowMoveDTO != null && rowMoveDTO.getType().equals("INSERT_NEW") && performLists.getListBlock().size() == 1) {
+                    rowMoveDTO.setBlockId(performLists.getListBlock().get(0).getId());
+                }
+
             } else {
-                performDataBase.loadBlocks(whereId, "", tableName);
+                errorMessage = performDataBase.loadBlocks(whereId, "", tableName);
                 performLists.getListBlockComp().forEach(b -> currentListBlock.add(BlockOptions.fromBlockLoadDTO(b)));
+                if (rowMoveDTO != null && rowMoveDTO.getType().equals("INSERT_NEW") && performLists.getListBlockComp().size() == 1) {
+                    rowMoveDTO.setBlockId(performLists.getListBlockComp().get(0).getId());
+                }
             }
 
             if (rowMoveDTO != null) {
@@ -2711,6 +2720,7 @@ public class ARNewCommandPane extends ARPane {
             }
             loadAllBlocks();
         }
+        return errorMessage;
     }
 
     public void reloadCombosBlocks() {

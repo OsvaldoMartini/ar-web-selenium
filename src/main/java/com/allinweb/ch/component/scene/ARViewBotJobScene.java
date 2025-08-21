@@ -134,8 +134,8 @@ public class ARViewBotJobScene extends ARScene {
 
             // It Prevents Start without blocks
             BlockDetailsDTO newBlockDetails = new BlockDetailsDTO();
-            newBlockDetails.setBlockName(selectedBotJob.getName() + " default block");
-            newBlockDetails.setBlockDescription(selectedBotJob.getName() + " block description");
+            newBlockDetails.setBlockName("Default block");
+            newBlockDetails.setBlockDescription("Block description");
             newBlockDetails.setTypeId(1);
             newBlockDetails.setActive(true);
             newBlockDetails.setWait(3);
