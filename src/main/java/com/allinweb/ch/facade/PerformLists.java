@@ -250,12 +250,12 @@ public class PerformLists {
                     break;
                 case "UPDATE_BLOCKS_COMP":
                     blockMoveDTO = gson.fromJson(jsonObjMSG, BlockMoveDTO.class);
-                    blockMoveDTO.setType("UPDATE_BLOCKS");
+                    blockMoveDTO.setType("UPDATE_BLOCKS_COMP");
 
                     jsonData = gson.toJson(blockMoveDTO);
                     // Just a Signal to update the combos
                     webSocketSessionManager.sendMessageJson(
-                            homeBankingId, "new-command-scene", jsonData, "UPDATE_BLOCKS");
+                            homeBankingId, "new-command-scene", jsonData, "UPDATE_BLOCKS_COMP");
 
                     break;
                 case "UPDATE_BOT_JOBS":

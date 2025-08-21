@@ -360,15 +360,40 @@ public class SimpleWebSocketServer {
 
                 alreadySentMgsSocket = false;
 
-                if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
-                    moveBlock(blockMoveDTO);
-                } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
+                ErrorMessage errorMessage = null;
+                String tableName = null;
+                int whereId = -1;
+                String updteBlocks = "";
+
+                if (sessionIdToSend != null) {
+                    if (sessionIdToSend.matches(".*botJobTasks.*")) {
+                        tableName = "block";
+                        whereId = blockMoveDTO.getBotJobId();
+                        updteBlocks = "UPDATE_BLOCKS";
+                    } else if (sessionIdToSend.matches(".*componentTasks.*")) {
+                        tableName = "component_block";
+                        whereId = blockMoveDTO.getHomeBankingId();
+                        updteBlocks = "UPDATE_BLOCKS_COMP";
+                    }
                 }
 
-                // calls perform list block update
-                blockMoveDTO.setType("UPDATE_BLOCKS");
-                jsonData = gson.toJson(blockMoveDTO);
-                webSocketSessionManager.sendMessageJson(homeBankingId, "perform-list-data", jsonData, "UPDATE_BLOCKS");
+                if (tableName != null) {
+                    errorMessage = moveBlock(tableName, whereId, blockMoveDTO);
+                    // calls perform list block update
+                    blockMoveDTO.setType(updteBlocks);
+                    jsonData = gson.toJson(blockMoveDTO);
+                    webSocketSessionManager.sendMessageJson(homeBankingId, "perform-list-data", jsonData, updteBlocks);
+                }
+                if (errorMessage != null) {
+                    performMessage.errorMessage(
+                            errorMessage.getErrorTitle(),
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                    + errorMessage.getErrorHeader(),
+                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                            null,
+                            0);
+                }
 
                 break;
             case "ROW_UPDATE":
@@ -416,8 +441,8 @@ public class SimpleWebSocketServer {
 
                 alreadySentMgsSocket = false;
 
-                String tableName = null;
-                int whereId = -1;
+                tableName = null;
+                whereId = -1;
 
                 if (sessionIdToSend != null) {
                     if (sessionIdToSend.matches(".*botJobTasks.*")) {
@@ -429,7 +454,7 @@ public class SimpleWebSocketServer {
                     }
                 }
 
-                ErrorMessage errorMessage = null;
+                errorMessage = null;
                 if (tableName != null) {
 
                     errorMessage = performDataBase.updateMoveRowsOrder(tableName, whereId, rowMoveDTO.getUpdatedRows());
@@ -497,7 +522,7 @@ public class SimpleWebSocketServer {
                     alreadySentMgsSocket = false;
 
                     tableName = null;
-                    String updteBlocks = null;
+                    updteBlocks = null;
                     whereId = -1;
 
                     if (sessionIdToSend != null) {
@@ -597,7 +622,7 @@ public class SimpleWebSocketServer {
                 alreadySentMgsSocket = false;
 
                 tableName = null;
-                String updteBlocks = null;
+                updteBlocks = null;
                 whereId = -1;
                 errorMessage = null;
 
@@ -858,11 +883,12 @@ public class SimpleWebSocketServer {
     }
 
     // Handle BLOCK_MOVE message
-    private void moveBlock(BlockMoveDTO blockMoveDTO) {
+    private ErrorMessage moveBlock(String tableName, int whereId, BlockMoveDTO blockMoveDTO) {
         List<BlockOrderDetailDTO> updatedBlocks = blockMoveDTO.getUpdatedBlocks();
 
         // Work directly with the List<BlockLoadDTO> in performLists
-        List<BlockLoadDTO> currentBlocks = performLists.getListBlock();
+        List<BlockLoadDTO> currentBlocks =
+                tableName.equals("block") ? performLists.getListBlock() : performLists.getListBlockComp();
 
         for (BlockOrderDetailDTO updated : updatedBlocks) {
             for (BlockLoadDTO current : currentBlocks) {
@@ -874,7 +900,7 @@ public class SimpleWebSocketServer {
         }
 
         // Persist updated order numbers
-        performDataBase.updateBlockOrderNumber("block", blockMoveDTO.getBotJobId(), true);
+        return performDataBase.updateBlockOrderNumber(tableName, whereId, true);
     }
 
     private void injectStepAfterOrBefore(String sessionId, RowMoveDTO rowMoveDTO) {

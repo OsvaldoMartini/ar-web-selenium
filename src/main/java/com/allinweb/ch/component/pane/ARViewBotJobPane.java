@@ -498,7 +498,12 @@ public class ARViewBotJobPane extends ARPane {
         if (performLists.getListBlock().isEmpty()) {
             performDataBase.loadBlocks(selectedBotJob.getId(), selectedBotJob.getName(), "block");
         }
+        if (performLists.getListBlockComp().isEmpty()) {
+            performDataBase.loadBlocks(selectedBotJob.getHomeBankingId(), selectedBotJob.getName(), "component_block");
+        }
+
         performDataBase.updateBlockOrderNumber("block", selectedBotJob.getId(), true);
+        performDataBase.updateBlockOrderNumber("component_block", selectedBotJob.getHomeBankingId(), true);
 
         performDataBase.loadCompleteJobs(selectedBotJob.getId());
 

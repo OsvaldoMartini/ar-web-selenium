@@ -58,6 +58,7 @@ public class ARNewCommandScene extends ARScene {
     }
 
     private final Gson gson = new Gson();
+    private String previousBlock = null;
 
     public boolean isConnectWebSocket = false;
 
@@ -150,11 +151,26 @@ public class ARNewCommandScene extends ARScene {
             switch (type) {
                 case "UPDATE_BLOCKS":
                     BlockMoveDTO blockMoveDTO = gson.fromJson(body, BlockMoveDTO.class);
+                    if (previousBlock != null && !previousBlock.equals(type)) {
+                        arNewCommandPane.closePane();
+                        previousBlock = type;
+                    } else if (previousBlock == null) {
+                        previousBlock = type;
+                    }
                     arNewCommandPane.reloadDBBlocks(blockMoveDTO.getBotJobId(), "block");
                     break;
                 case "UPDATE_BLOCKS_COMP":
                     blockMoveDTO = gson.fromJson(body, BlockMoveDTO.class);
+
+                    if (previousBlock != null && !previousBlock.equals(type)) {
+                        arNewCommandPane.closePane();
+                        previousBlock = type;
+                    } else if (previousBlock == null) {
+                        previousBlock = type;
+                    }
+
                     arNewCommandPane.reloadDBBlocks(blockMoveDTO.getHomeBankingId(), "component_block");
+
                     break;
                 case "INSERT_BEFORE":
                 case "INSERT_AFTER":
@@ -164,6 +180,10 @@ public class ARNewCommandScene extends ARScene {
                 case "EDIT_OPERATION":
                     try {
                         RowMoveDTO rowUpdateDTO = gson.fromJson(jsonObjMSG, RowMoveDTO.class);
+                        //                        if (previousBlock == null)  {
+                        //                            previousBlock = type;
+                        //                        }
+
                         //                this.webPageItems =
                         // performDataBase.loadWebPageFields(rowUpdateDTO.getBotJobId());
 
@@ -173,6 +193,17 @@ public class ARNewCommandScene extends ARScene {
                         int whereId = rowUpdateDTO.getSessionId().equals("componentTasks")
                                 ? rowUpdateDTO.getHomeBankingId()
                                 : rowUpdateDTO.getBotJobId();
+                        String blockUpdate = rowUpdateDTO.getSessionId().equals("componentTasks")
+                                ? "UPDATE_BLOCKS_COMP"
+                                : "UPDATE_BLOCKS";
+
+                        if (previousBlock != null && !previousBlock.equals(blockUpdate)) {
+                            arNewCommandPane.closePane();
+                            previousBlock = blockUpdate;
+                        } else if (previousBlock == null) {
+                            previousBlock = blockUpdate;
+                        }
+
                         arNewCommandPane.reloadDBBlocks(whereId, blockTable);
                         initialize(rowUpdateDTO);
                         Platform.runLater(() -> showModal());
@@ -319,6 +350,7 @@ public class ARNewCommandScene extends ARScene {
 
         if (modalStage == null) {
             modalStage = new Stage();
+            arNewCommandPane.setStage(modalStage);
             modalStage.getIcons().add(icon);
             IARPane pane = buildPane();
             if (pane != null) {

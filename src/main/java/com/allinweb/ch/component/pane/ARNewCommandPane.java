@@ -32,12 +32,11 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
 import javafx.stage.Stage;
-import javax.websocket.*;
 
-@ClientEndpoint
 public class ARNewCommandPane extends ARPane {
 
     protected static volatile ARNewCommandPane instance;
+    private Stage stage;
 
     // Private constructor to prevent instantiation
     private ARNewCommandPane() {}
@@ -2724,6 +2723,21 @@ public class ARNewCommandPane extends ARPane {
                 }
             }
             loadAllBlocks();
+        }
+    }
+
+    // Allow the stage to be set from outside when pane is shown
+    public void setStage(Stage stage) {
+        this.stage = stage;
+    }
+
+    // 🔹 Method to close the window
+    public void closePane() {
+        if (this.stage != null) {
+            Platform.runLater(() -> {
+                this.stage.close();
+                instance = null; // optional reset for singleton
+            });
         }
     }
 }
