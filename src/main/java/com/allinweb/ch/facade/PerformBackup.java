@@ -32,6 +32,7 @@ public class PerformBackup {
     private TreeMap<Integer, Integer> instructionMap = new TreeMap<>();
     private TreeMap<Integer, Integer> instrVariablesMap = new TreeMap<>();
     private TreeMap<Integer, Integer> instrParentBlockMap = new TreeMap<>();
+    private TreeMap<Integer, Integer> instrParentIdMap = new TreeMap<>();
     private TreeMap<Integer, Integer> instrNewInverted = new TreeMap<>();
     private TreeMap<Integer, Integer> variableMap = new TreeMap<>();
     private TreeMap<Integer, Integer> referenceMap = new TreeMap<>();
@@ -786,7 +787,6 @@ public class PerformBackup {
             // 🔹 Step 0: Delete in correct order
             //            deleteStmt.execute("PRAGMA foreign_keys = ON");
             deleteStmt.executeUpdate("DELETE FROM component_reference");
-
             deleteStmt.executeUpdate("DELETE FROM component_variable");
             deleteStmt.executeUpdate("DELETE FROM component_instruction");
             deleteStmt.executeUpdate("DELETE FROM component_block");
@@ -1363,6 +1363,7 @@ public class PerformBackup {
             instructionMap.clear();
             instrVariablesMap.clear();
             instrParentBlockMap.clear();
+            instrParentIdMap.clear();
 
             String line;
             while ((line = reader.readLine()) != null) {
@@ -1393,22 +1394,75 @@ public class PerformBackup {
                         currentInsert.setLength(0);
                         continue;
                     }
+
                     if (newBotJobId == null) {
                         System.out.println("Skipped instruction with unknown bot_job_id: " + oldBotJobId);
                         currentInsert.setLength(0);
                         continue;
                     }
 
-                    if (newBlockId == null) {
-                        System.out.println("Skipped instruction with unknown block_id: " + oldBlockId);
-                        currentInsert.setLength(0);
-                        continue;
+                    Integer instructionId = values.get(0) != null ? Integer.valueOf(values.get(0)) : null;
+                    String action = values.get(2);
+                    boolean isGoto = "GOTO".equalsIgnoreCase(action) || "EXCEL GOTO".equalsIgnoreCase(action);
+
+                    Integer parentBlockId = null;
+                    Integer parentId = null;
+
+                    boolean hasParentBlockId = values.size() == 27; // has parent_block_id columns 27 cols
+
+                    if (hasParentBlockId) {
+                        // values.size() == 27: parent_block_id = 24, parent_id = 25
+                        String parBlockValue = values.get(24);
+                        String parIdValue = values.get(25);
+
+                        if (parBlockValue != null
+                                && !parBlockValue.isBlank()
+                                && !parBlockValue.equalsIgnoreCase("null")
+                                && !parBlockValue.equalsIgnoreCase("[null]")) {
+                            try {
+                                parentBlockId = Integer.valueOf(parBlockValue.trim());
+                            } catch (NumberFormatException ignored) {
+                            }
+                        }
+
+                        if (parIdValue != null
+                                && !parIdValue.isBlank()
+                                && !parIdValue.equalsIgnoreCase("null")
+                                && !parIdValue.equalsIgnoreCase("[null]")) {
+                            try {
+                                parentId = Integer.valueOf(parIdValue.trim());
+                            } catch (NumberFormatException ignored) {
+                            }
+                        }
+                    } else {
+                        // values.size() == 26: parent_block_id may not exist
+                        String parValue = values.get(24);
+
+                        if (parValue != null
+                                && !parValue.isBlank()
+                                && !parValue.equalsIgnoreCase("null")
+                                && !parValue.equalsIgnoreCase("[null]")) {
+                            try {
+                                if (isGoto) {
+                                    parentBlockId = Integer.valueOf(parValue.trim());
+                                } else {
+                                    parentId = Integer.valueOf(parValue.trim());
+                                }
+                            } catch (NumberFormatException ignored) {
+                            }
+                        }
                     }
-                    if (newBotJobId == null) {
-                        System.out.println("Skipped instruction with unknown bot_job_id: " + oldBotJobId);
-                        currentInsert.setLength(0);
-                        continue;
+
+                    // Map the values if instructionId exists
+                    if (instructionId != null) {
+                        if (parentBlockId != null) instrParentBlockMap.put(instructionId, parentBlockId);
+                        if (parentId != null) instrParentIdMap.put(instructionId, parentId);
                     }
+
+                    // Set prepared statement params to null for insert (new table always has parent_block_id)
+                    setSafeParam(pstmt, 24, null, Types.INTEGER); // parent_block_id
+                    setSafeParam(pstmt, 25, null, Types.INTEGER); // parent_id
+                    setSafeParam(pstmt, 26, String.valueOf(newBotJobId), Types.INTEGER);
 
                     for (int i = 1; i < values.size(); i++) {
                         switch (i) {
@@ -1450,7 +1504,6 @@ public class PerformBackup {
                             }
                             case 23 -> {
                                 // variable_id + tracking
-                                Integer instructionId = values.get(0) != null ? Integer.valueOf(values.get(0)) : null;
                                 String varValue = values.get(23);
                                 Integer variableId = null;
                                 if (varValue != null
@@ -1471,44 +1524,7 @@ public class PerformBackup {
                                 // Firts to Be mapped after INSERTS into Variable TABLE
                                 setSafeParam(pstmt, 23, "NULL", Types.INTEGER);
                             }
-                            case 24 -> {
-                                String action = values.get(2);
-                                if ("GOTO".equalsIgnoreCase(action) || "EXCEL GOTO".equalsIgnoreCase(action)) {
-                                    // parent_block_id + tracking
-                                    Integer instructionId =
-                                            values.get(0) != null ? Integer.valueOf(values.get(0)) : null;
-                                    String parBlockValue = values.get(24);
-                                    Integer parentBlockId = null;
-                                    if (parBlockValue != null
-                                            && !parBlockValue.isBlank()
-                                            && !parBlockValue.equalsIgnoreCase("null")
-                                            && !parBlockValue.equalsIgnoreCase("[null]")) {
-                                        try {
-                                            parentBlockId = Integer.valueOf(parBlockValue.trim());
-                                        } catch (NumberFormatException e) {
-                                            // Ignore parsing errors and keep variableId as null
-                                        }
-                                    }
-
-                                    if (instructionId != null && parentBlockId != null) {
-                                        instrParentBlockMap.put(instructionId, parentBlockId);
-                                    }
-
-                                    // Firts to Be mapped after INSERTS into Parent Block TABLE
-                                    setSafeParam(pstmt, 24, null, Types.INTEGER); // parent_block_id
-                                    setSafeParam(pstmt, 25, null, Types.INTEGER); // parent_id
-                                } else {
-                                    setSafeParam(pstmt, 24, null, Types.INTEGER); // parent_block_id
-                                    setSafeParam(pstmt, 25, values.get(24), Types.INTEGER); // parent_id
-                                }
-                            }
-                            case 25, 26 -> {
-                                setSafeParam(
-                                        pstmt,
-                                        26,
-                                        String.valueOf(newBotJobId),
-                                        Types.INTEGER); // bot_job_id already mapped
-                            }
+                            case 24, 25, 26 -> {}
                             default -> throw new IllegalArgumentException("Unexpected column index: " + i);
                         }
                     }
@@ -1728,10 +1744,10 @@ public class PerformBackup {
 
                     while (rsInstruction.next()) {
                         int id = rsInstruction.getInt("id");
-                        String name = rsInstruction.getString("name");
 
                         // ---- variable_id ----
                         Integer originalOldID = instrNewInverted.get(id);
+
                         Integer originalVarId = null;
                         Integer originalParBlockId = null;
 
@@ -1741,6 +1757,11 @@ public class PerformBackup {
 
                         if (originalOldID != null) {
                             originalParBlockId = instrParentBlockMap.get(originalOldID);
+                        }
+
+                        Integer originalOldParentID = null;
+                        if (originalOldID != null) {
+                            originalOldParentID = instrParentIdMap.get(originalOldID);
                         }
 
                         Integer newVariableId = null;
@@ -1755,10 +1776,8 @@ public class PerformBackup {
 
                         // ---- parent_id ----
                         Integer newParentId = null;
-                        int originalParentId = rsInstruction.getInt("parent_id");
-                        boolean isParentIdNull = rsInstruction.wasNull();
-                        if (!isParentIdNull) {
-                            newParentId = instructionMap.get(originalParentId);
+                        if (originalOldParentID != null) {
+                            newParentId = instructionMap.get(originalOldParentID);
                         }
 
                         setSafeParam(
@@ -2097,6 +2116,8 @@ public class PerformBackup {
             List<Integer> insertedOldIds = new ArrayList<>();
             instructionMap.clear();
             instrVariablesMap.clear();
+            instrParentBlockMap.clear();
+            instrParentIdMap.clear();
 
             String line;
             while ((line = reader.readLine()) != null) {
@@ -2133,6 +2154,69 @@ public class PerformBackup {
                         continue;
                     }
 
+                    Integer instructionId = values.get(0) != null ? Integer.valueOf(values.get(0)) : null;
+                    String action = values.get(2);
+                    boolean isGoto = "GOTO".equalsIgnoreCase(action) || "EXCEL GOTO".equalsIgnoreCase(action);
+
+                    Integer parentBlockId = null;
+                    Integer parentId = null;
+
+                    boolean hasParentBlockId = values.size() == 27; // has parent_block_id columns 27 cols
+
+                    if (hasParentBlockId) {
+                        // values.size() == 27: parent_block_id = 24, parent_id = 25
+                        String parBlockValue = values.get(24);
+                        String parIdValue = values.get(25);
+
+                        if (parBlockValue != null
+                                && !parBlockValue.isBlank()
+                                && !parBlockValue.equalsIgnoreCase("null")
+                                && !parBlockValue.equalsIgnoreCase("[null]")) {
+                            try {
+                                parentBlockId = Integer.valueOf(parBlockValue.trim());
+                            } catch (NumberFormatException ignored) {
+                            }
+                        }
+
+                        if (parIdValue != null
+                                && !parIdValue.isBlank()
+                                && !parIdValue.equalsIgnoreCase("null")
+                                && !parIdValue.equalsIgnoreCase("[null]")) {
+                            try {
+                                parentId = Integer.valueOf(parIdValue.trim());
+                            } catch (NumberFormatException ignored) {
+                            }
+                        }
+                    } else {
+                        // values.size() == 26: parent_block_id may not exist
+                        String parValue = values.get(24);
+
+                        if (parValue != null
+                                && !parValue.isBlank()
+                                && !parValue.equalsIgnoreCase("null")
+                                && !parValue.equalsIgnoreCase("[null]")) {
+                            try {
+                                if (isGoto) {
+                                    parentBlockId = Integer.valueOf(parValue.trim());
+                                } else {
+                                    parentId = Integer.valueOf(parValue.trim());
+                                }
+                            } catch (NumberFormatException ignored) {
+                            }
+                        }
+                    }
+
+                    // Map the values if instructionId exists
+                    if (instructionId != null) {
+                        if (parentBlockId != null) instrParentBlockMap.put(instructionId, parentBlockId);
+                        if (parentId != null) instrParentIdMap.put(instructionId, parentId);
+                    }
+
+                    // Set prepared statement params to null for insert (new table always has parent_block_id)
+                    setSafeParam(pstmt, 24, null, Types.INTEGER); // parent_block_id
+                    setSafeParam(pstmt, 25, null, Types.INTEGER); // parent_id
+                    setSafeParam(pstmt, 26, String.valueOf(newHomeBankId), Types.INTEGER);
+
                     for (int i = 1; i < values.size(); i++) {
                         switch (i) {
                                 //                            case 0 -> setSafeParam(pstmt, 1, values.get(0),
@@ -2165,11 +2249,14 @@ public class PerformBackup {
 
                             case 22 -> {
                                 // block_id replaced with newBlockId
-                                setSafeParam(pstmt, 22, String.valueOf(newBlockId), Types.INTEGER);
+                                setSafeParam(
+                                        pstmt,
+                                        22,
+                                        String.valueOf(newBlockId),
+                                        Types.INTEGER); // block_id already mapped
                             }
                             case 23 -> {
                                 // variable_id + tracking
-                                Integer instructionId = values.get(0) != null ? Integer.valueOf(values.get(0)) : null;
                                 String varValue = values.get(23);
                                 Integer variableId = null;
                                 if (varValue != null
@@ -2190,24 +2277,7 @@ public class PerformBackup {
                                 // Firts to Be mapped after INSERTS into Variable TABLE
                                 setSafeParam(pstmt, 23, "NULL", Types.INTEGER);
                             }
-                            case 24 -> {
-                                String action = values.get(2);
-                                if ("GOTO".equalsIgnoreCase(action) || "EXCEL GOTO".equalsIgnoreCase(action)) {
-                                    setSafeParam(pstmt, 24, values.get(24), Types.INTEGER); // parent_block_id
-                                    setSafeParam(pstmt, 25, null, Types.INTEGER); // parent_id
-                                } else {
-                                    setSafeParam(pstmt, 24, null, Types.INTEGER); // parent_block_id
-                                    setSafeParam(pstmt, 25, values.get(24), Types.INTEGER); // parent_id
-                                }
-                            }
-                            case 25, 26 -> {
-                                // Regardless of 26 or 27 columns, home_banking_id is always parameter 27
-                                setSafeParam(
-                                        pstmt,
-                                        26,
-                                        String.valueOf(newHomeBankId),
-                                        Types.INTEGER); // home_banking_id already mapped
-                            }
+                            case 24, 25, 26 -> {}
                             default -> throw new IllegalArgumentException("Unexpected column index: " + i);
                         }
                     }
@@ -2406,10 +2476,8 @@ public class PerformBackup {
         try (Statement connStmt = conn.createStatement()) {
             conn.setAutoCommit(false);
 
-            String selectAccessSQL =
-                    "SELECT id, name, parent_id, variable_id, parent_block_id " + "FROM component_instruction "
-                            + "WHERE parent_id IS NOT NULL OR variable_id IS NULL OR parent_block_id IS NOT NULL "
-                            + "ORDER BY id";
+            String selectAccessSQL = "SELECT id, name, parent_id, variable_id, parent_block_id "
+                    + "FROM component_instruction WHERE parent_id IS NOT NULL OR variable_id IS NULL OR parent_block_id IS NOT NULL ORDER BY id";
 
             try (ResultSet rsInstruction = connStmt.executeQuery(selectAccessSQL)) {
 
@@ -2423,17 +2491,28 @@ public class PerformBackup {
                         int id = rsInstruction.getInt("id");
 
                         // ---- variable_id ----
-                        Integer originalOldId = instrNewInverted.get(id);
+                        Integer originalOldID = instrNewInverted.get(id);
+
                         Integer originalVarId = null;
-                        if (originalOldId != null) {
-                            originalVarId = instrVariablesMap.get(originalOldId);
+                        Integer originalParBlockId = null;
+
+                        if (originalOldID != null) {
+                            originalVarId = instrVariablesMap.get(originalOldID);
+                        }
+
+                        if (originalOldID != null) {
+                            originalParBlockId = instrParentBlockMap.get(originalOldID);
+                        }
+
+                        Integer originalOldParentID = null;
+                        if (originalOldID != null) {
+                            originalOldParentID = instrParentIdMap.get(originalOldID);
                         }
 
                         Integer newVariableId = null;
                         if (originalVarId != null) {
                             newVariableId = variableMap.get(originalVarId);
                         }
-
                         setSafeParam(
                                 updateStmt,
                                 1,
@@ -2442,10 +2521,8 @@ public class PerformBackup {
 
                         // ---- parent_id ----
                         Integer newParentId = null;
-                        int originalParentId = rsInstruction.getInt("parent_id");
-                        boolean isParentIdNull = rsInstruction.wasNull();
-                        if (!isParentIdNull) {
-                            newParentId = instructionMap.get(originalParentId);
+                        if (originalOldParentID != null) {
+                            newParentId = instructionMap.get(originalOldParentID);
                         }
 
                         setSafeParam(
@@ -2456,12 +2533,9 @@ public class PerformBackup {
 
                         // ---- parent_block_id ----
                         Integer newParentBlockId = null;
-                        int originalParentBlockId = rsInstruction.getInt("parent_block_id");
-                        boolean isParentBlockIdNull = rsInstruction.wasNull();
-                        if (!isParentBlockIdNull) {
-                            newParentBlockId = blockMap.get(originalParentBlockId);
+                        if (originalParBlockId != null) {
+                            newParentBlockId = blockMap.get(originalParBlockId);
                         }
-
                         setSafeParam(
                                 updateStmt,
                                 3,
@@ -2493,10 +2567,11 @@ public class PerformBackup {
 
             return null;
 
-        } catch (SQLException e) {
+        } catch (SQLException error) {
             ARLogger.getInstance(PerformDataBase.class)
-                    .severe("Failed to update component_instruction: " + e.getMessage());
-            return new ErrorMessage("Restore Failed", "Failed to update component_instruction data", e.getMessage());
+                    .severe("Failed to update component_instruction: " + error.getMessage());
+            return new ErrorMessage(
+                    "Restore Failed", "Failed to update component_instruction data", error.getMessage());
         }
     }
 
