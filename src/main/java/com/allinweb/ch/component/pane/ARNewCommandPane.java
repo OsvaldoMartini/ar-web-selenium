@@ -2699,14 +2699,18 @@ public class ARNewCommandPane extends ARPane {
             if (tableName.equals("block")) {
                 errorMessage = performDataBase.loadBlocks(whereId, "", tableName);
                 performLists.getListBlock().forEach(b -> currentListBlock.add(BlockOptions.fromBlockLoadDTO(b)));
-                if (rowMoveDTO != null && rowMoveDTO.getType().equals("INSERT_NEW") && performLists.getListBlock().size() == 1) {
+                if (rowMoveDTO != null
+                        && rowMoveDTO.getType().equals("INSERT_NEW")
+                        && performLists.getListBlock().size() == 1) {
                     rowMoveDTO.setBlockId(performLists.getListBlock().get(0).getId());
                 }
 
             } else {
                 errorMessage = performDataBase.loadBlocks(whereId, "", tableName);
                 performLists.getListBlockComp().forEach(b -> currentListBlock.add(BlockOptions.fromBlockLoadDTO(b)));
-                if (rowMoveDTO != null && rowMoveDTO.getType().equals("INSERT_NEW") && performLists.getListBlockComp().size() == 1) {
+                if (rowMoveDTO != null
+                        && rowMoveDTO.getType().equals("INSERT_NEW")
+                        && performLists.getListBlockComp().size() == 1) {
                     rowMoveDTO.setBlockId(performLists.getListBlockComp().get(0).getId());
                 }
             }

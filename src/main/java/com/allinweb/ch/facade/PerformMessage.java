@@ -904,7 +904,7 @@ public class PerformMessage {
 
     public void outputJson(List<InstructionLoadDTO> blockLoopInstructions, String fileName, boolean genTestData) {
         // Get the directory path from ARPropertyManager
-        String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG);
+        String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
 
         List<InstructionLoadDTO> updatedList = new ArrayList<>(); // Create a new list for updated instructions
 

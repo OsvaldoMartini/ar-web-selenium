@@ -17,6 +17,7 @@ import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
+import org.sqlite.SQLiteConfig;
 
 public class PerformDataBase {
 
@@ -210,7 +211,12 @@ public class PerformDataBase {
                     ARLogger.getInstance(PerformDataBase.class).info("SQLITE connection URL: " + sqliteUrl);
 
                     Class.forName("org.sqlite.JDBC");
-                    conn = DriverManager.getConnection(sqliteUrl);
+
+                    SQLiteConfig config = new SQLiteConfig();
+                    config.enforceForeignKeys(true);
+
+                    conn = DriverManager.getConnection(sqliteUrl, config.toProperties());
+                    //                    conn = SQLiteHelper.getConnection(sqliteUrl);
                     conn.setReadOnly(false);
 
                 } else {
@@ -2425,29 +2431,30 @@ public class PerformDataBase {
             query.append("b.id AS block_id, ")
                     .append("b.block_order_number, ")
                     .append("b.name AS block_name, ")
-                    .append("b.description AS block_description, ")
+                    .append("b.description, ")
                     .append("b.type_id, ")
                     .append("b.wait, ")
-                    .append("b.active AS block_active, ")
-                    .append("bot.id AS bot_job_id, ")
-                    .append("bot.name AS bot_job_name ")
-                    .append("FROM bot_job bot ")
-                    .append("JOIN block b ON b.bot_job_id = bot.id ")
-                    .append("WHERE bot.active = 1 AND bot.id = ? ")
+                    .append("b.active, ")
+                    .append("b.bot_job_id ")
+                    //                    .append("bot.name AS bot_job_name ")
+                    //                    append("FROM bot_job bot ")
+                    .append("FROM block b ")
+                    .append("WHERE b.bot_job_id = ? ")
                     .append("ORDER BY b.block_order_number ASC");
         } else { // component_block
             query.append("b.id AS block_id, ")
                     .append("b.block_order_number, ")
                     .append("b.name AS block_name, ")
-                    .append("b.description AS block_description, ")
+                    .append("b.description, ")
                     .append("b.type_id, ")
                     .append("b.wait, ")
-                    .append("b.active AS block_active, ")
-                    .append("hb.id AS home_banking_id ")
-                    .append("FROM home_banking hb ")
-                    .append("JOIN component_block b ON b.home_banking_id = hb.id ")
-                    .append("JOIN component_instruction ci ON ci.home_banking_id = hb.id AND ci.block_id = b.id ")
-                    .append("WHERE hb.id = ? ")
+                    .append("b.active, ")
+                    .append("b.home_banking_id ")
+                    //                    .append("FROM home_banking hb ")
+                    .append("FROM component_block b ")
+                    //                    .append("JOIN component_instruction ci ON ci.home_banking_id = hb.id AND
+                    // ci.block_id = b.id ")
+                    .append("WHERE b.home_banking_id = ? ")
                     .append("ORDER BY b.block_order_number ASC");
         }
 
@@ -2475,14 +2482,14 @@ public class PerformDataBase {
                         blockDTO.setId(blockId);
                         blockDTO.setBlockOrderNumber(rs.getInt("block_order_number"));
                         blockDTO.setName(rs.getString("block_name"));
-                        blockDTO.setDescription(rs.getString("block_description"));
+                        blockDTO.setDescription(rs.getString("description"));
                         blockDTO.setTypeId(rs.getInt("type_id"));
                         blockDTO.setWait(rs.getInt("wait"));
-                        blockDTO.setActive(rs.getBoolean("block_active"));
+                        blockDTO.setActive(rs.getBoolean("active"));
 
                         if ("block".equals(tableName)) {
                             blockDTO.setBotJobId(rs.getInt("bot_job_id"));
-                            blockDTO.setBotJobName(rs.getString("bot_job_name"));
+                            blockDTO.setBotJobName(botJobName);
                         } else {
                             blockDTO.setHomeBankingId(rs.getInt("home_banking_id"));
                             blockDTO.setBotJobId(whereId != null ? whereId : 0);

@@ -486,9 +486,21 @@ public class SimpleWebSocketServer {
 
                     errorMessage =
                             performDataBase.updateMoveRowsOrder(blockTable, whereId, rowMoveDTO.getUpdatedRows());
-                    if (errorMessage == null && !restToDeleteIds.isEmpty()) {
+
+                    List<BlockLoadDTO> listBlocks =
+                            blockTable.equals("block") ? performLists.getListBlock() : performLists.getListBlockComp();
+                    // Keep at least One
+
+                    if (errorMessage == null
+                            && !restToDeleteIds.isEmpty()
+                            && (blockTable.equals("block") && listBlocks.size() > 1)) {
+                        errorMessage = performDataBase.deleteNullBlocks(blockTable, whereId, restToDeleteIds);
+                    } else if (errorMessage == null
+                            && !restToDeleteIds.isEmpty()
+                            && (blockTable.equals("component_block"))) {
                         errorMessage = performDataBase.deleteNullBlocks(blockTable, whereId, restToDeleteIds);
                     }
+
                     if (errorMessage == null) {
                         performDataBase.loadBlocks(whereId, "", blockTable);
                         errorMessage = performDataBase.updateBlockOrderNumber(blockTable, whereId, true);
@@ -745,7 +757,16 @@ public class SimpleWebSocketServer {
                         .filter(id -> !currentIds.contains(id))
                         .collect(Collectors.toList());
 
-                if (errorMessage == null && !restToDeleteIds.isEmpty()) {
+                List<BlockLoadDTO> listBlocks =
+                        instTable.equals("instruction") ? performLists.getListBlock() : performLists.getListBlockComp();
+                // Keep at least One for BLOCK TABLE
+                if (errorMessage == null
+                        && !restToDeleteIds.isEmpty()
+                        && (blockTable.equals("block") && listBlocks.size() > 1)) {
+                    errorMessage = performDataBase.deleteNullBlocks(blockTable, whereId, restToDeleteIds);
+                } else if (errorMessage == null
+                        && !restToDeleteIds.isEmpty()
+                        && (blockTable.equals("component_block"))) {
                     errorMessage = performDataBase.deleteNullBlocks(blockTable, whereId, restToDeleteIds);
                 }
 

@@ -784,7 +784,9 @@ public class PerformBackup {
             conn.setAutoCommit(false);
 
             // 🔹 Step 0: Delete in correct order
+            //            deleteStmt.execute("PRAGMA foreign_keys = ON");
             deleteStmt.executeUpdate("DELETE FROM component_reference");
+
             deleteStmt.executeUpdate("DELETE FROM component_variable");
             deleteStmt.executeUpdate("DELETE FROM component_instruction");
             deleteStmt.executeUpdate("DELETE FROM component_block");
@@ -796,6 +798,7 @@ public class PerformBackup {
             deleteStmt.executeUpdate("DELETE FROM bot_job");
             deleteStmt.executeUpdate("DELETE FROM home_url");
             deleteStmt.executeUpdate("DELETE FROM home_banking");
+            conn.commit();
 
             // Step 1: Get current home_banking IDs before insert
             List<Integer> idsBefore = new ArrayList<>();

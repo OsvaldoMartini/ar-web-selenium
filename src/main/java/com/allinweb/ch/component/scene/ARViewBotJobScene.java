@@ -117,6 +117,7 @@ public class ARViewBotJobScene extends ARScene {
         performDataBase.loadQuickBotJobs();
 
         performDataBase.loadBlocks(selectedBotJob.getId(), selectedBotJob.getName(), "block");
+        performDataBase.loadBlocks(selectedBotJob.getHomeBankingId(), selectedBotJob.getName(), "component_block");
         //        this.botLoadJobs = performDataBase.loadBotJobWithBlock(this.botJobId);
 
         BotJobLoadDTO botJobLoad = performLists.getQuickBotJobById(selectedBotJob.getId());
