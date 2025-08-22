@@ -1,6 +1,7 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.component.model.*;
+import com.allinweb.ch.component.scene.ARNewCommandScene;
 import com.allinweb.ch.persistence.DatabaseUserDTO;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
@@ -687,62 +688,6 @@ public class PerformDataBase {
                     .severe(String.format(
                             "Connection error while deleting parent ID %d in %s = %d. Error: %s",
                             parentId, foreignKeyColumn, whereId, ex.getMessage()));
-
-            return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
-        }
-    }
-
-    public ErrorMessage deleteNullBlocks(String tableName, int whereId, List<Integer> restIds) {
-        if (restIds == null || restIds.isEmpty()) {
-            return null; // Nothing to delete
-        }
-
-        // Determine foreign key column
-        String foreignKeyColumn = "block".equalsIgnoreCase(tableName) ? "bot_job_id" : "home_banking_id";
-
-        // Build dynamic delete SQL
-        String deleteSQL = "DELETE FROM " + tableName + " WHERE id = ? AND " + foreignKeyColumn + " = ?";
-
-        try (Connection conn = getConnection()) {
-            conn.setAutoCommit(false);
-
-            try (PreparedStatement pstmt = conn.prepareStatement(deleteSQL)) {
-                for (Integer id : restIds) {
-                    pstmt.setInt(1, id);
-                    pstmt.setInt(2, whereId);
-                    pstmt.addBatch();
-                }
-
-                int[] results = pstmt.executeBatch();
-                conn.commit();
-
-                int totalDeleted = Arrays.stream(results).sum();
-
-                ARLogger.getInstance(PerformDataBase.class)
-                        .info(String.format(
-                                "Deleted %d blocks from table %s where %s = %d (IDs: %s)",
-                                totalDeleted, tableName, foreignKeyColumn, whereId, restIds));
-
-                return null; // success
-            } catch (SQLException e) {
-                conn.rollback();
-
-                ARLogger.getInstance(PerformDataBase.class)
-                        .severe(String.format(
-                                "Error deleting blocks from table %s where %s = %d. IDs: %s. Error: %s",
-                                tableName, foreignKeyColumn, whereId, restIds, e.getMessage()));
-
-                return new ErrorMessage(
-                        "Delete Blocks Error",
-                        "Failed to delete blocks from table " + tableName + " where " + foreignKeyColumn + " = "
-                                + whereId,
-                        e.getMessage());
-            }
-        } catch (SQLException ex) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
-                            "Connection error while deleting blocks from table %s where %s = %d. IDs: %s. Error: %s",
-                            tableName, foreignKeyColumn, whereId, restIds, ex.getMessage()));
 
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
@@ -8913,6 +8858,101 @@ GROUP BY
             try (Statement stmt = conn.createStatement()) {
                 stmt.executeUpdate("ALTER TABLE " + tableName + " ADD COLUMN " + columnName + " " + columnType);
             }
+        }
+    }
+
+    public void preDeleteNullBlocks(String blockTable, int whereId, String instTable) {
+        loadBlocks(whereId, "", blockTable);
+        loadInstructions(whereId, -1, -1, instTable);
+
+        // Snapshot of previous IDs
+        List<Integer> previousIds = (blockTable.equals("block")
+                        ? performLists.getListBlock()
+                        : performLists.getListBlockComp())
+                .stream().map(BlockLoadDTO::getId).filter(Objects::nonNull).toList();
+
+        // Snapshot of previous IDs
+        List<Integer> currentIds = (instTable.equals("instruction")
+                        ? performLists.getListInstruction()
+                        : performLists.getListInstructionComp())
+                .stream()
+                        .map(InstructionLoadDTO::getBlockId)
+                        .filter(Objects::nonNull)
+                        .toList();
+
+        List<Integer> restToDeleteIds =
+                previousIds.stream().filter(id -> !currentIds.contains(id)).collect(Collectors.toList());
+
+        System.out.println("Blocks To Delete: " + restToDeleteIds.size());
+        // Keep at least One for BLOCK TABLE
+        List<BlockLoadDTO> listBlocks =
+                instTable.equals("instruction") ? performLists.getListBlock() : performLists.getListBlockComp();
+        ErrorMessage errorMessage = null;
+        if (!restToDeleteIds.isEmpty() && (blockTable.equals("block") && listBlocks.size() > 1)) {
+            errorMessage = deleteNullBlocks(blockTable, whereId, restToDeleteIds);
+        } else if (errorMessage == null && !restToDeleteIds.isEmpty() && (blockTable.equals("component_block"))) {
+            errorMessage = deleteNullBlocks(blockTable, whereId, restToDeleteIds);
+        }
+        if (errorMessage != null) {
+            ARLogger.getInstance(ARNewCommandScene.class)
+                    .severe("Error Deleting Nulls Blocks Table:" + blockTable + " Error: "
+                            + errorMessage.getErrorMessage());
+        }
+    }
+
+    public ErrorMessage deleteNullBlocks(String tableName, int whereId, List<Integer> restIds) {
+        if (restIds == null || restIds.isEmpty()) {
+            return null; // Nothing to delete
+        }
+
+        // Determine foreign key column
+        String foreignKeyColumn = "block".equalsIgnoreCase(tableName) ? "bot_job_id" : "home_banking_id";
+
+        // Build dynamic delete SQL
+        String deleteSQL = "DELETE FROM " + tableName + " WHERE id = ? AND " + foreignKeyColumn + " = ?";
+
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false);
+
+            try (PreparedStatement pstmt = conn.prepareStatement(deleteSQL)) {
+                for (Integer id : restIds) {
+                    pstmt.setInt(1, id);
+                    pstmt.setInt(2, whereId);
+                    pstmt.addBatch();
+                }
+
+                int[] results = pstmt.executeBatch();
+                conn.commit();
+
+                int totalDeleted = Arrays.stream(results).sum();
+
+                ARLogger.getInstance(PerformDataBase.class)
+                        .info(String.format(
+                                "Deleted %d blocks from table %s where %s = %d (IDs: %s)",
+                                totalDeleted, tableName, foreignKeyColumn, whereId, restIds));
+
+                return null; // success
+            } catch (SQLException e) {
+                conn.rollback();
+
+                ARLogger.getInstance(PerformDataBase.class)
+                        .severe(String.format(
+                                "Error deleting blocks from table %s where %s = %d. IDs: %s. Error: %s",
+                                tableName, foreignKeyColumn, whereId, restIds, e.getMessage()));
+
+                return new ErrorMessage(
+                        "Delete Blocks Error",
+                        "Failed to delete blocks from table " + tableName + " where " + foreignKeyColumn + " = "
+                                + whereId,
+                        e.getMessage());
+            }
+        } catch (SQLException ex) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format(
+                            "Connection error while deleting blocks from table %s where %s = %d. IDs: %s. Error: %s",
+                            tableName, foreignKeyColumn, whereId, restIds, ex.getMessage()));
+
+            return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
     }
 }
