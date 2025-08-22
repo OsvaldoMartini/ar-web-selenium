@@ -510,17 +510,17 @@ public class SimpleWebSocketServer {
                     rowMoveDTO.setType(updteBlocks);
                     jsonData = gson.toJson(rowMoveDTO);
                     webSocketSessionManager.sendMessageJson(homeBankingId, "perform-list-data", jsonData, updteBlocks);
+                }
 
-                    if (errorMessage != null) {
-                        performMessage.errorMessage(
-                                errorMessage.getErrorTitle(),
-                                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                                "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                        + errorMessage.getErrorHeader(),
-                                "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                                null,
-                                0);
-                    }
+                if (errorMessage != null) {
+                    performMessage.errorMessage(
+                            errorMessage.getErrorTitle(),
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                    + errorMessage.getErrorHeader(),
+                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                            null,
+                            0);
                 }
 
                 break;

@@ -1,5 +1,6 @@
 package com.allinweb.ch.component.scene;
 
+import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BlockMoveDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
@@ -7,19 +8,22 @@ import com.allinweb.ch.component.pane.ARNewCommandPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.util.ARLogger;
-import com.allinweb.ch.util.ARPropertyManager;
+import com.allinweb.ch.util.ErrorMessage;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
@@ -188,6 +192,9 @@ public class ARNewCommandScene extends ARScene {
                         // performDataBase.loadWebPageFields(rowUpdateDTO.getBotJobId());
 
                         // Ensure JavaFX UI updates are done on the JavaFX Application Thread
+                        String instTable = rowUpdateDTO.getSessionId().equals("componentTasks")
+                                ? "component_instruction"
+                                : "instruction";
                         String blockTable =
                                 rowUpdateDTO.getSessionId().equals("componentTasks") ? "component_block" : "block";
                         int whereId = rowUpdateDTO.getSessionId().equals("componentTasks")
@@ -202,6 +209,51 @@ public class ARNewCommandScene extends ARScene {
                             previousBlock = blockUpdate;
                         } else if (previousBlock == null) {
                             previousBlock = blockUpdate;
+                        }
+
+                        performDataBase.loadBlocks(whereId, "", blockTable);
+
+                        // Snapshot of previous IDs
+                        List<Integer> previousIds = (blockTable.equals("block")
+                                        ? performLists.getListBlock()
+                                        : performLists.getListBlockComp())
+                                .stream()
+                                        .map(BlockLoadDTO::getId)
+                                        .filter(Objects::nonNull)
+                                        .toList();
+
+                        performDataBase.loadInstructions(whereId, -1, -1, instTable);
+
+                        // Snapshot of previous IDs
+                        List<Integer> currentIds = (instTable.equals("instruction")
+                                        ? performLists.getListInstruction()
+                                        : performLists.getListInstructionComp())
+                                .stream()
+                                        .map(InstructionLoadDTO::getBlockId)
+                                        .filter(Objects::nonNull)
+                                        .toList();
+
+                        List<Integer> restToDeleteIds = previousIds.stream()
+                                .filter(id -> !currentIds.contains(id))
+                                .collect(Collectors.toList());
+
+                        System.out.println("Blocks To Delete: " + restToDeleteIds.size());
+                        // Keep at least One for BLOCK TABLE
+                        List<BlockLoadDTO> listBlocks = instTable.equals("instruction")
+                                ? performLists.getListBlock()
+                                : performLists.getListBlockComp();
+                        ErrorMessage errorMessage = null;
+                        if (!restToDeleteIds.isEmpty() && (blockTable.equals("block") && listBlocks.size() > 1)) {
+                            errorMessage = performDataBase.deleteNullBlocks(blockTable, whereId, restToDeleteIds);
+                        } else if (errorMessage == null
+                                && !restToDeleteIds.isEmpty()
+                                && (blockTable.equals("component_block"))) {
+                            errorMessage = performDataBase.deleteNullBlocks(blockTable, whereId, restToDeleteIds);
+                        }
+                        if (errorMessage != null) {
+                            ARLogger.getInstance(ARNewCommandScene.class)
+                                    .severe("Error Deleting Nulls Blocks Table:" + blockTable + " Error: "
+                                            + errorMessage.getErrorMessage());
                         }
 
                         arNewCommandPane.reloadDBBlocks(whereId, blockTable);
@@ -270,15 +322,9 @@ public class ARNewCommandScene extends ARScene {
     @Setter
     public RowMoveDTO rowMoveDTO;
 
-    private static final ARNewCommandPane arNewCommandPane;
-    private static final PerformDataBase performDataBase;
-    private static final ARPropertyManager arPropertyManager;
-
-    static {
-        arPropertyManager = ARPropertyManager.getInstance();
-        performDataBase = PerformDataBase.getInstance();
-        arNewCommandPane = ARNewCommandPane.getInstance();
-    }
+    private static final PerformLists performLists = PerformLists.getInstance();
+    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
+    private static final ARNewCommandPane arNewCommandPane = ARNewCommandPane.getInstance();
 
     public void initialize(RowMoveDTO rowMoveDTO) {
         this.rowMoveDTO = rowMoveDTO;

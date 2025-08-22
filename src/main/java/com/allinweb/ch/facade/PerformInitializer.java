@@ -222,14 +222,17 @@ public class PerformInitializer {
                 // Foreign Keys with ON DELETE CASCADE
                 stmt.executeUpdate(
                         "ALTER TABLE variable ADD CONSTRAINT fk_variable_instruction FOREIGN KEY (instruction_id) REFERENCES instruction(id) ON DELETE CASCADE");
-//                stmt.executeUpdate(
-//                        "ALTER TABLE instruction ADD CONSTRAINT fk_instruction_variable FOREIGN KEY (variable_id) REFERENCES variable(id) ON DELETE CASCADE");
+                //                stmt.executeUpdate(
+                //                        "ALTER TABLE instruction ADD CONSTRAINT fk_instruction_variable FOREIGN KEY
+                // (variable_id) REFERENCES variable(id) ON DELETE CASCADE");
 
                 stmt.executeUpdate(
                         "ALTER TABLE component_variable ADD CONSTRAINT fk_component_variable_instruction FOREIGN KEY (instruction_id) REFERENCES component_instruction(id) ON DELETE CASCADE");
 
-//                stmt.executeUpdate(
-//                        "ALTER TABLE component_instruction ADD CONSTRAINT fk_component_instruction_variable FOREIGN KEY (variable_id) REFERENCES component_variable(id) ON DELETE CASCADE");
+                //                stmt.executeUpdate(
+                //                        "ALTER TABLE component_instruction ADD CONSTRAINT
+                // fk_component_instruction_variable FOREIGN KEY (variable_id) REFERENCES component_variable(id) ON
+                // DELETE CASCADE");
             }
             return null;
         } catch (SQLException error) {
@@ -411,8 +414,9 @@ public class PerformInitializer {
                 stmt.executeUpdate(
                         "ALTER TABLE instruction ADD CONSTRAINT fk_instruction_block FOREIGN KEY (block_id) REFERENCES block(id) ON DELETE CASCADE");
 
-//                stmt.executeUpdate(
-//                        "ALTER TABLE instruction ADD CONSTRAINT fk_instruction_variable FOREIGN KEY (variable_id) REFERENCES variable(id) ON DELETE CASCADE");
+                //                stmt.executeUpdate(
+                //                        "ALTER TABLE instruction ADD CONSTRAINT fk_instruction_variable FOREIGN KEY
+                // (variable_id) REFERENCES variable(id) ON DELETE CASCADE");
                 stmt.executeUpdate(
                         "ALTER TABLE instruction ADD CONSTRAINT fk_instruction_parent_block FOREIGN KEY (parent_block_id) REFERENCES block(id) ON DELETE CASCADE");
 
@@ -442,8 +446,10 @@ public class PerformInitializer {
                 stmt.executeUpdate(
                         "ALTER TABLE component_instruction ADD CONSTRAINT fk_component_instruction_block FOREIGN KEY (block_id) REFERENCES component_block(id) ON DELETE CASCADE");
 
-//                stmt.executeUpdate(
-//                        "ALTER TABLE component_instruction ADD CONSTRAINT fk_component_instruction_variable FOREIGN KEY (variable_id) REFERENCES component_variable(id) ON DELETE CASCADE");
+                //                stmt.executeUpdate(
+                //                        "ALTER TABLE component_instruction ADD CONSTRAINT
+                // fk_component_instruction_variable FOREIGN KEY (variable_id) REFERENCES component_variable(id) ON
+                // DELETE CASCADE");
 
                 stmt.executeUpdate(
                         "ALTER TABLE component_instruction ADD CONSTRAINT fk_component_instruction_parent_block FOREIGN KEY (parent_block_id) REFERENCES component_block(id) ON DELETE CASCADE");
@@ -558,7 +564,8 @@ public class PerformInitializer {
                         + "parent_block_id INTEGER, "
                         + "parent_id INTEGER, "
                         + "bot_job_id INTEGER, "
-//                        + "FOREIGN KEY(variable_id) REFERENCES variable(id) ON DELETE CASCADE, "
+                        //                        + "FOREIGN KEY(variable_id) REFERENCES variable(id) ON DELETE CASCADE,
+                        // "
                         + "FOREIGN KEY(parent_block_id) REFERENCES block(id) ON DELETE CASCADE, "
                         + "FOREIGN KEY(block_id) REFERENCES block(id) ON DELETE CASCADE, "
                         + "FOREIGN KEY(bot_job_id) REFERENCES bot_job(id) ON DELETE CASCADE)";
@@ -628,7 +635,8 @@ public class PerformInitializer {
                         + "parent_block_id INTEGER, "
                         + "parent_id INTEGER, "
                         + "home_banking_id INTEGER, "
-//                        + "FOREIGN KEY(variable_id) REFERENCES variable(id) ON DELETE CASCADE, "
+                        //                        + "FOREIGN KEY(variable_id) REFERENCES variable(id) ON DELETE CASCADE,
+                        // "
                         + "FOREIGN KEY(parent_block_id) REFERENCES block(id) ON DELETE CASCADE, "
                         + "FOREIGN KEY(block_id) REFERENCES component_block(id) ON DELETE CASCADE, "
                         + "FOREIGN KEY(home_banking_id) REFERENCES home_banking(id) ON DELETE CASCADE)";
