@@ -349,7 +349,9 @@ public class ExcelUtils {
         File fileCheck = new File(fileName);
 
         // Load blocks and actions
-        performDataBase.loadBlocks(selectedBotJob.getId(), selectedBotJob.getName(), "block");
+        if (performLists.getListBlock().isEmpty()) {
+            performDataBase.loadBlocks(selectedBotJob.getId(), selectedBotJob.getName(), "block");
+        }
         List<String> allActions = performDataBase.loadAllActionsPerBlock(performLists.getListBlock());
 
         // Check if the Excel file already exists

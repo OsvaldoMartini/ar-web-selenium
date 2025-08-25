@@ -2700,36 +2700,48 @@ public class ARNewCommandPane extends ARPane {
     public ErrorMessage reloadDBBlocks(int whereId, String tableName) {
         currentListBlock.clear();
         ErrorMessage errorMessage = null;
-        if (currentListBlock != null) {
-            if (tableName.equals("block")) {
-                errorMessage = performDataBase.loadBlocks(whereId, "", tableName);
-                performLists.getListBlock().forEach(b -> currentListBlock.add(BlockOptions.fromBlockLoadDTO(b)));
-                if (rowMoveDTO != null
-                        && rowMoveDTO.getType().equals("INSERT_NEW")
-                        && performLists.getListBlock().size() == 1) {
-                    rowMoveDTO.setBlockId(performLists.getListBlock().get(0).getId());
-                }
+        try {
+            if (currentListBlock != null) {
+                if (tableName.equals("block")) {
+                    errorMessage = performDataBase.loadBlocks(whereId, "", tableName);
+                    performLists
+                            .getListBlock()
+                            .forEach(b -> currentListBlock.add(BlockOptions.fromBlockWithInstructionId(b)));
+                    if (rowMoveDTO != null
+                            && rowMoveDTO.getType().equals("INSERT_NEW")
+                            && performLists.getListBlock().size() == 1) {
+                        rowMoveDTO.setBlockId(performLists.getListBlock().get(0).getId());
+                    }
 
-            } else {
-                errorMessage = performDataBase.loadBlocks(whereId, "", tableName);
-                performLists.getListBlockComp().forEach(b -> currentListBlock.add(BlockOptions.fromBlockLoadDTO(b)));
-                if (rowMoveDTO != null
-                        && rowMoveDTO.getType().equals("INSERT_NEW")
-                        && performLists.getListBlockComp().size() == 1) {
-                    rowMoveDTO.setBlockId(performLists.getListBlockComp().get(0).getId());
-                }
-            }
-
-            if (rowMoveDTO != null) {
-                if ("EXCEL GOTO".equals(rowMoveDTO.getUpdatedRows().get(0).getActions())) {
-                    loadBlockGoto(-99);
                 } else {
-                    loadBlockGoto(rowMoveDTO.getBlockId());
+                    errorMessage = performDataBase.loadBlocks(whereId, "", tableName);
+                    performLists
+                            .getListBlockComp()
+                            .forEach(b -> currentListBlock.add(BlockOptions.fromBlockWithInstructionId(b)));
+                    if (rowMoveDTO != null
+                            && rowMoveDTO.getType().equals("INSERT_NEW")
+                            && performLists.getListBlockComp().size() == 1) {
+                        rowMoveDTO.setBlockId(
+                                performLists.getListBlockComp().get(0).getId());
+                    }
                 }
+
+                if (rowMoveDTO != null) {
+                    if ("EXCEL GOTO".equals(rowMoveDTO.getUpdatedRows().get(0).getActions())) {
+                        loadBlockGoto(-99);
+                    } else {
+                        loadBlockGoto(rowMoveDTO.getBlockId());
+                    }
+                }
+                loadAllBlocks();
             }
-            loadAllBlocks();
+            return errorMessage;
+
+        } catch (Exception error) {
+            ARLogger.getInstance(ARNewCommandPane.class).severe("Error :" + error.getMessage());
+            return new ErrorMessage(
+                    "Error in Reload DB Blocks", "Error during loading reloadDBBlocks", error.getMessage());
         }
-        return errorMessage;
     }
 
     public void reloadCombosBlocks() {

@@ -8,7 +8,9 @@ import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
+import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.util.ARLogger;
+import com.allinweb.ch.util.ErrorMessage;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -161,7 +163,17 @@ public class ARNewCommandScene extends ARScene {
                     } else if (previousBlock == null) {
                         previousBlock = type;
                     }
-                    arNewCommandPane.reloadDBBlocks(blockMoveDTO.getBotJobId(), "block");
+                    ErrorMessage errorMessage = arNewCommandPane.reloadDBBlocks(blockMoveDTO.getBotJobId(), "block");
+                    if (errorMessage != null) {
+                        performMessage.errorMessage(
+                                errorMessage.getErrorTitle(),
+                                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                                "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                        + errorMessage.getErrorHeader(),
+                                "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                                null,
+                                0);
+                    }
                     break;
                 case "UPDATE_BLOCKS_COMP":
                     blockMoveDTO = gson.fromJson(body, BlockMoveDTO.class);
@@ -173,7 +185,17 @@ public class ARNewCommandScene extends ARScene {
                         previousBlock = type;
                     }
 
-                    arNewCommandPane.reloadDBBlocks(blockMoveDTO.getHomeBankingId(), "component_block");
+                    errorMessage = arNewCommandPane.reloadDBBlocks(blockMoveDTO.getHomeBankingId(), "component_block");
+                    if (errorMessage != null) {
+                        performMessage.errorMessage(
+                                errorMessage.getErrorTitle(),
+                                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                                "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                        + errorMessage.getErrorHeader(),
+                                "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                                null,
+                                0);
+                    }
 
                     break;
                 case "INSERT_BEFORE":
@@ -213,7 +235,20 @@ public class ARNewCommandScene extends ARScene {
 
                         performDataBase.preDeleteNullBlocks(blockTable, whereId, instTable);
 
-                        arNewCommandPane.reloadDBBlocks(whereId, blockTable);
+                        errorMessage = arNewCommandPane.reloadDBBlocks(whereId, blockTable);
+
+                        if (errorMessage != null) {
+                            performMessage.errorMessage(
+                                    errorMessage.getErrorTitle(),
+                                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                            + errorMessage.getErrorHeader(),
+                                    "<span style='font-style: italic;'>Detail:</span> "
+                                            + errorMessage.getErrorMessage(),
+                                    null,
+                                    0);
+                        }
+
                         initialize(rowUpdateDTO);
                         Platform.runLater(() -> showModal());
                     } catch (Exception error) {
@@ -280,6 +315,7 @@ public class ARNewCommandScene extends ARScene {
     public RowMoveDTO rowMoveDTO;
 
     private static final PerformLists performLists = PerformLists.getInstance();
+    private static final PerformMessage performMessage = PerformMessage.getInstance();
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
     private static final ARNewCommandPane arNewCommandPane = ARNewCommandPane.getInstance();
 

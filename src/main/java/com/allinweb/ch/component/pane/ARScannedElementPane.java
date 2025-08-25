@@ -88,6 +88,7 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private final Gson gson = new Gson();
+    private String previousBlock = null;
 
     private List<InstructionLoadDTO> instructionList = new ArrayList<>();
 
@@ -191,6 +192,8 @@ public class ARScannedElementPane extends ARPane {
                 JsonObject objSecond = JsonParser.parseString(body).getAsJsonObject();
                 if (objSecond.has("type") && objSecond.get("type").getAsString().equalsIgnoreCase("CLOSE_BROWSER")) {
                     type = "CLOSE_BROWSER";
+                } else if (objSecond.has("type")) {
+                    type = objSecond.has("type") ? objSecond.get("type").getAsString() : "unknown";
                 } else {
                     type = jsonObjMSG.has("type") ? jsonObjMSG.get("type").getAsString() : "unknown";
                 }
@@ -213,8 +216,42 @@ public class ARScannedElementPane extends ARPane {
             switch (type) {
                 case "UPDATE_BLOCKS":
                     BlockMoveDTO blockMoveDTO = gson.fromJson(body, BlockMoveDTO.class);
+
+                    if (previousBlock != null && !previousBlock.equals(type)) {
                         arNewCommandPane.closePane();
-                    arNewCommandPane.reloadDBBlocks(blockMoveDTO.getBotJobId(), "block");
+                        previousBlock = type;
+                    }
+
+                    String blockUpdate = blockMoveDTO.getSessionId().equals("componentTasks")
+                            ? "UPDATE_BLOCKS_COMP"
+                            : "UPDATE_BLOCKS";
+
+                    if (previousBlock != null && !previousBlock.equals(blockUpdate)) {
+                        arNewCommandPane.closePane();
+                        previousBlock = blockUpdate;
+                    } else if (previousBlock == null) {
+                        previousBlock = blockUpdate;
+                    }
+
+                    try {
+
+                        ErrorMessage errorMessage = reloadDBBlocks(blockMoveDTO.getBotJobId(), "block");
+
+                        if (errorMessage != null) {
+                            performMessage.errorMessage(
+                                    errorMessage.getErrorTitle(),
+                                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                            + errorMessage.getErrorHeader(),
+                                    "<span style='font-style: italic;'>Detail:</span> "
+                                            + errorMessage.getErrorMessage(),
+                                    null,
+                                    0);
+                        }
+                        loadAllBlocks();
+                    } catch (Exception error) {
+                        ARLogger.getInstance(ARNewCommandPane.class).severe("Error: " + error.getMessage());
+                    }
                     break;
                 case "CLOSE_BROWSER":
                     if (!isJobRunning.get()) {
@@ -244,6 +281,17 @@ public class ARScannedElementPane extends ARPane {
                     checkRunningProcess();
                     // Extract the "body" field from the JsonObject
                     ElementSplitDTO processDTO = gson.fromJson(jsonObjMSG, ElementSplitDTO.class);
+
+                    blockUpdate =
+                            processDTO.getSessionId().equals("componentTasks") ? "UPDATE_BLOCKS_COMP" : "UPDATE_BLOCKS";
+
+                    if (previousBlock != null && !previousBlock.equals(blockUpdate)) {
+                        arNewCommandPane.closePane();
+                        previousBlock = blockUpdate;
+                    } else if (previousBlock == null) {
+                        previousBlock = blockUpdate;
+                    }
+
                     boolean isMany = "SEND_ALL_ELEMENTS_DTO".equalsIgnoreCase(type);
                     stepsInsertManyDTO(processDTO, isMany);
                     //                    stepsInsertOneDTO(targetSelected);
@@ -254,15 +302,26 @@ public class ARScannedElementPane extends ARPane {
                     // Extract the "body" field from the JsonObject
                     processDTO = gson.fromJson(jsonObjMSG, ElementSplitDTO.class);
 
+                    String tableName = "instruction";
+                    int whereId = processDTO.getBotJobId();
+                    if (processDTO.getSessionId().equals("componentTasks")) {
+                        tableName = "component_instruction";
+                        whereId = processDTO.getHomeBankingId();
+                    }
+
+                    blockUpdate =
+                            processDTO.getSessionId().equals("componentTasks") ? "UPDATE_BLOCKS_COMP" : "UPDATE_BLOCKS";
+
+                    if (previousBlock != null && !previousBlock.equals(blockUpdate)) {
+                        arNewCommandPane.closePane();
+                        previousBlock = blockUpdate;
+                    } else if (previousBlock == null) {
+                        previousBlock = blockUpdate;
+                    }
+
                     if (processDTO.getOperationId() != null
                             && processDTO.getOperationId().equalsIgnoreCase("TEST_STEP")) {
 
-                        String tableName = "instruction";
-                        int whereId = processDTO.getBotJobId();
-                        if (processDTO.getSessionId().equals("componentTasks")) {
-                            tableName = "component_instruction";
-                            whereId = processDTO.getHomeBankingId();
-                        }
                         performDataBase.loadInstructions(whereId, -1, processDTO.getDetails()[0].getId(), tableName);
 
                         List<InstructionLoadDTO> instruc = tableName.equals("instruction")
@@ -288,6 +347,17 @@ public class ARScannedElementPane extends ARPane {
                 case "DETAILS_ELEMENT_DTO":
                     // Extract the "body" field from the JsonObject
                     processDTO = gson.fromJson(jsonObjMSG, ElementSplitDTO.class);
+
+                    blockUpdate =
+                            processDTO.getSessionId().equals("componentTasks") ? "UPDATE_BLOCKS_COMP" : "UPDATE_BLOCKS";
+
+                    if (previousBlock != null && !previousBlock.equals(blockUpdate)) {
+                        arNewCommandPane.closePane();
+                        previousBlock = blockUpdate;
+                    } else if (previousBlock == null) {
+                        previousBlock = blockUpdate;
+                    }
+
                     targetSelected = extractPickClone(processDTO.getDetails()[0]);
                     itPrintsElementDTO();
                     break;
@@ -1025,8 +1095,8 @@ public class ARScannedElementPane extends ARPane {
 
     double comboWidth = 200;
 
-    private ComboBox<ComboBoxVars> comboBoxBlocks;
-    private final ObservableList<ComboBoxVars> blocksItems = FXCollections.observableArrayList();
+    private ComboBox<BlockOptions> comboBoxBlocks;
+    private ObservableList<BlockOptions> currentListBlock = FXCollections.observableArrayList();
 
     Button refreshBlocksButton;
 
@@ -1168,7 +1238,7 @@ public class ARScannedElementPane extends ARPane {
         }
 
         if (!isConnectWebSocket) {
-            connectWebSocketClient(portSocketInitial, "scannerReceiver");
+            connectWebSocketClient(portSocketInitial, "scanner-element-pane");
         }
 
         searchHiddenFields = false;
@@ -1219,8 +1289,18 @@ public class ARScannedElementPane extends ARPane {
         //            return;
         //        }
 
+        if (currentListBlock.isEmpty()) {
+            // If list is empty, populate AllBlocks with a default block
+            ObservableList<BlockOptions> defaultAll =
+                    FXCollections.observableArrayList(new BlockOptions("#1 Default Block", "Default Block", 1, 1));
+            if (comboBoxBlocks != null) {
+                comboBoxBlocks.setItems(defaultAll);
+                comboBoxBlocks.getSelectionModel().selectFirst();
+            }
+        }
+
         if (componentBox != null) {
-            Platform.runLater(() -> refreshBlocks(false));
+            //            Platform.runLater(() -> refreshBlocks(false));
 
             Platform.runLater(() -> refreshGrids());
 
@@ -1401,6 +1481,9 @@ public class ARScannedElementPane extends ARPane {
         addCompBoxWebView();
 
         buildUIComponents();
+
+        reloadDBBlocks(currentBotJob.getId(), "block");
+        loadAllBlocks();
     }
 
     private void addCompBoxWebView() {
@@ -1573,8 +1656,7 @@ public class ARScannedElementPane extends ARPane {
                 this.currentBotJob.getHomeBankingId(), this.currentBotJob.getHomeUrlId());
         updateSceneTitleWithCurrentURL(homeUrlDTO.getUrl());
 
-        performDataBase.loadBlocks(this.currentBotJob.getId(), this.currentBotJob.getName(), "block");
-        loadAllBlockItems(performLists.getListBlock());
+        //        loadAllBlockItems(performLists.getListBlock());
 
         refreshBlocksButton = createPathButton();
 
@@ -1582,17 +1664,16 @@ public class ARScannedElementPane extends ARPane {
             refreshBlocks(false);
         });
 
-        comboBoxBlocks = new ComboBox<>(blocksItems);
+        comboBoxBlocks = new ComboBox<>();
         comboBoxBlocks.setPrefWidth(comboWidth);
         comboBoxBlocks.getSelectionModel().selectFirst();
         comboBoxBlocks.setButtonCell(new ListCell<>() {
             @Override
-            protected void updateItem(ComboBoxVars item, boolean empty) {
+            protected void updateItem(BlockOptions item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
                     setText(null);
                     setGraphic(null);
-                    setTextFill(Color.BLACK); // Ensure text is black
                 } else {
                     setText(item.getText());
                     setTextFill(Color.BLACK); // Ensure text is black
@@ -1601,12 +1682,11 @@ public class ARScannedElementPane extends ARPane {
         });
         comboBoxBlocks.setCellFactory(param -> new ListCell<>() {
             @Override
-            protected void updateItem(ComboBoxVars item, boolean empty) {
+            protected void updateItem(BlockOptions item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
                     setText(null);
                     setGraphic(null);
-                    setTextFill(Color.BLACK); // Ensure text is black
                 } else {
                     setText(item.getText());
                     setTextFill(Color.BLACK); // Ensure text is black
@@ -1617,7 +1697,6 @@ public class ARScannedElementPane extends ARPane {
                 setOnMouseExited(e -> setStyle("-fx-background-color: none;"));
             }
         });
-        comboBoxBlocks.getSelectionModel().selectFirst();
 
         try {
             // Starting the View
@@ -1802,7 +1881,8 @@ public class ARScannedElementPane extends ARPane {
 
     private void refreshBlocks(boolean secondItem) {
         performDataBase.loadBlocks(this.currentBotJob.getId(), this.currentBotJob.getName(), "block");
-        loadAllBlockItems(performLists.getListBlock());
+        reloadDBBlocks(this.currentBotJob.getId(), "block");
+        loadAllBlocks();
 
         if (!secondItem) {
             comboBoxBlocks.getSelectionModel().selectFirst(); // Select the first item
@@ -3005,7 +3085,7 @@ public class ARScannedElementPane extends ARPane {
 
         // Execute All Blocks starting from executeSpecificBlock if Defined
         int botJobId = this.currentBotJob.getId();
-        int executeSpecificBlock = comboBoxBlocks.getValue().getInstructionId();
+        int executeSpecificBlock = comboBoxBlocks.getValue().getWhereId(); // Instruction or BockOrderNumber
         sessionRowStatus = "botJobTasks"; // + botJobId;
 
         performDataBase.loadAllVariables(botJobId);
@@ -5110,27 +5190,6 @@ public class ARScannedElementPane extends ARPane {
         alert.showAndWait();
     }
 
-    private void loadAllBlockItems(List<BlockLoadDTO> blockLoadDTOList) {
-        blocksItems.clear();
-        if (blockLoadDTOList.size() > 0) {
-            blocksItems.add(new ComboBoxVars("Execute All Blocks", "", -1, -1, -1, -1, null, -1, null));
-        } else {
-            blocksItems.add(new ComboBoxVars("#1 Default Block", "Default Block", 1, 1, -1, -1, null, -1, null));
-        }
-        for (BlockLoadDTO block : blockLoadDTOList) {
-            blocksItems.add(new ComboBoxVars(
-                    block.getBlockOrderNumber() + "# " + block.getName(),
-                    block.getName(),
-                    block.getBlockOrderNumber(),
-                    block.getId(),
-                    -1,
-                    -1,
-                    null,
-                    -1,
-                    null));
-        }
-    }
-
     private Button createPathButton() {
         Button button = builder.buildButton(
                 "", ARConstants.SPACE_L, ARConstants.ICON_REFRESH, ARConstants.SPACE_M, new Insets(3D));
@@ -5231,7 +5290,9 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private void setPayloadEmpty() {
-        performDataBase.loadBlocks(this.currentBotJob.getId(), "", "block");
+        if (performLists.getListBlock().isEmpty()) {
+            performDataBase.loadBlocks(this.currentBotJob.getId(), "", "block");
+        }
         int blockId = -1;
         String blockName = "1# Default Block";
         if (this.currentBotJob.getBlockId() == null
@@ -5247,16 +5308,20 @@ public class ARScannedElementPane extends ARPane {
         int blockId = -1;
         String blockName = "1# Default Block";
         if (destination.equalsIgnoreCase("botJobTasks")) {
-            performDataBase.loadBlocks(currentBotJob.getId(), "", "block");
+            if (performLists.getListBlock().isEmpty()) {
+                performDataBase.loadBlocks(currentBotJob.getId(), "", "block");
+            }
             if (currentBotJob.getBlockId() == null
                     && !performLists.getListBlock().isEmpty()) {
                 blockId = performLists.getListBlock().get(0).getId();
                 blockName = performLists.getListBlock().get(0).getName();
             }
         } else if (destination.equalsIgnoreCase("componentTasks")) {
-            performDataBase.loadBlocks(currentBotJob.getHomeBankingId(), "", "component_block");
+            if (performLists.getListBlockComp().isEmpty()) {
+                performDataBase.loadBlocks(currentBotJob.getHomeBankingId(), "", "component_block");
+            }
             if (currentBotJob.getBlockId() == null
-                    && !performLists.getListBlock().isEmpty()) {
+                    && !performLists.getListBlockComp().isEmpty()) {
                 blockId = performLists.getListBlockComp().get(0).getId();
                 blockName = performLists.getListBlockComp().get(0).getName();
             }
@@ -5352,6 +5417,59 @@ public class ARScannedElementPane extends ARPane {
         } catch (IOException e) {
             System.err.println("Error writing file: " + e.getMessage());
         }
+    }
+
+    public ErrorMessage reloadDBBlocks(int whereId, String tableName) {
+        currentListBlock.clear();
+        ErrorMessage errorMessage = null;
+        if (currentListBlock != null) {
+            if (tableName.equals("block")) {
+                errorMessage = performDataBase.loadBlocks(whereId, "", tableName);
+                performLists
+                        .getListBlock()
+                        .forEach(b -> currentListBlock.add(BlockOptions.fromBlockWithOrderNumber(b)));
+            } else {
+                errorMessage = performDataBase.loadBlocks(whereId, "", tableName);
+                performLists
+                        .getListBlockComp()
+                        .forEach(b -> currentListBlock.add(BlockOptions.fromBlockWithOrderNumber(b)));
+            }
+        }
+        return errorMessage;
+    }
+
+    private void loadAllBlocks() {
+        ObservableList<BlockOptions> all = FXCollections.observableArrayList();
+
+        if (!currentListBlock.isEmpty()) {
+            if (currentListBlock.size() > 1) {
+                all.add(new BlockOptions("Execute All Blocks", "", -1, -1));
+            }
+            all.addAll(currentListBlock);
+        } else {
+            all.add(new BlockOptions("#1 Default Block", "Default Block", 1, 1));
+        }
+
+        if (comboBoxBlocks != null) {
+            Platform.runLater(() -> {
+                comboBoxBlocks.setItems(all);
+                comboBoxBlocks.getSelectionModel().selectFirst();
+            });
+        }
+    }
+
+    public List<BlockOptions> mapToBlockOptions(List<BlockLoadDTO> blockLoadDTOs) {
+        if (blockLoadDTOs == null) {
+            return new ArrayList<>();
+        }
+
+        return blockLoadDTOs.stream()
+                .map(block -> new BlockOptions(
+                        block.getBlockOrderNumber() + "# " + block.getName(),
+                        block.getName(),
+                        block.getBlockOrderNumber(),
+                        block.getId()))
+                .toList();
     }
 
     public void printCsv() {

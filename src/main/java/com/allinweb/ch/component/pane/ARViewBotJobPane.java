@@ -1287,16 +1287,20 @@ public class ARViewBotJobPane extends ARPane {
         int blockId = -1;
         String blockName = "1# Default Block";
         if (destination.equalsIgnoreCase("botJobTasks")) {
-            performDataBase.loadBlocks(selectedBotJob.getId(), "", "block");
+            if (performLists.getListBlock().isEmpty()) {
+                performDataBase.loadBlocks(selectedBotJob.getId(), "", "block");
+            }
             if (selectedBotJob.getBlockId() == null
                     && !performLists.getListBlock().isEmpty()) {
                 blockId = performLists.getListBlock().get(0).getId();
                 blockName = performLists.getListBlock().get(0).getName();
             }
         } else if (destination.equalsIgnoreCase("componentTasks")) {
-            performDataBase.loadBlocks(selectedBotJob.getHomeBankingId(), "", "component_block");
+            if (performLists.getListBlockComp().isEmpty()) {
+                performDataBase.loadBlocks(selectedBotJob.getHomeBankingId(), "", "component_block");
+            }
             if (selectedBotJob.getBlockId() == null
-                    && !performLists.getListBlock().isEmpty()) {
+                    && !performLists.getListBlockComp().isEmpty()) {
                 blockId = performLists.getListBlockComp().get(0).getId();
                 blockName = performLists.getListBlockComp().get(0).getName();
             }
