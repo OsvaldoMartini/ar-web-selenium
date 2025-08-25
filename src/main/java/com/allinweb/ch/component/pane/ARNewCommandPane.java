@@ -15,10 +15,7 @@ import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import javafx.application.Platform;
@@ -2308,8 +2305,9 @@ public class ARNewCommandPane extends ARPane {
 
                 if (!currentListBlock.isEmpty()) {
                     // Collect distinct by text into a new list
-                    distinctList =
-                            currentListBlock.stream().filter(distinctByText()).collect(Collectors.toList());
+                    distinctList = currentListBlock.stream()
+                            .filter(distinctByTextAndId())
+                            .collect(Collectors.toList());
 
                     if (distinctList.size() > 1) {
                         distinctList.add(0, new BlockOptions("Select the Block", "", -1, -1));
@@ -2345,6 +2343,16 @@ public class ARNewCommandPane extends ARPane {
     private static Predicate<BlockOptions> distinctByText() {
         Set<String> seen = new HashSet<>();
         return b -> seen.add(b.getText());
+    }
+
+    // Helper method for distinct by text AND blockOrderNumber
+    private static Predicate<BlockOptions> distinctByTextAndId() {
+        Set<String> seen = new HashSet<>();
+        return b -> {
+            // Combine text and blockOrderNumber as a unique key
+            String key = b.getText() + "#" + b.getBlockId();
+            return seen.add(key);
+        };
     }
 
     @Override

@@ -5453,7 +5453,7 @@ public class ARScannedElementPane extends ARPane {
             Platform.runLater(() -> {
                 // Collect distinct items into a temporary list to avoid concurrent modification
                 List<BlockOptions> distinctList = currentListBlock.stream()
-                        .filter(distinctByText()) // custom predicate
+                        .filter(distinctByTextAndId()) // custom predicate
                         .collect(Collectors.toList());
 
                 // Convert to ObservableList
@@ -5478,6 +5478,16 @@ public class ARScannedElementPane extends ARPane {
     private static Predicate<BlockOptions> distinctByText() {
         Set<String> seen = new HashSet<>();
         return b -> seen.add(b.getText());
+    }
+
+    // Helper method for distinct by text AND blockOrderNumber
+    private static Predicate<BlockOptions> distinctByTextAndId() {
+        Set<String> seen = new HashSet<>();
+        return b -> {
+            // Combine text and blockOrderNumber as a unique key
+            String key = b.getText() + "#" + b.getBlockId();
+            return seen.add(key);
+        };
     }
 
     public void printCsv() {
