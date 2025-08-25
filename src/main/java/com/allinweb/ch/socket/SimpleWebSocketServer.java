@@ -340,15 +340,35 @@ public class SimpleWebSocketServer {
 
                 alreadySentMgsSocket = false;
 
-                if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
-                    splitBlocks(blockSplitDTO);
-                } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
+                ErrorMessage errorMessage = null;
+                String blockTable = null;
+                int whereId = -1;
+                String updteBlocks = "";
+
+                if (sessionIdToSend != null) {
+                    if (sessionIdToSend.matches(".*botJobTasks.*")) {
+                        blockTable = "block";
+                        whereId = blockSplitDTO.getBotJobId();
+                        updteBlocks = "UPDATE_BLOCKS";
+                    } else if (sessionIdToSend.matches(".*componentTasks.*")) {
+                        blockTable = "component_block";
+                        whereId = blockSplitDTO.getHomeBankingId();
+                        updteBlocks = "UPDATE_BLOCKS_COMP";
+                    }
                 }
 
-                // calls perform list block update
-                blockSplitDTO.setType("UPDATE_BLOCKS");
-                jsonData = gson.toJson(blockSplitDTO);
-                webSocketSessionManager.sendMessageJson(homeBankingId, "perform-list-data", jsonData, "UPDATE_BLOCKS");
+                errorMessage = splitBlocks(blockSplitDTO);
+
+                if (errorMessage == null) {
+                    performDataBase.loadBlocks(whereId, "", blockTable);
+                    errorMessage = performDataBase.updateBlockOrderNumber(blockTable, whereId, true);
+                }
+
+                //                // calls perform list block update
+                //                blockSplitDTO.setType(updteBlocks);
+                //                jsonData = gson.toJson(blockSplitDTO);
+                //                webSocketSessionManager.sendMessageJson(homeBankingId, "perform-list-data", jsonData,
+                // updteBlocks);
 
                 break;
             case "BLOCK_MOVE":
@@ -360,10 +380,10 @@ public class SimpleWebSocketServer {
 
                 alreadySentMgsSocket = false;
 
-                ErrorMessage errorMessage = null;
-                String blockTable = null;
-                int whereId = -1;
-                String updteBlocks = "";
+                errorMessage = null;
+                blockTable = null;
+                whereId = -1;
+                updteBlocks = "";
 
                 if (sessionIdToSend != null) {
                     if (sessionIdToSend.matches(".*botJobTasks.*")) {
@@ -479,10 +499,11 @@ public class SimpleWebSocketServer {
 
                     performDataBase.loadInstructions(whereId, -1, -1, instTable);
 
-                    InstructionLoadDTO  hasExcelGotoOneBlock =  hasOnlyExcelGoto(instTable);
+                    InstructionLoadDTO hasExcelGotoOneBlock = hasOnlyExcelGoto(instTable);
 
                     if (hasExcelGotoOneBlock != null) {
-                            errorMessage = performDataBase.deleteInstruction(instTable, whereId, hasExcelGotoOneBlock, false);
+                        errorMessage =
+                                performDataBase.deleteInstruction(instTable, whereId, hasExcelGotoOneBlock, false);
                     }
 
                     // Snapshot of previous IDs without repetitions
@@ -499,9 +520,8 @@ public class SimpleWebSocketServer {
                             .filter(id -> !currentIds.contains(id))
                             .collect(Collectors.toList());
 
-                    List<BlockLoadDTO> listBlocks = blockTable.equals("block")
-                            ? performLists.getListBlock()
-                            : performLists.getListBlockComp();
+                    List<BlockLoadDTO> listBlocks =
+                            blockTable.equals("block") ? performLists.getListBlock() : performLists.getListBlockComp();
                     // Keep at least One for BLOCK TABLE
                     if (errorMessage == null
                             && !restToDeleteIds.isEmpty()
@@ -756,7 +776,7 @@ public class SimpleWebSocketServer {
 
                 performDataBase.loadInstructions(whereId, -1, -1, instTable);
 
-                InstructionLoadDTO  hasExcelGotoOneBlock =  hasOnlyExcelGoto(instTable);
+                InstructionLoadDTO hasExcelGotoOneBlock = hasOnlyExcelGoto(instTable);
 
                 if (hasExcelGotoOneBlock != null) {
                     errorMessage = performDataBase.deleteInstruction(instTable, whereId, hasExcelGotoOneBlock, false);
@@ -932,7 +952,7 @@ public class SimpleWebSocketServer {
     }
 
     // Handle BLOCKS_SPLITTED message
-    private void splitBlocks(BlockSplitDTO blockSplitDTO) {
+    private ErrorMessage splitBlocks(BlockSplitDTO blockSplitDTO) {
         BlockDetailsDTO originalBlock = blockSplitDTO.getDetails().getOriginalBlock();
         BlockDetailsDTO newBlock = blockSplitDTO.getDetails().getNewBlock();
         List<BlockOrderDetailDTO> updatedBlock = blockSplitDTO.getDetails().getUpdatedBlocks();
@@ -941,7 +961,7 @@ public class SimpleWebSocketServer {
         System.out.println("Updated Block: " + updatedBlock.size());
         newBlock.setForceOrder(true);
 
-        ErrorMessage errorMessage = performDataBase.initiateNewBlock(newBlock, blockSplitDTO.getBotJobId());
+        ErrorMessage errorMessage = performDataBase.initiateNewBlock(newBlock, blockSplitDTO.getBotJobId(), true);
 
         if (errorMessage == null) {
             int newBlockId = -9999;
@@ -949,33 +969,39 @@ public class SimpleWebSocketServer {
                     && performDataBase.getIdsBlockAfter().get(0) > 0) {
                 newBlockId = performDataBase.getIdsBlockAfter().get(0);
             }
-            if (performDataBase.updateInstructionsSplitter(
-                    newBlock.getInstructions(), (int) originalBlock.getBlockId(), newBlockId)) {
-                if (updatedBlock.size() > 0) {
 
-                    // Work directly with the List<BlockLoadDTO> in performLists
-                    for (BlockOrderDetailDTO updated : updatedBlock) {
-                        for (BlockLoadDTO current : performLists.getListBlock()) {
-                            if (current.getId() != null && current.getId().equals(updated.getBlockId())) {
-                                current.setBlockOrderNumber(updated.getBlockOrderNumber());
-                                break;
-                            }
+            errorMessage = performDataBase.updateInstructionsSplitter(
+                    newBlock.getInstructions(), originalBlock.getBlockId(), newBlockId);
+
+            if (errorMessage == null && !updatedBlock.isEmpty()) {
+
+                // Work directly with the List<BlockLoadDTO> in performLists
+                for (BlockOrderDetailDTO updated : updatedBlock) {
+                    for (BlockLoadDTO current : performLists.getListBlock()) {
+                        if (current.getId() != null && current.getId().equals(updated.getBlockId())) {
+                            current.setBlockOrderNumber(updated.getBlockOrderNumber());
+                            break;
                         }
                     }
+                }
 
-                    performDataBase.loadBlocks(blockSplitDTO.getBotJobId(), "", "block");
-                    errorMessage = performDataBase.updateBlockOrderNumber("block", blockSplitDTO.getBotJobId(), true);
+                List<BlockLoadDTO> mappedBlocks = mapToBlockLoad(updatedBlock);
 
-                    if (errorMessage != null) {
-                        performMessage.errorMessage(
-                                errorMessage.getErrorTitle(),
-                                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                                "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                        + errorMessage.getErrorHeader(),
-                                "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                                null,
-                                0);
-                    }
+                //                performDataBase.loadBlocks(blockSplitDTO.getBotJobId(), "", "block");
+                errorMessage =
+                        performDataBase.updateBlockOrderNumber("block", blockSplitDTO.getBotJobId(), mappedBlocks);
+                //                errorMessage = performDataBase.updateBlockOrderNumber("block",
+                // blockSplitDTO.getBotJobId(), true);
+
+                if (errorMessage != null) {
+                    performMessage.errorMessage(
+                            errorMessage.getErrorTitle(),
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                    + errorMessage.getErrorHeader(),
+                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                            null,
+                            0);
                 }
             }
         } else {
@@ -988,7 +1014,9 @@ public class SimpleWebSocketServer {
                     null,
                     0);
         }
-        performDataBase.loadBlocks(blockSplitDTO.getBotJobId(), "", "block");
+
+        //        performDataBase.loadBlocks(blockSplitDTO.getBotJobId(), "", "block");
+        return errorMessage;
     }
 
     // Handle BLOCK_MOVE message
@@ -1166,10 +1194,9 @@ public class SimpleWebSocketServer {
     }
 
     public InstructionLoadDTO hasOnlyExcelGoto(String instTable) {
-        List<InstructionLoadDTO> instructions =
-                instTable.equals("instruction")
-                        ? performLists.getListInstruction()
-                        : performLists.getListInstructionComp();
+        List<InstructionLoadDTO> instructions = instTable.equals("instruction")
+                ? performLists.getListInstruction()
+                : performLists.getListInstructionComp();
 
         List<InstructionLoadDTO> excelGotoInstructions = instructions.stream()
                 .filter(instr -> "EXCEL GOTO".equalsIgnoreCase(instr.getActions()))
@@ -1186,8 +1213,8 @@ public class SimpleWebSocketServer {
                 .collect(Collectors.toSet());
 
         // check each blockId has *only* EXCEL GOTO instructions
-        boolean uniqueBlocks = excelGotoBlockIds.size() == 1 &&
-                instructions.stream()
+        boolean uniqueBlocks = excelGotoBlockIds.size() == 1
+                && instructions.stream()
                         .filter(instr -> excelGotoBlockIds.contains(instr.getBlockId()))
                         .allMatch(instr -> "EXCEL GOTO".equalsIgnoreCase(instr.getActions()));
 
@@ -1201,4 +1228,32 @@ public class SimpleWebSocketServer {
         return null;
     }
 
+    public List<BlockLoadDTO> mapToBlockLoad(List<BlockOrderDetailDTO> updatedBlock) {
+        if (updatedBlock == null || updatedBlock.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        return updatedBlock.stream()
+                .map(dto -> {
+                    BlockLoadDTO blockLoadDTO = new BlockLoadDTO();
+                    blockLoadDTO.setHomeBankingId(dto.getHomeBankId());
+                    blockLoadDTO.setId(dto.getBlockId());
+                    blockLoadDTO.setBotJobId(dto.getBotJobId());
+                    blockLoadDTO.setBlockOrderNumber(dto.getBlockOrderNumber());
+                    blockLoadDTO.setName(dto.getBlockName());
+
+                    // Optional: initialize remaining fields to default/null
+                    blockLoadDTO.setHomeBankingName(null);
+                    blockLoadDTO.setDescription(null);
+                    blockLoadDTO.setTypeId(null);
+                    blockLoadDTO.setBotJobName(null);
+                    blockLoadDTO.setExportFile(null);
+                    blockLoadDTO.setActive(null);
+                    blockLoadDTO.setWait(null);
+                    blockLoadDTO.setInstructionLoadDTOS(new ArrayList<>());
+
+                    return blockLoadDTO;
+                })
+                .toList();
+    }
 }

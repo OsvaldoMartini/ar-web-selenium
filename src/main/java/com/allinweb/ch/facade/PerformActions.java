@@ -3995,7 +3995,7 @@ public class PerformActions {
 
             newBlockDetails.setBotJobId(botJobId);
 
-            ErrorMessage errorMessage = performDataBase.initiateNewBlock(newBlockDetails, botJobId);
+            ErrorMessage errorMessage = performDataBase.initiateNewBlock(newBlockDetails, botJobId, false);
 
             if (errorMessage == null) {
                 if (!performDataBase.getIdsBlockAfter().isEmpty()

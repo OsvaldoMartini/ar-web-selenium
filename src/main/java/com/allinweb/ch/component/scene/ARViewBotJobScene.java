@@ -144,7 +144,8 @@ public class ARViewBotJobScene extends ARScene {
 
             newBlockDetails.setBotJobId(selectedBotJob.getId());
 
-            ErrorMessage errorMessage = performDataBase.initiateNewBlock(newBlockDetails, selectedBotJob.getId());
+            ErrorMessage errorMessage =
+                    performDataBase.initiateNewBlock(newBlockDetails, selectedBotJob.getId(), false);
             if (errorMessage == null) {
                 ARLogger.getInstance(Thread.class)
                         .info(String.format("A new Block was created for bot job Id %d", selectedBotJob.getId()));

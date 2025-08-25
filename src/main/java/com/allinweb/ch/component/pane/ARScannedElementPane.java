@@ -5226,38 +5226,36 @@ public class ARScannedElementPane extends ARPane {
 
     private void setPayloadEmpty() {
         performDataBase.loadBlocks(this.currentBotJob.getId(), "", "block");
+        int blockId = -1;
+        String blockName = "1# Default Block";
         if (this.currentBotJob.getBlockId() == null
                 && !performLists.getListBlock().isEmpty()) {
-            this.currentBotJob.setBlockId(performLists.getListBlock().get(0).getId());
-            this.currentBotJob.setName(performLists.getListBlock().get(0).getName());
-            this.currentBotJob.setDescription(performLists.getListBlock().get(0).getDescription());
+            blockId = performLists.getListBlock().get(0).getId();
+            blockName = performLists.getListBlock().get(0).getName();
         }
 
-        this.payloadEmpty = new PayloadJson(
-                this.currentBotJob.getId(), this.currentBotJob.getBlockId(), this.currentBotJob.getName(), 0);
+        this.payloadEmpty = new PayloadJson(this.currentBotJob.getId(), blockId, blockName, 0);
     }
 
     private void setPayloadEmpty(String destination) {
+        int blockId = -1;
+        String blockName = "1# Default Block";
         if (destination.equalsIgnoreCase("botJobTasks")) {
             performDataBase.loadBlocks(currentBotJob.getId(), "", "block");
             if (currentBotJob.getBlockId() == null
                     && !performLists.getListBlock().isEmpty()) {
-                currentBotJob.setBlockId(performLists.getListBlock().get(0).getId());
-                currentBotJob.setName(performLists.getListBlock().get(0).getName());
-                currentBotJob.setDescription(performLists.getListBlock().get(0).getDescription());
+                blockId = performLists.getListBlock().get(0).getId();
+                blockName = performLists.getListBlock().get(0).getName();
             }
         } else if (destination.equalsIgnoreCase("componentTasks")) {
             performDataBase.loadBlocks(currentBotJob.getHomeBankingId(), "", "component_block");
             if (currentBotJob.getBlockId() == null
                     && !performLists.getListBlock().isEmpty()) {
-                currentBotJob.setBlockId(performLists.getListBlockComp().get(0).getId());
-                currentBotJob.setName(performLists.getListBlockComp().get(0).getName());
-                currentBotJob.setDescription(
-                        performLists.getListBlockComp().get(0).getDescription());
+                blockId = performLists.getListBlockComp().get(0).getId();
+                blockName = performLists.getListBlockComp().get(0).getName();
             }
         }
-        this.payloadEmpty = new PayloadJson(
-                this.currentBotJob.getId(), this.currentBotJob.getBlockId(), this.currentBotJob.getName(), 0);
+        this.payloadEmpty = new PayloadJson(this.currentBotJob.getId(), blockId, blockName, 0);
     }
 
     /**

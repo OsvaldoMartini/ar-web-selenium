@@ -1284,27 +1284,25 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     private void setPayloadEmpty(String destination) {
+        int blockId = -1;
+        String blockName = "1# Default Block";
         if (destination.equalsIgnoreCase("botJobTasks")) {
             performDataBase.loadBlocks(selectedBotJob.getId(), "", "block");
             if (selectedBotJob.getBlockId() == null
                     && !performLists.getListBlock().isEmpty()) {
-                selectedBotJob.setBlockId(performLists.getListBlock().get(0).getId());
-                selectedBotJob.setName(performLists.getListBlock().get(0).getName());
-                selectedBotJob.setDescription(performLists.getListBlock().get(0).getDescription());
+                blockId = performLists.getListBlock().get(0).getId();
+                blockName = performLists.getListBlock().get(0).getName();
             }
         } else if (destination.equalsIgnoreCase("componentTasks")) {
             performDataBase.loadBlocks(selectedBotJob.getHomeBankingId(), "", "component_block");
             if (selectedBotJob.getBlockId() == null
                     && !performLists.getListBlock().isEmpty()) {
-                selectedBotJob.setBlockId(performLists.getListBlockComp().get(0).getId());
-                selectedBotJob.setName(performLists.getListBlockComp().get(0).getName());
-                selectedBotJob.setDescription(
-                        performLists.getListBlockComp().get(0).getDescription());
+                blockId = performLists.getListBlockComp().get(0).getId();
+                blockName = performLists.getListBlockComp().get(0).getName();
             }
         }
 
-        this.payloadEmpty =
-                new PayloadJson(selectedBotJob.getId(), selectedBotJob.getBlockId(), selectedBotJob.getName(), 0);
+        this.payloadEmpty = new PayloadJson(selectedBotJob.getId(), blockId, blockName, 0);
     }
 
     private void populateHomeUrlChoiceBox(int homeBankId, int currentHomeUrlId) {

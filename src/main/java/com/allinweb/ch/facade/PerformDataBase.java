@@ -768,6 +768,79 @@ public class PerformDataBase {
         }
     }
 
+    public ErrorMessage updateBlockOrderNumber(
+            String tableName,
+            int whereId, // either "bot_job_id" or "home_banking_id"
+            List<BlockLoadDTO> listBlocks) {
+
+        final int BATCH_SIZE = 100;
+
+        String updateSQL = "UPDATE " + tableName
+                + " SET block_order_number = ? WHERE id = ? AND "
+                + (tableName.equalsIgnoreCase("block") ? "bot_job_id" : "home_banking_id")
+                + " = ?";
+
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false); // Disable auto-commit
+
+            try (PreparedStatement pstmt = conn.prepareStatement(updateSQL)) {
+                int count = 0;
+
+                for (BlockLoadDTO blockOrder : listBlocks) {
+                    pstmt.setInt(1, blockOrder.getBlockOrderNumber());
+                    pstmt.setInt(2, blockOrder.getId());
+
+                    // Choose correct id based on table type
+                    if ("block".equalsIgnoreCase(tableName)) {
+                        pstmt.setInt(3, blockOrder.getBotJobId());
+                    } else if ("component_block".equalsIgnoreCase(tableName)) {
+                        pstmt.setInt(3, blockOrder.getHomeBankingId());
+                    } else {
+                        return new ErrorMessage("Invalid Table Name", "Invalid 'tableName' value", tableName);
+                    }
+
+                    pstmt.addBatch();
+                    count++;
+
+                    if (count % BATCH_SIZE == 0) {
+                        pstmt.executeBatch();
+                        conn.commit();
+                        ARLogger.getInstance(PerformDataBase.class)
+                                .info("Executed batch of " + BATCH_SIZE + " block order updates for table: "
+                                        + tableName);
+                    }
+                }
+
+                // Execute remaining updates
+                if (count % BATCH_SIZE != 0) {
+                    pstmt.executeBatch();
+                    conn.commit();
+                    ARLogger.getInstance(PerformDataBase.class)
+                            .info("Executed final batch of " + (count % BATCH_SIZE) + " block order updates for table: "
+                                    + tableName);
+                }
+
+                // ✅ reload blocks if necessary (optional — remove if list is always passed in externally)
+                loadBlocks(whereId, "", tableName);
+                return null; // Success
+            } catch (SQLException e) {
+                conn.rollback();
+                ARLogger.getInstance(PerformDataBase.class)
+                        .severe(String.format(
+                                "Error updating block order numbers in table '%s'. Error: %s",
+                                tableName, e.getMessage()));
+                return new ErrorMessage(
+                        "Update Block Order Error", "Failed to update block order numbers", e.getMessage());
+            }
+        } catch (SQLException ex) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format(
+                            "Connection error while updating block order numbers in table '%s'. Error: %s",
+                            tableName, ex.getMessage()));
+            return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
+        }
+    }
+
     public List<BlockOrderDetailDTO> selectAllBlocks(int botJobId) {
         List<BlockOrderDetailDTO> blockOrderDetails = new ArrayList<>();
         try (Statement stmt = getConnection().createStatement()) {
@@ -1046,7 +1119,7 @@ public class PerformDataBase {
     //        return blockDeletion;
     //    }
 
-    public ErrorMessage initiateNewBlock(BlockDetailsDTO blockDTO, int botJobId) {
+    public ErrorMessage initiateNewBlock(BlockDetailsDTO blockDTO, int botJobId, boolean splitted) {
         String selectIdsSQL = "SELECT id FROM block ORDER BY id";
         String insertSQL =
                 "INSERT INTO block (block_order_number, description, name, type_id, active, wait, bot_job_id) "
@@ -1066,7 +1139,11 @@ public class PerformDataBase {
             }
 
             // Step 2: Set parameters and insert new block
-            insertStmt.setInt(1, 1);
+            if (splitted) {
+                insertStmt.setInt(1, blockDTO.getBlockOrderNumber());
+            } else {
+                insertStmt.setInt(1, 1);
+            }
             insertStmt.setString(2, blockDTO.getBlockName() + " description");
             insertStmt.setString(3, blockDTO.getBlockName());
             insertStmt.setInt(4, 1); // type_id
@@ -1163,33 +1240,60 @@ public class PerformDataBase {
         }
     }
 
-    public boolean updateInstructionsSplitter(List<InstructionLoadDTO> instructions, int oldBlockId, int newBlockId) {
-        // Build the SQL update statement
+    public ErrorMessage updateInstructionsSplitter(
+            List<InstructionLoadDTO> instructions, int oldBlockId, int newBlockId) {
+        final int BATCH_SIZE = 100;
+        String updateSQL =
+                "UPDATE instruction SET instruction_order_number = ?, block_id = ? WHERE id = ? AND block_id = ?";
 
-        try (Statement stmt = getConnection().createStatement()) {
-            for (InstructionLoadDTO instruction : instructions) {
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false); // Disable auto-commit
 
-                String updateSQL = "UPDATE instruction SET  "
-                        + " instruction_order_number = " + instruction.getInstructionOrderNumber() + ","
-                        + " block_id = " + newBlockId
-                        + " WHERE id = " + instruction.getInstructionId()
-                        + " and block_id = " + oldBlockId;
+            try (PreparedStatement pstmt = conn.prepareStatement(updateSQL)) {
+                int count = 0;
 
-                int rowsAffected = stmt.executeUpdate(updateSQL);
-                if (rowsAffected > 0) {
-                } else {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .warning(String.format(
-                                    "updateInstructionsSplitter - No matching record found to update blockId: ",
-                                    oldBlockId));
+                for (InstructionLoadDTO instruction : instructions) {
+                    pstmt.setInt(1, instruction.getInstructionOrderNumber());
+                    pstmt.setInt(2, newBlockId);
+                    pstmt.setInt(3, instruction.getInstructionId());
+                    pstmt.setInt(4, oldBlockId);
+                    pstmt.addBatch();
+                    count++;
+
+                    if (count % BATCH_SIZE == 0) {
+                        int[] rowsAffected = pstmt.executeBatch();
+                        conn.commit();
+                        ARLogger.getInstance(PerformDataBase.class)
+                                .info("Executed batch of " + BATCH_SIZE + " updates for oldBlockId " + oldBlockId
+                                        + " -> newBlockId " + newBlockId);
+                    }
                 }
+
+                // Execute any remaining batch
+                if (count % BATCH_SIZE != 0) {
+                    int[] rowsAffected = pstmt.executeBatch();
+                    conn.commit();
+                    ARLogger.getInstance(PerformDataBase.class)
+                            .info("Executed final batch of " + (count % BATCH_SIZE) + " updates for oldBlockId "
+                                    + oldBlockId + " -> newBlockId " + newBlockId);
+                }
+
+                return null; // Success
+            } catch (SQLException e) {
+                conn.rollback(); // rollback changes on error
+                ARLogger.getInstance(PerformDataBase.class)
+                        .severe(String.format(
+                                "updateInstructionsSplitter - Error updating instructions from blockId %d to %d. Error: %s",
+                                oldBlockId, newBlockId, e.getMessage()));
+                return new ErrorMessage("Update Error", "Failed to update instructions", e.getMessage());
             }
-            return true;
-        } catch (SQLException e) {
+        } catch (SQLException ex) {
             ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("This '%s' \n cannot be updated.\nError: %s", oldBlockId, e.getMessage()));
+                    .severe(String.format(
+                            "Connection error while updating instructions from blockId %d to %d. Error: %s",
+                            oldBlockId, newBlockId, ex.getMessage()));
+            return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
-        return false;
     }
 
     public boolean rowsUpdateName(List<InstructionLoadDTO> instructions) {
@@ -3128,7 +3232,7 @@ public class PerformDataBase {
             newBlockDetails.setBotJobId(rowMoveDTO.getBotJobId());
             newBlockDetails.setBlockId(rowMoveDTO.getBlockId());
 
-            ErrorMessage errorMessage = initiateNewBlock(newBlockDetails, rowMoveDTO.getBotJobId());
+            ErrorMessage errorMessage = initiateNewBlock(newBlockDetails, rowMoveDTO.getBotJobId(), false);
 
             if (errorMessage == null) {
                 int newBlockId = -9999;
