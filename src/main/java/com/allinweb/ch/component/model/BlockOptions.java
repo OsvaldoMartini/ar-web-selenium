@@ -37,9 +37,9 @@ public class BlockOptions {
     // 🔹 Converter from BlockLoadDTO → BlockOptions
     public static BlockOptions fromBlockWithOrderNumber(BlockLoadDTO block) {
         return new BlockOptions(
-                block.getName(), // text
-                String.valueOf(block.getId()), // value
-                block.getBlockOrderNumber(), // blockOrderNumber
+                block.getBlockOrderNumber() + "# " + block.getName(), // text
+                block.getName(), // value
+                block.getBlockOrderNumber(), // instructionId
                 block.getId() // blockId
                 );
     }

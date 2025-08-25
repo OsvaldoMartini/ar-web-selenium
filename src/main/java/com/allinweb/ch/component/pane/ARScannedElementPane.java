@@ -33,6 +33,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -235,20 +236,27 @@ public class ARScannedElementPane extends ARPane {
 
                     try {
 
-                        ErrorMessage errorMessage = reloadDBBlocks(blockMoveDTO.getBotJobId(), "block");
+                        Platform.runLater(() -> {
+                            refreshBlocks(false);
+                        });
 
-                        if (errorMessage != null) {
-                            performMessage.errorMessage(
-                                    errorMessage.getErrorTitle(),
-                                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                            + errorMessage.getErrorHeader(),
-                                    "<span style='font-style: italic;'>Detail:</span> "
-                                            + errorMessage.getErrorMessage(),
-                                    null,
-                                    0);
-                        }
-                        loadAllBlocks();
+                        //                        ErrorMessage errorMessage = reloadDBBlocks(blockMoveDTO.getBotJobId(),
+                        // "block");
+
+                        //                        if (errorMessage != null) {
+                        //                            performMessage.errorMessage(
+                        //                                    errorMessage.getErrorTitle(),
+                        //                                    "<span style='color: #D32F2F; font-weight: bold;
+                        // font-size: 1.1em;'>Operation Failed!</span> ❌",
+                        //                                    "<span style='color: #E65100; font-weight: bold;'>Error
+                        // Type:</span> "
+                        //                                            + errorMessage.getErrorHeader(),
+                        //                                    "<span style='font-style: italic;'>Detail:</span> "
+                        //                                            + errorMessage.getErrorMessage(),
+                        //                                    null,
+                        //                                    0);
+                        //                        }
+                        //                        loadAllBlocks();
                     } catch (Exception error) {
                         ARLogger.getInstance(ARNewCommandPane.class).severe("Error: " + error.getMessage());
                     }
@@ -1096,7 +1104,7 @@ public class ARScannedElementPane extends ARPane {
     double comboWidth = 200;
 
     private ComboBox<BlockOptions> comboBoxBlocks;
-    private ObservableList<BlockOptions> currentListBlock = FXCollections.observableArrayList();
+    private List<BlockOptions> currentListBlock = new ArrayList<>();
 
     Button refreshBlocksButton;
 
@@ -1482,8 +1490,12 @@ public class ARScannedElementPane extends ARPane {
 
         buildUIComponents();
 
-        reloadDBBlocks(currentBotJob.getId(), "block");
-        loadAllBlocks();
+        Platform.runLater(() -> {
+            refreshBlocks(false);
+        });
+
+        //        reloadDBBlocks(currentBotJob.getId(), "block");
+        //        loadAllBlocks();
     }
 
     private void addCompBoxWebView() {
@@ -1661,7 +1673,9 @@ public class ARScannedElementPane extends ARPane {
         refreshBlocksButton = createPathButton();
 
         refreshBlocksButton.setOnMouseClicked(e -> {
-            refreshBlocks(false);
+            Platform.runLater(() -> {
+                refreshBlocks(false);
+            });
         });
 
         comboBoxBlocks = new ComboBox<>();
@@ -1880,6 +1894,7 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private void refreshBlocks(boolean secondItem) {
+        performLists.getListBlock().clear();
         performDataBase.loadBlocks(this.currentBotJob.getId(), this.currentBotJob.getName(), "block");
         reloadDBBlocks(this.currentBotJob.getId(), "block");
         loadAllBlocks();
@@ -5420,56 +5435,45 @@ public class ARScannedElementPane extends ARPane {
     }
 
     public ErrorMessage reloadDBBlocks(int whereId, String tableName) {
-        currentListBlock.clear();
+
         ErrorMessage errorMessage = null;
-        if (currentListBlock != null) {
-            if (tableName.equals("block")) {
-                errorMessage = performDataBase.loadBlocks(whereId, "", tableName);
-                performLists
-                        .getListBlock()
-                        .forEach(b -> currentListBlock.add(BlockOptions.fromBlockWithOrderNumber(b)));
-            } else {
-                errorMessage = performDataBase.loadBlocks(whereId, "", tableName);
-                performLists
-                        .getListBlockComp()
-                        .forEach(b -> currentListBlock.add(BlockOptions.fromBlockWithOrderNumber(b)));
-            }
+        this.currentListBlock.clear();
+        if ("block".equals(tableName)) {
+            performLists.getListBlock().forEach(b -> currentListBlock.add(BlockOptions.fromBlockWithOrderNumber(b)));
+        } else {
+            performLists
+                    .getListBlockComp()
+                    .forEach(b -> currentListBlock.add(BlockOptions.fromBlockWithOrderNumber(b)));
         }
         return errorMessage;
     }
 
     private void loadAllBlocks() {
-        ObservableList<BlockOptions> all = FXCollections.observableArrayList();
-
-        if (!currentListBlock.isEmpty()) {
-            if (currentListBlock.size() > 1) {
-                all.add(new BlockOptions("Execute All Blocks", "", -1, -1));
-            }
-            all.addAll(currentListBlock);
-        } else {
-            all.add(new BlockOptions("#1 Default Block", "Default Block", 1, 1));
-        }
-
         if (comboBoxBlocks != null) {
             Platform.runLater(() -> {
+                ObservableList<BlockOptions> all = currentListBlock.stream()
+                        .filter(distinctByText()) // custom predicate
+                        .collect(Collectors.toCollection(FXCollections::observableArrayList));
+
+                // Add "Execute All Blocks" if needed
+                if (all.size() > 1) {
+                    all.add(0, new BlockOptions("Execute All Blocks", "", -1, -1));
+                } else if (all.isEmpty()) {
+                    all.add(new BlockOptions("#1 Default Block", "Default Block", 1, 1));
+                }
+
                 comboBoxBlocks.setItems(all);
                 comboBoxBlocks.getSelectionModel().selectFirst();
+
+                ARLogger.getInstance(ARScannedElementPane.class).info("CALLED: " + all.size());
             });
         }
     }
 
-    public List<BlockOptions> mapToBlockOptions(List<BlockLoadDTO> blockLoadDTOs) {
-        if (blockLoadDTOs == null) {
-            return new ArrayList<>();
-        }
-
-        return blockLoadDTOs.stream()
-                .map(block -> new BlockOptions(
-                        block.getBlockOrderNumber() + "# " + block.getName(),
-                        block.getName(),
-                        block.getBlockOrderNumber(),
-                        block.getId()))
-                .toList();
+    // Helper method for distinct by text
+    private static Predicate<BlockOptions> distinctByText() {
+        Set<String> seen = new HashSet<>();
+        return b -> seen.add(b.getText());
     }
 
     public void printCsv() {

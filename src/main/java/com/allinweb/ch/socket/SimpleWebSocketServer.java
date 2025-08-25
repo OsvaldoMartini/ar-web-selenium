@@ -401,8 +401,8 @@ public class SimpleWebSocketServer {
                     if (blockTable != null) {
 
                         List<BlockLoadDTO> mappedBlocks = mapToBlockLoad(blockMoveDTO.getUpdatedBlocks());
-                        errorMessage =
-                                performDataBase.updateBlockOrderNumber("block", blockMoveDTO.getBotJobId(), mappedBlocks);
+                        errorMessage = performDataBase.updateBlockOrderNumber(
+                                "block", blockMoveDTO.getBotJobId(), mappedBlocks);
 
                         // calls perform list block update
                         blockMoveDTO.setType(updteBlocks);

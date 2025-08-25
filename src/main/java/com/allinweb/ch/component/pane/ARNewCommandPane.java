@@ -16,7 +16,10 @@ import com.google.gson.Gson;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -2299,25 +2302,27 @@ public class ARNewCommandPane extends ARPane {
     }
 
     private void loadAllBlocks() {
-        ObservableList<BlockOptions> all = FXCollections.observableArrayList();
-
-        if (!currentListBlock.isEmpty()) {
-            if (currentListBlock.size() > 1) {
-                all.add(new BlockOptions("Select the Block", "", -1, -1));
-            }
-            all.addAll(currentListBlock);
-        } else {
-            all.add(new BlockOptions("#1 Default Block", "Default Block", 1, 1));
-        }
-
         if (comboBoxAllBlocks != null) {
             Platform.runLater(() -> {
+                ObservableList<BlockOptions> all = FXCollections.observableArrayList();
+
+                if (!currentListBlock.isEmpty()) {
+                    if (currentListBlock.size() > 1) {
+                        all.add(new BlockOptions("Select the Block", "", -1, -1));
+                    }
+
+                    // Use existing distinctByText helper
+                    currentListBlock.stream().filter(distinctByText()).forEach(all::add);
+
+                } else {
+                    all.add(new BlockOptions("#1 Default Block", "Default Block", 1, 1));
+                }
+
                 comboBoxAllBlocks.setItems(all);
+
                 if (rowMoveDTO.getBlockId() > -1) {
-                    // Get the blockId to match
                     int targetBlockId = rowMoveDTO.getBlockId();
 
-                    // Iterate through items in comboBoxAllBlocks
                     boolean found = false;
                     for (BlockOptions item : comboBoxAllBlocks.getItems()) {
                         if (item.getBlockId() != null && item.getBlockId() == targetBlockId) {
@@ -2330,11 +2335,16 @@ public class ARNewCommandPane extends ARPane {
                         comboBoxAllBlocks.getSelectionModel().selectFirst();
                     }
                 } else {
-                    // If blockId is not valid, select the first item
                     comboBoxAllBlocks.getSelectionModel().selectFirst();
                 }
             });
         }
+    }
+
+    // Helper method for distinct by text
+    private static Predicate<BlockOptions> distinctByText() {
+        Set<String> seen = new HashSet<>();
+        return b -> seen.add(b.getText());
     }
 
     @Override
