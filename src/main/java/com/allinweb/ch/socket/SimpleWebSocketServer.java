@@ -14,10 +14,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 import javafx.application.Platform;
 import javax.websocket.CloseReason;
@@ -448,22 +445,25 @@ public class SimpleWebSocketServer {
                 whereId = -1;
                 updteBlocks = null;
 
+                String instTable = "instruction";
                 if (sessionIdToSend != null) {
                     if (sessionIdToSend.matches(".*botJobTasks.*")) {
+                        instTable = "instruction";
                         blockTable = "block";
                         whereId = rowMoveDTO.getBotJobId();
                         updteBlocks = "UPDATE_BLOCKS";
                     } else if (sessionIdToSend.matches(".*componentTasks.*")) {
+                        instTable = "component_instruction";
                         blockTable = "component_block";
                         whereId = rowMoveDTO.getHomeBankingId();
                         updteBlocks = "UPDATE_BLOCKS_COMP";
                     }
                 }
 
-                performDataBase.loadBlocks(whereId, "", blockTable);
-
                 errorMessage = null;
                 if (blockTable != null) {
+
+                    performDataBase.loadBlocks(whereId, "", blockTable);
 
                     // Snapshot of previous IDs
                     List<Integer> previousIds = (blockTable.equals("block")
@@ -472,25 +472,37 @@ public class SimpleWebSocketServer {
                             .stream()
                                     .map(BlockLoadDTO::getId)
                                     .filter(Objects::nonNull)
-                                    .collect(Collectors.toList());
+                                    .toList();
 
-                    // Snapshot of current IDs
-                    List<Integer> currentIds = rowMoveDTO.getUpdatedRows().stream()
-                            .map(InstructionLoadDTO::getBlockId)
-                            .filter(Objects::nonNull)
-                            .collect(Collectors.toList());
+                    errorMessage =
+                            performDataBase.updateMoveRowsOrder(blockTable, whereId, rowMoveDTO.getUpdatedRows());
+
+                    performDataBase.loadInstructions(whereId, -1, -1, instTable);
+
+                    InstructionLoadDTO  hasExcelGotoOneBlock =  hasOnlyExcelGoto(instTable);
+
+                    if (hasExcelGotoOneBlock != null) {
+                            errorMessage = performDataBase.deleteInstruction(instTable, whereId, hasExcelGotoOneBlock, false);
+                    }
+
+                    // Snapshot of previous IDs without repetitions
+                    List<Integer> currentIds = (instTable.equals("instruction")
+                                    ? performLists.getListInstruction()
+                                    : performLists.getListInstructionComp())
+                            .stream()
+                                    .map(InstructionLoadDTO::getBlockId)
+                                    .filter(Objects::nonNull)
+                                    .distinct() // removes duplicates
+                                    .toList();
 
                     List<Integer> restToDeleteIds = previousIds.stream()
                             .filter(id -> !currentIds.contains(id))
                             .collect(Collectors.toList());
 
-                    errorMessage =
-                            performDataBase.updateMoveRowsOrder(blockTable, whereId, rowMoveDTO.getUpdatedRows());
-
-                    List<BlockLoadDTO> listBlocks =
-                            blockTable.equals("block") ? performLists.getListBlock() : performLists.getListBlockComp();
-                    // Keep at least One
-
+                    List<BlockLoadDTO> listBlocks = blockTable.equals("block")
+                            ? performLists.getListBlock()
+                            : performLists.getListBlockComp();
+                    // Keep at least One for BLOCK TABLE
                     if (errorMessage == null
                             && !restToDeleteIds.isEmpty()
                             && (blockTable.equals("block") && listBlocks.size() > 1)) {
@@ -711,7 +723,7 @@ public class SimpleWebSocketServer {
 
                 alreadySentMgsSocket = false;
 
-                String instTable = "instruction";
+                instTable = "instruction";
                 blockTable = null;
                 whereId = -1;
                 if (sessionIdToSend != null) {
@@ -744,13 +756,20 @@ public class SimpleWebSocketServer {
 
                 performDataBase.loadInstructions(whereId, -1, -1, instTable);
 
-                // Snapshot of previous IDs
+                InstructionLoadDTO  hasExcelGotoOneBlock =  hasOnlyExcelGoto(instTable);
+
+                if (hasExcelGotoOneBlock != null) {
+                    errorMessage = performDataBase.deleteInstruction(instTable, whereId, hasExcelGotoOneBlock, false);
+                }
+
+                // Snapshot of previous IDs without repetitions
                 List<Integer> currentIds = (instTable.equals("instruction")
                                 ? performLists.getListInstruction()
                                 : performLists.getListInstructionComp())
                         .stream()
                                 .map(InstructionLoadDTO::getBlockId)
                                 .filter(Objects::nonNull)
+                                .distinct() // removes duplicates
                                 .toList();
 
                 List<Integer> restToDeleteIds = previousIds.stream()
@@ -1145,4 +1164,41 @@ public class SimpleWebSocketServer {
         }
         this.payloadEmpty = new PayloadJson(whereId, blockId, botJobName, 0);
     }
+
+    public InstructionLoadDTO hasOnlyExcelGoto(String instTable) {
+        List<InstructionLoadDTO> instructions =
+                instTable.equals("instruction")
+                        ? performLists.getListInstruction()
+                        : performLists.getListInstructionComp();
+
+        List<InstructionLoadDTO> excelGotoInstructions = instructions.stream()
+                .filter(instr -> "EXCEL GOTO".equalsIgnoreCase(instr.getActions()))
+                .toList();
+
+        if (excelGotoInstructions.isEmpty()) {
+            return null;
+        }
+
+        // all blockIds used by "EXCEL GOTO"
+        Set<Integer> excelGotoBlockIds = excelGotoInstructions.stream()
+                .map(InstructionLoadDTO::getBlockId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        // check each blockId has *only* EXCEL GOTO instructions
+        boolean uniqueBlocks = excelGotoBlockIds.size() == 1 &&
+                instructions.stream()
+                        .filter(instr -> excelGotoBlockIds.contains(instr.getBlockId()))
+                        .allMatch(instr -> "EXCEL GOTO".equalsIgnoreCase(instr.getActions()));
+
+        if (uniqueBlocks) {
+            InstructionLoadDTO first = excelGotoInstructions.get(0);
+            // remove all EXCEL GOTO instructions from that block
+            instructions.removeIf(instr -> excelGotoBlockIds.contains(instr.getBlockId()));
+            return first;
+        }
+
+        return null;
+    }
+
 }
