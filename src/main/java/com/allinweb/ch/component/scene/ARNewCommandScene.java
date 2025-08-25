@@ -118,9 +118,13 @@ public class ARNewCommandScene extends ARScene {
 
             // Determine type (priority: body.type → json.type → operationId)
             if (!"unknown".equalsIgnoreCase(body)) {
-                JsonObject objSecond = JsonParser.parseString(body).getAsJsonObject();
-                if (objSecond.has("type")) {
-                    type = objSecond.get("type").getAsString();
+                try {
+                    JsonObject objSecond = JsonParser.parseString(body).getAsJsonObject();
+                    if (objSecond.has("type")) {
+                        type = objSecond.get("type").getAsString();
+                    }
+                } catch (Exception ignore) {
+
                 }
             }
 

@@ -200,9 +200,13 @@ public class PerformLists {
 
             // Determine type (priority: body.type → json.type → operationId)
             if (!"unknown".equalsIgnoreCase(body)) {
-                JsonObject objSecond = JsonParser.parseString(body).getAsJsonObject();
-                if (objSecond.has("type")) {
-                    type = objSecond.get("type").getAsString();
+                try {
+                    JsonObject objSecond = JsonParser.parseString(body).getAsJsonObject();
+                    if (objSecond.has("type")) {
+                        type = objSecond.get("type").getAsString();
+                    }
+                } catch (Exception ignore) {
+
                 }
             }
 
@@ -247,6 +251,9 @@ public class PerformLists {
                     webSocketSessionManager.sendMessageJson(
                             homeBankingId, "new-command-scene", jsonData, "UPDATE_BLOCKS");
 
+                    webSocketSessionManager.sendMessageJson(
+                            homeBankingId, "scanner-element-pane", jsonData, "UPDATE_BLOCKS");
+
                     break;
                 case "UPDATE_BLOCKS_COMP":
                     blockMoveDTO = gson.fromJson(jsonObjMSG, BlockMoveDTO.class);
@@ -256,7 +263,6 @@ public class PerformLists {
                     // Just a Signal to update the combos
                     webSocketSessionManager.sendMessageJson(
                             homeBankingId, "new-command-scene", jsonData, "UPDATE_BLOCKS_COMP");
-
                     break;
                 case "UPDATE_BOT_JOBS":
                     jsonData = gson.toJson("[]");

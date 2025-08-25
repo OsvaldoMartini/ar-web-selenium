@@ -211,6 +211,11 @@ public class ARScannedElementPane extends ARPane {
 
             // Process the message based on its type
             switch (type) {
+                case "UPDATE_BLOCKS":
+                    BlockMoveDTO blockMoveDTO = gson.fromJson(body, BlockMoveDTO.class);
+                        arNewCommandPane.closePane();
+                    arNewCommandPane.reloadDBBlocks(blockMoveDTO.getBotJobId(), "block");
+                    break;
                 case "CLOSE_BROWSER":
                     if (!isJobRunning.get()) {
                         if (this.launchBotJobButton != null && !performActions.isJustCalledRefreshPage()) {
@@ -1113,6 +1118,7 @@ public class ARScannedElementPane extends ARPane {
     private static final PerformActions performActions;
     private static final PerformMessage performMessage;
     private static final PerformPreLoad performPreLoad;
+    private static final ARNewCommandPane arNewCommandPane = ARNewCommandPane.getInstance();
     //    private static final PerformCloseBrowser performCloseBrowser;
 
     private static final ARNewHomeBankingScene arNewHomeBankingScene;

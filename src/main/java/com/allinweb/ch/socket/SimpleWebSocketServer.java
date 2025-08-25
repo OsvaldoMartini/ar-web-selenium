@@ -364,11 +364,10 @@ public class SimpleWebSocketServer {
                     errorMessage = performDataBase.updateBlockOrderNumber(blockTable, whereId, true);
                 }
 
-                //                // calls perform list block update
-                //                blockSplitDTO.setType(updteBlocks);
-                //                jsonData = gson.toJson(blockSplitDTO);
-                //                webSocketSessionManager.sendMessageJson(homeBankingId, "perform-list-data", jsonData,
-                // updteBlocks);
+                // calls perform list block update
+                blockSplitDTO.setType(updteBlocks);
+                jsonData = gson.toJson(blockSplitDTO);
+                webSocketSessionManager.sendMessageJson(homeBankingId, "perform-list-data", jsonData, updteBlocks);
 
                 break;
             case "BLOCK_MOVE":

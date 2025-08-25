@@ -2318,11 +2318,16 @@ public class ARNewCommandPane extends ARPane {
                     int targetBlockId = rowMoveDTO.getBlockId();
 
                     // Iterate through items in comboBoxAllBlocks
+                    boolean found = false;
                     for (BlockOptions item : comboBoxAllBlocks.getItems()) {
                         if (item.getBlockId() != null && item.getBlockId() == targetBlockId) {
-                            comboBoxAllBlocks.getSelectionModel().select(item); // Select the matching item
+                            comboBoxAllBlocks.getSelectionModel().select(item);
+                            found = true;
                             break;
                         }
+                    }
+                    if (!found) {
+                        comboBoxAllBlocks.getSelectionModel().selectFirst();
                     }
                 } else {
                     // If blockId is not valid, select the first item
