@@ -2304,36 +2304,36 @@ public class ARNewCommandPane extends ARPane {
     private void loadAllBlocks() {
         if (comboBoxAllBlocks != null) {
             Platform.runLater(() -> {
-                ObservableList<BlockOptions> all = FXCollections.observableArrayList();
+                List<BlockOptions> distinctList;
 
                 if (!currentListBlock.isEmpty()) {
-                    if (currentListBlock.size() > 1) {
-                        all.add(new BlockOptions("Select the Block", "", -1, -1));
-                    }
+                    // Collect distinct by text into a new list
+                    distinctList =
+                            currentListBlock.stream().filter(distinctByText()).collect(Collectors.toList());
 
-                    // Use existing distinctByText helper
-                    currentListBlock.stream().filter(distinctByText()).forEach(all::add);
+                    if (distinctList.size() > 1) {
+                        distinctList.add(0, new BlockOptions("Select the Block", "", -1, -1));
+                    }
 
                 } else {
-                    all.add(new BlockOptions("#1 Default Block", "Default Block", 1, 1));
+                    distinctList = new ArrayList<>();
+                    distinctList.add(new BlockOptions("#1 Default Block", "Default Block", 1, 1));
                 }
 
+                ObservableList<BlockOptions> all = FXCollections.observableArrayList(distinctList);
                 comboBoxAllBlocks.setItems(all);
 
+                // Select target block
                 if (rowMoveDTO.getBlockId() > -1) {
                     int targetBlockId = rowMoveDTO.getBlockId();
-
-                    boolean found = false;
-                    for (BlockOptions item : comboBoxAllBlocks.getItems()) {
-                        if (item.getBlockId() != null && item.getBlockId() == targetBlockId) {
-                            comboBoxAllBlocks.getSelectionModel().select(item);
-                            found = true;
-                            break;
-                        }
-                    }
-                    if (!found) {
-                        comboBoxAllBlocks.getSelectionModel().selectFirst();
-                    }
+                    comboBoxAllBlocks.getItems().stream()
+                            .filter(item -> item.getBlockId() != null && item.getBlockId() == targetBlockId)
+                            .findFirst()
+                            .ifPresentOrElse(
+                                    item -> comboBoxAllBlocks
+                                            .getSelectionModel()
+                                            .select(item),
+                                    () -> comboBoxAllBlocks.getSelectionModel().selectFirst());
                 } else {
                     comboBoxAllBlocks.getSelectionModel().selectFirst();
                 }

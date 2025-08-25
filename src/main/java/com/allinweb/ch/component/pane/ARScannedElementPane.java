@@ -5451,9 +5451,13 @@ public class ARScannedElementPane extends ARPane {
     private void loadAllBlocks() {
         if (comboBoxBlocks != null) {
             Platform.runLater(() -> {
-                ObservableList<BlockOptions> all = currentListBlock.stream()
+                // Collect distinct items into a temporary list to avoid concurrent modification
+                List<BlockOptions> distinctList = currentListBlock.stream()
                         .filter(distinctByText()) // custom predicate
-                        .collect(Collectors.toCollection(FXCollections::observableArrayList));
+                        .collect(Collectors.toList());
+
+                // Convert to ObservableList
+                ObservableList<BlockOptions> all = FXCollections.observableArrayList(distinctList);
 
                 // Add "Execute All Blocks" if needed
                 if (all.size() > 1) {
