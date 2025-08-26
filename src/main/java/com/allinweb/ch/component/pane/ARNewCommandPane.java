@@ -2271,31 +2271,41 @@ public class ARNewCommandPane extends ARPane {
     }
 
     private void loadBlockGoto(int blockToAvoid) {
-        ObservableList<BlockOptions> filtered = FXCollections.observableArrayList();
+        if (comboBoxBlocksGoto == null) {
+            return; // Exit early if comboBoxBlocksGoto is not initialized
+        }
 
-        if (!currentListBlock.isEmpty()) {
-            for (BlockOptions option : currentListBlock) {
-                if (comboBoxInstruc.getValue() != null
-                        && comboBoxInstruc.getValue().getText().equalsIgnoreCase("EXCEL GOTO")) {
-                    filtered.add(option);
-                } else if (!option.getBlockId().equals(blockToAvoid)) {
-                    filtered.add(option);
+        Platform.runLater(() -> {
+            ObservableList<BlockOptions> filtered = FXCollections.observableArrayList();
+
+            if (!currentListBlock.isEmpty()) {
+                // Apply filtering
+                List<BlockOptions> tempList = currentListBlock.stream()
+                        .filter(option -> {
+                            if (comboBoxInstruc.getValue() != null
+                                    && comboBoxInstruc.getValue().getText().equalsIgnoreCase("EXCEL GOTO")) {
+                                return true;
+                            } else return !option.getBlockId().equals(blockToAvoid);
+                        })
+                        .distinct() // optional: may combine with the custom predicate
+                        .collect(Collectors.toList());
+
+                // Apply distinctByTextAndId
+                List<BlockOptions> distinctList =
+                        tempList.stream().filter(distinctByTextAndId()).collect(Collectors.toList());
+
+                if (distinctList.isEmpty()) {
+                    distinctList.add(new BlockOptions("no blocks available", "", -1, -1));
                 }
+
+                filtered.addAll(distinctList);
+            } else {
+                filtered.add(new BlockOptions("no blocks added", "", -1, -1));
             }
 
-            if (filtered.isEmpty()) {
-                filtered.add(new BlockOptions("no blocks available", "", -1, -1));
-            }
-        } else {
-            filtered.add(new BlockOptions("no blocks added", "", -1, -1));
-        }
-
-        if (comboBoxBlocksGoto != null) {
-            Platform.runLater(() -> {
-                comboBoxBlocksGoto.setItems(filtered);
-                comboBoxBlocksGoto.getSelectionModel().selectFirst();
-            });
-        }
+            comboBoxBlocksGoto.setItems(filtered);
+            comboBoxBlocksGoto.getSelectionModel().selectFirst();
+        });
     }
 
     private void loadAllBlocks() {

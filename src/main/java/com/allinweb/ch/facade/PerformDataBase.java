@@ -12,7 +12,6 @@ import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
 import java.io.File;
 import java.sql.*;
-import java.text.MessageFormat;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
@@ -262,25 +261,26 @@ public class PerformDataBase {
     public List<ParentOperations> loadAllParents(int bot_job_id, int instructionId) {
         List<ParentOperations> parentList = new ArrayList<>();
 
-        try (Statement stmt = getConnection().createStatement()) {
+        String selectSQL =
+                """
+            SELECT
+                parent.name as parent_name,
+                child.actions,
+                child.operation,
+                child.name as child_name,
+                child.id
+            FROM instruction AS child
+            LEFT JOIN instruction AS parent ON child.parent_id = parent.id
+            WHERE child.parent_id = ?
+              AND child.bot_job_id = ?
+            ORDER BY child.id;
+            """;
 
-            String selectSQL = MessageFormat.format(
-                    """
-                    SELECT
-                        parent.name as parent_name,
-                        child.actions,
-                        child.operation,
-                        child.name as child_name,
-                        child.id
-                    FROM instruction AS child
-                    LEFT JOIN instruction AS parent ON child.parent_id = parent.id
-                    WHERE child.parent_id = {0}
-                      AND child.bot_job_id = {1}
-                    ORDER BY child.id;
-            """,
-                    instructionId, bot_job_id);
+        try (PreparedStatement stmt = getConnection().prepareStatement(selectSQL)) {
+            stmt.setInt(1, instructionId); // child.parent_id = ?
+            stmt.setInt(2, bot_job_id); // child.bot_job_id = ?
 
-            try (ResultSet rs = stmt.executeQuery(selectSQL)) {
+            try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
                     ParentOperations parentOper = new ParentOperations();
                     parentOper.setId(rs.getInt("id"));
@@ -320,34 +320,39 @@ public class PerformDataBase {
         // Determine the foreign key column based on table
         String foreignKeyColumn = "instruction".equalsIgnoreCase(tableName) ? "bot_job_id" : "home_banking_id";
 
-        String selectSQL = MessageFormat.format(
+        // Use ? placeholders for PreparedStatement
+        String selectSQL =
                 """
-                SELECT
-                    parent.name as parent_name,
-                    child.name as child_name,
-                    child.parent_id
-                FROM {0} AS child
-                LEFT JOIN {0} AS parent ON child.parent_id = parent.id
-                WHERE child.id != {1}
-                  AND child.parent_id = {2}
-                  AND child.{3} = {4}
-                ORDER BY child.id;
-                """,
-                tableName, parentId, instructionId, foreignKeyColumn, whereId);
+            SELECT
+                parent.name as parent_name,
+                child.name as child_name,
+                child.parent_id
+            FROM %s AS child
+            LEFT JOIN %s AS parent ON child.parent_id = parent.id
+            WHERE child.id != ?
+              AND child.parent_id = ?
+              AND child.%s = ?
+            ORDER BY child.id;
+            """
+                        .formatted(tableName, tableName, foreignKeyColumn);
 
-        try (Statement stmt = getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
+        try (PreparedStatement stmt = getConnection().prepareStatement(selectSQL)) {
+            stmt.setInt(1, 0); // child.id != 0
+            stmt.setInt(2, parentId); // child.parent_id = ?
+            stmt.setInt(3, whereId); // child.bot_job_id or home_banking_id = ?
 
-            while (rs.next()) {
-                String name = rs.getString("child_name") + " --> (" + rs.getString("parent_id") + ")-"
-                        + rs.getString("parent_name");
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    String name = rs.getString("child_name") + " --> (" + rs.getString("parent_id") + ")-"
+                            + rs.getString("parent_name");
 
-                ParentOperations parentOper = new ParentOperations();
-                parentOper.setName(name);
-                parentOper.setInstructionId(instructionId);
-                parentOper.setParentId(rs.getInt("parent_id"));
+                    ParentOperations parentOper = new ParentOperations();
+                    parentOper.setName(name);
+                    parentOper.setInstructionId(instructionId);
+                    parentOper.setParentId(rs.getInt("parent_id"));
 
-                parentList.add(parentOper);
+                    parentList.add(parentOper);
+                }
             }
 
             if (!parentList.isEmpty()) {
@@ -362,11 +367,11 @@ public class PerformDataBase {
                                 instructionId, foreignKeyColumn, whereId));
             }
 
-        } catch (SQLException e) {
+        } catch (SQLException error) {
             ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "Error loading parents for instruction ID %d in %s = %d. Error: %s",
-                            instructionId, foreignKeyColumn, whereId, e.getMessage()));
+                            instructionId, foreignKeyColumn, whereId, error.getMessage()));
         }
 
         return parentList;

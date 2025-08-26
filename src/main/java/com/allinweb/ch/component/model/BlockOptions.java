@@ -27,8 +27,8 @@ public class BlockOptions {
         }
 
         return new BlockOptions(
-                block.getName(), // text
-                String.valueOf(block.getId()), // value
+                block.getBlockOrderNumber() + "# " + block.getName(), // text
+                block.getName(),
                 firstInstructionId, // instructionId
                 block.getId() // blockId
                 );
