@@ -50,14 +50,6 @@ public class ARControlPanel extends Application {
         arMainScene = ARMainScene.getInstance();
     }
 
-    private static final ExportAccessToPostgres exportAccessToPostgres;
-    private static final ExportAccessToSQLite exportAccessToSQLite;
-
-    static {
-        exportAccessToPostgres = ExportAccessToPostgres.getInstance();
-        exportAccessToSQLite = ExportAccessToSQLite.getInstance();
-    }
-
     private static boolean isEnabledLicence = true;
 
     @Override
@@ -303,24 +295,6 @@ public class ARControlPanel extends Application {
                 if (conn != null) {
                     ARLogger.getInstance(ARMainPane.class).severe("Postgres Database connected!");
                 }
-
-                //                // Access to Postgres
-                //                exportAccessToPostgres.exportHomeBanking();
-                //                exportAccessToPostgres.exportHomeUrl();
-                //                exportAccessToPostgres.exportBotJob();
-                //                exportAccessToPostgres.exportBlock();
-                //                exportAccessToPostgres.exportInstructions();
-                //                exportAccessToPostgres.exportVariables();
-                //                exportAccessToPostgres.exportUpdateInstruction();
-                //                exportAccessToPostgres.exportReferences();
-                //
-                //                // SAVED COMPONENTS
-                //                exportAccessToPostgres.exportCompBlock();
-                //                exportAccessToPostgres.exportCompInstructions();
-                //                exportAccessToPostgres.exportCompVariables();
-                //                exportAccessToPostgres.exportUpdateCompInstruction();
-                //                exportAccessToPostgres.exportCompReferences();
-
             } catch (Exception error) {
                 ARLogger.getInstance(ARMainPane.class).severe("Error Export to Postgres: " + error.getMessage());
             }
@@ -382,39 +356,9 @@ public class ARControlPanel extends Application {
                 if (conn != null) {
                     ARLogger.getInstance(ARMainPane.class).severe("Access Database connected!");
                 }
-
-                //                //                 Postgres to Access
-                //
-                //                performDataBase.exportHomeBankingAccess();
-                //                performDataBase.getNewIdsHomeBankAccess();
-                //                performDataBase.exportHomeUrlAccess();
-                //                performDataBase.getNewIdsHomeUrlAccess();
-                //                performDataBase.exportBotJobAccess();
-                //                performDataBase.getNewIdsBotJobAccess();
-                //                performDataBase.exportBlockAccess();
-                //                performDataBase.getNewIdsBlockAccess();
-                //                performDataBase.exportInstructionsAccess();
-                //                performDataBase.getNewIdsInstrucAccess();
-                //                performDataBase.exportVariablesAccess();
-                //                performDataBase.getNewIdsVariableAccess();
-                //                performDataBase.exportUpdateInstructionAccess();
-                //                performDataBase.exportReferencesAccess();
-                //
-                //                // SAVED COMPONENTS
-                //                performDataBase.exportCompBlockAccess();
-                //                performDataBase.getNewIdsCompBlockAccess();
-                //                performDataBase.exportCompInstructionsAccess();
-                //                performDataBase.getNewIdsCompInstrucAccess();
-                //                performDataBase.exportCompVariablesAccess();
-                //                performDataBase.getNewIdsCompVariableAccess();
-                //                performDataBase.exportUpdateCompInstructionAccess();
-                //                performDataBase.exportCompReferencesAccess();
-
             } catch (Exception error) {
                 ARLogger.getInstance(ARMainPane.class).severe("Error Access: " + error.getMessage());
             }
-
-            //            performDataBase.updatePossibleMigrationColumnsTable(dbUrl, dbFile);
 
         } else if (performDataBase.SQLITE_DB) {
             String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
@@ -454,30 +398,9 @@ public class ARControlPanel extends Application {
                 if (conn != null) {
                     ARLogger.getInstance(ARMainPane.class).severe("SQLite Database connected!");
                 }
-
-                //                // Access to SQLite
-                //                exportAccessToSQLite.exportHomeBanking();
-                //                exportAccessToSQLite.exportHomeUrl();
-                //                exportAccessToSQLite.exportBotJob();
-                //                exportAccessToSQLite.exportBlock();
-                //                exportAccessToSQLite.exportInstructions();
-                //                exportAccessToSQLite.exportVariables();
-                //                exportAccessToSQLite.exportUpdateInstruction();
-                //                exportAccessToSQLite.exportReferences();
-                //
-                //                // SAVED COMPONENTS
-                //                exportAccessToSQLite.exportCompBlock();
-                //                exportAccessToSQLite.exportCompInstructions();
-                //                exportAccessToSQLite.exportCompVariables();
-                //                exportAccessToSQLite.exportUpdateCompInstruction();
-                //                exportAccessToSQLite.exportCompReferences();
-
             } catch (Exception error) {
                 ARLogger.getInstance(ARMainPane.class).severe("Error SQLite: " + error.getMessage());
             }
-
-            //            performDataBase.updatePossibleMigrationColumnsTable(dbUrl, dbFile);
-
         }
     }
 

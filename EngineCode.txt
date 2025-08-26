@@ -103,6 +103,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 		blockLoop:
 		while (currentBlock <= blocksLoaded.size() - 1 && !blocksLoaded.isEmpty() && !stopAll) {
 			long blockStartTime = System.nanoTime();
+			failedMessage = "";
 
 			currentCondition = ARConstants.ConditionStatus.NONE;
 			previousCondition = ARConstants.ConditionStatus.NONE;
@@ -290,6 +291,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 			boolean refreshOnly = false;
 
 			while (success && xExcelCurrentRow < extractedData.getNumberOfDataRows() && !stopAll) {
+				failedMessage = "";
 				//                        mapExportRows.clear();
 
 				//                    writerReport.insertBlockSeparation(blockLoad.getName());
@@ -740,7 +742,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 
 							if (jumpGotoError) {
 								success = false;
-								failedMessage = "Failed: GO TO";
+								failedMessage = "Failed: GO TO-";
 								resultActions = performActions.blockGotoFailed(resultActions);
 							} else {
 								if (!loopBlockActive.contains(msgInstruction.getKey())) {
@@ -765,9 +767,8 @@ if (extractedData.getNumberOfDataRows() > 0) {
 										success = true;
 
 									} catch (Exception ex) {
-										failedMessage = "Failed: GO TO";
-										msgInstruction =
-												updateMSGInstruction(msgInstruction, failedMessage);
+										failedMessage = "Failed: GO TO-";
+										msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 
 										success = false;
 
@@ -1029,7 +1030,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 							// It could be Improved the case
 							if (resultActions.contains("Error:")
 									|| (webElementFound == null && !forceCoordinates)) {
-								failedMessage = "Failed execution Web Element";
+								failedMessage = "Failed execution Web Element-";
 								msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 								success = false;
 							} else if (resultActions != null && success) {
@@ -1043,15 +1044,14 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								parentField = parentId + "-" + parentField;
 							}
 							// Mandatory for GET_VALUE
-							if (xPathOperation == null
-									&& actions[0].equalsIgnoreCase(ARConstants.GET_VALUE)) {
-								failedMessage = "Parent Id in Wrong Block";
+							if (xPathOperation == null && actions[0].equalsIgnoreCase(ARConstants.GET_VALUE)) {
+								failedMessage = "Parent Id in Wrong Block-";
 								msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 								resultActions = performActions.parentIdWrongBlock(
 										currentInstruction, blockLoad, resultActions, currentCondition);
 								success = false;
 							} else if (parentField == null) {
-								failedMessage = "Parent Id in Wrong Block";
+								failedMessage = "Parent Id in Wrong Block-";
 								msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 								resultActions = performActions.parentIdWrongBlock(
 										currentInstruction, blockLoad, resultActions, currentCondition);
@@ -1070,7 +1070,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 										mapOperators);
 
 								if (resultActions.contains("Error:")) {
-									failedMessage = "Failed: Operation (GetValue / SetValue)";
+									failedMessage = "Failed: Operation (GetValue / SetValue)-";
 									msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 									success = false;
 								} else {
@@ -1088,7 +1088,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 							// Check Validation Operator
 
 							if (!mapOperators.containsKey(variableField)) {
-								failedMessage = "Get Value Is Not Defined";
+								failedMessage = "Get Value Is Not Defined-";
 								msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 								resultActions = performActions.getValueIsNotDefined(
 										actions[0],
@@ -1153,7 +1153,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 									currentInstruction.setExecuted(true);
 									success = true;
 								} else {
-									failedMessage = "Failed: Check Validation";
+									failedMessage = "Failed: Check Validation-";
 									msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 									resultActions = performActions.checkValidationFailed(
 											invalidValues,
@@ -1172,7 +1172,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 							// Excel Write Operator
 
 							if (parentField == null) {
-								failedMessage = "Parent Id in Wrong Block";
+								failedMessage = "Parent Id in Wrong Block-";
 								msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 								resultActions = performActions.parentIdWrongBlock(
 										currentInstruction, blockLoad, resultActions, currentCondition);
@@ -1180,7 +1180,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								success = false;
 
 							} else if (!mapOperators.containsKey(variableField)) {
-								failedMessage = "Get Value Is Not Defined";
+								failedMessage = "Get Value Is Not Defined-";
 								msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 								resultActions = performActions.getValueIsNotDefined(
 										actions[0],
@@ -1262,7 +1262,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 									currentInstruction.setExecuted(true);
 									success = true;
 								} else {
-									failedMessage = "Failed: Generate File -> Excel/CSV";
+									failedMessage = "Failed: Generate File -> Excel/CSV-";
 									msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 
 									success = false;
@@ -1288,7 +1288,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 						String msg3 = resultActions;
 
 						if (Strings.isNullOrEmpty(failedMessage)) {
-							failedMessage = "Failed: General Execution";
+							failedMessage = "Failed: General Execution-";
 							msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 						}
 
@@ -1591,7 +1591,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 					currentInstruction.setExecuted(true);
 					success = true;
 				} else {
-					failedMessage = "Failed: Execution";
+					failedMessage = "Failed: Execution-";
 					msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 
 					resultActions = currentInstruction.getName();

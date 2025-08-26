@@ -12,8 +12,8 @@ Map<String, String> dataExcel = null;
 clearFields();
 
 // Execute All Blocks starting from executeSpecificBlock if Defined
-int botJobId = this.botJobLoad.getId();
-int executeSpecificBlock = comboBoxBlocks.getValue().getInstructionId();
+int botJobId = this.currentBotJob.getId();
+int executeSpecificBlock = comboBoxBlocks.getValue().getWhereId(); // Instruction or BockOrderNumber
 sessionRowStatus = "botJobTasks"; // + botJobId;
 
 performDataBase.loadAllVariables(botJobId);
@@ -98,6 +98,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 		blockLoop:
 		while (currentBlock <= blocksLoaded.size() - 1 && !blocksLoaded.isEmpty() && !stopAll) {
 			long blockStartTime = System.nanoTime();
+			failedMessage = "";
 
 			currentCondition = ARConstants.ConditionStatus.NONE;
 			previousCondition = ARConstants.ConditionStatus.NONE;
@@ -283,6 +284,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 			boolean refreshOnly = false;
 
 			while (success && xExcelCurrentRow < extractedData.getNumberOfDataRows() && !stopAll) {
+				failedMessage = "";
 				//                        mapExportRows.clear();
 
 				//                    writerReport.insertBlockSeparation(blockLoad.getName());
@@ -382,13 +384,19 @@ if (extractedData.getNumberOfDataRows() > 0) {
 						rowStatus.setColor("yellow"); // #fcba03 deep carmine yellow
 						jsonStatus = gson.toJson(rowStatus);
 						webSocketSessionManager.sendMessageJson(
-								botJobLoad.getHomeBankingId(), sessionRowStatus, jsonStatus, "rowStatus");
+								this.currentBotJob.getHomeBankingId(),
+								sessionRowStatus,
+								jsonStatus,
+								"rowStatus");
 					} else {
 						// Previous
 						rowStatus.setColor("green"); // #1d9c06 green
 						jsonStatus = gson.toJson(rowStatus);
 						webSocketSessionManager.sendMessageJson(
-								botJobLoad.getHomeBankingId(), sessionRowStatus, jsonStatus, "rowStatus");
+								this.currentBotJob.getHomeBankingId(),
+								sessionRowStatus,
+								jsonStatus,
+								"rowStatus");
 						try {
 							Thread.sleep(300);
 						} catch (Exception e) {
@@ -398,7 +406,10 @@ if (extractedData.getNumberOfDataRows() > 0) {
 						rowStatus.setColor("yellow"); // #fcba03 deep carmine yellow
 						jsonStatus = gson.toJson(rowStatus);
 						webSocketSessionManager.sendMessageJson(
-								botJobLoad.getHomeBankingId(), sessionRowStatus, jsonStatus, "rowStatus");
+								this.currentBotJob.getHomeBankingId(),
+								sessionRowStatus,
+								jsonStatus,
+								"rowStatus");
 					}
 
 					//                        String[] operation =
@@ -715,7 +726,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 
 							if (jumpGotoError) {
 								success = false;
-								failedMessage = "Failed: GO TO";
+								failedMessage = "Failed: GO TO-";
 								resultActions = performActions.blockGotoFailed(resultActions);
 							} else {
 								if (!loopBlockActive.contains(msgInstruction.getKey())) {
@@ -739,7 +750,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 										success = true;
 
 									} catch (Exception ex) {
-										failedMessage = "Failed: GO TO";
+										failedMessage = "Failed: GO TO-";
 										msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 
 										success = false;
@@ -1002,7 +1013,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 							// It could be Improved the case
 							if (resultActions.contains("Error:")
 									|| (webElementFound == null && !forceCoordinates)) {
-								failedMessage = "Failed execution Web Element";
+								failedMessage = "Failed execution Web Element-";
 								msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 								success = false;
 							} else if (resultActions != null && success) {
@@ -1017,13 +1028,13 @@ if (extractedData.getNumberOfDataRows() > 0) {
 							}
 							// Mandatory for GET_VALUE
 							if (xPathOperation == null && actions[0].equalsIgnoreCase(ARConstants.GET_VALUE)) {
-								failedMessage = "Parent Id in Wrong Block";
+								failedMessage = "Parent Id in Wrong Block-";
 								msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 								resultActions = performActions.parentIdWrongBlock(
 										currentInstruction, blockLoad, resultActions, currentCondition);
 								success = false;
 							} else if (parentField == null) {
-								failedMessage = "Parent Id in Wrong Block";
+								failedMessage = "Parent Id in Wrong Block-";
 								msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 								resultActions = performActions.parentIdWrongBlock(
 										currentInstruction, blockLoad, resultActions, currentCondition);
@@ -1042,7 +1053,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 										mapOperators);
 
 								if (resultActions.contains("Error:")) {
-									failedMessage = "Failed: Operation (GetValue / SetValue)";
+									failedMessage = "Failed: Operation (GetValue / SetValue)-";
 									msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 									success = false;
 								} else {
@@ -1060,7 +1071,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 							// Check Validation Operator
 
 							if (!mapOperators.containsKey(variableField)) {
-								failedMessage = "Get Value Is Not Defined";
+								failedMessage = "Get Value Is Not Defined-";
 								msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 								resultActions = performActions.getValueIsNotDefined(
 										actions[0],
@@ -1125,7 +1136,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 									currentInstruction.setExecuted(true);
 									success = true;
 								} else {
-									failedMessage = "Failed: Check Validation";
+									failedMessage = "Failed: Check Validation-";
 									msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 									resultActions = performActions.checkValidationFailed(
 											invalidValues,
@@ -1144,7 +1155,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 							// Excel Write Operator
 
 							if (parentField == null) {
-								failedMessage = "Parent Id in Wrong Block";
+								failedMessage = "Parent Id in Wrong Block-";
 								msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 								resultActions = performActions.parentIdWrongBlock(
 										currentInstruction, blockLoad, resultActions, currentCondition);
@@ -1152,7 +1163,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								success = false;
 
 							} else if (!mapOperators.containsKey(variableField)) {
-								failedMessage = "Get Value Is Not Defined";
+								failedMessage = "Get Value Is Not Defined-";
 								msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 								resultActions = performActions.getValueIsNotDefined(
 										actions[0],
@@ -1231,7 +1242,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 									currentInstruction.setExecuted(true);
 									success = true;
 								} else {
-									failedMessage = "Failed: Generate File -> Excel/CSV";
+									failedMessage = "Failed: Generate File -> Excel/CSV-";
 									msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 
 									success = false;
@@ -1257,7 +1268,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 						String msg3 = resultActions;
 
 						if (Strings.isNullOrEmpty(failedMessage)) {
-							failedMessage = "Failed: General Execution";
+							failedMessage = "Failed: General Execution-";
 							msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 						}
 
@@ -1556,7 +1567,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 					currentInstruction.setExecuted(true);
 					success = true;
 				} else {
-					failedMessage = "Failed: Execution";
+					failedMessage = "Failed: Execution-";
 					msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 
 					resultActions = currentInstruction.getName();

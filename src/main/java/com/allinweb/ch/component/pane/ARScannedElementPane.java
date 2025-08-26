@@ -3191,6 +3191,7 @@ public class ARScannedElementPane extends ARPane {
                 blockLoop:
                 while (currentBlock <= blocksLoaded.size() - 1 && !blocksLoaded.isEmpty() && !stopAll) {
                     long blockStartTime = System.nanoTime();
+                    failedMessage = "";
 
                     currentCondition = ARConstants.ConditionStatus.NONE;
                     previousCondition = ARConstants.ConditionStatus.NONE;
@@ -3376,6 +3377,7 @@ public class ARScannedElementPane extends ARPane {
                     boolean refreshOnly = false;
 
                     while (success && xExcelCurrentRow < extractedData.getNumberOfDataRows() && !stopAll) {
+                        failedMessage = "";
                         //                        mapExportRows.clear();
 
                         //                    writerReport.insertBlockSeparation(blockLoad.getName());
@@ -3817,7 +3819,7 @@ public class ARScannedElementPane extends ARPane {
 
                                     if (jumpGotoError) {
                                         success = false;
-                                        failedMessage = "Failed: GO TO";
+                                        failedMessage = "Failed: GO TO-";
                                         resultActions = performActions.blockGotoFailed(resultActions);
                                     } else {
                                         if (!loopBlockActive.contains(msgInstruction.getKey())) {
@@ -3841,7 +3843,7 @@ public class ARScannedElementPane extends ARPane {
                                                 success = true;
 
                                             } catch (Exception ex) {
-                                                failedMessage = "Failed: GO TO";
+                                                failedMessage = "Failed: GO TO-";
                                                 msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 
                                                 success = false;
@@ -4104,7 +4106,7 @@ public class ARScannedElementPane extends ARPane {
                                     // It could be Improved the case
                                     if (resultActions.contains("Error:")
                                             || (webElementFound == null && !forceCoordinates)) {
-                                        failedMessage = "Failed execution Web Element";
+                                        failedMessage = "Failed execution Web Element-";
                                         msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                         success = false;
                                     } else if (resultActions != null && success) {
@@ -4119,13 +4121,13 @@ public class ARScannedElementPane extends ARPane {
                                     }
                                     // Mandatory for GET_VALUE
                                     if (xPathOperation == null && actions[0].equalsIgnoreCase(ARConstants.GET_VALUE)) {
-                                        failedMessage = "Parent Id in Wrong Block";
+                                        failedMessage = "Parent Id in Wrong Block-";
                                         msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                         resultActions = performActions.parentIdWrongBlock(
                                                 currentInstruction, blockLoad, resultActions, currentCondition);
                                         success = false;
                                     } else if (parentField == null) {
-                                        failedMessage = "Parent Id in Wrong Block";
+                                        failedMessage = "Parent Id in Wrong Block-";
                                         msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                         resultActions = performActions.parentIdWrongBlock(
                                                 currentInstruction, blockLoad, resultActions, currentCondition);
@@ -4144,7 +4146,7 @@ public class ARScannedElementPane extends ARPane {
                                                 mapOperators);
 
                                         if (resultActions.contains("Error:")) {
-                                            failedMessage = "Failed: Operation (GetValue / SetValue)";
+                                            failedMessage = "Failed: Operation (GetValue / SetValue)-";
                                             msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                             success = false;
                                         } else {
@@ -4162,7 +4164,7 @@ public class ARScannedElementPane extends ARPane {
                                     // Check Validation Operator
 
                                     if (!mapOperators.containsKey(variableField)) {
-                                        failedMessage = "Get Value Is Not Defined";
+                                        failedMessage = "Get Value Is Not Defined-";
                                         msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                         resultActions = performActions.getValueIsNotDefined(
                                                 actions[0],
@@ -4227,7 +4229,7 @@ public class ARScannedElementPane extends ARPane {
                                             currentInstruction.setExecuted(true);
                                             success = true;
                                         } else {
-                                            failedMessage = "Failed: Check Validation";
+                                            failedMessage = "Failed: Check Validation-";
                                             msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                             resultActions = performActions.checkValidationFailed(
                                                     invalidValues,
@@ -4246,7 +4248,7 @@ public class ARScannedElementPane extends ARPane {
                                     // Excel Write Operator
 
                                     if (parentField == null) {
-                                        failedMessage = "Parent Id in Wrong Block";
+                                        failedMessage = "Parent Id in Wrong Block-";
                                         msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                         resultActions = performActions.parentIdWrongBlock(
                                                 currentInstruction, blockLoad, resultActions, currentCondition);
@@ -4254,7 +4256,7 @@ public class ARScannedElementPane extends ARPane {
                                         success = false;
 
                                     } else if (!mapOperators.containsKey(variableField)) {
-                                        failedMessage = "Get Value Is Not Defined";
+                                        failedMessage = "Get Value Is Not Defined-";
                                         msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                         resultActions = performActions.getValueIsNotDefined(
                                                 actions[0],
@@ -4333,7 +4335,7 @@ public class ARScannedElementPane extends ARPane {
                                             currentInstruction.setExecuted(true);
                                             success = true;
                                         } else {
-                                            failedMessage = "Failed: Generate File -> Excel/CSV";
+                                            failedMessage = "Failed: Generate File -> Excel/CSV-";
                                             msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 
                                             success = false;
@@ -4359,7 +4361,7 @@ public class ARScannedElementPane extends ARPane {
                                 String msg3 = resultActions;
 
                                 if (Strings.isNullOrEmpty(failedMessage)) {
-                                    failedMessage = "Failed: General Execution";
+                                    failedMessage = "Failed: General Execution-";
                                     msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                 }
 
@@ -4553,165 +4555,8 @@ public class ARScannedElementPane extends ARPane {
                     writerExport.insertCSVContentIntoExcel(columnsCSV, rowsCSV, exportIndex - 1);
                 }
             }
-        } else { //  if dataExel is NULL
-            // Creating Dynamic Data if Default is Null
-            Pair<String, String> dataDynamic = null;
-            for (int j = 0; success && j < blocksLoaded.size(); j++) {
-
-                for (InstructionLoadDTO currentInstruction : blocksLoaded.get(j).getInstructionLoadDTOS()) {
-                    if (currentInstruction.getDefaultValue() == null) {
-                        String[] arr = UtilsMethods.splitIfContains(
-                                currentInstruction.getActions(), ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
-                        if (arr.length > 1) {
-                            String dataFieldName = arr[1].split(ARConstants.PATH_FIELD_SUBSTITUTION)[0];
-                            PerformActions.insertRandomName(dataFieldName);
-                        }
-                    }
-                }
-            }
-            for (int j = 0; success && j < blocksLoaded.size(); j++) {
-
-                String blockName = blocksLoaded.get(j).getName();
-                int blockOrder = blocksLoaded.get(j).getBlockOrderNumber();
-                String blockReportName = "#" + blockOrder + " " + blockName;
-
-                for (InstructionLoadDTO currentInstruction : blocksLoaded.get(j).getInstructionLoadDTOS()) {
-
-                    long currentInstructionStartTime = System.nanoTime();
-                    File logFileForSingleExcel = excelReader.createLogFile(excelPath);
-
-                    String[] actions = currentInstruction.getActions().split(ARConstants.ACTIONS_AND_PATHS_SPLITTER);
-
-                    // Case for Inputs
-                    String valueInsert = "CHANGE ME";
-                    if (actions[0].equals(ARConstants.INSERT) && actions[1].equals(ARConstants.ENTER)) {
-                        String reference = actions[2];
-                        valueInsert = dataExcel.get(reference);
-                    } else if (actions[0].equals(ARConstants.INSERT)) {
-                        String reference = actions[1];
-                        valueInsert = dataExcel.get(reference);
-                    }
-
-                    Pair<String, String> msgInstruction = new Pair(
-                            currentInstruction.getName(),
-                            (currentInstruction.getOperation() != null
-                                    ? currentInstruction.getOperation()
-                                    : (actions[0].equalsIgnoreCase(ARConstants.INSERT)) ? valueInsert : ""));
-
-                    resultActions = performActions.actionResultMessage(blockName, actions, msgInstruction);
-
-                    try {
-
-                        if (actions[0].equals(ARConstants.HOLD)
-                                || actions[0].equals(ARConstants.QUIT)
-                                || actions[0].equals(ARConstants.SCREEN)
-                                || actions[0].equals(ARConstants.REFRESH_ONLY)) {
-                            performActions.performOtherActions(byPassNotFound, currentInstruction, actions);
-
-                            if (actions[0].equals(ARConstants.QUIT)) {
-                                stopAll = true;
-                                success = true;
-                            }
-
-                            // Excel Report and Log
-                            performActions.logAndReport(
-                                    currentCondition,
-                                    true,
-                                    true,
-                                    currentInstructionStartTime,
-                                    blockReportName,
-                                    success,
-                                    actions,
-                                    msgInstruction,
-                                    dataExcel,
-                                    writerReport,
-                                    mainMsg,
-                                    finalLogMessage(failedMessage, resultActions));
-
-                            continue;
-                        }
-
-                        WebElement webElementFound = null;
-                        boolean forceCoordinates = currentInstruction.getForceCoordinates() != null
-                                && currentInstruction.getForceCoordinates();
-
-                        try {
-                            webElementFound = performActions.searchElement(
-                                    currentInstruction, botJobId, forceCoordinates, byPassFlagLoop);
-                        } catch (Exception ex) {
-                        }
-
-                        success = performActions.performWebActions(
-                                byPassNotFound,
-                                mapSavedLocators.get("coordinates"),
-                                dataDynamic,
-                                currentInstruction,
-                                mapOperators,
-                                webElementFound,
-                                actions);
-
-                        // Special Cases for Select Responses
-                        // It could be Improved the case
-                        if (resultActions.contains("Error:")) {
-                            success = false;
-                        } else if (resultActions != null) {
-                            currentInstruction.setExecuted(true);
-                            success = true;
-                        } else {
-                            failedMessage = "Failed: Execution";
-                            msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
-
-                            resultActions = currentInstruction.getName();
-                            success = false;
-                        }
-
-                        // Excel Report and Log
-                        performActions.logAndReport(
-                                currentCondition,
-                                true,
-                                true,
-                                currentInstructionStartTime,
-                                blockReportName,
-                                success,
-                                actions,
-                                msgInstruction,
-                                dataExcel,
-                                writerReport,
-                                mainMsg,
-                                finalLogMessage(failedMessage, resultActions));
-
-                    } catch (Throwable t) {
-                        success = false;
-                        currentInstruction.setExecuted(false);
-
-                        failedMessage = "Failed: ";
-                        msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
-
-                        // Excel Report and Log
-                        performActions.logAndReport(
-                                currentCondition,
-                                true,
-                                true,
-                                currentInstructionStartTime,
-                                blockReportName,
-                                success,
-                                actions,
-                                msgInstruction,
-                                dataExcel,
-                                writerReport,
-                                mainMsg,
-                                finalLogMessage(failedMessage, resultActions));
-
-                        //                        throw new RuntimeException(t);
-                    }
-                    printLog(
-                            generateTimestamp(),
-                            logFileForSingleExcel,
-                            finalLogMessage(failedMessage, resultActions),
-                            success);
-                }
-            }
         }
+
         launchBotJobButton.setDisable(false);
 
         totalExecutionTime = performActions.getTotalExecutionTime();
