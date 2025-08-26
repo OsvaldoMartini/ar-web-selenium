@@ -454,6 +454,8 @@ public class ARScannedElementPane extends ARPane {
                                     + performDataBase.getIdsInstrucAfter().size(),
                             0);
 
+                    sendStatusButton();
+
                     return;
                 }
 
@@ -468,6 +470,7 @@ public class ARScannedElementPane extends ARPane {
                 }
 
                 updateBotJobTasks(this.currentBotJob.getId());
+                sendStatusButton();
 
                 if (errorMessage != null) {
                     performMessage.errorMessage(
@@ -480,6 +483,8 @@ public class ARScannedElementPane extends ARPane {
                             0);
                 }
             }
+        } else {
+            sendStatusButton();
         }
     }
 
@@ -524,21 +529,6 @@ public class ARScannedElementPane extends ARPane {
             }
 
             if (currentBlockId < 0) {
-
-                WebSocketSignal webSockteSocketSignal = WebSocketSignal.builder()
-                        .operationId("activate-insert-all")
-                        .sessionId("scannerGrid")
-                        .message("Insert All Elements button activated")
-                        .build();
-
-                String jsonData = gson.toJson(webSockteSocketSignal);
-
-                webSocketSessionManager.sendMessageJson(
-                        currentBotJob.getHomeBankingId(),
-                        "scannerGrid", // + currentBotJobId,
-                        jsonData,
-                        "activate-insert-all");
-
                 String insertOne = isMany ? "Insert ALL" : "Insert one Element";
                 performMessage.errorMessage(
                         "Operation \"" + insertOne + "\" failed",
@@ -5523,5 +5513,21 @@ public class ARScannedElementPane extends ARPane {
                 instance = null; // optional reset for singleton
             });
         }
+    }
+
+    private void sendStatusButton() {
+        WebSocketSignal webSockteSocketSignal = WebSocketSignal.builder()
+                .operationId("activate-insert-all")
+                .sessionId("scannerGrid")
+                .message("Insert All Elements button activated")
+                .build();
+
+        String jsonData = gson.toJson(webSockteSocketSignal);
+
+        webSocketSessionManager.sendMessageJson(
+                currentBotJob.getHomeBankingId(),
+                "scannerGrid", // + currentBotJobId,
+                jsonData,
+                "activate-insert-all");
     }
 }
