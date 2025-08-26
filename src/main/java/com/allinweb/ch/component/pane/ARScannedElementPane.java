@@ -3819,7 +3819,7 @@ public class ARScannedElementPane extends ARPane {
 
                                     if (jumpGotoError) {
                                         success = false;
-                                        failedMessage = "Failed: GO TO-";
+                                        failedMessage = "Failed: GO TO ";
                                         resultActions = performActions.blockGotoFailed(resultActions);
                                     } else {
                                         if (!loopBlockActive.contains(msgInstruction.getKey())) {
@@ -3840,10 +3840,11 @@ public class ARScannedElementPane extends ARPane {
                                                 currentBlock = blockOrderNumber - 1;
                                                 currentInstruction.setExecuted(true);
 
+                                                failedMessage = "";
                                                 success = true;
 
                                             } catch (Exception ex) {
-                                                failedMessage = "Failed: GO TO-";
+                                                failedMessage = "Failed: GO TO ";
                                                 msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 
                                                 success = false;
@@ -4106,10 +4107,11 @@ public class ARScannedElementPane extends ARPane {
                                     // It could be Improved the case
                                     if (resultActions.contains("Error:")
                                             || (webElementFound == null && !forceCoordinates)) {
-                                        failedMessage = "Failed execution Web Element-";
+                                        failedMessage = "Failed execution Web Element ";
                                         msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                         success = false;
                                     } else if (resultActions != null && success) {
+                                        failedMessage = "";
                                         currentInstruction.setExecuted(true);
                                     }
 
@@ -4121,13 +4123,13 @@ public class ARScannedElementPane extends ARPane {
                                     }
                                     // Mandatory for GET_VALUE
                                     if (xPathOperation == null && actions[0].equalsIgnoreCase(ARConstants.GET_VALUE)) {
-                                        failedMessage = "Parent Id in Wrong Block-";
+                                        failedMessage = "Parent Id in Wrong Block ";
                                         msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                         resultActions = performActions.parentIdWrongBlock(
                                                 currentInstruction, blockLoad, resultActions, currentCondition);
                                         success = false;
                                     } else if (parentField == null) {
-                                        failedMessage = "Parent Id in Wrong Block-";
+                                        failedMessage = "Parent Id in Wrong Block ";
                                         msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                         resultActions = performActions.parentIdWrongBlock(
                                                 currentInstruction, blockLoad, resultActions, currentCondition);
@@ -4146,10 +4148,11 @@ public class ARScannedElementPane extends ARPane {
                                                 mapOperators);
 
                                         if (resultActions.contains("Error:")) {
-                                            failedMessage = "Failed: Operation (GetValue / SetValue)-";
+                                            failedMessage = "Failed: Operation (GetValue / SetValue) ";
                                             msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                             success = false;
                                         } else {
+                                            failedMessage = "";
                                             success = true;
                                             if (!Strings.isNullOrEmpty(localFormat)) {
                                                 String valueTo = mapOperators.get(variableField);
@@ -4164,7 +4167,7 @@ public class ARScannedElementPane extends ARPane {
                                     // Check Validation Operator
 
                                     if (!mapOperators.containsKey(variableField)) {
-                                        failedMessage = "Get Value Is Not Defined-";
+                                        failedMessage = "Get Value Is Not Defined ";
                                         msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                         resultActions = performActions.getValueIsNotDefined(
                                                 actions[0],
@@ -4225,11 +4228,11 @@ public class ARScannedElementPane extends ARPane {
                                         }
 
                                         if (isOperationValid) {
-
                                             currentInstruction.setExecuted(true);
+                                            failedMessage = "";
                                             success = true;
                                         } else {
-                                            failedMessage = "Failed: Check Validation-";
+                                            failedMessage = "Failed: Check Validation ";
                                             msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                             resultActions = performActions.checkValidationFailed(
                                                     invalidValues,
@@ -4248,7 +4251,7 @@ public class ARScannedElementPane extends ARPane {
                                     // Excel Write Operator
 
                                     if (parentField == null) {
-                                        failedMessage = "Parent Id in Wrong Block-";
+                                        failedMessage = "Parent Id in Wrong Block ";
                                         msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                         resultActions = performActions.parentIdWrongBlock(
                                                 currentInstruction, blockLoad, resultActions, currentCondition);
@@ -4256,7 +4259,7 @@ public class ARScannedElementPane extends ARPane {
                                         success = false;
 
                                     } else if (!mapOperators.containsKey(variableField)) {
-                                        failedMessage = "Get Value Is Not Defined-";
+                                        failedMessage = "Get Value Is Not Defined ";
                                         msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                         resultActions = performActions.getValueIsNotDefined(
                                                 actions[0],
@@ -4306,7 +4309,8 @@ public class ARScannedElementPane extends ARPane {
                                                             .get(variableField)
                                                             .trim());
 
-                                            //                                            addRowFromMap(mapExportRows);
+                                            //
+                                            // addRowFromMap(mapExportRows);
                                             if (excelFieldName != null
                                                     && excelFieldName
                                                             .toLowerCase()
@@ -4316,12 +4320,14 @@ public class ARScannedElementPane extends ARPane {
                                                 }
 
                                                 //
-                                                //                                                String csvContent =
+                                                //                                                String csvContent
+                                                // =
                                                 // getBancaStatoCsvContent(delimiterCSV);
                                                 //
                                                 // writeToFile(excelFieldName, csvContent);
 
-                                                // writerExport.writeMapToCSV(mapExport, excelFieldName, delimiterCSV);
+                                                // writerExport.writeMapToCSV(mapExport, excelFieldName,
+                                                // delimiterCSV);
                                             } else {
                                                 //
                                                 // writerExport.insertFieldNameAndValueLastColumn(
@@ -4333,11 +4339,11 @@ public class ARScannedElementPane extends ARPane {
 
                                         if (resultActions != null) {
                                             currentInstruction.setExecuted(true);
+                                            failedMessage = "";
                                             success = true;
                                         } else {
-                                            failedMessage = "Failed: Generate File -> Excel/CSV-";
+                                            failedMessage = "Failed: Generate File -> Excel/CSV ";
                                             msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
-
                                             success = false;
                                         }
                                     }
@@ -4361,7 +4367,7 @@ public class ARScannedElementPane extends ARPane {
                                 String msg3 = resultActions;
 
                                 if (Strings.isNullOrEmpty(failedMessage)) {
-                                    failedMessage = "Failed: General Execution-";
+                                    failedMessage = "Failed: General Execution ";
                                     msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                 }
 
@@ -4400,6 +4406,8 @@ public class ARScannedElementPane extends ARPane {
                                     writerReport,
                                     mainMsg,
                                     finalLogMessage(failedMessage, resultActions));
+
+                            failedMessage = "";
 
                             if (pauseOperation && respModal.equals(ARConstants.DialogModal.STOP)) {
 
