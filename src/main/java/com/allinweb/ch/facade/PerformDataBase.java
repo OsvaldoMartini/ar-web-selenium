@@ -1,7 +1,6 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.component.model.*;
-import com.allinweb.ch.component.scene.ARNewCommandScene;
 import com.allinweb.ch.persistence.DatabaseUserDTO;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
@@ -7404,7 +7403,7 @@ GROUP BY
             errorMessage = deleteNullBlocks(blockTable, whereId, restToDeleteIds);
         }
         if (errorMessage != null) {
-            ARLogger.getInstance(ARNewCommandScene.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .severe("Error Deleting Nulls Blocks Table:" + blockTable + " Error: "
                             + errorMessage.getErrorMessage());
         }

@@ -3043,8 +3043,6 @@ public class ARScannedElementPane extends ARPane {
                     "<span style='font-style: italic;'>Inconsistent or incorrect data can prevent the application from processing the file.</span>",
                     null,
                     0);
-
-            //            Platform.exit();
         }
 
         if (extractedData.getNumberOfDataRows() == 0) {
@@ -3053,24 +3051,11 @@ public class ARScannedElementPane extends ARPane {
         }
 
         if (extractedData != null && extractedData.getErrorMessage() != null) {
-
             performMessage.errorMessage(
                     "Excel Error", "Could Not Execute Excel File", extractedData.getErrorMessage(), null, null, 0);
 
             return false;
         }
-
-        //        Set<String> blockClickables = blocksLoaded.stream()
-        //                .map(BlockLoadDTO::getBlockLoopInstructionLoadDTOS)
-        //                .reduce((identity, accumulated) -> {
-        //                    accumulated.addAll(identity);
-        //                    return accumulated;
-        //                })
-        //                .get()
-        //                .stream()
-        //                .map(BlockLoopInstructionLoadDTO::getActions)
-        //                .filter(action -> action.contains(ARConstants.CLICK))
-        //                .collect(Collectors.toSet());
 
         //        String browser = arPropertyManager.getProperty(ARPropertyEnum.BROWSER);
         //            WebPage webPage = new WebPage(browser, homeBankingDTO.getUrl());
@@ -3141,6 +3126,9 @@ public class ARScannedElementPane extends ARPane {
             }
 
             if (extractedData.getNumberOfDataRows() > 1 && excelDataGoto.isEmpty()) {
+
+                ARLogger.getInstance(ARScannedElementPane.class)
+                        .warning("Multiple Excel Rows Detected: each row wll return to first block");
 
                 respModal = performMessage.showCustomModalDialogDragWin11(
                         "Multiple Excel Rows Detected",
