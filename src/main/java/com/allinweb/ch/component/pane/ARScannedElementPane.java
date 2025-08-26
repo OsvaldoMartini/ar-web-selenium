@@ -524,6 +524,21 @@ public class ARScannedElementPane extends ARPane {
             }
 
             if (currentBlockId < 0) {
+
+                WebSocketSignal webSockteSocketSignal = WebSocketSignal.builder()
+                        .operationId("activate-insert-all")
+                        .sessionId("scannerGrid")
+                        .message("Insert All Elements button activated")
+                        .build();
+
+                String jsonData = gson.toJson(webSockteSocketSignal);
+
+                webSocketSessionManager.sendMessageJson(
+                        currentBotJob.getHomeBankingId(),
+                        "scannerGrid", // + currentBotJobId,
+                        jsonData,
+                        "activate-insert-all");
+
                 String insertOne = isMany ? "Insert ALL" : "Insert one Element";
                 performMessage.errorMessage(
                         "Operation \"" + insertOne + "\" failed",
