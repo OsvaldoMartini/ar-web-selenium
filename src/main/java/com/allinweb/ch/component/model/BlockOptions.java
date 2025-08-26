@@ -16,7 +16,7 @@ public class BlockOptions {
         this.blockId = blockId;
     }
 
-    // 🔹 Converter from BlockLoadDTO → BlockOptions
+    // Converter from BlockLoadDTO - BlockOptions
     public static BlockOptions fromBlockWithInstructionId(BlockLoadDTO block) {
         Integer firstInstructionId = null;
 
@@ -34,7 +34,7 @@ public class BlockOptions {
                 );
     }
 
-    // 🔹 Converter from BlockLoadDTO → BlockOptions
+    // Converter from BlockLoadDTO - BlockOptions
     public static BlockOptions fromBlockWithOrderNumber(BlockLoadDTO block) {
         return new BlockOptions(
                 block.getBlockOrderNumber() + "# " + block.getName(), // text

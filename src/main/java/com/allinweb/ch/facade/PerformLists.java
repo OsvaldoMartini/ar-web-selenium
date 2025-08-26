@@ -198,7 +198,7 @@ public class PerformLists {
             // Extract body
             body = jsonObjMSG.has("body") ? jsonObjMSG.get("body").getAsString() : "unknown";
 
-            // Determine type (priority: body.type → json.type → operationId)
+            // Determine type (priority: body.type ? json.type ? operationId)
             if (!"unknown".equalsIgnoreCase(body)) {
                 try {
                     JsonObject objSecond = JsonParser.parseString(body).getAsJsonObject();
@@ -277,7 +277,7 @@ public class PerformLists {
                 //                performMessage.errorMessage(
                 //                        "Browser is Closed",
                 //                        "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>To perform
-                // this action, please</span> ✅",
+                // this action, please</span> ?",
                 //                        "<span style='color: #1976D2;'>reopen the browser via the Scanner:</span>",
                 //                        "<span style='font-weight: bold;'>Click the \"Scanner\" button in the previous
                 // window</span>",
