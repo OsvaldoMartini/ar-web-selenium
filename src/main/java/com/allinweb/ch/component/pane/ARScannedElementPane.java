@@ -73,6 +73,7 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 public class ARScannedElementPane extends ARPane {
 
     protected static volatile ARScannedElementPane instance;
+    private Stage stage;
 
     // Private constructor to prevent instantiation
     private ARScannedElementPane() {}
@@ -5492,5 +5493,20 @@ public class ARScannedElementPane extends ARPane {
 
     public void printCsv() {
         System.out.println(getCsvContent());
+    }
+
+    // Allow the stage to be set from outside when pane is shown
+    public void setStage(Stage stage) {
+        this.stage = stage;
+    }
+
+    // 🔹 Method to close the window
+    public void closePane() {
+        if (this.stage != null) {
+            Platform.runLater(() -> {
+                this.stage.close();
+                instance = null; // optional reset for singleton
+            });
+        }
     }
 }

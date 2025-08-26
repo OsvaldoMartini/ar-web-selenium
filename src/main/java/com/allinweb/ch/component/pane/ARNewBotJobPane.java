@@ -260,12 +260,8 @@ public class ARNewBotJobPane extends ARPane {
         this.arViewBotJobScene = arViewBotJobScene;
         this.arWebDriver = arWebDriver;
 
-        if (performLists.getListHomeBanking().isEmpty()) {
-            performDataBase.loadHomeBanking(null);
-        }
-        if (performLists.getListHomeUrl().isEmpty()) {
-            performDataBase.loadHomeUrls(null);
-        }
+        performDataBase.loadHomeBanking(null);
+        performDataBase.loadHomeUrls(null);
     }
 
     private void launchBotJobCreation() {

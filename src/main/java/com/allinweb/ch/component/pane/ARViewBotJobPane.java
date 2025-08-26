@@ -55,6 +55,7 @@ import javafx.util.StringConverter;
 public class ARViewBotJobPane extends ARPane {
 
     protected static volatile ARViewBotJobPane instance;
+    private Stage stage;
 
     // Private constructor to prevent instantiation
     private ARViewBotJobPane() {
@@ -1370,6 +1371,21 @@ public class ARViewBotJobPane extends ARPane {
             ARLogger.getInstance(ARConfigurationPane.class)
                     .severe("Cannot read/validate the License path/file. Error: " + error.getMessage());
             return false;
+        }
+    }
+
+    // Allow the stage to be set from outside when pane is shown
+    public void setStage(Stage stage) {
+        this.stage = stage;
+    }
+
+    // 🔹 Method to close the window
+    public void closePane() {
+        if (this.stage != null) {
+            Platform.runLater(() -> {
+                this.stage.close();
+                instance = null; // optional reset for singleton
+            });
         }
     }
 }

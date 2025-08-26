@@ -63,26 +63,18 @@ public class ARScannedElementScene extends ARScene {
     private Stage modalStage;
     private Scene modalScene;
 
-    private static final ARScannedElementPane arScannedElementPane;
-    private static final ARWebDriver arWebDriver;
-    private static final ARPropertyManager arPropertyManager;
-    private static final PerformMessage performMessage;
+    private static final ARScannedElementPane arScannedElementPane = ARScannedElementPane.getInstance();
+    private static final ARWebDriver arWebDriver = ARWebDriver.getInstance();
+    private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
+    private static final PerformMessage performMessage = PerformMessage.getInstance();
 
-    static {
-        arScannedElementPane = ARScannedElementPane.getInstance();
-        arWebDriver = ARWebDriver.getInstance();
-        arPropertyManager = ARPropertyManager.getInstance();
-        performMessage = PerformMessage.getInstance();
-    }
-
-    public ARScannedElementScene initialize(
+    public void initialize(
             HomeBankingLoadDTO homeBankingLoadDTO, BotJobLoadDTO botJobLoadDTO, BlockLoadDTO blockLoadDTO) {
         this.homeBankingLoadDTO = homeBankingLoadDTO;
         this.botJobLoadDTO = botJobLoadDTO;
         this.blockLoadDTO = blockLoadDTO;
         this.executorWebSocket = Executors.newSingleThreadExecutor();
         this.executorServicePreLaunch = Executors.newSingleThreadExecutor();
-        return this;
     }
 
     @Override
@@ -143,6 +135,13 @@ public class ARScannedElementScene extends ARScene {
                 ARLogger.getInstance(ARScannedElementPane.class).warning("Closing WebDriver: " + e.getMessage());
             }
         }
+        Platform.runLater(() -> {
+            arWebDriver.getWebDriverList().clear();
+            arWebDriver.setCurrentDriver(null); // reset current driver
+
+            arWebDriver.closeAllDrivers();
+        });
+
         Platform.runLater(() -> arWebDriver.getWebDriverList().clear());
     }
 
@@ -186,6 +185,7 @@ public class ARScannedElementScene extends ARScene {
 
             if (modalStage == null) {
                 modalStage = new Stage();
+                arScannedElementPane.setStage(modalStage);
                 modalStage.getIcons().add(icon);
                 IARPane pane = buildPane();
                 if (pane != null) {

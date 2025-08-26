@@ -231,6 +231,7 @@ public class ARViewBotJobScene extends ARScene {
 
         if (modalStage == null) {
             modalStage = new Stage();
+            arViewBotJobPane.setStage(modalStage);
             modalStage.getIcons().add(icon);
             IARPane pane = buildPane();
             if (pane != null) {

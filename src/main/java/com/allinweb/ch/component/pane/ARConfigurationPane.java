@@ -13,6 +13,7 @@ import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
 import com.allinweb.ch.component.scene.ARScannedElementScene;
 import com.allinweb.ch.component.scene.ARViewBotJobScene;
 import com.allinweb.ch.control.ARComponentBuilder;
+import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.*;
 import com.allinweb.ch.license.LicenceVal;
 import com.allinweb.ch.license.LicenseManager;
@@ -97,6 +98,7 @@ public class ARConfigurationPane extends ARPane {
     private static final PerformBackup performBackup;
     private static final PerformInitializer performInitializer;
 
+    private static final ARWebDriver arWebDriver = ARWebDriver.getInstance();
     private static final ARScannedElementScene arScannedElementScene;
     private static final ARViewBotJobScene arViewBotJobScene;
     private static final ARNewCommandScene arNewCommandScene;
@@ -922,6 +924,8 @@ public class ARConfigurationPane extends ARPane {
                     performDataBase.loadQuickBotJobs();
                     viewBotJobListView.setItems(performLists.getQuickBotJobs());
 
+                    closeAllScenes();
+
                     performMessage.showCustomModalDialogDragWin11(
                             "Restore DB Success! ✅",
                             "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>Database restored successfully!</span>",
@@ -1065,27 +1069,7 @@ public class ARConfigurationPane extends ARPane {
                 return;
             }
 
-            if (arViewBotJobScene != null) {
-                arViewBotJobScene.closeModal();
-            }
-
-            if (arScannedElementScene != null) {
-                arScannedElementScene.closeModal();
-            }
-
-            if (arNewBotJobScene != null) {
-                arNewBotJobScene.closeModal();
-            }
-
-            if (arNewCommandScene.getRowMoveDTO() != null) {
-                arNewCommandScene.setRowMoveDTO(null);
-                arNewCommandScene.closeModal();
-            }
-
-            if (arElementValueScene.getRowMoveDTO() != null) {
-                arElementValueScene.setRowMoveDTO(null);
-                arElementValueScene.closeModal();
-            }
+            closeAllScenes();
 
             arPropertyManager.setProperty(ARPropertyEnum.DATABASE_TYPE.getValue(), databaseChoiceBox.getValue());
 
@@ -1102,6 +1086,8 @@ public class ARConfigurationPane extends ARPane {
                     ARPropertyEnum.DB_PWD.getValue(), dbPwd.getText().trim());
 
             performDataBase.changeDbConnection();
+
+            closeAllScenes();
 
             //            performDataBase.dropPostGresSequences();
             //            performDataBase.exportHomeBanking();
@@ -1371,5 +1357,37 @@ public class ARConfigurationPane extends ARPane {
                     .severe("Cannot read/validate the License path/file. Error: " + error.getMessage());
             return false;
         }
+    }
+
+    private void closeAllScenes() {
+        if (arNewBotJobScene != null) {
+            arNewBotJobScene.closeModal();
+        }
+        if (arNewCommandScene != null) {
+            arNewCommandScene.setRowMoveDTO(null);
+            arNewCommandScene.closeModal();
+        }
+        if (arElementValueScene != null) {
+            arElementValueScene.setRowMoveDTO(null);
+            arElementValueScene.closeModal();
+        }
+        if (arViewBotJobScene != null) {
+            arViewBotJobScene.closeModal();
+        }
+        if (arNewHomeBankingScene != null) {
+            arNewHomeBankingScene.closeModal();
+        }
+        if (arScannedElementScene != null) {
+            arScannedElementScene.closeModal();
+            arScannedElementScene.closeWebDrivers();
+        }
+
+        if (arWebDriver != null) {
+            arWebDriver.closeAllDrivers();
+            arWebDriver.closeCurrentDriver();
+        }
+
+        performDataBase.loadHomeBanking(null);
+        performDataBase.loadHomeUrls(null);
     }
 }

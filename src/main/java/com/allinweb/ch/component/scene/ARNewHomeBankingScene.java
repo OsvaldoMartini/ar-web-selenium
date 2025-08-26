@@ -115,4 +115,15 @@ public class ARNewHomeBankingScene extends ARScene {
     public String getTitle() {
         return TITLE;
     }
+
+    public void closeModal() {
+        try {
+            if (modalStage != null) {
+                modalStage.close();
+            }
+            modalStage = null;
+        } catch (Exception error) {
+            System.err.println("Browser Closed Before Web Scanner. Error: " + error.getMessage());
+        }
+    }
 }
