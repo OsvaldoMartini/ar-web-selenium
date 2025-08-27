@@ -46,7 +46,7 @@ public class ARSaveComponentScene extends ARScene {
 
     private BlockDetailsDTO blockDetailsDTO;
 
-    public ARSaveComponentScene(BlockDetailsDTO blockDetailsDTO) {
+    public void initialize(BlockDetailsDTO blockDetailsDTO) {
         this.blockDetailsDTO = blockDetailsDTO;
         TITLE = "Save Block:  Comp - " + blockDetailsDTO.getBlockName();
     }

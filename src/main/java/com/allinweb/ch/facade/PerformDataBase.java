@@ -681,6 +681,11 @@ public class PerformDataBase {
                     pstmt.setInt(1, orderNumber);
                     pstmt.setInt(2, blockOrder.getId());
 
+                    // UPDATE MEMORY LIST ALSO
+                    if (reorderAll) {
+                        blockOrder.setBlockOrderNumber(newOrderNumber);
+                    }
+
                     // Choose the correct ID value based on the column
                     if ("block".equalsIgnoreCase(tableName)) {
                         pstmt.setInt(3, blockOrder.getBotJobId());
@@ -784,10 +789,6 @@ public class PerformDataBase {
                             .info("Executed final batch of " + (count % BATCH_SIZE) + " block order updates for table: "
                                     + tableName);
                 }
-
-                // ✅ reload blocks if necessary (optional — remove if list is always passed in externally)
-                loadBlocks(whereId, "", tableName);
-                return null; // Success
             } catch (SQLException e) {
                 conn.rollback();
                 ARLogger.getInstance(PerformDataBase.class)
@@ -804,6 +805,7 @@ public class PerformDataBase {
                             tableName, ex.getMessage()));
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
+        return null; // Success
     }
 
     public List<BlockOrderDetailDTO> selectAllBlocks(int botJobId) {

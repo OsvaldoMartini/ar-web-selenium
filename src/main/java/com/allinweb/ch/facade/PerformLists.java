@@ -372,4 +372,118 @@ public class PerformLists {
         }
         return currentListBlock;
     }
+
+    // Update Block Lists
+    public void updateMemoryBlockName(String tableName, Integer whereId, Integer blockId, String newBlockName) {
+        if ("block".equalsIgnoreCase(tableName)) {
+            // Update in listBlock (global list)
+            for (BlockLoadDTO block : getListBlock()) {
+                if (block.getId().equals(blockId)) {
+                    block.setName(newBlockName);
+                    break;
+                }
+            }
+
+            // Also update inside BotJobLoadDTO -> blockLoadDTOList
+            for (BotJobLoadDTO botJob : getListBotJob()) {
+                if (botJob.getBotJobId().equals(whereId)) { // botJobId
+                    if (botJob.getBlockLoadDTOList() != null) {
+                        for (BlockLoadDTO block : botJob.getBlockLoadDTOList()) {
+                            if (block.getId().equals(blockId)) {
+                                block.setName(newBlockName);
+                                break; // done
+                            }
+                        }
+                    }
+                }
+            }
+
+        } else if ("component_block".equalsIgnoreCase(tableName)) {
+            // Only update component blocks
+            for (BlockLoadDTO block : getListBlockComp()) {
+                if (block.getId().equals(blockId)) {
+                    block.setName(newBlockName);
+                    break;
+                }
+            }
+
+            // Also update inside BotJobLoadDTO -> blockLoadDTOList
+            for (BotJobLoadDTO botJob : getListBotJobComp()) {
+                if (botJob.getHomeBankingId().equals(whereId)) { // homeBankId
+                    if (botJob.getBlockLoadDTOList() != null) {
+                        for (BlockLoadDTO block : botJob.getBlockLoadDTOList()) {
+                            if (block.getId().equals(blockId)) {
+                                block.setName(newBlockName);
+                                break; // done
+                            }
+                        }
+                    }
+                }
+            }
+
+        } else {
+            throw new IllegalArgumentException("Invalid tableName: " + tableName);
+        }
+    }
+
+    // Update Block Order Numbers
+    public void updateMemoryBlockOrder(String tableName, Integer whereId, List<BlockLoadDTO> mappedBlocks) {
+        if ("block".equalsIgnoreCase(tableName)) {
+            // Update in listBlock (global list)
+            for (BlockLoadDTO mapped : mappedBlocks) {
+                for (BlockLoadDTO block : getListBlock()) {
+                    if (block.getId().equals(mapped.getId())) {
+                        block.setBlockOrderNumber(mapped.getBlockOrderNumber());
+                        break;
+                    }
+                }
+            }
+
+            // Also update inside BotJobLoadDTO -> blockLoadDTOList
+            for (BotJobLoadDTO botJob : getListBotJob()) {
+                if (botJob.getId().equals(whereId)) { // filter by botJobId
+                    if (botJob.getBlockLoadDTOList() != null) {
+                        for (BlockLoadDTO mapped : mappedBlocks) {
+                            for (BlockLoadDTO block : botJob.getBlockLoadDTOList()) {
+                                if (block.getId().equals(mapped.getId())) {
+                                    block.setBlockOrderNumber(mapped.getBlockOrderNumber());
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+        } else if ("component_block".equalsIgnoreCase(tableName)) {
+            // Update in listBlockComp (global list)
+            for (BlockLoadDTO mapped : mappedBlocks) {
+                for (BlockLoadDTO block : getListBlockComp()) {
+                    if (block.getId().equals(mapped.getId())) {
+                        block.setBlockOrderNumber(mapped.getBlockOrderNumber());
+                        break;
+                    }
+                }
+            }
+
+            // Also update inside BotJobLoadDTOComp -> blockLoadDTOList
+            for (BotJobLoadDTO botJob : getListBotJobComp()) {
+                if (botJob.getHomeBankingId().equals(whereId)) { // filter by homeBankingId
+                    if (botJob.getBlockLoadDTOList() != null) {
+                        for (BlockLoadDTO mapped : mappedBlocks) {
+                            for (BlockLoadDTO block : botJob.getBlockLoadDTOList()) {
+                                if (block.getId().equals(mapped.getId())) {
+                                    block.setBlockOrderNumber(mapped.getBlockOrderNumber());
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+        } else {
+            throw new IllegalArgumentException("Invalid tableName: " + tableName);
+        }
+    }
 }
