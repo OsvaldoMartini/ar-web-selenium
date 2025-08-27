@@ -20,10 +20,9 @@ public class BlockOptions {
     public static BlockOptions fromBlockWithInstructionId(BlockLoadDTO block) {
         Integer firstInstructionId = null;
 
-        if (block.getInstructionLoadDTOS() != null
-                && !block.getInstructionLoadDTOS().isEmpty()) {
-            InstructionLoadDTO firstInstr = block.getInstructionLoadDTOS().get(0);
-            firstInstructionId = firstInstr.getId(); // adapt if InstructionLoadDTO has another identifier
+        if (block.getInstructionLoad() != null && !block.getInstructionLoad().isEmpty()) {
+            InstructionLoad firstInstr = block.getInstructionLoad().get(0);
+            firstInstructionId = firstInstr.getId(); // adapt if InstructionLoad has another identifier
         }
 
         return new BlockOptions(

@@ -5,7 +5,7 @@ import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.HomeBankingLoadDTO;
 import com.allinweb.ch.component.model.HomeUrlDTO;
-import com.allinweb.ch.component.model.InstructionLoadDTO;
+import com.allinweb.ch.component.model.InstructionLoad;
 import com.allinweb.ch.component.model.PayloadJson;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.*;
@@ -154,10 +154,25 @@ public class ARViewBotJobPane extends ARPane {
 
         ExcelUtils.createExcelDataFile(selectedBotJob, null);
 
-        Platform.runLater(() -> performDataBase.loadAllVariablesByCriteria("variable", selectedBotJob.getId(), -1));
-        Platform.runLater(() -> {
-            performDataBase.loadWebPageFields(selectedBotJob.getId(), "bot_job");
-        });
+        ErrorMessage errorMessage = null;
+        if (performLists.getListVariablesUser().isEmpty()) {
+            errorMessage = performDataBase.loadAllVariablesByCriteria("variable", selectedBotJob.getId(), -1);
+        }
+
+        if (errorMessage == null && performLists.getListWebPageItems().isEmpty()) {
+            errorMessage = performDataBase.loadWebPageFields(selectedBotJob.getId(), "bot_job");
+        }
+
+        if (errorMessage != null) {
+            performMessage.errorMessage(
+                    errorMessage.getErrorTitle(),
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                            + errorMessage.getErrorHeader(),
+                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                    null,
+                    0);
+        }
 
         if (arNewCommandScene.getRowMoveDTO() != null) {
             //            arNewCommandScene.setRowMoveDTO(null);
@@ -212,50 +227,92 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     private void refreshGrids() {
-        setPayloadEmpty("botJobTasks");
-        String jsonData = gson.toJson(payloadEmpty);
 
-        performDataBase.loadCompleteJobs(selectedBotJob.getId());
+        ErrorMessage errorMessage = performDataBase.loadCompleteJobs(selectedBotJob.getId());
 
-        if (!performLists.getListBotJob().isEmpty()) {
-            List<InstructionLoadDTO> instructions = performDataBase.buildJsonViewData(
-                    performLists.getListBotJob(), selectedBotJob.getId(), "instruction");
-            if (!instructions.isEmpty()) {
-                jsonData = gson.toJson(instructions);
-            }
+        if (errorMessage != null) {
+            performMessage.errorMessage(
+                    errorMessage.getErrorTitle(),
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                            + errorMessage.getErrorHeader(),
+                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                    null,
+                    0);
         }
 
-        webSocketSessionManager.sendMessageJson(
-                selectedBotJob.getHomeBankingId(), "botJobTasks", jsonData, "updateInstructions");
+        // Updates the Grid After Load
+        if (!firstLoad) {
+            setPayloadEmpty("botJobTasks");
+            String jsonData = gson.toJson(payloadEmpty);
 
-        setPayloadEmpty("componentTasks");
-        jsonData = gson.toJson(payloadEmpty);
-        performDataBase.loadComponentsComplete(
+            if (!performLists.getListBotJob().isEmpty()) {
+                List<InstructionLoad> instructions = performDataBase.buildJsonViewData(
+                        performLists.getListBotJob(), selectedBotJob.getId(), "instruction");
+                if (!instructions.isEmpty()) {
+                    jsonData = gson.toJson(instructions);
+                }
+            }
+
+            webSocketSessionManager.sendMessageJson(
+                    selectedBotJob.getHomeBankingId(), "botJobTasks", jsonData, "updateInstructions");
+        }
+
+        errorMessage = performDataBase.loadComponentsComplete(
                 selectedBotJob.getHomeBankingId(), selectedBotJob.getId(), selectedBotJob.getName());
-        if (!performLists.getListBotJobComp().isEmpty()) {
-            List<InstructionLoadDTO> instructions = performDataBase.buildJsonViewData(
-                    performLists.getListBotJobComp(), selectedBotJob.getHomeBankingId(), "component_instruction");
-            if (!instructions.isEmpty()) {
-                jsonData = gson.toJson(instructions);
-            }
+
+        if (errorMessage != null) {
+            performMessage.errorMessage(
+                    errorMessage.getErrorTitle(),
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                            + errorMessage.getErrorHeader(),
+                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                    null,
+                    0);
         }
 
-        webSocketSessionManager.sendMessageJson(
-                selectedBotJob.getHomeBankingId(), "componentTasks", jsonData, "componentsUpdate");
+        if (!firstLoad) {
+            setPayloadEmpty("componentTasks");
+            String jsonData = gson.toJson(payloadEmpty);
+
+            if (!performLists.getListBotJobComp().isEmpty()) {
+                List<InstructionLoad> instructions = performDataBase.buildJsonViewData(
+                        performLists.getListBotJobComp(), selectedBotJob.getHomeBankingId(), "component_instruction");
+                if (!instructions.isEmpty()) {
+                    jsonData = gson.toJson(instructions);
+                }
+            }
+
+            webSocketSessionManager.sendMessageJson(
+                    selectedBotJob.getHomeBankingId(), "componentTasks", jsonData, "componentsUpdate");
+        }
 
         //        webSocketSessionManager.broadcastMessageToAll(
         //                selectedBotJob.getHomeBankingId(), "componentTasks", jsonData, "componentsUpdate");
     }
 
     private void builViewComponent() {
+        if (performLists.getListBotJob().isEmpty()) {
+            ErrorMessage errorMessage = performDataBase.loadCompleteJobs(selectedBotJob.getId());
+            if (errorMessage != null) {
+                performMessage.errorMessage(
+                        errorMessage.getErrorTitle(),
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                + errorMessage.getErrorHeader(),
+                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                        null,
+                        0);
+            }
+        }
+
         setPayloadEmpty("botJobTasks");
         String jsonData = gson.toJson(payloadEmpty);
 
-        performDataBase.loadCompleteJobs(selectedBotJob.getId());
-
         // Load blocks based on the BotJobLoadDTO instead of blockDTOObservableList
         if (!performLists.getListBotJob().isEmpty()) {
-            List<InstructionLoadDTO> instructions = performDataBase.buildJsonViewData(
+            List<InstructionLoad> instructions = performDataBase.buildJsonViewData(
                     performLists.getListBotJob(), selectedBotJob.getId(), "instruction");
             if (!instructions.isEmpty()) {
                 performMessage.outputJson(instructions, "botJobTasks-" + selectedBotJob.getId(), false);
@@ -277,14 +334,28 @@ public class ARViewBotJobPane extends ARPane {
                 selectedBotJob.getId(),
                 selectedBotJob.getName());
 
+        if (performLists.getListBotJobComp().isEmpty()) {
+
+            ErrorMessage errorMessage = performDataBase.loadComponentsComplete(
+                    selectedBotJob.getHomeBankingId(), selectedBotJob.getId(), selectedBotJob.getName());
+
+            if (errorMessage != null) {
+                performMessage.errorMessage(
+                        errorMessage.getErrorTitle(),
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                + errorMessage.getErrorHeader(),
+                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                        null,
+                        0);
+            }
+        }
+
         setPayloadEmpty("componentTasks");
         jsonData = gson.toJson(payloadEmpty);
 
-        performDataBase.loadComponentsComplete(
-                selectedBotJob.getHomeBankingId(), selectedBotJob.getId(), selectedBotJob.getName());
-
         if (!performLists.getListBotJobComp().isEmpty()) {
-            List<InstructionLoadDTO> instructions = performDataBase.buildJsonViewData(
+            List<InstructionLoad> instructions = performDataBase.buildJsonViewData(
                     performLists.getListBotJobComp(), selectedBotJob.getHomeBankingId(), "component_instruction");
             if (!instructions.isEmpty()) {
                 performMessage.outputJson(instructions, "componentTasks-" + selectedBotJob.getId(), false);
@@ -319,14 +390,14 @@ public class ARViewBotJobPane extends ARPane {
         }
 
         this.refreshButton = builder.buildButton(
-                "Refresh", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
+                "Refresh", ARConstants.SPACE_ZERO, ARConstants.ICON_REFRESH, ARConstants.SPACE_M, new Insets(5.0D));
         this.openScannerButton = builder.buildButton(
-                "Scanner", ARConstants.SPACE_ZERO, "/open_browser.png", ARConstants.SPACE_M, new Insets(5.0D));
+                "Scanner", ARConstants.SPACE_ZERO, ARConstants.ICON_BROWSER, ARConstants.SPACE_M, new Insets(5.0D));
         this.editBotJobButton = builder.buildButton(
-                "Edit Job", ARConstants.SPACE_ZERO, "/edit.png", ARConstants.SPACE_M, new Insets(5.0D));
+                "Edit Job", ARConstants.SPACE_ZERO, ARConstants.ICON_EDIT, ARConstants.SPACE_M, new Insets(5.0D));
 
         this.launchBotJobButton = builder.buildButton(
-                "Launch", ARConstants.SPACE_ZERO, "/play.png", ARConstants.SPACE_M, new Insets(5.0D));
+                "Launch", ARConstants.SPACE_ZERO, ARConstants.ICON_PLAY, ARConstants.SPACE_M, new Insets(5.0D));
         saveBotJobButton = builder.buildButton(
                 "Save Job ", ARConstants.SPACE_ZERO, ARConstants.ICON_SAVE, ARConstants.SPACE_M, new Insets(5.0D));
         saveBotJobButton.setDisable(true);
@@ -488,25 +559,23 @@ public class ARViewBotJobPane extends ARPane {
         refreshEnvsButton.visibleProperty().bind(isEditingBotJob);
         refreshEnvsButton.managedProperty().bind(isEditingBotJob);
 
-        //        List<InstructionLoadDTO> listForDeletion =
-        //                performDataBase.getBlockLoopInstructionIdsWithNullBlock(selectedBotJob.getId());
-        //
-        //        for (InstructionLoadDTO instruction : listForDeletion) {
-        //            performDataBase.deleteInstruction(selectedBotJob.getId(), instruction, false);
-        //        }
-        //        performDataBase.deleteNullBlocks("block", selectedBotJob.getId());
-
-        if (performLists.getListBlock().isEmpty()) {
+        if (!performLists.getListBotJob().isEmpty()
+                && performLists.getListBlock().isEmpty()) {
             performDataBase.loadBlocks(selectedBotJob.getId(), selectedBotJob.getName(), "block");
         }
-        if (performLists.getListBlockComp().isEmpty()) {
+        if (!performLists.getListBotJobComp().isEmpty()
+                && performLists.getListBlockComp().isEmpty()) {
             performDataBase.loadBlocks(selectedBotJob.getHomeBankingId(), selectedBotJob.getName(), "component_block");
         }
 
-        performDataBase.updateBlockOrderNumber("block", selectedBotJob.getId(), true);
-        performDataBase.updateBlockOrderNumber("component_block", selectedBotJob.getHomeBankingId(), true);
-
-        performDataBase.loadCompleteJobs(selectedBotJob.getId());
+        if (!performLists.getListBlock().isEmpty()
+                && performLists.getListBlock().size() > 1) {
+            performDataBase.updateBlockOrderNumber("block", selectedBotJob.getId(), true);
+        }
+        if (!performLists.getListBlockComp().isEmpty()
+                && performLists.getListBlockComp().size() > 1) {
+            performDataBase.updateBlockOrderNumber("component_block", selectedBotJob.getHomeBankingId(), true);
+        }
 
         componentBox = new HBox(new Node[] {webViewTasks});
         firstLoad = false;
@@ -763,13 +832,24 @@ public class ARViewBotJobPane extends ARPane {
                     performDataBase.loadBlocks(selectedBotJob.getId(), selectedBotJob.getName(), "block");
                 }
 
-                List<String> allActions = performDataBase.loadAllActionsPerBlock(performLists.getListBlock());
+                ErrorMessage errorMessage = performDataBase.loadAllActionsPerBlock(performLists.getListBlock());
+
+                if (errorMessage != null) {
+                    performMessage.errorMessage(
+                            errorMessage.getErrorTitle(),
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                    + errorMessage.getErrorHeader(),
+                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                            null,
+                            0);
+                }
 
                 // Check if the Excel file already exists
-                ExtractedData extractedData = ExcelUtils.isFileExists(selectedBotJob.getName(), allActions);
+                ExtractedData extractedData =
+                        ExcelUtils.isFileExists(selectedBotJob.getName(), performLists.getAllActions());
 
                 if (extractedData != null && extractedData.getErrorMessage() != null) {
-
                     performMessage.errorMessage(
                             "Excel Error",
                             "Could Not Execute Excel File",
@@ -1086,7 +1166,17 @@ public class ARViewBotJobPane extends ARPane {
 
     private void executeScannerTask() {
 
-        performDataBase.loadHomeBanking(selectedBotJob.getHomeBankingId());
+        ErrorMessage errorMessage = performDataBase.loadHomeBanking(selectedBotJob.getHomeBankingId());
+        if (errorMessage != null) {
+            performMessage.errorMessage(
+                    errorMessage.getErrorTitle(),
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                            + errorMessage.getErrorHeader(),
+                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                    null,
+                    0);
+        }
         HomeBankingLoadDTO homeBanking = performLists.getListHomeBanking().isEmpty()
                 ? null
                 : performLists.getListHomeBanking().get(0);
@@ -1102,7 +1192,17 @@ public class ARViewBotJobPane extends ARPane {
             this.blockLoad = selectedBotJob.getBlockLoadDTOList().get(0);
         } else {
 
-            performDataBase.loadBlocks(selectedBotJob.getId(), selectedBotJob.getName(), "block");
+            errorMessage = performDataBase.loadBlocks(selectedBotJob.getId(), selectedBotJob.getName(), "block");
+            if (errorMessage != null) {
+                performMessage.errorMessage(
+                        errorMessage.getErrorTitle(),
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                + errorMessage.getErrorHeader(),
+                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                        null,
+                        0);
+            }
             if (!performLists.getListBlock().isEmpty()) {
                 this.blockLoad = performLists.getListBlock().get(0);
             }
@@ -1288,8 +1388,19 @@ public class ARViewBotJobPane extends ARPane {
         int blockId = -1;
         String blockName = "1# Default Block";
         if (destination.equalsIgnoreCase("botJobTasks")) {
-            if (performLists.getListBlock().isEmpty()) {
-                performDataBase.loadBlocks(selectedBotJob.getId(), "", "block");
+            if (!performLists.getListBotJob().isEmpty()
+                    && performLists.getListBlock().isEmpty()) {
+                ErrorMessage errorMessage = performDataBase.loadBlocks(selectedBotJob.getId(), "", "block");
+                if (errorMessage != null) {
+                    performMessage.errorMessage(
+                            errorMessage.getErrorTitle(),
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                    + errorMessage.getErrorHeader(),
+                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                            null,
+                            0);
+                }
             }
             if (selectedBotJob.getBlockId() == null
                     && !performLists.getListBlock().isEmpty()) {
@@ -1297,9 +1408,23 @@ public class ARViewBotJobPane extends ARPane {
                 blockName = performLists.getListBlock().get(0).getName();
             }
         } else if (destination.equalsIgnoreCase("componentTasks")) {
-            if (performLists.getListBlockComp().isEmpty()) {
-                performDataBase.loadBlocks(selectedBotJob.getHomeBankingId(), "", "component_block");
+            if (!performLists.getListBotJobComp().isEmpty()
+                    && performLists.getListBlockComp().isEmpty()) {
+                ErrorMessage errorMessage =
+                        performDataBase.loadBlocks(selectedBotJob.getHomeBankingId(), "", "component_block");
+
+                if (errorMessage != null) {
+                    performMessage.errorMessage(
+                            errorMessage.getErrorTitle(),
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                    + errorMessage.getErrorHeader(),
+                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                            null,
+                            0);
+                }
             }
+
             if (selectedBotJob.getBlockId() == null
                     && !performLists.getListBlockComp().isEmpty()) {
                 blockId = performLists.getListBlockComp().get(0).getId();

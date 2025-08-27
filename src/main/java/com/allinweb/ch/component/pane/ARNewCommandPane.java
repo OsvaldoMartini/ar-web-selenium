@@ -167,7 +167,7 @@ public class ARNewCommandPane extends ARPane {
     private ComboBox<BlockOptions> comboBoxAllBlocks;
     private ComboBox<BlockOptions> comboBoxBlocksGoto;
 
-    private ObservableList<BlockOptions> currentListBlock = FXCollections.observableArrayList();
+    private List<BlockOptions> currentListBlock = new ArrayList<>();
 
     private ComboBox<ComboBoxOperator> comboBoxOperator;
     private ObservableList<ComboBoxOperator> operatorsItems = FXCollections.observableArrayList();
@@ -175,10 +175,21 @@ public class ARNewCommandPane extends ARPane {
     public void initialize(RowMoveDTO rowMoveDTO) {
         this.rowMoveDTO = rowMoveDTO;
 
-        if (this.rowMoveDTO.getSessionId().equals("componentTasks")) {
-            performDataBase.loadWebPageFields(rowMoveDTO.getHomeBankingId(), "home_banking");
-        } else {
-            performDataBase.loadWebPageFields(rowMoveDTO.getBotJobId(), "bot_job");
+        ErrorMessage errorMessage = null;
+        String tableName = this.rowMoveDTO.getSessionId().equals("componentTasks") ? "home_banking" : "bot_job";
+        int whereId = this.rowMoveDTO.getSessionId().equals("componentTasks")
+                ? rowMoveDTO.getHomeBankingId()
+                : rowMoveDTO.getBotJobId();
+        errorMessage = performDataBase.loadWebPageFields(whereId, tableName);
+        if (errorMessage != null) {
+            performMessage.errorMessage(
+                    errorMessage.getErrorTitle(),
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                            + errorMessage.getErrorHeader(),
+                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                    null,
+                    0);
         }
 
         this.filteredPageItems.clear();
@@ -262,9 +273,6 @@ public class ARNewCommandPane extends ARPane {
         }
 
         String varTable = rowMoveDTO.getSessionId().equals("componentTasks") ? "component_variable" : "variable";
-        int whereId = rowMoveDTO.getSessionId().equals("componentTasks")
-                ? rowMoveDTO.getHomeBankingId()
-                : rowMoveDTO.getBotJobId();
 
         if (this.filteredPageItems != null && this.filteredPageItems.size() > 0) {
             variablesItems.clear();
@@ -849,7 +857,7 @@ public class ARNewCommandPane extends ARPane {
     }
 
     private void titleDescription() {
-        InstructionLoadDTO firstInstruction = rowMoveDTO.getUpdatedRows().get(0);
+        InstructionLoad firstInstruction = rowMoveDTO.getUpdatedRows().get(0);
         String operation = performMessage.renderInstructionActions(firstInstruction);
 
         // Create individual text elements with the necessary styling
@@ -2194,7 +2202,20 @@ public class ARNewCommandPane extends ARPane {
 
     public void reloadComboVars(String varTable, int whereId, int instructionId, boolean selectLast, int variableId) {
         variablesItems.clear();
-        performDataBase.loadAllVariablesByCriteria(varTable, whereId, instructionId);
+
+        if (!firstLoad && performLists.getListVariablesUser().isEmpty()) {
+            ErrorMessage errorMessage = performDataBase.loadAllVariablesByCriteria(varTable, whereId, instructionId);
+            if (errorMessage != null) {
+                performMessage.errorMessage(
+                        errorMessage.getErrorTitle(),
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                + errorMessage.getErrorHeader(),
+                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                        null,
+                        0);
+            }
+        }
 
         if (!performLists.getListVariablesUser().isEmpty()) {
             List<ComboBoxVars> variablesNames = performLists.getListVariablesUser().stream()
@@ -2237,7 +2258,18 @@ public class ARNewCommandPane extends ARPane {
     }
 
     private void updateFields(String tableName, int whereId) {
-        performDataBase.loadWebPageFields(whereId, tableName);
+        ErrorMessage errorMessage = performDataBase.loadWebPageFields(whereId, tableName);
+        if (errorMessage != null) {
+            performMessage.errorMessage(
+                    errorMessage.getErrorTitle(),
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                            + errorMessage.getErrorHeader(),
+                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                    null,
+                    0);
+        }
+
         this.filteredPageItems.clear();
         this.filteredPageItems.addAll(performLists.getListWebPageItems().stream()
                 //                .filter(item -> !"button".equals(item.getTagType()) && !"a".equals(item.getTagType()))
@@ -2291,14 +2323,14 @@ public class ARNewCommandPane extends ARPane {
                         .collect(Collectors.toList());
 
                 // Apply distinctByTextAndId
-                List<BlockOptions> distinctList =
-                        tempList.stream().filter(distinctByTextAndId()).collect(Collectors.toList());
+                //                List<BlockOptions> distinctList =
+                //                        tempList.stream().filter(distinctByTextAndId()).collect(Collectors.toList());
 
-                if (distinctList.isEmpty()) {
-                    distinctList.add(new BlockOptions("no blocks available", "", -1, -1));
+                if (tempList.isEmpty()) {
+                    tempList.add(new BlockOptions("no blocks available", "", -1, -1));
                 }
 
-                filtered.addAll(distinctList);
+                filtered.addAll(tempList);
             } else {
                 filtered.add(new BlockOptions("no blocks added", "", -1, -1));
             }
@@ -2311,24 +2343,24 @@ public class ARNewCommandPane extends ARPane {
     private void loadAllBlocks() {
         if (comboBoxAllBlocks != null) {
             Platform.runLater(() -> {
-                List<BlockOptions> distinctList;
+                //                List<BlockOptions> distinctList;
 
                 if (!currentListBlock.isEmpty()) {
                     // Collect distinct by text into a new list
-                    distinctList = currentListBlock.stream()
-                            .filter(distinctByTextAndId())
-                            .collect(Collectors.toList());
+                    //                    distinctList = currentListBlock.stream()
+                    //                            .filter(distinctByTextAndId())
+                    //                            .collect(Collectors.toList());
 
-                    if (distinctList.size() > 1) {
-                        distinctList.add(0, new BlockOptions("Select the Block", "", -1, -1));
+                    if (currentListBlock.size() > 1) {
+                        currentListBlock.add(0, new BlockOptions("Select the Block", "", -1, -1));
                     }
 
                 } else {
-                    distinctList = new ArrayList<>();
-                    distinctList.add(new BlockOptions("#1 Default Block", "Default Block", 1, 1));
+                    currentListBlock = new ArrayList<>();
+                    currentListBlock.add(new BlockOptions("#1 Default Block", "Default Block", 1, 1));
                 }
 
-                ObservableList<BlockOptions> all = FXCollections.observableArrayList(distinctList);
+                ObservableList<BlockOptions> all = FXCollections.observableArrayList(currentListBlock);
                 comboBoxAllBlocks.setItems(all);
 
                 // Select target block
@@ -2412,7 +2444,7 @@ public class ARNewCommandPane extends ARPane {
                     ? rowMoveDTO.getHomeBankingId()
                     : rowMoveDTO.getBotJobId();
             try {
-                List<InstructionLoadDTO> excelDataGoto = performDataBase.loadExcelGotoBlock(whereId, tableName);
+                List<InstructionLoad> excelDataGoto = performDataBase.loadExcelGotoBlock(whereId, tableName);
 
                 // THIS IS VERY IMPORTANT BECAUSE JUST ALLOWS ONLY ONE "EXCEL GOTO" PER BOT JOB
                 if (!excelDataGoto.isEmpty()) {
@@ -2420,7 +2452,7 @@ public class ARNewCommandPane extends ARPane {
                     rowMoveDTO
                             .getUpdatedRows()
                             .get(0)
-                            .setInstructionId(excelDataGoto.get(0).getId());
+                            .setId(excelDataGoto.get(0).getId());
                 } else {
                     rowMoveDTO.setType("INSERT_AFTER");
                 }
@@ -2446,7 +2478,7 @@ public class ARNewCommandPane extends ARPane {
         // This prevents if was deleted when in EDIT _OPERATION
         if (rowMoveDTO.getType().equals("EDIT_OPERATION")) {
             if (!performDataBase.instructionIdExists(
-                    rowMoveDTO.getUpdatedRows().get(0).getInstructionId())) {
+                    rowMoveDTO.getUpdatedRows().get(0).getId())) {
                 rowMoveDTO.setType("INSERT_AFTER");
             }
         }
@@ -2482,7 +2514,6 @@ public class ARNewCommandPane extends ARPane {
 
         if (errorMessage == null) {
 
-            List<BotJobLoadDTO> botJobLoadList;
             String tableName;
             Integer whereId;
 
@@ -2496,16 +2527,41 @@ public class ARNewCommandPane extends ARPane {
                 whereId = rowMoveDTO.getHomeBankingId();
                 rowMoveDTO.setOperationId("componentsUpdate");
 
-                botJobLoadList = performDataBase.loadComponentsComplete(
+                errorMessage = performDataBase.loadComponentsComplete(
                         rowMoveDTO.getHomeBankingId(), rowMoveDTO.getBotJobId(), rowMoveDTO.getBotJobName());
+
+                if (errorMessage != null) {
+                    performMessage.errorMessage(
+                            errorMessage.getErrorTitle(),
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                    + errorMessage.getErrorHeader(),
+                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                            null,
+                            0);
+                }
+
             } else {
-                botJobLoadList = performDataBase.loadCompleteJobs(rowMoveDTO.getBotJobId());
+                errorMessage = performDataBase.loadCompleteJobs(rowMoveDTO.getBotJobId());
+
+                if (errorMessage != null) {
+                    performMessage.errorMessage(
+                            errorMessage.getErrorTitle(),
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                    + errorMessage.getErrorHeader(),
+                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                            null,
+                            0);
+                }
             }
 
+            List<BotJobLoadDTO> listBotJobs =
+                    tableName.equals("instruction") ? performLists.getListBotJob() : performLists.getListBotJobComp();
+
             String jsonData = "[]";
-            if (!botJobLoadList.isEmpty()) {
-                List<InstructionLoadDTO> instructions =
-                        performDataBase.buildJsonViewData(botJobLoadList, whereId, tableName);
+            if (!listBotJobs.isEmpty()) {
+                List<InstructionLoad> instructions = performDataBase.buildJsonViewData(listBotJobs, whereId, tableName);
                 jsonData = gson.toJson(instructions);
             }
 
@@ -2727,42 +2783,42 @@ public class ARNewCommandPane extends ARPane {
 
     public ErrorMessage reloadDBBlocks(int whereId, String tableName) {
         currentListBlock.clear();
-        ErrorMessage errorMessage = null;
         try {
-            if (currentListBlock != null) {
-                if (tableName.equals("block")) {
-                    errorMessage = performDataBase.loadBlocks(whereId, "", tableName);
-                    performLists
-                            .getListBlock()
-                            .forEach(b -> currentListBlock.add(BlockOptions.fromBlockWithInstructionId(b)));
-                    if (rowMoveDTO != null
-                            && rowMoveDTO.getType().equals("INSERT_NEW")
-                            && performLists.getListBlock().size() == 1) {
-                        rowMoveDTO.setBlockId(performLists.getListBlock().get(0).getId());
-                    }
-
-                } else {
-                    errorMessage = performDataBase.loadBlocks(whereId, "", tableName);
-                    performLists
-                            .getListBlockComp()
-                            .forEach(b -> currentListBlock.add(BlockOptions.fromBlockWithInstructionId(b)));
-                    if (rowMoveDTO != null
-                            && rowMoveDTO.getType().equals("INSERT_NEW")
-                            && performLists.getListBlockComp().size() == 1) {
-                        rowMoveDTO.setBlockId(
-                                performLists.getListBlockComp().get(0).getId());
-                    }
-                }
-
-                if (rowMoveDTO != null) {
-                    if ("EXCEL GOTO".equals(rowMoveDTO.getUpdatedRows().get(0).getActions())) {
-                        loadBlockGoto(-99);
-                    } else {
-                        loadBlockGoto(rowMoveDTO.getBlockId());
-                    }
-                }
-                loadAllBlocks();
+            if (currentListBlock == null) {
+                return null;
             }
+
+            // Load blocks from DB
+            ErrorMessage errorMessage = performDataBase.loadBlocks(whereId, "", tableName);
+
+            try {
+                // Pick the right list depending on the tableName
+
+                // Replace currentListBlock with the new one
+                List<BlockOptions> list = performLists.reloadDBBlocks(currentListBlock, tableName);
+                currentListBlock = new ArrayList<>(list);
+
+                // Handle INSERT_NEW case
+                if (rowMoveDTO != null && "INSERT_NEW".equals(rowMoveDTO.getType()) && currentListBlock.size() == 1) {
+                    rowMoveDTO.setBlockId(currentListBlock.get(0).getBlockId());
+                }
+
+            } catch (Exception error) {
+                ARLogger.getInstance(ARNewCommandPane.class).severe("Error :" + error.getMessage());
+                return new ErrorMessage(
+                        "Error in Reload DB Blocks", "Error during loading reloadDBBlocks", error.getMessage());
+            }
+
+            // Handle GOTO case
+            if (rowMoveDTO != null) {
+                if ("EXCEL GOTO".equals(rowMoveDTO.getUpdatedRows().get(0).getActions())) {
+                    loadBlockGoto(-99);
+                } else {
+                    loadBlockGoto(rowMoveDTO.getBlockId());
+                }
+            }
+
+            loadAllBlocks();
             return errorMessage;
 
         } catch (Exception error) {

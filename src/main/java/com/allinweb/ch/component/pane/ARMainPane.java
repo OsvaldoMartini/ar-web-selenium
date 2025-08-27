@@ -64,7 +64,17 @@ public class ARMainPane extends ARPane {
 
         if (performDataBase.getConn() != null) {
             botJobList.clear();
-            performDataBase.loadQuickBotJobs();
+            ErrorMessage errorMessage = performDataBase.loadQuickBotJobs();
+            if (errorMessage != null) {
+                performMessage.errorMessage(
+                        errorMessage.getErrorTitle(),
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                + errorMessage.getErrorHeader(),
+                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                        null,
+                        0);
+            }
             botJobList.addAll(performLists.getQuickBotJobs());
         }
     }
@@ -330,7 +340,7 @@ public class ARMainPane extends ARPane {
                         //                    ObservableList<BotJobLoadDTO> botJobList =
                         //                            FXCollections.observableArrayList(performLists.getQuickBotJobs());
 
-                        viewBotJobListView.setItems(performLists.getQuickBotJobs());
+                        viewBotJobListView.setItems(FXCollections.observableArrayList(performLists.getQuickBotJobs()));
                     }
                 } catch (Exception error) {
                     throw new RuntimeException(error);

@@ -3,16 +3,14 @@ package com.allinweb.ch.component.pane;
 import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.FormatOption;
-import com.allinweb.ch.component.model.InstructionLoadDTO;
+import com.allinweb.ch.component.model.InstructionLoad;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.socket.WebSocketSessionManager;
-import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARLogger;
-import com.allinweb.ch.util.ARPropertyEnum;
-import com.allinweb.ch.util.ARPropertyManager;
+import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import java.io.File;
@@ -92,18 +90,11 @@ public class ARExcelFilePane extends ARPane {
 
     private final Gson gson = new Gson();
 
-    private static final ARPropertyManager arPropertyManager;
-    private static final PerformDataBase performDataBase;
-    private static final PerformMessage performMessage;
-    private static final WebSocketSessionManager webSocketSessionManager;
-
-    // Static block to initialize
-    static {
-        arPropertyManager = ARPropertyManager.getInstance();
-        webSocketSessionManager = WebSocketSessionManager.getInstance();
-        performDataBase = PerformDataBase.getInstance();
-        performMessage = PerformMessage.getInstance();
-    }
+    private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
+    private static final PerformLists performLists = PerformLists.getInstance();
+    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
+    private static final PerformMessage performMessage = PerformMessage.getInstance();
+    private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
 
     private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
 
@@ -427,44 +418,77 @@ public class ARExcelFilePane extends ARPane {
 
         exportFile = exportFile.replace("\\", "/");
 
-        String tableTarget = "block";
+        String instTable = "instruction";
+        String blockTable = "block";
+        String updateAction = "updateInstructions";
+
         if ((sessionId != null && sessionId.matches(".*componentTasks.*"))) {
-            tableTarget = "component_block";
+            instTable = "component_instruction";
+            blockTable = "component_block";
         }
 
         exportFile = exportFile + ":" + delimiter;
 
-        boolean updateBlock = performDataBase.updateBlockExportFile(
-                tableTarget, blockExcelDTO.getBotJobId(), blockExcelDTO.getBlockId(), exportFile);
+        ErrorMessage errorMessage = performDataBase.updateBlockExportFile(
+                blockTable, blockExcelDTO.getBotJobId(), blockExcelDTO.getBlockId(), exportFile);
 
-        List<BotJobLoadDTO> botJobLoadList;
+        boolean updateBlock = false;
+        if (errorMessage == null) {
+            updateBlock = true;
+        }
+
+        if (errorMessage != null) {
+            performMessage.errorMessage(
+                    errorMessage.getErrorTitle(),
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                            + errorMessage.getErrorHeader(),
+                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                    null,
+                    0);
+        }
+
         if ((sessionId != null && sessionId.matches(".*botJobTasks.*"))) {
-            botJobLoadList = performDataBase.loadCompleteJobs(blockExcelDTO.getBotJobId());
-            String jsonData = "[]";
-            if (!botJobLoadList.isEmpty()) {
-                List<InstructionLoadDTO> blockLoopInstructions =
-                        performDataBase.buildJsonViewData(botJobLoadList, blockExcelDTO.getBotJobId(), "instruction");
-                jsonData = gson.toJson(blockLoopInstructions);
+            if (performLists.getListBotJob().isEmpty()) {
+                errorMessage = performDataBase.loadCompleteJobs(blockExcelDTO.getBotJobId());
+
+                if (errorMessage != null) {
+                    performMessage.errorMessage(
+                            errorMessage.getErrorTitle(),
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                    + errorMessage.getErrorHeader(),
+                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                            null,
+                            0);
+                }
             }
-            webSocketSessionManager.sendMessageJson(
-                    blockExcelDTO.getHomeBankingId(), sessionId, jsonData, "updateInstructions");
 
         } else if ((sessionId != null && sessionId.matches(".*componentTasks.*"))) {
-            botJobLoadList = performDataBase.loadComponentsComplete(
+            errorMessage = performDataBase.loadComponentsComplete(
                     blockExcelDTO.getHomeBankingId(), blockExcelDTO.getBotJobId(), blockExcelDTO.getBotJobName());
-            String jsonData = "[]";
-            if (!botJobLoadList.isEmpty()) {
-                List<InstructionLoadDTO> instructions = performDataBase.buildJsonViewData(
-                        botJobLoadList, blockExcelDTO.getHomeBankingId(), "component_instruction");
-                jsonData = gson.toJson(instructions);
+            if (errorMessage != null) {
+                performMessage.errorMessage(
+                        errorMessage.getErrorTitle(),
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                + errorMessage.getErrorHeader(),
+                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                        null,
+                        0);
             }
-            //            webSocketSessionManager.sendMessageJson(sessionId, jsonData, "componentsUpdate");
-
-            webSocketSessionManager.sendMessageJson(
-                    blockExcelDTO.getHomeBankingId(), "componentTasks", jsonData, "componentsUpdate");
-            //            webSocketSessionManager.broadcastMessageToAll(
-            //                    blockExcelDTO.getHomeBankingId(), "componentTasks", jsonData, "componentsUpdate");
         }
+
+        String jsonData = "[]";
+        List<BotJobLoadDTO> listToSend =
+                instTable.equals("instruction") ? performLists.getListBotJob() : performLists.getListBotJobComp();
+
+        if (!listToSend.isEmpty()) {
+            List<InstructionLoad> instructions =
+                    performDataBase.buildJsonViewData(listToSend, blockExcelDTO.getHomeBankingId(), instTable);
+            jsonData = gson.toJson(instructions);
+        }
+        webSocketSessionManager.sendMessageJson(blockExcelDTO.getHomeBankingId(), sessionId, jsonData, updateAction);
 
         performMessage.showCustomModalDialogDragWin11(
                 "Export File: ",

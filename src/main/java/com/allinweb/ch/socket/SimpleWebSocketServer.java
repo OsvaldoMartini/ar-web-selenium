@@ -52,7 +52,6 @@ public class SimpleWebSocketServer {
     private static ARExcelFileScene arExcelFileScene = ARExcelFileScene.getInstance();
 
     private final Gson gson = new Gson();
-    private List<BotJobLoadDTO> botJobLoadList = new ArrayList<>();
     private PayloadJson payloadEmpty;
 
     @OnOpen
@@ -440,7 +439,7 @@ public class SimpleWebSocketServer {
                         if (performDataBase.rowsUpdateName(rowUpdateDTO.getUpdatedRows())) {
                             List<ParentOperations> listParents = performDataBase.loadAllParents(
                                     rowUpdateDTO.getBotJobId(),
-                                    rowUpdateDTO.getUpdatedRows().get(0).getInstructionId());
+                                    rowUpdateDTO.getUpdatedRows().get(0).getId());
                             if (!listParents.isEmpty()) {
                                 for (ParentOperations parent : listParents) {
                                     if ("GET".equals(parent.getActions())) {
@@ -509,7 +508,7 @@ public class SimpleWebSocketServer {
 
                     performDataBase.loadInstructions(whereId, -1, -1, instTable);
 
-                    InstructionLoadDTO hasExcelGotoOneBlock = hasOnlyExcelGoto(instTable);
+                    InstructionLoad hasExcelGotoOneBlock = hasOnlyExcelGoto(instTable);
 
                     if (hasExcelGotoOneBlock != null) {
                         errorMessage =
@@ -521,7 +520,7 @@ public class SimpleWebSocketServer {
                                     ? performLists.getListInstruction()
                                     : performLists.getListInstructionComp())
                             .stream()
-                                    .map(InstructionLoadDTO::getBlockId)
+                                    .map(InstructionLoad::getBlockId)
                                     .filter(Objects::nonNull)
                                     .distinct() // removes duplicates
                                     .toList();
@@ -653,7 +652,7 @@ public class SimpleWebSocketServer {
 
                 break;
             case "INSTRUCTION_STATUS":
-                InstructionLoadDTO instructions = gson.fromJson(jsonEntry, InstructionLoadDTO.class);
+                InstructionLoad instructions = gson.fromJson(jsonEntry, InstructionLoad.class);
 
                 homeBankingId = instructions.getHomeBankingId();
                 sessionIdToSend = instructions.getSessionId();
@@ -746,7 +745,7 @@ public class SimpleWebSocketServer {
 
                 break;
             case "DELETE_INSTRUCTION":
-                InstructionLoadDTO toDelete = gson.fromJson(jsonEntry, InstructionLoadDTO.class);
+                InstructionLoad toDelete = gson.fromJson(jsonEntry, InstructionLoad.class);
 
                 homeBankingId = toDelete.getHomeBankingId();
                 botJobIdTask = toDelete.getBotJobId();
@@ -799,9 +798,11 @@ public class SimpleWebSocketServer {
                     errorMessage = performDataBase.deleteInstruction(instTable, whereId, toDelete, false);
                 }
 
-                performDataBase.loadInstructions(whereId, -1, -1, instTable);
+                if (errorMessage == null) {
+                    errorMessage = performDataBase.loadInstructions(whereId, -1, -1, instTable);
+                }
 
-                InstructionLoadDTO hasExcelGotoOneBlock = hasOnlyExcelGoto(instTable);
+                InstructionLoad hasExcelGotoOneBlock = hasOnlyExcelGoto(instTable);
 
                 if (hasExcelGotoOneBlock != null) {
                     errorMessage = performDataBase.deleteInstruction(instTable, whereId, hasExcelGotoOneBlock, false);
@@ -812,7 +813,7 @@ public class SimpleWebSocketServer {
                                 ? performLists.getListInstruction()
                                 : performLists.getListInstructionComp())
                         .stream()
-                                .map(InstructionLoadDTO::getBlockId)
+                                .map(InstructionLoad::getBlockId)
                                 .filter(Objects::nonNull)
                                 .distinct() // removes duplicates
                                 .toList();
@@ -828,10 +829,21 @@ public class SimpleWebSocketServer {
                         && !restToDeleteIds.isEmpty()
                         && (blockTable.equals("block") && listBlocks.size() > 1)) {
                     errorMessage = performDataBase.deleteNullBlocks(blockTable, whereId, restToDeleteIds);
+                    if (errorMessage == null) {
+                        errorMessage = performDataBase.loadBlocks(whereId, "", blockTable);
+                    }
+
                 } else if (errorMessage == null
                         && !restToDeleteIds.isEmpty()
                         && (blockTable.equals("component_block"))) {
                     errorMessage = performDataBase.deleteNullBlocks(blockTable, whereId, restToDeleteIds);
+                    if (errorMessage == null) {
+                        errorMessage = performDataBase.loadBlocks(whereId, "", blockTable);
+                    }
+                }
+
+                if (errorMessage == null) {
+                    performDataBase.updateBlockOrderNumber(blockTable, whereId, true);
                 }
 
                 // calls perform list block update
@@ -956,7 +968,7 @@ public class SimpleWebSocketServer {
                                     ? performLists.getListInstruction()
                                     : performLists.getListInstructionComp())
                             .stream()
-                                    .map(InstructionLoadDTO::getBlockId)
+                                    .map(InstructionLoad::getBlockId)
                                     .filter(Objects::nonNull)
                                     .distinct() // removes duplicates
                                     .toList();
@@ -1009,29 +1021,55 @@ public class SimpleWebSocketServer {
                 break;
         }
 
-        if (!alreadySentMgsSocket && (sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
-            this.botJobLoadList = performDataBase.loadCompleteJobs(botJobIdTask);
-            setPayloadEmpty("botJobTasks", homeBankingId, botJobIdTask, botJobNameTask);
-            String jsonData = gson.toJson(payloadEmpty);
-            if (!botJobLoadList.isEmpty()) {
-                List<InstructionLoadDTO> blockLoopInstructions =
-                        performDataBase.buildJsonViewData(botJobLoadList, botJobIdTask, "instruction");
-                jsonData = gson.toJson(blockLoopInstructions);
-            }
-            webSocketSessionManager.sendMessageJson(homeBankingId, sessionIdToSend, jsonData, "updateInstructions");
+        String instrTable = "instruction";
+        String updateAction = "updateInstructions";
+        ErrorMessage errorMessage = null;
 
+        if (!alreadySentMgsSocket && (sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
+            if (performLists.getListBotJob().isEmpty()) {
+                errorMessage = performDataBase.loadCompleteJobs(botJobIdTask);
+                if (errorMessage != null) {
+                    performMessage.errorMessage(
+                            errorMessage.getErrorTitle(),
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                    + errorMessage.getErrorHeader(),
+                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                            null,
+                            0);
+                }
+            }
         } else if (!alreadySentMgsSocket
                 && (sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
-            this.botJobLoadList = performDataBase.loadComponentsComplete(homeBankingId, botJobIdTask, botJobNameTask);
-            setPayloadEmpty("componentTasks", homeBankingId, botJobIdTask, botJobNameTask);
-            String jsonData = gson.toJson(payloadEmpty);
-            if (!botJobLoadList.isEmpty()) {
-                List<InstructionLoadDTO> blockLoopInstructions =
-                        performDataBase.buildJsonViewData(botJobLoadList, homeBankingId, "component_instruction");
-                jsonData = gson.toJson(blockLoopInstructions);
+            instrTable = "component_instruction";
+            updateAction = "componentsUpdate";
+
+            if (performLists.getListBotJobComp().isEmpty()) {
+                errorMessage = performDataBase.loadComponentsComplete(homeBankingId, botJobIdTask, botJobNameTask);
+                if (errorMessage != null) {
+                    performMessage.errorMessage(
+                            errorMessage.getErrorTitle(),
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                    + errorMessage.getErrorHeader(),
+                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                            null,
+                            0);
+                }
             }
 
-            webSocketSessionManager.sendMessageJson(homeBankingId, "componentTasks", jsonData, "componentsUpdate");
+            List<BotJobLoadDTO> listBot =
+                    instrTable.equals("instruction") ? performLists.getListBotJob() : performLists.getListBotJobComp();
+
+            setPayloadEmpty(sessionId, homeBankingId, botJobIdTask, botJobNameTask);
+            String jsonData = gson.toJson(payloadEmpty);
+            if (!listBot.isEmpty()) {
+                List<InstructionLoad> instructionLoads =
+                        performDataBase.buildJsonViewData(listBot, homeBankingId, instrTable);
+                jsonData = gson.toJson(instructionLoads);
+            }
+
+            webSocketSessionManager.sendMessageJson(homeBankingId, sessionIdToSend, jsonData, updateAction);
 
             //            broadcastMessageToAll(homeBankingId, "componentTasks", jsonData, "componentsUpdate");
             //            sendMessageJson(sessionIdToSend, jsonData, "componentsUpdate");
@@ -1231,12 +1269,23 @@ public class SimpleWebSocketServer {
         }
 
         if (errorMessage == null) {
-            List<BotJobLoadDTO> botJobLoadList = performDataBase.loadCompleteJobs(blockDetailsDTO.getBotJobId());
+
+            errorMessage = performDataBase.loadCompleteJobs(blockDetailsDTO.getBotJobId());
+            if (errorMessage != null) {
+                performMessage.errorMessage(
+                        errorMessage.getErrorTitle(),
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                + errorMessage.getErrorHeader(),
+                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                        null,
+                        0);
+            }
 
             String jsonData = "[]";
-            if (!botJobLoadList.isEmpty()) {
-                List<InstructionLoadDTO> blockLoopInstructions =
-                        performDataBase.buildJsonViewData(botJobLoadList, blockDetailsDTO.getBotJobId(), "instruction");
+            if (!performLists.getListBotJob().isEmpty()) {
+                List<InstructionLoad> blockLoopInstructions = performDataBase.buildJsonViewData(
+                        performLists.getListBotJob(), blockDetailsDTO.getBotJobId(), "instruction");
                 jsonData = gson.toJson(blockLoopInstructions);
             }
             webSocketSessionManager.sendMessageJson(
@@ -1267,7 +1316,8 @@ public class SimpleWebSocketServer {
             }
 
         } else if (destination.equalsIgnoreCase("componentTasks")) {
-            if (performLists.getListBlockComp().isEmpty()) {
+            if (!performLists.getListBotJobComp().isEmpty()
+                    && performLists.getListBlockComp().isEmpty()) {
                 performDataBase.loadBlocks(homeBankId, "", "component_block");
             }
             whereId = homeBankId;
@@ -1278,12 +1328,12 @@ public class SimpleWebSocketServer {
         this.payloadEmpty = new PayloadJson(whereId, blockId, botJobName, 0);
     }
 
-    public InstructionLoadDTO hasOnlyExcelGoto(String instTable) {
-        List<InstructionLoadDTO> instructions = instTable.equals("instruction")
+    public InstructionLoad hasOnlyExcelGoto(String instTable) {
+        List<InstructionLoad> instructions = instTable.equals("instruction")
                 ? performLists.getListInstruction()
                 : performLists.getListInstructionComp();
 
-        List<InstructionLoadDTO> excelGotoInstructions = instructions.stream()
+        List<InstructionLoad> excelGotoInstructions = instructions.stream()
                 .filter(instr -> "EXCEL GOTO".equalsIgnoreCase(instr.getActions()))
                 .toList();
 
@@ -1293,7 +1343,7 @@ public class SimpleWebSocketServer {
 
         // all blockIds used by "EXCEL GOTO"
         Set<Integer> excelGotoBlockIds = excelGotoInstructions.stream()
-                .map(InstructionLoadDTO::getBlockId)
+                .map(InstructionLoad::getBlockId)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
 
@@ -1304,7 +1354,7 @@ public class SimpleWebSocketServer {
                         .allMatch(instr -> "EXCEL GOTO".equalsIgnoreCase(instr.getActions()));
 
         if (uniqueBlocks) {
-            InstructionLoadDTO first = excelGotoInstructions.get(0);
+            InstructionLoad first = excelGotoInstructions.get(0);
             // remove all EXCEL GOTO instructions from that block
             instructions.removeIf(instr -> excelGotoBlockIds.contains(instr.getBlockId()));
             return first;
@@ -1335,7 +1385,7 @@ public class SimpleWebSocketServer {
                     blockLoadDTO.setExportFile(null);
                     blockLoadDTO.setActive(null);
                     blockLoadDTO.setWait(null);
-                    blockLoadDTO.setInstructionLoadDTOS(new ArrayList<>());
+                    blockLoadDTO.setInstructionLoad(new ArrayList<>());
 
                     return blockLoadDTO;
                 })

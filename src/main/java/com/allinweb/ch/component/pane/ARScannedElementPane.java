@@ -92,7 +92,7 @@ public class ARScannedElementPane extends ARPane {
     private final Gson gson = new Gson();
     private String previousBlock = null;
 
-    private List<InstructionLoadDTO> instructionList = new ArrayList<>();
+    private List<InstructionLoad> instructionList = new ArrayList<>();
 
     private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     //    private static final ScheduledExecutorService pingScheduler = Executors.newScheduledThreadPool(1);
@@ -241,23 +241,6 @@ public class ARScannedElementPane extends ARPane {
                             refreshBlocks(false);
                         });
 
-                        //                        ErrorMessage errorMessage = reloadDBBlocks(blockMoveDTO.getBotJobId(),
-                        // "block");
-
-                        //                        if (errorMessage != null) {
-                        //                            performMessage.errorMessage(
-                        //                                    errorMessage.getErrorTitle(),
-                        //                                    "<span style='color: #D32F2F; font-weight: bold;
-                        // font-size: 1.1em;'>Operation Failed!</span> ❌",
-                        //                                    "<span style='color: #E65100; font-weight: bold;'>Error
-                        // Type:</span> "
-                        //                                            + errorMessage.getErrorHeader(),
-                        //                                    "<span style='font-style: italic;'>Detail:</span> "
-                        //                                            + errorMessage.getErrorMessage(),
-                        //                                    null,
-                        //                                    0);
-                        //                        }
-                        //                        loadAllBlocks();
                     } catch (Exception error) {
                         ARLogger.getInstance(ARNewCommandPane.class).severe("Error: " + error.getMessage());
                     }
@@ -312,10 +295,12 @@ public class ARScannedElementPane extends ARPane {
                     processDTO = gson.fromJson(jsonObjMSG, ElementSplitDTO.class);
 
                     String tableName = "instruction";
-                    int whereId = processDTO.getBotJobId();
+                    int whereId = processDTO.getBotJobId() != null ? processDTO.getBotJobId() : currentBotJob.getId();
                     if (processDTO.getSessionId().equals("componentTasks")) {
                         tableName = "component_instruction";
-                        whereId = processDTO.getHomeBankingId();
+                        whereId = processDTO.getHomeBankingId() != null
+                                ? processDTO.getHomeBankingId()
+                                : currentBotJob.getHomeBankingId();
                     }
 
                     blockUpdate =
@@ -331,13 +316,18 @@ public class ARScannedElementPane extends ARPane {
                     if (processDTO.getOperationId() != null
                             && processDTO.getOperationId().equalsIgnoreCase("TEST_STEP")) {
 
-                        performDataBase.loadInstructions(whereId, -1, processDTO.getDetails()[0].getId(), tableName);
+                        // I want all Instructions
+                        if (tableName.equals("instruction")
+                                        && performLists.getListInstruction().isEmpty()
+                                || (tableName.equals("component_instruction")
+                                        && performLists.getListInstructionComp().isEmpty())) {
+                            performDataBase.loadInstructions(whereId, -1, -1, tableName);
+                        }
 
-                        List<InstructionLoadDTO> instruc = tableName.equals("instruction")
-                                ? performLists.getListInstruction()
-                                : performLists.getListInstructionComp();
-                        if (!instruc.isEmpty() && instruc.get(0).getId() != null) {
-                            ElementDTO elementDTO = performActions.buildElementDTO(instruc.get(0));
+                        InstructionLoad instruction =
+                                performLists.getInstructionById(tableName, whereId, processDTO.getDetails()[0].getId());
+                        if (instruction != null && instruction.getId() != null) {
+                            ElementDTO elementDTO = performActions.buildElementDTO(instruction);
                             targetSelected = extractPickClone(elementDTO);
                             itPrintsElementDTO();
                             testingActions(targetSelected, processDTO.getType());
@@ -399,7 +389,7 @@ public class ARScannedElementPane extends ARPane {
         validateBlockDB("Default Block", this.currentBotJob.getId(), isMany);
         if (currentBlockId > 0) {
             performDataBase.loadInstructions(currentBotJob.getId(), currentBlockId, -1, "instruction");
-            List<InstructionLoadDTO> instruc = performLists.getListInstruction();
+            List<InstructionLoad> instruc = performLists.getListInstruction();
 
             int nextOrder = instruc.size() + 1;
 
@@ -461,7 +451,7 @@ public class ARScannedElementPane extends ARPane {
 
                 if (errorMessage == null) {
                     for (int i = 0; i < instructionList.size(); i++) {
-                        InstructionLoadDTO instruction = instructionList.get(i);
+                        InstructionLoad instruction = instructionList.get(i);
                         Integer newId = performDataBase.getIdsInstrucAfter().get(i);
                         instruction.setId(newId);
                     }
@@ -574,7 +564,7 @@ public class ARScannedElementPane extends ARPane {
 
         Integer currentBotJobId = currentBotJob.getId();
 
-        InstructionLoadDTO instruction =
+        InstructionLoad instruction =
                 performActions.buildNewInstruction(tagType, actionReq, false, nextInstOrderNumber, targetInsert);
 
         instruction.setForceCoordinates(true); // default
@@ -618,11 +608,25 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private void updateBotJobTasks(int currentBotJobId) {
-        List<BotJobLoadDTO> botJobLoadList = performDataBase.loadCompleteJobs(currentBotJobId);
+        if (performLists.getListBotJob().isEmpty()) {
+            ErrorMessage errorMessage = performDataBase.loadCompleteJobs(currentBotJobId);
+            if (errorMessage != null) {
+                performMessage.errorMessage(
+                        errorMessage.getErrorTitle(),
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                + errorMessage.getErrorHeader(),
+                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                        null,
+                        0);
+                return;
+            }
+        }
+
         String jsonData = "[]";
-        if (!botJobLoadList.isEmpty()) {
-            List<InstructionLoadDTO> blockLoopInstructions =
-                    performDataBase.buildJsonViewData(botJobLoadList, currentBotJobId, "instruction");
+        if (!performLists.getListBotJob().isEmpty()) {
+            List<InstructionLoad> blockLoopInstructions =
+                    performDataBase.buildJsonViewData(performLists.getListBotJob(), currentBotJobId, "instruction");
             jsonData = gson.toJson(blockLoopInstructions);
         }
         webSocketSessionManager.sendMessageJson(
@@ -1110,7 +1114,7 @@ public class ARScannedElementPane extends ARPane {
     double comboWidth = 200;
 
     private ComboBox<BlockOptions> comboBoxBlocks;
-    private List<BlockOptions> currentListBlock = new ArrayList<>();
+    private List<BlockOptions> allListBlock = new ArrayList<>();
 
     Button refreshBlocksButton;
 
@@ -1303,7 +1307,7 @@ public class ARScannedElementPane extends ARPane {
         //            return;
         //        }
 
-        if (currentListBlock.isEmpty()) {
+        if (allListBlock.isEmpty()) {
             // If list is empty, populate AllBlocks with a default block
             ObservableList<BlockOptions> defaultAll =
                     FXCollections.observableArrayList(new BlockOptions("#1 Default Block", "Default Block", 1, 1));
@@ -1499,9 +1503,6 @@ public class ARScannedElementPane extends ARPane {
         Platform.runLater(() -> {
             refreshBlocks(false);
         });
-
-        //        reloadDBBlocks(currentBotJob.getId(), "block");
-        //        loadAllBlocks();
     }
 
     private void addCompBoxWebView() {
@@ -1900,8 +1901,8 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private void refreshBlocks(boolean secondItem) {
-        performLists.getListBlock().clear();
-        performDataBase.loadBlocks(this.currentBotJob.getId(), this.currentBotJob.getName(), "block");
+        //        performLists.getListBlock().clear();
+        //        performDataBase.loadBlocks(this.currentBotJob.getId(), this.currentBotJob.getName(), "block");
         reloadDBBlocks(this.currentBotJob.getId(), "block");
         loadAllBlocks();
 
@@ -2046,7 +2047,7 @@ public class ARScannedElementPane extends ARPane {
             if (!performLists.getListBotJob().isEmpty()) {
 
                 performLists.getListBotJob().get(0).getBlockLoadDTOList().stream()
-                        .flatMap(block -> block.getInstructionLoadDTOS().stream())
+                        .flatMap(block -> block.getInstructionLoad().stream())
                         .forEach(instruction -> instruction.setExecuted(false));
 
                 recallJob();
@@ -3017,7 +3018,20 @@ public class ARScannedElementPane extends ARPane {
         Properties labelsValue = Labels.labelsValue;
 
         // Assuming blocksLoaded is your List<BlockLoadDTO>
-        List<String> allActions = performDataBase.loadAllActionsPerBlock(performLists.getListBlock());
+        ErrorMessage errorMessage = performDataBase.loadAllActionsPerBlock(performLists.getListBlock());
+
+        if (errorMessage != null) {
+            performMessage.errorMessage(
+                    errorMessage.getErrorTitle(),
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                            + errorMessage.getErrorHeader(),
+                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                    null,
+                    0);
+
+            return false;
+        }
 
         if (!new File(excelPath).exists()) {
             performMessage.errorMessage(
@@ -3034,7 +3048,7 @@ public class ARScannedElementPane extends ARPane {
         ExcelReader excelReader = new ExcelReader();
         ExtractedData extractedData = null;
         try {
-            extractedData = excelReader.extractData(excelPath, allActions);
+            extractedData = excelReader.extractData(excelPath, performLists.getAllActions());
         } catch (Exception e) {
             performMessage.errorMessage(
                     "Error Processing Excel File",
@@ -3115,7 +3129,7 @@ public class ARScannedElementPane extends ARPane {
 
         if (extractedData.getNumberOfDataRows() > 0) {
 
-            List<InstructionLoadDTO> excelDataGoto = new ArrayList<>();
+            List<InstructionLoad> excelDataGoto = new ArrayList<>();
             String tableName = "instruction";
             int whereId = botJobId;
             try {
@@ -3339,7 +3353,7 @@ public class ARScannedElementPane extends ARPane {
                     // current
                     // Block
                     parentIdsForLoop = performActions.getParentIdsForLoop(
-                            blocksLoaded.get(currentBlock).getInstructionLoadDTOS());
+                            blocksLoaded.get(currentBlock).getInstructionLoad());
 
                     // Step 2: Get all Conditional By parentId for Index Locator on current Block Relocate "IF",
                     // "ELSEIF",
@@ -3347,14 +3361,14 @@ public class ARScannedElementPane extends ARPane {
                     mapConditional = performActions.getConditionIndexMapByParentId(blockLoad);
 
                     // Step 3: Get all Instructions Ids on current Block
-                    int[] instructionIds = blockLoad.getInstructionLoadDTOS().stream()
-                            .mapToInt(InstructionLoadDTO::getId)
+                    int[] instructionIds = blockLoad.getInstructionLoad().stream()
+                            .mapToInt(InstructionLoad::getId)
                             .toArray();
 
                     // Step 2: Filter rows where actions = "REFRESH_LOOP" or "LOOP" and collect into the map
 
                     //                mapLoops = performActions.getLoopAndRefreshLoops(
-                    //                        blocksLoaded.get(currentBlock).getBlockLoopInstructionLoadDTOS());
+                    //                        blocksLoaded.get(currentBlock).getBlockLoopInstructionLoadS());
 
                     //                executionTimes++;
                     boolean jumpGoto = false;
@@ -3388,8 +3402,8 @@ public class ARScannedElementPane extends ARPane {
 
                             long currentInstructionStartTime = System.nanoTime();
 
-                            InstructionLoadDTO currentInstruction =
-                                    blockLoad.getInstructionLoadDTOS().get(currentIndex);
+                            InstructionLoad currentInstruction =
+                                    blockLoad.getInstructionLoad().get(currentIndex);
 
                             byPassFlagLoop = parentIdsForLoop.contains(currentInstruction.getId());
 
@@ -3624,7 +3638,7 @@ public class ARScannedElementPane extends ARPane {
                             } else if (actions[0].equalsIgnoreCase(ARConstants.LOOP)) {
                                 // <currentId:parentId:parentName>
                                 msgInstruction = performActions.getInstructionDetailsById(
-                                        blocksLoaded.get(currentBlock).getInstructionLoadDTOS(), currentInstruction);
+                                        blocksLoaded.get(currentBlock).getInstructionLoad(), currentInstruction);
 
                                 if (msgInstruction == null) {
                                     msgInstruction = new Pair("Jump To Parent \"Unknown\"", "Unknown");
@@ -3642,7 +3656,7 @@ public class ARScannedElementPane extends ARPane {
                                 }
                             } else if (actions[0].equalsIgnoreCase(ARConstants.REFRESH_LOOP)) {
                                 msgInstruction = performActions.getInstructionDetailsById(
-                                        blocksLoaded.get(currentBlock).getInstructionLoadDTOS(), currentInstruction);
+                                        blocksLoaded.get(currentBlock).getInstructionLoad(), currentInstruction);
                                 if (msgInstruction == null) {
                                     msgInstruction = new Pair("Jump To Parent \"Unknown\"", "Unknown");
                                     success = false;
@@ -4703,11 +4717,11 @@ public class ARScannedElementPane extends ARPane {
         mainPane.requestLayout();
     }
 
-    public static List<InstructionLoadDTO> getUnexecutedInstructions(
-            List<InstructionLoadDTO> instructionsExecuted, List<InstructionLoadDTO> otherList) {
+    public static List<InstructionLoad> getUnexecutedInstructions(
+            List<InstructionLoad> instructionsExecuted, List<InstructionLoad> otherList) {
         // Create a set of instructionOrderNumbers from instructionsExecuted
         Set<Integer> executedInstructionOrderNumbers = instructionsExecuted.stream()
-                .map(InstructionLoadDTO::getInstructionOrderNumber)
+                .map(InstructionLoad::getInstructionOrderNumber)
                 .collect(Collectors.toSet());
 
         // Filter the otherList to get instructions where executed is false and not in executedInstructionOrderNumbers
@@ -5152,7 +5166,8 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private void setPayloadEmpty() {
-        if (performLists.getListBlock().isEmpty()) {
+        if (!performLists.getListBotJob().isEmpty()
+                && performLists.getListBlock().isEmpty()) {
             performDataBase.loadBlocks(this.currentBotJob.getId(), "", "block");
         }
         int blockId = -1;
@@ -5170,7 +5185,8 @@ public class ARScannedElementPane extends ARPane {
         int blockId = -1;
         String blockName = "1# Default Block";
         if (destination.equalsIgnoreCase("botJobTasks")) {
-            if (performLists.getListBlock().isEmpty()) {
+            if (!performLists.getListBotJob().isEmpty()
+                    && performLists.getListBlock().isEmpty()) {
                 performDataBase.loadBlocks(currentBotJob.getId(), "", "block");
             }
             if (currentBotJob.getBlockId() == null
@@ -5179,7 +5195,8 @@ public class ARScannedElementPane extends ARPane {
                 blockName = performLists.getListBlock().get(0).getName();
             }
         } else if (destination.equalsIgnoreCase("componentTasks")) {
-            if (performLists.getListBlockComp().isEmpty()) {
+            if (!performLists.getListBotJobComp().isEmpty()
+                    && performLists.getListBlockComp().isEmpty()) {
                 performDataBase.loadBlocks(currentBotJob.getHomeBankingId(), "", "component_block");
             }
             if (currentBotJob.getBlockId() == null
@@ -5282,15 +5299,26 @@ public class ARScannedElementPane extends ARPane {
     }
 
     public ErrorMessage reloadDBBlocks(int whereId, String tableName) {
-
         ErrorMessage errorMessage = null;
-        this.currentListBlock.clear();
+        this.allListBlock.clear();
         if ("block".equals(tableName)) {
-            performLists.getListBlock().forEach(b -> currentListBlock.add(BlockOptions.fromBlockWithOrderNumber(b)));
+            try {
+                performLists.getListBlock().forEach(b -> allListBlock.add(BlockOptions.fromBlockWithOrderNumber(b)));
+            } catch (Exception error) {
+                ARLogger.getInstance(ARNewCommandPane.class).severe("Error :" + error.getMessage());
+                return new ErrorMessage(
+                        "Error in Reload DB Blocks", "Error during loading reloadDBBlocks", error.getMessage());
+            }
         } else {
-            performLists
-                    .getListBlockComp()
-                    .forEach(b -> currentListBlock.add(BlockOptions.fromBlockWithOrderNumber(b)));
+            try {
+                performLists
+                        .getListBlockComp()
+                        .forEach(b -> allListBlock.add(BlockOptions.fromBlockWithOrderNumber(b)));
+            } catch (Exception error) {
+                ARLogger.getInstance(ARNewCommandPane.class).severe("Error :" + error.getMessage());
+                return new ErrorMessage(
+                        "Error in Reload DB Blocks", "Error during loading reloadDBBlocks", error.getMessage());
+            }
         }
         return errorMessage;
     }
@@ -5298,13 +5326,13 @@ public class ARScannedElementPane extends ARPane {
     private void loadAllBlocks() {
         if (comboBoxBlocks != null) {
             Platform.runLater(() -> {
-                // Collect distinct items into a temporary list to avoid concurrent modification
-                List<BlockOptions> distinctList = currentListBlock.stream()
-                        .filter(distinctByTextAndId()) // custom predicate
-                        .collect(Collectors.toList());
+                //                // Collect distinct items into a temporary list to avoid concurrent modification
+                //                List<BlockOptions> distinctList = allListBlock.stream()
+                //                        .filter(distinctByTextAndId()) // custom predicate
+                //                        .collect(Collectors.toList());
 
                 // Convert to ObservableList
-                ObservableList<BlockOptions> all = FXCollections.observableArrayList(distinctList);
+                ObservableList<BlockOptions> all = FXCollections.observableArrayList(allListBlock);
 
                 // Add "Execute All Blocks" if needed
                 if (all.size() > 1) {

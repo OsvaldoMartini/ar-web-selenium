@@ -301,7 +301,7 @@ public class ARNewHomeBankingPane extends ARPane {
         // optionsConfigColumn.setCellValueFactory(new PropertyValueFactory<>("optionsConfig"));
 
         tableViewOrg.getColumns().addAll(idColumn, jobColumn, nameColumn, urlColumn);
-        tableViewOrg.setItems(performLists.getListHomeBanking()); // Set data to the table
+        tableViewOrg.setItems(FXCollections.observableArrayList(performLists.getListHomeBanking()));
 
         orgDetailsContainer
                 .getChildren()
@@ -395,7 +395,7 @@ public class ARNewHomeBankingPane extends ARPane {
             performDataBase.loadHomeBanking(null);
 
             if (tableViewOrg != null) {
-                tableViewOrg.setItems(performLists.getListHomeBanking());
+                tableViewOrg.setItems(FXCollections.observableArrayList(performLists.getListHomeBanking()));
             }
         });
     }

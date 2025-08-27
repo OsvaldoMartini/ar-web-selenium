@@ -1,7 +1,7 @@
 package com.allinweb.ch.component.scene;
 
 import com.allinweb.ch.component.model.BlockMoveDTO;
-import com.allinweb.ch.component.model.InstructionLoadDTO;
+import com.allinweb.ch.component.model.InstructionLoad;
 import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.pane.ARNewCommandPane;
 import com.allinweb.ch.component.pane.base.IARPane;
@@ -358,7 +358,7 @@ public class ARNewCommandScene extends ARScene {
                     ? rowMoveDTO.getHomeBankingId()
                     : rowMoveDTO.getBotJobId();
             try {
-                List<InstructionLoadDTO> excelDataGoto = performDataBase.loadExcelGotoBlock(whereId, tableName);
+                List<InstructionLoad> excelDataGoto = performDataBase.loadExcelGotoBlock(whereId, tableName);
 
                 if (!excelDataGoto.isEmpty()) {
                     rowMoveDTO.setType("EDIT_OPERATION");

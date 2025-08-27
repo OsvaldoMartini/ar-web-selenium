@@ -37,7 +37,7 @@ boolean webElementWork = false;
 
 if (extractedData.getNumberOfDataRows() > 0) {
 
-	List<InstructionLoadDTO> excelDataGoto = new ArrayList<>();
+	List<InstructionLoad> excelDataGoto = new ArrayList<>();
 	String tableName = "instruction";
 	int whereId = botJobId;
 	try {
@@ -258,7 +258,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 			// current
 			// Block
 			parentIdsForLoop = performActions.getParentIdsForLoop(
-					blocksLoaded.get(currentBlock).getInstructionLoadDTOS());
+					blocksLoaded.get(currentBlock).getInstructionLoadS());
 
 			// Step 2: Get all Conditional By parentId for Index Locator on current Block Relocate "IF",
 			// "ELSEIF",
@@ -266,14 +266,14 @@ if (extractedData.getNumberOfDataRows() > 0) {
 			mapConditional = performActions.getConditionIndexMapByParentId(blockLoad);
 
 			// Step 3: Get all Instructions Ids on current Block
-			int[] instructionIds = blockLoad.getInstructionLoadDTOS().stream()
-					.mapToInt(InstructionLoadDTO::getId)
+			int[] instructionIds = blockLoad.getInstructionLoadS().stream()
+					.mapToInt(InstructionLoad::getId)
 					.toArray();
 
 			// Step 2: Filter rows where actions = "REFRESH_LOOP" or "LOOP" and collect into the map
 
 			//                mapLoops = performActions.getLoopAndRefreshLoops(
-			//                        blocksLoaded.get(currentBlock).getBlockLoopInstructionLoadDTOS());
+			//                        blocksLoaded.get(currentBlock).getBlockLoopInstructionLoadS());
 
 			//                executionTimes++;
 			boolean jumpGoto = false;
@@ -307,8 +307,8 @@ if (extractedData.getNumberOfDataRows() > 0) {
 
 					long currentInstructionStartTime = System.nanoTime();
 
-					InstructionLoadDTO currentInstruction =
-							blockLoad.getInstructionLoadDTOS().get(currentIndex);
+					InstructionLoad currentInstruction =
+							blockLoad.getInstructionLoadS().get(currentIndex);
 
 					byPassFlagLoop = parentIdsForLoop.contains(currentInstruction.getId());
 
@@ -543,7 +543,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 					} else if (actions[0].equalsIgnoreCase(ARConstants.LOOP)) {
 						// <currentId:parentId:parentName>
 						msgInstruction = performActions.getInstructionDetailsById(
-								blocksLoaded.get(currentBlock).getInstructionLoadDTOS(), currentInstruction);
+								blocksLoaded.get(currentBlock).getInstructionLoadS(), currentInstruction);
 
 						if (msgInstruction == null) {
 							msgInstruction = new Pair("Jump To Parent \"Unknown\"", "Unknown");
@@ -561,7 +561,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 						}
 					} else if (actions[0].equalsIgnoreCase(ARConstants.REFRESH_LOOP)) {
 						msgInstruction = performActions.getInstructionDetailsById(
-								blocksLoaded.get(currentBlock).getInstructionLoadDTOS(), currentInstruction);
+								blocksLoaded.get(currentBlock).getInstructionLoadS(), currentInstruction);
 						if (msgInstruction == null) {
 							msgInstruction = new Pair("Jump To Parent \"Unknown\"", "Unknown");
 							success = false;

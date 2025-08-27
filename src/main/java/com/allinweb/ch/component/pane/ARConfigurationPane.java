@@ -259,7 +259,7 @@ public class ARConfigurationPane extends ARPane {
         if (performDataBase.getConn() != null) {
             performDataBase.loadHomeBanking(null);
         }
-        homeBankingListView = new ListView<>(performLists.getListHomeBanking());
+        homeBankingListView = new ListView<>(FXCollections.observableArrayList(performLists.getListHomeBanking()));
         homeBankingListView.setCellFactory(new ARCellFactory<>(HomeBankingListCell.class)::call);
 
         // Setting the preferred height for homeBankingListView
@@ -346,7 +346,7 @@ public class ARConfigurationPane extends ARPane {
 
         browserLabel = new Label("Browser");
         databaseLabel = new Label("DB Type");
-        backupDBLabel = new Label("Backup/Restore DB");
+        backupDBLabel = new Label("Backup DB  Restore DB");
         restoreDateLabel = new Label("Date Restore");
         reloadDBLabel = new Label("Reload DB");
         deleteAllDBLabel = new Label("Delete ALL DB");
@@ -918,11 +918,12 @@ public class ARConfigurationPane extends ARPane {
                 if (errorMessage == null) {
                     performDataBase.loadHomeBanking(null);
                     backupDBButton.setDisable(performLists.getListHomeBanking().isEmpty());
-                    homeBankingListView = new ListView<>(performLists.getListHomeBanking());
+                    homeBankingListView =
+                            new ListView<>(FXCollections.observableArrayList(performLists.getListHomeBanking()));
                     HomeBankingLoadDTO homeBank = performLists.getFirstHomeBanking();
                     arNewHomeBankingScene.initialize(homeBank);
                     performDataBase.loadQuickBotJobs();
-                    viewBotJobListView.setItems(performLists.getQuickBotJobs());
+                    viewBotJobListView.setItems(FXCollections.observableArrayList(performLists.getQuickBotJobs()));
 
                     closeAllScenes();
 
@@ -1100,7 +1101,7 @@ public class ARConfigurationPane extends ARPane {
 
             performDataBase.loadHomeBanking(null);
             backupDBButton.setDisable(performLists.getListHomeBanking().isEmpty());
-            homeBankingListView = new ListView<>(performLists.getListHomeBanking());
+            homeBankingListView = new ListView<>(FXCollections.observableArrayList(performLists.getListHomeBanking()));
             HomeBankingLoadDTO homeBank = performLists.getFirstHomeBanking();
             arNewHomeBankingScene.initialize(homeBank);
 
@@ -1112,11 +1113,12 @@ public class ARConfigurationPane extends ARPane {
                     this.previousDB = databaseChoiceBox.getValue();
                     this.previousDBUrl = dbUrl.getText().trim();
                 }
-                //                botJobList = FXCollections.observableArrayList(performLists.getQuickBotJobs());
+                //                botJobList =
+                // FXCollections.observableArrayList(FXCollections.observableArrayList(performLists.getQuickBotJobs()));
             } catch (Exception error) {
                 throw error;
             }
-            viewBotJobListView.setItems(performLists.getQuickBotJobs());
+            viewBotJobListView.setItems(FXCollections.observableArrayList(performLists.getQuickBotJobs()));
 
             new ARAlertScene(
                     Alert.AlertType.INFORMATION,

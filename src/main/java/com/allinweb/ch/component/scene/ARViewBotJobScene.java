@@ -114,7 +114,13 @@ public class ARViewBotJobScene extends ARScene {
         //        }
 
         // IN CASE the ADDED New Bot Job tomREfresh Main List as Observable
-        performDataBase.loadQuickBotJobs();
+        if (performLists.getListHomeUrl().isEmpty()) {
+            performDataBase.loadHomeUrls(null);
+        }
+
+        if (performLists.getQuickBotJobs().isEmpty()) {
+            performDataBase.loadQuickBotJobs();
+        }
 
         performDataBase.loadBlocks(selectedBotJob.getId(), selectedBotJob.getName(), "block");
         performDataBase.loadBlocks(selectedBotJob.getHomeBankingId(), selectedBotJob.getName(), "component_block");
@@ -122,9 +128,6 @@ public class ARViewBotJobScene extends ARScene {
 
         BotJobLoadDTO botJobLoad = performLists.getQuickBotJobById(selectedBotJob.getId());
 
-        if (performLists.getListHomeUrl().isEmpty()) {
-            performDataBase.loadHomeUrls(null);
-        }
         //        performDataBase.loadHomeBanking(selectedBotJob.getHomeBankingId());
 
         if (botJobLoad != null && botJobLoad.getBlockLoadDTOList() == null) {

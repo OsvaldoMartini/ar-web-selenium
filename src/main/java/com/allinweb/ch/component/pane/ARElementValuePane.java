@@ -7,11 +7,13 @@ import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
+import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -103,7 +105,20 @@ public class ARElementValuePane extends ARPane {
         int whereId = rowMoveDTO.getSessionId().equals("componentTasks")
                 ? rowMoveDTO.getHomeBankingId()
                 : rowMoveDTO.getBotJobId();
-        performDataBase.loadAllVariablesByCriteria(varTable, whereId, instructionId);
+
+        if (performLists.getListVariablesUser().isEmpty()) {
+            ErrorMessage errorMessage = performDataBase.loadAllVariablesByCriteria(varTable, whereId, instructionId);
+            if (errorMessage != null) {
+                performMessage.errorMessage(
+                        errorMessage.getErrorTitle(),
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                + errorMessage.getErrorHeader(),
+                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                        null,
+                        0);
+            }
+        }
 
         if (this.varId > -1) {
             selectRowById(varId);
@@ -349,7 +364,7 @@ public class ARElementValuePane extends ARPane {
         List<TableColumn<VariableUserDTO, String>> columns =
                 List.of(idColumn, typeColumn, nameColumn, valueColumn, localFormatColumn, delimiterColumn);
         tableView.getColumns().addAll(columns);
-        tableView.setItems(performLists.getListVariablesUser());
+        tableView.setItems(FXCollections.observableArrayList(performLists.getListVariablesUser()));
 
         // Wrap the TableView in a VBox for more control
         VBox tableViewContainer = new VBox(tableView);
@@ -488,7 +503,7 @@ public class ARElementValuePane extends ARPane {
             int whereId = rowMoveDTO.getSessionId().equals("componentTasks")
                     ? rowMoveDTO.getHomeBankingId()
                     : rowMoveDTO.getBotJobId();
-            performDataBase.loadAllVariablesByCriteria(varTable, whereId, instructionId);
+
             arNewCommandPane.reloadComboVars(varTable, whereId, instructionId, true, -1);
         });
 
@@ -526,7 +541,7 @@ public class ARElementValuePane extends ARPane {
             int whereId = rowMoveDTO.getSessionId().equals("componentTasks")
                     ? rowMoveDTO.getHomeBankingId()
                     : rowMoveDTO.getBotJobId();
-            performDataBase.loadAllVariablesByCriteria(varTable, whereId, instructionId);
+
             arNewCommandPane.reloadComboVars(varTable, whereId, instructionId, true, varId);
         });
         deleteButton.setOnAction(event -> {
@@ -548,7 +563,6 @@ public class ARElementValuePane extends ARPane {
             int whereId = rowMoveDTO.getSessionId().equals("componentTasks")
                     ? rowMoveDTO.getHomeBankingId()
                     : rowMoveDTO.getBotJobId();
-            performDataBase.loadAllVariablesByCriteria(varTable, whereId, instructionId);
             arNewCommandPane.reloadComboVars(varTable, whereId, instructionId, true, -1);
         });
 

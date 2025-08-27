@@ -2,12 +2,12 @@ package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.model.BlockLoadDTO;
-import com.allinweb.ch.component.model.BotJobLoadDTO;
-import com.allinweb.ch.component.model.InstructionLoadDTO;
+import com.allinweb.ch.component.model.InstructionLoad;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.*;
 import com.allinweb.ch.socket.WebSocketSessionManager;
@@ -83,19 +83,11 @@ public class ARSaveComponentPane extends ARPane {
     private List<ComponentInstructionDTO> originalLoopInstruction;
     private List<ComponentReferenceDTO> originalReferences;
 
-    private static final WebSocketSessionManager webSocketSessionManager;
-    private static final PerformMessage performMessage;
-    private static final PerformActions performAction;
-    private static final PerformDataBase performDataBase;
-    //    private static final PerformDBSavedBlock performDBSavedBlock;
-    // Static block to initialize
-    static {
-        webSocketSessionManager = WebSocketSessionManager.getInstance();
-        performMessage = PerformMessage.getInstance();
-        performAction = PerformActions.getInstance();
-        performDataBase = PerformDataBase.getInstance();
-        //        performDBSavedBlock = PerformDBSavedBlock.getInstance();
-    }
+    private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
+    private static final PerformMessage performMessage = PerformMessage.getInstance();
+    private static final PerformActions performAction = PerformActions.getInstance();
+    private static final PerformLists performLists = PerformLists.getInstance();
+    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
 
     TextField nameTextField;
     TextArea descriptionTextField;
@@ -274,15 +266,30 @@ public class ARSaveComponentPane extends ARPane {
                         }
 
                         if (errorMessage == null) {
-                            List<BotJobLoadDTO> botJobLoadList = performDataBase.loadComponentsComplete(
+
+                            errorMessage = performDataBase.loadComponentsComplete(
                                     blockDetailsDTO.getHomeBankingId(),
                                     blockDetailsDTO.getBotJobId(),
                                     blockDetailsDTO.getBotJobName());
 
+                            if (errorMessage != null) {
+                                performMessage.errorMessage(
+                                        errorMessage.getErrorTitle(),
+                                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                                + errorMessage.getErrorHeader(),
+                                        "<span style='font-style: italic;'>Detail:</span> "
+                                                + errorMessage.getErrorMessage(),
+                                        null,
+                                        0);
+                            }
+
                             String jsonData = "[]";
-                            if (!botJobLoadList.isEmpty()) {
-                                List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(
-                                        botJobLoadList, blockDetailsDTO.getHomeBankingId(), "component_instruction");
+                            if (!performLists.getListBotJobComp().isEmpty()) {
+                                List<InstructionLoad> blockLoopInstructions = performDataBase.buildJsonViewData(
+                                        performLists.getListBotJobComp(),
+                                        blockDetailsDTO.getHomeBankingId(),
+                                        "component_instruction");
                                 jsonData = gson.toJson(blockLoopInstructions);
                             }
                             // simpleWebSocketServer.sendMessageJson(blockDetailsDTO.getSessionId(), jsonData,

@@ -6,9 +6,8 @@ import com.allinweb.ch.builder.WebElementIcon;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.model.BlockLoadDTO;
-import com.allinweb.ch.component.model.ComplexInstructionLoadDTO;
 import com.allinweb.ch.component.model.ElementDTO;
-import com.allinweb.ch.component.model.InstructionLoadDTO;
+import com.allinweb.ch.component.model.InstructionLoad;
 import com.allinweb.ch.component.model.ReferenceLoadDTO;
 import com.allinweb.ch.component.model.VariableLoadDTO;
 import com.allinweb.ch.persistence.TargetElement;
@@ -147,7 +146,7 @@ public class PerformActions {
     }
 
     public WebElement searchElement(
-            InstructionLoadDTO instruction, int botJobId, boolean forceCoordinates, boolean byPassFlagLoop) {
+            InstructionLoad instruction, int botJobId, boolean forceCoordinates, boolean byPassFlagLoop) {
         WebElement instructionElement = null;
 
         if (!StringUtils.isBlank(instruction.getXpath())) {
@@ -174,7 +173,7 @@ public class PerformActions {
             boolean byPassNotFound,
             String savedCoordinates,
             Pair<String, String> data,
-            InstructionLoadDTO currentInstruction,
+            InstructionLoad currentInstruction,
             Map<String, String> mapOperators,
             WebElement instructionElement,
             String actions[])
@@ -278,12 +277,12 @@ public class PerformActions {
         }
     }
 
-    public void performOtherActions(boolean byPassNotFound, InstructionLoadDTO instruction, String actions[])
+    public void performOtherActions(boolean byPassNotFound, InstructionLoad instruction, String actions[])
             throws Exception {
 
         switch (actions[0]) {
             case ARConstants.LIST_OPERATION:
-                listOperation(byPassNotFound, instruction);
+                //                listOperation(byPassNotFound, instruction);
                 break;
             case ARConstants.HOLD:
             case ARConstants.REFRESH_HOLD:
@@ -323,7 +322,7 @@ public class PerformActions {
 
     public String performOperatorActions(
             boolean byPassNotFound,
-            InstructionLoadDTO instruction,
+            InstructionLoad instruction,
             String targetXPath,
             String[] parentOperations,
             String action,
@@ -493,7 +492,7 @@ public class PerformActions {
 
     private void showNotFoundElement(String targetXPath, By criteria) {}
 
-    private WebElement locateElementOLD(InstructionLoadDTO currentInstruction, int botJobId) {
+    private WebElement locateElementOLD(InstructionLoad currentInstruction, int botJobId) {
 
         //        WebElement elementInsideIframe = null;
         //                if (xPath.toLowerCase().contains("iframe")){
@@ -753,7 +752,7 @@ public class PerformActions {
     }
 
     private WebElement locateElement(
-            InstructionLoadDTO currentInstruction, int botJobId, boolean forceCoordinates, boolean byPassFlagLoop) {
+            InstructionLoad currentInstruction, int botJobId, boolean forceCoordinates, boolean byPassFlagLoop) {
         String instructionPath = currentInstruction.getXpath();
         String tagName = null;
 
@@ -1157,7 +1156,7 @@ public class PerformActions {
         return element.getAttribute("value");
     }
 
-    public synchronized String onHoldForSeconds(InstructionLoadDTO instruction) throws Exception {
+    public synchronized String onHoldForSeconds(InstructionLoad instruction) throws Exception {
         if (instruction != null) {
             Integer instructionSeconds = instruction.getOnHoldSeconds();
             if (instructionSeconds != null && instructionSeconds > 0) {
@@ -1595,111 +1594,6 @@ public class PerformActions {
         return finalText;
     }
 
-    private void listOperation(boolean byPassNotFound, InstructionLoadDTO instructionDTO) {
-
-        /*
-        TODO: Da rivedere, attualmente non del tutto funzionante
-        Complex instruction string interpretation:
-        [       0       ||       1      ||       2         ||    3    ||        4       ||  5   ||            6                ]
-        [backward_button||forward_button||list_elements_tag||condition||expected_results||action||sub_element_on_execute_action]
-        */
-        List<ComplexInstructionLoadDTO> complexInstructionDTOS = instructionDTO.getComplexInstructionLoadDTOList();
-        String[] complexActionParts =
-                complexInstructionDTOS.get(0).getInstruction().split(ARConstants.COMPLEX_INSTRUCTION_SEPARATOR);
-        List<WebElement> webElementList;
-        WebElement forwardButton;
-        WebElement backwardButton;
-        boolean shouldContinue = true;
-
-        boolean existNextPage;
-        do {
-            try {
-                waitForPage.until(ExpectedConditions.visibilityOfElementLocated(By.tagName(complexActionParts[2])));
-            } catch (Exception e) {
-                ARLogger.getInstance(PerformActions.class)
-                        .fine(String.format(
-                                "Could Not Find TagName \"%s\" Criteria \"%s\" -> Cause: %s",
-                                complexActionParts[2], By.tagName(complexActionParts[2]), e.getMessage()));
-
-                if (!byPassNotFound) {
-                    performMessage.couldNotFindElement(complexActionParts[2]);
-                }
-            }
-
-            backwardButton = this.currentDriver.findElement(By.xpath(complexActionParts[0]));
-            forwardButton = this.currentDriver.findElement(By.xpath(complexActionParts[1]));
-            webElementList = this.currentDriver.findElements(By.tagName(complexActionParts[2]));
-
-            WebElement element;
-            WebElement reasonWebElement;
-            for (int i = 0; i < 5; i++) {
-
-                if (i != 0) {
-
-                    try {
-                        waitForPage.until(
-                                ExpectedConditions.visibilityOfElementLocated(By.tagName(complexActionParts[2])));
-                        webElementList = this.currentDriver.findElements(By.tagName(complexActionParts[2]));
-                    } catch (Exception e) {
-                        ARLogger.getInstance(PerformActions.class)
-                                .fine(String.format(
-                                        "Could Not Find TagName \"%s\" Criteria \"%s\" -> Cause: %s",
-                                        complexActionParts[2], By.tagName(complexActionParts[2]), e.getMessage()));
-
-                        if (!byPassNotFound) {
-                            performMessage.couldNotFindElement(complexActionParts[2]);
-                        }
-                    }
-                }
-
-                element = webElementList.get(i);
-                try {
-                    Thread.sleep(1000);
-
-                    reasonWebElement = element.findElement(
-                            By.xpath(".//div[@class='payments-table-field reason ng-star-inserted']"));
-                    if (!UtilsMethods.testFixedCheck(reasonWebElement.getText())) {
-                        continue;
-                    }
-
-                    clickElement(
-                            byPassNotFound,
-                            element.findElement(By.xpath(
-                                    ".//button[@test-id='web-banking-payment-core.payment-ctx-action.button']")));
-                    clickElement(
-                            byPassNotFound,
-                            this.currentDriver.findElement(
-                                    By.xpath(
-                                            ".//button[@test-id='web-banking-payment-core.payment-ctx-action.payment-action-VIEW']")));
-
-                    Thread.sleep(1000);
-                    clickElement(
-                            byPassNotFound,
-                            this.currentDriver.findElement(By.xpath(
-                                    ".//button[@test-id='web-banking-common.export-to-file.single-file-button']")));
-
-                    Thread.sleep(1000);
-                    clickElement(
-                            byPassNotFound,
-                            this.currentDriver.findElement(
-                                    By.xpath(
-                                            ".//avq-breadcrumb[@test-id='web-banking-portal.pages.payments-overview.breadcrumb']")));
-                } catch (Exception e) {
-                    System.out.println("Impossible execute operation on this element: " + element.toString());
-                }
-            }
-
-            try {
-                scrollToElement(byPassNotFound, forwardButton);
-                clickElement(byPassNotFound, forwardButton);
-                existNextPage = true;
-            } catch (Exception e) {
-                existNextPage = false;
-            }
-
-        } while (existNextPage && shouldContinue);
-    }
-
     public void quit(int status) {
         this.currentDriver.quit();
         if (status == 0) {
@@ -1751,10 +1645,7 @@ public class PerformActions {
     }
 
     public String getValueIsNotDefinedEngine(
-            InstructionLoadDTO currentInstruction,
-            String lastInstructionExecuted,
-            boolean ifClause,
-            boolean elseClause) {
+            InstructionLoad currentInstruction, String lastInstructionExecuted, boolean ifClause, boolean elseClause) {
 
         if (!ifClause && !elseClause) {
             String message = "There is NOT GET VALUE defined for: "
@@ -1784,7 +1675,7 @@ public class PerformActions {
 
     public String getValueIsNotDefined(
             String action,
-            InstructionLoadDTO currentInstruction,
+            InstructionLoad currentInstruction,
             String lastInstructionExecuted,
             ARConstants.ConditionStatus conditionStatus,
             String parentField,
@@ -1873,7 +1764,7 @@ public class PerformActions {
     }
 
     public String parentIdWrongBlockEngine(
-            InstructionLoadDTO currentInstruction, BlockLoadDTO blockLoad, boolean ifClause, boolean elseClause) {
+            InstructionLoad currentInstruction, BlockLoadDTO blockLoad, boolean ifClause, boolean elseClause) {
         if (!ifClause && !elseClause) {
             String message = "The Parent Id: <b style='color:red;'>"
                     + "The Parent Id: \"(" + currentInstruction.getParentId() + ")"
@@ -1924,7 +1815,7 @@ public class PerformActions {
     }
 
     public String parentIdWrongBlock(
-            InstructionLoadDTO currentInstruction,
+            InstructionLoad currentInstruction,
             BlockLoadDTO blockLoad,
             String lastInstructionExecuted,
             ARConstants.ConditionStatus conditionStatus) {
@@ -2337,9 +2228,9 @@ public class PerformActions {
         return extendedRefreshArray;
     }
 
-    public String getXPathInstruction(InstructionLoadDTO currentInstruction, BlockLoadDTO blockLoad) {
+    public String getXPathInstruction(InstructionLoad currentInstruction, BlockLoadDTO blockLoad) {
         try {
-            return blockLoad.getInstructionLoadDTOS().stream()
+            return blockLoad.getInstructionLoad().stream()
                     .filter(f -> f.getId().equals(currentInstruction.getParentId()))
                     .findFirst()
                     .get()
@@ -2349,9 +2240,9 @@ public class PerformActions {
         }
     }
 
-    public String getInstructionParentField(InstructionLoadDTO currentInstruction, BlockLoadDTO blockLoad) {
+    public String getInstructionParentField(InstructionLoad currentInstruction, BlockLoadDTO blockLoad) {
         try {
-            return blockLoad.getInstructionLoadDTOS().stream()
+            return blockLoad.getInstructionLoad().stream()
                     .filter(f -> f.getId().equals(currentInstruction.getParentId()))
                     .findFirst()
                     .get()
@@ -2362,9 +2253,9 @@ public class PerformActions {
         }
     }
 
-    public String getInstructionParentActions(InstructionLoadDTO currentInstruction, BlockLoadDTO blockLoad) {
+    public String getInstructionParentActions(InstructionLoad currentInstruction, BlockLoadDTO blockLoad) {
         try {
-            return blockLoad.getInstructionLoadDTOS().stream()
+            return blockLoad.getInstructionLoad().stream()
                     .filter(f -> f.getId().equals(currentInstruction.getParentId()))
                     .findFirst()
                     .get()
@@ -2374,8 +2265,7 @@ public class PerformActions {
         }
     }
 
-    public String getInstructionVariableField(
-            InstructionLoadDTO currentInstruction, List<VariableLoadDTO> variableLoad) {
+    public String getInstructionVariableField(InstructionLoad currentInstruction, List<VariableLoadDTO> variableLoad) {
         try {
             return variableLoad.stream()
                     .filter(f -> f.getId().equals(currentInstruction.getVariableId()))
@@ -2390,8 +2280,7 @@ public class PerformActions {
         }
     }
 
-    public String getInstructionVariableFormat(
-            InstructionLoadDTO currentInstruction, List<VariableLoadDTO> variableLoad) {
+    public String getInstructionVariableFormat(InstructionLoad currentInstruction, List<VariableLoadDTO> variableLoad) {
         try {
             return variableLoad.stream()
                     .filter(f -> f.getId().equals(currentInstruction.getVariableId()))
@@ -2406,7 +2295,7 @@ public class PerformActions {
     }
 
     public String getInstructionVariableDelimiter(
-            InstructionLoadDTO currentInstruction, List<VariableLoadDTO> variableLoad) {
+            InstructionLoad currentInstruction, List<VariableLoadDTO> variableLoad) {
         try {
             return variableLoad.stream()
                     .filter(f -> f.getId().equals(currentInstruction.getVariableId()))
@@ -2469,10 +2358,10 @@ public class PerformActions {
     public Map<String, List<Integer>> getConditionIndexMapByParentId(BlockLoadDTO blockLoad) {
         try {
             // Create a map where key is "parentId-actions" and value is a list of indices
-            return IntStream.range(0, blockLoad.getInstructionLoadDTOS().size())
+            return IntStream.range(0, blockLoad.getInstructionLoad().size())
                     .filter(index -> {
-                        InstructionLoadDTO instruction =
-                                blockLoad.getInstructionLoadDTOS().get(index);
+                        InstructionLoad instruction =
+                                blockLoad.getInstructionLoad().get(index);
                         String actions = instruction.getActions();
                         return actions != null
                                 && (actions.equals("IF")
@@ -2483,8 +2372,8 @@ public class PerformActions {
                     .boxed() // Convert IntStream to Stream<Integer>
                     .collect(Collectors.toMap(
                             index -> {
-                                InstructionLoadDTO instruction =
-                                        blockLoad.getInstructionLoadDTOS().get(index);
+                                InstructionLoad instruction =
+                                        blockLoad.getInstructionLoad().get(index);
                                 return instruction.getParentId() + "-"
                                         + instruction.getActions(); // Key: parentId-actions
                             },
@@ -3053,7 +2942,7 @@ public class PerformActions {
     }
 
     public Pair<String, String> getBlockDetailsById(
-            List<BlockLoadDTO> blocksLoaded, InstructionLoadDTO currentInstruction) {
+            List<BlockLoadDTO> blocksLoaded, InstructionLoad currentInstruction) {
         for (BlockLoadDTO block : blocksLoaded) {
             if (block.getId() != null && block.getId().equals(currentInstruction.getParentId())) {
                 Pair<String, String> blockDetails = new Pair<>(
@@ -3076,8 +2965,8 @@ public class PerformActions {
     }
 
     public Pair<String, String> getInstructionDetailsById(
-            List<InstructionLoadDTO> instructionLoadDTOS, InstructionLoadDTO currentInstruction) {
-        for (InstructionLoadDTO instParent : instructionLoadDTOS) {
+            List<InstructionLoad> InstructionLoadS, InstructionLoad currentInstruction) {
+        for (InstructionLoad instParent : InstructionLoadS) {
             if (instParent.getId() != null && instParent.getId().equals(currentInstruction.getParentId())) {
                 Pair<String, String> blockDetails = new Pair<>(
                         currentInstruction.getId() + ":" + instParent.getId() + ":"
@@ -3089,11 +2978,11 @@ public class PerformActions {
         return null; // or throw an exception if the block is not found
     }
 
-    public Map<String, Integer[]> getLoopAndRefreshLoops(List<InstructionLoadDTO> instructionLoadDTOS) {
+    public Map<String, Integer[]> getLoopAndRefreshLoops(List<InstructionLoad> InstructionLoadS) {
         // Step 2: Filter rows where actions = "REFRESH_LOOP" or "LOOP" and collect into the map
         Map<String, Integer[]> mapRefreshLoops = new HashMap<>();
 
-        for (InstructionLoadDTO instruction : instructionLoadDTOS) {
+        for (InstructionLoad instruction : InstructionLoadS) {
             // Filter by actions
             String actions = instruction.getActions();
             if ("REFRESH_LOOP".equalsIgnoreCase(actions) || "LOOP".equalsIgnoreCase(actions)) {
@@ -3135,11 +3024,11 @@ public class PerformActions {
         return mapRefreshLoops;
     }
 
-    public Set<Integer> getParentIdsForLoop(List<InstructionLoadDTO> instructionLoadDTOS) {
-        return instructionLoadDTOS.stream()
+    public Set<Integer> getParentIdsForLoop(List<InstructionLoad> InstructionLoadS) {
+        return InstructionLoadS.stream()
                 .filter(instruction -> "REFRESH_LOOP".equalsIgnoreCase(instruction.getActions())
                         || "LOOP".equalsIgnoreCase(instruction.getActions()))
-                .map(InstructionLoadDTO::getParentId)
+                .map(InstructionLoad::getParentId)
                 .collect(Collectors.toSet());
     }
 
@@ -3455,7 +3344,7 @@ public class PerformActions {
         return targetDefine;
     }
 
-    public ElementDTO buildElementDTO(InstructionLoadDTO instructionDTO) {
+    public ElementDTO buildElementDTO(InstructionLoad instructionDTO) {
         // Reset Previous Values
         ElementDTO elemenDTO = new ElementDTO();
         elemenDTO.setTagName(instructionDTO.getTagName());
@@ -3817,14 +3706,14 @@ public class PerformActions {
         return null;
     }
 
-    public InstructionLoadDTO buildNewInstruction(
+    public InstructionLoad buildNewInstruction(
             WebElementTagNameEnum forceTag,
             String actionReq,
             boolean identityHover,
             Integer orderNumber,
             TargetElement targetBuild) {
 
-        InstructionLoadDTO loop = new InstructionLoadDTO();
+        InstructionLoad loop = new InstructionLoad();
         loop.setActionCustomMaxWaitSec(30);
         loop.setDescription("loop desc");
         loop.setCodified(false);
@@ -4182,4 +4071,118 @@ public class PerformActions {
         }
         return sb.toString();
     }
+
+    //    private void listOperation(boolean byPassNotFound, InstructionLoad instructionDTO) {
+    //
+    //        /*
+    //        TODO: Da rivedere, attualmente non del tutto funzionante
+    //        Complex instruction string interpretation:
+    //        [       0       ||       1      ||       2         ||    3    ||        4       ||  5   ||            6
+    //             ]
+    //
+    // [backward_button||forward_button||list_elements_tag||condition||expected_results||action||sub_element_on_execute_action]
+    //        */
+    //        List<ComplexInstructionLoad> complexInstructionDTOS =
+    // instructionDTO.getComplexInstructionLoadList();
+    //        String[] complexActionParts =
+    //                complexInstructionDTOS.get(0).getInstruction().split(ARConstants.COMPLEX_INSTRUCTION_SEPARATOR);
+    //        List<WebElement> webElementList;
+    //        WebElement forwardButton;
+    //        WebElement backwardButton;
+    //        boolean shouldContinue = true;
+    //
+    //        boolean existNextPage;
+    //        do {
+    //            try {
+    //
+    // waitForPage.until(ExpectedConditions.visibilityOfElementLocated(By.tagName(complexActionParts[2])));
+    //            } catch (Exception e) {
+    //                ARLogger.getInstance(PerformActions.class)
+    //                        .fine(String.format(
+    //                                "Could Not Find TagName \"%s\" Criteria \"%s\" -> Cause: %s",
+    //                                complexActionParts[2], By.tagName(complexActionParts[2]), e.getMessage()));
+    //
+    //                if (!byPassNotFound) {
+    //                    performMessage.couldNotFindElement(complexActionParts[2]);
+    //                }
+    //            }
+    //
+    //            backwardButton = this.currentDriver.findElement(By.xpath(complexActionParts[0]));
+    //            forwardButton = this.currentDriver.findElement(By.xpath(complexActionParts[1]));
+    //            webElementList = this.currentDriver.findElements(By.tagName(complexActionParts[2]));
+    //
+    //            WebElement element;
+    //            WebElement reasonWebElement;
+    //            for (int i = 0; i < 5; i++) {
+    //
+    //                if (i != 0) {
+    //
+    //                    try {
+    //                        waitForPage.until(
+    //                                ExpectedConditions.visibilityOfElementLocated(By.tagName(complexActionParts[2])));
+    //                        webElementList = this.currentDriver.findElements(By.tagName(complexActionParts[2]));
+    //                    } catch (Exception e) {
+    //                        ARLogger.getInstance(PerformActions.class)
+    //                                .fine(String.format(
+    //                                        "Could Not Find TagName \"%s\" Criteria \"%s\" -> Cause: %s",
+    //                                        complexActionParts[2], By.tagName(complexActionParts[2]),
+    // e.getMessage()));
+    //
+    //                        if (!byPassNotFound) {
+    //                            performMessage.couldNotFindElement(complexActionParts[2]);
+    //                        }
+    //                    }
+    //                }
+    //
+    //                element = webElementList.get(i);
+    //                try {
+    //                    Thread.sleep(1000);
+    //
+    //                    reasonWebElement = element.findElement(
+    //                            By.xpath(".//div[@class='payments-table-field reason ng-star-inserted']"));
+    //                    if (!UtilsMethods.testFixedCheck(reasonWebElement.getText())) {
+    //                        continue;
+    //                    }
+    //
+    //                    clickElement(
+    //                            byPassNotFound,
+    //                            element.findElement(By.xpath(
+    //                                    ".//button[@test-id='web-banking-payment-core.payment-ctx-action.button']")));
+    //                    clickElement(
+    //                            byPassNotFound,
+    //                            this.currentDriver.findElement(
+    //                                    By.xpath(
+    //
+    // ".//button[@test-id='web-banking-payment-core.payment-ctx-action.payment-action-VIEW']")));
+    //
+    //                    Thread.sleep(1000);
+    //                    clickElement(
+    //                            byPassNotFound,
+    //                            this.currentDriver.findElement(By.xpath(
+    //
+    // ".//button[@test-id='web-banking-common.export-to-file.single-file-button']")));
+    //
+    //                    Thread.sleep(1000);
+    //                    clickElement(
+    //                            byPassNotFound,
+    //                            this.currentDriver.findElement(
+    //                                    By.xpath(
+    //
+    // ".//avq-breadcrumb[@test-id='web-banking-portal.pages.payments-overview.breadcrumb']")));
+    //                } catch (Exception e) {
+    //                    System.out.println("Impossible execute operation on this element: " + element.toString());
+    //                }
+    //            }
+    //
+    //            try {
+    //                scrollToElement(byPassNotFound, forwardButton);
+    //                clickElement(byPassNotFound, forwardButton);
+    //                existNextPage = true;
+    //            } catch (Exception e) {
+    //                existNextPage = false;
+    //            }
+    //
+    //        } while (existNextPage && shouldContinue);
+    //    }
+
 }

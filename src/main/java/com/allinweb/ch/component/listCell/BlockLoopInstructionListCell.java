@@ -1,15 +1,15 @@
 // package com.allinweb.ch.component.listCell;
 //
-// import com.allinweb.ch.component.model.InstructionLoadDTO;
+// import com.allinweb.ch.component.model.InstructionLoad;
 // import com.allinweb.ch.util.ARConstants;
 // import com.allinweb.ch.util.ARLogger;
 // import javafx.application.Platform;
 // import javafx.scene.control.Label;
 // import javafx.scene.control.ListCell;
 //
-// public class BlockLoopInstructionListCell extends ListCell<InstructionLoadDTO> {
+// public class BlockLoopInstructionListCell extends ListCell<InstructionLoad> {
 //    @Override
-//    protected void updateItem(InstructionLoadDTO item, boolean empty) {
+//    protected void updateItem(InstructionLoad item, boolean empty) {
 //        super.updateItem(item, empty);
 //        boolean isValid = !empty && item != null && item.getActions() != null && item.getBlockId() != null;
 //        Label graphic = new Label();

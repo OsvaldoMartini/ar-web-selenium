@@ -4,6 +4,7 @@ import com.allinweb.ch.component.model.*;
 import com.allinweb.ch.persistence.DatabaseUserDTO;
 import com.allinweb.ch.persistence.ReferenceDTO;
 import com.allinweb.ch.socket.WebSocketSessionManager;
+import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ComboBoxVars;
 import com.google.common.base.Strings;
@@ -16,8 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.*;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
+import java.util.stream.Collectors;
 import javax.websocket.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -60,27 +60,28 @@ public class PerformLists {
         return instance;
     }
 
-    private ObservableList<HomeBankingLoadDTO> listHomeBanking = FXCollections.observableArrayList();
-    private ObservableList<HomeUrlDTO> listHomeUrl = FXCollections.observableArrayList();
-    private ObservableList<BotJobLoadDTO> quickBotJobs = FXCollections.observableArrayList();
-    private ObservableList<BotJobLoadDTO> listBotJob = FXCollections.observableArrayList();
-    private List<BotJobLoadDTO> listBotJobComp = FXCollections.observableArrayList();
+    private List<HomeBankingLoadDTO> listHomeBanking = new ArrayList<>();
+    private List<HomeUrlDTO> listHomeUrl = new ArrayList<>();
+    private List<BotJobLoadDTO> quickBotJobs = new ArrayList<>();
+    private List<BotJobLoadDTO> listBotJob = new ArrayList<>();
+    private List<BotJobLoadDTO> listBotJobComp = new ArrayList<>();
     private List<BlockLoadDTO> listBlock = new ArrayList<>();
     private List<BlockLoadDTO> listBlockComp = new ArrayList<>();
-    private ObservableList<InstructionLoadDTO> listInstruction = FXCollections.observableArrayList();
-    private ObservableList<InstructionLoadDTO> listInstructionComp = FXCollections.observableArrayList();
+    private List<InstructionLoad> listInstruction = new ArrayList<>();
+    private List<InstructionLoad> listInstructionComp = new ArrayList<>();
     private List<VariableLoadDTO> listVariable = new ArrayList<>();
     private List<VariableLoadDTO> listVariableComp = new ArrayList<>();
     private List<ReferenceDTO> listReference = new ArrayList<>();
     private List<ReferenceDTO> listReferenceComp = new ArrayList<>();
+    private List<String> allActions = new ArrayList<>();
 
     // Quick Lists
     private List<InstructionOperationDTO> instrucOperList = new ArrayList<>();
 
     // Observable lists
-    private ObservableList<DatabaseUserDTO> listDatabaseUsers = FXCollections.observableArrayList();
-    private ObservableList<VariableUserDTO> listVariablesUser = FXCollections.observableArrayList();
-    private ObservableList<ComboBoxVars> listWebPageItems = FXCollections.observableArrayList();
+    private List<DatabaseUserDTO> listDatabaseUsers = new ArrayList<>();
+    private List<VariableUserDTO> listVariablesUser = new ArrayList<>();
+    private List<ComboBoxVars> listWebPageItems = new ArrayList<>();
 
     public void initialize() {
         this.executorWebSocket = Executors.newSingleThreadExecutor();
@@ -329,5 +330,46 @@ public class PerformLists {
                 .filter(job -> Objects.equals(job.getId(), botJobId))
                 .findFirst()
                 .orElse(null); // null if not found
+    }
+
+    public InstructionLoad getInstructionById(String tableName, int whereId, int instructionId) {
+        List<InstructionLoad> targetList = "instruction".equals(tableName) ? listInstruction : listInstructionComp;
+
+        return targetList.stream()
+                .filter(instr -> Objects.equals(instr.getId(), instructionId)
+                        && ("instruction".equals(tableName)
+                                ? Objects.equals(instr.getBotJobId(), whereId)
+                                : Objects.equals(instr.getHomeBankingId(), whereId)))
+                .findFirst()
+                .orElse(null); // returns null if not found
+    }
+
+    public List<BlockOptions> reloadDBBlocks(List<BlockOptions> currentListBlock, String tableName) {
+        currentListBlock.clear();
+        try {
+            if (currentListBlock == null) {
+                return null;
+            }
+
+            try {
+                // Pick the right list depending on the tableName
+                List<BlockLoadDTO> blocks = tableName.equals("block") ? getListBlock() : getListBlockComp();
+
+                // Build a new list of BlockOptions
+                List<BlockOptions> newList = blocks.stream()
+                        .map(BlockOptions::fromBlockWithInstructionId)
+                        .collect(Collectors.toList());
+
+                // Replace currentListBlock with the new one
+                currentListBlock.addAll(newList);
+
+            } catch (Exception error) {
+                ARLogger.getInstance(PerformLists.class).severe("Error :" + error.getMessage());
+            }
+
+        } catch (Exception error) {
+            ARLogger.getInstance(PerformLists.class).severe("Error :" + error.getMessage());
+        }
+        return currentListBlock;
     }
 }

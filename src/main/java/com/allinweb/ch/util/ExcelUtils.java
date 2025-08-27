@@ -2,7 +2,7 @@ package com.allinweb.ch.util;
 
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
-import com.allinweb.ch.component.model.InstructionLoadDTO;
+import com.allinweb.ch.component.model.InstructionLoad;
 import com.allinweb.ch.component.scene.ARAlertScene;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
@@ -34,27 +34,14 @@ public class ExcelUtils {
 
     public ExcelUtils() {}
 
-    private List<BotJobLoadDTO> botLoadJobs = new ArrayList<>();
-    private static List<BlockLoadDTO> blocksLoaded;
-
-    private static final ARPropertyManager arPropertyManager;
-    private static final PerformMessage performMessage;
-    private static final PerformLists performLists;
-    private static final PerformDataBase performDataBase;
-
-    // Static block to initialize
-    static {
-        performMessage = PerformMessage.getInstance();
-        arPropertyManager = ARPropertyManager.getInstance();
-        performLists = PerformLists.getInstance();
-        performDataBase = PerformDataBase.getInstance();
-    }
+    private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
+    private static final PerformMessage performMessage = PerformMessage.getInstance();
+    private static final PerformLists performLists = PerformLists.getInstance();
+    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
 
     public void generateExcelFiles(
             ExtractedData extractedData, String newFileName, String nameToDuplicate, boolean openExcel) {
 
-        //        BotJobLoadDTO botJobLoad = botLoadJobs.get(0);
-        //        this.blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
         File excelFolder = new File(arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL));
         if (!excelFolder.exists()) {
             excelFolder.mkdirs();
@@ -102,20 +89,20 @@ public class ExcelUtils {
                 bufferedWriter.write(firstRow);
                 bufferedWriter.newLine();
 
-                //                List<InstructionLoadDTO> instructionList = PerformDataBase.
+                //                List<InstructionLoad> instructionList = PerformDataBase.
                 //                        .getEntityList(
-                //                                InstructionLoadDTO.class,
+                //                                InstructionLoad.class,
                 //
-                // Comparator.comparingInt(InstructionLoadDTO::getInstructionOrderNumber),
+                // Comparator.comparingInt(InstructionLoad::getInstructionOrderNumber),
                 //                                (instruction) -> instruction.getBlockId().equals(block.getId())
                 //                                        && instruction.getActions().contains(ARConstants.INSERT));
 
                 performDataBase.loadInstructions(block.getBotJobId(), block.getId(), -1, "instruction");
-                List<InstructionLoadDTO> allInstructions = performLists.getListInstruction();
+                List<InstructionLoad> allInstructions = performLists.getListInstruction();
 
-                List<InstructionLoadDTO> instructionList = new ArrayList<>();
+                List<InstructionLoad> instructionList = new ArrayList<>();
 
-                for (InstructionLoadDTO instruction : allInstructions) {
+                for (InstructionLoad instruction : allInstructions) {
                     if (instruction.getBlockId().equals(block.getId())
                             && instruction.getActions().contains(ARConstants.INSERT)) {
                         instructionList.add(instruction);
@@ -123,7 +110,7 @@ public class ExcelUtils {
                 }
 
                 Integer last = instructionList.size();
-                for (InstructionLoadDTO instruction : instructionList) {
+                for (InstructionLoad instruction : instructionList) {
                     String action = instruction.getActions();
                     boolean hasReference = action.contains(ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
                     if (hasReference) {
@@ -209,15 +196,15 @@ public class ExcelUtils {
                 blockNameCell.setCellValue("#" + block.getName());
 
                 // List to store the filtered instructions
-                List<InstructionLoadDTO> filteredInstructions = new ArrayList<>();
+                List<InstructionLoad> filteredInstructions = new ArrayList<>();
 
                 // Retrieve all instructions for the block
 
                 performDataBase.loadInstructions(block.getBotJobId(), block.getId(), -1, "instruction");
-                List<InstructionLoadDTO> allInstructions = performLists.getListInstruction();
+                List<InstructionLoad> allInstructions = performLists.getListInstruction();
 
                 // Iterate over the instructions and apply filtering manually
-                for (InstructionLoadDTO instruction : allInstructions) {
+                for (InstructionLoad instruction : allInstructions) {
                     if (Objects.equals(instruction.getBlockId(), block.getId())
                             && instruction.getActions().contains(ARConstants.INSERT + ":")) {
                         filteredInstructions.add(instruction);
@@ -229,14 +216,14 @@ public class ExcelUtils {
                         instruction.getInstructionOrderNumber() != null ? instruction.getInstructionOrderNumber() : 0));
 
                 //                // Filter the list based on the block ID and action condition
-                //                List<InstructionLoadDTO> filteredInstructions = InstructionLoadDTO.stream()
+                //                List<InstructionLoad> filteredInstructions = InstructionLoad.stream()
                 //                        .filter(instruction -> instruction.getBlockId() == block.getId()
                 //                                && instruction.getActions().contains(ARConstants.INSERT + ":"))
                 //
-                // .sorted(Comparator.comparingInt(InstructionLoadDTO::getInstructionOrderNumber))
+                // .sorted(Comparator.comparingInt(InstructionLoad::getInstructionOrderNumber))
                 //                        .collect(Collectors.toList());
 
-                for (InstructionLoadDTO instruction : filteredInstructions) {
+                for (InstructionLoad instruction : filteredInstructions) {
                     String action = instruction.getActions();
                     boolean hasReference = action.contains(ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
 
@@ -349,13 +336,27 @@ public class ExcelUtils {
         File fileCheck = new File(fileName);
 
         // Load blocks and actions
+        ErrorMessage errorMessage = null;
         if (performLists.getListBlock().isEmpty()) {
-            performDataBase.loadBlocks(selectedBotJob.getId(), selectedBotJob.getName(), "block");
+            errorMessage = performDataBase.loadBlocks(selectedBotJob.getId(), selectedBotJob.getName(), "block");
         }
-        List<String> allActions = performDataBase.loadAllActionsPerBlock(performLists.getListBlock());
+        if (errorMessage == null && performLists.getAllActions().isEmpty()) {
+            errorMessage = performDataBase.loadAllActionsPerBlock(performLists.getListBlock());
+        }
+
+        if (errorMessage != null) {
+            performMessage.errorMessage(
+                    errorMessage.getErrorTitle(),
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                            + errorMessage.getErrorHeader(),
+                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                    null,
+                    0);
+        }
 
         // Check if the Excel file already exists
-        ExtractedData extractedData = ExcelUtils.isFileExists(selectedBotJob.getName(), allActions);
+        ExtractedData extractedData = ExcelUtils.isFileExists(selectedBotJob.getName(), performLists.getAllActions());
 
         if (!fileCheck.exists() || fileCheck.isDirectory()) {
             // File does not exist or is a directory → create normally

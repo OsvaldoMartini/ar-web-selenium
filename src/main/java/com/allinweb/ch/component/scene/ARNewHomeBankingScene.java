@@ -8,6 +8,7 @@ import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.util.ARLogger;
 import java.util.List;
 import javafx.application.Platform;
+import javafx.collections.FXCollections;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -47,7 +48,7 @@ public class ARNewHomeBankingScene extends ARScene {
     public void initialize(HomeBankingLoadDTO homeBank) {
         this.homeBank = homeBank;
 
-        if (!isNullOrEmpty(performLists.getListHomeBanking())) {
+        if (!isNullOrEmpty(FXCollections.observableArrayList(performLists.getListHomeBanking()))) {
             arNewHomeBankingPane.updateTableBankingView();
         }
     }
