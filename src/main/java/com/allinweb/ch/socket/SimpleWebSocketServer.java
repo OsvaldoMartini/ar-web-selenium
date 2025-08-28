@@ -364,7 +364,7 @@ public class SimpleWebSocketServer {
 
                     // updateBlockOrderNumber  ALREADY UPDATE MEMORY LIST
                     if (errorMessage == null) {
-                        errorMessage = performDataBase.updateBlockOrderNumber(blockTable, whereId, true);
+                        errorMessage = performDataBase.updateSwiftBlockOrderNumber(blockTable, whereId, true);
                     }
                 }
 
@@ -417,10 +417,11 @@ public class SimpleWebSocketServer {
 
                         List<BlockLoadDTO> mappedBlocks =
                                 mapToBlockLoad(homeBankingId, blockMoveDTO.getUpdatedBlocks());
-                        errorMessage = performDataBase.updateBlockOrderNumber(blockTable, whereId, mappedBlocks);
+                        errorMessage = performDataBase.updateSwiftBlockOrderNumber(blockTable, whereId, mappedBlocks);
 
+                        // UPDATE BLOCK ORDER MEMORY LIST
                         if (errorMessage == null) {
-                            performLists.updateMemoryBlockOrder(blockTable, whereId, mappedBlocks);
+                            performLists.updateMemorySwiftBlockOrder(blockTable, whereId, mappedBlocks);
                         }
 
                         // calls perform list block update
@@ -556,19 +557,25 @@ public class SimpleWebSocketServer {
                             && !restToDeleteIds.isEmpty()
                             && (blockTable.equals("block") && listBlocks.size() > 1)) {
                         errorMessage = performDataBase.deleteNullBlocks(blockTable, whereId, restToDeleteIds);
+
+                        // UPDATE REMOVAL MEMORY LIST
+                        if (errorMessage == null) {
+                            performLists.updateMemoryRemoveBlockIds(blockTable, whereId, restToDeleteIds);
+                        }
                     } else if (errorMessage == null
                             && !restToDeleteIds.isEmpty()
                             && (blockTable.equals("component_block"))) {
                         errorMessage = performDataBase.deleteNullBlocks(blockTable, whereId, restToDeleteIds);
-                    }
 
-                    if (errorMessage == null) {
-                        errorMessage = performDataBase.loadBlocks(whereId, "", blockTable);
+                        // UPDATE REMOVAL MEMORY LIST
+                        if (errorMessage == null) {
+                            performLists.updateMemoryRemoveBlockIds(blockTable, whereId, restToDeleteIds);
+                        }
                     }
 
                     // updateBlockOrderNumber  ALREADY UPDATE MEMORY LIST
                     if (errorMessage == null) {
-                        errorMessage = performDataBase.updateBlockOrderNumber(blockTable, whereId, true);
+                        errorMessage = performDataBase.updateSwiftBlockOrderNumber(blockTable, whereId, true);
                     }
 
                     // calls perform list block update
@@ -653,11 +660,7 @@ public class SimpleWebSocketServer {
 
                         // updateBlockOrderNumber  ALREADY UPDATE MEMORY LIST
                         if (errorMessage == null) {
-                            errorMessage = performDataBase.updateBlockOrderNumber(blockTable, whereId, true);
-                        }
-
-                        if (errorMessage == null) {
-                            // errorMessage = performDataBase.deleteNullBlocks(blockTable, whereId);
+                            errorMessage = performDataBase.updateSwiftBlockOrderNumber(blockTable, whereId, true);
                         }
 
                         // calls perform list block update
@@ -830,6 +833,9 @@ public class SimpleWebSocketServer {
 
                 if (instTable != null) {
                     errorMessage = performDataBase.deleteInstruction(instTable, whereId, toDelete, false);
+                    if (errorMessage == null) {
+                        performLists.updateMemoryRemoveInstructionId(instTable, whereId, toDelete.getId());
+                    }
                 }
 
                 if (errorMessage == null) {
@@ -863,19 +869,26 @@ public class SimpleWebSocketServer {
                         && !restToDeleteIds.isEmpty()
                         && (blockTable.equals("block") && listBlocks.size() > 1)) {
                     errorMessage = performDataBase.deleteNullBlocks(blockTable, whereId, restToDeleteIds);
+
+                    // UPDATE REMOVAL MEMORY LIST
+                    if (errorMessage == null) {
+                        performLists.updateMemoryRemoveBlockIds(blockTable, whereId, restToDeleteIds);
+                    }
+
                 } else if (errorMessage == null
                         && !restToDeleteIds.isEmpty()
                         && (blockTable.equals("component_block"))) {
                     errorMessage = performDataBase.deleteNullBlocks(blockTable, whereId, restToDeleteIds);
-                }
 
-                if (errorMessage == null) {
-                    errorMessage = performDataBase.loadBlocks(whereId, "", blockTable);
+                    // UPDATE REMOVAL MEMORY LIST
+                    if (errorMessage == null) {
+                        performLists.updateMemoryRemoveBlockIds(blockTable, whereId, restToDeleteIds);
+                    }
                 }
 
                 // updateBlockOrderNumber  ALREADY UPDATE MEMORY LIST
                 if (errorMessage == null) {
-                    performDataBase.updateBlockOrderNumber(blockTable, whereId, true);
+                    performDataBase.updateSwiftBlockOrderNumber(blockTable, whereId, true);
                 }
 
                 // calls perform list block update
@@ -1016,22 +1029,26 @@ public class SimpleWebSocketServer {
                             && !restToDeleteIds.isEmpty()
                             && (blockTable.equals("block") && listBlocks.size() > 1)) {
                         errorMessage = performDataBase.deleteNullBlocks(blockTable, whereId, restToDeleteIds);
+
+                        // UPDATE REMOVAL MEMORY LIST
+                        if (errorMessage == null) {
+                            performLists.updateMemoryRemoveBlockIds(blockTable, whereId, restToDeleteIds);
+                        }
                     } else if (errorMessage == null
                             && !restToDeleteIds.isEmpty()
                             && (blockTable.equals("component_block"))) {
                         errorMessage = performDataBase.deleteNullBlocks(blockTable, whereId, restToDeleteIds);
+
+                        // UPDATE REMOVAL MEMORY LIST
+                        if (errorMessage == null) {
+                            performLists.updateMemoryRemoveBlockIds(blockTable, whereId, restToDeleteIds);
+                        }
                     }
 
+                    // ROLL BACK I LOAD AGAIN JUST FOR SAFETY
                     if (errorMessage == null) {
                         errorMessage = performDataBase.loadBlocks(whereId, "", blockTable);
                     }
-
-                    //                    if (errorMessage == null) {
-                    //                        performDataBase.loadBlocks(whereId, "", blockTable);
-                    //                        errorMessage = performDataBase.updateBlockOrderNumber(blockTable, whereId,
-                    // true);
-                    //                    }
-
                 }
 
                 // calls perform list block update
@@ -1093,23 +1110,24 @@ public class SimpleWebSocketServer {
                             0);
                 }
             }
-
-            List<BotJobLoadDTO> listBot =
-                    instrTable.equals("instruction") ? performLists.getListBotJob() : performLists.getListBotJobComp();
-
-            setPayloadEmpty(sessionId, homeBankingId, botJobIdTask, botJobNameTask);
-            String jsonData = gson.toJson(payloadEmpty);
-            if (!listBot.isEmpty()) {
-                List<InstructionLoad> instructionLoads =
-                        performDataBase.buildJsonViewData(listBot, homeBankingId, instrTable);
-                jsonData = gson.toJson(instructionLoads);
-            }
-
-            webSocketSessionManager.sendMessageJson(homeBankingId, sessionIdToSend, jsonData, updateAction);
-
-            //            broadcastMessageToAll(homeBankingId, "componentTasks", jsonData, "componentsUpdate");
-            //            sendMessageJson(sessionIdToSend, jsonData, "componentsUpdate");
         }
+
+        List<BotJobLoadDTO> listBot =
+                instrTable.equals("instruction") ? performLists.getListBotJob() : performLists.getListBotJobComp();
+
+        setPayloadEmpty(sessionId, homeBankingId, botJobIdTask, botJobNameTask);
+        String jsonData = gson.toJson(payloadEmpty);
+        if (!listBot.isEmpty()) {
+            List<InstructionLoad> instructionLoads =
+                    performDataBase.buildJsonViewData(listBot, homeBankingId, instrTable);
+            jsonData = gson.toJson(instructionLoads);
+        }
+
+        webSocketSessionManager.sendMessageJson(homeBankingId, sessionIdToSend, jsonData, updateAction);
+
+        //            broadcastMessageToAll(homeBankingId, "componentTasks", jsonData, "componentsUpdate");
+        //            sendMessageJson(sessionIdToSend, jsonData, "componentsUpdate");
+
     }
 
     @OnClose
@@ -1166,13 +1184,12 @@ public class SimpleWebSocketServer {
 
                 //                performDataBase.loadBlocks(blockSplitDTO.getBotJobId(), "", "block");
                 errorMessage =
-                        performDataBase.updateBlockOrderNumber("block", blockSplitDTO.getBotJobId(), mappedBlocks);
+                        performDataBase.updateSwiftBlockOrderNumber("block", blockSplitDTO.getBotJobId(), mappedBlocks);
 
+                // UPDATE BLOCK ORDER MEMORY LIST
                 if (errorMessage == null) {
-                    performLists.updateMemoryBlockOrder("block", blockSplitDTO.getBotJobId(), mappedBlocks);
+                    performLists.updateMemorySwiftBlockOrder("block", blockSplitDTO.getBotJobId(), mappedBlocks);
                 }
-                //                errorMessage = performDataBase.updateBlockOrderNumber("block",
-                // blockSplitDTO.getBotJobId(), true);
 
                 if (errorMessage != null) {
                     performMessage.errorMessage(
@@ -1264,6 +1281,12 @@ public class SimpleWebSocketServer {
         if (blockDetailsDTO.getBlockDescription() == null) {
             blockDetailsDTO.setBlockDescription(blockDetailsDTO.getBlockName() + " description");
         }
+
+        // Add at the end of it
+        if (!performLists.getListBlockComp().isEmpty()) {
+            blockDetailsDTO.setBlockOrderNumber(performLists.getListBlockComp().size() + 1);
+        }
+
         Platform.runLater(() -> {
             arSaveComponentScene.initialize(blockDetailsDTO);
             arSaveComponentScene.showModal();
@@ -1279,7 +1302,11 @@ public class SimpleWebSocketServer {
         blockDetailsDTO.setSessionId(blockSplitDTO.getSessionId());
 
         ErrorMessage errorMessage = null;
-        //                performDataBase.deleteNullBlocks("component_block", blockDetailsDTO.getHomeBankingId());
+
+        // Add at the end of it
+        if (!performLists.getListBlock().isEmpty()) {
+            blockDetailsDTO.setBlockOrderNumber(performLists.getListBlock().size() + 1);
+        }
 
         if (errorMessage == null) {
             errorMessage = performDataBase.createInjectBlock(blockDetailsDTO);
@@ -1305,7 +1332,7 @@ public class SimpleWebSocketServer {
         }
 
         if (errorMessage == null) {
-            errorMessage = performDataBase.updateBlockOrderNumber("block", blockDetailsDTO.getBotJobId(), true);
+            errorMessage = performDataBase.updateSwiftBlockOrderNumber("block", blockDetailsDTO.getBotJobId(), true);
         }
 
         if (errorMessage == null) {

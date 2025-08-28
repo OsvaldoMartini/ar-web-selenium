@@ -34,11 +34,7 @@ public class ARSaveComponentScene extends ARScene {
     private Stage modalStage;
     private Scene modalScene;
 
-    private static ARSaveComponentPane arSaveComponentPane;
-
-    static {
-        arSaveComponentPane = ARSaveComponentPane.getInstance();
-    }
+    private static ARSaveComponentPane arSaveComponentPane = ARSaveComponentPane.getInstance();
 
     private static final Double SCENE_HEIGHT = 250D;
     private static final Double SCENE_WIDTH = 600D;

@@ -657,7 +657,7 @@ public class PerformDataBase {
         }
     }
 
-    public ErrorMessage updateBlockOrderNumber(
+    public ErrorMessage updateSwiftBlockOrderNumber(
             String tableName,
             int whereId, // either "bot_job_id" or "home_banking_id"
             boolean reorderAll) {
@@ -678,13 +678,14 @@ public class PerformDataBase {
 
                 for (BlockLoadDTO blockOrder : listBlocks) {
                     int orderNumber = reorderAll ? newOrderNumber : blockOrder.getBlockOrderNumber();
-                    pstmt.setInt(1, orderNumber);
-                    pstmt.setInt(2, blockOrder.getId());
 
                     // UPDATE MEMORY LIST ALSO
                     if (reorderAll) {
                         blockOrder.setBlockOrderNumber(newOrderNumber);
                     }
+
+                    pstmt.setInt(1, orderNumber);
+                    pstmt.setInt(2, blockOrder.getId());
 
                     // Choose the correct ID value based on the column
                     if ("block".equalsIgnoreCase(tableName)) {
@@ -738,7 +739,7 @@ public class PerformDataBase {
         return null; // Success
     }
 
-    public ErrorMessage updateBlockOrderNumber(
+    public ErrorMessage updateSwiftBlockOrderNumber(
             String tableName,
             int whereId, // either "bot_job_id" or "home_banking_id"
             List<BlockLoadDTO> listBlocks) {
@@ -3773,10 +3774,7 @@ public class PerformDataBase {
 
     // Handle DELETE_INSTRUCTION message
     public ErrorMessage deleteInstruction(
-            String tableName,
-            int whereId,
-            com.allinweb.ch.component.model.InstructionLoad toDelete,
-            boolean blockDeletion) {
+            String tableName, int whereId, InstructionLoad toDelete, boolean blockDeletion) {
 
         List<InstructionLoad> listInstruc = new ArrayList<>();
         listInstruc.add(toDelete);
@@ -3841,7 +3839,7 @@ public class PerformDataBase {
         if (errorMessage == null) {
             String blockTable = tableName.equals("instruction") ? "block" : "component_block";
             loadBlocks(whereId, "", blockTable);
-            errorMessage = updateBlockOrderNumber(blockTable, whereId, true);
+            errorMessage = updateSwiftBlockOrderNumber(blockTable, whereId, true);
         }
 
         if (errorMessage != null) {
@@ -4630,7 +4628,7 @@ GROUP BY
 
                     while (rs.next()) {
                         int id = rs.getInt("id");
-                        int blockOrderNumber = rs.getInt("block_order_number");
+                        //                        int blockOrderNumber = rs.getInt("block_order_number");
                         //                        String name = rs.getString("name");
                         //                        String description = rs.getString("description");
                         Integer typeId = rs.getObject("type_id") != null ? rs.getInt("type_id") : null;
@@ -4646,7 +4644,7 @@ GROUP BY
 
                         blockMap.put(id, -1);
 
-                        insertStmt.setInt(1, blockOrderNumber);
+                        insertStmt.setInt(1, blockDetailsDTO.getBlockOrderNumber());
                         insertStmt.setString(2, blockDetailsDTO.getBlockName());
                         insertStmt.setString(3, blockDetailsDTO.getBlockDescription());
                         if (typeId != null) {
@@ -5305,7 +5303,7 @@ GROUP BY
 
                     while (rs.next()) {
                         int id = rs.getInt("id");
-                        int blockOrderNumber = rs.getInt("block_order_number");
+                        //                        int blockOrderNumber = rs.getInt("block_order_number");
                         Integer typeId = rs.getObject("type_id") != null ? rs.getInt("type_id") : null;
                         String exportFile = rs.getString("export_file");
                         int active = rs.getInt("active");
@@ -5319,7 +5317,7 @@ GROUP BY
 
                         blockMap.put(id, -1);
 
-                        insertStmt.setInt(1, blockOrderNumber);
+                        insertStmt.setInt(1, blockDetailsDTO.getBlockOrderNumber());
                         insertStmt.setString(2, blockDetailsDTO.getBlockName());
                         insertStmt.setString(3, blockDetailsDTO.getBlockDescription());
                         if (typeId != null) {
