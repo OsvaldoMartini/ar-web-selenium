@@ -568,15 +568,6 @@ public class ARViewBotJobPane extends ARPane {
             performDataBase.loadBlocks(selectedBotJob.getHomeBankingId(), selectedBotJob.getName(), "component_block");
         }
 
-        if (!performLists.getListBlock().isEmpty()
-                && performLists.getListBlock().size() > 1) {
-            performDataBase.updateSwiftBlockOrderNumber("block", selectedBotJob.getId(), true);
-        }
-        if (!performLists.getListBlockComp().isEmpty()
-                && performLists.getListBlockComp().size() > 1) {
-            performDataBase.updateSwiftBlockOrderNumber("component_block", selectedBotJob.getHomeBankingId(), true);
-        }
-
         componentBox = new HBox(new Node[] {webViewTasks});
         firstLoad = false;
 

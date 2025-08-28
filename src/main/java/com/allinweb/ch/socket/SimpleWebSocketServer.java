@@ -364,7 +364,7 @@ public class SimpleWebSocketServer {
 
                     // updateBlockOrderNumber  ALREADY UPDATE MEMORY LIST
                     if (errorMessage == null) {
-                        errorMessage = performDataBase.updateSwiftBlockOrderNumber(blockTable, whereId, true);
+                        errorMessage = performDataBase.updateBlockOrderNumber(blockTable, whereId, true);
                     }
                 }
 
@@ -575,7 +575,7 @@ public class SimpleWebSocketServer {
 
                     // updateBlockOrderNumber  ALREADY UPDATE MEMORY LIST
                     if (errorMessage == null) {
-                        errorMessage = performDataBase.updateSwiftBlockOrderNumber(blockTable, whereId, true);
+                        errorMessage = performDataBase.updateBlockOrderNumber(blockTable, whereId, true);
                     }
 
                     // calls perform list block update
@@ -660,7 +660,7 @@ public class SimpleWebSocketServer {
 
                         // updateBlockOrderNumber  ALREADY UPDATE MEMORY LIST
                         if (errorMessage == null) {
-                            errorMessage = performDataBase.updateSwiftBlockOrderNumber(blockTable, whereId, true);
+                            errorMessage = performDataBase.updateBlockOrderNumber(blockTable, whereId, true);
                         }
 
                         // calls perform list block update
@@ -888,7 +888,7 @@ public class SimpleWebSocketServer {
 
                 // updateBlockOrderNumber  ALREADY UPDATE MEMORY LIST
                 if (errorMessage == null) {
-                    performDataBase.updateSwiftBlockOrderNumber(blockTable, whereId, true);
+                    performDataBase.updateBlockOrderNumber(blockTable, whereId, true);
                 }
 
                 // calls perform list block update
@@ -986,7 +986,9 @@ public class SimpleWebSocketServer {
                 alreadySentMgsSocket = false;
 
                 if (blockTable != null) {
-                    performDataBase.loadBlocks(whereId, "", blockTable);
+                    if (performLists.getListBlock().isEmpty()) {
+                        performDataBase.loadBlocks(whereId, "", blockTable);
+                    }
 
                     // Snapshot of previous IDs
                     previousIds = (blockTable.equals("block")
@@ -1045,10 +1047,10 @@ public class SimpleWebSocketServer {
                         }
                     }
 
-                    // ROLL BACK I LOAD AGAIN JUST FOR SAFETY
-                    if (errorMessage == null) {
-                        errorMessage = performDataBase.loadBlocks(whereId, "", blockTable);
-                    }
+                    //                    // ROLL BACK I LOAD AGAIN JUST FOR SAFETY
+                    //                    if (errorMessage == null) {
+                    //                        errorMessage = performDataBase.loadBlocks(whereId, "", blockTable);
+                    //                    }
                 }
 
                 // calls perform list block update
@@ -1285,6 +1287,8 @@ public class SimpleWebSocketServer {
         // Add at the end of it
         if (!performLists.getListBlockComp().isEmpty()) {
             blockDetailsDTO.setBlockOrderNumber(performLists.getListBlockComp().size() + 1);
+        } else {
+            blockDetailsDTO.setBlockOrderNumber(1);
         }
 
         Platform.runLater(() -> {
@@ -1306,6 +1310,8 @@ public class SimpleWebSocketServer {
         // Add at the end of it
         if (!performLists.getListBlock().isEmpty()) {
             blockDetailsDTO.setBlockOrderNumber(performLists.getListBlock().size() + 1);
+        } else {
+            blockDetailsDTO.setBlockOrderNumber(1);
         }
 
         if (errorMessage == null) {
@@ -1332,7 +1338,7 @@ public class SimpleWebSocketServer {
         }
 
         if (errorMessage == null) {
-            errorMessage = performDataBase.updateSwiftBlockOrderNumber("block", blockDetailsDTO.getBotJobId(), true);
+            errorMessage = performDataBase.updateBlockOrderNumber("block", blockDetailsDTO.getBotJobId(), true);
         }
 
         if (errorMessage == null) {

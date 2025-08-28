@@ -657,7 +657,7 @@ public class PerformDataBase {
         }
     }
 
-    public ErrorMessage updateSwiftBlockOrderNumber(
+    public ErrorMessage updateBlockOrderNumber(
             String tableName,
             int whereId, // either "bot_job_id" or "home_banking_id"
             boolean reorderAll) {
@@ -791,7 +791,7 @@ public class PerformDataBase {
                                     + tableName);
                 }
             } catch (SQLException e) {
-                conn.rollback();
+
                 ARLogger.getInstance(PerformDataBase.class)
                         .severe(String.format(
                                 "Error updating block order numbers in table '%s'. Error: %s",
@@ -1035,54 +1035,6 @@ public class PerformDataBase {
         return false;
     }
 
-    //    // Handle DELETE_BLOCK message
-    //    public boolean deleteBlock(String tableName, int whereId, int blockId, int homeBankId) {
-    //        boolean blockDeletion = false;
-    //
-    //        String extraTable = tableName.equals("block") ? "instruction" : "component_instruction";
-    //        List<InstructionLoad> deleteList = getInstructionsList(whereId, blockId, -1, extraTable);
-    //
-    //        if (deleteList.size() > 0) {
-    //            for (InstructionLoad deleteDTO : deleteList) {
-    //                deleteInstruction(tableName, whereId, homeBankId, blockId, true);
-    //                //                updateOtherBlocks()
-    //            }
-    //        }
-    //        ErrorMessage errorMessage = deleteBlockDirect(tableName, botJobId, blockId);
-    //        if (errorMessage == null) {
-    //            blockDeletion = true;
-    //            deleteNullBlocks(botJobId);
-    //            if (deleteBlockDTO.getUpdatedBlocks() != null
-    //                    && deleteBlockDTO.getUpdatedBlocks().size() > 0) {
-    //
-    //                loadBlocks(botJobId, "", tableName);
-    //                updateBlockOrderNumber(tableName, botJobId, performLists.getListBlock(), true);
-    //            }
-    //        }
-    //
-    //        return blockDeletion;
-    //    }
-
-    //    // Handle DELETE_BLOCK message
-    //    public boolean deleteCompBlock(DeleteBlockDTO deleteBlockDTO) {
-    //        boolean blockDeletion = false;
-    //        String tableName = "instruction";
-    //        if (deleteBlockDTO.getSessionId().equals("componentTasks")) {
-    //            tableName = "component_instruction";
-    //        }
-    //        List<InstructionLoad> instructionsList =
-    //                getInstructionsList(deleteBlockDTO.getHomeBankingId(), deleteBlockDTO.getBlockId(), -1,
-    // tableName);
-    //        if (instructionsList.size() > 0) {
-    //            for (InstructionLoad deleteDTO : instructionsList) {
-    //                deleteDTO.setHomeBankingId(deleteBlockDTO.getHomeBankingId());
-    //                deleteComponent(deleteBlockDTO.getHomeBankingId(), deleteBlockDTO.getBlockId(), deleteDTO, true);
-    //                //                updateOtherBlocks()
-    //            }
-    //        }
-    //        return blockDeletion;
-    //    }
-
     public ErrorMessage initiateNewBlock(BlockDetailsDTO blockDTO, int botJobId, boolean splitted) {
         String selectIdsSQL = "SELECT id FROM block ORDER BY id";
         String insertSQL =
@@ -1243,7 +1195,7 @@ public class PerformDataBase {
 
                 return null; // Success
             } catch (SQLException e) {
-                conn.rollback(); // rollback changes on error
+                // rollback changes on error
                 ARLogger.getInstance(PerformDataBase.class)
                         .severe(String.format(
                                 "updateInstructionsSplitter - Error updating instructions from blockId %d to %d. Error: %s",
@@ -3830,16 +3782,6 @@ public class PerformDataBase {
         if (errorMessage == null) {
             String instructionTable = tableName.equals("instruction") ? "instruction" : "component_instruction";
             errorMessage = deleteInstructionsBatch(instructionTable, whereId, listInstruc);
-        }
-
-        //        if (errorMessage == null) {
-        //            String blockTable = tableName.equals("instruction") ? "block" : "component_block";
-        //            errorMessage = deleteNullBlocks(blockTable, whereId);
-        //        }
-        if (errorMessage == null) {
-            String blockTable = tableName.equals("instruction") ? "block" : "component_block";
-            loadBlocks(whereId, "", blockTable);
-            errorMessage = updateSwiftBlockOrderNumber(blockTable, whereId, true);
         }
 
         if (errorMessage != null) {
@@ -7427,7 +7369,6 @@ GROUP BY
 
                 return null; // success
             } catch (SQLException e) {
-                conn.rollback();
 
                 ARLogger.getInstance(PerformDataBase.class)
                         .severe(String.format(

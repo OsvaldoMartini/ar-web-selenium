@@ -261,7 +261,7 @@ public class ARSaveComponentPane extends ARPane {
 
                         if (errorMessage == null) {
                             performDataBase.loadBlocks(blockDetailsDTO.getHomeBankingId(), "", "component_block");
-                            errorMessage = performDataBase.updateSwiftBlockOrderNumber(
+                            errorMessage = performDataBase.updateBlockOrderNumber(
                                     "component_block", blockDetailsDTO.getHomeBankingId(), true);
                         }
 
