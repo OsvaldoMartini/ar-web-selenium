@@ -13,10 +13,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
 import javax.websocket.*;
@@ -346,7 +343,28 @@ public class PerformLists {
                 .orElse(null); // returns null if not found
     }
 
-    public List<BlockOptions> reloadDBBlocks(List<BlockOptions> currentListBlock, String tableName) {
+    // Get BlockLoadDTO by homeBankingId and id
+    public BlockLoadDTO getBlockLoadByBankId(String blockTable, Integer whereId, Integer blockId) {
+        if ("block".equalsIgnoreCase(blockTable)) {
+            // Search in block list by bot_job_id + blockId
+            return getListBlock().stream()
+                    .filter(block ->
+                            Objects.equals(block.getBotJobId(), whereId) && Objects.equals(block.getId(), blockId))
+                    .findFirst()
+                    .orElse(null);
+        } else if ("component_block".equalsIgnoreCase(blockTable)) {
+            // Search in component block list by home_banking_id + blockId
+            return getListBlockComp().stream()
+                    .filter(block ->
+                            Objects.equals(block.getHomeBankingId(), whereId) && Objects.equals(block.getId(), blockId))
+                    .findFirst()
+                    .orElse(null);
+        }
+
+        return null; // Unknown table
+    }
+
+    public List<BlockOptions> getBlockOptions(List<BlockOptions> currentListBlock, String tableName) {
         currentListBlock.clear();
         try {
             if (currentListBlock == null) {
@@ -598,7 +616,6 @@ public class PerformLists {
         }
     }
 
-    // Remove Blocks by Id List and merge instructions into first block
     public void updateMemoryRollBackToOneBlock(String tableName, Integer whereId, List<Integer> restToDeleteIds) {
         try {
             if ("block".equalsIgnoreCase(tableName)) {
@@ -620,6 +637,15 @@ public class PerformLists {
                                 BlockLoadDTO block = blocks.get(i);
                                 if (restToDeleteIds.contains(block.getId())) {
                                     if (block.getInstructionLoad() != null) {
+                                        // Update blockId for each instruction before merging
+                                        for (InstructionLoad instr : block.getInstructionLoad()) {
+                                            if (instr.getBlockId() != null) {
+                                                instr.setBlockId(firstBlock.getId());
+                                            }
+                                            if (instr.getParentBlockId() != null) {
+                                                instr.setParentBlockId(firstBlock.getId());
+                                            }
+                                        }
                                         firstBlock.getInstructionLoad().addAll(block.getInstructionLoad());
                                     }
                                     blocksToRemove.add(block);
@@ -658,6 +684,15 @@ public class PerformLists {
                                 BlockLoadDTO block = blocks.get(i);
                                 if (restToDeleteIds.contains(block.getId())) {
                                     if (block.getInstructionLoad() != null) {
+                                        // Update blockId for each instruction before merging
+                                        for (InstructionLoad instr : block.getInstructionLoad()) {
+                                            if (instr.getBlockId() != null) {
+                                                instr.setBlockId(firstBlock.getId());
+                                            }
+                                            if (instr.getParentBlockId() != null) {
+                                                instr.setParentBlockId(firstBlock.getId());
+                                            }
+                                        }
                                         firstBlock.getInstructionLoad().addAll(block.getInstructionLoad());
                                     }
                                     blocksToRemove.add(block);
@@ -686,5 +721,77 @@ public class PerformLists {
         }
     }
 
-    // updateMemoryRollBackBlockIds
+    public void updateMemoryRowMove(String tableName, Integer whereId, List<InstructionLoad> updatedRows) {
+        try {
+            if ("block".equalsIgnoreCase(tableName)) {
+                for (BotJobLoadDTO botJob : getListBotJob()) {
+                    if (botJob.getId().equals(whereId)) { // filter by botJobId
+                        if (botJob.getBlockLoadDTOList() != null) {
+                            applyUpdates(botJob.getBlockLoadDTOList(), updatedRows);
+                        }
+                    }
+                }
+
+            } else if ("component_block".equalsIgnoreCase(tableName)) {
+                for (BotJobLoadDTO botJob : getListBotJobComp()) {
+                    if (botJob.getHomeBankingId().equals(whereId)) { // filter by homeBankingId
+                        if (botJob.getBlockLoadDTOList() != null) {
+                            applyUpdates(botJob.getBlockLoadDTOList(), updatedRows);
+                        }
+                    }
+                }
+
+            } else {
+                throw new IllegalArgumentException("Invalid tableName: " + tableName);
+            }
+        } catch (Exception error) {
+            ARLogger.getInstance(PerformLists.class)
+                    .severe("Error: Memory Update failed for 'updateMemoryRowMove': " + error.getMessage());
+        }
+    }
+
+    private void applyUpdates(List<BlockLoadDTO> blockList, List<InstructionLoad> updatedRows) {
+        Map<Integer, BlockLoadDTO> blockMap = blockList.stream().collect(Collectors.toMap(BlockLoadDTO::getId, b -> b));
+
+        for (InstructionLoad mapped : updatedRows) {
+            for (BlockLoadDTO block : blockList) {
+                if (block.getInstructionLoad() != null) {
+                    Iterator<InstructionLoad> it = block.getInstructionLoad().iterator();
+                    while (it.hasNext()) {
+                        InstructionLoad instr = it.next();
+                        if (instr.getId().equals(mapped.getId())) {
+
+                            // If blockId changed, move instruction to new block
+                            if (!Objects.equals(instr.getBlockId(), mapped.getBlockId())) {
+                                it.remove(); // remove from old block
+                                BlockLoadDTO newBlock = blockMap.get(mapped.getBlockId());
+                                if (newBlock != null) {
+                                    if (newBlock.getInstructionLoad() == null) {
+                                        newBlock.setInstructionLoad(new ArrayList<>());
+                                    }
+                                    instr.setBlockId(mapped.getBlockId());
+                                    newBlock.getInstructionLoad().add(instr);
+                                }
+                            }
+
+                            // Update order number
+                            if (!Objects.equals(
+                                    instr.getInstructionOrderNumber(), mapped.getInstructionOrderNumber())) {
+                                instr.setInstructionOrderNumber(mapped.getInstructionOrderNumber());
+                            }
+
+                            break; // found and updated
+                        }
+                    }
+                }
+            }
+        }
+
+        // Re-sort each block’s instructions by instructionOrderNumber
+        for (BlockLoadDTO block : blockList) {
+            if (block.getInstructionLoad() != null) {
+                block.getInstructionLoad().sort(Comparator.comparing(InstructionLoad::getInstructionOrderNumber));
+            }
+        }
+    }
 }

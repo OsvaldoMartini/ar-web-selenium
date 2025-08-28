@@ -1,6 +1,5 @@
 package com.allinweb.ch.component.scene;
 
-import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.pane.ARMainPane;
 import com.allinweb.ch.component.pane.ARViewBotJobPane;
@@ -136,19 +135,9 @@ public class ARViewBotJobScene extends ARScene {
         // It Prevents Start without blocks
         if (performLists.getListBlock().isEmpty()) {
 
-            // It Prevents Start without blocks
-            BlockDetailsDTO newBlockDetails = new BlockDetailsDTO();
-            newBlockDetails.setBlockName("Default block");
-            newBlockDetails.setBlockDescription("Block description");
-            newBlockDetails.setTypeId(1);
-            newBlockDetails.setActive(true);
-            newBlockDetails.setWait(3);
-            newBlockDetails.setBlockOrderNumber(1);
+            ErrorMessage errorMessage = performDataBase.initiateNewBlock(
+                    "block", selectedBotJob.getId(), "Default Block", "Default Block", 1, false);
 
-            newBlockDetails.setBotJobId(selectedBotJob.getId());
-
-            ErrorMessage errorMessage =
-                    performDataBase.initiateNewBlock(newBlockDetails, selectedBotJob.getId(), false);
             if (errorMessage == null) {
                 ARLogger.getInstance(Thread.class)
                         .info(String.format("A new Block was created for bot job Id %d", selectedBotJob.getId()));

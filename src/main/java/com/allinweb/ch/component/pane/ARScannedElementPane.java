@@ -228,6 +228,20 @@ public class ARScannedElementPane extends ARPane {
                             ? "UPDATE_BLOCKS_COMP"
                             : "UPDATE_BLOCKS";
 
+                    String blockTable =
+                            blockMoveDTO.getSessionId().equals("componentTasks") ? "component_block" : "block";
+
+                    // Attempt to get it from currentBotJob
+                    int whereId = blockMoveDTO.getSessionId().equals("componentTasks")
+                            ? currentBotJob.getHomeBankingId() != null ? currentBotJob.getHomeBankingId() : -1
+                            : currentBotJob.getId() != null ? currentBotJob.getId() : -1;
+
+                    if (whereId == -1) {
+                        whereId = blockMoveDTO.getSessionId().equals("componentTasks")
+                                ? blockMoveDTO.getHomeBankingId() != null ? blockMoveDTO.getHomeBankingId() : -1
+                                : blockMoveDTO.getBotJobId() != null ? blockMoveDTO.getBotJobId() : -1;
+                    }
+
                     if (previousBlock != null && !previousBlock.equals(blockUpdate)) {
                         arNewCommandPane.closePane();
                         previousBlock = blockUpdate;
@@ -237,9 +251,7 @@ public class ARScannedElementPane extends ARPane {
 
                     try {
 
-                        Platform.runLater(() -> {
-                            refreshBlocks(false);
-                        });
+                        reloadDBBlocks(whereId, blockTable);
 
                     } catch (Exception error) {
                         ARLogger.getInstance(ARNewCommandPane.class).severe("Error: " + error.getMessage());
@@ -295,7 +307,7 @@ public class ARScannedElementPane extends ARPane {
                     processDTO = gson.fromJson(jsonObjMSG, ElementSplitDTO.class);
 
                     String tableName = "instruction";
-                    int whereId = processDTO.getBotJobId() != null ? processDTO.getBotJobId() : currentBotJob.getId();
+                    whereId = processDTO.getBotJobId() != null ? processDTO.getBotJobId() : currentBotJob.getId();
                     if (processDTO.getSessionId().equals("componentTasks")) {
                         tableName = "component_instruction";
                         whereId = processDTO.getHomeBankingId() != null
@@ -1114,7 +1126,7 @@ public class ARScannedElementPane extends ARPane {
     double comboWidth = 200;
 
     private ComboBox<BlockOptions> comboBoxBlocks;
-    private List<BlockOptions> allListBlock = new ArrayList<>();
+    private List<BlockOptions> currentListBlock = new ArrayList<>();
 
     Button refreshBlocksButton;
 
@@ -1307,10 +1319,10 @@ public class ARScannedElementPane extends ARPane {
         //            return;
         //        }
 
-        if (allListBlock.isEmpty()) {
+        if (currentListBlock.isEmpty()) {
             // If list is empty, populate AllBlocks with a default block
             ObservableList<BlockOptions> defaultAll =
-                    FXCollections.observableArrayList(new BlockOptions("#1 Default Block", "Default Block", 1, 1));
+                    FXCollections.observableArrayList(new BlockOptions("#1 Default Block", "Default Block", -1, -1));
             if (comboBoxBlocks != null) {
                 comboBoxBlocks.setItems(defaultAll);
                 comboBoxBlocks.getSelectionModel().selectFirst();
@@ -1903,13 +1915,46 @@ public class ARScannedElementPane extends ARPane {
     private void refreshBlocks(boolean secondItem) {
         //        performLists.getListBlock().clear();
         //        performDataBase.loadBlocks(this.currentBotJob.getId(), this.currentBotJob.getName(), "block");
-        reloadDBBlocks(this.currentBotJob.getId(), "block");
-        loadAllBlocks();
+        currentListBlock = performLists.getBlockOptions(currentListBlock, "block");
+        loadAllBlocks(currentListBlock);
 
         if (!secondItem) {
             comboBoxBlocks.getSelectionModel().selectFirst(); // Select the first item
         } else {
             comboBoxBlocks.getSelectionModel().select(1); // Select the second item (index 1)
+        }
+    }
+
+    public ErrorMessage reloadDBBlocks(int whereId, String tableName) {
+        currentListBlock.clear();
+        try {
+            if (currentListBlock == null) {
+                return null;
+            }
+
+            // Load blocks from DB
+            ErrorMessage errorMessage = performDataBase.loadBlocks(whereId, "", tableName);
+
+            try {
+                // Pick the right list depending on the tableName
+
+                // Replace currentListBlock with the new one
+                List<BlockOptions> list = performLists.getBlockOptions(currentListBlock, tableName);
+                currentListBlock = new ArrayList<>(list);
+                loadAllBlocks(currentListBlock);
+
+            } catch (Exception error) {
+                ARLogger.getInstance(ARNewCommandPane.class).severe("Error :" + error.getMessage());
+                return new ErrorMessage(
+                        "Error in Reload DB Blocks", "Error during loading reloadDBBlocks", error.getMessage());
+            }
+
+            return errorMessage;
+
+        } catch (Exception error) {
+            ARLogger.getInstance(ARNewCommandPane.class).severe("Error :" + error.getMessage());
+            return new ErrorMessage(
+                    "Error in Reload DB Blocks", "Error during loading reloadDBBlocks", error.getMessage());
         }
     }
 
@@ -5298,54 +5343,58 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    public ErrorMessage reloadDBBlocks(int whereId, String tableName) {
-        ErrorMessage errorMessage = null;
-        this.allListBlock.clear();
-        if ("block".equals(tableName)) {
-            try {
-                performLists.getListBlock().forEach(b -> allListBlock.add(BlockOptions.fromBlockWithOrderNumber(b)));
-            } catch (Exception error) {
-                ARLogger.getInstance(ARNewCommandPane.class).severe("Error :" + error.getMessage());
-                return new ErrorMessage(
-                        "Error in Reload DB Blocks", "Error during loading reloadDBBlocks", error.getMessage());
-            }
-        } else {
-            try {
-                performLists
-                        .getListBlockComp()
-                        .forEach(b -> allListBlock.add(BlockOptions.fromBlockWithOrderNumber(b)));
-            } catch (Exception error) {
-                ARLogger.getInstance(ARNewCommandPane.class).severe("Error :" + error.getMessage());
-                return new ErrorMessage(
-                        "Error in Reload DB Blocks", "Error during loading reloadDBBlocks", error.getMessage());
-            }
-        }
-        return errorMessage;
-    }
+    //    public ErrorMessage reloadDBBlocks(int whereId, String tableName) {
+    //        ErrorMessage errorMessage = null;
+    //        this.allListBlock.clear();
+    //        if ("block".equals(tableName)) {
+    //            try {
+    //                performLists.getListBlock().forEach(b ->
+    // allListBlock.add(BlockOptions.fromBlockWithOrderNumber(b)));
+    //            } catch (Exception error) {
+    //                ARLogger.getInstance(ARNewCommandPane.class).severe("Error :" + error.getMessage());
+    //                return new ErrorMessage(
+    //                        "Error in Reload DB Blocks", "Error during loading reloadDBBlocks", error.getMessage());
+    //            }
+    //        } else {
+    //            try {
+    //                performLists
+    //                        .getListBlockComp()
+    //                        .forEach(b -> allListBlock.add(BlockOptions.fromBlockWithOrderNumber(b)));
+    //            } catch (Exception error) {
+    //                ARLogger.getInstance(ARNewCommandPane.class).severe("Error :" + error.getMessage());
+    //                return new ErrorMessage(
+    //                        "Error in Reload DB Blocks", "Error during loading reloadDBBlocks", error.getMessage());
+    //            }
+    //        }
+    //        return errorMessage;
+    //    }
 
-    private void loadAllBlocks() {
+    private void loadAllBlocks(List<BlockOptions> options) {
         if (comboBoxBlocks != null) {
-            Platform.runLater(() -> {
-                //                // Collect distinct items into a temporary list to avoid concurrent modification
-                //                List<BlockOptions> distinctList = allListBlock.stream()
-                //                        .filter(distinctByTextAndId()) // custom predicate
-                //                        .collect(Collectors.toList());
+            //            Platform.runLater(() -> {
+            //                List<BlockOptions> distinctList;
 
-                // Convert to ObservableList
-                ObservableList<BlockOptions> all = FXCollections.observableArrayList(allListBlock);
+            if (!options.isEmpty()) {
+                // Collect distinct by text into a new list
+                //                    distinctList = currentListBlock.stream()
+                //                            .filter(distinctByTextAndId())
+                //                            .collect(Collectors.toList());
 
-                // Add "Execute All Blocks" if needed
-                if (all.size() > 1) {
-                    all.add(0, new BlockOptions("Execute All Blocks", "", -1, -1));
-                } else if (all.isEmpty()) {
-                    all.add(new BlockOptions("#1 Default Block", "Default Block", 1, 1));
+                if (options.size() > 1) {
+                    options.add(0, new BlockOptions("Select the Block", "", -1, -1));
                 }
 
-                comboBoxBlocks.setItems(all);
-                comboBoxBlocks.getSelectionModel().selectFirst();
+            } else {
+                options = new ArrayList<>();
+                options.add(new BlockOptions("#1 Default Block", "Default Block", -1, -1));
+            }
 
-                ARLogger.getInstance(ARScannedElementPane.class).info("CALLED: " + all.size());
-            });
+            comboBoxBlocks.setItems(FXCollections.observableArrayList(options));
+
+            if (currentListBlock.size() == 1) {
+                comboBoxBlocks.getSelectionModel().selectFirst();
+            }
+            //            });
         }
     }
 

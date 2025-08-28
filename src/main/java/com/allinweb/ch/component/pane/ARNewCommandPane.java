@@ -283,7 +283,7 @@ public class ARNewCommandPane extends ARPane {
         if (currentListBlock.isEmpty()) {
             // If list is empty, populate AllBlocks with a default block
             ObservableList<BlockOptions> defaultAll =
-                    FXCollections.observableArrayList(new BlockOptions("#1 Default Block", "Default Block", 1, 1));
+                    FXCollections.observableArrayList(new BlockOptions("#1 Default Block", "Default Block", -1, -1));
             if (comboBoxAllBlocks != null) {
                 comboBoxAllBlocks.setItems(defaultAll);
                 comboBoxAllBlocks.getSelectionModel().selectFirst();
@@ -2357,7 +2357,7 @@ public class ARNewCommandPane extends ARPane {
 
                 } else {
                     currentListBlock = new ArrayList<>();
-                    currentListBlock.add(new BlockOptions("#1 Default Block", "Default Block", 1, 1));
+                    currentListBlock.add(new BlockOptions("#1 Default Block", "Default Block", -1, -1));
                 }
 
                 ObservableList<BlockOptions> all = FXCollections.observableArrayList(currentListBlock);
@@ -2795,7 +2795,7 @@ public class ARNewCommandPane extends ARPane {
                 // Pick the right list depending on the tableName
 
                 // Replace currentListBlock with the new one
-                List<BlockOptions> list = performLists.reloadDBBlocks(currentListBlock, tableName);
+                List<BlockOptions> list = performLists.getBlockOptions(currentListBlock, tableName);
                 currentListBlock = new ArrayList<>(list);
 
                 // Handle INSERT_NEW case

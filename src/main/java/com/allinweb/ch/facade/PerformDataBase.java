@@ -1035,16 +1035,28 @@ public class PerformDataBase {
         return false;
     }
 
-    public ErrorMessage initiateNewBlock(BlockDetailsDTO blockDTO, int botJobId, boolean splitted) {
-        String selectIdsSQL = "SELECT id FROM block ORDER BY id";
-        String insertSQL =
-                "INSERT INTO block (block_order_number, description, name, type_id, active, wait, bot_job_id) "
-                        + "VALUES (?, ?, ?, ?, ?, ?, ?)";
+    public ErrorMessage insertNewBlock(String tableName, Integer whereId, BlockDetailsDTO blockDTO) {
+        String selectIdsSQL = "SELECT id FROM " + tableName + " ORDER BY id";
+
+        // Build insert SQL dynamically depending on table
+        String insertSQL;
+        if ("block".equalsIgnoreCase(tableName)) {
+            insertSQL = "INSERT INTO block (block_order_number, description, name, type_id, active, wait, bot_job_id) "
+                    + "VALUES (?, ?, ?, ?, ?, ?, ?)";
+        } else if ("component_block".equalsIgnoreCase(tableName)) {
+            insertSQL =
+                    "INSERT INTO component_block (block_order_number, description, name, type_id, active, wait, home_banking_id) "
+                            + "VALUES (?, ?, ?, ?, ?, ?, ?)";
+        } else {
+            return new ErrorMessage("Invalid table", "Unknown table: " + tableName, null);
+        }
 
         try (Connection conn = getConnection();
                 Statement idStmtBefore = conn.createStatement();
                 Statement idStmtAfter = conn.createStatement();
                 PreparedStatement insertStmt = conn.prepareStatement(insertSQL)) {
+
+            conn.setAutoCommit(false); // Begin transaction
 
             // Step 1: Get all block IDs before insertion
             List<Integer> idsBefore = new ArrayList<>();
@@ -1054,20 +1066,16 @@ public class PerformDataBase {
                 }
             }
 
-            // Step 2: Set parameters and insert new block
-            if (splitted) {
-                insertStmt.setInt(1, blockDTO.getBlockOrderNumber());
-            } else {
-                insertStmt.setInt(1, 1);
-            }
+            insertStmt.setInt(1, blockDTO.getBlockOrderNumber());
             insertStmt.setString(2, blockDTO.getBlockName() + " description");
             insertStmt.setString(3, blockDTO.getBlockName());
             insertStmt.setInt(4, 1); // type_id
             insertStmt.setInt(5, blockDTO.getActive() ? 1 : 0);
             insertStmt.setInt(6, 3); // wait
-            insertStmt.setInt(7, botJobId);
+            insertStmt.setInt(7, whereId);
 
-            int rowsInserted = insertStmt.executeUpdate();
+            insertStmt.addBatch();
+            insertStmt.executeBatch();
 
             // Step 3: Get all block IDs after insertion
             idsBlockAfter.clear();
@@ -1082,17 +1090,18 @@ public class PerformDataBase {
             if (idsBlockAfter.size() == 1) {
                 int newId = idsBlockAfter.get(0);
                 ARLogger.getInstance(PerformDataBase.class)
-                        .info(String.format("Block data saved successfully.\nBlockId: %d", newId));
+                        .info(String.format("Block data saved successfully in %s.\nBlockId: %d", tableName, newId));
             } else {
                 ARLogger.getInstance(PerformDataBase.class)
                         .warning("Block inserted, but new ID could not be uniquely identified.");
             }
 
+            conn.commit(); // ✅ Commit transaction
             return null;
 
         } catch (SQLException error) {
             ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("Error Initiate New Block: %s", error.getMessage()));
+                    .severe(String.format("Error Initiate New Block in %s: %s", tableName, error.getMessage()));
             return new ErrorMessage("Error Initiate New Block", "Cannot create a new block", error.getMessage());
         }
     }
@@ -1354,7 +1363,8 @@ public class PerformDataBase {
 
     public ErrorMessage rollBackBlocksRows(String targetTable, RollBackBlocksDTO rollBackBlocksDTO) {
         final int BATCH_SIZE = 100; // Batch size for executeBatch()
-        String updateSQL = "UPDATE " + targetTable + " SET instruction_order_number = ?, block_id = ? WHERE id = ?";
+        String updateSQL = "UPDATE " + targetTable
+                + " SET instruction_order_number = ?, block_id = ?, parent_block_id = ? WHERE id = ?";
 
         try (Connection conn = getConnection()) {
             conn.setAutoCommit(false); // Disable auto-commit
@@ -1365,7 +1375,13 @@ public class PerformDataBase {
                 for (InstructionLoad instruction : rollBackBlocksDTO.getInstructions()) {
                     pstmt.setInt(1, instruction.getInstructionOrderNumber());
                     pstmt.setInt(2, rollBackBlocksDTO.getBlockId());
-                    pstmt.setInt(3, instruction.getId());
+                    if (instruction.getParentBlockId() != null && instruction.getParentBlockId() > 0) {
+                        pstmt.setInt(3, rollBackBlocksDTO.getBlockId());
+                    } else {
+                        pstmt.setNull(3, Types.INTEGER);
+                    }
+                    pstmt.setInt(4, instruction.getId());
+
                     pstmt.addBatch();
                     count++;
 
@@ -1610,6 +1626,7 @@ public class PerformDataBase {
                     instruction.setCodified(rs.getBoolean("codified"));
                     instruction.setExportToABR(rs.getBoolean("export_to_abr"));
                     instruction.setOperation(rs.getString("operation"));
+                    instruction.setBlockId(rs.getInt("block_id"));
                     instruction.setParentBlockId(rs.getInt("parent_block_id"));
                     instruction.setParentId(rs.getInt("parent_id"));
                     instruction.setVariableId(rs.getInt("variable_id"));
@@ -1760,6 +1777,7 @@ public class PerformDataBase {
                     instruction.setCodified(rs.getBoolean("codified"));
                     instruction.setExportToABR(rs.getBoolean("export_to_abr"));
                     instruction.setOperation(rs.getString("operation"));
+                    instruction.setBlockId(rs.getInt("block_id"));
                     instruction.setParentBlockId(rs.getInt("parent_block_id"));
                     instruction.setParentId(rs.getInt("parent_id"));
                     instruction.setVariableId(rs.getInt("variable_id"));
@@ -2981,17 +2999,41 @@ public class PerformDataBase {
         boolean updateRow = rowMoveDTO.getType().equals("EDIT_OPERATION");
         boolean isIF = actions.equalsIgnoreCase(ARConstants.IF);
 
-        if (!updateRow) {
-            List<InstructionLoad> rowList = null;
-            String tableName = "instruction";
-            int whereId = rowMoveDTO.getBotJobId();
-            if (rowMoveDTO.getSessionId().equals("componentTasks")) {
-                tableName = "component_instruction";
-                whereId = rowMoveDTO.getHomeBankingId();
-            }
+        if (performLists.getQuickBotJobs().isEmpty()) {
+            loadQuickBotJobs();
+        }
 
-            loadInstructions(whereId, rowMoveDTO.getBlockId(), -1, tableName);
-            rowList = tableName.equals("instruction")
+        List<InstructionLoad> rowList = null;
+        String instrName = "instruction";
+        String blockTable = "block";
+        int whereId = rowMoveDTO.getBotJobId();
+        if (rowMoveDTO.getSessionId().equals("componentTasks")) {
+            instrName = "component_instruction";
+            blockTable = "component_block";
+            whereId = rowMoveDTO.getHomeBankingId();
+        }
+
+        ErrorMessage errorMessage = loadInstructions(whereId, rowMoveDTO.getBlockId(), -1, instrName);
+
+        if (errorMessage == null) {
+            errorMessage = loadBlocks(whereId, "", blockTable);
+        }
+
+        if (errorMessage != null) {
+            performMessage.errorMessage(
+                    errorMessage.getErrorTitle(),
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                            + errorMessage.getErrorHeader(),
+                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                    null,
+                    0);
+        }
+
+        BlockLoadDTO blockLoadFound = performLists.getBlockLoadByBankId(blockTable, whereId, rowMoveDTO.getBlockId());
+
+        if (!updateRow) {
+            rowList = instrName.equals("instruction")
                     ? performLists.getListInstruction()
                     : performLists.getListInstructionComp();
 
@@ -3001,64 +3043,11 @@ public class PerformDataBase {
                 } else {
                     rowList = preInsertStep(rowMoveDTO, rowList, 1);
                 }
-                reorderInstructions(rowList, tableName, true);
+                reorderInstructions(rowList, instrName, true);
             } else {
                 rowMoveDTO.getUpdatedRows().get(0).setInstructionOrderNumber(rowList.size() + 1);
             }
         }
-
-        List<BlockLoadDTO> matchingBlocks = null;
-
-        if (performLists.getQuickBotJobs().isEmpty()) {
-            loadQuickBotJobs();
-        }
-
-        String blockTable = "block";
-        int whereId = rowMoveDTO.getBotJobId();
-        if (rowMoveDTO.getSessionId().equals("componentTasks")) {
-            blockTable = "component_block";
-            whereId = rowMoveDTO.getHomeBankingId();
-        }
-        loadBlocks(whereId, "", blockTable);
-
-        if (!rowMoveDTO.getUpdatedRows().isEmpty()) {
-
-            Integer targetBlockId = -1;
-
-            if (rowMoveDTO.getType().equals("INSERT_NEW")) {
-                targetBlockId = rowMoveDTO.getBlockOrderNumber();
-
-                Integer finalTargetBlockId = targetBlockId;
-
-                List<BlockLoadDTO> listBlock = null;
-                if (rowMoveDTO.getSessionId().equals("componentTasks")) {
-                    listBlock = performLists.getListBlockComp();
-                } else {
-                    listBlock = performLists.getListBlock();
-                }
-
-                matchingBlocks = listBlock.stream()
-                        .filter(block -> block.getBlockOrderNumber().equals(finalTargetBlockId))
-                        .collect(Collectors.toList());
-
-            } else {
-                targetBlockId = rowMoveDTO.getBlockId();
-                Integer finalTargetBlockId1 = targetBlockId;
-
-                List<BlockLoadDTO> listBlock = null;
-                if (rowMoveDTO.getSessionId().equals("componentTasks")) {
-                    listBlock = performLists.getListBlockComp();
-                } else {
-                    listBlock = performLists.getListBlock();
-                }
-
-                matchingBlocks = listBlock.stream()
-                        .filter(block -> block.getId().equals(finalTargetBlockId1))
-                        .collect(Collectors.toList());
-            }
-        }
-
-        List<BlockLoadDTO> finalMatchingBlocks = matchingBlocks;
 
         InstructionOperationDTO instruction = new InstructionOperationDTO();
         // EDIT_OPERATION
@@ -3078,7 +3067,8 @@ public class PerformDataBase {
                         rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber() + 1);
             }
         } else {
-            instruction.setInstructionOrderNumber(finalMatchingBlocks.size() + 1);
+            instruction.setInstructionOrderNumber(
+                    performLists.getListInstruction().size() + 1);
         }
 
         // PARENT BLOCK ID
@@ -3112,21 +3102,13 @@ public class PerformDataBase {
         // Define where to get the BlockId
         //        instruction.setBlockId(rowMoveDTO.getBotJobId());
         //        if (!rowMoveDTO.getSessionId().equals("componentTasks")) {
-        if (finalMatchingBlocks != null && !finalMatchingBlocks.isEmpty()) {
-            instruction.setBlockId(finalMatchingBlocks.get(0).getId());
+
+        if (blockLoadFound != null) {
+            instruction.setBlockId(blockLoadFound.getId());
         } else {
 
-            BlockDetailsDTO newBlockDetails = new BlockDetailsDTO();
-            newBlockDetails.setBlockName("Default Block");
-            newBlockDetails.setBlockDescription("Default Block description");
-            newBlockDetails.setTypeId(1);
-            newBlockDetails.setActive(true);
-            newBlockDetails.setWait(3);
-
-            newBlockDetails.setBotJobId(rowMoveDTO.getBotJobId());
-            newBlockDetails.setBlockId(rowMoveDTO.getBlockId());
-
-            ErrorMessage errorMessage = initiateNewBlock(newBlockDetails, rowMoveDTO.getBotJobId(), false);
+            errorMessage =
+                    initiateNewBlock("block", rowMoveDTO.getBotJobId(), "Default Block", "Default Block", 1, false);
 
             if (errorMessage == null) {
                 int newBlockId = -9999;
@@ -3137,11 +3119,11 @@ public class PerformDataBase {
                 // IT SETS THE NEW TARGET IN CASE TO ADD MORE INSTRUCTIONS
                 rowMoveDTO.setBlockId(newBlockId);
 
-                String tableName = "block";
-                if (rowMoveDTO.getSessionId().equals("componentTasks")) {
-                    tableName = "component_block";
-                }
-                loadBlocks(rowMoveDTO.getBotJobId(), rowMoveDTO.getBotJobName(), tableName);
+                //                String tableName = "block";
+                //                if (rowMoveDTO.getSessionId().equals("componentTasks")) {
+                //                    tableName = "component_block";
+                //                }
+                //                loadBlocks(rowMoveDTO.getBotJobId(), rowMoveDTO.getBotJobName(), tableName);
                 instruction.setBlockId(newBlockId);
             } else {
                 return errorMessage;
@@ -3150,7 +3132,7 @@ public class PerformDataBase {
         //        }
         instruction.setInstructionActive(true);
         // Wrap the persistence in a try-catch block
-        ErrorMessage errorMessage = null;
+        errorMessage = null;
 
         try {
             int targetOrderNumber = rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber();
@@ -3247,6 +3229,31 @@ public class PerformDataBase {
             performLists.getInstrucOperList().clear();
         }
         return errorMessage;
+    }
+
+    public ErrorMessage initiateNewBlock(
+            String tableName, int whereId, String blockName, String description, int blockOrder, boolean split) {
+        // It Prevents Start without blocks
+        BlockDetailsDTO newBlockDetails = new BlockDetailsDTO();
+        newBlockDetails.setBlockName(blockName);
+        newBlockDetails.setBlockDescription(description);
+        newBlockDetails.setTypeId(1);
+        newBlockDetails.setActive(true);
+        newBlockDetails.setWait(3);
+
+        if (split) {
+            newBlockDetails.setBlockOrderNumber(blockOrder);
+        } else {
+            newBlockDetails.setBlockOrderNumber(1);
+        }
+
+        if ("block".equals(tableName)) {
+            newBlockDetails.setBotJobId(whereId);
+        } else {
+            newBlockDetails.setHomeBankingId(whereId);
+        }
+
+        return insertNewBlock(tableName, whereId, newBlockDetails);
     }
 
     public ErrorMessage loadHomeBanking(Integer homeBankingId) {

@@ -4,7 +4,6 @@ import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
 import com.allinweb.ch.builder.WebElementIcon;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
-import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.ElementDTO;
 import com.allinweb.ch.component.model.InstructionLoad;
@@ -3869,22 +3868,14 @@ public class PerformActions {
         }
     }
 
-    public int createBlockIfNone(String blockName, int botJobId) {
+    public int createBlockIfNone(String blockName, int whereId) {
 
         // It Prevents Start without blocks
-        performDataBase.loadBlocks(botJobId, null, "block");
-        if (performLists.getListBlock().isEmpty()) {
+        ErrorMessage errorMessage = performDataBase.loadBlocks(whereId, null, "block");
+        if (errorMessage == null && performLists.getListBlock().isEmpty()) {
 
-            BlockDetailsDTO newBlockDetails = new BlockDetailsDTO();
-            newBlockDetails.setBlockName(blockName);
-            newBlockDetails.setBlockDescription("  description");
-            newBlockDetails.setTypeId(1);
-            newBlockDetails.setActive(true);
-            newBlockDetails.setWait(3);
-
-            newBlockDetails.setBotJobId(botJobId);
-
-            ErrorMessage errorMessage = performDataBase.initiateNewBlock(newBlockDetails, botJobId, false);
+            errorMessage =
+                    performDataBase.initiateNewBlock(blockName, whereId, "Default Block", "Default Block", 1, false);
 
             if (errorMessage == null) {
                 if (!performDataBase.getIdsBlockAfter().isEmpty()
