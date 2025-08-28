@@ -1003,13 +1003,6 @@ public class SimpleWebSocketServer {
 
                     performDataBase.loadInstructions(whereId, -1, -1, instTable);
 
-                    hasExcelGotoOneBlock = hasOnlyExcelGoto(instTable);
-
-                    if (hasExcelGotoOneBlock != null) {
-                        errorMessage =
-                                performDataBase.deleteInstruction(instTable, whereId, hasExcelGotoOneBlock, false);
-                    }
-
                     // Snapshot of previous IDs without repetitions
                     currentIds = (instTable.equals("instruction")
                                     ? performLists.getListInstruction()
@@ -1034,7 +1027,7 @@ public class SimpleWebSocketServer {
 
                         // UPDATE REMOVAL MEMORY LIST
                         if (errorMessage == null) {
-                            performLists.updateMemoryRemoveBlockIds(blockTable, whereId, restToDeleteIds);
+                            performLists.updateMemoryRollBackToOneBlock(blockTable, whereId, restToDeleteIds);
                         }
                     } else if (errorMessage == null
                             && !restToDeleteIds.isEmpty()
@@ -1043,7 +1036,7 @@ public class SimpleWebSocketServer {
 
                         // UPDATE REMOVAL MEMORY LIST
                         if (errorMessage == null) {
-                            performLists.updateMemoryRemoveBlockIds(blockTable, whereId, restToDeleteIds);
+                            performLists.updateMemoryRollBackToOneBlock(blockTable, whereId, restToDeleteIds);
                         }
                     }
 

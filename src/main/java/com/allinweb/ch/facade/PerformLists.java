@@ -598,6 +598,93 @@ public class PerformLists {
         }
     }
 
+    // Remove Blocks by Id List and merge instructions into first block
+    public void updateMemoryRollBackToOneBlock(String tableName, Integer whereId, List<Integer> restToDeleteIds) {
+        try {
+            if ("block".equalsIgnoreCase(tableName)) {
+                // Remove from global list
+                if (getListBlock() != null) {
+                    getListBlock().removeIf(block -> restToDeleteIds.contains(block.getId()));
+                }
 
-    //updateMemoryRollBackBlockIds
+                // Process BotJobLoadDTO
+                for (BotJobLoadDTO botJob : getListBotJob()) {
+                    if (botJob.getId().equals(whereId)) { // filter by botJobId
+                        List<BlockLoadDTO> blocks = botJob.getBlockLoadDTOList();
+                        if (blocks != null && !blocks.isEmpty()) {
+                            BlockLoadDTO firstBlock = blocks.get(0);
+
+                            // Collect instructions from blocks to delete
+                            List<BlockLoadDTO> blocksToRemove = new ArrayList<>();
+                            for (int i = 1; i < blocks.size(); i++) {
+                                BlockLoadDTO block = blocks.get(i);
+                                if (restToDeleteIds.contains(block.getId())) {
+                                    if (block.getInstructionLoad() != null) {
+                                        firstBlock.getInstructionLoad().addAll(block.getInstructionLoad());
+                                    }
+                                    blocksToRemove.add(block);
+                                }
+                            }
+
+                            // Remove deleted blocks
+                            blocks.removeAll(blocksToRemove);
+
+                            // Reorder instructions in first block
+                            List<InstructionLoad> instr = firstBlock.getInstructionLoad();
+                            if (instr != null) {
+                                for (int i = 0; i < instr.size(); i++) {
+                                    instr.get(i).setInstructionOrderNumber(i + 1);
+                                }
+                            }
+                        }
+                    }
+                }
+
+            } else if ("component_block".equalsIgnoreCase(tableName)) {
+                // Remove from global component list
+                if (getListBlockComp() != null) {
+                    getListBlockComp().removeIf(block -> restToDeleteIds.contains(block.getId()));
+                }
+
+                // Process BotJobLoadDTOComp
+                for (BotJobLoadDTO botJob : getListBotJobComp()) {
+                    if (botJob.getHomeBankingId().equals(whereId)) { // filter by homeBankingId
+                        List<BlockLoadDTO> blocks = botJob.getBlockLoadDTOList();
+                        if (blocks != null && !blocks.isEmpty()) {
+                            BlockLoadDTO firstBlock = blocks.get(0);
+
+                            List<BlockLoadDTO> blocksToRemove = new ArrayList<>();
+                            for (int i = 1; i < blocks.size(); i++) {
+                                BlockLoadDTO block = blocks.get(i);
+                                if (restToDeleteIds.contains(block.getId())) {
+                                    if (block.getInstructionLoad() != null) {
+                                        firstBlock.getInstructionLoad().addAll(block.getInstructionLoad());
+                                    }
+                                    blocksToRemove.add(block);
+                                }
+                            }
+
+                            blocks.removeAll(blocksToRemove);
+
+                            // Reorder instructions in first block
+                            List<InstructionLoad> instr = firstBlock.getInstructionLoad();
+                            if (instr != null) {
+                                for (int i = 0; i < instr.size(); i++) {
+                                    instr.get(i).setInstructionOrderNumber(i + 1);
+                                }
+                            }
+                        }
+                    }
+                }
+
+            } else {
+                throw new IllegalArgumentException("Invalid tableName: " + tableName);
+            }
+        } catch (Exception error) {
+            ARLogger.getInstance(PerformLists.class)
+                    .severe("Error: Memory Update failed for 'updateMemoryRemoveBlockIds': " + error.getMessage());
+        }
+    }
+
+    // updateMemoryRollBackBlockIds
 }
