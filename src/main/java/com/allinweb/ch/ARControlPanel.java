@@ -211,7 +211,7 @@ public class ARControlPanel extends Application {
                 arMainScene.initialize(isEnabledLicence);
                 arMainScene.showModal();
             });
-            if (performDataBase.getConn() == null) {
+            if (!performDataBase.isConnDBWorks()) {
                 Platform.runLater(() -> {
                     arConfigurationScene.showModal();
                 });
@@ -277,10 +277,9 @@ public class ARControlPanel extends Application {
             try {
                 if (performInitializer.doesNotInstructionTableExist(performDataBase.getConnection())) {
 
-                    if (performDataBase.getConn() != null) {
+                    if (performDataBase.isConnDBWorks()) {
                         //            createTableOpenAIVector();
                         //            createTableLLama2AIVector();
-                        performInitializer.setConn(performDataBase.getConn());
                         performInitializer.initializeMainDatabasePostgres();
                     }
                 }
@@ -308,8 +307,8 @@ public class ARControlPanel extends Application {
 
                 if (!dbFile.exists()
                         && performInitializer.doesNotInstructionTableExistAccess(performDataBase.getConnection())) {
-                    if (performDataBase.getConn() != null) {
-                        performInitializer.initialize(performDataBase.getConn());
+                    if (performDataBase.isConnDBWorks()) {
+                        performInitializer.initialize();
 
                         ErrorMessage errorMessage = performInitializer.initializeMainDatabaseAccess(dbFile);
                         if (errorMessage != null) {
@@ -369,8 +368,8 @@ public class ARControlPanel extends Application {
 
                 if (!dbFile.exists()
                         && performInitializer.doesNotInstructionTableExistSQLITE(performDataBase.getConnection())) {
-                    if (performDataBase.getConn() != null) {
-                        performInitializer.initialize(performDataBase.getConn());
+                    if (performDataBase.isConnDBWorks()) {
+                        performInitializer.initialize();
                         performInitializer.initializeMainDatabaseSQLite(dbFile);
                     }
                 } else {

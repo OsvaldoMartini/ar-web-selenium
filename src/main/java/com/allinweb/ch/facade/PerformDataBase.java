@@ -52,10 +52,6 @@ public class PerformDataBase {
         performDBScripts = PerformDBScripts.getInstance();
     }
 
-    @Getter
-    @Setter
-    public Connection conn = null;
-
     // Open connection counter
     public int openConnections = 0;
 
@@ -100,20 +96,21 @@ public class PerformDataBase {
     public boolean ACCESS_DB = false;
     public boolean POSTGRES_DB = false;
     public boolean SQLITE_DB = false;
+    public boolean connDBWorks = false;
 
     public void initialize(String databaseType) {}
 
-    public void closeConnection() {
-        if (conn != null) {
-            try {
-                conn.close();
-                conn = null; // Reset the connection to null after closing
-                decrementOpenConnections();
-            } catch (SQLException e) {
-                System.out.println(e.getMessage()); // Handle the exception, log it or rethrow it as needed
-            }
-        }
-    }
+    //    public void closeConnection() {
+    //        if (conn != null) {
+    //            try {
+    //                conn.close();
+    //                conn = null; // Reset the connection to null after closing
+    //                decrementOpenConnections();
+    //            } catch (SQLException e) {
+    //                System.out.println(e.getMessage()); // Handle the exception, log it or rethrow it as needed
+    //            }
+    //        }
+    //    }
 
     // Increment open connections counter
     public synchronized void incrementOpenConnections() {
@@ -137,7 +134,7 @@ public class PerformDataBase {
         //        if (Strings.isNullOrEmpty(previousDB) || (previousDB != null && !previousDB.equals(dataBaseType))) {
         ErrorMessage errorMessage = null;
 
-        closeConnection();
+        // closeConnection();
 
         POSTGRES_DB = false;
         SQLITE_DB = false;
@@ -160,7 +157,7 @@ public class PerformDataBase {
         }
 
         if (getConnection() != null) {
-            performInitializer.initialize(getConn());
+            performInitializer.initialize();
             performInitializer.initializeDBS();
         }
     }
@@ -185,7 +182,7 @@ public class PerformDataBase {
         }
 
         try {
-            if ((conn == null || conn.isClosed()) && POSTGRES_DB) {
+            if (POSTGRES_DB) {
                 // Postgres connection
                 String dbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
                 String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
@@ -195,14 +192,16 @@ public class PerformDataBase {
                 // ARLogger.getInstance(PerformDataBase.class).info("User Details: " + userDB + " - [PROTECTED]");
 
                 Class.forName("org.postgresql.Driver");
-                conn = DriverManager.getConnection(dbUrl, userDB, userPwd);
+                Connection conn = DriverManager.getConnection(dbUrl, userDB, userPwd);
                 conn.setReadOnly(false);
+                connDBWorks = true;
+                return conn;
 
-                // Reset open connections counter if too many
-                if (getOpenConnectionsCount() > 10) {
-                    this.openConnections = 0;
-                }
-                incrementOpenConnections();
+                //                // Reset open connections counter if too many
+                //                if (getOpenConnectionsCount() > 10) {
+                //                    this.openConnections = 0;
+                //                }
+                //                incrementOpenConnections();
 
             } else if (SQLITE_DB) {
                 // SQLite connection
@@ -218,17 +217,19 @@ public class PerformDataBase {
                 SQLiteConfig config = new SQLiteConfig();
                 config.enforceForeignKeys(true);
 
-                conn = DriverManager.getConnection(sqliteUrl, config.toProperties());
+                Connection conn = DriverManager.getConnection(sqliteUrl, config.toProperties());
                 //                    conn = SQLiteHelper.getConnection(sqliteUrl);
                 conn.setReadOnly(false);
+                connDBWorks = true;
+                return conn;
 
-                // Reset open connections counter if too many
-                if (getOpenConnectionsCount() > 10) {
-                    this.openConnections = 0;
-                }
-                incrementOpenConnections();
+                //                // Reset open connections counter if too many
+                //                if (getOpenConnectionsCount() > 10) {
+                //                    this.openConnections = 0;
+                //                }
+                //                incrementOpenConnections();
 
-            } else if (conn == null || conn.isClosed()) {
+            } else {
                 // Default to Access connection
                 String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
                 String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
@@ -236,21 +237,23 @@ public class PerformDataBase {
                 ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + dbUrl);
 
                 Class.forName("net.ucanaccess.jdbc.UcanaccessDriver");
-                conn = DriverManager.getConnection(dbUrl);
+                Connection conn = DriverManager.getConnection(dbUrl);
                 conn.setReadOnly(false);
+                connDBWorks = true;
+                return conn;
 
-                // Reset open connections counter if too many
-                if (getOpenConnectionsCount() > 10) {
-                    this.openConnections = 0;
-                }
-                incrementOpenConnections();
+                //                // Reset open connections counter if too many
+                //                if (getOpenConnectionsCount() > 10) {
+                //                    this.openConnections = 0;
+                //                }
+                //                incrementOpenConnections();
             }
 
         } catch (SQLException error) {
             ARLogger.getInstance(PerformDataBase.class).severe("getConnection Error: " + error.getMessage());
 
             String database = POSTGRES_DB ? "Postgres" : (SQLITE_DB ? "SQLite" : "Access");
-
+            connDBWorks = false;
             performMessage.errorMessage(
                     "Database connection Failed",
                     "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>An error occurred during the Database connection.</span>",
@@ -265,7 +268,8 @@ public class PerformDataBase {
                     .severe("Driver DB Class not Found Error: " + error.getMessage());
         }
 
-        return conn;
+        connDBWorks = false;
+        return null;
     }
 
     public List<ParentOperations> loadAllParents(int bot_job_id, int instructionId) {
@@ -1553,7 +1557,8 @@ public class PerformDataBase {
                 + " where bot.active = 1 and bot.id = " + botJobId
                 + "  ORDER BY bot.id, b.block_order_number, bli.instruction_order_number, irl.id ASC";
 
-        try (Statement stmt = getConnection().createStatement();
+        try (Connection conn = getConnection();
+                Statement stmt = conn.createStatement();
                 ResultSet rs = stmt.executeQuery(query)) {
 
             Map<Integer, BotJobLoadDTO> botJobMapDTO = new HashMap<>();
@@ -7396,5 +7401,9 @@ GROUP BY
 
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
+    }
+
+    public boolean isConnDBWorks() {
+        return connDBWorks;
     }
 }

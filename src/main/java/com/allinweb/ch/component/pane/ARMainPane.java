@@ -62,21 +62,19 @@ public class ARMainPane extends ARPane {
         this.isEnabledLicence = isEnabledLicence;
         this.webDriverList = webDriverList;
 
-        if (performDataBase.getConn() != null) {
-            botJobList.clear();
-            ErrorMessage errorMessage = performDataBase.loadQuickBotJobs();
-            if (errorMessage != null) {
-                performMessage.errorMessage(
-                        errorMessage.getErrorTitle(),
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                + errorMessage.getErrorHeader(),
-                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                        null,
-                        0);
-            }
-            botJobList.addAll(performLists.getQuickBotJobs());
+        botJobList.clear();
+        ErrorMessage errorMessage = performDataBase.loadQuickBotJobs();
+        if (errorMessage != null) {
+            performMessage.errorMessage(
+                    errorMessage.getErrorTitle(),
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                            + errorMessage.getErrorHeader(),
+                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                    null,
+                    0);
         }
+        botJobList.addAll(performLists.getQuickBotJobs());
     }
 
     private boolean isEnabledLicence;
@@ -141,6 +139,8 @@ public class ARMainPane extends ARPane {
     GridPane header = new GridPane();
 
     ListView<BotJobLoadDTO> viewBotJobListView = new ListView<>();
+
+    private BotJobLoadDTO selecBotJobDTO;
 
     @Override
     public void initUIComponents() {
@@ -293,7 +293,7 @@ public class ARMainPane extends ARPane {
 
             var selecBotJobDTO = viewBotJobListView.getSelectionModel().getSelectedItem();
             if (selecBotJobDTO != null) {
-                if (performDataBase.getConn() != null) {
+                if (performDataBase.isConnDBWorks()) {
                     arSaveCloneScene.initialize(selecBotJobDTO, botJobList, isEnabledLicence);
 
                     Stage currentStage = (Stage) cloneBotJobButton.getScene().getWindow();
@@ -333,7 +333,7 @@ public class ARMainPane extends ARPane {
                         .severe(dataBaseType + " Database Connection failed : " + error.getMessage());
             }
 
-            if (performDataBase.getConn() != null) {
+            if (performDataBase.isConnDBWorks()) {
                 try {
                     if (performLists.getQuickBotJobs().isEmpty()) {
                         performDataBase.loadQuickBotJobs();
@@ -360,11 +360,13 @@ public class ARMainPane extends ARPane {
                 return;
             }
 
-            BotJobLoadDTO selecBotJobDTO =
-                    viewBotJobListView.getSelectionModel().getSelectedItem();
+            selecBotJobDTO = viewBotJobListView.getSelectionModel().getSelectedItem();
 
             if (selecBotJobDTO != null) {
                 try {
+
+                    reloadList();
+
                     Platform.runLater(() -> {
                         // new ARViewBotJobScene(selecBotJobDTO).showModal();
                         arViewBotJobScene.initialize(arWebDriver, selecBotJobDTO, isEnabledLicence);
@@ -619,6 +621,50 @@ public class ARMainPane extends ARPane {
             ARLogger.getInstance(ARMainPane.class)
                     .severe("Cannot read/validate the License path/file. Error: " + error.getMessage());
             return false;
+        }
+    }
+
+    private void reloadList() {
+
+        // IN CASE the ADDED New Bot Job tomREfresh Main List as Observable
+        if (performLists.getListHomeUrl().isEmpty()) {
+            performDataBase.loadHomeUrls(null);
+        }
+
+        if (performLists.getQuickBotJobs().isEmpty()) {
+            performDataBase.loadQuickBotJobs();
+        }
+
+        performDataBase.loadBlocks(selecBotJobDTO.getId(), selecBotJobDTO.getName(), "block");
+        performDataBase.loadBlocks(selecBotJobDTO.getHomeBankingId(), selecBotJobDTO.getName(), "component_block");
+        //        this.botLoadJobs = performDataBase.loadBotJobWithBlock(this.botJobId);
+
+        BotJobLoadDTO botJobLoad = performLists.getQuickBotJobById(selecBotJobDTO.getId());
+
+        //        performDataBase.loadHomeBanking(selecBotJobDTO.getHomeBankingId());
+
+        if (botJobLoad != null && botJobLoad.getBlockLoadDTOList() == null) {
+            botJobLoad.setBlockLoadDTOList(performLists.getListBlock());
+        }
+        // It Prevents Start without blocks
+        if (performLists.getListBlock().isEmpty()) {
+
+            ErrorMessage errorMessage = performDataBase.initiateNewBlock(
+                    "block", selecBotJobDTO.getId(), "Default Block", "Default Block", 1, false);
+
+            if (errorMessage == null) {
+                ARLogger.getInstance(Thread.class)
+                        .info(String.format("A new Block was created for bot job Id %d", selecBotJobDTO.getId()));
+            } else {
+                performMessage.errorMessage(
+                        errorMessage.getErrorTitle(),
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                + errorMessage.getErrorTitle(),
+                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                        null,
+                        0);
+            }
         }
     }
 }

@@ -256,7 +256,7 @@ public class ARConfigurationPane extends ARPane {
         //        ObservableList<HomeBankingDTO> homeBankingList =
         //                PerformDataBase..getEntityList(HomeBankingDTO.class);
 
-        if (performDataBase.getConn() != null) {
+        if (performDataBase.isConnDBWorks()) {
             performDataBase.loadHomeBanking(null);
         }
         homeBankingListView = new ListView<>(FXCollections.observableArrayList(performLists.getListHomeBanking()));
@@ -567,7 +567,7 @@ public class ARConfigurationPane extends ARPane {
             }
         });
 
-        if (performDataBase.getConn() != null) {
+        if (performDataBase.isConnDBWorks()) {
             try (Connection conn = performDataBase.getConnection()) {
                 if (conn != null) {
                     if (performLists.getListHomeBanking().isEmpty()) {

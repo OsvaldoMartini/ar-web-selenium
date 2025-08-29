@@ -5,7 +5,6 @@ import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.component.model.*;
 import com.allinweb.ch.component.pane.base.ARPane;
-import com.allinweb.ch.component.scene.ARNewCommandScene;
 import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
 import com.allinweb.ch.component.scene.ARScannedElementScene;
 import com.allinweb.ch.control.ARComponentBuilder;
@@ -18,19 +17,14 @@ import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import java.io.*;
-import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.util.*;
 import java.util.Date;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
@@ -58,18 +52,9 @@ import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import javafx.stage.Stage;
 import javafx.util.Pair;
-import javax.websocket.ClientEndpoint;
-import javax.websocket.ContainerProvider;
-import javax.websocket.OnClose;
-import javax.websocket.OnError;
-import javax.websocket.OnMessage;
-import javax.websocket.OnOpen;
-import javax.websocket.Session;
-import javax.websocket.WebSocketContainer;
 import org.openqa.selenium.*;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
-@ClientEndpoint
 public class ARScannedElementPane extends ARPane {
 
     protected static volatile ARScannedElementPane instance;
@@ -89,405 +74,13 @@ public class ARScannedElementPane extends ARPane {
         return instance;
     }
 
-    private final Gson gson = new Gson();
-    private String previousBlock = null;
-
     private List<InstructionLoad> instructionList = new ArrayList<>();
-
-    private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-    //    private static final ScheduledExecutorService pingScheduler = Executors.newScheduledThreadPool(1);
-
-    private void stopKeepAlivePings() {
-        scheduler.shutdownNow();
-    }
-
-    private void startKeepAlivePings() {
-        scheduler.scheduleAtFixedRate(
-                () -> {
-                    try {
-                        if (session != null && session.isOpen()) {
-                            session.getBasicRemote()
-                                    .sendText("ping-scanner-element-pane"); // Or a specific keep-alive message
-                        }
-                    } catch (IOException e) {
-                        System.err.println("Error sending ping: " + e.getMessage());
-                        // Handle potential disconnection
-                    }
-                },
-                0,
-                15,
-                TimeUnit.SECONDS); // Adjust interval as needed
-    }
-
-    @OnOpen
-    public void onOpen(Session session) {
-        this.session = session;
-        latch.countDown(); // Release the latch after connection is established
-        System.out.println("Connected to WebSocket server at: " + session.getRequestURI());
-        // Sending an initial message
-        sendMessage("Hello from JavaFX WebSocket client!");
-    }
-
-    @OnClose
-    public void onClose(Session session) {
-        System.out.println("Connection closed.");
-        stopKeepAlivePings();
-    }
-
-    @OnError
-    public void onError(Session session, Throwable throwable) {
-        System.out.println("Error: " + throwable.getMessage());
-        stopKeepAlivePings();
-    }
-
-    // Method to send a message
-    public void sendMessage(String message) {
-        executorWebSocket.submit(() -> {
-            //            if (session != null && session.isOpen()) {
-            //                try {
-            //                    session.getBasicRemote().sendText(message);
-            //                } catch (Exception e) {
-            //                    e.printStackTrace();
-            //                }
-            //            }
-        });
-    }
-
-    public void connectWebSocketClient(int portSocket, String sessionId) {
-        executorWebSocket.submit(() -> {
-            String serverUri = "ws://localhost:" + portSocket + "/websocket?sessionId=" + sessionId;
-            try {
-                WebSocketContainer container = ContainerProvider.getWebSocketContainer();
-                container.connectToServer(this, new URI(serverUri));
-                latch.await();
-                startKeepAlivePings();
-                isConnectWebSocket = true;
-            } catch (Exception e) {
-                isConnectWebSocket = false;
-                System.err.println("WebSocket connection failed sessionId: " + sessionId + " error: " + e.getMessage());
-            }
-        });
-    }
-
-    @OnMessage
-    public void onMessage(String message) {
-        System.out.println("Received: " + message);
-        if (message == null || message.trim().isEmpty() || message.contains("CONNECT") || message.contains("ping")) {
-            // Ignore null or empty messages
-            message = message.replaceAll("ping-", "");
-            System.out.println("Active : " + message);
-            return;
-        }
-
-        String type = null;
-        String body = null;
-        //        int homeBankingId = -1;
-        try {
-            // Parse the incoming message (assuming JSON format)
-            JsonObject jsonObjMSG = JsonParser.parseString(message).getAsJsonObject();
-            //            homeBankingId = jsonObjMSG.has("homeBankingId")
-            //                    ? Integer.parseInt(jsonObjMSG.get("homeBankingId").getAsString())
-            //                    : -1;
-
-            body = jsonObjMSG.has("body") ? jsonObjMSG.get("body").getAsString() : "unknown";
-            if (!body.equalsIgnoreCase("unknown")) {
-                JsonObject objSecond = JsonParser.parseString(body).getAsJsonObject();
-                if (objSecond.has("type") && objSecond.get("type").getAsString().equalsIgnoreCase("CLOSE_BROWSER")) {
-                    type = "CLOSE_BROWSER";
-                } else if (objSecond.has("type")) {
-                    type = objSecond.has("type") ? objSecond.get("type").getAsString() : "unknown";
-                } else {
-                    type = jsonObjMSG.has("type") ? jsonObjMSG.get("type").getAsString() : "unknown";
-                }
-            } else {
-                type = jsonObjMSG.has("type") ? jsonObjMSG.get("type").getAsString() : "unknown";
-            }
-
-            // After Decoding
-            if (type == null || type.trim().isEmpty() || type.contains("CONNECT") || type.contains("ping")) {
-                // Ignore null or empty messages
-                type = type.replaceAll("ping-", "");
-                System.out.println("Active : " + type);
-                return;
-            }
-
-            String sessionId =
-                    jsonObjMSG.has("sessionId") ? jsonObjMSG.get("sessionId").getAsString() : "unknown";
-
-            // Process the message based on its type
-            switch (type) {
-                case "UPDATE_BLOCKS":
-                    BlockMoveDTO blockMoveDTO = gson.fromJson(body, BlockMoveDTO.class);
-
-                    if (previousBlock != null && !previousBlock.equals(type)) {
-                        arNewCommandPane.closePane();
-                        previousBlock = type;
-                    }
-
-                    String blockUpdate = blockMoveDTO.getSessionId().equals("componentTasks")
-                            ? "UPDATE_BLOCKS_COMP"
-                            : "UPDATE_BLOCKS";
-
-                    String blockTable =
-                            blockMoveDTO.getSessionId().equals("componentTasks") ? "component_block" : "block";
-
-                    // Attempt to get it from currentBotJob
-                    int whereId = blockMoveDTO.getSessionId().equals("componentTasks")
-                            ? currentBotJob.getHomeBankingId() != null ? currentBotJob.getHomeBankingId() : -1
-                            : currentBotJob.getId() != null ? currentBotJob.getId() : -1;
-
-                    if (whereId == -1) {
-                        whereId = blockMoveDTO.getSessionId().equals("componentTasks")
-                                ? blockMoveDTO.getHomeBankingId() != null ? blockMoveDTO.getHomeBankingId() : -1
-                                : blockMoveDTO.getBotJobId() != null ? blockMoveDTO.getBotJobId() : -1;
-                    }
-
-                    if (previousBlock != null && !previousBlock.equals(blockUpdate)) {
-                        arNewCommandPane.closePane();
-                        previousBlock = blockUpdate;
-                    } else if (previousBlock == null) {
-                        previousBlock = blockUpdate;
-                    }
-
-                    try {
-
-                        reloadDBBlocks(whereId, blockTable);
-
-                    } catch (Exception error) {
-                        ARLogger.getInstance(ARNewCommandPane.class).severe("Error: " + error.getMessage());
-                    }
-                    break;
-                case "CLOSE_BROWSER":
-                    if (!isJobRunning.get()) {
-                        if (this.launchBotJobButton != null && !performActions.isJustCalledRefreshPage()) {
-                            ARLogger.getInstance(ARScannedElementPane.class).finer("CLOSE_BROWSER");
-                            Platform.runLater(() -> {
-                                Stage stage =
-                                        (Stage) launchBotJobButton.getScene().getWindow();
-                                if (stage != null) {
-                                    stage.close(); // <-- actually closes the Stage
-                                }
-
-                                // Clean ARScannedElementPane singleton instance
-                                ARScannedElementPane.getInstance().destroy();
-                                ARScannedElementScene.getInstance().destroyPanel(); //
-                            });
-                        }
-
-                        if (performActions.isJustCalledRefreshPage()) {
-                            performActions.setJustCalledRefreshPage(false);
-                        }
-                    }
-
-                    break;
-                case "NEW_ELEMENT_DTO":
-                case "SEND_ALL_ELEMENTS_DTO":
-                    checkRunningProcess();
-                    // Extract the "body" field from the JsonObject
-                    ElementSplitDTO processDTO = gson.fromJson(jsonObjMSG, ElementSplitDTO.class);
-
-                    blockUpdate =
-                            processDTO.getSessionId().equals("componentTasks") ? "UPDATE_BLOCKS_COMP" : "UPDATE_BLOCKS";
-
-                    if (previousBlock != null && !previousBlock.equals(blockUpdate)) {
-                        arNewCommandPane.closePane();
-                        previousBlock = blockUpdate;
-                    } else if (previousBlock == null) {
-                        previousBlock = blockUpdate;
-                    }
-
-                    boolean isMany = "SEND_ALL_ELEMENTS_DTO".equalsIgnoreCase(type);
-                    stepsInsertManyDTO(processDTO, isMany);
-                    //                    stepsInsertOneDTO(targetSelected);
-                    break;
-                case "TEST_CLICK_DTO":
-                case "TEST_INPUT_DTO":
-                    checkRunningProcess();
-                    // Extract the "body" field from the JsonObject
-                    processDTO = gson.fromJson(jsonObjMSG, ElementSplitDTO.class);
-
-                    String tableName = "instruction";
-                    whereId = processDTO.getBotJobId() != null ? processDTO.getBotJobId() : currentBotJob.getId();
-                    if (processDTO.getSessionId().equals("componentTasks")) {
-                        tableName = "component_instruction";
-                        whereId = processDTO.getHomeBankingId() != null
-                                ? processDTO.getHomeBankingId()
-                                : currentBotJob.getHomeBankingId();
-                    }
-
-                    blockUpdate =
-                            processDTO.getSessionId().equals("componentTasks") ? "UPDATE_BLOCKS_COMP" : "UPDATE_BLOCKS";
-
-                    if (previousBlock != null && !previousBlock.equals(blockUpdate)) {
-                        arNewCommandPane.closePane();
-                        previousBlock = blockUpdate;
-                    } else if (previousBlock == null) {
-                        previousBlock = blockUpdate;
-                    }
-
-                    if (processDTO.getOperationId() != null
-                            && processDTO.getOperationId().equalsIgnoreCase("TEST_STEP")) {
-
-                        // I want all Instructions
-                        if (tableName.equals("instruction")
-                                        && performLists.getListInstruction().isEmpty()
-                                || (tableName.equals("component_instruction")
-                                        && performLists.getListInstructionComp().isEmpty())) {
-                            performDataBase.loadInstructions(whereId, -1, -1, tableName);
-                        }
-
-                        InstructionLoad instruction =
-                                performLists.getInstructionById(tableName, whereId, processDTO.getDetails()[0].getId());
-                        if (instruction != null && instruction.getId() != null) {
-                            ElementDTO elementDTO = performActions.buildElementDTO(instruction);
-                            targetSelected = extractPickClone(elementDTO);
-                            itPrintsElementDTO();
-                            testingActions(targetSelected, processDTO.getType());
-                        } else {
-                            targetSelected = extractPickClone(processDTO.getDetails()[0]);
-                            itPrintsElementDTO();
-                            testingActions(targetSelected, processDTO.getType());
-                        }
-                    } else {
-                        targetSelected = extractPickClone(processDTO.getDetails()[0]);
-                        itPrintsElementDTO();
-                        testingActions(targetSelected, processDTO.getType());
-                    }
-                    break;
-                case "DEL_ELEMENT_DTO":
-                case "DETAILS_ELEMENT_DTO":
-                    // Extract the "body" field from the JsonObject
-                    processDTO = gson.fromJson(jsonObjMSG, ElementSplitDTO.class);
-
-                    blockUpdate =
-                            processDTO.getSessionId().equals("componentTasks") ? "UPDATE_BLOCKS_COMP" : "UPDATE_BLOCKS";
-
-                    if (previousBlock != null && !previousBlock.equals(blockUpdate)) {
-                        arNewCommandPane.closePane();
-                        previousBlock = blockUpdate;
-                    } else if (previousBlock == null) {
-                        previousBlock = blockUpdate;
-                    }
-
-                    targetSelected = extractPickClone(processDTO.getDetails()[0]);
-                    itPrintsElementDTO();
-                    break;
-                default:
-                    break;
-            }
-        } catch (Exception error) {
-            if (error.getMessage().contains("invalid session id")) {
-                performMessage.errorMessage(
-                        "Browser is Closed",
-                        "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>To perform this action, please</span> ✅",
-                        "<span style='color: #1976D2;'>reopen the browser via the Scanner:</span>",
-                        "<span style='font-weight: bold;'>Click the \"Scanner\" button in the previous window</span>",
-                        null,
-                        0);
-            }
-
-            System.err.println("Closed processing message: " + error.getMessage());
-        }
-    }
 
     public void destroy() {
         clearPane(getPaneReference());
         pane = null;
         scene = null;
         instance = null;
-    }
-
-    private void stepsInsertManyDTO(ElementSplitDTO processDTO, boolean isMany) {
-        validateBlockDB("Default Block", this.currentBotJob.getId(), isMany);
-        if (currentBlockId > 0) {
-            performDataBase.loadInstructions(currentBotJob.getId(), currentBlockId, -1, "instruction");
-            List<InstructionLoad> instruc = performLists.getListInstruction();
-
-            int nextOrder = instruc.size() + 1;
-
-            instructionList.clear();
-            for (ElementDTO elementDTO : processDTO.getDetails()) {
-                TargetElement targetEach = extractPickClone(elementDTO);
-
-                WebElement elementFound = performActions.findWebElement(targetEach);
-                targetEach.setElement(elementFound);
-                // 3 Different Coordinates
-                // Original from JavaScript
-                // WebDriver Selenium ElementFound
-                // FallBack React Computed
-                performActions.defineSavedReferenced(targetEach);
-
-                if (!isMany) {
-                    if (!Strings.isNullOrEmpty(defineNameField.getText().trim())
-                            && !targetEach
-                                    .getDefinedName()
-                                    .equalsIgnoreCase(defineNameField.getText().trim())) {
-                        targetEach.setDefinedName(defineNameField.getText().trim());
-                        Platform.runLater(() -> {
-                            defineNameField.clear();
-                            searchAttribValueField.clear();
-                        });
-                    }
-                    targetSelected = targetEach;
-                    //                    itPrintsElementDTO();
-                }
-
-                prepareToInsertElementDTO(currentBlockId, nextOrder, targetEach, true);
-                nextOrder++;
-            }
-
-            if (instructionList.size() > 0) {
-
-                ErrorMessage errorMessage = performDataBase.insertInstructionsBatch(
-                        "botJobTasks",
-                        instructionList,
-                        this.currentBotJob.getId(),
-                        currentBlockId,
-                        this.currentBotJob.getHomeBankingId());
-
-                if (instructionList.size()
-                        != performDataBase.getIdsInstrucAfter().size()) {
-                    performMessage.errorMessage(
-                            "Error Inserting ALL Elements",
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Batch Insertion Failed ❌</span>",
-                            "<span style='color: #E65100; font-weight: bold;'>Mismatch detected:</span> The number of inserted instructions does not match the expected size.",
-                            "<span style='font-style: italic;'>Expected (from list):</span> " + instructionList.size(),
-                            "<span style='font-style: italic;'>Actual (inserted):</span> "
-                                    + performDataBase.getIdsInstrucAfter().size(),
-                            0);
-
-                    sendStatusButton();
-
-                    return;
-                }
-
-                if (errorMessage == null) {
-                    for (int i = 0; i < instructionList.size(); i++) {
-                        InstructionLoad instruction = instructionList.get(i);
-                        Integer newId = performDataBase.getIdsInstrucAfter().get(i);
-                        instruction.setId(newId);
-                    }
-
-                    errorMessage = performDataBase.insertReferencesBatch(instructionList);
-                }
-
-                updateBotJobTasks(this.currentBotJob.getId());
-                sendStatusButton();
-
-                if (errorMessage != null) {
-                    performMessage.errorMessage(
-                            errorMessage.getErrorTitle(),
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                    + errorMessage.getErrorTitle(),
-                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                            null,
-                            0);
-                }
-            }
-        } else {
-            sendStatusButton();
-        }
     }
 
     private void preTestCoordinates(TargetElement targetPreTest) {
@@ -508,13 +101,11 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private int validateBlockDB(String blockName, int botJobId, boolean isMany) {
+    public int validateBlockDB(String blockName, int botJobId, boolean isMany) {
 
         int newBlockID = performActions.createBlockIfNone(blockName, botJobId);
         if (newBlockID > 0) {
-            Platform.runLater(() -> {
-                refreshBlocks(true);
-            });
+            refreshBlocks(true);
         }
 
         if (newBlockID > 0) {
@@ -548,7 +139,7 @@ public class ARScannedElementPane extends ARPane {
         return newBlockID;
     }
 
-    private void prepareToInsertElementDTO(
+    public void prepareToInsertElementDTO(
             int currentBlockId, int nextInstOrderNumber, TargetElement targetInsert, boolean manyElements) {
 
         if (targetInsert.getXPath() == null) {
@@ -619,7 +210,7 @@ public class ARScannedElementPane extends ARPane {
         instructionList.add(instruction);
     }
 
-    private void updateBotJobTasks(int currentBotJobId) {
+    public void updateBotJobTasks(int currentBotJobId) {
         if (performLists.getListBotJob().isEmpty()) {
             ErrorMessage errorMessage = performDataBase.loadCompleteJobs(currentBotJobId);
             if (errorMessage != null) {
@@ -648,7 +239,7 @@ public class ARScannedElementPane extends ARPane {
                 "updateInstructions");
     }
 
-    private void testingActions(TargetElement targetTest, String testType) {
+    public void testingActions(TargetElement targetTest, String testType) {
         WebDriver driverTestActions = performActions.getCurrentDriver();
         try {
             if (targetTest.getElement() != null) {
@@ -1092,31 +683,21 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    public WebDriver currentDriver;
     private Set<String> windowHandles;
 
-    private static final CountDownLatch latch = new CountDownLatch(1);
-    private Session session;
-
-    private ExecutorService executorWebSocket;
     private ExecutorService executorServicePreLaunch;
 
     private int portSocketInitial = 54525;
-    private boolean isConnectWebSocket = false;
 
-    private final AtomicBoolean isJobRunning = new AtomicBoolean(false);
-    private BooleanProperty interceptBotJob = new SimpleBooleanProperty(false);
+    public final AtomicBoolean isJobRunning = new AtomicBoolean(false);
+    protected BooleanProperty interceptBotJob = new SimpleBooleanProperty(false);
 
-    private static TargetElement targetSelected = new TargetElement();
+    public static TargetElement targetSelected = new TargetElement();
 
     private static File baseLogFile = null;
     private static SimpleDateFormat dateFormatter;
 
-    private static JavascriptExecutor jsExecutor;
-
     private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
-
-    private DatabaseUserDTO databaseUserDto;
 
     private BotJobLoadDTO currentBotJob;
 
@@ -1125,8 +706,9 @@ public class ARScannedElementPane extends ARPane {
 
     double comboWidth = 200;
 
+    private final Gson gson = new Gson();
+
     private ComboBox<BlockOptions> comboBoxBlocks;
-    private List<BlockOptions> currentListBlock = new ArrayList<>();
 
     Button refreshBlocksButton;
 
@@ -1142,7 +724,7 @@ public class ARScannedElementPane extends ARPane {
 
     private Button cloneElementsButton;
     private Button configureButton;
-    private Button launchBotJobButton;
+    public Button launchBotJobButton;
     private Button stopBotJobButton;
     private Button pageScannerButton;
     private Button refreshWebPageButton;
@@ -1155,9 +737,9 @@ public class ARScannedElementPane extends ARPane {
     private CheckBox checkCloneElement;
 
     private Label testActionLabel;
-    private CheckBox checkClickElement;
-    private CheckBox checkInputText;
-    private CheckBox checkOutputText;
+    public CheckBox checkClickElement;
+    public CheckBox checkInputText;
+    public CheckBox checkOutputText;
     private CheckBox checkForceEnterText;
     private CheckBox checkForceCoordText;
 
@@ -1173,10 +755,10 @@ public class ARScannedElementPane extends ARPane {
     private TextArea countdownTextField;
 
     private TextField searchTermsField;
-    private TextField defineNameField;
+    public TextField defineNameField;
 
     private TextField testActionsField;
-    private TextField searchAttribValueField;
+    public TextField searchAttribValueField;
     private TextField coordsTextField;
 
     private Map<String, String> mapOperators = new HashMap<>();
@@ -1190,11 +772,12 @@ public class ARScannedElementPane extends ARPane {
 
     private List<VariableLoadDTO> variablesLoaded;
 
+    private static JavascriptExecutor jsExecutor;
+
     private String[] defaultSearch;
     private boolean searchHiddenFields;
-    private String xpathTextPrevious;
+    public String xpathTextPrevious;
 
-    private String jsonData;
     private String sessionIdFromJava;
 
     private String sessionRowStatus;
@@ -1205,40 +788,20 @@ public class ARScannedElementPane extends ARPane {
     private static String[] lstAllPaths;
 
     // Very important sequence on initiation
-    private static final ARPropertyManager arPropertyManager;
-    private static final ARPriorities arPriorities;
-    private static final WebSocketSessionManager webSocketSessionManager;
+    private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
+    private static final ARPriorities arPriorities = ARPriorities.getInstance();
 
     private ARWebDriver currentARWebDriver;
-
-    private static final ARScannedElementScene arScannedElementScene;
-    private static final PerformCloneLoad performCloneLoad;
-    private static final PerformLists performLists;
-    private static final PerformDataBase performDataBase;
-    private static final PerformActions performActions;
-    private static final PerformMessage performMessage;
-    private static final PerformPreLoad performPreLoad;
-    private static final ARNewCommandPane arNewCommandPane = ARNewCommandPane.getInstance();
+    private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
+    private static final ARScannedElementScene arScannedElementScene = ARScannedElementScene.getInstance();
+    private static final PerformCloneLoad performCloneLoad = PerformCloneLoad.getInstance();
+    private static final PerformLists performLists = PerformLists.getInstance();
+    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
+    private static final PerformActions performActions = PerformActions.getInstance();
+    private static final PerformMessage performMessage = PerformMessage.getInstance();
+    private static final PerformPreLoad performPreLoad = PerformPreLoad.getInstance();
+    private static final ARNewHomeBankingScene arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
     //    private static final PerformCloseBrowser performCloseBrowser;
-
-    private static final ARNewHomeBankingScene arNewHomeBankingScene;
-
-    // Static block to initialize
-    static {
-        arScannedElementScene = ARScannedElementScene.getInstance();
-        arPropertyManager = ARPropertyManager.getInstance();
-        webSocketSessionManager = WebSocketSessionManager.getInstance();
-        performLists = PerformLists.getInstance();
-        performDataBase = PerformDataBase.getInstance();
-        performActions = PerformActions.getInstance();
-        performMessage = PerformMessage.getInstance();
-        performPreLoad = PerformPreLoad.getInstance();
-        //        performCloseBrowser = PerformCloseBrowser.getInstance();
-
-        performCloneLoad = PerformCloneLoad.getInstance();
-        arPriorities = ARPriorities.getInstance();
-        arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
-    }
 
     public BooleanProperty interceptBotJobProperty() {
         return interceptBotJob;
@@ -1252,30 +815,15 @@ public class ARScannedElementPane extends ARPane {
         interceptBotJob.set(value);
     }
 
-    public void initialize(
-            ARWebDriver currentARWebDriver,
-            BotJobLoadDTO botJobLoad,
-            ExecutorService executorWebSocket,
-            ExecutorService executorServicePreLaunch) {
+    public void initialize(ARWebDriver currentARWebDriver, BotJobLoadDTO botJobLoad, int portSocketInitial) {
+        this.portSocketInitial = portSocketInitial;
         this.currentARWebDriver = currentARWebDriver;
-
-        this.executorWebSocket = executorWebSocket;
-        this.executorServicePreLaunch = executorServicePreLaunch;
-
-        String port = arPropertyManager.getProperty(ARPropertyEnum.PORT_SOCKET);
-        if (!Strings.isNullOrEmpty(port)) {
-            portSocketInitial = Integer.parseInt(port);
-        }
-
-        if (!isConnectWebSocket) {
-            connectWebSocketClient(portSocketInitial, "scanner-element-pane");
-        }
 
         searchHiddenFields = false;
 
         defaultSearch = new String[] {"input", "textarea", "button", "a", "select", "label"};
 
-        ARLogger.getInstance(ARWebDriver.class).fine("Calling ARScannedElementPane");
+        ARLogger.getInstance(ARScannedElementPane.class).fine("Calling ARScannedElementPane");
 
         // Ensure botJob and arPriorities are not null before accessing their methods
         if (this.currentBotJob != null && arPriorities != null) {
@@ -1313,13 +861,14 @@ public class ARScannedElementPane extends ARPane {
 
         HomeUrlDTO homeUrlDTO = performLists.getHomeUrlByBankId(
                 this.currentBotJob.getHomeBankingId(), this.currentBotJob.getHomeUrlId());
+
         updateSceneTitleWithCurrentURL(homeUrlDTO.getUrl());
 
         //        if (!initializeWebView()) {
         //            return;
         //        }
 
-        if (currentListBlock.isEmpty()) {
+        if (performLists.getListComboOptions().isEmpty()) {
             // If list is empty, populate AllBlocks with a default block
             ObservableList<BlockOptions> defaultAll =
                     FXCollections.observableArrayList(new BlockOptions("#1 Default Block", "Default Block", -1, -1));
@@ -1512,9 +1061,7 @@ public class ARScannedElementPane extends ARPane {
 
         buildUIComponents();
 
-        Platform.runLater(() -> {
-            refreshBlocks(false);
-        });
+        refreshBlocks(false);
     }
 
     private void addCompBoxWebView() {
@@ -1542,7 +1089,7 @@ public class ARScannedElementPane extends ARPane {
                             + jsonData + "), " + finalPort + ", '" + sessionIdFromJava + "', " + homeBanking + ", "
                             + botJobId + ", '" + botJobName + "' ) }, 1000)");
                 } catch (Exception e) {
-                    ARLogger.getInstance(ARViewBotJobPane.class).severe("buildWebView  \nError: " + e.getMessage());
+                    ARLogger.getInstance(ARScannedElementPane.class).severe("buildWebView  \nError: " + e.getMessage());
                 }
             }
         });
@@ -1692,9 +1239,7 @@ public class ARScannedElementPane extends ARPane {
         refreshBlocksButton = createPathButton();
 
         refreshBlocksButton.setOnMouseClicked(e -> {
-            Platform.runLater(() -> {
-                refreshBlocks(false);
-            });
+            refreshBlocks(false);
         });
 
         comboBoxBlocks = new ComboBox<>();
@@ -1912,49 +1457,13 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private void refreshBlocks(boolean secondItem) {
-        //        performLists.getListBlock().clear();
-        //        performDataBase.loadBlocks(this.currentBotJob.getId(), this.currentBotJob.getName(), "block");
-        currentListBlock = performLists.getBlockOptions(currentListBlock, "block");
-        loadAllBlocks(currentListBlock);
+    public void refreshBlocks(boolean secondItem) {
+        loadAllBlocks();
 
         if (!secondItem) {
             comboBoxBlocks.getSelectionModel().selectFirst(); // Select the first item
         } else {
             comboBoxBlocks.getSelectionModel().select(1); // Select the second item (index 1)
-        }
-    }
-
-    public ErrorMessage reloadDBBlocks(int whereId, String tableName) {
-        currentListBlock.clear();
-        try {
-            if (currentListBlock == null) {
-                return null;
-            }
-
-            // Load blocks from DB
-            ErrorMessage errorMessage = performDataBase.loadBlocks(whereId, "", tableName);
-
-            try {
-                // Pick the right list depending on the tableName
-
-                // Replace currentListBlock with the new one
-                List<BlockOptions> list = performLists.getBlockOptions(currentListBlock, tableName);
-                currentListBlock = new ArrayList<>(list);
-                loadAllBlocks(currentListBlock);
-
-            } catch (Exception error) {
-                ARLogger.getInstance(ARNewCommandPane.class).severe("Error :" + error.getMessage());
-                return new ErrorMessage(
-                        "Error in Reload DB Blocks", "Error during loading reloadDBBlocks", error.getMessage());
-            }
-
-            return errorMessage;
-
-        } catch (Exception error) {
-            ARLogger.getInstance(ARNewCommandPane.class).severe("Error :" + error.getMessage());
-            return new ErrorMessage(
-                    "Error in Reload DB Blocks", "Error during loading reloadDBBlocks", error.getMessage());
         }
     }
 
@@ -2178,7 +1687,7 @@ public class ARScannedElementPane extends ARPane {
         turnOnOffButton.setVisible(false);
     }
 
-    private boolean lastBrowserTab() {
+    public boolean lastBrowserTab() {
         // Get all window handles (all open tabs/windows)
         try {
             windowHandles = performActions.getCurrentDriver().getWindowHandles();
@@ -2267,312 +1776,7 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private TargetElement extractPickClone(ElementDTO elementDTO) {
-
-        xpathTextPrevious = elementDTO.getXPath();
-
-        TargetElement targetLocal = performActions.defineSearchReturn(elementDTO, null);
-
-        WebElement elementFound = performActions.findWebElement(targetLocal);
-        targetLocal.setElement(elementFound);
-        // 3 Different Coordinates // Original from JavaScript  // WebDriver Selenium ElementFound
-        // FallBack React Computed
-        performActions.defineSavedReferenced(targetLocal);
-
-        targetLocal = performActions.defineNameTitles(targetLocal);
-
-        // First  Search for ShadowRoot
-        if (Strings.isNullOrEmpty(targetLocal.getShadowHost()) && Strings.isNullOrEmpty(targetLocal.getCssSelector())) {
-
-            TargetElement targetValidated = checkValidateSearchPriorities(targetLocal);
-
-            if (targetValidated.getElement() == null) {
-
-                performMessage.errorMessage(
-                        "I Cannot define this element",
-                        "I will use the Locator \"COORDINATES\"",
-                        "Try to get it again -> \"HOVER PICK  ELEMENT\" or \"PICK ONE \"",
-                        null,
-                        null,
-                        0);
-
-                return null;
-            }
-        } else if (!Strings.isNullOrEmpty(targetLocal.getCssSelector())) {
-            targetLocal.setXPathWorkedFirst(ARConstants.REGULAR_XPATH);
-
-        } else {
-            targetLocal.setXPathWorkedFirst(ARConstants.SHADOW_DOM);
-        }
-
-        //        targetElement = performActions.defineTagType(targetElement);
-
-        defineCheckBoxesClickable(targetLocal);
-
-        return targetLocal;
-    }
-
-    private void defineCheckBoxesClickable(TargetElement targetCheck) {
-        boolean clickable = isClickable(targetCheck.getElement());
-
-        boolean tagClickable = false;
-        // Define regex to extract specific tags (e.g., a, button)
-        String regex = "/([^/\\[]+)";
-        Pattern pattern = Pattern.compile(regex);
-
-        // Iterate through each attribute in the array
-        if (targetCheck.getAttributeData() != null) {
-
-            for (AttributeData attribute : targetCheck.getAttributeData()) {
-                // Assuming you want to use the value of the attribute for matching
-                String attributeValue = attribute.getValue(); // Get the value of the attribute
-
-                Matcher matcher = pattern.matcher(attributeValue); // Use the value for matching
-
-                // Check for matches in the current attribute value
-                while (matcher.find()) {
-                    String tag = matcher.group(1);
-                    if (tag.equals("a") || tag.equals("button")) {
-                        System.out.println("Found clickable tag: <" + tag + ">");
-                        tagClickable = true;
-                        break;
-                    }
-                }
-                if (tagClickable) {
-                    break; // Exit the loop once a clickable tag is found
-                }
-            }
-        }
-
-        Boolean inputContains = targetCheck.getTagName().toLowerCase().contains("input");
-
-        Boolean selectContains = targetCheck.getTagName().toLowerCase().contains("select");
-
-        if (targetCheck.getCloned() == null) {
-
-            boolean finalTagClickable = tagClickable;
-            Platform.runLater(() -> {
-                if (finalTagClickable || clickable) {
-                    checkClickElement.setSelected(true);
-                    checkOutputText.setSelected(false);
-                    checkInputText.setSelected(false);
-
-                } else if (inputContains || selectContains) {
-                    checkInputText.setSelected(inputContains || selectContains);
-                    checkClickElement.setSelected(false);
-                    checkOutputText.setSelected(false);
-
-                } else {
-                    checkClickElement.setSelected(clickable);
-                    checkOutputText.setSelected(!clickable);
-                    checkInputText.setSelected(false);
-                }
-            });
-        } else {
-            Platform.runLater(() -> {
-                if (targetCheck.getTagType().equals(WebElementTagNameEnum.BUTTON)) {
-                    checkClickElement.setSelected(true);
-                    checkOutputText.setSelected(false);
-                    checkInputText.setSelected(false);
-                } else if (targetCheck.getTagType().equals(WebElementTagNameEnum.INPUT)) {
-                    checkClickElement.setSelected(false);
-                    checkOutputText.setSelected(false);
-                    checkInputText.setSelected(true);
-                } else if (targetCheck.getTagType().equals(WebElementTagNameEnum.OUTPUT)) {
-                    checkClickElement.setSelected(false);
-                    checkOutputText.setSelected(true);
-                    checkInputText.setSelected(false);
-                } else {
-                    checkClickElement.setSelected(false);
-                    checkOutputText.setSelected(false);
-                    checkInputText.setSelected(false);
-                }
-            });
-        }
-    }
-
-    private TargetElement checkValidateSearchPriorities(TargetElement target) {
-        WebElement elementValid = null;
-        if (!Strings.isNullOrEmpty(target.getCurrentXPath())) {
-
-            if (target.getForceCoordinates() != null && target.getForceCoordinates()) {
-                // Try by coordinates
-                try {
-                    Pair<String, String> filedData = new Pair("&EMPTY", "&EMPTY");
-                    boolean passed = performActions.executeActionsAtCoordinates(
-                            target.getCoordinates(), filedData, ARConstants.VISUALIZE, false);
-                    if (passed) {
-                        elementValid = performActions.getElementFromCoordinates(target.getCoordinates());
-                        if (elementValid != null && elementValid.getTagName() != null) {
-                            target.setElement(elementValid);
-                        }
-
-                        target.setXPathWorkedFirst(ARConstants.SEARCH_COORD);
-                    }
-
-                } catch (Exception e) {
-                    ARLogger.getInstance(ARScannedElementPane.class)
-                            .warning(String.format(
-                                    "Cannot locate a Web Element with Name: \n%s", target.getAttribName()));
-                }
-            } else if (elementValid == null) {
-                try {
-                    elementValid = performActions.getCurrentDriver().findElement(By.xpath(target.getCurrentXPath()));
-                    if (elementValid != null && elementValid.getTagName() != null) {
-                        target.setElement(elementValid);
-                        target.setXPathWorkedFirst(
-                                ARConstants.REGULAR_XPATH); // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
-                    }
-                } catch (Exception e) {
-                    ARLogger.getInstance(ARScannedElementPane.class)
-                            .warning(String.format(
-                                    "Cannot locate a Web Element with Regular XPath\n%s", target.getCurrentXPath()));
-                }
-            } else if (elementValid == null) {
-                try {
-                    elementValid = performActions.getCurrentDriver().findElement(By.xpath(target.getCustomXPath()));
-                    if (elementValid != null && elementValid.getTagName() != null) {
-                        target.setElement(elementValid);
-                        target.setXPathWorkedFirst(
-                                ARConstants.CUSTOM_XPATH); // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
-                    }
-                } catch (Exception e) {
-                    ARLogger.getInstance(ARScannedElementPane.class)
-                            .warning(String.format(
-                                    "Cannot locate a Web Element with Absolut XPath\n%s", target.getAttributeData()));
-                }
-            } else {
-                if (elementValid == null) {
-                    //            if (searchReturn.getCurrentXPath().startsWith("id(")) {
-                    if (!Strings.isNullOrEmpty(target.getAttribId())) {
-                        try {
-                            elementValid = performActions.getCurrentDriver().findElement(By.id(target.getAttribId()));
-                            if (elementValid != null && elementValid.getTagName() != null) {
-                                target.setElement(elementValid);
-                                target.setXPathWorkedFirst(ARConstants.ATTRIBUTE_ID);
-                                target.setAttributeType("id");
-                                target.setAttributeValue(target.getAttribId());
-                            }
-                        } catch (Exception e) {
-                            ARLogger.getInstance(ARScannedElementPane.class)
-                                    .warning(String.format(
-                                            "Cannot locate a Web Element with ID: \n%s", target.getAttribId()));
-                        }
-                    }
-                } else if (elementValid == null) {
-
-                    if (!Strings.isNullOrEmpty(target.getAttribName())) {
-                        try {
-                            elementValid =
-                                    performActions.getCurrentDriver().findElement(By.name(target.getAttribName()));
-                            if (elementValid != null && elementValid.getTagName() != null) {
-                                target.setElement(elementValid);
-                                target.setAttributeType("name");
-                                target.setXPathWorkedFirst(ARConstants.ATTRIBUTE_NAME);
-                            }
-                        } catch (Exception e) {
-                            ARLogger.getInstance(ARScannedElementPane.class)
-                                    .warning(String.format(
-                                            "Cannot locate a Web Element with Name: \n%s", target.getAttribName()));
-                        }
-                    }
-                }
-            }
-        }
-
-        target.setElement(elementValid);
-
-        return target;
-    }
-
-    private boolean isClickable(WebElement element) {
-        try {
-            List<WebElementTagNameEnum> clickableTags = WebElementTagNameEnum.clickableTags();
-            boolean isClickableTag =
-                    clickableTags.stream().anyMatch(t -> t.getValue().equals(element.getTagName()));
-            List<WebElementAttributeTypeValueEnum> clickableValues =
-                    WebElementAttributeTypeValueEnum.getClickableValues();
-            boolean isClickableValue = clickableValues.stream()
-                    .anyMatch(v -> v.getValue().equals(element.getAttribute(WebElementAttributeEnum.TYPE.getValue())));
-            boolean isInputTag = element.getTagName().equals(WebElementTagNameEnum.INPUT.getValue());
-            return (isClickableTag && !isInputTag) || (isInputTag && isClickableValue && isClickableTag);
-
-        } catch (Exception ignore) {
-        }
-        return false;
-        // Signal for Force Click or Not from the Target Definitions
-    }
-
-    private void handleSearchTermClick(String[] dataArray) {
-        //        webElementObservableList1.clear();
-
-        performActions.getCurrentDriver().switchTo().defaultContent();
-
-        xpathTextPrevious = "";
-        //        targetSelected = null;
-
-        revertCloneInjections(performActions.getCurrentDriver());
-        revertPickInjections(performActions.getCurrentDriver());
-
-        int finalPort = portSocketInitial;
-        String socketSessionId = "scannerTool";
-        String destinationId = "scannerGrid";
-
-        periodicSearchThread(
-                performActions.getCurrentDriver(),
-                dataArray,
-                finalPort,
-                socketSessionId,
-                destinationId,
-                "searchTerms",
-                this.currentBotJob.getHomeBankingId());
-
-        //        Platform.runLater(() -> periodicSearchThread(
-        //                performActions.getCurrentDriver(),
-        //                performActions.getCurrentDriver().getCurrentUrl(),
-        //                dataArray,
-        //                finalPort));
-    }
-
-    private void searchTermsBtn(String searchTerms) {
-
-        if (!lastBrowserTab()) {
-            return;
-        }
-
-        String[] dataArray;
-
-        //        String[] dataArray = {"with id"};
-        //        String[] dataArray = {"with name"};
-        //        String[] dataArray = {"with text"};
-        //        String[] dataArray = {"button"};
-        //        String[] dataArray = {"input"};
-
-        if (searchTerms != null && !searchTerms.trim().isEmpty()) {
-            dataArray = searchTerms.split("\\s*,\\s*"); // Splitting by comma, allowing spaces around it
-        } else {
-            dataArray = new String[] {"input", "textarea", "button", "a", "select", "label"}; // Default values
-        }
-
-        handleSearchTermClick(dataArray);
-
-        try {
-            Thread.sleep(2000);
-            revertSearchTermsInjections(performActions.getCurrentDriver());
-        } catch (Exception e) {
-
-        }
-    }
-
-    private void revertSearchTermsInjections(WebDriver driver) {
-        try {
-            jsExecutor = (JavascriptExecutor) driver;
-            jsExecutor.executeScript("window.revertSearchInjections();");
-        } catch (Exception ignore) {
-        }
-    }
-
-    private void itPrintsElementDTO() {
+    public void itPrintsElementDTO() {
 
         //                textFlowResult.getChildren().clear();
         //                textFlowResult.getChildren().addAll(countdownTextField);
@@ -2855,7 +2059,7 @@ public class ARScannedElementPane extends ARPane {
         return someText.substring(0, limit) + "...";
     }
 
-    private void periodicSearchThread(
+    public void periodicSearchThread(
             WebDriver driver,
             String[] dataArray,
             int port,
@@ -2880,7 +2084,7 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private void revertCloneInjections(WebDriver driver) {
+    public void revertCloneInjections(WebDriver driver) {
         try {
             jsExecutor = (JavascriptExecutor) driver;
             // Remove the injected element
@@ -2894,7 +2098,7 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private void revertPickInjections(WebDriver driver) {
+    public void revertPickInjections(WebDriver driver) {
         try {
             jsExecutor = (JavascriptExecutor) driver;
             // Remove the injected element
@@ -3180,7 +2384,7 @@ public class ARScannedElementPane extends ARPane {
             try {
                 excelDataGoto = performDataBase.loadExcelGotoBlock(whereId, tableName);
             } catch (Exception error) {
-                ARLogger.getInstance(ARNewCommandScene.class)
+                ARLogger.getInstance(ARScannedElementPane.class)
                         .severe("Error reading 'EXCEL GOTO' instructions: " + error.getMessage());
             }
 
@@ -4745,13 +3949,14 @@ public class ARScannedElementPane extends ARPane {
                 executorService.shutdownNow();
                 if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
                     System.err.println("ExecutorService did not terminate");
-                    ARLogger.getInstance(ARWebDriver.class).severe("ExecutorService did not terminate");
+                    ARLogger.getInstance(ARScannedElementPane.class).severe("ExecutorService did not terminate");
                 }
             }
         } catch (InterruptedException error) {
             executorService.shutdownNow();
             Thread.currentThread().interrupt();
-            ARLogger.getInstance(ARWebDriver.class).severe("ExecutorService did not terminate\n" + error.getMessage());
+            ARLogger.getInstance(ARScannedElementPane.class)
+                    .severe("ExecutorService did not terminate\n" + error.getMessage());
         }
     }
 
@@ -5074,7 +4279,7 @@ public class ARScannedElementPane extends ARPane {
 
     @Override
     public void start(Stage stage) throws Exception {
-        ARLogger.getInstance(ARWebDriver.class).severe("start from ARScannedElementPane");
+        ARLogger.getInstance(ARScannedElementPane.class).severe("start from ARScannedElementPane");
     }
 
     @Override
@@ -5086,7 +4291,7 @@ public class ARScannedElementPane extends ARPane {
                 executorServicePreLaunch.shutdownNow();
                 if (!executorServicePreLaunch.awaitTermination(5, TimeUnit.SECONDS)) {
                     System.err.println("ExecutorService did not terminate");
-                    ARLogger.getInstance(ARWebDriver.class).severe("ExecutorService did not terminate");
+                    ARLogger.getInstance(ARScannedElementPane.class).severe("ExecutorService did not terminate");
                 }
             }
         } catch (InterruptedException e) {
@@ -5183,7 +4388,7 @@ public class ARScannedElementPane extends ARPane {
         return resultActions;
     }
 
-    private void checkRunningProcess() {
+    public void checkRunningProcess() {
         checkCloneElement.setSelected(false);
         launchBotJobButton.setDisable(false);
         revertCloneInjections(performActions.getCurrentDriver());
@@ -5343,58 +4548,25 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    //    public ErrorMessage reloadDBBlocks(int whereId, String tableName) {
-    //        ErrorMessage errorMessage = null;
-    //        this.allListBlock.clear();
-    //        if ("block".equals(tableName)) {
-    //            try {
-    //                performLists.getListBlock().forEach(b ->
-    // allListBlock.add(BlockOptions.fromBlockWithOrderNumber(b)));
-    //            } catch (Exception error) {
-    //                ARLogger.getInstance(ARNewCommandPane.class).severe("Error :" + error.getMessage());
-    //                return new ErrorMessage(
-    //                        "Error in Reload DB Blocks", "Error during loading reloadDBBlocks", error.getMessage());
-    //            }
-    //        } else {
-    //            try {
-    //                performLists
-    //                        .getListBlockComp()
-    //                        .forEach(b -> allListBlock.add(BlockOptions.fromBlockWithOrderNumber(b)));
-    //            } catch (Exception error) {
-    //                ARLogger.getInstance(ARNewCommandPane.class).severe("Error :" + error.getMessage());
-    //                return new ErrorMessage(
-    //                        "Error in Reload DB Blocks", "Error during loading reloadDBBlocks", error.getMessage());
-    //            }
-    //        }
-    //        return errorMessage;
-    //    }
-
-    private void loadAllBlocks(List<BlockOptions> options) {
+    private void loadAllBlocks() {
         if (comboBoxBlocks != null) {
-            //            Platform.runLater(() -> {
-            //                List<BlockOptions> distinctList;
+            //            if (!performLists.getListComboOptions().isEmpty()) {
+            //                if (performLists.getListComboOptions().size() > 1) {
+            //                    performLists.getListComboOptions().add(0, new BlockOptions("Select the Block", "", -1,
+            // -1));
+            //                }
+            //
+            //            } else {
+            //                performLists.getListComboOptions() = new ArrayList<>();
+            //                performLists.getListComboOptions().add(new BlockOptions("#1 Default Block", "Default
+            // Block", -1, -1));
+            //            }
 
-            if (!options.isEmpty()) {
-                // Collect distinct by text into a new list
-                //                    distinctList = currentListBlock.stream()
-                //                            .filter(distinctByTextAndId())
-                //                            .collect(Collectors.toList());
+            comboBoxBlocks.setItems(FXCollections.observableArrayList(performLists.getListComboOptions()));
 
-                if (options.size() > 1) {
-                    options.add(0, new BlockOptions("Select the Block", "", -1, -1));
-                }
-
-            } else {
-                options = new ArrayList<>();
-                options.add(new BlockOptions("#1 Default Block", "Default Block", -1, -1));
-            }
-
-            comboBoxBlocks.setItems(FXCollections.observableArrayList(options));
-
-            if (currentListBlock.size() == 1) {
+            if (performLists.getListComboOptions().size() == 1) {
                 comboBoxBlocks.getSelectionModel().selectFirst();
             }
-            //            });
         }
     }
 
@@ -5433,19 +4605,169 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private void sendStatusButton() {
-        WebSocketSignal webSockteSocketSignal = WebSocketSignal.builder()
-                .operationId("activate-insert-all")
-                .sessionId("scannerGrid")
-                .message("Insert All Elements button activated")
-                .build();
+    private void searchTermsBtn(String searchTerms) {
 
-        String jsonData = gson.toJson(webSockteSocketSignal);
+        if (!lastBrowserTab()) {
+            return;
+        }
 
-        webSocketSessionManager.sendMessageJson(
-                currentBotJob.getHomeBankingId(),
-                "scannerGrid", // + currentBotJobId,
-                jsonData,
-                "activate-insert-all");
+        String[] dataArray;
+
+        //        String[] dataArray = {"with id"};
+        //        String[] dataArray = {"with name"};
+        //        String[] dataArray = {"with text"};
+        //        String[] dataArray = {"button"};
+        //        String[] dataArray = {"input"};
+
+        if (searchTerms != null && !searchTerms.trim().isEmpty()) {
+            dataArray = searchTerms.split("\\s*,\\s*"); // Splitting by comma, allowing spaces around it
+        } else {
+            dataArray = new String[] {"input", "textarea", "button", "a", "select", "label"}; // Default values
+        }
+
+        handleSearchTermClick(dataArray);
+
+        try {
+            Thread.sleep(2000);
+            revertSearchTermsInjections(performActions.getCurrentDriver());
+        } catch (Exception e) {
+
+        }
+    }
+
+    private void handleSearchTermClick(String[] dataArray) {
+        //        webElementObservableList1.clear();
+
+        performActions.getCurrentDriver().switchTo().defaultContent();
+
+        xpathTextPrevious = "";
+        //        targetSelected = null;
+
+        revertCloneInjections(performActions.getCurrentDriver());
+        revertPickInjections(performActions.getCurrentDriver());
+
+        int finalPort = portSocketInitial;
+        String socketSessionId = "scannerTool";
+        String destinationId = "scannerGrid";
+
+        periodicSearchThread(
+                performActions.getCurrentDriver(),
+                dataArray,
+                finalPort,
+                socketSessionId,
+                destinationId,
+                "searchTerms",
+                this.currentBotJob.getHomeBankingId());
+
+        //        Platform.runLater(() -> periodicSearchThread(
+        //                performActions.getCurrentDriver(),
+        //                performActions.getCurrentDriver().getCurrentUrl(),
+        //                dataArray,
+        //                finalPort));
+    }
+
+    private void revertSearchTermsInjections(WebDriver driver) {
+        try {
+            jsExecutor = (JavascriptExecutor) driver;
+            jsExecutor.executeScript("window.revertSearchInjections();");
+        } catch (Exception ignore) {
+        }
+    }
+
+    public void defineCheckBoxesClickable(TargetElement targetCheck) {
+        boolean clickable = isClickable(targetCheck.getElement());
+
+        boolean tagClickable = false;
+        // Define regex to extract specific tags (e.g., a, button)
+        String regex = "/([^/\\[]+)";
+        Pattern pattern = Pattern.compile(regex);
+
+        // Iterate through each attribute in the array
+        if (targetCheck.getAttributeData() != null) {
+
+            for (AttributeData attribute : targetCheck.getAttributeData()) {
+                // Assuming you want to use the value of the attribute for matching
+                String attributeValue = attribute.getValue(); // Get the value of the attribute
+
+                Matcher matcher = pattern.matcher(attributeValue); // Use the value for matching
+
+                // Check for matches in the current attribute value
+                while (matcher.find()) {
+                    String tag = matcher.group(1);
+                    if (tag.equals("a") || tag.equals("button")) {
+                        System.out.println("Found clickable tag: <" + tag + ">");
+                        tagClickable = true;
+                        break;
+                    }
+                }
+                if (tagClickable) {
+                    break; // Exit the loop once a clickable tag is found
+                }
+            }
+        }
+
+        Boolean inputContains = targetCheck.getTagName().toLowerCase().contains("input");
+
+        Boolean selectContains = targetCheck.getTagName().toLowerCase().contains("select");
+
+        if (targetCheck.getCloned() == null) {
+
+            boolean finalTagClickable = tagClickable;
+            Platform.runLater(() -> {
+                if (finalTagClickable || clickable) {
+                    checkClickElement.setSelected(true);
+                    checkOutputText.setSelected(false);
+                    checkInputText.setSelected(false);
+
+                } else if (inputContains || selectContains) {
+                    checkInputText.setSelected(inputContains || selectContains);
+                    checkClickElement.setSelected(false);
+                    checkOutputText.setSelected(false);
+
+                } else {
+                    checkClickElement.setSelected(clickable);
+                    checkOutputText.setSelected(!clickable);
+                    checkInputText.setSelected(false);
+                }
+            });
+        } else {
+            Platform.runLater(() -> {
+                if (targetCheck.getTagType().equals(WebElementTagNameEnum.BUTTON)) {
+                    checkClickElement.setSelected(true);
+                    checkOutputText.setSelected(false);
+                    checkInputText.setSelected(false);
+                } else if (targetCheck.getTagType().equals(WebElementTagNameEnum.INPUT)) {
+                    checkClickElement.setSelected(false);
+                    checkOutputText.setSelected(false);
+                    checkInputText.setSelected(true);
+                } else if (targetCheck.getTagType().equals(WebElementTagNameEnum.OUTPUT)) {
+                    checkClickElement.setSelected(false);
+                    checkOutputText.setSelected(true);
+                    checkInputText.setSelected(false);
+                } else {
+                    checkClickElement.setSelected(false);
+                    checkOutputText.setSelected(false);
+                    checkInputText.setSelected(false);
+                }
+            });
+        }
+    }
+
+    private boolean isClickable(WebElement element) {
+        try {
+            List<WebElementTagNameEnum> clickableTags = WebElementTagNameEnum.clickableTags();
+            boolean isClickableTag =
+                    clickableTags.stream().anyMatch(t -> t.getValue().equals(element.getTagName()));
+            List<WebElementAttributeTypeValueEnum> clickableValues =
+                    WebElementAttributeTypeValueEnum.getClickableValues();
+            boolean isClickableValue = clickableValues.stream()
+                    .anyMatch(v -> v.getValue().equals(element.getAttribute(WebElementAttributeEnum.TYPE.getValue())));
+            boolean isInputTag = element.getTagName().equals(WebElementTagNameEnum.INPUT.getValue());
+            return (isClickableTag && !isInputTag) || (isInputTag && isClickableValue && isClickableTag);
+
+        } catch (Exception ignore) {
+        }
+        return false;
+        // Signal for Force Click or Not from the Target Definitions
     }
 }

@@ -3613,7 +3613,7 @@ public class PerformActions {
         return value != null && !value.isBlank();
     }
 
-    private boolean isClickable(WebElement element, String tagNameDefined) {
+    public boolean isClickable(WebElement element, String tagNameDefined) {
         List<WebElementTagNameEnum> clickableTags = WebElementTagNameEnum.clickableTags();
         boolean isClickableTag =
                 clickableTags.stream().anyMatch(t -> t.getValue().equalsIgnoreCase(tagNameDefined));

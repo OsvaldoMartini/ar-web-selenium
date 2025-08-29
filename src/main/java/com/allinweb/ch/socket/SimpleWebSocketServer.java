@@ -84,7 +84,7 @@ public class SimpleWebSocketServer {
         if (message == null || message.contains("CONNECT") || message.contains("ping")) {
             // Ignore null or empty messages
             message = message.replaceAll("ping-", "");
-            System.out.println("Active : " + message);
+            // System.out.println("Active : " + message);
             return;
         }
 
@@ -119,7 +119,7 @@ public class SimpleWebSocketServer {
             if (type == null || type.trim().isEmpty() || type.contains("CONNECT") || type.contains("ping")) {
                 // Ignore null or empty messages
                 type = type.replaceAll("ping-", "");
-                System.out.println("Active : " + type);
+                // System.out.println("Active : " + type);
                 return;
             }
 

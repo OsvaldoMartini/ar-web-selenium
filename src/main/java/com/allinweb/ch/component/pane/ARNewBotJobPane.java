@@ -343,7 +343,7 @@ public class ARNewBotJobPane extends ARPane {
             if (errorMessage == null && newBotJobId > -1) {
                 createdBotJob.setId(newBotJobId);
 
-                if (performDataBase.getConn() != null) {
+                if (performDataBase.isConnDBWorks()) {
                     performDataBase.loadQuickBotJobs();
                 }
 

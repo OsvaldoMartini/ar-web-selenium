@@ -72,7 +72,6 @@ public class PerformLists {
     private List<ReferenceDTO> listReference = new ArrayList<>();
     private List<ReferenceDTO> listReferenceComp = new ArrayList<>();
     private List<String> allActions = new ArrayList<>();
-
     // Quick Lists
     private List<InstructionOperationDTO> instrucOperList = new ArrayList<>();
 
@@ -80,6 +79,8 @@ public class PerformLists {
     private List<DatabaseUserDTO> listDatabaseUsers = new ArrayList<>();
     private List<VariableUserDTO> listVariablesUser = new ArrayList<>();
     private List<ComboBoxVars> listWebPageItems = new ArrayList<>();
+
+    private List<BlockOptions> listComboOptions = new ArrayList<>();
 
     public void initialize() {
         this.executorWebSocket = Executors.newSingleThreadExecutor();
@@ -176,7 +177,7 @@ public class PerformLists {
         if (message == null || message.contains("CONNECT") || message.contains("ping")) {
             // Ignore null, CONNECT, or ping messages
             message = message.replaceAll("ping-", "");
-            System.out.println("Active : " + message);
+            // System.out.println("Active : " + message);
             return;
         }
 
@@ -228,14 +229,14 @@ public class PerformLists {
             if (type == null || type.trim().isEmpty() || type.contains("CONNECT") || type.contains("ping")) {
                 // Ignore null or empty messages
                 type = type.replaceAll("ping-", "");
-                System.out.println("Active : " + type);
+                // System.out.println("Active : " + type);
                 return;
             }
             // After Decoding
             if (type == null || type.trim().isEmpty() || type.contains("CONNECT") || type.contains("ping")) {
                 // Ignore null or empty messages
                 type = type.replaceAll("ping-", "");
-                System.out.println("Active : " + type);
+                // System.out.println("Active : " + type);
                 return;
             }
 
@@ -364,12 +365,9 @@ public class PerformLists {
         return null; // Unknown table
     }
 
-    public List<BlockOptions> getBlockOptions(List<BlockOptions> currentListBlock, String tableName) {
-        currentListBlock.clear();
+    public void loadBlockOptions(String tableName, String paneName) {
+        getListComboOptions().clear();
         try {
-            if (currentListBlock == null) {
-                return null;
-            }
 
             try {
                 // Pick the right list depending on the tableName
@@ -381,7 +379,7 @@ public class PerformLists {
                         .collect(Collectors.toList());
 
                 // Replace currentListBlock with the new one
-                currentListBlock.addAll(newList);
+                getListComboOptions().addAll(newList);
 
             } catch (Exception error) {
                 ARLogger.getInstance(PerformLists.class).severe("Error :" + error.getMessage());
@@ -390,7 +388,6 @@ public class PerformLists {
         } catch (Exception error) {
             ARLogger.getInstance(PerformLists.class).severe("Error :" + error.getMessage());
         }
-        return currentListBlock;
     }
 
     // Update Block Lists

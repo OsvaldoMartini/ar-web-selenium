@@ -184,8 +184,8 @@ public class ARViewBotJobPane extends ARPane {
             arElementValueScene.closeModal();
         }
 
-        if (arScannedElementScene.getBotJobLoadDTO() != null
-                && !arScannedElementScene.getBotJobLoadDTO().getId().equals(selectedBotJob.getId())) {
+        if (arScannedElementScene.getCurrentBotJob() != null
+                && !arScannedElementScene.getCurrentBotJob().getId().equals(selectedBotJob.getId())) {
             callScannerTool();
         }
 
@@ -798,7 +798,7 @@ public class ARViewBotJobPane extends ARPane {
                 }
 
                 // Refresh the ListView after adding the new bot job
-                if (performDataBase.getConn() != null) {
+                if (performDataBase.isConnDBWorks()) {
                     try {
                         performDataBase.loadQuickBotJobs();
                     } catch (Exception error) {
@@ -1158,6 +1158,10 @@ public class ARViewBotJobPane extends ARPane {
     private void executeScannerTask() {
 
         ErrorMessage errorMessage = performDataBase.loadHomeBanking(selectedBotJob.getHomeBankingId());
+        if (errorMessage == null) {
+            errorMessage = performDataBase.loadHomeUrls(selectedBotJob.getHomeBankingId());
+        }
+
         if (errorMessage != null) {
             performMessage.errorMessage(
                     errorMessage.getErrorTitle(),
@@ -1200,17 +1204,8 @@ public class ARViewBotJobPane extends ARPane {
         }
 
         try {
-            Platform.runLater(() -> {
-                try {
-
-                    // Call the ARScannedElementScene here
-                    arScannedElementScene.initialize(homeBanking, selectedBotJob, this.blockLoad);
-
-                    arScannedElementScene.showModal(); // Make sure the scene is shown
-                } catch (Exception ex) {
-                    handleExceptionScan(ex);
-                }
-            });
+            arScannedElementScene.initialize(homeBanking, selectedBotJob, this.blockLoad);
+            arScannedElementScene.showModal(); // Make sure the scene is shown
         } catch (Exception ex) {
             handleExceptionScan(ex);
         }

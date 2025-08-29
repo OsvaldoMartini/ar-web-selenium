@@ -12,7 +12,6 @@ import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
-import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
 import java.io.IOException;
 import java.net.URI;
@@ -85,7 +84,6 @@ public class ARViewBotJobScene extends ARScene {
         this.isEnabledLicence = isEnabledLicence;
         this.arWebDriver = arWebDriver;
         this.selectedBotJob = selectedBotJob;
-        reloadList();
 
         String port = arPropertyManager.getProperty(ARPropertyEnum.PORT_SOCKET);
         if (!Strings.isNullOrEmpty(port)) {
@@ -98,59 +96,6 @@ public class ARViewBotJobScene extends ARScene {
 
         if (!isConnectWebSocket) {
             connectWebSocketClient(portSocketInitial, "bot-job-scene"); // + botJobLoad.getId());
-        }
-    }
-
-    private void reloadList() {
-        //        PerformDataBase..cacheEntitiesFromDB();
-
-        //        BotJobDTO botJobDTO = PerformDataBase..getEntityById(BotJobDTO.class, this.botJobId);
-
-        //        boolean updBotJobStatus = performDataBase.updateBotStatus();
-        //        if (!updBotJobStatus) {
-        //            ARLogger.getInstance(ARViewBotJobScene.class)
-        //                    .info(String.format("Failed to Update ALL Bot Job Active = 1"));
-        //        }
-
-        // IN CASE the ADDED New Bot Job tomREfresh Main List as Observable
-        if (performLists.getListHomeUrl().isEmpty()) {
-            performDataBase.loadHomeUrls(null);
-        }
-
-        if (performLists.getQuickBotJobs().isEmpty()) {
-            performDataBase.loadQuickBotJobs();
-        }
-
-        performDataBase.loadBlocks(selectedBotJob.getId(), selectedBotJob.getName(), "block");
-        performDataBase.loadBlocks(selectedBotJob.getHomeBankingId(), selectedBotJob.getName(), "component_block");
-        //        this.botLoadJobs = performDataBase.loadBotJobWithBlock(this.botJobId);
-
-        BotJobLoadDTO botJobLoad = performLists.getQuickBotJobById(selectedBotJob.getId());
-
-        //        performDataBase.loadHomeBanking(selectedBotJob.getHomeBankingId());
-
-        if (botJobLoad != null && botJobLoad.getBlockLoadDTOList() == null) {
-            botJobLoad.setBlockLoadDTOList(performLists.getListBlock());
-        }
-        // It Prevents Start without blocks
-        if (performLists.getListBlock().isEmpty()) {
-
-            ErrorMessage errorMessage = performDataBase.initiateNewBlock(
-                    "block", selectedBotJob.getId(), "Default Block", "Default Block", 1, false);
-
-            if (errorMessage == null) {
-                ARLogger.getInstance(Thread.class)
-                        .info(String.format("A new Block was created for bot job Id %d", selectedBotJob.getId()));
-            } else {
-                performMessage.errorMessage(
-                        errorMessage.getErrorTitle(),
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                + errorMessage.getErrorTitle(),
-                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                        null,
-                        0);
-            }
         }
     }
 
@@ -297,7 +242,7 @@ public class ARViewBotJobScene extends ARScene {
         if (message == null || message.trim().isEmpty() || message.contains("CONNECT") || message.contains("ping")) {
             // Ignore null or empty messages
             message = message.replaceAll("ping-", "");
-            System.out.println("Active : " + message);
+            // System.out.println("Active : " + message);
             return;
         }
     }

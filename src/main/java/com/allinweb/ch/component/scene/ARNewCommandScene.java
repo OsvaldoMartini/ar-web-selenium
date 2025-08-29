@@ -1,14 +1,13 @@
 package com.allinweb.ch.component.scene;
 
-import com.allinweb.ch.component.model.BlockMoveDTO;
-import com.allinweb.ch.component.model.InstructionLoad;
-import com.allinweb.ch.component.model.RowMoveDTO;
+import com.allinweb.ch.component.model.*;
 import com.allinweb.ch.component.pane.ARNewCommandPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
+import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.gson.Gson;
@@ -97,7 +96,7 @@ public class ARNewCommandScene extends ARScene {
         if (message == null || message.contains("CONNECT") || message.contains("ping")) {
             // Ignore null, CONNECT, or ping messages
             message = message.replaceAll("ping-", "");
-            System.out.println("Active : " + message);
+            // System.out.println("Active : " + message);
             return;
         }
 
@@ -149,7 +148,7 @@ public class ARNewCommandScene extends ARScene {
             if (type == null || type.trim().isEmpty() || type.contains("CONNECT") || type.contains("ping")) {
                 // Ignore null or empty messages
                 type = type.replaceAll("ping-", "");
-                System.out.println("Active : " + type);
+                // System.out.println("Active : " + type);
                 return;
             }
 
@@ -314,6 +313,7 @@ public class ARNewCommandScene extends ARScene {
     @Setter
     public RowMoveDTO rowMoveDTO;
 
+    private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static final PerformLists performLists = PerformLists.getInstance();
     private static final PerformMessage performMessage = PerformMessage.getInstance();
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
