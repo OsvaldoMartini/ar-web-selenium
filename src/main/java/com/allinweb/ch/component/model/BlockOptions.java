@@ -8,12 +8,14 @@ public class BlockOptions {
     private final String value;
     private final Integer whereId;
     private final Integer blockId;
+    private final Integer blockOrderNumber;
 
-    public BlockOptions(String text, String value, Integer whereId, Integer blockId) {
+    public BlockOptions(String text, String value, Integer whereId, Integer blockId, Integer blockOrderNumber) {
         this.text = text;
         this.value = value;
         this.whereId = whereId; // Instruction or BlockOrderNumber
         this.blockId = blockId;
+        this.blockOrderNumber = blockOrderNumber;
     }
 
     // Converter from BlockLoadDTO - BlockOptions
@@ -29,8 +31,8 @@ public class BlockOptions {
                 block.getBlockOrderNumber() + "# " + block.getName(), // text
                 block.getName(),
                 firstInstructionId, // instructionId
-                block.getId() // blockId
-                );
+                block.getId(), // blockId
+                block.getBlockOrderNumber());
     }
 
     // Converter from BlockLoadDTO - BlockOptions
@@ -39,7 +41,7 @@ public class BlockOptions {
                 block.getBlockOrderNumber() + "# " + block.getName(), // text
                 block.getName(), // value
                 block.getBlockOrderNumber(), // instructionId
-                block.getId() // blockId
-                );
+                block.getId(), // blockId
+                block.getBlockOrderNumber());
     }
 }

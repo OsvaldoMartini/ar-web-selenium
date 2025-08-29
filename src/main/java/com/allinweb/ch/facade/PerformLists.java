@@ -80,7 +80,7 @@ public class PerformLists {
     private List<VariableUserDTO> listVariablesUser = new ArrayList<>();
     private List<ComboBoxVars> listWebPageItems = new ArrayList<>();
 
-    private List<BlockOptions> listComboOptions = new ArrayList<>();
+    //    private List<BlockOptions> listComboOptions = new ArrayList<>();
 
     public void initialize() {
         this.executorWebSocket = Executors.newSingleThreadExecutor();
@@ -365,29 +365,57 @@ public class PerformLists {
         return null; // Unknown table
     }
 
-    public void loadBlockOptions(String tableName, String paneName) {
-        getListComboOptions().clear();
+    public List<BlockOptions> loadComboOptions(String tableName, String paneName) {
         try {
+            // Pick the right list depending on the tableName
+            List<BlockLoadDTO> blocks = tableName.equals("block") ? getListBlock() : getListBlockComp();
 
-            try {
-                // Pick the right list depending on the tableName
-                List<BlockLoadDTO> blocks = tableName.equals("block") ? getListBlock() : getListBlockComp();
-
-                // Build a new list of BlockOptions
-                List<BlockOptions> newList = blocks.stream()
+            // Decide mapping function based on paneName
+            List<BlockOptions> newList;
+            if ("ScannerPane".equalsIgnoreCase(paneName)) {
+                newList = blocks.stream()
                         .map(BlockOptions::fromBlockWithInstructionId)
+                        .sorted(Comparator.comparingInt(BlockOptions::getBlockOrderNumber))
                         .collect(Collectors.toList());
 
-                // Replace currentListBlock with the new one
-                getListComboOptions().addAll(newList);
+                // Add "Execute All Blocks" if needed
+                if (newList.size() > 1) {
+                    newList.add(0, new BlockOptions("Execute All Blocks", "", -1, -1, -1));
+                } else if (newList.isEmpty()) {
+                    newList.add(new BlockOptions("#1 Default Block", "Default Block", 1, 1, 1));
+                }
 
-            } catch (Exception error) {
-                ARLogger.getInstance(PerformLists.class).severe("Error :" + error.getMessage());
+            } else if ("NewCommandPane".equalsIgnoreCase(paneName)) {
+                newList = blocks.stream()
+                        .map(BlockOptions::fromBlockWithOrderNumber)
+                        .sorted(Comparator.comparingInt(BlockOptions::getBlockOrderNumber))
+                        .collect(Collectors.toList());
+
+                if (!newList.isEmpty()) {
+                    if (newList.size() > 1) {
+                        newList.add(0, new BlockOptions("Select the Block", "", -1, -1, -1));
+                    }
+
+                } else {
+                    newList = new ArrayList<>();
+                    newList.add(new BlockOptions("#1 Default Block", "Default Block", -1, -1, -1));
+                }
+
+            } else {
+                // default behavior, use fromBlockWithInstructionId
+                newList = blocks.stream()
+                        .map(BlockOptions::fromBlockWithInstructionId)
+                        .collect(Collectors.toList());
             }
 
+            // Replace current list with the new one
+            return newList;
+
         } catch (Exception error) {
-            ARLogger.getInstance(PerformLists.class).severe("Error :" + error.getMessage());
+            ARLogger.getInstance(PerformLists.class).severe("Error loading combo options: " + error.getMessage());
         }
+
+        return new ArrayList<>();
     }
 
     // Update Block Lists

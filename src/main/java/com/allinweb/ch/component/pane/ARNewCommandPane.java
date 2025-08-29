@@ -163,7 +163,7 @@ public class ARNewCommandPane extends ARPane {
     private HBox webBoxWebFields;
     private ComboBox<ComboBoxImage> comboBoxWebFields;
     private ObservableList<ComboBoxImage> filteredPageItems = FXCollections.observableArrayList();
-
+    private List<BlockOptions> listOptions;
     private ComboBox<BlockOptions> comboBoxAllBlocks;
     private ComboBox<BlockOptions> comboBoxBlocksGoto;
 
@@ -173,12 +173,12 @@ public class ARNewCommandPane extends ARPane {
     public void initialize(RowMoveDTO rowMoveDTO) {
         this.rowMoveDTO = rowMoveDTO;
 
-        ErrorMessage errorMessage = null;
         String tableName = this.rowMoveDTO.getSessionId().equals("componentTasks") ? "home_banking" : "bot_job";
+        String blockTable = this.rowMoveDTO.getSessionId().equals("componentTasks") ? "component_block" : "block";
         int whereId = this.rowMoveDTO.getSessionId().equals("componentTasks")
                 ? rowMoveDTO.getHomeBankingId()
                 : rowMoveDTO.getBotJobId();
-        errorMessage = performDataBase.loadWebPageFields(whereId, tableName);
+        ErrorMessage errorMessage = performDataBase.loadWebPageFields(whereId, tableName);
         if (errorMessage != null) {
             performMessage.errorMessage(
                     errorMessage.getErrorTitle(),
@@ -278,10 +278,11 @@ public class ARNewCommandPane extends ARPane {
                     varTable, whereId, filteredPageItems.get(0).getInstructionId());
         }
 
-        if (performLists.getListComboOptions().isEmpty()) {
+        List<BlockOptions> listOptions = performLists.loadComboOptions(blockTable, "NewCommandPane");
+        if (listOptions.isEmpty()) {
             // If list is empty, populate AllBlocks with a default block
-            ObservableList<BlockOptions> defaultAll =
-                    FXCollections.observableArrayList(new BlockOptions("#1 Default Block", "Default Block", -1, -1));
+            ObservableList<BlockOptions> defaultAll = FXCollections.observableArrayList(
+                    new BlockOptions("#1 Default Block", "Default Block", -1, -1, -1));
             if (comboBoxAllBlocks != null) {
                 comboBoxAllBlocks.setItems(defaultAll);
                 comboBoxAllBlocks.getSelectionModel().selectFirst();
@@ -289,7 +290,7 @@ public class ARNewCommandPane extends ARPane {
 
             // And also for Goto combo
             ObservableList<BlockOptions> defaultGoto =
-                    FXCollections.observableArrayList(new BlockOptions("no blocks added", "", -1, -1));
+                    FXCollections.observableArrayList(new BlockOptions("no blocks added", "", -1, -1, -1));
             if (comboBoxBlocksGoto != null) {
                 comboBoxBlocksGoto.setItems(defaultGoto);
                 comboBoxBlocksGoto.getSelectionModel().selectFirst();
@@ -1037,7 +1038,7 @@ public class ARNewCommandPane extends ARPane {
                                 .getBlockId()
                                 .equals(comboBoxWebFields.getValue().getBlockId())) {
 
-                    String outsideBlock = performLists.getListComboOptions().stream()
+                    String outsideBlock = listOptions.stream()
                             .filter(f -> f.getBlockId()
                                     .equals(comboBoxWebFields.getValue().getBlockId()))
                             .map(BlockOptions::getText)
@@ -1058,7 +1059,7 @@ public class ARNewCommandPane extends ARPane {
 
             if ((comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.GOTO)
                             || comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.EXCEL_GOTO))
-                    && performLists.getListComboOptions().size() == 1
+                    && listOptions.size() == 1
                     && (comboBoxBlocksGoto.getValue().getBlockId() == -1)) {
 
                 performMessage.errorMessage(
@@ -2308,9 +2309,9 @@ public class ARNewCommandPane extends ARPane {
         Platform.runLater(() -> {
             ObservableList<BlockOptions> filtered = FXCollections.observableArrayList();
 
-            if (!performLists.getListComboOptions().isEmpty()) {
+            if (!listOptions.isEmpty()) {
                 // Apply filtering
-                List<BlockOptions> tempList = performLists.getListComboOptions().stream()
+                List<BlockOptions> tempList = listOptions.stream()
                         .filter(option -> {
                             if (comboBoxInstruc.getValue() != null
                                     && comboBoxInstruc.getValue().getText().equalsIgnoreCase("EXCEL GOTO")) {
@@ -2325,12 +2326,12 @@ public class ARNewCommandPane extends ARPane {
                 //                        tempList.stream().filter(distinctByTextAndId()).collect(Collectors.toList());
 
                 if (tempList.isEmpty()) {
-                    tempList.add(new BlockOptions("no blocks available", "", -1, -1));
+                    tempList.add(new BlockOptions("no blocks available", "", -1, -1, -1));
                 }
 
                 filtered.addAll(tempList);
             } else {
-                filtered.add(new BlockOptions("no blocks added", "", -1, -1));
+                filtered.add(new BlockOptions("no blocks added", "", -1, -1, -1));
             }
 
             comboBoxBlocksGoto.setItems(filtered);
@@ -2341,18 +2342,7 @@ public class ARNewCommandPane extends ARPane {
     private void loadAllBlocks() {
         if (comboBoxAllBlocks != null) {
             Platform.runLater(() -> {
-                //                if (!performLists.getListComboOptions().isEmpty()) {
-                //                    if (performLists.getListComboOptions().size() > 1) {
-                //                        currentListBlock.add(0, new BlockOptions("Select the Block", "", -1, -1));
-                //                    }
-                //
-                //                } else {
-                //                    currentListBlock = new ArrayList<>();
-                //                    currentListBlock.add(new BlockOptions("#1 Default Block", "Default Block", -1,
-                // -1));
-                //                }
-
-                comboBoxAllBlocks.setItems(FXCollections.observableArrayList(performLists.getListComboOptions()));
+                comboBoxAllBlocks.setItems(FXCollections.observableArrayList(listOptions));
 
                 // Select target block
                 if (rowMoveDTO.getBlockId() > -1) {
@@ -2689,8 +2679,8 @@ public class ARNewCommandPane extends ARPane {
 
             indexGeneric = -1;
             if (instrValue.equals("GOTO")) {
-                for (int i = 0; i < performLists.getListComboOptions().size(); i++) {
-                    if (performLists.getListComboOptions().get(i).getValue().equals(operations[0])) {
+                for (int i = 0; i < listOptions.size(); i++) {
+                    if (listOptions.get(i).getValue().equals(operations[0])) {
                         comboBoxBlocksGoto.getSelectionModel().select(i);
                         indexGeneric = i;
                         break;
@@ -2717,9 +2707,8 @@ public class ARNewCommandPane extends ARPane {
 
             indexGeneric = -1;
             if (instrValue.equals("EXCEL GOTO")) {
-                for (int i = 0; i < performLists.getListComboOptions().size(); i++) {
-                    if (performLists
-                            .getListComboOptions()
+                for (int i = 0; i < listOptions.size(); i++) {
+                    if (listOptions
                             .get(i)
                             .getBlockId()
                             .equals(rowMoveDTO.getUpdatedRows().get(0).getParentBlockId())) {
@@ -2776,10 +2765,9 @@ public class ARNewCommandPane extends ARPane {
     public ErrorMessage reloadDBBlocks(int whereId, String tableName) {
         try {
             // Handle INSERT_NEW case
-            if (rowMoveDTO != null
-                    && "INSERT_NEW".equals(rowMoveDTO.getType())
-                    && performLists.getListComboOptions().size() == 1) {
-                rowMoveDTO.setBlockId(performLists.getListComboOptions().get(0).getBlockId());
+            listOptions = performLists.loadComboOptions(tableName, "NewCommandPane");
+            if (rowMoveDTO != null && "INSERT_NEW".equals(rowMoveDTO.getType()) && listOptions.size() == 1) {
+                rowMoveDTO.setBlockId(listOptions.get(0).getBlockId());
             }
 
             // Handle GOTO case
@@ -2801,7 +2789,7 @@ public class ARNewCommandPane extends ARPane {
     }
 
     public void reloadCombosBlocks() {
-        if (performLists.getListComboOptions() != null) {
+        if (listOptions != null) {
             if (rowMoveDTO != null) {
                 if ("EXCEL GOTO".equals(rowMoveDTO.getUpdatedRows().get(0).getActions())) {
                     loadBlockGoto(-99);

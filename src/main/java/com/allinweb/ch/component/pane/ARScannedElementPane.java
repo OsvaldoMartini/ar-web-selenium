@@ -868,11 +868,13 @@ public class ARScannedElementPane extends ARPane {
         //            return;
         //        }
 
-        if (performLists.getListComboOptions().isEmpty()) {
-            // If list is empty, populate AllBlocks with a default block
-            ObservableList<BlockOptions> defaultAll =
-                    FXCollections.observableArrayList(new BlockOptions("#1 Default Block", "Default Block", -1, -1));
-            if (comboBoxBlocks != null) {
+        if (comboBoxBlocks != null) {
+            List<BlockOptions> listOptions = performLists.loadComboOptions("block", "ScannerPane");
+            if (listOptions.isEmpty()) {
+                // If list is empty, populate AllBlocks with a default block
+                ObservableList<BlockOptions> defaultAll = FXCollections.observableArrayList(
+                        new BlockOptions("#1 Default Block", "Default Block", -1, -1, -1));
+
                 comboBoxBlocks.setItems(defaultAll);
                 comboBoxBlocks.getSelectionModel().selectFirst();
             }
@@ -4550,21 +4552,10 @@ public class ARScannedElementPane extends ARPane {
 
     private void loadAllBlocks() {
         if (comboBoxBlocks != null) {
-            //            if (!performLists.getListComboOptions().isEmpty()) {
-            //                if (performLists.getListComboOptions().size() > 1) {
-            //                    performLists.getListComboOptions().add(0, new BlockOptions("Select the Block", "", -1,
-            // -1));
-            //                }
-            //
-            //            } else {
-            //                performLists.getListComboOptions() = new ArrayList<>();
-            //                performLists.getListComboOptions().add(new BlockOptions("#1 Default Block", "Default
-            // Block", -1, -1));
-            //            }
+            List<BlockOptions> listOptions = performLists.loadComboOptions("block", "ScannerPane");
+            comboBoxBlocks.setItems(FXCollections.observableArrayList(listOptions));
 
-            comboBoxBlocks.setItems(FXCollections.observableArrayList(performLists.getListComboOptions()));
-
-            if (performLists.getListComboOptions().size() == 1) {
+            if (!listOptions.isEmpty()) {
                 comboBoxBlocks.getSelectionModel().selectFirst();
             }
         }
