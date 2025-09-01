@@ -113,6 +113,7 @@ public class ARScannedElementScene extends ARScene {
 
     private final Gson gson = new Gson();
     private String previousBlock = null;
+    private PayloadJson payloadEmpty;
 
     private List<InstructionLoad> instructionList = new ArrayList<>();
 
@@ -607,7 +608,7 @@ public class ARScannedElementScene extends ARScene {
     }
 
     private void stepsInsertManyDTO(ElementSplitDTO processDTO, boolean isMany) {
-        arScannedElementPane.validateBlockDB("Default Block", this.currentBotJob.getId(), isMany);
+        currentBlockId = arScannedElementPane.validateBlockDB("Default Block", this.currentBotJob.getId(), isMany);
         if (currentBlockId > 0) {
             performDataBase.loadInstructions(currentBotJob.getId(), currentBlockId, -1, "instruction");
             List<InstructionLoad> instruc = performLists.getListInstruction();
@@ -648,7 +649,8 @@ public class ARScannedElementScene extends ARScene {
                     //                    itPrintsElementDTO();
                 }
 
-                arScannedElementPane.prepareToInsertElementDTO(currentBlockId, nextOrder, targetEach, true);
+                arScannedElementPane.prepareToInsertElementDTO(
+                        instructionList, currentBlockId, nextOrder, targetEach, true);
                 nextOrder++;
             }
 
@@ -673,6 +675,7 @@ public class ARScannedElementScene extends ARScene {
                             0);
 
                     sendStatusButton();
+                    //                    updateBotJobTasks();
 
                     return;
                 }
@@ -687,7 +690,7 @@ public class ARScannedElementScene extends ARScene {
                     errorMessage = performDataBase.insertReferencesBatch(instructionList);
                 }
 
-                arScannedElementPane.updateBotJobTasks(this.currentBotJob.getId());
+                updateBotJobTasks(this.currentBotJob.getId());
                 sendStatusButton();
 
                 if (errorMessage != null) {
@@ -863,5 +866,32 @@ public class ARScannedElementScene extends ARScene {
 
     public void destroyPanel() {
         arScannedElementPane.destroy();
+    }
+
+    public void updateBotJobTasks(int currentBotJobId) {
+        ErrorMessage errorMessage = performDataBase.loadCompleteJobs(currentBotJobId);
+        if (errorMessage != null) {
+            performMessage.errorMessage(
+                    errorMessage.getErrorTitle(),
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                            + errorMessage.getErrorHeader(),
+                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                    null,
+                    0);
+            return;
+        }
+
+        String jsonData = "[]";
+        if (!performLists.getListBotJob().isEmpty()) {
+            List<InstructionLoad> blockLoopInstructions =
+                    performDataBase.buildJsonViewData(performLists.getListBotJob(), currentBotJobId, "instruction");
+            jsonData = gson.toJson(blockLoopInstructions);
+        }
+        webSocketSessionManager.sendMessageJson(
+                currentBotJob.getHomeBankingId(),
+                "botJobTasks", // + currentBotJobId,
+                jsonData,
+                "updateInstructions");
     }
 }

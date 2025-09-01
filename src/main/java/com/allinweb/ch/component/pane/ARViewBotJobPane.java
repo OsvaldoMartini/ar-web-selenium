@@ -292,7 +292,7 @@ public class ARViewBotJobPane extends ARPane {
         //                selectedBotJob.getHomeBankingId(), "componentTasks", jsonData, "componentsUpdate");
     }
 
-    private void builViewComponent() {
+    private void buildViewComponent() {
         if (performLists.getListBotJob().isEmpty()) {
             ErrorMessage errorMessage = performDataBase.loadCompleteJobs(selectedBotJob.getId());
             if (errorMessage != null) {
@@ -386,7 +386,7 @@ public class ARViewBotJobPane extends ARPane {
 
         sessionId = "botJobTasks"; // + selectedBotJob.getId();
         if (Strings.isNullOrEmpty(previousBotTasks) || !previousBotTasks.equals(sessionId)) {
-            builViewComponent();
+            buildViewComponent();
         }
 
         this.refreshButton = builder.buildButton(

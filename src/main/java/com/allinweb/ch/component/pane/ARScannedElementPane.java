@@ -74,8 +74,6 @@ public class ARScannedElementPane extends ARPane {
         return instance;
     }
 
-    private List<InstructionLoad> instructionList = new ArrayList<>();
-
     public void destroy() {
         clearPane(getPaneReference());
         pane = null;
@@ -140,7 +138,11 @@ public class ARScannedElementPane extends ARPane {
     }
 
     public void prepareToInsertElementDTO(
-            int currentBlockId, int nextInstOrderNumber, TargetElement targetInsert, boolean manyElements) {
+            List<InstructionLoad> instructionList,
+            int currentBlockId,
+            int nextInstOrderNumber,
+            TargetElement targetInsert,
+            boolean manyElements) {
 
         if (targetInsert.getXPath() == null) {
             targetInsert.setXPath(targetInsert.getSavedReferences().get("currentXPath"));
@@ -208,35 +210,6 @@ public class ARScannedElementPane extends ARPane {
 
         instruction.setReferenceLoadDTOList(referenceList);
         instructionList.add(instruction);
-    }
-
-    public void updateBotJobTasks(int currentBotJobId) {
-        if (performLists.getListBotJob().isEmpty()) {
-            ErrorMessage errorMessage = performDataBase.loadCompleteJobs(currentBotJobId);
-            if (errorMessage != null) {
-                performMessage.errorMessage(
-                        errorMessage.getErrorTitle(),
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                + errorMessage.getErrorHeader(),
-                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                        null,
-                        0);
-                return;
-            }
-        }
-
-        String jsonData = "[]";
-        if (!performLists.getListBotJob().isEmpty()) {
-            List<InstructionLoad> blockLoopInstructions =
-                    performDataBase.buildJsonViewData(performLists.getListBotJob(), currentBotJobId, "instruction");
-            jsonData = gson.toJson(blockLoopInstructions);
-        }
-        webSocketSessionManager.sendMessageJson(
-                currentBotJob.getHomeBankingId(),
-                "botJobTasks", // + currentBotJobId,
-                jsonData,
-                "updateInstructions");
     }
 
     public void testingActions(TargetElement targetTest, String testType) {
@@ -4417,7 +4390,7 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private void setPayloadEmpty() {
+    public void setPayloadEmpty() {
         if (!performLists.getListBotJob().isEmpty()
                 && performLists.getListBlock().isEmpty()) {
             performDataBase.loadBlocks(this.currentBotJob.getId(), "", "block");
@@ -4552,12 +4525,15 @@ public class ARScannedElementPane extends ARPane {
 
     private void loadAllBlocks() {
         if (comboBoxBlocks != null) {
-            List<BlockOptions> listOptions = performLists.loadComboOptions("block", "ScannerPane");
-            comboBoxBlocks.setItems(FXCollections.observableArrayList(listOptions));
+            Platform.runLater(() -> {
+                comboBoxBlocks.getItems().clear();
+                List<BlockOptions> listOptions = performLists.loadComboOptions("block", "ScannerPane");
+                comboBoxBlocks.setItems(FXCollections.observableArrayList(listOptions));
 
-            if (!listOptions.isEmpty()) {
-                comboBoxBlocks.getSelectionModel().selectFirst();
-            }
+                if (!listOptions.isEmpty()) {
+                    comboBoxBlocks.getSelectionModel().selectFirst();
+                }
+            });
         }
     }
 

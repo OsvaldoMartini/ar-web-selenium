@@ -17,6 +17,8 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.function.Predicate;
+import java.util.function.UnaryOperator;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -123,6 +125,35 @@ public class ARNewCommandPane extends ARPane {
     Text blankText;
 
     TextField nameField;
+
+    TextField gotoField;
+    Pattern validInt = Pattern.compile("\\d{0,4}");
+
+    UnaryOperator<TextFormatter.Change> filter = change -> {
+        String newText = change.getControlNewText();
+
+        // Must match regex
+        if (!validInt.matcher(newText).matches()) {
+            return null;
+        }
+
+        // Allow empty while typing
+        if (newText.isEmpty()) {
+            return change;
+        }
+
+        try {
+            int value = Integer.parseInt(newText);
+            // Only accept values between 1 and 9999
+            if (value >= 1 && value <= 9999) {
+                return change;
+            }
+        } catch (NumberFormatException e) {
+            return null;
+        }
+
+        return null;
+    };
 
     private Button variableButton;
 
@@ -424,10 +455,20 @@ public class ARNewCommandPane extends ARPane {
             }
         });
 
+        // Inside your UI initialization
+        TextFormatter<String> textFormatter = new TextFormatter<>(filter);
+        gotoField = new TextField();
+        gotoField.setTextFormatter(textFormatter);
+        gotoField.setPromptText("50");
+        gotoField.setPrefWidth(50D);
+        gotoField.setVisible(false); // hidden by default
+        gotoField.setManaged(false); // Ensure it does not t
+
         loopsItems.add(new FormatOption("5 x", "5"));
         loopsItems.add(new FormatOption("10 x", "10"));
         loopsItems.add(new FormatOption("20 x", "20"));
         loopsItems.add(new FormatOption("30 x", "30"));
+        loopsItems.add(new FormatOption("other", "other"));
         comboBoxLoops = new ComboBox<>(loopsItems);
         comboBoxLoops.setPrefWidth(60);
         // Set button cell to display selected item properly
@@ -822,7 +863,7 @@ public class ARNewCommandPane extends ARPane {
                         // labelRow, // Web Page Label row
                         comboBoxesRow, // ComboBoxes row
                         variableButtonRow, // Variable Button row
-                        buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
+                        buttonBox,
                         addNewsBox,
                         instructionButtonsRow // Add Instruction and Cancel Buttons row
                         );
@@ -1152,36 +1193,57 @@ public class ARNewCommandPane extends ARPane {
                 insertNewInstruction(
                         "Refresh", "Refresh", ARConstants.REFRESH_ONLY, 10, "", null, null, null, this.rowMoveDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("Loop")) {
+                String loopValue =
+                        "other".equalsIgnoreCase(comboBoxLoops.getValue().getValue())
+                                ? (Strings.isNullOrEmpty(gotoField.getText())
+                                        ? "50"
+                                        : gotoField.getText().trim())
+                                : comboBoxLoops.getValue().getValue();
+
                 insertNewInstruction(
                         "LOOP",
                         "LOOP",
                         ARConstants.LOOP,
                         2,
-                        comboBoxTimes.getValue().getValue() + ":"
-                                + comboBoxLoops.getValue().getValue(),
+                        comboBoxTimes.getValue().getValue() + ":" + loopValue,
                         null,
                         comboBoxWebFields.getValue().getInstructionId(),
                         null,
                         this.rowMoveDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("Refresh Loop")) {
+
+                String loopValue =
+                        "other".equalsIgnoreCase(comboBoxLoops.getValue().getValue())
+                                ? (Strings.isNullOrEmpty(gotoField.getText())
+                                        ? "50"
+                                        : gotoField.getText().trim())
+                                : comboBoxLoops.getValue().getValue();
+
                 insertNewInstruction(
                         "Refresh Loop",
                         "Refresh Loop",
                         ARConstants.REFRESH_LOOP,
                         2,
-                        comboBoxTimes.getValue().getValue() + ":"
-                                + comboBoxLoops.getValue().getValue(),
+                        comboBoxTimes.getValue().getValue() + ":" + loopValue,
                         null,
                         comboBoxWebFields.getValue().getInstructionId(),
                         null,
                         this.rowMoveDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("GOTO")) {
+
+                String gotoValue =
+                        "other".equalsIgnoreCase(comboBoxLoops.getValue().getValue())
+                                ? (Strings.isNullOrEmpty(gotoField.getText())
+                                        ? "50"
+                                        : gotoField.getText().trim())
+                                : comboBoxLoops.getValue().getValue();
+
                 insertNewInstruction(
                         "GOTO",
                         "GOTO",
                         ARConstants.GOTO,
                         1,
-                        comboBoxLoops.getValue().getValue(),
+                        gotoValue,
                         null, // Block Order Number as VarId
                         null,
                         comboBoxBlocksGoto.getValue().getBlockId(), // BLOCK ID as Parent Block Id
@@ -1405,11 +1467,35 @@ public class ARNewCommandPane extends ARPane {
             }
         });
 
-        // Add a listener to comboBoxVars to handle selection changes
+        // Listener for comboBoxLoops selection
         comboBoxLoops.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue != null) {
+                // Show/hide the nameField when "other" is selected
+                boolean isOther = "other".equalsIgnoreCase(newValue.getValue());
+                gotoField.setVisible(isOther);
+                gotoField.setManaged(isOther);
+
+                if (isOther) {
+                    gotoField.setText("50"); // reset when selecting "other"
+                    gotoField.requestFocus(); // optional: auto-focus for typing
+                }
+
+                // Call recallMessages when not firstLoad
                 if (!firstLoad) {
-                    recallMessages(comboBoxInstruc.getValue().getValue());
+                    var selectedInstruc = comboBoxInstruc.getValue();
+                    if (selectedInstruc != null) {
+                        recallMessages(selectedInstruc.getValue());
+                    }
+                }
+            }
+        });
+
+        // Listener for nameField typing (fires recallMessages when user changes text)
+        gotoField.textProperty().addListener((obs, oldVal, newVal) -> {
+            if (!firstLoad) {
+                var selectedInstruc = comboBoxInstruc.getValue();
+                if (selectedInstruc != null) {
+                    recallMessages(selectedInstruc.getValue());
                 }
             }
         });
@@ -1458,7 +1544,7 @@ public class ARNewCommandPane extends ARPane {
                                 // labelRow, // Web Page Label row
                                 comboBoxesRow, // ComboBoxes row
                                 variableButtonRow, // Variable Button row
-                                buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
+                                buttonBox,
                                 addNewsBox,
                                 instructionButtonsRow // Add Instruction and Cancel Buttons row
                                 );
@@ -1504,7 +1590,7 @@ public class ARNewCommandPane extends ARPane {
                 comboBoxesRow.getChildren().clear();
                 comboBoxesRow.getChildren().addAll(commandBox, blocksBox);
 
-                variableButtonRow = new HBox(10, blankText, loopText, comboBoxLoops, textFlow);
+                variableButtonRow = new HBox(10, blankText, loopText, comboBoxLoops, gotoField, textFlow);
 
                 vboxAll.getChildren()
                         .addAll(
@@ -1512,7 +1598,7 @@ public class ARNewCommandPane extends ARPane {
                                 // labelRow, // Web Page Label row
                                 comboBoxesRow, // ComboBoxes row
                                 variableButtonRow, // Variable Button row
-                                buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
+                                buttonBox,
                                 addNewsBox,
                                 instructionButtonsRow // Add Instruction and Cancel Buttons row
                                 );
@@ -1567,7 +1653,7 @@ public class ARNewCommandPane extends ARPane {
                                 // labelRow, // Web Page Label row
                                 comboBoxesRow, // ComboBoxes row
                                 variableButtonRow, // Variable Button row
-                                buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
+                                buttonBox,
                                 addNewsBox,
                                 instructionButtonsRow // Add Instruction and Cancel Buttons row
                                 );
@@ -1618,7 +1704,7 @@ public class ARNewCommandPane extends ARPane {
                                 // labelRow, // Web Page Label row
                                 comboBoxesRow, // ComboBoxes row
                                 variableButtonRow, // Variable Button row
-                                buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
+                                buttonBox,
                                 addNewsBox,
                                 instructionButtonsRow // Add Instruction and Cancel Buttons row
                                 );
@@ -1666,7 +1752,7 @@ public class ARNewCommandPane extends ARPane {
                 comboBoxesRow.getChildren().addAll(commandBox, webFieldsBox);
 
                 variableButtonRow =
-                        new HBox(10, blankText, timesText, comboBoxTimes, loopText, comboBoxLoops, textFlow);
+                        new HBox(10, blankText, timesText, comboBoxTimes, loopText, comboBoxLoops, gotoField, textFlow);
 
                 vboxAll.getChildren()
                         .addAll(
@@ -1674,7 +1760,7 @@ public class ARNewCommandPane extends ARPane {
                                 // labelRow, // Web Page Label row
                                 comboBoxesRow, // ComboBoxes row
                                 variableButtonRow, // Variable Button row
-                                buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
+                                buttonBox,
                                 addNewsBox,
                                 instructionButtonsRow // Add Instruction and Cancel Buttons row
                                 );
@@ -1722,7 +1808,7 @@ public class ARNewCommandPane extends ARPane {
                 comboBoxesRow.getChildren().addAll(commandBox, webFieldsBox);
 
                 variableButtonRow =
-                        new HBox(10, blankText, timesText, comboBoxTimes, loopText, comboBoxLoops, textFlow);
+                        new HBox(10, blankText, timesText, comboBoxTimes, loopText, comboBoxLoops, gotoField, textFlow);
 
                 vboxAll.getChildren()
                         .addAll(
@@ -1730,7 +1816,7 @@ public class ARNewCommandPane extends ARPane {
                                 // labelRow, // Web Page Label row
                                 comboBoxesRow, // ComboBoxes row
                                 variableButtonRow, // Variable Button row
-                                buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
+                                buttonBox,
                                 addNewsBox,
                                 instructionButtonsRow // Add Instruction and Cancel Buttons row
                                 );
@@ -1780,7 +1866,7 @@ public class ARNewCommandPane extends ARPane {
                                 // labelRow, // Web Page Label row
                                 comboBoxesRow, // ComboBoxes row
                                 variableButtonRow, // Variable Button row
-                                buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
+                                buttonBox,
                                 addNewsBox,
                                 instructionButtonsRow // Add Instruction and Cancel Buttons row
                                 );
@@ -1834,7 +1920,7 @@ public class ARNewCommandPane extends ARPane {
                                 // labelRow, // Web Page Label row
                                 comboBoxesRow, // ComboBoxes row
                                 variableButtonRow, // Variable Button row
-                                buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
+                                buttonBox,
                                 addNewsBox,
                                 instructionButtonsRow // Add Instruction and Cancel Buttons row
                                 );
@@ -1954,7 +2040,14 @@ public class ARNewCommandPane extends ARPane {
                     regularText2.setText(" Limit: ");
                     regularText2.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
-                    variableText2.setText(comboBoxLoops.getValue().getText());
+                    String gotoValue =
+                            "other".equalsIgnoreCase(comboBoxLoops.getValue().getValue())
+                                    ? Strings.isNullOrEmpty(gotoField.getText())
+                                            ? "50"
+                                            : gotoField.getText().trim()
+                                    : comboBoxLoops.getValue().getText();
+
+                    variableText2.setText(gotoValue);
                     variableText2.setStyle("-fx-font-size: 14px; -fx-fill: red;");
 
                     regularText3.setText(" Times");
@@ -2680,7 +2773,10 @@ public class ARNewCommandPane extends ARPane {
             indexGeneric = -1;
             if (instrValue.equals("GOTO")) {
                 for (int i = 0; i < listOptions.size(); i++) {
-                    if (listOptions.get(i).getValue().equals(operations[0])) {
+                    if (listOptions
+                            .get(i)
+                            .getBlockId()
+                            .equals(rowMoveDTO.getUpdatedRows().get(0).getParentBlockId())) {
                         comboBoxBlocksGoto.getSelectionModel().select(i);
                         indexGeneric = i;
                         break;
@@ -2701,7 +2797,17 @@ public class ARNewCommandPane extends ARPane {
                 }
 
                 if (indexGeneric == -1) {
-                    comboBoxLoops.getSelectionModel().selectFirst();
+                    // Check if operations[0] is an integer
+                    try {
+                        int value = Integer.parseInt(operations[0]);
+                        // Select last item ("other") and set value in nameField
+                        comboBoxLoops.getSelectionModel().select(loopsItems.size() - 1);
+                        gotoField.setText(String.valueOf(value));
+                    } catch (NumberFormatException e) {
+                        // Not an integer → select first item
+                        comboBoxLoops.getSelectionModel().selectFirst();
+                        gotoField.setText("50");
+                    }
                 }
             }
 
@@ -2732,7 +2838,17 @@ public class ARNewCommandPane extends ARPane {
                 }
 
                 if (indexGeneric == -1) {
-                    comboBoxLoops.getSelectionModel().selectFirst();
+                    // Check if operations[0] is an integer
+                    try {
+                        int value = Integer.parseInt(operations[0]);
+                        // Select last item ("other") and set value in nameField
+                        comboBoxLoops.getSelectionModel().select(loopsItems.size() - 1);
+                        gotoField.setText(String.valueOf(value));
+                    } catch (NumberFormatException e) {
+                        // Not an integer → select first item
+                        comboBoxLoops.getSelectionModel().selectFirst();
+                        gotoField.setText("50");
+                    }
                 }
             }
 

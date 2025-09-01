@@ -2943,7 +2943,7 @@ public class PerformActions {
     public Pair<String, String> getBlockDetailsById(
             List<BlockLoadDTO> blocksLoaded, InstructionLoad currentInstruction) {
         for (BlockLoadDTO block : blocksLoaded) {
-            if (block.getId() != null && block.getId().equals(currentInstruction.getParentId())) {
+            if (block.getId() != null && block.getId().equals(currentInstruction.getParentBlockId())) {
                 Pair<String, String> blockDetails = new Pair<>(
                         currentInstruction.getId() + ":" + block.getId() + ":" + block.getBlockOrderNumber() + ":"
                                 + block.getName().trim(),

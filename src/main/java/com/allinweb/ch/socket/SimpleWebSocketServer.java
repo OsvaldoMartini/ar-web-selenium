@@ -1126,22 +1126,23 @@ public class SimpleWebSocketServer {
             }
         }
 
-        List<BotJobLoadDTO> listBot =
-                instrTable.equals("instruction") ? performLists.getListBotJob() : performLists.getListBotJobComp();
+        if (!alreadySentMgsSocket) {
+            List<BotJobLoadDTO> listBot =
+                    instrTable.equals("instruction") ? performLists.getListBotJob() : performLists.getListBotJobComp();
 
-        setPayloadEmpty(sessionId, homeBankingId, botJobIdTask, botJobNameTask);
-        String jsonData = gson.toJson(payloadEmpty);
-        if (!listBot.isEmpty()) {
-            List<InstructionLoad> instructionLoads =
-                    performDataBase.buildJsonViewData(listBot, homeBankingId, instrTable);
-            jsonData = gson.toJson(instructionLoads);
+            setPayloadEmpty(sessionId, homeBankingId, botJobIdTask, botJobNameTask);
+            String jsonData = gson.toJson(payloadEmpty);
+            if (!listBot.isEmpty()) {
+                List<InstructionLoad> instructionLoads =
+                        performDataBase.buildJsonViewData(listBot, homeBankingId, instrTable);
+                jsonData = gson.toJson(instructionLoads);
+            }
+
+            webSocketSessionManager.sendMessageJson(homeBankingId, sessionIdToSend, jsonData, updateAction);
+
+            //            broadcastMessageToAll(homeBankingId, "componentTasks", jsonData, "componentsUpdate");
+            //            sendMessageJson(sessionIdToSend, jsonData, "componentsUpdate");
         }
-
-        webSocketSessionManager.sendMessageJson(homeBankingId, sessionIdToSend, jsonData, updateAction);
-
-        //            broadcastMessageToAll(homeBankingId, "componentTasks", jsonData, "componentsUpdate");
-        //            sendMessageJson(sessionIdToSend, jsonData, "componentsUpdate");
-
     }
 
     @OnClose
