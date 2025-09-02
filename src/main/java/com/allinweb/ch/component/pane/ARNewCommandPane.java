@@ -55,7 +55,6 @@ public class ARNewCommandPane extends ARPane {
     }
 
     // Lists for tables
-    private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
     private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static final PerformMessage performMessage = PerformMessage.getInstance();
     private static final PerformLists performLists = PerformLists.getInstance();
@@ -168,7 +167,6 @@ public class ARNewCommandPane extends ARPane {
     private Button refreshWebButton;
 
     double buttonWidth = 200;
-    double blockAddNewsWidth = 200;
     double comboOperatorWidth = 50;
     double comboTimesWidth = 70;
     double comboLoopsWidth = 80;

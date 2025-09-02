@@ -7022,42 +7022,120 @@ GROUP BY
         }
     }
 
-    public void updateUserData(Integer userId, VariableUserDTO user) {
-        //        try {
-        String updateSQL = "UPDATE variable SET Name = '" + user.getName() + "', "
-                + " type = '" + user.getType() + "', "
-                + " value = '" + user.getValue() + "', "
-                + " local_format = '" + user.getLocalFormat() + "', "
-                + " delimiter = '" + user.getDelimiter() + "' "
-                + " WHERE ID = " + userId;
-        try (Statement stmt = getConnection().createStatement()) {
-            int rowsAffected = stmt.executeUpdate(updateSQL);
-            if (rowsAffected > 0) {
-                System.out.println("Data updated successfully.");
-            } else {
-                System.out.println("No matching record found to update.");
+    public ErrorMessage updateUserData(String tableName, int whereId, VariableUserDTO user) {
+        // Determine foreign key column
+        String foreignKeyColumn = "variable".equalsIgnoreCase(tableName) ? "bot_job_id" : "home_banking_id";
+
+        String updateSQL = "UPDATE " + tableName + " SET "
+                + "name = ?, "
+                + "type = ?, "
+                + "value = ?, "
+                + "local_format = ?, "
+                + "delimiter = ? "
+                + "WHERE id = ? AND " + foreignKeyColumn + " = ?";
+
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false); // start transaction
+
+            try (PreparedStatement pstmt = conn.prepareStatement(updateSQL)) {
+                pstmt.setString(1, user.getName());
+                pstmt.setString(2, user.getType());
+                pstmt.setString(3, user.getValue());
+                pstmt.setString(4, user.getLocalFormat());
+                pstmt.setString(5, user.getDelimiter());
+                pstmt.setInt(6, user.getId());
+                pstmt.setInt(7, whereId);
+
+                int rowsAffected = pstmt.executeUpdate();
+                conn.commit();
+
+                if (rowsAffected > 0) {
+                    ARLogger.getInstance(PerformDataBase.class)
+                            .info(String.format(
+                                    "Updated %d row(s) in %s where id = %d and %s = %d",
+                                    rowsAffected, tableName, user.getId(), foreignKeyColumn, whereId));
+                } else {
+                    ARLogger.getInstance(PerformDataBase.class)
+                            .warning(String.format(
+                                    "No matching row found in %s where id = %d and %s = %d",
+                                    tableName, user.getId(), foreignKeyColumn, whereId));
+                }
+
+                return null; // success
+            } catch (SQLException e) {
+                ARLogger.getInstance(PerformDataBase.class)
+                        .severe(String.format(
+                                "Error updating row in %s where id = %d and %s = %d. Error: %s",
+                                tableName, user.getId(), foreignKeyColumn, whereId, e.getMessage()));
+
+                return new ErrorMessage(
+                        "Update Error",
+                        "Failed to update row in " + tableName + " where id = " + user.getId() + " and "
+                                + foreignKeyColumn + " = " + whereId,
+                        e.getMessage());
             }
-        } catch (SQLException error) {
-            System.out.println(error.getMessage());
+        } catch (SQLException ex) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format(
+                            "Connection error while updating row in %s where id = %d and %s = %d. Error: %s",
+                            tableName, user.getId(), foreignKeyColumn, whereId, ex.getMessage()));
+
+            return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
     }
 
-    public void deleteUserData(String Id) {
-        try {
-            int variableId = Integer.parseInt(Id);
-            String deleteSQL = "DELETE FROM variable WHERE ID = " + variableId;
-            try (Statement stmt = getConnection().createStatement()) {
-                int rowsAffected = stmt.executeUpdate(deleteSQL);
+    public ErrorMessage deleteUserData(String tableName, int whereId, int variableId) {
+        // Determine foreign key column
+        String foreignKeyColumn = "variable".equalsIgnoreCase(tableName) ? "bot_job_id" : "home_banking_id";
+
+        // Build SQL
+        String deleteSQL = "DELETE FROM " + tableName + " WHERE id = ? AND " + foreignKeyColumn + " = ?";
+
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false); // start transaction
+
+            try (PreparedStatement pstmt = conn.prepareStatement(deleteSQL)) {
+                pstmt.setInt(1, variableId);
+                pstmt.setInt(2, whereId);
+
+                pstmt.addBatch();
+                int[] rowsAffectedBatch = pstmt.executeBatch();
+                conn.commit();
+
+                int rowsAffected = rowsAffectedBatch.length > 0 ? rowsAffectedBatch[0] : 0;
+
                 if (rowsAffected > 0) {
-                    System.out.println("Data deleted successfully.");
+                    ARLogger.getInstance(PerformDataBase.class)
+                            .info(String.format(
+                                    "Deleted %d row(s) from %s where id = %d and %s = %d",
+                                    rowsAffected, tableName, variableId, foreignKeyColumn, whereId));
                 } else {
-                    System.out.println("No matching record found to delete.");
+                    ARLogger.getInstance(PerformDataBase.class)
+                            .warning(String.format(
+                                    "No rows found to delete in %s where id = %d and %s = %d",
+                                    tableName, variableId, foreignKeyColumn, whereId));
                 }
-            } catch (SQLException error) {
-                System.out.println(error.getMessage());
+
+                return null; // success
+            } catch (SQLException e) {
+                ARLogger.getInstance(PerformDataBase.class)
+                        .severe(String.format(
+                                "Error deleting row in %s where id = %d and %s = %d. Error: %s",
+                                tableName, variableId, foreignKeyColumn, whereId, e.getMessage()));
+
+                return new ErrorMessage(
+                        "Delete Error",
+                        "Failed to delete from " + tableName + " where id = " + variableId + " and " + foreignKeyColumn
+                                + " = " + whereId,
+                        e.getMessage());
             }
-        } catch (NumberFormatException error) {
-            System.out.println(error.getMessage());
+        } catch (SQLException ex) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format(
+                            "Connection error while deleting row in %s where id = %d and %s = %d. Error: %s",
+                            tableName, variableId, foreignKeyColumn, whereId, ex.getMessage()));
+
+            return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
     }
 

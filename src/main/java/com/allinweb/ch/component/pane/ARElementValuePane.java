@@ -544,14 +544,14 @@ public class ARElementValuePane extends ARPane {
             }
             selectedUser.setDelimiter(delimiter);
 
-            performDataBase.updateUserData(selectedUser.getId(), selectedUser);
-
             String varTable = rowMoveDTO.getSessionId().equals("componentTasks") ? "component_variable" : "variable";
             String instrTable =
                     rowMoveDTO.getSessionId().equals("componentTasks") ? "component_instruction" : "instruction";
             int whereId = rowMoveDTO.getSessionId().equals("componentTasks")
                     ? rowMoveDTO.getHomeBankingId()
                     : rowMoveDTO.getBotJobId();
+
+            performDataBase.updateUserData(varTable, whereId, selectedUser);
 
             ErrorMessage errorMessage = performDataBase.loadAllParents(instrTable, whereId, instructionId);
 
@@ -565,7 +565,8 @@ public class ARElementValuePane extends ARPane {
                             parent.setOperations(parts[0] + ":" + type + selectedUser.getName());
                         } else if ("CK".equals(parent.getActions())) {
                             String[] parts = parent.getOperations().split(":");
-                            parent.setOperations(type + selectedUser.getName() + ":" + parts[1] + ":" + parts[2]);
+                            parent.setOperations(
+                                    type + selectedUser.getName() + ":" + parts[1] + ":" + selectedUser.getValue());
                         } else if ("E".equals(parent.getActions())) {
                             parent.setOperations(type + selectedUser.getName());
                         }
@@ -636,11 +637,18 @@ public class ARElementValuePane extends ARPane {
                 return;
             }
 
-            performDataBase.deleteUserData(id);
             String varTable = rowMoveDTO.getSessionId().equals("componentTasks") ? "component_variable" : "variable";
             int whereId = rowMoveDTO.getSessionId().equals("componentTasks")
                     ? rowMoveDTO.getHomeBankingId()
                     : rowMoveDTO.getBotJobId();
+
+            int idVar = -1;
+            try {
+                idVar = Integer.parseInt(idField.getText());
+            } catch (Exception ignore) {
+            }
+            performDataBase.deleteUserData(varTable, whereId, idVar);
+
             arNewCommandPane.reloadComboVars(varTable, whereId, instructionId, true, -1);
         });
 
