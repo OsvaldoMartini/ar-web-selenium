@@ -43,10 +43,10 @@ public class ARElementValueScene extends ARScene {
             String instructionType) {
         this.rowMoveDTO = rowMoveDTO;
         this.varId = varId;
+        this.varName = (varName != null && varName.length() > 0) ? varName.substring(1) : varName;
         this.varValue = varValue;
         this.instructionId = instructionId;
         this.instructionName = instructionName;
-        this.varName = varName;
         this.instructionType = instructionType;
 
         if (!firstLoad) {

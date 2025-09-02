@@ -5,8 +5,10 @@ import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
+import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
+import com.google.gson.Gson;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
@@ -70,18 +72,14 @@ public class ARElementValuePane extends ARPane {
     Button updateButton;
     Button deleteButton;
 
-    private static final PerformLists performLists;
-    private static final PerformDataBase performDataBase;
-    private static final PerformMessage performMessage;
-    private static final ARNewCommandPane arNewCommandPane;
+    private final Gson gson = new Gson();
+    private PayloadJson payloadEmpty;
 
-    // Static block to initialize
-    static {
-        performLists = PerformLists.getInstance();
-        performDataBase = PerformDataBase.getInstance();
-        performMessage = PerformMessage.getInstance();
-        arNewCommandPane = ARNewCommandPane.getInstance();
-    }
+    private static WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
+    private static final PerformLists performLists = PerformLists.getInstance();
+    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
+    private static final PerformMessage performMessage = PerformMessage.getInstance();
+    private static final ARNewCommandPane arNewCommandPane = ARNewCommandPane.getInstance();
 
     public void initialize(
             RowMoveDTO rowMoveDTO,
@@ -522,12 +520,11 @@ public class ARElementValuePane extends ARPane {
         updateButton.setOnAction(event -> {
             VariableUserDTO selectedUser = tableView.getSelectionModel().getSelectedItem();
 
-            String selectedType =
-                    stringCheckBox.isSelected() ? "$String" : numericCheckBox.isSelected() ? "#Numeric" : "";
+            String typeVar = stringCheckBox.isSelected() ? "$String" : numericCheckBox.isSelected() ? "#Numeric" : "";
 
             String valueVar = Strings.isNullOrEmpty(valueField.getText()) ? "$EMPTY" : valueField.getText();
 
-            selectedUser.setType(selectedType);
+            selectedUser.setType(typeVar);
             selectedUser.setName(nameField.getText().trim());
             selectedUser.setValue(valueVar.trim());
 
@@ -558,17 +555,19 @@ public class ARElementValuePane extends ARPane {
 
             ErrorMessage errorMessage = performDataBase.loadAllParents(instrTable, whereId, instructionId);
 
+            String type = typeVar.equals("$String") ? "$" : "#";
+
             if (errorMessage == null) {
                 if (!performLists.getListParentOperations().isEmpty()) {
                     for (ParentOperations parent : performLists.getListParentOperations()) {
                         if ("GET".equals(parent.getActions())) {
                             String[] parts = parent.getOperations().split(":");
-                            parent.setOperations(parts[0] + ":" + "#" + selectedUser.getName());
+                            parent.setOperations(parts[0] + ":" + type + selectedUser.getName());
                         } else if ("CK".equals(parent.getActions())) {
                             String[] parts = parent.getOperations().split(":");
-                            parent.setOperations("#" + selectedUser.getName() + ":" + parts[1] + ":" + parts[2]);
+                            parent.setOperations(type + selectedUser.getName() + ":" + parts[1] + ":" + parts[2]);
                         } else if ("E".equals(parent.getActions())) {
-                            parent.setOperations("#" + selectedUser.getName());
+                            parent.setOperations(type + selectedUser.getName());
                         }
                     }
 
@@ -576,9 +575,31 @@ public class ARElementValuePane extends ARPane {
                             instrTable, whereId, performLists.getListParentOperations());
 
                     // UPDATE MEMORY LIST FOR PARENTS OPERATION NAMES
-                    //                            performLists.updateMemoryParentOpenName(instTable, whereId,
-                    // listParents);
+                    if (errorMessage == null) {
+                        performLists.updateMemoryParentOpenName(
+                                instrTable, whereId, performLists.getListParentOperations());
+                    }
                 }
+
+                String updateAction = instrTable.equals("instruction") ? "updateInstructions" : "componentsUpdate";
+                List<BotJobLoadDTO> listBot = instrTable.equals("instruction")
+                        ? performLists.getListBotJob()
+                        : performLists.getListBotJobComp();
+
+                setPayloadEmpty(
+                        rowMoveDTO.getSessionId(),
+                        rowMoveDTO.getHomeBankingId(),
+                        rowMoveDTO.getBotJobId(),
+                        rowMoveDTO.getBotJobName());
+                String jsonData = gson.toJson(payloadEmpty);
+                if (!listBot.isEmpty()) {
+                    List<InstructionLoad> instructionLoads =
+                            performDataBase.buildJsonViewData(listBot, whereId, instrTable);
+                    jsonData = gson.toJson(instructionLoads);
+                }
+
+                webSocketSessionManager.sendMessageJson(
+                        rowMoveDTO.getHomeBankingId(), rowMoveDTO.getSessionId(), jsonData, updateAction);
             }
 
             //            // UPDATE MEMORY LIST FOR PARENTS INSTRUCION NAME
@@ -844,5 +865,30 @@ public class ARElementValuePane extends ARPane {
                 }
             }
         });
+    }
+
+    private void setPayloadEmpty(String destination, int homeBankId, int botJobId, String botJobName) {
+        int blockId = -1;
+        int whereId = -1;
+        if (destination.equalsIgnoreCase("botJobTasks")) {
+            if (performLists.getListBlock().isEmpty()) {
+                performDataBase.loadBlocks(botJobId, botJobName, "block");
+            }
+            whereId = botJobId;
+            if (!performLists.getListBlock().isEmpty()) {
+                blockId = performLists.getListBlock().get(0).getId();
+            }
+
+        } else if (destination.equalsIgnoreCase("componentTasks")) {
+            if (!performLists.getListBotJobComp().isEmpty()
+                    && performLists.getListBlockComp().isEmpty()) {
+                performDataBase.loadBlocks(homeBankId, "", "component_block");
+            }
+            whereId = homeBankId;
+            if (!performLists.getListBlockComp().isEmpty()) {
+                blockId = performLists.getListBlockComp().get(0).getId();
+            }
+        }
+        this.payloadEmpty = new PayloadJson(whereId, blockId, botJobName, 0);
     }
 }

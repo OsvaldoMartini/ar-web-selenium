@@ -2367,6 +2367,8 @@ public class ARNewCommandPane extends ARPane {
                 if (indexGeneric == -1) {
                     comboBoxVars.getSelectionModel().selectFirst();
                 }
+            } else {
+                comboBoxVars.getSelectionModel().selectFirst();
             }
 
         } else {
