@@ -1784,13 +1784,13 @@ public class PerformDataBase {
         return null;
     }
 
-    public boolean reorderInstructions(List<InstructionLoad> rowList, String tableName, boolean forceOrder) {
+    public ErrorMessage reorderInstructionsPerBlock(
+            List<InstructionLoad> rowList, String tableName, boolean forceOrder) {
         final int BATCH_SIZE = 100;
         int orderNumber = 1;
         int count = 0;
 
-        String updateSQL =
-                String.format("UPDATE %s SET instruction_order_number = ? WHERE id = ? AND block_id = ?", tableName);
+        String updateSQL = "UPDATE " + tableName + " SET instruction_order_number = ? WHERE id = ? AND block_id = ?";
 
         try (Connection conn = getConnection();
                 PreparedStatement pstmt = conn.prepareStatement(updateSQL)) {
@@ -1830,12 +1830,79 @@ public class PerformDataBase {
             }
 
             conn.commit(); // Commit transaction
-            return true;
+            return null; // success
 
         } catch (SQLException e) {
             ARLogger.getInstance(PerformDataBase.class)
                     .severe("Error batch updating instruction order numbers: " + e.getMessage());
-            return false;
+            return new ErrorMessage(
+                    "Reorder Error", "Failed to reorder instructions in table " + tableName, e.getMessage());
+        }
+    }
+
+    public ErrorMessage reorderInstructionsPerBotJob(BotJobLoadDTO botJob, String tableName, boolean forceOrder) {
+        final int BATCH_SIZE = 100;
+        int count = 0;
+
+        String updateSQL = "UPDATE " + tableName + " SET instruction_order_number = ? WHERE id = ? AND block_id = ?";
+
+        try (Connection conn = getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(updateSQL)) {
+
+            conn.setAutoCommit(false); // Start transaction
+
+            // iterate over each block in the bot job
+            if (botJob.getBlockLoadDTOList() != null) {
+                for (BlockLoadDTO block : botJob.getBlockLoadDTOList()) {
+                    int orderNumber = 1; // restart order per block
+
+                    if (block.getInstructionLoad() == null) {
+                        continue; // no instructions in this block
+                    }
+
+                    for (InstructionLoad instruction : block.getInstructionLoad()) {
+                        if (forceOrder) {
+                            instruction.setInstructionOrderNumber(orderNumber);
+                        }
+
+                        Integer instrId = instruction.getId();
+                        Integer blockId = block.getId(); // take blockId from block
+
+                        if (instrId == null || blockId == null) {
+                            ARLogger.getInstance(PerformDataBase.class)
+                                    .warning("Skipping reorder: instructionId or blockId is null.");
+                            continue;
+                        }
+
+                        pstmt.setInt(1, instruction.getInstructionOrderNumber());
+                        pstmt.setInt(2, instrId);
+                        pstmt.setInt(3, blockId);
+
+                        pstmt.addBatch();
+                        orderNumber++;
+                        count++;
+
+                        if (count % BATCH_SIZE == 0) {
+                            pstmt.executeBatch();
+                            pstmt.clearBatch();
+                        }
+                    }
+                }
+            }
+
+            // Execute any remaining batch
+            if (count % BATCH_SIZE != 0) {
+                pstmt.executeBatch();
+            }
+
+            conn.commit(); // Commit transaction
+            return null; // success
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe("Error batch updating instruction order numbers: " + e.getMessage());
+            return new ErrorMessage(
+                    "Reorder Error", "Failed to reorder instructions in table " + tableName, e.getMessage());
         }
     }
 
@@ -3010,20 +3077,17 @@ public class PerformDataBase {
             String operType = rowMoveDTO.getType();
             int targetOrderNumber = rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber();
 
-            if (actions.equals("GOTO")
-                    || actions.equals("EXCEL GOTO")
-                    || actions.equals("LOOP")
-                    || actions.equals("REFRESH_LOOP")) {
-                targetOrderNumber = rowList.size() + 1;
-            }
+            Set<String> excluded = Set.of("GOTO", "EXCEL GOTO", "LOOP", "REFRESH_LOOP");
+            boolean orderToFinal = excluded.contains(actions);
 
-            if (!blockIdChanged) {
+            if (!orderToFinal && !blockIdChanged) {
                 if (isIF) {
                     rowList = preInsertStep(operType, targetOrderNumber, rowList, 3);
                 } else {
                     rowList = preInsertStep(operType, targetOrderNumber, rowList, 1);
                 }
-                reorderInstructions(rowList, instrName, true);
+                reorderInstructionsPerBlock(rowList, instrName, true);
+
             } else {
                 rowMoveDTO.getUpdatedRows().get(0).setInstructionOrderNumber(rowList.size() + 1);
             }
@@ -3191,7 +3255,7 @@ public class PerformDataBase {
                             ? performLists.getListInstruction()
                             : performLists.getListInstructionComp();
 
-                    reorderInstructions(rowList, instrName, true);
+                    reorderInstructionsPerBlock(rowList, instrName, true);
                 }
 
                 ARLogger.getInstance(PerformDataBase.class)

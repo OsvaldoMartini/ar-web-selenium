@@ -571,7 +571,11 @@ public class SimpleWebSocketServer {
 
                     performDataBase.loadInstructions(whereId, -1, -1, instTable);
 
-                    InstructionLoad hasExcelGotoOneBlock = hasOnlyExcelGoto(instTable);
+                    List<InstructionLoad> rowsList = instTable.equals("instruction")
+                            ? performLists.getListInstruction()
+                            : performLists.getListInstructionComp();
+
+                    InstructionLoad hasExcelGotoOneBlock = hasOnlyExcelGoto(rowsList, instTable);
 
                     if (hasExcelGotoOneBlock != null) {
                         errorMessage =
@@ -621,6 +625,22 @@ public class SimpleWebSocketServer {
                     // updateBlockOrderNumber  ALREADY UPDATE MEMORY LIST
                     if (errorMessage == null) {
                         errorMessage = performDataBase.updateBlockOrderNumber(blockTable, whereId, true);
+                    }
+
+                    if (errorMessage == null) {
+                        final int finalWhereId = whereId;
+
+                        BotJobLoadDTO botJobLoad = instTable.equals("instruction")
+                                ? performLists.getListBotJob().stream()
+                                        .filter(b -> Objects.equals(b.getBotJobId(), finalWhereId))
+                                        .findFirst()
+                                        .orElse(null)
+                                : performLists.getListBotJobComp().stream()
+                                        .filter(b -> Objects.equals(b.getHomeBankingId(), finalWhereId))
+                                        .findFirst()
+                                        .orElse(null);
+
+                        errorMessage = performDataBase.reorderInstructionsPerBotJob(botJobLoad, instTable, true);
                     }
 
                     // calls perform list block update
@@ -963,7 +983,11 @@ public class SimpleWebSocketServer {
                             errorMessage = performDataBase.loadInstructions(whereId, -1, -1, instTable);
                         }
 
-                        InstructionLoad hasExcelGotoOneBlock = hasOnlyExcelGoto(instTable);
+                        List<InstructionLoad> rowsList = instTable.equals("instruction")
+                                ? performLists.getListInstruction()
+                                : performLists.getListInstructionComp();
+
+                        InstructionLoad hasExcelGotoOneBlock = hasOnlyExcelGoto(rowsList, instTable);
 
                         if (hasExcelGotoOneBlock != null) {
                             errorMessage =
@@ -1012,6 +1036,22 @@ public class SimpleWebSocketServer {
                         // updateBlockOrderNumber  ALREADY UPDATE MEMORY LIST
                         if (errorMessage == null) {
                             performDataBase.updateBlockOrderNumber(blockTable, whereId, true);
+                        }
+
+                        if (errorMessage == null) {
+                            final int finalWhereId = whereId;
+
+                            BotJobLoadDTO botJobLoad = instTable.equals("instruction")
+                                    ? performLists.getListBotJob().stream()
+                                            .filter(b -> Objects.equals(b.getBotJobId(), finalWhereId))
+                                            .findFirst()
+                                            .orElse(null)
+                                    : performLists.getListBotJobComp().stream()
+                                            .filter(b -> Objects.equals(b.getHomeBankingId(), finalWhereId))
+                                            .findFirst()
+                                            .orElse(null);
+
+                            errorMessage = performDataBase.reorderInstructionsPerBotJob(botJobLoad, instTable, true);
                         }
 
                         // calls perform list block update
@@ -1547,10 +1587,7 @@ public class SimpleWebSocketServer {
         this.payloadEmpty = new PayloadJson(whereId, blockId, botJobName, 0);
     }
 
-    public InstructionLoad hasOnlyExcelGoto(String instTable) {
-        List<InstructionLoad> instructions = instTable.equals("instruction")
-                ? performLists.getListInstruction()
-                : performLists.getListInstructionComp();
+    public InstructionLoad hasOnlyExcelGoto(List<InstructionLoad> instructions, String instTable) {
 
         List<InstructionLoad> excelGotoInstructions = instructions.stream()
                 .filter(instr -> "EXCEL GOTO".equalsIgnoreCase(instr.getActions()))
