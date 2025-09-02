@@ -36,10 +36,10 @@ public class ARElementValueScene extends ARScene {
     public void initialize(
             RowMoveDTO rowMoveDTO,
             int varId,
+            String varName,
             String varValue,
             int instructionId,
             String instructionName,
-            String varName,
             String instructionType) {
         this.rowMoveDTO = rowMoveDTO;
         this.varId = varId;

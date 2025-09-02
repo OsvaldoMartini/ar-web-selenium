@@ -1313,10 +1313,10 @@ public class ARNewCommandPane extends ARPane {
                 arElementValueScene.initialize(
                         rowMoveDTO,
                         comboBoxVars.getValue().getVarId(),
+                        comboBoxVars.getValue().getText(),
                         comboBoxVars.getValue().getValue(),
                         comboBoxWebFields.getValue().getInstructionId(),
                         comboBoxWebFields.getValue().getText(),
-                        comboBoxWebFields.getValue().getValue(),
                         comboBoxInstruc.getValue().getValue());
                 arElementValueScene.showModal();
 
@@ -1335,10 +1335,10 @@ public class ARNewCommandPane extends ARPane {
                 arElementValueScene.initialize(
                         rowMoveDTO,
                         comboBoxVars.getValue().getVarId(),
+                        comboBoxVars.getValue().getText(),
                         comboBoxVars.getValue().getValue(),
                         comboBoxWebFields.getValue().getInstructionId(),
                         comboBoxWebFields.getValue().getText(),
-                        comboBoxWebFields.getValue().getValue(),
                         comboBoxInstruc.getValue().getValue());
                 arElementValueScene.showModal();
             }
@@ -1407,10 +1407,10 @@ public class ARNewCommandPane extends ARPane {
                         arElementValueScene.initialize(
                                 rowMoveDTO,
                                 comboBoxVars.getValue().getVarId(),
+                                comboBoxVars.getValue().getText(),
                                 comboBoxVars.getValue().getValue(),
                                 comboBoxWebFields.getValue().getInstructionId(),
                                 comboBoxWebFields.getValue().getText(),
-                                comboBoxWebFields.getValue().getValue(),
                                 comboBoxInstruc.getValue().getValue());
                     }
                 }
@@ -1427,10 +1427,10 @@ public class ARNewCommandPane extends ARPane {
                         arElementValueScene.initialize(
                                 rowMoveDTO,
                                 comboBoxVars.getValue().getVarId(),
+                                comboBoxVars.getValue().getText(),
                                 comboBoxVars.getValue().getValue(),
                                 comboBoxWebFields.getValue().getInstructionId(),
                                 comboBoxWebFields.getValue().getText(),
-                                comboBoxWebFields.getValue().getValue(),
                                 comboBoxInstruc.getValue().getValue());
 
                         arElementValueScene.setTableRowById(
@@ -1439,10 +1439,10 @@ public class ARNewCommandPane extends ARPane {
                         arElementValueScene.initialize(
                                 rowMoveDTO,
                                 comboBoxVars.getValue().getVarId(),
+                                comboBoxVars.getValue().getText(),
                                 comboBoxVars.getValue().getValue(),
                                 comboBoxWebFields.getValue().getInstructionId(),
                                 comboBoxWebFields.getValue().getText(),
-                                comboBoxWebFields.getValue().getValue(),
                                 comboBoxInstruc.getValue().getValue());
                     }
                 }
