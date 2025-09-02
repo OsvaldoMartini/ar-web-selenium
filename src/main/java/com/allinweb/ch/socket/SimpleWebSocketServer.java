@@ -505,6 +505,8 @@ public class SimpleWebSocketServer {
                     // UPDATE MEMORY LIST FOR PARENTS INSTRUCION NAME
                     if (errorMessage == null) {
                         performLists.updateMemoryInstructionName(instTable, whereId, rowUpdateDTO.getUpdatedRows());
+                        performLists.updateMemoryParentOpenName(
+                                instTable, whereId, performLists.getListParentOperations());
                     }
 
                     if (errorMessage != null) {
