@@ -673,11 +673,24 @@ public class SimpleWebSocketServer {
             case "EDIT_OPERATION":
                 RowMoveDTO insertBeforeDTO = gson.fromJson(jsonEntry, RowMoveDTO.class);
 
-                //                homeBankingId = insertBeforeDTO.getHomeBankingId();
-                //                botJobIdTask = insertBeforeDTO.getBotJobId();
-                //                sessionIdToSend = insertBeforeDTO.getSessionId();
+                homeBankingId = insertBeforeDTO.getHomeBankingId();
+                sessionIdToSend = insertBeforeDTO.getSessionId();
+                botJobIdTask = insertBeforeDTO.getBotJobId();
 
-                injectStepAfterOrBefore(sessionIdToSend, insertBeforeDTO);
+                blockTable = null;
+                whereId = -1;
+
+                if (sessionIdToSend != null) {
+                    if (sessionIdToSend.matches(".*botJobTasks.*")) {
+                        blockTable = "block";
+                        whereId = insertBeforeDTO.getBotJobId();
+                    } else if (sessionIdToSend.matches(".*componentTasks.*")) {
+                        blockTable = "component_block";
+                        whereId = insertBeforeDTO.getHomeBankingId();
+                    }
+                }
+
+                injectStepAfterOrBefore(blockTable, whereId, sessionIdToSend, insertBeforeDTO);
 
                 if (type.equals("INSERT_AFTER_ELSEIF") || type.equals("INSERT_BEFORE_ELSEIF")) {
                     alreadySentMgsSocket = false;
@@ -1307,7 +1320,9 @@ public class SimpleWebSocketServer {
             if (!listBot.isEmpty()) {
                 List<InstructionLoad> instructionLoads =
                         performDataBase.buildJsonViewData(listBot, homeBankingId, instrTable);
-                jsonData = gson.toJson(instructionLoads);
+                if (!instructionLoads.isEmpty()) {
+                    jsonData = gson.toJson(instructionLoads);
+                }
             }
 
             webSocketSessionManager.sendMessageJson(homeBankingId, sessionIdToSend, jsonData, updateAction);
@@ -1415,13 +1430,40 @@ public class SimpleWebSocketServer {
         return errorMessage;
     }
 
-    private void injectStepAfterOrBefore(String sessionId, RowMoveDTO rowMoveDTO) {
+    private void injectStepAfterOrBefore(String blockTable, int whereId, String sessionId, RowMoveDTO rowMoveDTO) {
 
         if (rowMoveDTO.getUpdatedRows().size() > 0) {
 
-            //            List<BotJobLoadDTO> botJobLoadList =
-            // performDataBase.loadBotJobComplete(rowMoveDTO.getBotJobId());
-            //            BotJobLoadDTO botJobLoad = performDataBase.loadBotJobById(rowMoveDTO.getBotJobId());
+            BlockLoadDTO blockLoadFound =
+                    performLists.getBlockLoadByBankId(blockTable, whereId, rowMoveDTO.getBlockId());
+
+            ErrorMessage errorMessage = null;
+            if (blockLoadFound == null) {
+                errorMessage = performDataBase.initiateNewBlock(
+                        blockTable, whereId, "Default Block", "Default Block", 1, false);
+            }
+
+            if (errorMessage == null) {
+                int newBlockId = -9999;
+                if (!performDataBase.getIdsBlockAfter().isEmpty()
+                        && performDataBase.getIdsBlockAfter().get(0) > 0) {
+                    newBlockId = performDataBase.getIdsBlockAfter().get(0);
+                }
+
+                // IT SETS THE NEW TARGET IN CASE TO ADD MORE INSTRUCTIONS
+                rowMoveDTO.setBlockId(newBlockId);
+            }
+
+            if (errorMessage != null) {
+                performMessage.errorMessage(
+                        errorMessage.getErrorTitle(),
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                + errorMessage.getErrorHeader(),
+                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                        null,
+                        0);
+            }
 
             if (!rowMoveDTO.getType().equals("INSERT_BEFORE_ELSEIF")
                     && !rowMoveDTO.getType().equals("INSERT_AFTER_ELSEIF")) {

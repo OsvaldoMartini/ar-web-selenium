@@ -5,9 +5,7 @@ import com.allinweb.ch.component.pane.ARNewCommandPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.facade.PerformDataBase;
-import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.gson.Gson;
@@ -313,8 +311,6 @@ public class ARNewCommandScene extends ARScene {
     @Setter
     public RowMoveDTO rowMoveDTO;
 
-    private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
-    private static final PerformLists performLists = PerformLists.getInstance();
     private static final PerformMessage performMessage = PerformMessage.getInstance();
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
     private static final ARNewCommandPane arNewCommandPane = ARNewCommandPane.getInstance();

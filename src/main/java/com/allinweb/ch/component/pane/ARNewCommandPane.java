@@ -307,18 +307,19 @@ public class ARNewCommandPane extends ARPane {
             String instrTable = varTable.equals("variable") ? "instruction" : "component_instruction";
             InstructionLoad instructionLoad = performLists.getInstructionById(
                     instrTable, whereId, filteredPageItems.get(0).getInstructionId());
-
-            errorMessage = performDataBase.loadAllVariablesByCriteria(
-                    varTable, whereId, instructionLoad.getId(), performLists.getParentName(instructionLoad));
-            if (errorMessage != null) {
-                performMessage.errorMessage(
-                        errorMessage.getErrorTitle(),
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                + errorMessage.getErrorHeader(),
-                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                        null,
-                        0);
+            if (instructionLoad != null) {
+                errorMessage = performDataBase.loadAllVariablesByCriteria(
+                        varTable, whereId, instructionLoad.getId(), performLists.getParentName(instructionLoad));
+                if (errorMessage != null) {
+                    performMessage.errorMessage(
+                            errorMessage.getErrorTitle(),
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                    + errorMessage.getErrorHeader(),
+                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                            null,
+                            0);
+                }
             }
         }
 
@@ -2320,20 +2321,20 @@ public class ARNewCommandPane extends ARPane {
         String instrTable = varTable.equals("variable") ? "instruction" : "component_instruction";
         InstructionLoad instructionLoad = performLists.getInstructionById(instrTable, whereId, instructionId);
 
-        // if (!firstLoad && performLists.getListVariablesUser().isEmpty()) {
-        ErrorMessage errorMessage = performDataBase.loadAllVariablesByCriteria(
-                varTable, whereId, instructionLoad.getId(), performLists.getParentName(instructionLoad));
-        if (errorMessage != null) {
-            performMessage.errorMessage(
-                    errorMessage.getErrorTitle(),
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                            + errorMessage.getErrorHeader(),
-                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                    null,
-                    0);
+        if (instructionLoad != null) {
+            ErrorMessage errorMessage = performDataBase.loadAllVariablesByCriteria(
+                    varTable, whereId, instructionLoad.getId(), performLists.getParentName(instructionLoad));
+            if (errorMessage != null) {
+                performMessage.errorMessage(
+                        errorMessage.getErrorTitle(),
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                + errorMessage.getErrorHeader(),
+                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                        null,
+                        0);
+            }
         }
-        // }
 
         if (!performLists.getListVariablesUser().isEmpty()) {
             List<ComboBoxVars> variablesNames = performLists.getListVariablesUser().stream()
