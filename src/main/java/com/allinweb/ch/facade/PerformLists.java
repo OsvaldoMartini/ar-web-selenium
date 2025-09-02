@@ -720,8 +720,53 @@ public class PerformLists {
         }
     }
 
-    // Remove Instruction by Id
+    // Remove Instruction by Id and update order numbers
     public void updateMemoryRemoveInstructionId(String tableName, Integer whereId, Integer instructionId) {
+        try {
+            List<BotJobLoadDTO> jobs;
+            boolean isInstructionTable;
+
+            if ("instruction".equalsIgnoreCase(tableName)) {
+                jobs = getListBotJob();
+                isInstructionTable = true;
+            } else if ("component_instruction".equalsIgnoreCase(tableName)) {
+                jobs = getListBotJobComp();
+                isInstructionTable = false;
+            } else {
+                throw new IllegalArgumentException("Invalid tableName: " + tableName);
+            }
+
+            for (BotJobLoadDTO botJob : jobs) {
+                Integer jobKey = isInstructionTable ? botJob.getId() : botJob.getHomeBankingId();
+                if (jobKey.equals(whereId) && botJob.getBlockLoadDTOList() != null) {
+                    Iterator<BlockLoadDTO> blockIt =
+                            botJob.getBlockLoadDTOList().iterator();
+                    while (blockIt.hasNext()) {
+                        BlockLoadDTO block = blockIt.next();
+                        if (block.getInstructionLoad() != null) {
+                            // Remove the instruction
+                            block.getInstructionLoad()
+                                    .removeIf(instr -> instr.getId().equals(instructionId));
+
+                            // Remove the block itself if empty
+                            if (block.getInstructionLoad().isEmpty()) {
+                                blockIt.remove();
+                            } else {
+                                // Reorder remaining instructions
+                                reorderInstructions(block);
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception error) {
+            ARLogger.getInstance(PerformLists.class)
+                    .severe("Error: Memory Update failed for 'updateMemoryRemoveInstructionId': " + error.getMessage());
+        }
+    }
+
+    // Remove Instruction as ParentId
+    public void updateMemoryRemoveParentId(String tableName, Integer whereId, Integer parentId) {
         try {
             if ("instruction".equalsIgnoreCase(tableName)) {
                 // Then remove inside BotJobLoadDTO -> blockLoadDTOList
@@ -733,8 +778,8 @@ public class PerformLists {
                             while (blockIt.hasNext()) {
                                 BlockLoadDTO block = blockIt.next();
                                 if (block.getInstructionLoad() != null) {
-                                    block.getInstructionLoad()
-                                            .removeIf(instr -> instr.getId().equals(instructionId));
+                                    block.getInstructionLoad().removeIf(instr -> instr.getParentId()
+                                            .equals(parentId));
                                     // Remove block itself if no instructions remain
                                     if (block.getInstructionLoad().isEmpty()) {
                                         blockIt.remove();
@@ -755,8 +800,8 @@ public class PerformLists {
                             while (blockIt.hasNext()) {
                                 BlockLoadDTO block = blockIt.next();
                                 if (block.getInstructionLoad() != null) {
-                                    block.getInstructionLoad()
-                                            .removeIf(instr -> instr.getId().equals(instructionId));
+                                    block.getInstructionLoad().removeIf(instr -> instr.getParentId()
+                                            .equals(parentId));
                                     // Remove block itself if no instructions remain
                                     if (block.getInstructionLoad().isEmpty()) {
                                         blockIt.remove();
@@ -1019,5 +1064,16 @@ public class PerformLists {
         if (listDatabaseUsers != null) listDatabaseUsers.clear();
         if (listVariablesUser != null) listVariablesUser.clear();
         if (listWebPageItems != null) listWebPageItems.clear();
+    }
+
+    /**
+     * Reorders instructionOrderNumber for instructions in a block,
+     * starting from 1 and incrementing sequentially.
+     */
+    private void reorderInstructions(BlockLoadDTO block) {
+        int order = 1;
+        for (InstructionLoad instr : block.getInstructionLoad()) {
+            instr.setInstructionOrderNumber(order++);
+        }
     }
 }

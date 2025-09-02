@@ -876,80 +876,162 @@ public class SimpleWebSocketServer {
                                 .filter(Objects::nonNull)
                                 .toList();
 
+                List<Integer> currentIds;
+                List<Integer> restToDeleteIds;
+                List<BlockLoadDTO> listBlocks;
+
                 if (instTable != null) {
-                    errorMessage = performDataBase.deleteInstruction(instTable, whereId, toDelete, false);
-                    if (errorMessage == null) {
-                        performLists.updateMemoryRemoveInstructionId(instTable, whereId, toDelete.getId());
-                    }
-                }
 
-                if (errorMessage == null) {
-                    errorMessage = performDataBase.loadInstructions(whereId, -1, -1, instTable);
-                }
+                    ARConstants.DialogModal respModal = ARConstants.DialogModal.NONE;
 
-                InstructionLoad hasExcelGotoOneBlock = hasOnlyExcelGoto(instTable);
+                    errorMessage = performDataBase.loadAllParents(instTable, whereId, toDelete.getId());
 
-                if (hasExcelGotoOneBlock != null) {
-                    errorMessage = performDataBase.deleteInstruction(instTable, whereId, hasExcelGotoOneBlock, false);
-                }
-
-                // Snapshot of previous IDs without repetitions
-                List<Integer> currentIds = (instTable.equals("instruction")
-                                ? performLists.getListInstruction()
-                                : performLists.getListInstructionComp())
-                        .stream()
-                                .map(InstructionLoad::getBlockId)
-                                .filter(Objects::nonNull)
-                                .distinct() // removes duplicates
-                                .toList();
-
-                List<Integer> restToDeleteIds = previousIds.stream()
-                        .filter(id -> !currentIds.contains(id))
-                        .collect(Collectors.toList());
-
-                List<BlockLoadDTO> listBlocks =
-                        instTable.equals("instruction") ? performLists.getListBlock() : performLists.getListBlockComp();
-                // Keep at least One for BLOCK TABLE
-                if (errorMessage == null
-                        && !restToDeleteIds.isEmpty()
-                        && (blockTable.equals("block") && listBlocks.size() > 1)) {
-                    errorMessage = performDataBase.deleteNullBlocks(blockTable, whereId, restToDeleteIds);
-
-                    // UPDATE REMOVAL MEMORY LIST
-                    if (errorMessage == null) {
-                        performLists.updateMemoryRemoveBlockIds(blockTable, whereId, restToDeleteIds);
+                    if (errorMessage != null) {
+                        performMessage.errorMessage(
+                                errorMessage.getErrorTitle(),
+                                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                                "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                        + errorMessage.getErrorHeader(),
+                                "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                                null,
+                                0);
                     }
 
-                } else if (errorMessage == null
-                        && !restToDeleteIds.isEmpty()
-                        && (blockTable.equals("component_block"))) {
-                    errorMessage = performDataBase.deleteNullBlocks(blockTable, whereId, restToDeleteIds);
+                    boolean continueDelete = true;
+                    boolean deleteParents = false;
 
-                    // UPDATE REMOVAL MEMORY LIST
-                    if (errorMessage == null) {
-                        performLists.updateMemoryRemoveBlockIds(blockTable, whereId, restToDeleteIds);
+                    if (!performLists.getListParentOperations().isEmpty()) {
+
+                        boolean isIF = toDelete.getActions().equalsIgnoreCase("IF")
+                                || toDelete.getActions().equalsIgnoreCase("ELSE")
+                                || toDelete.getActions().equalsIgnoreCase("ENDIF")
+                                || toDelete.getActions().equalsIgnoreCase("ELSEIF");
+
+                        if (!isIF) {
+                            List<String> lstMsg =
+                                    performMessage.distributeMsg(performLists.getListParentOperations().stream()
+                                            .map(p -> p.getName() + " --> (" + p.getInstructionId() + ")-"
+                                                    + p.getParentName())
+                                            .collect(Collectors.toList()));
+
+                            respModal = performMessage.showCustomModalDialogDragWin11(
+                                    "Steps Attached",
+                                    "Are you Sure you want to delete?",
+                                    lstMsg.get(0),
+                                    lstMsg.get(1),
+                                    lstMsg.get(2),
+                                    false,
+                                    "Confirm",
+                                    "Cancel",
+                                    0);
+
+                            continueDelete = respModal.equals(ARConstants.DialogModal.OK);
+                            deleteParents = continueDelete;
+                        }
+
+                        if (continueDelete && deleteParents) {
+                            errorMessage = performDataBase.deleteRowParents(instTable, whereId, toDelete.getId());
+                            if (errorMessage == null) {
+                                performLists.updateMemoryRemoveInstructionId(instTable, whereId, toDelete.getId());
+                            }
+
+                            if (errorMessage != null) {
+                                performMessage.errorMessage(
+                                        errorMessage.getErrorTitle(),
+                                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                                + errorMessage.getErrorHeader(),
+                                        "<span style='font-style: italic;'>Detail:</span> "
+                                                + errorMessage.getErrorMessage(),
+                                        null,
+                                        0);
+                            }
+                        }
+                    } else {
+                        continueDelete = true;
+                        deleteParents = true;
                     }
-                }
 
-                // updateBlockOrderNumber  ALREADY UPDATE MEMORY LIST
-                if (errorMessage == null) {
-                    performDataBase.updateBlockOrderNumber(blockTable, whereId, true);
-                }
+                    if (continueDelete && deleteParents) {
 
-                // calls perform list block update
-                toDelete.setType(updteBlocks);
-                jsonData = gson.toJson(toDelete);
-                webSocketSessionManager.sendMessageJson(homeBankingId, "perform-list-data", jsonData, updteBlocks);
+                        errorMessage = performDataBase.deleteInstruction(instTable, whereId, toDelete, false);
+                        if (errorMessage == null) {
+                            performLists.updateMemoryRemoveInstructionId(instTable, whereId, toDelete.getId());
+                        }
 
-                if (errorMessage != null) {
-                    performMessage.errorMessage(
-                            errorMessage.getErrorTitle(),
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                    + errorMessage.getErrorHeader(),
-                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                            null,
-                            0);
+                        if (errorMessage == null) {
+                            errorMessage = performDataBase.loadInstructions(whereId, -1, -1, instTable);
+                        }
+
+                        InstructionLoad hasExcelGotoOneBlock = hasOnlyExcelGoto(instTable);
+
+                        if (hasExcelGotoOneBlock != null) {
+                            errorMessage =
+                                    performDataBase.deleteInstruction(instTable, whereId, hasExcelGotoOneBlock, false);
+                        }
+
+                        // Snapshot of previous IDs without repetitions
+                        currentIds = (instTable.equals("instruction")
+                                        ? performLists.getListInstruction()
+                                        : performLists.getListInstructionComp())
+                                .stream()
+                                        .map(InstructionLoad::getBlockId)
+                                        .filter(Objects::nonNull)
+                                        .distinct() // removes duplicates
+                                        .toList();
+
+                        restToDeleteIds = previousIds.stream()
+                                .filter(id -> !currentIds.contains(id))
+                                .collect(Collectors.toList());
+
+                        listBlocks = instTable.equals("instruction")
+                                ? performLists.getListBlock()
+                                : performLists.getListBlockComp();
+                        // Keep at least One for BLOCK TABLE
+                        if (errorMessage == null
+                                && !restToDeleteIds.isEmpty()
+                                && (blockTable.equals("block") && listBlocks.size() > 1)) {
+                            errorMessage = performDataBase.deleteNullBlocks(blockTable, whereId, restToDeleteIds);
+
+                            // UPDATE REMOVAL MEMORY LIST
+                            if (errorMessage == null) {
+                                performLists.updateMemoryRemoveBlockIds(blockTable, whereId, restToDeleteIds);
+                            }
+
+                        } else if (errorMessage == null
+                                && !restToDeleteIds.isEmpty()
+                                && (blockTable.equals("component_block"))) {
+                            errorMessage = performDataBase.deleteNullBlocks(blockTable, whereId, restToDeleteIds);
+
+                            // UPDATE REMOVAL MEMORY LIST
+                            if (errorMessage == null) {
+                                performLists.updateMemoryRemoveBlockIds(blockTable, whereId, restToDeleteIds);
+                            }
+                        }
+
+                        // updateBlockOrderNumber  ALREADY UPDATE MEMORY LIST
+                        if (errorMessage == null) {
+                            performDataBase.updateBlockOrderNumber(blockTable, whereId, true);
+                        }
+
+                        // calls perform list block update
+                        toDelete.setType(updteBlocks);
+                        jsonData = gson.toJson(toDelete);
+                        webSocketSessionManager.sendMessageJson(
+                                homeBankingId, "perform-list-data", jsonData, updteBlocks);
+
+                        if (errorMessage != null) {
+                            performMessage.errorMessage(
+                                    errorMessage.getErrorTitle(),
+                                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                            + errorMessage.getErrorHeader(),
+                                    "<span style='font-style: italic;'>Detail:</span> "
+                                            + errorMessage.getErrorMessage(),
+                                    null,
+                                    0);
+                        }
+                    }
                 }
 
                 break;

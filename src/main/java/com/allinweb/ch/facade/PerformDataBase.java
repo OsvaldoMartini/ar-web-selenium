@@ -280,7 +280,6 @@ public class PerformDataBase {
         performLists.getListParentOperations().clear();
 
         String whereColumn = tableName.equals("instruction") ? "bot_job_id" : "home_banking_id";
-        String instructionTable = tableName.equals("instruction") ? "instruction" : "component_instruction";
 
         String selectSQL = "SELECT " + "    parent.name AS parent_name, "
                 + "    child.actions, "
@@ -288,8 +287,8 @@ public class PerformDataBase {
                 + "    child.name AS child_name, "
                 + "    child.id "
                 + "FROM "
-                + instructionTable + " AS child " + "LEFT JOIN "
-                + instructionTable + " AS parent ON child.parent_id = parent.id " + "WHERE child.parent_id = ? "
+                + tableName + " AS child " + "LEFT JOIN "
+                + tableName + " AS parent ON child.parent_id = parent.id " + "WHERE child.parent_id = ? "
                 + "  AND child."
                 + whereColumn + " = ? " + "ORDER BY child.id;";
 
@@ -1785,7 +1784,7 @@ public class PerformDataBase {
         return null;
     }
 
-    public boolean reorderInstructions(List<InstructionLoad> rowList, String tableName, boolean explicity) {
+    public boolean reorderInstructions(List<InstructionLoad> rowList, String tableName, boolean forceOrder) {
         final int BATCH_SIZE = 100;
         int orderNumber = 1;
         int count = 0;
@@ -1799,7 +1798,7 @@ public class PerformDataBase {
             conn.setAutoCommit(false); // Start transaction
 
             for (InstructionLoad instruction : rowList) {
-                if (!explicity) {
+                if (forceOrder) {
                     instruction.setInstructionOrderNumber(orderNumber);
                 }
 
@@ -2926,15 +2925,12 @@ public class PerformDataBase {
         return false; // Return false if an error occurs or the ID is not found
     }
 
-    public List<InstructionLoad> preInsertStep(RowMoveDTO rowMoveDTO, List<InstructionLoad> rowList, int shiftQty) {
+    public List<InstructionLoad> preInsertStep(
+            String operType, int targetOrderNumber, List<InstructionLoad> rowList, int shiftQty) {
 
-        String operationType = rowMoveDTO.getType();
-
-        if ("INSERT_BEFORE".equals(operationType)
-                || "INSERT_AFTER".equals(operationType)
-                || "INSERT_AFTER_ELSEIF".equals(operationType)) {
-
-            int targetOrderNumber = rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber();
+        if ("INSERT_BEFORE".equals(operType)
+                || "INSERT_AFTER".equals(operType)
+                || "INSERT_AFTER_ELSEIF".equals(operType)) {
 
             boolean orderNumberExists = rowList.stream()
                     .anyMatch(instruction -> instruction.getInstructionOrderNumber() == targetOrderNumber);
@@ -2947,7 +2943,7 @@ public class PerformDataBase {
             }
 
             for (InstructionLoad instruction : rowList) {
-                boolean shouldShift = "INSERT_BEFORE".equals(operationType)
+                boolean shouldShift = "INSERT_BEFORE".equals(operType)
                         ? instruction.getInstructionOrderNumber() >= targetOrderNumber
                         : instruction.getInstructionOrderNumber() > targetOrderNumber;
 
@@ -3011,11 +3007,21 @@ public class PerformDataBase {
                     ? performLists.getListInstruction()
                     : performLists.getListInstructionComp();
 
+            String operType = rowMoveDTO.getType();
+            int targetOrderNumber = rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber();
+
+            if (actions.equals("GOTO")
+                    || actions.equals("EXCEL GOTO")
+                    || actions.equals("LOOP")
+                    || actions.equals("REFRESH_LOOP")) {
+                targetOrderNumber = rowList.size() + 1;
+            }
+
             if (!blockIdChanged) {
                 if (isIF) {
-                    rowList = preInsertStep(rowMoveDTO, rowList, 3);
+                    rowList = preInsertStep(operType, targetOrderNumber, rowList, 3);
                 } else {
-                    rowList = preInsertStep(rowMoveDTO, rowList, 1);
+                    rowList = preInsertStep(operType, targetOrderNumber, rowList, 1);
                 }
                 reorderInstructions(rowList, instrName, true);
             } else {
@@ -3177,6 +3183,17 @@ public class PerformDataBase {
             }
 
             if (errorMessage == null) {
+
+                errorMessage = loadInstructions(whereId, rowMoveDTO.getBlockId(), -1, instrName);
+
+                if (!updateRow) {
+                    rowList = instrName.equals("instruction")
+                            ? performLists.getListInstruction()
+                            : performLists.getListInstructionComp();
+
+                    reorderInstructions(rowList, instrName, true);
+                }
+
                 ARLogger.getInstance(PerformDataBase.class)
                         .info(String.format(
                                 "\"Component\" Instruction: \"%s\" has been added successfully!",
@@ -3713,41 +3730,6 @@ public class PerformDataBase {
         listInstruc.add(toDelete);
 
         ErrorMessage errorMessage = null;
-
-        if (toDelete.getParentId() != null) {
-            errorMessage = loadAllParents(tableName, whereId, toDelete.getId());
-
-            if (!performLists.getListParentOperations().isEmpty()) {
-
-                boolean isIF = toDelete.getActions().equalsIgnoreCase("IF")
-                        || toDelete.getActions().equalsIgnoreCase("ELSE")
-                        || toDelete.getActions().equalsIgnoreCase("ENDIF")
-                        || toDelete.getActions().equalsIgnoreCase("ELSEIF");
-
-                if (!blockDeletion && !isIF) {
-                    List<String> lstMsg = performMessage.distributeMsg(performLists.getListParentOperations().stream()
-                            .map(p -> p.getName() + " --> (" + p.getInstructionId() + ")-" + p.getParentName())
-                            .collect(Collectors.toList()));
-
-                    ARConstants.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
-                            "Steps Attached",
-                            "Are you Sure you want to delete?",
-                            lstMsg.get(0),
-                            lstMsg.get(1),
-                            lstMsg.get(2),
-                            false,
-                            "Confirm",
-                            "Cancel",
-                            0);
-
-                    if (respModal.equals(ARConstants.DialogModal.STOP)) {
-                        return null;
-                    }
-                }
-
-                errorMessage = deleteRowParents(tableName, whereId, toDelete.getId());
-            }
-        }
 
         if (errorMessage == null) {
             String variableTable = tableName.equals("instruction") ? "variable" : "component_variable";
