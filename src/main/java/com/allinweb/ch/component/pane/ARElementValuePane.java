@@ -1,9 +1,6 @@
 package com.allinweb.ch.component.pane;
 
-import com.allinweb.ch.component.model.FormatOption;
-import com.allinweb.ch.component.model.ParentOperations;
-import com.allinweb.ch.component.model.RowMoveDTO;
-import com.allinweb.ch.component.model.VariableUserDTO;
+import com.allinweb.ch.component.model.*;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
@@ -108,7 +105,11 @@ public class ARElementValuePane extends ARPane {
                 : rowMoveDTO.getBotJobId();
 
         // if (performLists.getListVariablesUser().isEmpty()) {
-        ErrorMessage errorMessage = performDataBase.loadAllVariablesByCriteria(varTable, whereId, instructionId);
+        String instrTable = varTable.equals("variable") ? "instruction" : "component_instruction";
+        InstructionLoad instructionLoad = performLists.getInstructionById(instrTable, whereId, instructionId);
+
+        ErrorMessage errorMessage = performDataBase.loadAllVariablesByCriteria(
+                varTable, whereId, instructionLoad.getId(), performLists.getParentName(instructionLoad));
         if (errorMessage != null) {
             performMessage.errorMessage(
                     errorMessage.getErrorTitle(),
@@ -125,15 +126,15 @@ public class ARElementValuePane extends ARPane {
         }
         // }
 
-        if (this.varId > -1) {
-            selectRowById(varId);
-        }
-
         if (idField != null) {
             idField.clear();
-            idField.setText(String.valueOf(instructionId));
+            idField.setText(String.valueOf(varId));
             parentField.setText(instructionName);
             nameField.setText(varName);
+
+            if (this.varId > -1) {
+                selectRowById(varId);
+            }
         }
 
         if (valueField != null) {
@@ -168,7 +169,7 @@ public class ARElementValuePane extends ARPane {
         // Create text fields
         idField = new TextField();
         idField.setEditable(false);
-        idField.setText(String.valueOf(instructionId));
+        idField.setText(String.valueOf(varId));
         idField.setStyle("-fx-control-inner-background: D3D3D3; -fx-pref-width: 50px;");
         idField.setPrefHeight(30);
 
@@ -456,13 +457,23 @@ public class ARElementValuePane extends ARPane {
                 delimiter = selected.getValue(); // "US" or "EU"
             }
 
+            String varTable = rowMoveDTO.getSessionId().equals("componentTasks") ? "component_variable" : "variable";
+            int whereId = rowMoveDTO.getSessionId().equals("componentTasks")
+                    ? rowMoveDTO.getHomeBankingId()
+                    : rowMoveDTO.getBotJobId();
+
+            // if (performLists.getListVariablesUser().isEmpty()) {
+            String instrTable = varTable.equals("variable") ? "instruction" : "component_instruction";
+            InstructionLoad instructionLoad = performLists.getInstructionById(instrTable, whereId, instructionId);
+
             VariableUserDTO user = new VariableUserDTO(
                     -1,
                     selectedType,
                     nameField.getText().trim(),
                     valueVar,
                     rowMoveDTO.getBotJobId(),
-                    instructionId,
+                    instructionLoad.getId(),
+                    instructionLoad.getName(),
                     localFormat,
                     delimiter,
                     "");
@@ -504,10 +515,6 @@ public class ARElementValuePane extends ARPane {
             }
 
             performDataBase.createVariable(user);
-            String varTable = rowMoveDTO.getSessionId().equals("componentTasks") ? "component_variable" : "variable";
-            int whereId = rowMoveDTO.getSessionId().equals("componentTasks")
-                    ? rowMoveDTO.getHomeBankingId()
-                    : rowMoveDTO.getBotJobId();
 
             arNewCommandPane.reloadComboVars(varTable, whereId, instructionId, true, -1);
         });
@@ -554,15 +561,18 @@ public class ARElementValuePane extends ARPane {
             if (errorMessage == null) {
                 if (!performLists.getListParentOperations().isEmpty()) {
                     for (ParentOperations parent : performLists.getListParentOperations()) {
-                        if ("GET".equals(parent.getActions()) || "SET".equals(parent.getActions())) {
-                            if (parent.getParentName() != null) {
-                                String[] parts = parent.getOperations().split(":");
-                                parent.setOperations(parent.getParentName() + ":" + parts[1]);
-                            }
+                        if ("GET".equals(parent.getActions())) {
+                            String[] parts = parent.getOperations().split(":");
+                            parent.setOperations(parts[0] + ":" + "#" + selectedUser.getName());
+                        } else if ("CK".equals(parent.getActions())) {
+                            String[] parts = parent.getOperations().split(":");
+                            parent.setOperations("#" + selectedUser.getName() + ":" + parts[1] + ":" + parts[2]);
+                        } else if ("E".equals(parent.getActions())) {
+                            parent.setOperations("#" + selectedUser.getName());
                         }
                     }
 
-                    errorMessage = performDataBase.rowsGetUpdateName(
+                    errorMessage = performDataBase.rowsUpdateParentName(
                             instrTable, whereId, performLists.getListParentOperations());
 
                     // UPDATE MEMORY LIST FOR PARENTS OPERATION NAMES
@@ -707,7 +717,22 @@ public class ARElementValuePane extends ARPane {
                 int whereId = rowMoveDTO.getSessionId().equals("componentTasks")
                         ? rowMoveDTO.getHomeBankingId()
                         : rowMoveDTO.getBotJobId();
-                performDataBase.loadAllVariablesByCriteria(varTable, whereId, instructionId);
+
+                String instrTable = varTable.equals("variable") ? "instruction" : "component_instruction";
+                InstructionLoad instructionLoad = performLists.getInstructionById(instrTable, whereId, instructionId);
+
+                ErrorMessage errorMessage = performDataBase.loadAllVariablesByCriteria(
+                        varTable, whereId, instructionLoad.getId(), performLists.getParentName(instructionLoad));
+                if (errorMessage != null) {
+                    performMessage.errorMessage(
+                            errorMessage.getErrorTitle(),
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                    + errorMessage.getErrorHeader(),
+                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                            null,
+                            0);
+                }
             }
 
             if (tableView == null) {
@@ -745,7 +770,7 @@ public class ARElementValuePane extends ARPane {
     private void fillFields(VariableUserDTO userDTO) {
         // Set the values of the selected row to the text fields
         idField.setText(String.valueOf(userDTO.getId()));
-        parentField.setText("(" + userDTO.getParentId() + ")" + userDTO.getName());
+        parentField.setText("(" + userDTO.getParentId() + ")" + userDTO.getParentName());
         nameField.setText(userDTO.getName());
         String valueVar = userDTO.getValue().equalsIgnoreCase("$EMPTY") ? "" : userDTO.getValue();
         valueField.setText(valueVar);

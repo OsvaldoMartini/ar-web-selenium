@@ -344,6 +344,17 @@ public class PerformLists {
                 .orElse(null); // returns null if not found
     }
 
+    public String getParentName(InstructionLoad instructionLoad) {
+        if (instructionLoad == null
+                || instructionLoad.getActions() == null
+                || instructionLoad.getActions().isEmpty()) {
+            return "Parent Name";
+        }
+
+        String[] parts = instructionLoad.getActions().split(":");
+        return parts.length > 0 ? parts[parts.length - 1].trim() : "Parent Name";
+    }
+
     // Get BlockLoadDTO by homeBankingId and id
     public BlockLoadDTO getBlockLoadByBankId(String blockTable, Integer whereId, Integer blockId) {
         if ("block".equalsIgnoreCase(blockTable)) {

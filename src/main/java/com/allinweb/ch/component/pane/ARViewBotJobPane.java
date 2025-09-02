@@ -156,7 +156,7 @@ public class ARViewBotJobPane extends ARPane {
 
         ErrorMessage errorMessage = null;
         if (performLists.getListVariablesUser().isEmpty()) {
-            errorMessage = performDataBase.loadAllVariablesByCriteria("variable", selectedBotJob.getId(), -1);
+            errorMessage = performDataBase.loadAllVariablesByCriteria("variable", selectedBotJob.getId(), -1, "");
         }
 
         if (errorMessage == null && performLists.getListWebPageItems().isEmpty()) {

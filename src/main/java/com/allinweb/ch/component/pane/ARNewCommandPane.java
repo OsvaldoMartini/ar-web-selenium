@@ -305,8 +305,23 @@ public class ARNewCommandPane extends ARPane {
 
         if (this.filteredPageItems != null && this.filteredPageItems.size() > 0) {
             variablesItems.clear();
-            performDataBase.loadAllVariablesByCriteria(
-                    varTable, whereId, filteredPageItems.get(0).getInstructionId());
+
+            String instrTable = varTable.equals("variable") ? "instruction" : "component_instruction";
+            InstructionLoad instructionLoad = performLists.getInstructionById(
+                    instrTable, whereId, filteredPageItems.get(0).getInstructionId());
+
+            errorMessage = performDataBase.loadAllVariablesByCriteria(
+                    varTable, whereId, instructionLoad.getId(), performLists.getParentName(instructionLoad));
+            if (errorMessage != null) {
+                performMessage.errorMessage(
+                        errorMessage.getErrorTitle(),
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                + errorMessage.getErrorHeader(),
+                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                        null,
+                        0);
+            }
         }
 
         List<BlockOptions> listOptions = performLists.loadComboOptions(blockTable, "NewCommandPane");
@@ -2304,8 +2319,12 @@ public class ARNewCommandPane extends ARPane {
     public void reloadComboVars(String varTable, int whereId, int instructionId, boolean selectLast, int variableId) {
         variablesItems.clear();
 
+        String instrTable = varTable.equals("variable") ? "instruction" : "component_instruction";
+        InstructionLoad instructionLoad = performLists.getInstructionById(instrTable, whereId, instructionId);
+
         // if (!firstLoad && performLists.getListVariablesUser().isEmpty()) {
-        ErrorMessage errorMessage = performDataBase.loadAllVariablesByCriteria(varTable, whereId, instructionId);
+        ErrorMessage errorMessage = performDataBase.loadAllVariablesByCriteria(
+                varTable, whereId, instructionLoad.getId(), performLists.getParentName(instructionLoad));
         if (errorMessage != null) {
             performMessage.errorMessage(
                     errorMessage.getErrorTitle(),

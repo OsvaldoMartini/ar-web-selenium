@@ -2327,7 +2327,19 @@ public class ARScannedElementPane extends ARPane {
         int executeSpecificBlock = comboBoxBlocks.getValue().getWhereId(); // Instruction or BockOrderNumber
         sessionRowStatus = "botJobTasks"; // + botJobId;
 
-        performDataBase.loadAllVariables(botJobId);
+        errorMessage = performDataBase.loadAllVariables("variable", botJobId);
+
+        if (errorMessage != null) {
+            performMessage.errorMessage(
+                    errorMessage.getErrorTitle(),
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                            + errorMessage.getErrorHeader(),
+                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                    null,
+                    0);
+        }
+
         variablesLoaded = performLists.getListVariable();
         Map<String, String> mapSavedLocators = new HashMap<>();
 

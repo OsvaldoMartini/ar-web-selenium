@@ -326,69 +326,6 @@ public class PerformDataBase {
         }
     }
 
-    public List<ParentOperations> loadParents(String tableName, int whereId, int instructionId, int parentId) {
-        List<ParentOperations> parentList = new ArrayList<>();
-
-        // Determine the foreign key column based on table
-        String foreignKeyColumn = "instruction".equalsIgnoreCase(tableName) ? "bot_job_id" : "home_banking_id";
-
-        // Use ? placeholders for PreparedStatement
-        String selectSQL =
-                """
-            SELECT
-                parent.name as parent_name,
-                child.name as child_name,
-                child.parent_id
-            FROM %s AS child
-            LEFT JOIN %s AS parent ON child.parent_id = parent.id
-            WHERE child.id != ?
-              AND child.parent_id = ?
-              AND child.%s = ?
-            ORDER BY child.id;
-            """
-                        .formatted(tableName, tableName, foreignKeyColumn);
-
-        try (PreparedStatement stmt = getConnection().prepareStatement(selectSQL)) {
-            stmt.setInt(1, 0); // child.id != 0
-            stmt.setInt(2, parentId); // child.parent_id = ?
-            stmt.setInt(3, whereId); // child.bot_job_id or home_banking_id = ?
-
-            try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    String name = rs.getString("child_name") + " --> (" + rs.getString("parent_id") + ")-"
-                            + rs.getString("parent_name");
-
-                    ParentOperations parentOper = new ParentOperations();
-                    parentOper.setName(name);
-                    parentOper.setInstructionId(instructionId);
-                    parentOper.setParentId(rs.getInt("parent_id"));
-
-                    parentList.add(parentOper);
-                }
-            }
-
-            if (!parentList.isEmpty()) {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .info(String.format(
-                                "Loaded parents for instruction ID %d from %s = %d",
-                                instructionId, foreignKeyColumn, whereId));
-            } else {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .warning(String.format(
-                                "No parents found for instruction ID %d in %s = %d",
-                                instructionId, foreignKeyColumn, whereId));
-            }
-
-        } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
-                            "Error loading parents for instruction ID %d in %s = %d. Error: %s",
-                            instructionId, foreignKeyColumn, whereId, error.getMessage()));
-        }
-
-        return parentList;
-    }
-
     public ErrorMessage deleteVariablesBatch(
             String tableName, // e.g., "instruction_variable" or "component_instruction_variable"
             int whereId, // e.g., bot_job_id or home_banking_id
@@ -1255,26 +1192,53 @@ public class PerformDataBase {
                 }
             }
 
-            int[] results = pstmt.executeBatch();
+            pstmt.executeBatch();
             conn.commit();
 
-            int batchIndex = 0;
+            return null; // success
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class).severe("RowsGetUpdateName Error: " + e.getMessage());
+            return new ErrorMessage("RowsGetUpdateName Error", "Failed to update parent operations", e.getMessage());
+        }
+    }
+
+    public ErrorMessage rowsUpdateParentName(
+            String tableName,
+            int whereId, // either bot_job_id or home_banking_id
+            List<ParentOperations> listParents) {
+
+        if (listParents == null || listParents.isEmpty()) {
+            return null; // nothing to do
+        }
+
+        String idColumn = "id";
+        String parentIdColumn = "parent_id";
+        String whereColumn = tableName.equals("instruction") ? "bot_job_id" : "home_banking_id";
+
+        String instructionTable = tableName.equals("instruction") ? "instruction" : "component_instruction";
+        String updateSQL = "UPDATE " + instructionTable + " SET "
+                + "operation = ? "
+                + "WHERE " + idColumn + " = ? AND " + parentIdColumn + " = ? AND " + whereColumn + " = ?";
+
+        try (Connection conn = getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(updateSQL)) {
+
+            conn.setAutoCommit(false);
+
             for (ParentOperations parent : listParents) {
-                if ("GET".equals(parent.getActions())) {
-                    if (results[batchIndex] > 0) {
-                        ARLogger.getInstance(PerformDataBase.class)
-                                .warning(String.format(
-                                        "RowsUpdateName - InstructionId: %s now has operation: %s",
-                                        parent.getInstructionId(), parent.getOperations()));
-                    } else {
-                        ARLogger.getInstance(PerformDataBase.class)
-                                .warning(String.format(
-                                        "No matching record found - InstructionId: %d, operation: %s",
-                                        parent.getInstructionId(), parent.getOperations()));
-                    }
-                    batchIndex++;
+                if ("GET".equals(parent.getActions())
+                        || "CK".equals(parent.getActions())
+                        || "E".equals(parent.getActions())) {
+                    pstmt.setString(1, parent.getOperations());
+                    pstmt.setInt(2, parent.getId());
+                    pstmt.setInt(3, parent.getInstructionId());
+                    pstmt.setInt(4, whereId);
+                    pstmt.addBatch();
                 }
             }
+
+            pstmt.executeBatch();
+            conn.commit();
 
             return null; // success
         } catch (SQLException e) {
@@ -1316,23 +1280,8 @@ public class PerformDataBase {
                 pstmt.addBatch();
             }
 
-            int[] results = pstmt.executeBatch();
+            pstmt.executeBatch();
             conn.commit();
-
-            for (int i = 0; i < instructions.size(); i++) {
-                InstructionLoad instr = instructions.get(i);
-                if (results[i] > 0) {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .warning(String.format(
-                                    "Instruction Updated - InstructionId: %s now has name: %s",
-                                    instr.getId(), instr.getInstructionName()));
-                } else {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .warning(String.format(
-                                    "No matching record found - InstructionId: %d, name: %s",
-                                    instr.getId(), instr.getInstructionName()));
-                }
-            }
 
             return null; // success
         } catch (SQLException e) {
@@ -3766,10 +3715,9 @@ public class PerformDataBase {
         ErrorMessage errorMessage = null;
 
         if (toDelete.getParentId() != null) {
-            List<ParentOperations> listParents =
-                    loadParents(tableName, whereId, toDelete.getId(), toDelete.getParentId());
+            errorMessage = loadAllParents(tableName, whereId, toDelete.getId());
 
-            if (!listParents.isEmpty()) {
+            if (!performLists.getListParentOperations().isEmpty()) {
 
                 boolean isIF = toDelete.getActions().equalsIgnoreCase("IF")
                         || toDelete.getActions().equalsIgnoreCase("ELSE")
@@ -3777,8 +3725,9 @@ public class PerformDataBase {
                         || toDelete.getActions().equalsIgnoreCase("ELSEIF");
 
                 if (!blockDeletion && !isIF) {
-                    List<String> lstMsg = performMessage.distributeMsg(
-                            listParents.stream().map(ParentOperations::getName).collect(Collectors.toList()));
+                    List<String> lstMsg = performMessage.distributeMsg(performLists.getListParentOperations().stream()
+                            .map(p -> p.getName() + " --> (" + p.getInstructionId() + ")-" + p.getParentName())
+                            .collect(Collectors.toList()));
 
                     ARConstants.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
                             "Steps Attached",
@@ -6758,7 +6707,7 @@ GROUP BY
         return false;
     }
 
-    public ErrorMessage loadAllVariablesByCriteria(String tableName, int whereId, int parentId) {
+    public ErrorMessage loadAllVariablesByCriteria(String tableName, int whereId, int parentId, String parentName) {
         performLists.getListVariablesUser().clear();
 
         // Determine related table and columns based on tableName
@@ -6810,7 +6759,16 @@ GROUP BY
                     performLists
                             .getListVariablesUser()
                             .add(new VariableUserDTO(
-                                    id, type, name, value, whereId, parentId, localFormat, delimiter, usedVars));
+                                    id,
+                                    type,
+                                    name,
+                                    value,
+                                    whereId,
+                                    parentId,
+                                    parentName,
+                                    localFormat,
+                                    delimiter,
+                                    usedVars));
                 }
             }
         } catch (SQLException error) {
@@ -6821,37 +6779,70 @@ GROUP BY
         return null;
     }
 
-    public void loadAllVariables(int botJobId) {
+    public ErrorMessage loadAllVariables(String tableName, int whereId) {
         performLists.getListVariable().clear();
-        String selectSQL =
-                "SELECT vars.id, instruction_id, vars.type, vars.name, vars.value, vars.local_format, vars.delimiter, COUNT(blk.variable_id) UsedVars "
-                        + "FROM variable vars "
-                        + "LEFT JOIN instruction blk ON blk.variable_id = vars.id "
-                        + "WHERE vars.bot_job_id = " + botJobId;
 
-        selectSQL += " GROUP BY vars.id, vars.type, vars.Name, vars.value";
+        String whereColumn = tableName.equals("instruction") ? "bot_job_id" : "home_banking_id";
 
-        selectSQL += " ORDER BY vars.id";
+        String selectSQL = "SELECT " + "    vars.id, "
+                + "    vars.instruction_id, "
+                + "    vars.type, "
+                + "    vars.name, "
+                + "    vars.value, "
+                + "    vars.local_format, "
+                + "    vars.delimiter, "
+                + "    COUNT(blk.variable_id) AS UsedVars "
+                + "FROM variable vars "
+                + "LEFT JOIN "
+                + tableName + " blk ON blk.variable_id = vars.id " + "WHERE vars."
+                + whereColumn + " = ? "
+                + "GROUP BY vars.id, vars.instruction_id, vars.type, vars.name, vars.value, vars.local_format, vars.delimiter "
+                + "ORDER BY vars.id;";
 
-        try (Statement stmt = getConnection().createStatement(); // Assuming you have getConnection() method
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
+        try (Connection conn = getConnection();
+                PreparedStatement stmt = conn.prepareStatement(selectSQL)) {
 
-            while (rs.next()) {
-                int id = rs.getInt("id");
-                Integer instructionId = rs.getInt("instruction_id");
-                String type = rs.getString("type");
-                String name = rs.getString("name");
-                String value = rs.getString("value");
-                String localFormat = rs.getString("local_format");
-                String delimiter = rs.getString("delimiter");
-                Integer usedVars = rs.getInt("UsedVars");
-                performLists
-                        .getListVariable()
-                        .add(new VariableLoadDTO(
-                                id, -1, botJobId, instructionId, type, name, value, localFormat, delimiter, usedVars));
+            conn.setAutoCommit(false);
+            stmt.setInt(1, whereId);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    int id = rs.getInt("id");
+                    Integer instructionId = rs.getInt("instruction_id");
+                    String type = rs.getString("type");
+                    String name = rs.getString("name");
+                    String value = rs.getString("value");
+                    String localFormat = rs.getString("local_format");
+                    String delimiter = rs.getString("delimiter");
+                    Integer usedVars = rs.getInt("UsedVars");
+
+                    performLists
+                            .getListVariable()
+                            .add(new VariableLoadDTO(
+                                    id,
+                                    -1,
+                                    whereId, // bot_job_id or home_banking_id
+                                    instructionId,
+                                    type,
+                                    name,
+                                    value,
+                                    localFormat,
+                                    delimiter,
+                                    usedVars));
+                }
             }
-        } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class).severe("loadAllVariables. Error: " + error.getMessage());
+
+            conn.commit();
+            return null; // success
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format(
+                            "Error loading variables for %s=%d. Error: %s", whereColumn, whereId, e.getMessage()));
+
+            return new ErrorMessage(
+                    "LoadVariables Error",
+                    String.format("Failed to load variables for %s=%d", whereColumn, whereId),
+                    e.getMessage());
         }
     }
 
