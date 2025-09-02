@@ -455,16 +455,34 @@ public class SimpleWebSocketServer {
 
                 alreadySentMgsSocket = false;
 
+                whereId = -1;
+                updteBlocks = null;
+
+                String instTable = "instruction";
+                if (sessionIdToSend != null) {
+                    if (sessionIdToSend.matches(".*botJobTasks.*")) {
+                        instTable = "instruction";
+                        whereId = rowUpdateDTO.getBotJobId();
+                    } else if (sessionIdToSend.matches(".*componentTasks.*")) {
+                        instTable = "component_instruction";
+                        whereId = rowUpdateDTO.getHomeBankingId();
+                    }
+                }
+
                 if (rowUpdateDTO.getUpdatedRows().size() > 0) {
-                    if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
-                        if (performDataBase.rowsUpdateName(rowUpdateDTO.getUpdatedRows())) {
-                            List<ParentOperations> listParents = performDataBase.loadAllParents(
-                                    rowUpdateDTO.getBotJobId(),
-                                    rowUpdateDTO.getUpdatedRows().get(0).getId());
-                            if (!listParents.isEmpty()) {
-                                for (ParentOperations parent : listParents) {
-                                    if ("GET".equals(parent.getActions())) {
-                                        List<String> operationsList = new ArrayList<>();
+
+                    errorMessage = performDataBase.rowsUpdateName(instTable, whereId, rowUpdateDTO.getUpdatedRows());
+
+                    if (errorMessage == null) {
+                        errorMessage = performDataBase.loadAllParents(
+                                instTable,
+                                whereId,
+                                rowUpdateDTO.getUpdatedRows().get(0).getId());
+
+                        if (errorMessage == null) {
+                            if (!performLists.getListParentOperations().isEmpty()) {
+                                for (ParentOperations parent : performLists.getListParentOperations()) {
+                                    if ("GET".equals(parent.getActions()) || "SET".equals(parent.getActions())) {
                                         if (parent.getParentName() != null) {
                                             String[] parts =
                                                     parent.getOperations().split(":");
@@ -473,14 +491,33 @@ public class SimpleWebSocketServer {
                                     }
                                 }
 
-                                performDataBase.rowsGetUpdateName(listParents);
+                                errorMessage = performDataBase.rowsGetUpdateName(
+                                        instTable, whereId, performLists.getListParentOperations());
+
+                                // UPDATE MEMORY LIST FOR PARENTS OPERATION NAMES
+                                //                            performLists.updateMemoryParentOpenName(instTable,
+                                // whereId,
+                                // listParents);
                             }
                         }
-                    } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
-                        performDataBase.rowsCompUpdateName(rowUpdateDTO.getUpdatedRows());
+                    }
+
+                    // UPDATE MEMORY LIST FOR PARENTS INSTRUCION NAME
+                    if (errorMessage == null) {
+                        performLists.updateMemoryInstructionName(instTable, whereId, rowUpdateDTO.getUpdatedRows());
+                    }
+
+                    if (errorMessage != null) {
+                        performMessage.errorMessage(
+                                errorMessage.getErrorTitle(),
+                                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                                "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                        + errorMessage.getErrorHeader(),
+                                "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                                null,
+                                0);
                     }
                 }
-
                 break;
             case "ROW_MOVE":
                 RowMoveDTO rowMoveDTO = gson.fromJson(jsonEntry, RowMoveDTO.class);
@@ -495,7 +532,7 @@ public class SimpleWebSocketServer {
                 whereId = -1;
                 updteBlocks = null;
 
-                String instTable = "instruction";
+                instTable = "instruction";
                 if (sessionIdToSend != null) {
                     if (sessionIdToSend.matches(".*botJobTasks.*")) {
                         instTable = "instruction";

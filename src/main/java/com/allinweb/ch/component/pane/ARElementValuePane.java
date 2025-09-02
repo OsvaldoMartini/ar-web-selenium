@@ -1,6 +1,7 @@
 package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.model.FormatOption;
+import com.allinweb.ch.component.model.ParentOperations;
 import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.model.VariableUserDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
@@ -106,27 +107,31 @@ public class ARElementValuePane extends ARPane {
                 ? rowMoveDTO.getHomeBankingId()
                 : rowMoveDTO.getBotJobId();
 
-        if (performLists.getListVariablesUser().isEmpty()) {
-            ErrorMessage errorMessage = performDataBase.loadAllVariablesByCriteria(varTable, whereId, instructionId);
-            if (errorMessage != null) {
-                performMessage.errorMessage(
-                        errorMessage.getErrorTitle(),
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                + errorMessage.getErrorHeader(),
-                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                        null,
-                        0);
-            }
+        // if (performLists.getListVariablesUser().isEmpty()) {
+        ErrorMessage errorMessage = performDataBase.loadAllVariablesByCriteria(varTable, whereId, instructionId);
+        if (errorMessage != null) {
+            performMessage.errorMessage(
+                    errorMessage.getErrorTitle(),
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                            + errorMessage.getErrorHeader(),
+                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                    null,
+                    0);
         }
+
+        if (tableView != null) {
+            tableView.setItems(FXCollections.observableArrayList(performLists.getListVariablesUser()));
+        }
+        // }
 
         if (this.varId > -1) {
             selectRowById(varId);
         }
 
-        if (idField != null && this.varId == -1) {
+        if (idField != null) {
             idField.clear();
-            idField.setText(String.valueOf(varId));
+            idField.setText(String.valueOf(instructionId));
             parentField.setText(instructionName);
             nameField.setText(varName);
         }
@@ -163,7 +168,7 @@ public class ARElementValuePane extends ARPane {
         // Create text fields
         idField = new TextField();
         idField.setEditable(false);
-        idField.setText(String.valueOf(varId));
+        idField.setText(String.valueOf(instructionId));
         idField.setStyle("-fx-control-inner-background: D3D3D3; -fx-pref-width: 50px;");
         idField.setPrefHeight(30);
 
@@ -538,17 +543,59 @@ public class ARElementValuePane extends ARPane {
             performDataBase.updateUserData(selectedUser.getId(), selectedUser);
 
             String varTable = rowMoveDTO.getSessionId().equals("componentTasks") ? "component_variable" : "variable";
+            String instrTable =
+                    rowMoveDTO.getSessionId().equals("componentTasks") ? "component_instruction" : "instruction";
             int whereId = rowMoveDTO.getSessionId().equals("componentTasks")
                     ? rowMoveDTO.getHomeBankingId()
                     : rowMoveDTO.getBotJobId();
 
+            ErrorMessage errorMessage = performDataBase.loadAllParents(instrTable, whereId, instructionId);
+
+            if (errorMessage == null) {
+                if (!performLists.getListParentOperations().isEmpty()) {
+                    for (ParentOperations parent : performLists.getListParentOperations()) {
+                        if ("GET".equals(parent.getActions()) || "SET".equals(parent.getActions())) {
+                            if (parent.getParentName() != null) {
+                                String[] parts = parent.getOperations().split(":");
+                                parent.setOperations(parent.getParentName() + ":" + parts[1]);
+                            }
+                        }
+                    }
+
+                    errorMessage = performDataBase.rowsGetUpdateName(
+                            instrTable, whereId, performLists.getListParentOperations());
+
+                    // UPDATE MEMORY LIST FOR PARENTS OPERATION NAMES
+                    //                            performLists.updateMemoryParentOpenName(instTable, whereId,
+                    // listParents);
+                }
+            }
+
+            //            // UPDATE MEMORY LIST FOR PARENTS INSTRUCION NAME
+            //            if (errorMessage == null) {
+            //                performLists.updateMemoryInstructionName(instrTable, whereId,
+            // rowUpdateDTO.getUpdatedRows());
+            //            }
+
+            if (errorMessage != null) {
+                performMessage.errorMessage(
+                        errorMessage.getErrorTitle(),
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                + errorMessage.getErrorHeader(),
+                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                        null,
+                        0);
+            }
+
             arNewCommandPane.reloadComboVars(varTable, whereId, instructionId, true, varId);
         });
+
         deleteButton.setOnAction(event -> {
             String id = idField.getText();
             if (Integer.parseInt(usedVarsField.getText()) > 0) {
                 performMessage.errorMessage(
-                        "Action Remove Error",
+                        "Action Remove Denied",
                         String.format("This '%s' cannot be deleted!", nameField.getText()),
                         String.format("Exist %s Steps attached!", usedVarsField.getText()),
                         null,

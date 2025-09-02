@@ -1099,6 +1099,7 @@ public class ARConfigurationPane extends ARPane {
             //            performDataBase.exportVariables();
             //            performDataBase.exportReferences();
 
+            performLists.clearAllLists();
             performDataBase.loadHomeBanking(null);
             backupDBButton.setDisable(performLists.getListHomeBanking().isEmpty());
             homeBankingListView = new ListView<>(FXCollections.observableArrayList(performLists.getListHomeBanking()));

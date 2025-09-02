@@ -3868,14 +3868,14 @@ public class PerformActions {
         }
     }
 
-    public int createBlockIfNone(String blockName, int whereId) {
+    public int createBlockIfNone(String blockTable, int whereId) {
 
         // It Prevents Start without blocks
-        ErrorMessage errorMessage = performDataBase.loadBlocks(whereId, null, "block");
+        ErrorMessage errorMessage = performDataBase.loadBlocks(whereId, null, blockTable);
         if (errorMessage == null && performLists.getListBlock().isEmpty()) {
 
             errorMessage =
-                    performDataBase.initiateNewBlock(blockName, whereId, "Default Block", "Default Block", 1, false);
+                    performDataBase.initiateNewBlock(blockTable, whereId, "Default Block", "Default Block", 1, false);
 
             if (errorMessage == null) {
                 if (!performDataBase.getIdsBlockAfter().isEmpty()

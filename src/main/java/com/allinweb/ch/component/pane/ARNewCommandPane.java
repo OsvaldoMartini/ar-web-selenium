@@ -1140,9 +1140,9 @@ public class ARNewCommandPane extends ARPane {
                         "SetValue",
                         ARConstants.SET_VALUE,
                         1,
-                        //                        comboBoxVars.getValue().getText().substring(1).toLowerCase() + ":" +
+                        //                        comboBoxVars.getValue().getText().substring(1) + ":" +
                         // setValueTo,
-                        comboBoxWebFields.getValue().getValue().toLowerCase() + ":" + setValueTo,
+                        comboBoxWebFields.getValue().getValue() + ":" + setValueTo,
                         comboBoxVars.getValue().getVarId(),
                         comboBoxVars.getValue().getParentId(),
                         null,
@@ -1153,7 +1153,7 @@ public class ARNewCommandPane extends ARPane {
                         "GetValue",
                         ARConstants.GET_VALUE,
                         1,
-                        //                        comboBoxVars.getValue().getText().substring(1).toLowerCase() + ":"+
+                        //                        comboBoxVars.getValue().getText().substring(1) + ":"+
                         // comboBoxVars.getValue().getText().toUpperCase(),
                         comboBoxWebFields.getValue().getValue() + ":"
                                 + comboBoxVars.getValue().getText().toUpperCase(),
@@ -1172,7 +1172,7 @@ public class ARNewCommandPane extends ARPane {
                         "Check Value",
                         ARConstants.CHECK_VALUE,
                         1,
-                        comboBoxVars.getValue().getText().toLowerCase() + ":"
+                        comboBoxVars.getValue().getText().toUpperCase() + ":"
                                 + comboBoxOperator.getValue().getOperator() + ":" + checkValueFor,
                         comboBoxVars.getValue().getVarId(),
                         comboBoxVars.getValue().getParentId(),
@@ -1409,6 +1409,15 @@ public class ARNewCommandPane extends ARPane {
                     recallMessages(comboBoxInstruc.getValue().getValue());
                     if (comboBoxVars.getValue() != null
                             && comboBoxVars.getValue().getVarId() > -1) {
+                        arElementValueScene.initialize(
+                                rowMoveDTO,
+                                comboBoxVars.getValue().getVarId(),
+                                comboBoxVars.getValue().getValue(),
+                                comboBoxWebFields.getValue().getInstructionId(),
+                                comboBoxWebFields.getValue().getText(),
+                                comboBoxWebFields.getValue().getValue(),
+                                comboBoxInstruc.getValue().getValue());
+
                         arElementValueScene.setTableRowById(
                                 comboBoxVars.getValue().getVarId());
                     } else {
@@ -2295,19 +2304,19 @@ public class ARNewCommandPane extends ARPane {
     public void reloadComboVars(String varTable, int whereId, int instructionId, boolean selectLast, int variableId) {
         variablesItems.clear();
 
-        if (!firstLoad && performLists.getListVariablesUser().isEmpty()) {
-            ErrorMessage errorMessage = performDataBase.loadAllVariablesByCriteria(varTable, whereId, instructionId);
-            if (errorMessage != null) {
-                performMessage.errorMessage(
-                        errorMessage.getErrorTitle(),
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                + errorMessage.getErrorHeader(),
-                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                        null,
-                        0);
-            }
+        // if (!firstLoad && performLists.getListVariablesUser().isEmpty()) {
+        ErrorMessage errorMessage = performDataBase.loadAllVariablesByCriteria(varTable, whereId, instructionId);
+        if (errorMessage != null) {
+            performMessage.errorMessage(
+                    errorMessage.getErrorTitle(),
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                            + errorMessage.getErrorHeader(),
+                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                    null,
+                    0);
         }
+        // }
 
         if (!performLists.getListVariablesUser().isEmpty()) {
             List<ComboBoxVars> variablesNames = performLists.getListVariablesUser().stream()
@@ -2557,7 +2566,7 @@ public class ARNewCommandPane extends ARPane {
             }
         }
 
-        if (blockId < 0) {
+        if (blockId < -1) {
             performMessage.errorMessage("Block Not Selected", "Select the Block!", null, null, null, 0);
             return;
         }

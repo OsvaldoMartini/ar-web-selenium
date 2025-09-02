@@ -608,7 +608,7 @@ public class ARScannedElementScene extends ARScene {
     }
 
     private void stepsInsertManyDTO(ElementSplitDTO processDTO, boolean isMany) {
-        currentBlockId = arScannedElementPane.validateBlockDB("Default Block", this.currentBotJob.getId(), isMany);
+        currentBlockId = arScannedElementPane.validateBlockDB("block", this.currentBotJob.getId(), isMany);
         if (currentBlockId > 0) {
             performDataBase.loadInstructions(currentBotJob.getId(), currentBlockId, -1, "instruction");
             List<InstructionLoad> instruc = performLists.getListInstruction();

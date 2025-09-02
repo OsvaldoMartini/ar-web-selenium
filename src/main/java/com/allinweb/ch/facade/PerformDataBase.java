@@ -272,27 +272,30 @@ public class PerformDataBase {
         return null;
     }
 
-    public List<ParentOperations> loadAllParents(int bot_job_id, int instructionId) {
-        List<ParentOperations> parentList = new ArrayList<>();
+    public ErrorMessage loadAllParents(
+            String tableName,
+            int whereId, // either bot_job_id or home_banking_id
+            int instructionId) {
 
-        String selectSQL =
-                """
-            SELECT
-                parent.name as parent_name,
-                child.actions,
-                child.operation,
-                child.name as child_name,
-                child.id
-            FROM instruction AS child
-            LEFT JOIN instruction AS parent ON child.parent_id = parent.id
-            WHERE child.parent_id = ?
-              AND child.bot_job_id = ?
-            ORDER BY child.id;
-            """;
+        performLists.getListParentOperations().clear();
+
+        String whereColumn = tableName.equals("instruction") ? "bot_job_id" : "home_banking_id";
+        String instructionTable = tableName.equals("instruction") ? "instruction" : "component_instruction";
+
+        String selectSQL = "SELECT " + "    parent.name AS parent_name, "
+                + "    child.actions, "
+                + "    child.operation, "
+                + "    child.name AS child_name, "
+                + "    child.id "
+                + "FROM "
+                + instructionTable + " AS child " + "LEFT JOIN "
+                + instructionTable + " AS parent ON child.parent_id = parent.id " + "WHERE child.parent_id = ? "
+                + "  AND child."
+                + whereColumn + " = ? " + "ORDER BY child.id;";
 
         try (PreparedStatement stmt = getConnection().prepareStatement(selectSQL)) {
             stmt.setInt(1, instructionId); // child.parent_id = ?
-            stmt.setInt(2, bot_job_id); // child.bot_job_id = ?
+            stmt.setInt(2, whereId); // bot_job_id or home_banking_id
 
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
@@ -304,28 +307,23 @@ public class PerformDataBase {
                     parentOper.setOperations(rs.getString("operation"));
                     parentOper.setInstructionId(instructionId);
 
-                    parentList.add(parentOper);
+                    performLists.getListParentOperations().add(parentOper);
                 }
             }
 
-            if (!parentList.isEmpty()) {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .info(String.format(
-                                "Loaded parents for instruction ID %d from botJobId %d", instructionId, bot_job_id));
-            } else {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .warning(String.format(
-                                "No parents found for instruction ID %d in botJobId %d.", instructionId, bot_job_id));
-            }
+            return null; // success
 
         } catch (SQLException e) {
             ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
-                            "Error loading parents for instruction ID %d from botJobId %d. Error: %s",
-                            instructionId, bot_job_id, e.getMessage()));
-        }
+                            "Error loading parents for instruction ID %d in %s=%d. Error: %s",
+                            instructionId, whereColumn, whereId, e.getMessage()));
 
-        return parentList;
+            return new ErrorMessage(
+                    "LoadParents Error",
+                    String.format("Failed to load parents for instruction ID %d", instructionId),
+                    e.getMessage());
+        }
     }
 
     public List<ParentOperations> loadParents(String tableName, int whereId, int instructionId, int parentId) {
@@ -1224,103 +1222,124 @@ public class PerformDataBase {
         }
     }
 
-    public boolean rowsUpdateName(List<InstructionLoad> instructions) {
-        // Build the SQL update statement
-        try (Statement stmt = getConnection().createStatement()) {
-            for (InstructionLoad instruction : instructions) {
+    public ErrorMessage rowsGetUpdateName(
+            String tableName,
+            int whereId, // either bot_job_id or home_banking_id
+            List<ParentOperations> listParents) {
 
-                String updateSQL = "UPDATE instruction SET  "
-                        + " name = '" + instruction.getInstructionName() + "',"
-                        + " actions = '" + instruction.getActions() + "'"
-                        + " WHERE id = " + instruction.getId()
-                        + " and block_id = " + instruction.getBlockId();
+        if (listParents == null || listParents.isEmpty()) {
+            return null; // nothing to do
+        }
 
-                int rowsAffected = stmt.executeUpdate(updateSQL);
-                if (rowsAffected > 0) {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .warning(String.format(
-                                    "RowsUpdateName - InstructionId: %s now have name: %s",
-                                    instruction.getId(), instruction.getInstructionName()));
-                } else {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .warning(String.format(
-                                    "UpdateMoveRowsOrder - No matching record found to update InstructionId: %d and name: %s",
-                                    instruction.getId(), instruction.getInstructionName()));
+        String idColumn = "id";
+        String parentIdColumn = "parent_id";
+        String whereColumn = tableName.equals("instruction") ? "bot_job_id" : "home_banking_id";
+
+        String instructionTable = tableName.equals("instruction") ? "instruction" : "component_instruction";
+        String updateSQL = "UPDATE " + instructionTable + " SET "
+                + "operation = ? "
+                + "WHERE " + idColumn + " = ? AND " + parentIdColumn + " = ? AND " + whereColumn + " = ?";
+
+        try (Connection conn = getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(updateSQL)) {
+
+            conn.setAutoCommit(false);
+
+            for (ParentOperations parent : listParents) {
+                if ("GET".equals(parent.getActions()) || "SET".equals(parent.getActions())) {
+                    pstmt.setString(1, parent.getOperations());
+                    pstmt.setInt(2, parent.getId());
+                    pstmt.setInt(3, parent.getInstructionId());
+                    pstmt.setInt(4, whereId);
+                    pstmt.addBatch();
                 }
             }
-            return true;
-        } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("This Instruction\n cannot be updated.\nError: %s", e.getMessage()));
-        }
-        return false;
-    }
 
-    public boolean rowsGetUpdateName(List<ParentOperations> listParents) {
-        // Build the SQL update statement
-        try (Statement stmt = getConnection().createStatement()) {
+            int[] results = pstmt.executeBatch();
+            conn.commit();
+
+            int batchIndex = 0;
             for (ParentOperations parent : listParents) {
-
                 if ("GET".equals(parent.getActions())) {
-
-                    String updateSQL = "UPDATE instruction SET  "
-                            + " operation = '" + parent.getOperations() + "' "
-                            + " WHERE id = " + parent.getId()
-                            + " and parent_id = " + parent.getInstructionId();
-
-                    int rowsAffected = stmt.executeUpdate(updateSQL);
-                    if (rowsAffected > 0) {
+                    if (results[batchIndex] > 0) {
                         ARLogger.getInstance(PerformDataBase.class)
                                 .warning(String.format(
-                                        "RowsUpdateName - InstructionId: %s now have name: %s",
-                                        parent.getInstructionId(), parent.getName()));
+                                        "RowsUpdateName - InstructionId: %s now has operation: %s",
+                                        parent.getInstructionId(), parent.getOperations()));
                     } else {
                         ARLogger.getInstance(PerformDataBase.class)
                                 .warning(String.format(
-                                        "UpdateMoveRowsOrder - No matching record found to update InstructionId: %d and name: %s",
-                                        parent.getInstructionId(), parent.getName()));
+                                        "No matching record found - InstructionId: %d, operation: %s",
+                                        parent.getInstructionId(), parent.getOperations()));
                     }
+                    batchIndex++;
                 }
             }
-            return true;
+
+            return null; // success
         } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("This Instruction\n cannot be updated.\nError: %s", e.getMessage()));
+            ARLogger.getInstance(PerformDataBase.class).severe("RowsGetUpdateName Error: " + e.getMessage());
+            return new ErrorMessage("RowsGetUpdateName Error", "Failed to update parent operations", e.getMessage());
         }
-        return false;
     }
 
-    public boolean rowsCompUpdateName(List<InstructionLoad> instructions) {
-        // Build the SQL update statement
-        try (Statement stmt = getConnection().createStatement()) {
+    public ErrorMessage rowsUpdateName(
+            String tableName,
+            int whereId, // either bot_job_id or home_banking_id
+            List<InstructionLoad> instructions) {
+
+        if (instructions == null || instructions.isEmpty()) {
+            return null; // nothing to do
+        }
+
+        String idColumn = "id";
+        String blockIdColumn = "block_id";
+        String whereColumn = tableName.equals("instruction") ? "bot_job_id" : "home_banking_id";
+
+        String instructionTable = tableName.equals("instruction") ? "instruction" : "component_instruction";
+        String updateSQL = "UPDATE " + instructionTable + " SET "
+                + "name = ?, "
+                + "actions = ? "
+                + "WHERE " + idColumn + " = ? AND " + blockIdColumn + " = ? AND " + whereColumn + " = ?";
+
+        try (Connection conn = getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(updateSQL)) {
+
+            conn.setAutoCommit(false);
+
             for (InstructionLoad instruction : instructions) {
+                pstmt.setString(1, instruction.getInstructionName());
+                pstmt.setString(2, instruction.getActions());
+                pstmt.setInt(3, instruction.getId());
+                pstmt.setInt(4, instruction.getBlockId());
+                pstmt.setInt(5, whereId);
+                pstmt.addBatch();
+            }
 
-                String updateSQL = "UPDATE component_instruction SET  "
-                        + " name = '" + instruction.getInstructionName() + "',"
-                        + " actions = '" + instruction.getActions() + "'"
-                        + " WHERE id = " + instruction.getId()
-                        + " and block_id = " + instruction.getBlockId();
+            int[] results = pstmt.executeBatch();
+            conn.commit();
 
-                int rowsAffected = stmt.executeUpdate(updateSQL);
-                if (rowsAffected > 0) {
+            for (int i = 0; i < instructions.size(); i++) {
+                InstructionLoad instr = instructions.get(i);
+                if (results[i] > 0) {
                     ARLogger.getInstance(PerformDataBase.class)
                             .warning(String.format(
-                                    "Component Instruction Updated - InstructionId: %s now have name: %s",
-                                    instruction.getId(), instruction.getInstructionName()));
+                                    "Instruction Updated - InstructionId: %s now has name: %s",
+                                    instr.getId(), instr.getInstructionName()));
                 } else {
                     ARLogger.getInstance(PerformDataBase.class)
                             .warning(String.format(
-                                    "Component Instruction Updated - No matching record found to update InstructionId: %d and name: %s",
-                                    instruction.getId(), instruction.getInstructionName()));
+                                    "No matching record found - InstructionId: %d, name: %s",
+                                    instr.getId(), instr.getInstructionName()));
                 }
             }
-            return true;
+
+            return null; // success
         } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
-                            "This Component Instruction \n cannot be updated.\nError: %s", e.getMessage()));
+            ARLogger.getInstance(PerformDataBase.class).severe("Update Instruction Name Error: " + e.getMessage());
+            return new ErrorMessage(
+                    "Update Instruction Name Error", "Failed to update instruction names", e.getMessage());
         }
-        return false;
     }
 
     public ErrorMessage updateMoveRowsOrder(
@@ -1359,9 +1378,10 @@ public class PerformDataBase {
             conn.commit();
 
             return null; // success
-        } catch (SQLException e) {
+        } catch (SQLException error) {
+            ARLogger.getInstance(PerformDataBase.class).severe("Update Move Rows Order Error: " + error.getMessage());
             return new ErrorMessage(
-                    "Update Move Rows Order Error", "Failed to update instruction order numbers", e.getMessage());
+                    "Update Move Rows Order Error", "Failed to update instruction order numbers", error.getMessage());
         }
     }
 

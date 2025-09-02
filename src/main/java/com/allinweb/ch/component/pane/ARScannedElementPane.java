@@ -99,24 +99,20 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    public int validateBlockDB(String blockName, int botJobId, boolean isMany) {
+    public int validateBlockDB(String blockTable, int whereId, boolean isMany) {
 
-        int newBlockID = performActions.createBlockIfNone(blockName, botJobId);
+        int newBlockID = performActions.createBlockIfNone(blockTable, whereId);
         if (newBlockID > 0) {
             refreshBlocks(true);
         }
 
         if (newBlockID > 0) {
             currentBlockId = newBlockID;
-            currentBlockName = blockName;
         } else {
             try {
                 currentBlockId = comboBoxBlocks.getValue().getBlockId();
-                currentBlockName = comboBoxBlocks.getValue().getText();
-
             } catch (Exception error) {
                 currentBlockId = -1;
-                currentBlockName = "Default Block";
             }
 
             if (currentBlockId < 0) {
@@ -675,7 +671,6 @@ public class ARScannedElementPane extends ARPane {
     private BotJobLoadDTO currentBotJob;
 
     private int currentBlockId;
-    private String currentBlockName;
 
     double comboWidth = 200;
 

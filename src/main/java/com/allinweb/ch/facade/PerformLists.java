@@ -75,10 +75,10 @@ public class PerformLists {
     // Quick Lists
     private List<InstructionOperationDTO> instrucOperList = new ArrayList<>();
 
-    // Observable lists
     private List<DatabaseUserDTO> listDatabaseUsers = new ArrayList<>();
     private List<VariableUserDTO> listVariablesUser = new ArrayList<>();
     private List<ComboBoxVars> listWebPageItems = new ArrayList<>();
+    private List<ParentOperations> listParentOperations = new ArrayList<>();
 
     //    private List<BlockOptions> listComboOptions = new ArrayList<>();
 
@@ -476,6 +476,172 @@ public class PerformLists {
         }
     }
 
+    public void updateMemoryInstructionName(String tableName, Integer whereId, List<InstructionLoad> listToUpdate) {
+
+        if (listToUpdate == null || listToUpdate.isEmpty()) {
+            return; // nothing to update
+        }
+
+        try {
+            if ("instruction".equalsIgnoreCase(tableName)) {
+                // Update global listInstruction
+                for (InstructionLoad updateInstr : listToUpdate) {
+                    for (InstructionLoad instr : getListInstruction()) {
+                        if (instr.getId().equals(updateInstr.getId())) {
+                            instr.setName(updateInstr.getInstructionName());
+                            break;
+                        }
+                    }
+                }
+
+                // Update inside BotJobLoadDTO -> BlockLoadDTO -> instructionLoad
+                for (BotJobLoadDTO botJob : getListBotJob()) {
+                    if (botJob.getId().equals(whereId)) { // botJobId
+                        if (botJob.getBlockLoadDTOList() != null) {
+                            for (BlockLoadDTO block : botJob.getBlockLoadDTOList()) {
+                                if (block.getInstructionLoad() != null) {
+                                    for (InstructionLoad updateInstr : listToUpdate) {
+                                        for (InstructionLoad instr : block.getInstructionLoad()) {
+                                            if (instr.getId().equals(updateInstr.getId())) {
+                                                instr.setName(updateInstr.getInstructionName());
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+            } else if ("component_instruction".equalsIgnoreCase(tableName)) {
+                // Update global listInstructionComp
+                for (InstructionLoad updateInstr : listToUpdate) {
+                    for (InstructionLoad instr : getListInstructionComp()) {
+                        if (instr.getId().equals(updateInstr.getId())) {
+                            instr.setName(updateInstr.getInstructionName());
+                            break;
+                        }
+                    }
+                }
+
+                // Update inside BotJobLoadDTO component blocks
+                for (BotJobLoadDTO botJob : getListBotJobComp()) {
+                    if (botJob.getHomeBankingId().equals(whereId)) { // homeBankingId
+                        if (botJob.getBlockLoadDTOList() != null) {
+                            for (BlockLoadDTO block : botJob.getBlockLoadDTOList()) {
+                                if (block.getInstructionLoad() != null) {
+                                    for (InstructionLoad updateInstr : listToUpdate) {
+                                        for (InstructionLoad instr : block.getInstructionLoad()) {
+                                            if (instr.getId().equals(updateInstr.getId())) {
+                                                instr.setName(updateInstr.getInstructionName());
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+            } else {
+                throw new IllegalArgumentException("Invalid tableName: " + tableName);
+            }
+
+        } catch (Exception error) {
+            ARLogger.getInstance(PerformLists.class)
+                    .severe("Error: Memory Update failed for 'updateMemoryInstructionName': " + error.getMessage());
+        }
+    }
+
+    public void updateMemoryParentOpenName(String tableName, Integer whereId, List<ParentOperations> listToUpdate) {
+
+        if (listToUpdate == null || listToUpdate.isEmpty()) {
+            return; // nothing to update
+        }
+
+        try {
+            if ("instruction".equalsIgnoreCase(tableName)) {
+                // Update in global listInstruction
+                for (ParentOperations updateInstr : listToUpdate) {
+                    for (InstructionLoad instr : getListInstruction()) {
+                        if (instr.getId().equals(updateInstr.getId())
+                                && instr.getParentId() != null
+                                && instr.getParentId().equals(updateInstr.getInstructionId())) {
+                            instr.setOperation(updateInstr.getOperations());
+                            break;
+                        }
+                    }
+                }
+
+                // Update inside BotJobLoadDTO -> BlockLoadDTO -> instructionLoad
+                for (BotJobLoadDTO botJob : getListBotJob()) {
+                    if (botJob.getId().equals(whereId)) { // botJobId
+                        if (botJob.getBlockLoadDTOList() != null) {
+                            for (BlockLoadDTO block : botJob.getBlockLoadDTOList()) {
+                                if (block.getInstructionLoad() != null) {
+                                    for (ParentOperations updateInstr : listToUpdate) {
+                                        for (InstructionLoad instr : block.getInstructionLoad()) {
+                                            if (instr.getId().equals(updateInstr.getId())
+                                                    && instr.getParentId() != null
+                                                    && instr.getParentId().equals(updateInstr.getInstructionId())) {
+                                                instr.setOperation(updateInstr.getOperations());
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+            } else if ("component_instruction".equalsIgnoreCase(tableName)) {
+                // Update in global listInstructionComp
+                for (ParentOperations updateInstr : listToUpdate) {
+                    for (InstructionLoad instr : getListInstructionComp()) {
+                        if (instr.getId().equals(updateInstr.getId())
+                                && instr.getParentId() != null
+                                && instr.getParentId().equals(updateInstr.getInstructionId())) {
+                            instr.setOperation(updateInstr.getOperations());
+                            break;
+                        }
+                    }
+                }
+
+                // Update inside BotJobLoadDTO component blocks
+                for (BotJobLoadDTO botJob : getListBotJobComp()) {
+                    if (botJob.getHomeBankingId().equals(whereId)) { // homeBankingId
+                        if (botJob.getBlockLoadDTOList() != null) {
+                            for (BlockLoadDTO block : botJob.getBlockLoadDTOList()) {
+                                if (block.getInstructionLoad() != null) {
+                                    for (ParentOperations updateInstr : listToUpdate) {
+                                        for (InstructionLoad instr : block.getInstructionLoad()) {
+                                            if (instr.getId().equals(updateInstr.getId())
+                                                    && instr.getParentId() != null
+                                                    && instr.getParentId().equals(updateInstr.getInstructionId())) {
+                                                instr.setOperation(updateInstr.getOperations());
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+            } else {
+                throw new IllegalArgumentException("Invalid tableName: " + tableName);
+            }
+
+        } catch (Exception error) {
+            ARLogger.getInstance(PerformLists.class)
+                    .severe("Error: Memory Update failed for 'updateMemoryParentOpenName': " + error.getMessage());
+        }
+    }
+
     // Update Block Order Numbers
     public void updateMemorySwiftBlockOrder(String tableName, Integer whereId, List<BlockLoadDTO> mappedBlocks) {
         try {
@@ -818,5 +984,29 @@ public class PerformLists {
                 block.getInstructionLoad().sort(Comparator.comparing(InstructionLoad::getInstructionOrderNumber));
             }
         }
+    }
+
+    /**
+     * Clears all internal lists in PerformLists to reset the state.
+     */
+    public void clearAllLists() {
+        if (listHomeBanking != null) listHomeBanking.clear();
+        if (listHomeUrl != null) listHomeUrl.clear();
+        if (quickBotJobs != null) quickBotJobs.clear();
+        if (listBotJob != null) listBotJob.clear();
+        if (listBotJobComp != null) listBotJobComp.clear();
+        if (listBlock != null) listBlock.clear();
+        if (listBlockComp != null) listBlockComp.clear();
+        if (listInstruction != null) listInstruction.clear();
+        if (listInstructionComp != null) listInstructionComp.clear();
+        if (listVariable != null) listVariable.clear();
+        if (listVariableComp != null) listVariableComp.clear();
+        if (listReference != null) listReference.clear();
+        if (listReferenceComp != null) listReferenceComp.clear();
+        if (allActions != null) allActions.clear();
+        if (instrucOperList != null) instrucOperList.clear();
+        if (listDatabaseUsers != null) listDatabaseUsers.clear();
+        if (listVariablesUser != null) listVariablesUser.clear();
+        if (listWebPageItems != null) listWebPageItems.clear();
     }
 }

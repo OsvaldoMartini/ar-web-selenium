@@ -49,18 +49,16 @@ public class ARElementValueScene extends ARScene {
         this.varName = varName;
         this.instructionType = instructionType;
 
-        arElementValuePane.initialize(
-                rowMoveDTO, varId, varValue, instructionId, instructionName, varName, instructionType);
+        if (!firstLoad) {
+            arElementValuePane.initialize(
+                    rowMoveDTO, varId, varValue, instructionId, instructionName, varName, instructionType);
+        }
     }
 
     private Stage modalStage;
     private Scene modalScene;
 
-    private static ARElementValuePane arElementValuePane;
-
-    static {
-        arElementValuePane = ARElementValuePane.getInstance();
-    }
+    private static ARElementValuePane arElementValuePane = ARElementValuePane.getInstance();
 
     private static final Double SCENE_HEIGHT = 600D;
     private static final Double SCENE_WIDTH = 600D;
@@ -76,6 +74,7 @@ public class ARElementValueScene extends ARScene {
     private String instructionName;
     private String varName;
     private String instructionType;
+    private boolean firstLoad = true;
 
     @Override
     public IARPane buildPane() {
@@ -100,6 +99,8 @@ public class ARElementValueScene extends ARScene {
     }
 
     public void showModal() {
+
+        firstLoad = false;
 
         arElementValuePane.initialize(
                 rowMoveDTO, varId, varValue, instructionId, instructionName, varName, instructionType);
