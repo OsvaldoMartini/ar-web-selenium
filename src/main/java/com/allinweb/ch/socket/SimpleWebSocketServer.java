@@ -630,17 +630,19 @@ public class SimpleWebSocketServer {
                     if (errorMessage == null) {
                         final int finalWhereId = whereId;
 
-                        BotJobLoadDTO botJobLoad = instTable.equals("instruction")
+                        List<BlockLoadDTO> blockLoad = instTable.equals("instruction")
                                 ? performLists.getListBotJob().stream()
-                                        .filter(b -> Objects.equals(b.getBotJobId(), finalWhereId))
+                                        .filter(b -> Objects.equals(b.getId(), finalWhereId))
                                         .findFirst()
-                                        .orElse(null)
+                                        .map(BotJobLoadDTO::getBlockLoadDTOList)
+                                        .orElse(Collections.emptyList())
                                 : performLists.getListBotJobComp().stream()
                                         .filter(b -> Objects.equals(b.getHomeBankingId(), finalWhereId))
                                         .findFirst()
-                                        .orElse(null);
+                                        .map(BotJobLoadDTO::getBlockLoadDTOList)
+                                        .orElse(Collections.emptyList());
 
-                        errorMessage = performDataBase.reorderInstructionsPerBotJob(botJobLoad, instTable, true);
+                        errorMessage = performDataBase.reorderInstructionsListBlock(blockLoad, instTable, true);
                     }
 
                     // calls perform list block update
@@ -1041,17 +1043,26 @@ public class SimpleWebSocketServer {
                         if (errorMessage == null) {
                             final int finalWhereId = whereId;
 
-                            BotJobLoadDTO botJobLoad = instTable.equals("instruction")
+                            List<BlockLoadDTO> blockLoad = instTable.equals("instruction")
                                     ? performLists.getListBotJob().stream()
-                                            .filter(b -> Objects.equals(b.getBotJobId(), finalWhereId))
+                                            .filter(b -> Objects.equals(b.getId(), finalWhereId))
                                             .findFirst()
-                                            .orElse(null)
+                                            .map(b -> b.getBlockLoadDTOList().stream()
+                                                    .filter(block ->
+                                                            Objects.equals(block.getId(), toDelete.getBlockId()))
+                                                    .toList())
+                                            .orElse(Collections.emptyList())
                                     : performLists.getListBotJobComp().stream()
                                             .filter(b -> Objects.equals(b.getHomeBankingId(), finalWhereId))
                                             .findFirst()
-                                            .orElse(null);
+                                            .map(b -> b.getBlockLoadDTOList().stream()
+                                                    .filter(block ->
+                                                            Objects.equals(block.getId(), toDelete.getBlockId()))
+                                                    .toList())
+                                            .orElse(Collections.emptyList());
 
-                            errorMessage = performDataBase.reorderInstructionsPerBotJob(botJobLoad, instTable, true);
+                            // Only Need the Block I am Current Working
+                            errorMessage = performDataBase.reorderInstructionsListBlock(blockLoad, instTable, true);
                         }
 
                         // calls perform list block update

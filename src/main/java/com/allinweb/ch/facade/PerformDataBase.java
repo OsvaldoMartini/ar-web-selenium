@@ -1840,7 +1840,8 @@ public class PerformDataBase {
         }
     }
 
-    public ErrorMessage reorderInstructionsPerBotJob(BotJobLoadDTO botJob, String tableName, boolean forceOrder) {
+    public ErrorMessage reorderInstructionsListBlock(
+            List<BlockLoadDTO> blockLoad, String tableName, boolean forceOrder) {
         final int BATCH_SIZE = 100;
         int count = 0;
 
@@ -1851,9 +1852,9 @@ public class PerformDataBase {
 
             conn.setAutoCommit(false); // Start transaction
 
-            // iterate over each block in the bot job
-            if (botJob.getBlockLoadDTOList() != null) {
-                for (BlockLoadDTO block : botJob.getBlockLoadDTOList()) {
+            // iterate over each block
+            if (blockLoad != null) {
+                for (BlockLoadDTO block : blockLoad) {
                     int orderNumber = 1; // restart order per block
 
                     if (block.getInstructionLoad() == null) {
