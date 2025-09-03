@@ -6,6 +6,7 @@ import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARElementValueScene;
 import com.allinweb.ch.component.scene.ARNewCommandScene;
 import com.allinweb.ch.control.ARComponentBuilder;
+import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
@@ -58,6 +59,7 @@ public class ARNewCommandPane extends ARPane {
     private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static final PerformMessage performMessage = PerformMessage.getInstance();
     private static final PerformLists performLists = PerformLists.getInstance();
+    private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
     private static final ARElementValueScene arElementValueScene = ARElementValueScene.getInstance();
 
@@ -2547,7 +2549,7 @@ public class ARNewCommandPane extends ARPane {
                     ? rowMoveDTO.getHomeBankingId()
                     : rowMoveDTO.getBotJobId();
             try {
-                List<InstructionLoad> excelDataGoto = performDataBase.loadExcelGotoBlock(whereId, tableName);
+                List<InstructionLoad> excelDataGoto = performDBEngine.loadExcelGotoBlock(whereId, tableName);
 
                 // THIS IS VERY IMPORTANT BECAUSE JUST ALLOWS ONLY ONE "EXCEL GOTO" PER BOT JOB
                 if (!excelDataGoto.isEmpty()) {
@@ -2645,7 +2647,7 @@ public class ARNewCommandPane extends ARPane {
                 }
 
             } else {
-                errorMessage = performDataBase.loadCompleteJobs(rowMoveDTO.getBotJobId());
+                errorMessage = performDBEngine.loadCompleteJobs(rowMoveDTO.getBotJobId());
 
                 if (errorMessage != null) {
                     performMessage.errorMessage(

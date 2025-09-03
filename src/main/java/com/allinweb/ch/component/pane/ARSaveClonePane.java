@@ -6,6 +6,7 @@ import com.allinweb.ch.component.model.HomeUrlDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
 import com.allinweb.ch.control.ARComponentBuilder;
+import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
@@ -56,10 +57,10 @@ public class ARSaveClonePane extends ARPane {
         }
 
         if (performLists.getListHomeBanking().isEmpty()) {
-            performDataBase.loadHomeBanking(null);
+            performDBEngine.loadHomeBanking(null);
         }
         if (performLists.getListHomeUrl().isEmpty()) {
-            performDataBase.loadHomeUrls(null);
+            performDBEngine.loadHomeUrls(null);
         }
     }
 
@@ -67,6 +68,7 @@ public class ARSaveClonePane extends ARPane {
     private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
     private static final PerformMessage performMessage = PerformMessage.getInstance();
     private static final PerformLists performLists = PerformLists.getInstance();
+    private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
     private static final ARNewHomeBankingScene arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
     private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
@@ -226,10 +228,10 @@ public class ARSaveClonePane extends ARPane {
                 return;
             }
             if (performLists.getListHomeBanking().isEmpty()) {
-                performDataBase.loadHomeBanking(null);
+                performDBEngine.loadHomeBanking(null);
             }
             if (performLists.getListHomeUrl().isEmpty()) {
-                performDataBase.loadHomeUrls(null);
+                performDBEngine.loadHomeUrls(null);
             }
 
             HomeBankingLoadDTO homeBank = performLists.getFirstHomeBanking();
@@ -244,7 +246,7 @@ public class ARSaveClonePane extends ARPane {
 
         refreshEnvsButton.setOnAction(e -> {
             // Reload from performLists after reloading from DB
-            performDataBase.loadHomeUrls(null);
+            performDBEngine.loadHomeUrls(null);
 
             // If homeURLChoiceBox was initialized, refresh its items
             if (homeURLChoiceBox != null) {
@@ -312,7 +314,7 @@ public class ARSaveClonePane extends ARPane {
 
                 Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
                 if (performLists.getListHomeUrl().isEmpty()) {
-                    performDataBase.loadHomeUrls(null);
+                    performDBEngine.loadHomeUrls(null);
                 }
 
                 List<HomeUrlDTO> filteredHomeUrl = performLists.getHomeUrlsByBankId(

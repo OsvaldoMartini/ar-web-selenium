@@ -11,6 +11,7 @@ import com.allinweb.ch.component.scene.ARSaveCloneScene;
 import com.allinweb.ch.component.scene.ARViewBotJobScene;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.driver.ARWebDriver;
+import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
@@ -85,6 +86,7 @@ public class ARMainPane extends ARPane {
     private static final ARInfoScene arInfoScene;
     private static final ARPropertyManager arPropertyManager;
     private static final PerformLists performLists;
+    private static final PerformDBEngine performDBEngine;
     private static final PerformDataBase performDataBase;
     private static final PerformMessage performMessage;
     private static final ARConfigurationScene arConfigurationScene;
@@ -109,6 +111,7 @@ public class ARMainPane extends ARPane {
         arPropertyManager = ARPropertyManager.getInstance();
         arNewBotJobScene = ARNewBotJobScene.getInstance();
         performLists = PerformLists.getInstance();
+        performDBEngine = PerformDBEngine.getInstance();
         performDataBase = PerformDataBase.getInstance();
         performMessage = PerformMessage.getInstance();
         arConfigurationScene = ARConfigurationScene.getInstance();
@@ -244,7 +247,7 @@ public class ARMainPane extends ARPane {
 
         newBotJobButton.setOnMouseClicked(e -> {
             if (performLists.getListHomeUrl().isEmpty()) {
-                performDataBase.loadHomeUrls(null);
+                performDBEngine.loadHomeUrls(null);
             }
 
             if (!performLists.getListHomeUrl().isEmpty()) {
@@ -628,7 +631,7 @@ public class ARMainPane extends ARPane {
 
         // IN CASE the ADDED New Bot Job tomREfresh Main List as Observable
         if (performLists.getListHomeUrl().isEmpty()) {
-            performDataBase.loadHomeUrls(null);
+            performDBEngine.loadHomeUrls(null);
         }
 
         if (performLists.getQuickBotJobs().isEmpty()) {
@@ -641,7 +644,7 @@ public class ARMainPane extends ARPane {
 
         BotJobLoadDTO botJobLoad = performLists.getQuickBotJobById(selecBotJobDTO.getId());
 
-        //        performDataBase.loadHomeBanking(selecBotJobDTO.getHomeBankingId());
+        //         performDBEngine.loadHomeBanking(selecBotJobDTO.getHomeBankingId());
 
         if (botJobLoad != null && botJobLoad.getBlockLoadDTOList() == null) {
             botJobLoad.setBlockLoadDTOList(performLists.getListBlock());

@@ -94,6 +94,7 @@ public class ARConfigurationPane extends ARPane {
     private static final ARNewHomeBankingScene arNewHomeBankingScene;
     private static final PerformMessage performMessage;
     private static final PerformLists performLists;
+    private static final PerformDBEngine performDBEngine;
     private static final PerformDataBase performDataBase;
     private static final PerformBackup performBackup;
     private static final PerformInitializer performInitializer;
@@ -117,6 +118,7 @@ public class ARConfigurationPane extends ARPane {
         performMessage = PerformMessage.getInstance();
         performLists = PerformLists.getInstance();
         performDataBase = PerformDataBase.getInstance();
+        performDBEngine = PerformDBEngine.getInstance();
         arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
         performBackup = PerformBackup.getInstance();
         performInitializer = PerformInitializer.getInstance();
@@ -257,7 +259,7 @@ public class ARConfigurationPane extends ARPane {
         //                PerformDataBase..getEntityList(HomeBankingDTO.class);
 
         if (performDataBase.isConnDBWorks()) {
-            performDataBase.loadHomeBanking(null);
+            performDBEngine.loadHomeBanking(null);
         }
         homeBankingListView = new ListView<>(FXCollections.observableArrayList(performLists.getListHomeBanking()));
         homeBankingListView.setCellFactory(new ARCellFactory<>(HomeBankingListCell.class)::call);
@@ -920,8 +922,8 @@ public class ARConfigurationPane extends ARPane {
 
                     performLists.clearAllLists();
 
-                    performDataBase.loadHomeBanking(null);
-                    performDataBase.loadHomeUrls(null);
+                    performDBEngine.loadHomeBanking(null);
+                    performDBEngine.loadHomeUrls(null);
                     performDataBase.loadQuickBotJobs();
                     viewBotJobListView.setItems(FXCollections.observableArrayList(performLists.getQuickBotJobs()));
 
@@ -1094,8 +1096,8 @@ public class ARConfigurationPane extends ARPane {
 
             performLists.clearAllLists();
 
-            performDataBase.loadHomeBanking(null);
-            performDataBase.loadHomeUrls(null);
+            performDBEngine.loadHomeBanking(null);
+            performDBEngine.loadHomeUrls(null);
             performDataBase.loadQuickBotJobs();
             viewBotJobListView.setItems(FXCollections.observableArrayList(performLists.getQuickBotJobs()));
 

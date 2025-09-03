@@ -8,6 +8,7 @@ import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
 import com.allinweb.ch.component.scene.ARViewBotJobScene;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.driver.ARWebDriver;
+import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
@@ -65,6 +66,7 @@ public class ARNewBotJobPane extends ARPane {
 
     private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
     private static final PerformLists performLists = PerformLists.getInstance();
+    private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
     private static final PerformMessage performMessage = PerformMessage.getInstance();
     private static final ARNewHomeBankingScene arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
@@ -245,7 +247,7 @@ public class ARNewBotJobPane extends ARPane {
 
         refreshEnvsButton.setOnAction(e -> {
             // Reload from performLists after reloading from DB
-            performDataBase.loadHomeUrls(null);
+            performDBEngine.loadHomeUrls(null);
 
             // If homeURLChoiceBox was initialized, refresh its items
             if (homeURLChoiceBox != null) {
@@ -260,8 +262,8 @@ public class ARNewBotJobPane extends ARPane {
         this.arViewBotJobScene = arViewBotJobScene;
         this.arWebDriver = arWebDriver;
 
-        performDataBase.loadHomeBanking(null);
-        performDataBase.loadHomeUrls(null);
+        performDBEngine.loadHomeBanking(null);
+        performDBEngine.loadHomeUrls(null);
     }
 
     private void launchBotJobCreation() {

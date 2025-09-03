@@ -3,6 +3,7 @@ package com.allinweb.ch.socket;
 import com.allinweb.ch.component.model.*;
 import com.allinweb.ch.component.scene.ARExcelFileScene;
 import com.allinweb.ch.component.scene.ARSaveComponentScene;
+import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
@@ -47,6 +48,7 @@ public class SimpleWebSocketServer {
 
     private static WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static final PerformLists performLists = PerformLists.getInstance();
+    private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
     private static final PerformMessage performMessage = PerformMessage.getInstance();
     private static ARExcelFileScene arExcelFileScene = ARExcelFileScene.getInstance();
@@ -1279,7 +1281,7 @@ public class SimpleWebSocketServer {
 
         if (!alreadySentMgsSocket && (sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
             if (performLists.getListBotJob().isEmpty()) {
-                errorMessage = performDataBase.loadCompleteJobs(botJobIdTask);
+                errorMessage = performDBEngine.loadCompleteJobs(botJobIdTask);
                 if (errorMessage != null) {
                     performMessage.errorMessage(
                             errorMessage.getErrorTitle(),
@@ -1376,7 +1378,7 @@ public class SimpleWebSocketServer {
             }
 
             if (errorMessage == null) {
-                errorMessage = performDataBase.loadCompleteJobs(blockSplitDTO.getBotJobId());
+                errorMessage = performDBEngine.loadCompleteJobs(blockSplitDTO.getBotJobId());
             }
 
             if (errorMessage == null && !updatedBlock.isEmpty()) {
@@ -1584,7 +1586,7 @@ public class SimpleWebSocketServer {
         }
         if (errorMessage == null) {
 
-            errorMessage = performDataBase.loadCompleteJobs(blockDetailsDTO.getBotJobId());
+            errorMessage = performDBEngine.loadCompleteJobs(blockDetailsDTO.getBotJobId());
             if (errorMessage != null) {
                 performMessage.errorMessage(
                         errorMessage.getErrorTitle(),

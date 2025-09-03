@@ -6,10 +6,7 @@ import com.allinweb.ch.component.pane.ARScannedElementPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.driver.ARWebDriver;
-import com.allinweb.ch.facade.PerformActions;
-import com.allinweb.ch.facade.PerformDataBase;
-import com.allinweb.ch.facade.PerformLists;
-import com.allinweb.ch.facade.PerformMessage;
+import com.allinweb.ch.facade.*;
 import com.allinweb.ch.persistence.TargetElement;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.*;
@@ -85,6 +82,7 @@ public class ARScannedElementScene extends ARScene {
 
     private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static final PerformLists performLists = PerformLists.getInstance();
+    private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
     private static final ARScannedElementPane arScannedElementPane = ARScannedElementPane.getInstance();
     private static final ARWebDriver arWebDriver = ARWebDriver.getInstance();
@@ -869,7 +867,7 @@ public class ARScannedElementScene extends ARScene {
     }
 
     public void updateBotJobTasks(int currentBotJobId) {
-        ErrorMessage errorMessage = performDataBase.loadCompleteJobs(currentBotJobId);
+        ErrorMessage errorMessage = performDBEngine.loadCompleteJobs(currentBotJobId);
         if (errorMessage != null) {
             performMessage.errorMessage(
                     errorMessage.getErrorTitle(),

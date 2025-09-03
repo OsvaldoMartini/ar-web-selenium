@@ -4,6 +4,7 @@ import com.allinweb.ch.component.model.*;
 import com.allinweb.ch.component.pane.ARNewCommandPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
+import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.util.ARLogger;
@@ -312,6 +313,7 @@ public class ARNewCommandScene extends ARScene {
     public RowMoveDTO rowMoveDTO;
 
     private static final PerformMessage performMessage = PerformMessage.getInstance();
+    private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
     private static final ARNewCommandPane arNewCommandPane = ARNewCommandPane.getInstance();
 
@@ -354,7 +356,7 @@ public class ARNewCommandScene extends ARScene {
                     ? rowMoveDTO.getHomeBankingId()
                     : rowMoveDTO.getBotJobId();
             try {
-                List<InstructionLoad> excelDataGoto = performDataBase.loadExcelGotoBlock(whereId, tableName);
+                List<InstructionLoad> excelDataGoto = performDBEngine.loadExcelGotoBlock(whereId, tableName);
 
                 if (!excelDataGoto.isEmpty()) {
                     rowMoveDTO.setType("EDIT_OPERATION");

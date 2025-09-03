@@ -6,6 +6,7 @@ import com.allinweb.ch.component.model.FormatOption;
 import com.allinweb.ch.component.model.InstructionLoad;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.control.ARComponentBuilder;
+import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
@@ -92,6 +93,7 @@ public class ARExcelFilePane extends ARPane {
 
     private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
     private static final PerformLists performLists = PerformLists.getInstance();
+    private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
     private static final PerformMessage performMessage = PerformMessage.getInstance();
     private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
@@ -450,7 +452,7 @@ public class ARExcelFilePane extends ARPane {
 
         if ((sessionId != null && sessionId.matches(".*botJobTasks.*"))) {
             if (performLists.getListBotJob().isEmpty()) {
-                errorMessage = performDataBase.loadCompleteJobs(blockExcelDTO.getBotJobId());
+                errorMessage = performDBEngine.loadCompleteJobs(blockExcelDTO.getBotJobId());
 
                 if (errorMessage != null) {
                     performMessage.errorMessage(

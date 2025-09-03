@@ -46,9 +46,6 @@ public class ARWebSocketServerIP {
     private ServerContainer wsContainer;
     private int boundPort;
 
-    //    private static final ARLogger logger;
-    private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
-
     /**
      * Starts the Jetty WebSocket server.
      * Determines the port and bind address, then initializes and starts Jetty.

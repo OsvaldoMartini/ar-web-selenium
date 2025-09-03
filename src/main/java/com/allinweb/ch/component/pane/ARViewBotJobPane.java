@@ -11,7 +11,7 @@ import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.*;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.control.ARComponentBuilder;
-import com.allinweb.ch.driver.ARWebDriver;
+import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
@@ -93,8 +93,8 @@ public class ARViewBotJobPane extends ARPane {
     private static final ARScannedElementScene arScannedElementScene = ARScannedElementScene.getInstance();
     private static final ARNewCommandScene arNewCommandScene = ARNewCommandScene.getInstance();
     private static final ARElementValueScene arElementValueScene = ARElementValueScene.getInstance();
-    private static final ARWebDriver arWebDriver = ARWebDriver.getInstance();
     private static final PerformLists performLists = PerformLists.getInstance();
+    private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
     private static final PerformMessage performMessage = PerformMessage.getInstance();
     private static final ARNewHomeBankingScene arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
@@ -228,7 +228,7 @@ public class ARViewBotJobPane extends ARPane {
 
     private void refreshGrids() {
 
-        ErrorMessage errorMessage = performDataBase.loadCompleteJobs(selectedBotJob.getId());
+        ErrorMessage errorMessage = performDBEngine.loadCompleteJobs(selectedBotJob.getId());
 
         if (errorMessage != null) {
             performMessage.errorMessage(
@@ -294,7 +294,7 @@ public class ARViewBotJobPane extends ARPane {
 
     private void buildViewComponent() {
         if (performLists.getListBotJob().isEmpty()) {
-            ErrorMessage errorMessage = performDataBase.loadCompleteJobs(selectedBotJob.getId());
+            ErrorMessage errorMessage = performDBEngine.loadCompleteJobs(selectedBotJob.getId());
             if (errorMessage != null) {
                 performMessage.errorMessage(
                         errorMessage.getErrorTitle(),
@@ -667,7 +667,7 @@ public class ARViewBotJobPane extends ARPane {
     public void initUIBehaviour() {
         refreshEnvsButton.setOnAction(e -> {
             // Reload from performLists after reloading from DB
-            performDataBase.loadHomeUrls(null);
+            performDBEngine.loadHomeUrls(null);
 
             // If homeURLChoiceBox was initialized, refresh its items
             if (homeURLChoiceBox != null) {
@@ -698,10 +698,10 @@ public class ARViewBotJobPane extends ARPane {
                 return;
             }
             if (performLists.getListHomeBanking().isEmpty()) {
-                performDataBase.loadHomeBanking(null);
+                performDBEngine.loadHomeBanking(null);
             }
             if (performLists.getListHomeUrl().isEmpty()) {
-                performDataBase.loadHomeUrls(null);
+                performDBEngine.loadHomeUrls(null);
             }
 
             HomeBankingLoadDTO homeBank = performLists.getFirstHomeBanking();
@@ -823,7 +823,7 @@ public class ARViewBotJobPane extends ARPane {
                     performDataBase.loadBlocks(selectedBotJob.getId(), selectedBotJob.getName(), "block");
                 }
 
-                ErrorMessage errorMessage = performDataBase.loadAllActionsPerBlock(performLists.getListBlock());
+                ErrorMessage errorMessage = performDBEngine.loadAllActionsPerBlock(performLists.getListBlock());
 
                 if (errorMessage != null) {
                     performMessage.errorMessage(
@@ -1157,9 +1157,9 @@ public class ARViewBotJobPane extends ARPane {
 
     private void executeScannerTask() {
 
-        ErrorMessage errorMessage = performDataBase.loadHomeBanking(selectedBotJob.getHomeBankingId());
+        ErrorMessage errorMessage = performDBEngine.loadHomeBanking(selectedBotJob.getHomeBankingId());
         if (errorMessage == null) {
-            errorMessage = performDataBase.loadHomeUrls(selectedBotJob.getHomeBankingId());
+            errorMessage = performDBEngine.loadHomeUrls(selectedBotJob.getHomeBankingId());
         }
 
         if (errorMessage != null) {

@@ -1034,7 +1034,7 @@ public class PerformLists {
             }
         }
 
-        // Re-sort each block’s instructions by instructionOrderNumber
+        // Re-sort each blocks instructions by instructionOrderNumber
         for (BlockLoadDTO block : blockList) {
             if (block.getInstructionLoad() != null) {
                 block.getInstructionLoad().sort(Comparator.comparing(InstructionLoad::getInstructionOrderNumber));

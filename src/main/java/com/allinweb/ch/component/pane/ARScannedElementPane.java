@@ -17,6 +17,7 @@ import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
+import io.opentelemetry.api.internal.StringUtils;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
@@ -100,8 +101,7 @@ public class ARScannedElementPane extends ARPane {
     }
 
     public int validateBlockDB(String blockTable, int whereId, boolean isMany) {
-
-        int newBlockID = performActions.createBlockIfNone(blockTable, whereId);
+        int newBlockID = createBlockIfNone(blockTable, whereId);
         if (newBlockID > 0) {
             refreshBlocks(true);
         }
@@ -663,14 +663,16 @@ public class ARScannedElementPane extends ARPane {
 
     public static TargetElement targetSelected = new TargetElement();
 
-    private static File baseLogFile = null;
     private static SimpleDateFormat dateFormatter;
 
     private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
 
+    private static String excelPath = null;
+    private static String currentBotJobName = null;
+    private static File baseLogFile = null;
     private BotJobLoadDTO currentBotJob;
-
     private int currentBlockId;
+    private int executeSpecificBlock;
 
     double comboWidth = 200;
 
@@ -764,6 +766,7 @@ public class ARScannedElementPane extends ARPane {
     private static final ARScannedElementScene arScannedElementScene = ARScannedElementScene.getInstance();
     private static final PerformCloneLoad performCloneLoad = PerformCloneLoad.getInstance();
     private static final PerformLists performLists = PerformLists.getInstance();
+    private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
     private static final PerformActions performActions = PerformActions.getInstance();
     private static final PerformMessage performMessage = PerformMessage.getInstance();
@@ -827,6 +830,12 @@ public class ARScannedElementPane extends ARPane {
         performActions.initialize(arPriorities);
         performActions.setCurrentDriver(currentARWebDriver.getCurrentDriver());
 
+        if (!openWebDriver(false)) {
+            arScannedElementScene.closeWebDrivers();
+            arScannedElementScene.closeModal();
+            return;
+        }
+
         HomeUrlDTO homeUrlDTO = performLists.getHomeUrlByBankId(
                 this.currentBotJob.getHomeBankingId(), this.currentBotJob.getHomeUrlId());
 
@@ -852,12 +861,6 @@ public class ARScannedElementPane extends ARPane {
             //            Platform.runLater(() -> refreshBlocks(false));
 
             Platform.runLater(() -> refreshGrids());
-
-            if (!openWebDriver(false)) {
-                arScannedElementScene.closeWebDrivers();
-                arScannedElementScene.closeModal();
-                return;
-            }
 
             componentBox.getChildren().clear();
             componentBox.getChildren().addAll(this.webView);
@@ -1565,7 +1568,39 @@ public class ARScannedElementPane extends ARPane {
             setInterceptBotJob(false);
             isJobRunning.set(false);
 
-            performDataBase.loadCompleteJobs(this.currentBotJob.getId());
+            try {
+                excelPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
+                baseLogFile = new File(arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG)
+                        + ARConstants.FILE_NAME_SCANNER_BASE_LOG);
+            } catch (Exception error) {
+                ARLogger.getInstance(ARScannedElementPane.class)
+                        .severe("Error Defining Excel or BaseLog File: " + error.getMessage());
+            }
+
+            executeSpecificBlock = comboBoxBlocks.getValue().getWhereId(); // Start in a specific Block/UseCase
+            performDBEngine.loadCompleteJobs(this.currentBotJob.getId());
+            if (performLists.getListBotJob().isEmpty()) {
+                ARLogger.getInstance(ARScannedElementPane.class)
+                        .severe("Cannot find Bot Jobs with this Id:" + this.currentBotJob.getId());
+            }
+            HomeBankingLoadDTO homeBanking = performLists.getHomeBankingById(this.currentBotJob.getHomeBankingId());
+            if (homeBanking == null || StringUtils.isNullOrEmpty(homeBanking.getUrl())) {
+                ARLogger.getInstance(ARScannedElementPane.class)
+                        .severe("Cannot find Home Banking Environment Id:" + this.currentBotJob.getHomeBankingId());
+            }
+
+            currentBotJob = performLists.getListBotJob().get(0);
+            currentBotJob.setHomeBankingLoadDTO(homeBanking);
+            HomeUrlDTO homeUrlDTO =
+                    performLists.getHomeUrlByBankId(currentBotJob.getHomeBankingId(), currentBotJob.getHomeUrlId());
+
+            if (homeUrlDTO != null) {
+                currentBotJob.setHomeUrlId(homeUrlDTO.getId());
+                homeBanking.setUrl(homeUrlDTO.getUrl());
+            }
+
+            currentBotJobName = currentBotJob.getName();
+            excelPath = excelPath + "\\" + currentBotJobName + ".xlsx";
 
             // Set all instructions' executed field to false
             if (!performLists.getListBotJob().isEmpty()) {
@@ -2206,38 +2241,24 @@ public class ARScannedElementPane extends ARPane {
                     performActions.getCurrentDriver(), Duration.ofSeconds(Integer.parseInt(interactionTimeout)));
         }
 
-        try {
-            baseLogFile = new File(
-                    arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG) + ARConstants.FILE_NAME_SCANNER_BASE_LOG);
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
-        }
+        Labels.initializeLabelsInSpecLang("en");
+        Properties labelsValue = Labels.labelsValue;
 
-        //        performDataBase.loadBlocks(this.currentBotJob.getId(), this.currentBotJob.getName(), "block");
         List<BlockLoadDTO> blocksLoaded = performLists.getListBotJob().get(0).getBlockLoadDTOList();
-        String botJobName = performLists.getListBotJob().get(0).getName();
-
-        //        ARPropertyManager managerProps = ARPropertyManager.getInstance();
-        String excelPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
-        excelPath = excelPath + "\\" + botJobName + ".xlsx";
-        if (!(new File(excelPath)).exists()) {
-
+        if (!new File(excelPath).exists()) {
             performMessage.errorMessage(
-                    "Duplicate Name",
-                    "<span style='color: #000080; font-weight: bold; font-size: 14px;'>File Excel Does not Exist</span>",
-                    "<span style='color: #000080; font-weight: bold; font-size: 14px;'>Excel file: </span>",
-                    "<span style='color: #000080; font-weight: bold;'>" + excelPath + "</span>",
-                    "<span style='color: red; font-weight: bold;'>IS MANDATORY TO HAVE EXCEL FILE FOR TESTS!!!</span>",
+                    "Action Required: Prepare Excel Data",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Crucial Step: Prepare Excel Data Before Launch!</span>",
+                    "<span style='color: #2E7D32; font-weight: bold;'>To successfully initiate the bot job, the Excel data file must be generated and compiled *first*.</span>",
+                    "<span style='font-style: italic;'>Ensure this preparation is complete before attempting to launch the automation process.</span>",
+                    null,
                     0);
 
             return false;
         }
 
-        Labels.initializeLabelsInSpecLang("en");
-        Properties labelsValue = Labels.labelsValue;
-
         // Assuming blocksLoaded is your List<BlockLoadDTO>
-        ErrorMessage errorMessage = performDataBase.loadAllActionsPerBlock(performLists.getListBlock());
+        ErrorMessage errorMessage = performDBEngine.loadAllActionsPerBlock(performLists.getListBlock());
 
         if (errorMessage != null) {
             performMessage.errorMessage(
@@ -2246,18 +2267,6 @@ public class ARScannedElementPane extends ARPane {
                     "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
                             + errorMessage.getErrorHeader(),
                     "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                    null,
-                    0);
-
-            return false;
-        }
-
-        if (!new File(excelPath).exists()) {
-            performMessage.errorMessage(
-                    "Action Required: Prepare Excel Data",
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Crucial Step: Prepare Excel Data Before Launch!</span>",
-                    "<span style='color: #2E7D32; font-weight: bold;'>To successfully initiate the bot job, the Excel data file must be generated and compiled *first*.</span>",
-                    "<span style='font-style: italic;'>Ensure this preparation is complete before attempting to launch the automation process.</span>",
                     null,
                     0);
 
@@ -2290,15 +2299,12 @@ public class ARScannedElementPane extends ARPane {
             return false;
         }
 
-        //        String browser = arPropertyManager.getProperty(ARPropertyEnum.BROWSER);
-        //            WebPage webPage = new WebPage(browser, homeBankingDTO.getUrl());
-
-        String baseLogString = botJobName + ARConstants.FIELDS_SEPARATOR + labelsValue.getProperty(Labels.START);
+        String baseLogString = currentBotJobName + ARConstants.FIELDS_SEPARATOR + labelsValue.getProperty(Labels.START);
 
         printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
 
         ExcelWriter.ExcelChain writerReport =
-                new ExcelWriter(botJobName, performActions.getCurrentDriver(), false).withPurpose("report");
+                new ExcelWriter(currentBotJobName, performActions.getCurrentDriver(), false).withPurpose("report");
         writerReport.insertReportHead();
 
         ExcelWriter.ExcelChain writerExport = null;
@@ -2322,12 +2328,9 @@ public class ARScannedElementPane extends ARPane {
 
         clearFields();
 
-        // Execute All Blocks starting from executeSpecificBlock if Defined
-        int botJobId = this.currentBotJob.getId();
-        int executeSpecificBlock = comboBoxBlocks.getValue().getWhereId(); // Instruction or BockOrderNumber
         sessionRowStatus = "botJobTasks"; // + botJobId;
 
-        errorMessage = performDataBase.loadAllVariables("variable", botJobId);
+        errorMessage = performDBEngine.loadAllVariables("variable", this.currentBotJob.getId());
 
         if (errorMessage != null) {
             performMessage.errorMessage(
@@ -2362,9 +2365,8 @@ public class ARScannedElementPane extends ARPane {
 
             List<InstructionLoad> excelDataGoto = new ArrayList<>();
             String tableName = "instruction";
-            int whereId = botJobId;
             try {
-                excelDataGoto = performDataBase.loadExcelGotoBlock(whereId, tableName);
+                excelDataGoto = performDBEngine.loadExcelGotoBlock(currentBotJob.getId(), tableName);
             } catch (Exception error) {
                 ARLogger.getInstance(ARScannedElementPane.class)
                         .severe("Error reading 'EXCEL GOTO' instructions: " + error.getMessage());
@@ -2400,8 +2402,8 @@ public class ARScannedElementPane extends ARPane {
             }
 
             // Execute All Blocks starting from executeSpecificBlock if Defined
-            int currentBlock = (executeSpecificBlock > -1) ? executeSpecificBlock - 1 : 0;
-            int blockInitial = currentBlock;
+            currentBlockId = (executeSpecificBlock > -1) ? executeSpecificBlock - 1 : 0;
+            int blockInitial = currentBlockId;
 
             if (!excelDataGoto.isEmpty() && !blocksLoaded.isEmpty()) {
                 Integer parentBlockId =
@@ -2422,7 +2424,7 @@ public class ARScannedElementPane extends ARPane {
                 mapRefresh.clear();
 
                 blockLoop:
-                while (currentBlock <= blocksLoaded.size() - 1 && !blocksLoaded.isEmpty() && !stopAll) {
+                while (currentBlockId <= blocksLoaded.size() - 1 && !blocksLoaded.isEmpty() && !stopAll) {
                     long blockStartTime = System.nanoTime();
                     failedMessage = "";
 
@@ -2434,17 +2436,17 @@ public class ARScannedElementPane extends ARPane {
 
                     int parentBlockCondition = -1;
 
-                    BlockLoadDTO blockLoad = blocksLoaded.get(currentBlock);
+                    BlockLoadDTO blockLoad = blocksLoaded.get(currentBlockId);
 
-                    String blockName = blocksLoaded.get(currentBlock).getName();
-                    int blockOrder = blocksLoaded.get(currentBlock).getBlockOrderNumber();
+                    String blockName = blocksLoaded.get(currentBlockId).getName();
+                    int blockOrder = blocksLoaded.get(currentBlockId).getBlockOrderNumber();
                     String blockReportName = "#" + blockOrder + " " + blockName;
 
-                    int blockWait = blocksLoaded.get(currentBlock).getWait() > 0
-                            ? blocksLoaded.get(currentBlock).getWait()
+                    int blockWait = blocksLoaded.get(currentBlockId).getWait() > 0
+                            ? blocksLoaded.get(currentBlockId).getWait()
                             : 2;
 
-                    boolean blockActive = blocksLoaded.get(currentBlock).getActive();
+                    boolean blockActive = blocksLoaded.get(currentBlockId).getActive();
 
                     if (blockActive) {
                         excelFieldName = blockLoad.getExportFile();
@@ -2512,7 +2514,7 @@ public class ARScannedElementPane extends ARPane {
                     }
 
                     if (!blockActive) {
-                        currentBlock++;
+                        currentBlockId++;
 
                         Pair<String, String> msgBlock =
                                 new Pair(String.format("Ignore: \"%s\"", blockLoad.getName()), ARConstants.IGNORE);
@@ -2584,7 +2586,7 @@ public class ARScannedElementPane extends ARPane {
                     // current
                     // Block
                     parentIdsForLoop = performActions.getParentIdsForLoop(
-                            blocksLoaded.get(currentBlock).getInstructionLoad());
+                            blocksLoaded.get(currentBlockId).getInstructionLoad());
 
                     // Step 2: Get all Conditional By parentId for Index Locator on current Block Relocate "IF",
                     // "ELSEIF",
@@ -2599,7 +2601,7 @@ public class ARScannedElementPane extends ARPane {
                     // Step 2: Filter rows where actions = "REFRESH_LOOP" or "LOOP" and collect into the map
 
                     //                mapLoops = performActions.getLoopAndRefreshLoops(
-                    //                        blocksLoaded.get(currentBlock).getBlockLoopInstructionLoadS());
+                    //                        blocksLoaded.get(currentBlockId).getBlockLoopInstructionLoadS());
 
                     //                executionTimes++;
                     boolean jumpGoto = false;
@@ -2869,7 +2871,7 @@ public class ARScannedElementPane extends ARPane {
                             } else if (actions[0].equalsIgnoreCase(ARConstants.LOOP)) {
                                 // <currentId:parentId:parentName>
                                 msgInstruction = performActions.getInstructionDetailsById(
-                                        blocksLoaded.get(currentBlock).getInstructionLoad(), currentInstruction);
+                                        blocksLoaded.get(currentBlockId).getInstructionLoad(), currentInstruction);
 
                                 if (msgInstruction == null) {
                                     msgInstruction = new Pair("Jump To Parent \"Unknown\"", "Unknown");
@@ -2887,7 +2889,7 @@ public class ARScannedElementPane extends ARPane {
                                 }
                             } else if (actions[0].equalsIgnoreCase(ARConstants.REFRESH_LOOP)) {
                                 msgInstruction = performActions.getInstructionDetailsById(
-                                        blocksLoaded.get(currentBlock).getInstructionLoad(), currentInstruction);
+                                        blocksLoaded.get(currentBlockId).getInstructionLoad(), currentInstruction);
                                 if (msgInstruction == null) {
                                     msgInstruction = new Pair("Jump To Parent \"Unknown\"", "Unknown");
                                     success = false;
@@ -3070,7 +3072,7 @@ public class ARScannedElementPane extends ARPane {
                                                         msgInstruction.getKey().split(":");
                                                 int blockOrderNumber = Integer.parseInt(parts[2]);
 
-                                                currentBlock = blockOrderNumber - 1;
+                                                currentBlockId = blockOrderNumber - 1;
                                                 currentInstruction.setExecuted(true);
 
                                                 failedMessage = "";
@@ -3291,7 +3293,10 @@ public class ARScannedElementPane extends ARPane {
                                             && currentInstruction.getForceCoordinates();
                                     try {
                                         webElementFound = performActions.searchElement(
-                                                currentInstruction, botJobId, forceCoordinates, byPassFlagLoop);
+                                                currentInstruction,
+                                                this.currentBotJob.getId(),
+                                                forceCoordinates,
+                                                byPassFlagLoop);
                                     } catch (Exception ex) {
                                         success = false;
                                     }
@@ -3771,10 +3776,10 @@ public class ARScannedElementPane extends ARPane {
                         // Way Out from the Current Excel Data Row to another Block keeping the Same Excel Data Row
                         break;
                     }
-                    currentBlock++;
+                    currentBlockId++;
                 }
 
-                currentBlock = blockInitial;
+                currentBlockId = blockInitial;
                 xExcelCurrentRow++;
                 addRowFromMap(mapExportRows);
                 if (excelFieldName != null && excelFieldName.toLowerCase().endsWith(".csv")) {
@@ -3825,7 +3830,7 @@ public class ARScannedElementPane extends ARPane {
 
                 performMessage.showCustomModalDialogDragWin11(
                         "Bot-Job Finished - successfully",
-                        botJobName,
+                        currentBotJobName,
                         "Last Execution:",
                         resultActions,
                         null,
@@ -3841,7 +3846,7 @@ public class ARScannedElementPane extends ARPane {
 
                 performMessage.showCustomModalDialogDragWin11(
                         "Bot-Job Interrupted successfully",
-                        botJobName,
+                        currentBotJobName,
                         "Last Execution:",
                         resultActions,
                         null,
@@ -3874,7 +3879,7 @@ public class ARScannedElementPane extends ARPane {
 
                 performMessage.showCustomModalDialogDragWin11(
                         "Bot-Job Interrupted successfully",
-                        botJobName,
+                        currentBotJobName,
                         "Last Execution:",
                         resultActions,
                         null,
@@ -4743,5 +4748,36 @@ public class ARScannedElementPane extends ARPane {
         }
         return false;
         // Signal for Force Click or Not from the Target Definitions
+    }
+
+    public int createBlockIfNone(String blockTable, int whereId) {
+
+        // It Prevents Start without blocks
+        ErrorMessage errorMessage = performDataBase.loadBlocks(whereId, null, blockTable);
+        if (errorMessage == null && performLists.getListBlock().isEmpty()) {
+
+            errorMessage =
+                    performDataBase.initiateNewBlock(blockTable, whereId, "Default Block", "Default Block", 1, false);
+
+            if (errorMessage == null) {
+                if (!performDataBase.getIdsBlockAfter().isEmpty()
+                        && performDataBase.getIdsBlockAfter().get(0) > 0) {
+                    return performDataBase.getIdsBlockAfter().get(0);
+                } else {
+                    return -1;
+                }
+            } else {
+
+                performMessage.errorMessage(
+                        errorMessage.getErrorTitle(),
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                + errorMessage.getErrorTitle(),
+                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                        null,
+                        0);
+            }
+        }
+        return -1;
     }
 }

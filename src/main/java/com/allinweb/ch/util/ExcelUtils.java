@@ -4,6 +4,7 @@ import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.InstructionLoad;
 import com.allinweb.ch.component.scene.ARAlertScene;
+import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
@@ -37,6 +38,7 @@ public class ExcelUtils {
     private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
     private static final PerformMessage performMessage = PerformMessage.getInstance();
     private static final PerformLists performLists = PerformLists.getInstance();
+    private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
 
     public void generateExcelFiles(
@@ -341,7 +343,7 @@ public class ExcelUtils {
             errorMessage = performDataBase.loadBlocks(selectedBotJob.getId(), selectedBotJob.getName(), "block");
         }
         if (errorMessage == null && performLists.getAllActions().isEmpty()) {
-            errorMessage = performDataBase.loadAllActionsPerBlock(performLists.getListBlock());
+            errorMessage = performDBEngine.loadAllActionsPerBlock(performLists.getListBlock());
         }
 
         if (errorMessage != null) {
