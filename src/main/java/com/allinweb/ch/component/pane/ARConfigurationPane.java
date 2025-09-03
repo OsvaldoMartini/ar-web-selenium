@@ -922,10 +922,15 @@ public class ARConfigurationPane extends ARPane {
                             new ListView<>(FXCollections.observableArrayList(performLists.getListHomeBanking()));
                     HomeBankingLoadDTO homeBank = performLists.getFirstHomeBanking();
                     arNewHomeBankingScene.initialize(homeBank);
-                    performDataBase.loadQuickBotJobs();
-                    viewBotJobListView.setItems(FXCollections.observableArrayList(performLists.getQuickBotJobs()));
 
                     closeAllScenes();
+
+                    performLists.clearAllLists();
+
+                    performDataBase.loadHomeBanking(null);
+                    performDataBase.loadHomeUrls(null);
+                    performDataBase.loadQuickBotJobs();
+                    viewBotJobListView.setItems(FXCollections.observableArrayList(performLists.getQuickBotJobs()));
 
                     performMessage.showCustomModalDialogDragWin11(
                             "Restore DB Success! ✅",
@@ -1070,8 +1075,6 @@ public class ARConfigurationPane extends ARPane {
                 return;
             }
 
-            closeAllScenes();
-
             arPropertyManager.setProperty(ARPropertyEnum.DATABASE_TYPE.getValue(), databaseChoiceBox.getValue());
 
             arPropertyManager.setProperty(
@@ -1090,17 +1093,13 @@ public class ARConfigurationPane extends ARPane {
 
             closeAllScenes();
 
-            //            performDataBase.dropPostGresSequences();
-            //            performDataBase.exportHomeBanking();
-            //            performDataBase.exportHomeUrl();
-            //            performDataBase.exportBotJob();
-            //            performDataBase.exportBlock();
-            //            performDataBase.exportInstructions();
-            //            performDataBase.exportVariables();
-            //            performDataBase.exportReferences();
-
             performLists.clearAllLists();
+
             performDataBase.loadHomeBanking(null);
+            performDataBase.loadHomeUrls(null);
+            performDataBase.loadQuickBotJobs();
+            viewBotJobListView.setItems(FXCollections.observableArrayList(performLists.getQuickBotJobs()));
+
             backupDBButton.setDisable(performLists.getListHomeBanking().isEmpty());
             homeBankingListView = new ListView<>(FXCollections.observableArrayList(performLists.getListHomeBanking()));
             HomeBankingLoadDTO homeBank = performLists.getFirstHomeBanking();
@@ -1119,7 +1118,6 @@ public class ARConfigurationPane extends ARPane {
             } catch (Exception error) {
                 throw error;
             }
-            viewBotJobListView.setItems(FXCollections.observableArrayList(performLists.getQuickBotJobs()));
 
             new ARAlertScene(
                     Alert.AlertType.INFORMATION,
@@ -1389,8 +1387,5 @@ public class ARConfigurationPane extends ARPane {
             arWebDriver.closeAllDrivers();
             arWebDriver.closeCurrentDriver();
         }
-
-        performDataBase.loadHomeBanking(null);
-        performDataBase.loadHomeUrls(null);
     }
 }

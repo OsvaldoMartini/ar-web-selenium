@@ -1046,24 +1046,28 @@ public class PerformLists {
      * Clears all internal lists in PerformLists to reset the state.
      */
     public void clearAllLists() {
-        if (listHomeBanking != null) listHomeBanking.clear();
-        if (listHomeUrl != null) listHomeUrl.clear();
-        if (quickBotJobs != null) quickBotJobs.clear();
-        if (listBotJob != null) listBotJob.clear();
-        if (listBotJobComp != null) listBotJobComp.clear();
-        if (listBlock != null) listBlock.clear();
-        if (listBlockComp != null) listBlockComp.clear();
-        if (listInstruction != null) listInstruction.clear();
-        if (listInstructionComp != null) listInstructionComp.clear();
-        if (listVariable != null) listVariable.clear();
-        if (listVariableComp != null) listVariableComp.clear();
-        if (listReference != null) listReference.clear();
-        if (listReferenceComp != null) listReferenceComp.clear();
-        if (allActions != null) allActions.clear();
-        if (instrucOperList != null) instrucOperList.clear();
-        if (listDatabaseUsers != null) listDatabaseUsers.clear();
-        if (listVariablesUser != null) listVariablesUser.clear();
-        if (listWebPageItems != null) listWebPageItems.clear();
+        // You don't need to check for null here because the lists are initialized
+        // as new ArrayLists, so they will never be null. This makes the code cleaner.
+
+        listHomeBanking.clear();
+        listHomeUrl.clear();
+        quickBotJobs.clear();
+        listBotJob.clear();
+        listBotJobComp.clear();
+        listBlock.clear();
+        listBlockComp.clear();
+        listInstruction.clear();
+        listInstructionComp.clear();
+        listVariable.clear();
+        listVariableComp.clear();
+        listReference.clear();
+        listReferenceComp.clear();
+        allActions.clear();
+        instrucOperList.clear();
+        listDatabaseUsers.clear();
+        listVariablesUser.clear();
+        listWebPageItems.clear();
+        listParentOperations.clear();
     }
 
     /**
