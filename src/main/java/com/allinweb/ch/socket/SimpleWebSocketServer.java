@@ -56,6 +56,7 @@ public class SimpleWebSocketServer {
 
     private final Gson gson = new Gson();
     private PayloadJson payloadEmpty;
+    private RowStatus rowStatus = new RowStatus();
 
     @OnOpen
     public void onOpen(Session session) {
@@ -122,6 +123,24 @@ public class SimpleWebSocketServer {
                 // Ignore null or empty messages
                 type = type.replaceAll("ping-", "");
                 // System.out.println("Active : " + type);
+                return;
+            }
+
+            if (sessionId.equals("engine-perform-bot-job")) {
+                JsonObject jsonRowStatus = JsonParser.parseString(
+                                jsonObjMSG.get("body").getAsString())
+                        .getAsJsonObject();
+
+                if (jsonRowStatus.has("instructionId") && jsonRowStatus.has("color")) {
+                    int instructionId = jsonRowStatus.get("instructionId").getAsInt();
+                    String color = jsonRowStatus.get("color").getAsString();
+
+                    rowStatus.setInstructionId(instructionId);
+                    rowStatus.setColor(color); // e.g. "#fcba03" deep carmine yellow
+                }
+
+                String jsonStatus = gson.toJson(rowStatus);
+                webSocketSessionManager.sendMessageJson(homeBankingId, "botJobTasks", jsonStatus, "rowStatus");
                 return;
             }
 

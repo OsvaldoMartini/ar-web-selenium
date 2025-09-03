@@ -227,12 +227,19 @@ public class ARSaveComponentPane extends ARPane {
                             .equalsIgnoreCase(nameTextField.getText().trim()));
 
                     if (existName) {
-                        performAction.showAlert(
-                                Alert.AlertType.ERROR,
+                        performMessage.showCustomModalDialogDragWin11(
                                 "Name Already Taken!",
-                                "Change the Component Name",
-                                "The Name: \"" + nameTextField.getText().trim() + "\"\nHas been take!");
-                        warningMSG("The Name: \"" + nameTextField.getText().trim() + "\" Has been take!");
+                                "<span style='font-weight: bold;'>Change the Component Name.</span>",
+                                "<span style='font-weight: bold; color: #e854c8;'>The Name: \""
+                                        + nameTextField.getText().trim()
+                                        + "\" Has been take!</span>, and after  will jump back to <span style='font-weight: bold;'>first block (Use Case).</span>",
+                                null,
+                                null,
+                                false,
+                                "OK",
+                                null,
+                                0);
+
                         return;
                     }
 

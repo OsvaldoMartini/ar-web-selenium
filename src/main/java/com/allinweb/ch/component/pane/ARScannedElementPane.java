@@ -661,6 +661,18 @@ public class ARScannedElementPane extends ARPane {
     public final AtomicBoolean isJobRunning = new AtomicBoolean(false);
     protected BooleanProperty interceptBotJob = new SimpleBooleanProperty(false);
 
+    public BooleanProperty interceptBotJobProperty() {
+        return interceptBotJob;
+    }
+
+    public boolean isInterceptBotJob() {
+        return interceptBotJob.get();
+    }
+
+    public void setInterceptBotJob(boolean value) {
+        interceptBotJob.set(value);
+    }
+
     public static TargetElement targetSelected = new TargetElement();
 
     private static SimpleDateFormat dateFormatter;
@@ -673,6 +685,8 @@ public class ARScannedElementPane extends ARPane {
     private BotJobLoadDTO currentBotJob;
     private int currentBlockId;
     private int executeSpecificBlock;
+    private List<BlockLoadDTO> blocksLoaded;
+    private List<InstructionLoad> excelDataGoto = new ArrayList<>();
 
     double comboWidth = 200;
 
@@ -773,18 +787,6 @@ public class ARScannedElementPane extends ARPane {
     private static final PerformPreLoad performPreLoad = PerformPreLoad.getInstance();
     private static final ARNewHomeBankingScene arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
     //    private static final PerformCloseBrowser performCloseBrowser;
-
-    public BooleanProperty interceptBotJobProperty() {
-        return interceptBotJob;
-    }
-
-    public boolean isInterceptBotJob() {
-        return interceptBotJob.get();
-    }
-
-    public void setInterceptBotJob(boolean value) {
-        interceptBotJob.set(value);
-    }
 
     public void initialize(ARWebDriver currentARWebDriver, BotJobLoadDTO botJobLoad, int portSocketInitial) {
         this.portSocketInitial = portSocketInitial;
@@ -1578,7 +1580,33 @@ public class ARScannedElementPane extends ARPane {
             }
 
             executeSpecificBlock = comboBoxBlocks.getValue().getWhereId(); // Start in a specific Block/UseCase
-            performDBEngine.loadCompleteJobs(this.currentBotJob.getId());
+
+            ErrorMessage errorMessage = performDBEngine.loadHomeBanking(null);
+            if (errorMessage == null)
+                errorMessage = performDBEngine.loadHomeUrls(this.currentBotJob.getHomeBankingId());
+            if (errorMessage == null) errorMessage = performDBEngine.loadCompleteJobs(this.currentBotJob.getId());
+            if (errorMessage == null)
+                errorMessage = performDBEngine.loadAllVariables("variable", this.currentBotJob.getId());
+            if (errorMessage == null)
+                excelDataGoto = performDBEngine.loadExcelGotoBlock(this.currentBotJob.getId(), "instruction");
+
+            if (errorMessage == null) {
+                blocksLoaded = performLists.getListBotJob().get(0).getBlockLoadDTOList();
+                errorMessage = performDBEngine.loadAllActionsPerBlock(blocksLoaded);
+            }
+
+            if (errorMessage != null) {
+                ARLogger.getInstance(ARScannedElementPane.class).severe("Error: " + errorMessage.getErrorMessage());
+                performMessage.errorMessage(
+                        errorMessage.getErrorTitle(),
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                + errorMessage.getErrorHeader(),
+                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                        null,
+                        0);
+            }
+
             if (performLists.getListBotJob().isEmpty()) {
                 ARLogger.getInstance(ARScannedElementPane.class)
                         .severe("Cannot find Bot Jobs with this Id:" + this.currentBotJob.getId());
@@ -2208,6 +2236,7 @@ public class ARScannedElementPane extends ARPane {
                 executorServicePreLaunch.submit(() -> {
                     try {
                         executeJob();
+                        launchBotJobButton.setDisable(false);
                     } finally {
                         isJobRunning.set(false);
                     }
@@ -2243,35 +2272,6 @@ public class ARScannedElementPane extends ARPane {
 
         Labels.initializeLabelsInSpecLang("en");
         Properties labelsValue = Labels.labelsValue;
-
-        List<BlockLoadDTO> blocksLoaded = performLists.getListBotJob().get(0).getBlockLoadDTOList();
-        if (!new File(excelPath).exists()) {
-            performMessage.errorMessage(
-                    "Action Required: Prepare Excel Data",
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Crucial Step: Prepare Excel Data Before Launch!</span>",
-                    "<span style='color: #2E7D32; font-weight: bold;'>To successfully initiate the bot job, the Excel data file must be generated and compiled *first*.</span>",
-                    "<span style='font-style: italic;'>Ensure this preparation is complete before attempting to launch the automation process.</span>",
-                    null,
-                    0);
-
-            return false;
-        }
-
-        // Assuming blocksLoaded is your List<BlockLoadDTO>
-        ErrorMessage errorMessage = performDBEngine.loadAllActionsPerBlock(performLists.getListBlock());
-
-        if (errorMessage != null) {
-            performMessage.errorMessage(
-                    errorMessage.getErrorTitle(),
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                            + errorMessage.getErrorHeader(),
-                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                    null,
-                    0);
-
-            return false;
-        }
 
         ExcelReader excelReader = new ExcelReader();
         ExtractedData extractedData = null;
@@ -2330,19 +2330,6 @@ public class ARScannedElementPane extends ARPane {
 
         sessionRowStatus = "botJobTasks"; // + botJobId;
 
-        errorMessage = performDBEngine.loadAllVariables("variable", this.currentBotJob.getId());
-
-        if (errorMessage != null) {
-            performMessage.errorMessage(
-                    errorMessage.getErrorTitle(),
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                            + errorMessage.getErrorHeader(),
-                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                    null,
-                    0);
-        }
-
         variablesLoaded = performLists.getListVariable();
         Map<String, String> mapSavedLocators = new HashMap<>();
 
@@ -2363,15 +2350,6 @@ public class ARScannedElementPane extends ARPane {
 
         if (extractedData.getNumberOfDataRows() > 0) {
 
-            List<InstructionLoad> excelDataGoto = new ArrayList<>();
-            String tableName = "instruction";
-            try {
-                excelDataGoto = performDBEngine.loadExcelGotoBlock(currentBotJob.getId(), tableName);
-            } catch (Exception error) {
-                ARLogger.getInstance(ARScannedElementPane.class)
-                        .severe("Error reading 'EXCEL GOTO' instructions: " + error.getMessage());
-            }
-
             if (extractedData.getNumberOfDataRows() > 1 && excelDataGoto.isEmpty()) {
 
                 ARLogger.getInstance(ARScannedElementPane.class)
@@ -2389,8 +2367,6 @@ public class ARScannedElementPane extends ARPane {
                         0);
 
                 if (respModal.equals(ARConstants.DialogModal.STOP)) {
-
-                    launchBotJobButton.setDisable(false);
                     performActions.setInterceptBotJob(true);
                     setInterceptBotJob(true);
                     isJobRunning.set(false);
@@ -3802,8 +3778,6 @@ public class ARScannedElementPane extends ARPane {
                 }
             }
         }
-
-        launchBotJobButton.setDisable(false);
 
         totalExecutionTime = performActions.getTotalExecutionTime();
 
