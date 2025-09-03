@@ -916,13 +916,6 @@ public class ARConfigurationPane extends ARPane {
                 }
 
                 if (errorMessage == null) {
-                    performDataBase.loadHomeBanking(null);
-                    backupDBButton.setDisable(performLists.getListHomeBanking().isEmpty());
-                    homeBankingListView =
-                            new ListView<>(FXCollections.observableArrayList(performLists.getListHomeBanking()));
-                    HomeBankingLoadDTO homeBank = performLists.getFirstHomeBanking();
-                    arNewHomeBankingScene.initialize(homeBank);
-
                     closeAllScenes();
 
                     performLists.clearAllLists();
@@ -931,6 +924,12 @@ public class ARConfigurationPane extends ARPane {
                     performDataBase.loadHomeUrls(null);
                     performDataBase.loadQuickBotJobs();
                     viewBotJobListView.setItems(FXCollections.observableArrayList(performLists.getQuickBotJobs()));
+
+                    backupDBButton.setDisable(performLists.getListHomeBanking().isEmpty());
+                    homeBankingListView.setItems(FXCollections.observableArrayList(performLists.getListHomeBanking()));
+
+                    HomeBankingLoadDTO homeBank = performLists.getFirstHomeBanking();
+                    arNewHomeBankingScene.initialize(homeBank);
 
                     performMessage.showCustomModalDialogDragWin11(
                             "Restore DB Success! ✅",
@@ -1101,7 +1100,8 @@ public class ARConfigurationPane extends ARPane {
             viewBotJobListView.setItems(FXCollections.observableArrayList(performLists.getQuickBotJobs()));
 
             backupDBButton.setDisable(performLists.getListHomeBanking().isEmpty());
-            homeBankingListView = new ListView<>(FXCollections.observableArrayList(performLists.getListHomeBanking()));
+            homeBankingListView.setItems(FXCollections.observableArrayList(performLists.getListHomeBanking()));
+
             HomeBankingLoadDTO homeBank = performLists.getFirstHomeBanking();
             arNewHomeBankingScene.initialize(homeBank);
 
