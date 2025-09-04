@@ -1,7 +1,7 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.component.model.*;
-import com.allinweb.ch.persistence.DatabaseUserDTO;
+import com.allinweb.ch.component.model.DatabaseUserDTO;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;

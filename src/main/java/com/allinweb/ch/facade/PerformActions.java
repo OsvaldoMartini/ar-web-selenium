@@ -8,8 +8,8 @@ import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.ElementDTO;
 import com.allinweb.ch.component.model.InstructionLoad;
 import com.allinweb.ch.component.model.ReferenceLoadDTO;
+import com.allinweb.ch.component.model.TargetElement;
 import com.allinweb.ch.component.model.VariableLoadDTO;
-import com.allinweb.ch.persistence.TargetElement;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
@@ -580,7 +580,7 @@ public class PerformActions {
                     return null;
                 }
 
-                //            Optional<InstructionReferenceDTO> reference = instructionReferenceList.stream()
+                //            Optional<InstructionReferenceLoadDTO> reference = instructionReferenceList.stream()
                 //                    .filter(ref -> ref.getReferenceType().equals(priority.getName()))
                 //                    .findFirst();
 

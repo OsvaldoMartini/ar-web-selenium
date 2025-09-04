@@ -87,7 +87,7 @@ _(and should)_ be changed in the future as sticking to the standard
 Hibernate behaviour is better in case there are breaking updates
 that would void the explicitly declared functions.
 ```java
-@Entity
+
 @Table(name = "bot_job")
 //@SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "botJobSeq", allocationSize = 1)
 public class BotJobDTO extends BaseDTO implements Serializable {

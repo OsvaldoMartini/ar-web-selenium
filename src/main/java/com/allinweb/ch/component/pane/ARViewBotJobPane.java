@@ -3,6 +3,7 @@ package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
+import com.allinweb.ch.component.model.ComponentBlockDTO;
 import com.allinweb.ch.component.model.HomeBankingLoadDTO;
 import com.allinweb.ch.component.model.HomeUrlDTO;
 import com.allinweb.ch.component.model.InstructionLoad;
@@ -17,7 +18,6 @@ import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.license.LicenceVal;
 import com.allinweb.ch.license.LicenseManager;
-import com.allinweb.ch.persistence.ComponentBlockDTO;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;

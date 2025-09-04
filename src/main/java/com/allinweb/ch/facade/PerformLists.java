@@ -1,8 +1,7 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.component.model.*;
-import com.allinweb.ch.persistence.DatabaseUserDTO;
-import com.allinweb.ch.persistence.ReferenceDTO;
+import com.allinweb.ch.component.model.DatabaseUserDTO;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyManager;
@@ -69,8 +68,8 @@ public class PerformLists {
     private List<InstructionLoad> listInstructionComp = new ArrayList<>();
     private List<VariableLoadDTO> listVariable = new ArrayList<>();
     private List<VariableLoadDTO> listVariableComp = new ArrayList<>();
-    private List<ReferenceDTO> listReference = new ArrayList<>();
-    private List<ReferenceDTO> listReferenceComp = new ArrayList<>();
+    private List<ReferenceLoadDTO> listReference = new ArrayList<>();
+    private List<ReferenceLoadDTO> listReferenceComp = new ArrayList<>();
     private List<String> allActions = new ArrayList<>();
     // Quick Lists
     private List<InstructionOperationDTO> instrucOperList = new ArrayList<>();

@@ -8,7 +8,6 @@ import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.persistence.*;
 import com.allinweb.ch.readersAndWriters.ExcelReader;
 import com.google.common.base.Strings;
 import java.awt.*;
@@ -73,7 +72,7 @@ public class ExcelUtils {
         }
     }
 
-    private void generateUnfilteredCSVFile(BotJobDTO botJob) {
+    private void generateUnfilteredCSVFile(BotJobLoadDTO botJob) {
         String fileName = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL) + "/" + botJob.getName()
                 + ARConstants.FILE_FORMAT_CSV;
 
@@ -412,7 +411,7 @@ public class ExcelUtils {
         }
     }
 
-    public static void writeCsvFile(String fileName, List<BlockDTO> blockDTOList) {
+    public static void writeCsvFile(String fileName, List<BlockLoadDTO> blockDTOList) {
         FileWriter fileWriter = null;
 
         try {
@@ -423,7 +422,7 @@ public class ExcelUtils {
             fileWriter.append("\n");
 
             // Write a new blockDTO object list to the CSV file
-            for (BlockDTO blockDTO : blockDTOList) {
+            for (BlockLoadDTO blockDTO : blockDTOList) {
                 fileWriter.append(blockDTO.getName());
                 fileWriter.append("\n");
             }

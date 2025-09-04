@@ -1,13 +1,13 @@
 package com.allinweb.ch.component.scene;
 
 import com.allinweb.ch.component.model.*;
+import com.allinweb.ch.component.model.TargetElement;
 import com.allinweb.ch.component.pane.ARNewCommandPane;
 import com.allinweb.ch.component.pane.ARScannedElementPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.*;
-import com.allinweb.ch.persistence.TargetElement;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
