@@ -174,12 +174,12 @@ public class ARViewBotJobPane extends ARPane {
                     0);
         }
 
-        if (arNewCommandScene.getRowMoveDTO() != null) {
+        if (arNewCommandScene.getSplitDTO() != null) {
             //            arNewCommandScene.setRowMoveDTO(null);
             arNewCommandScene.closeModal();
         }
 
-        if (arElementValueScene.getRowMoveDTO() != null) {
+        if (arElementValueScene.getSplitDTO() != null) {
             //            arElementValueScene.setRowMoveDTO(null);
             arElementValueScene.closeModal();
         }

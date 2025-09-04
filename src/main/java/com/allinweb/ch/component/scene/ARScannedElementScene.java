@@ -308,7 +308,7 @@ public class ARScannedElementScene extends ARScene {
                 case "SEND_ALL_ELEMENTS_DTO":
                     arScannedElementPane.checkRunningProcess();
                     // Extract the "body" field from the JsonObject
-                    ElementSplitDTO processDTO = gson.fromJson(jsonObjMSG, ElementSplitDTO.class);
+                    SplitDTO processDTO = gson.fromJson(jsonObjMSG, SplitDTO.class);
 
                     blockUpdate =
                             processDTO.getSessionId().equals("componentTasks") ? "UPDATE_BLOCKS_COMP" : "UPDATE_BLOCKS";
@@ -328,7 +328,7 @@ public class ARScannedElementScene extends ARScene {
                 case "TEST_INPUT_DTO":
                     arScannedElementPane.checkRunningProcess();
                     // Extract the "body" field from the JsonObject
-                    processDTO = gson.fromJson(jsonObjMSG, ElementSplitDTO.class);
+                    processDTO = gson.fromJson(jsonObjMSG, SplitDTO.class);
 
                     String tableName = "instruction";
                     whereId = processDTO.getBotJobId() != null ? processDTO.getBotJobId() : currentBotJob.getId();
@@ -360,8 +360,8 @@ public class ARScannedElementScene extends ARScene {
                             performDataBase.loadInstructions(whereId, -1, -1, tableName);
                         }
 
-                        InstructionLoad instruction =
-                                performLists.getInstructionById(tableName, whereId, processDTO.getDetails()[0].getId());
+                        InstructionLoad instruction = performLists.getInstructionById(
+                                tableName, whereId, processDTO.getElementDetails()[0].getId());
                         if (instruction != null && instruction.getId() != null) {
                             ElementDTO elementDTO = performActions.buildElementDTO(instruction);
                             arScannedElementPane.targetSelected = extractPickClone(elementDTO);
@@ -370,14 +370,14 @@ public class ARScannedElementScene extends ARScene {
                                     arScannedElementPane.targetSelected, processDTO.getType());
                         } else {
                             arScannedElementPane.targetSelected =
-                                    extractPickClone(processDTO.getDetails()[0]);
+                                    extractPickClone(processDTO.getElementDetails()[0]);
                             arScannedElementPane.itPrintsElementDTO();
                             arScannedElementPane.testingActions(
                                     arScannedElementPane.targetSelected, processDTO.getType());
                         }
                     } else {
                         arScannedElementPane.targetSelected =
-                                extractPickClone(processDTO.getDetails()[0]);
+                                extractPickClone(processDTO.getElementDetails()[0]);
                         arScannedElementPane.itPrintsElementDTO();
                         arScannedElementPane.testingActions(arScannedElementPane.targetSelected, processDTO.getType());
                     }
@@ -385,7 +385,7 @@ public class ARScannedElementScene extends ARScene {
                 case "DEL_ELEMENT_DTO":
                 case "DETAILS_ELEMENT_DTO":
                     // Extract the "body" field from the JsonObject
-                    processDTO = gson.fromJson(jsonObjMSG, ElementSplitDTO.class);
+                    processDTO = gson.fromJson(jsonObjMSG, SplitDTO.class);
 
                     blockUpdate =
                             processDTO.getSessionId().equals("componentTasks") ? "UPDATE_BLOCKS_COMP" : "UPDATE_BLOCKS";
@@ -398,7 +398,7 @@ public class ARScannedElementScene extends ARScene {
                     }
 
                     arScannedElementPane.targetSelected =
-                            extractPickClone(processDTO.getDetails()[0]);
+                            extractPickClone(processDTO.getElementDetails()[0]);
                     arScannedElementPane.itPrintsElementDTO();
                     break;
                 default:
@@ -605,7 +605,7 @@ public class ARScannedElementScene extends ARScene {
         }
     }
 
-    private void stepsInsertManyDTO(ElementSplitDTO processDTO, boolean isMany) {
+    private void stepsInsertManyDTO(SplitDTO processDTO, boolean isMany) {
         currentBlockId = arScannedElementPane.validateBlockDB("block", this.currentBotJob.getId(), isMany);
         if (currentBlockId > 0) {
             performDataBase.loadInstructions(currentBotJob.getId(), currentBlockId, -1, "instruction");
@@ -614,7 +614,7 @@ public class ARScannedElementScene extends ARScene {
             int nextOrder = instruc.size() + 1;
 
             instructionList.clear();
-            for (ElementDTO elementDTO : processDTO.getDetails()) {
+            for (ElementDTO elementDTO : processDTO.getElementDetails()) {
                 TargetElement targetEach = extractPickClone(elementDTO);
 
                 WebElement elementFound = performActions.findWebElement(targetEach);

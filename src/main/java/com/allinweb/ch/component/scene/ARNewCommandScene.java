@@ -247,7 +247,7 @@ public class ARNewCommandScene extends ARScene {
                                     0);
                         }
 
-                        initialize(rowUpdateDTO);
+                        initialize(splitDTO);
                         Platform.runLater(() -> showModal());
                     } catch (Exception error) {
                         ARLogger.getInstance(ARNewCommandScene.class).finer("Cannot Missing Value from  RowMoveDTO");
@@ -310,15 +310,15 @@ public class ARNewCommandScene extends ARScene {
 
     @Getter
     @Setter
-    public RowMoveDTO rowMoveDTO;
+    public SplitDTO splitDTO;
 
     private static final PerformMessage performMessage = PerformMessage.getInstance();
     private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
     private static final ARNewCommandPane arNewCommandPane = ARNewCommandPane.getInstance();
 
-    public void initialize(RowMoveDTO rowMoveDTO) {
-        this.rowMoveDTO = rowMoveDTO;
+    public void initialize(SplitDTO splitDTO) {
+        this.splitDTO = splitDTO;
     }
 
     @Override
@@ -338,7 +338,7 @@ public class ARNewCommandScene extends ARScene {
 
     @Override
     public String getTitle() {
-        String titleMsg = createDescriptionString(rowMoveDTO);
+        String titleMsg = createDescriptionString(splitDTO);
         if (titleMsg != null) {
             return TITLE + ": " + titleMsg;
         } else {
@@ -347,19 +347,18 @@ public class ARNewCommandScene extends ARScene {
     }
 
     public void showModal() {
-        if (rowMoveDTO.getUpdatedRows().get(0).getActions() != null
-                && rowMoveDTO.getUpdatedRows().get(0).getActions().equals("EXCEL GOTO")) {
+        if (splitDTO.getActions() != null && splitDTO.getActions().equals("EXCEL GOTO")) {
 
             String tableName =
-                    rowMoveDTO.getSessionId().equals("componentTasks") ? "component_instruction" : "instruction";
-            int whereId = rowMoveDTO.getSessionId().equals("componentTasks")
-                    ? rowMoveDTO.getHomeBankingId()
-                    : rowMoveDTO.getBotJobId();
+                    splitDTO.getSessionId().equals("componentTasks") ? "component_instruction" : "instruction";
+            int whereId = splitDTO.getSessionId().equals("componentTasks")
+                    ? splitDTO.getHomeBankingId()
+                    : splitDTO.getBotJobId();
             try {
                 List<InstructionLoad> excelDataGoto = performDBEngine.loadExcelGotoBlock(whereId, tableName);
 
                 if (!excelDataGoto.isEmpty()) {
-                    rowMoveDTO.setType("EDIT_OPERATION");
+                    splitDTO.setType("EDIT_OPERATION");
                 }
 
             } catch (Exception error) {
@@ -383,7 +382,7 @@ public class ARNewCommandScene extends ARScene {
 
             }
         }
-        arNewCommandPane.initialize(rowMoveDTO);
+        arNewCommandPane.initialize(splitDTO);
 
         if (modalStage == null) {
             modalStage = new Stage();
@@ -430,15 +429,14 @@ public class ARNewCommandScene extends ARScene {
         }
     }
 
-    public String createDescriptionString(RowMoveDTO rowMoveDTO) {
+    public String createDescriptionString(SplitDTO splitDTO) {
         // Ensure there are updatedRows to work with
-        if (rowMoveDTO.getUpdatedRows() == null || rowMoveDTO.getUpdatedRows().isEmpty()) {
+        if (splitDTO == null) {
             return "No updated rows available";
         }
 
         // Construct the final string
-        String result =
-                " " + rowMoveDTO.getType().replace("_", " ") + " -> Block Selected: " + rowMoveDTO.getBlockName();
+        String result = " " + splitDTO.getType().replace("_", " ") + " -> Block Selected: " + splitDTO.getBlockName();
 
         return result;
     }

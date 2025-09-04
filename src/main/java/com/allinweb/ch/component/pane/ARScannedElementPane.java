@@ -1186,11 +1186,11 @@ public class ARScannedElementPane extends ARPane {
             if (webEngine != null) {
                 //                webEngine.reload();
 
-                var processDTO = new ElementSplitDTO();
+                var processDTO = new SplitDTO();
                 processDTO.setHomeBankingId(this.currentBotJob.getHomeBankingId());
                 processDTO.setSessionId("scannerGrid"); // + this.currentBotJob.getHomeBankingId());
                 processDTO.setOperationId("searchTerms");
-                processDTO.setDetails(new ElementDTO[0]);
+                processDTO.setElementDetails(new ElementDTO[0]);
                 webSocketSessionManager.sendMessageJson(
                         this.currentBotJob.getHomeBankingId(), "scannerGrid", gson.toJson(processDTO), "searchTerms");
 
@@ -1763,7 +1763,7 @@ public class ARScannedElementPane extends ARPane {
 
             elementDTO.setSomeText(defineNameField.getText().trim());
 
-            var processDTO = new ElementSplitDTO();
+            var processDTO = new SplitDTO();
             processDTO.setHomeBankingId(this.currentBotJob.getHomeBankingId());
             processDTO.setSessionId("scannerGrid");
             processDTO.setOperationId("clonedElement");
@@ -1796,7 +1796,7 @@ public class ARScannedElementPane extends ARPane {
             }
 
             ElementDTO[] detailsArray = detailsList.toArray(new ElementDTO[0]);
-            processDTO.setDetails(detailsArray);
+            processDTO.setElementDetails(detailsArray);
 
             for (int x = 0; x < detailsArray.length; x++) {
                 detailsArray[x].setTypeElement("tagName-Found");

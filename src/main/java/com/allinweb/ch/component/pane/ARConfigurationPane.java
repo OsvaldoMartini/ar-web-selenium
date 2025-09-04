@@ -1367,11 +1367,11 @@ public class ARConfigurationPane extends ARPane {
             arNewBotJobScene.closeModal();
         }
         if (arNewCommandScene != null) {
-            arNewCommandScene.setRowMoveDTO(null);
+            arNewCommandScene.setSplitDTO(null);
             arNewCommandScene.closeModal();
         }
         if (arElementValueScene != null) {
-            arElementValueScene.setRowMoveDTO(null);
+            arElementValueScene.setSplitDTO(null);
             arElementValueScene.closeModal();
         }
         if (arViewBotJobScene != null) {

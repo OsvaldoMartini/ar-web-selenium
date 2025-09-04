@@ -83,7 +83,7 @@ public class ARNewCommandPane extends ARPane {
     // Postgres
     private Connection conn = null;
 
-    private RowMoveDTO rowMoveDTO;
+    private SplitDTO splitDTO;
     private Pane mainPane;
 
     private VBox commandBox;
@@ -201,14 +201,14 @@ public class ARNewCommandPane extends ARPane {
     private ComboBox<ComboBoxOperator> comboBoxOperator;
     private ObservableList<ComboBoxOperator> operatorsItems = FXCollections.observableArrayList();
 
-    public void initialize(RowMoveDTO rowMoveDTO) {
-        this.rowMoveDTO = rowMoveDTO;
+    public void initialize(SplitDTO splitDTO) {
+        this.splitDTO = splitDTO;
 
-        String tableName = this.rowMoveDTO.getSessionId().equals("componentTasks") ? "home_banking" : "bot_job";
-        String blockTable = this.rowMoveDTO.getSessionId().equals("componentTasks") ? "component_block" : "block";
-        int whereId = this.rowMoveDTO.getSessionId().equals("componentTasks")
-                ? rowMoveDTO.getHomeBankingId()
-                : rowMoveDTO.getBotJobId();
+        String tableName = this.splitDTO.getSessionId().equals("componentTasks") ? "home_banking" : "bot_job";
+        String blockTable = this.splitDTO.getSessionId().equals("componentTasks") ? "component_block" : "block";
+        int whereId = this.splitDTO.getSessionId().equals("componentTasks")
+                ? splitDTO.getHomeBankingId()
+                : splitDTO.getBotJobId();
         ErrorMessage errorMessage = performDataBase.loadWebPageFields(whereId, tableName);
         if (errorMessage != null) {
             performMessage.errorMessage(
@@ -250,7 +250,7 @@ public class ARNewCommandPane extends ARPane {
                     "CheckValue", new Image(ARConstants.ICON_CHECK), ARConstants.CHECK_VALUE, -1, -1, -1));
 
             // Add "IF" only if it does not meet the exclusion conditions
-            //            if (rowMoveDTO.getIsBetween() != null && !rowMoveDTO.getIsBetween()) {
+            //            if (splitDTO.getIsBetween() != null && !splitDTO.getIsBetween()) {
 
             itemsInstructions.add(
                     new ComboBoxImage("IF", new Image(ARConstants.ICON_IF_ELSE), ARConstants.IF, -1, -1, -1));
@@ -301,14 +301,16 @@ public class ARNewCommandPane extends ARPane {
                     "No Web Fields", new Image(ARConstants.ICON_BLANK), ARConstants.NO_VALUE, -1, -1, -1));
         }
 
-        String varTable = rowMoveDTO.getSessionId().equals("componentTasks") ? "component_variable" : "variable";
+        String varTable = splitDTO.getSessionId().equals("componentTasks") ? "component_variable" : "variable";
 
-        if (this.filteredPageItems != null && this.filteredPageItems.size() > 0) {
+        if (this.filteredPageItems != null && !this.filteredPageItems.isEmpty()) {
             variablesItems.clear();
 
             String instrTable = varTable.equals("variable") ? "instruction" : "component_instruction";
+
             InstructionLoad instructionLoad = performLists.getInstructionById(
                     instrTable, whereId, filteredPageItems.get(0).getInstructionId());
+
             if (instructionLoad != null) {
                 errorMessage = performDataBase.loadAllVariablesByCriteria(
                         varTable, whereId, instructionLoad.getId(), performLists.getParentName(instructionLoad));
@@ -904,20 +906,21 @@ public class ARNewCommandPane extends ARPane {
         reloadCombosBlocks();
         loadeAllCompleted = true;
         String varTable = "variable";
-        int whereId = rowMoveDTO.getBotJobId();
-        if (rowMoveDTO.getSessionId().equals("componentTasks")) {
+        int whereId = splitDTO.getBotJobId();
+        if (splitDTO.getSessionId().equals("componentTasks")) {
             varTable = "component_variable";
-            whereId = rowMoveDTO.getHomeBankingId();
+            whereId = splitDTO.getHomeBankingId();
         }
         setCombosAndLabels(varTable, whereId);
     }
 
     private void titleDescription() {
-        InstructionLoad firstInstruction = rowMoveDTO.getUpdatedRows().get(0);
+        InstructionLoad firstInstruction = SplitDTO.mapSplitToInstruction(splitDTO);
+
         String operation = performMessage.renderInstructionActions(firstInstruction);
 
         // Create individual text elements with the necessary styling
-        currentActionText1 = new Text(rowMoveDTO.getType().replace("_", " "));
+        currentActionText1 = new Text(splitDTO.getType().replace("_", " "));
         currentActionText1.setStyle("-fx-font-size: 14px; -fx-fill: green;");
 
         currentActionText2 = new Text(" Instruction: ");
@@ -932,7 +935,7 @@ public class ARNewCommandPane extends ARPane {
         currentActionText5 = new Text(" on Block Name: ");
         currentActionText5.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
-        currentActionText6 = new Text(rowMoveDTO.getBlockName());
+        currentActionText6 = new Text(splitDTO.getBlockName());
         currentActionText6.setStyle("-fx-font-size: 14px; -fx-fill: green;");
 
         operationSelected.getChildren().clear();
@@ -950,14 +953,10 @@ public class ARNewCommandPane extends ARPane {
     }
 
     private void setCombosAndLabels(String tableName, int whereId) {
-        if (rowMoveDTO.getType().equals("EDIT_OPERATION")) {
-            String actions = rowMoveDTO.getUpdatedRows().get(0).getInstructionName();
-            String[] operations = rowMoveDTO.getUpdatedRows().get(0).getOperation() != null
-                    ? rowMoveDTO
-                            .getUpdatedRows()
-                            .get(0)
-                            .getOperation()
-                            .split(ARConstants.ACTION_SPECIFICATIONS_SPLITTER)
+        if (splitDTO.getType().equals("EDIT_OPERATION")) {
+            String actions = splitDTO.getInstructionName();
+            String[] operations = splitDTO.getOperation() != null
+                    ? splitDTO.getOperation().split(ARConstants.ACTION_SPECIFICATIONS_SPLITTER)
                     : null;
 
             if (allowedActions.contains(actions.toUpperCase())) {
@@ -993,9 +992,9 @@ public class ARNewCommandPane extends ARPane {
             recallMessages(comboBoxInstruc.getValue().getValue());
         }
 
-        if (rowMoveDTO.getBlockId() > -1) {
+        if (splitDTO.getBlockId() > -1) {
             // Get the blockId to match
-            int targetBlockId = rowMoveDTO.getBlockId();
+            int targetBlockId = splitDTO.getBlockId();
 
             // Iterate through items in comboBoxAllBlocks
             for (BlockOptions item : comboBoxAllBlocks.getItems()) {
@@ -1017,28 +1016,28 @@ public class ARNewCommandPane extends ARPane {
     @Override
     public void initUIBehaviour() {
         addExcelNextRowButton.setOnAction(e -> insertNewInstruction(
-                "NEXT ROW", "EXCEL NEXT ROW", ARConstants.NEXT_ROW, 0, "", null, null, null, rowMoveDTO));
+                "NEXT ROW", "EXCEL NEXT ROW", ARConstants.NEXT_ROW, 0, "", null, null, null, splitDTO));
         addPauseButton.setOnAction(e ->
-                insertNewInstruction("PAUSE", "PAUSE Action", ARConstants.PAUSE, 0, "", null, null, null, rowMoveDTO));
+                insertNewInstruction("PAUSE", "PAUSE Action", ARConstants.PAUSE, 0, "", null, null, null, splitDTO));
         addWaitButton30.setOnAction(e -> insertNewInstruction(
-                "Wait 30second(s)", "Waiting action", ARConstants.HOLD, 30, "", null, null, null, rowMoveDTO));
+                "Wait 30second(s)", "Waiting action", ARConstants.HOLD, 30, "", null, null, null, splitDTO));
         addWaitButton15.setOnAction(e -> insertNewInstruction(
-                "Wait 15second(s)", "Waiting action", ARConstants.HOLD, 15, "", null, null, null, rowMoveDTO));
+                "Wait 15second(s)", "Waiting action", ARConstants.HOLD, 15, "", null, null, null, splitDTO));
         addWaitButton5.setOnAction(e -> insertNewInstruction(
-                "Wait 5second(s)", "Waiting action", ARConstants.HOLD, 5, "", null, null, null, rowMoveDTO));
+                "Wait 5second(s)", "Waiting action", ARConstants.HOLD, 5, "", null, null, null, splitDTO));
         addWaitButton2.setOnAction(e -> insertNewInstruction(
-                "Wait 2second(s)", "Waiting action", ARConstants.HOLD, 2, "", null, null, null, rowMoveDTO));
+                "Wait 2second(s)", "Waiting action", ARConstants.HOLD, 2, "", null, null, null, splitDTO));
         addCloseActionButton.setOnAction(e -> insertNewInstruction(
-                "Close Browser", "Close Browser", ARConstants.QUIT, 0, "", null, null, null, rowMoveDTO));
+                "Close Browser", "Close Browser", ARConstants.QUIT, 0, "", null, null, null, splitDTO));
 
         addScreenButton.setOnAction(e -> insertNewInstruction(
-                "Screenshot Browser", "Screenshot Browser", ARConstants.SCREEN, 0, "", null, null, null, rowMoveDTO));
+                "Screenshot Browser", "Screenshot Browser", ARConstants.SCREEN, 0, "", null, null, null, splitDTO));
 
         refreshWebButton.setOnMouseClicked(e -> {
-            String tableName = rowMoveDTO.getSessionId().equals("componentTasks") ? "home_banking" : "bot_job";
-            int whereId = rowMoveDTO.getSessionId().equals("componentTasks")
-                    ? rowMoveDTO.getHomeBankingId()
-                    : rowMoveDTO.getBotJobId();
+            String tableName = splitDTO.getSessionId().equals("componentTasks") ? "home_banking" : "bot_job";
+            int whereId = splitDTO.getSessionId().equals("componentTasks")
+                    ? splitDTO.getHomeBankingId()
+                    : splitDTO.getBotJobId();
             updateFields(tableName, whereId);
         });
 
@@ -1125,23 +1124,17 @@ public class ARNewCommandPane extends ARPane {
                 return;
             }
 
-            if (rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber()
+            if (splitDTO.getInstructionOrderNumber()
                             <= comboBoxWebFields.getValue().getOrderNumber()
                     && (comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.REFRESH_LOOP)
                             || comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.LOOP))) {
                 // It Forces to LOOP or REFRESH_LOOP BE AFTER THE Instruction
-                if (rowMoveDTO.getType().equals("INSERT_AFTER")) {
-                    rowMoveDTO
-                            .getUpdatedRows()
-                            .get(0)
-                            .setInstructionOrderNumber(
-                                    comboBoxWebFields.getValue().getOrderNumber());
+                if (splitDTO.getType().equals("INSERT_AFTER")) {
+                    splitDTO.setInstructionOrderNumber(
+                            comboBoxWebFields.getValue().getOrderNumber());
                 } else {
-                    rowMoveDTO
-                            .getUpdatedRows()
-                            .get(0)
-                            .setInstructionOrderNumber(
-                                    comboBoxWebFields.getValue().getOrderNumber() + 1);
+                    splitDTO.setInstructionOrderNumber(
+                            comboBoxWebFields.getValue().getOrderNumber() + 1);
                 }
             }
 
@@ -1162,7 +1155,7 @@ public class ARNewCommandPane extends ARPane {
                         comboBoxVars.getValue().getVarId(),
                         comboBoxVars.getValue().getParentId(),
                         null,
-                        this.rowMoveDTO);
+                        this.splitDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("GetValue")) {
                 insertNewInstruction(
                         "GetValue",
@@ -1176,7 +1169,7 @@ public class ARNewCommandPane extends ARPane {
                         comboBoxVars.getValue().getVarId(),
                         comboBoxVars.getValue().getParentId(),
                         null,
-                        this.rowMoveDTO);
+                        this.splitDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("CheckValue")) {
                 String checkValueFor =
                         Strings.isNullOrEmpty(comboBoxVars.getValue().getValue())
@@ -1193,7 +1186,7 @@ public class ARNewCommandPane extends ARPane {
                         comboBoxVars.getValue().getVarId(),
                         comboBoxVars.getValue().getParentId(),
                         null,
-                        this.rowMoveDTO);
+                        this.splitDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("excelWrite")) {
                 insertNewInstruction(
                         "ExcelWrite",
@@ -1204,10 +1197,10 @@ public class ARNewCommandPane extends ARPane {
                         comboBoxVars.getValue().getVarId(),
                         comboBoxVars.getValue().getParentId(),
                         null,
-                        this.rowMoveDTO);
+                        this.splitDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("Refresh")) {
                 insertNewInstruction(
-                        "Refresh", "Refresh", ARConstants.REFRESH_ONLY, 10, "", null, null, null, this.rowMoveDTO);
+                        "Refresh", "Refresh", ARConstants.REFRESH_ONLY, 10, "", null, null, null, this.splitDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("Loop")) {
                 String loopValue =
                         "other".equalsIgnoreCase(comboBoxLoops.getValue().getValue())
@@ -1225,7 +1218,7 @@ public class ARNewCommandPane extends ARPane {
                         null,
                         comboBoxWebFields.getValue().getInstructionId(),
                         null,
-                        this.rowMoveDTO);
+                        this.splitDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("Refresh Loop")) {
 
                 String loopValue =
@@ -1244,7 +1237,7 @@ public class ARNewCommandPane extends ARPane {
                         null,
                         comboBoxWebFields.getValue().getInstructionId(),
                         null,
-                        this.rowMoveDTO);
+                        this.splitDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("GOTO")) {
 
                 String gotoValue =
@@ -1263,7 +1256,7 @@ public class ARNewCommandPane extends ARPane {
                         null, // Block Order Number as VarId
                         null,
                         comboBoxBlocksGoto.getValue().getBlockId(), // BLOCK ID as Parent Block Id
-                        this.rowMoveDTO);
+                        this.splitDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("EXCEL GOTO")) {
                 insertNewInstruction(
                         "EXCEL GOTO",
@@ -1274,7 +1267,7 @@ public class ARNewCommandPane extends ARPane {
                         null, // Block Order Number as VarId
                         null,
                         comboBoxBlocksGoto.getValue().getBlockId(), // BLOCK ID as Parent Block Id
-                        this.rowMoveDTO);
+                        this.splitDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("IF")) {
                 insertNewInstruction(
                         "IF",
@@ -1285,7 +1278,7 @@ public class ARNewCommandPane extends ARPane {
                         null, // Block Order Number as VarId
                         null, // Parent Id null
                         null, // Parent Block Id null
-                        this.rowMoveDTO);
+                        this.splitDTO);
             }
 
             //            PerformDataBase..changeDbConnection(previousDB);
@@ -1301,18 +1294,17 @@ public class ARNewCommandPane extends ARPane {
 
         variableButton.setOnAction(e -> {
             String varTable = "variable";
-            int whereId = rowMoveDTO.getBotJobId();
-            if (rowMoveDTO.getSessionId().equals("componentTasks")) {
+            int whereId = splitDTO.getBotJobId();
+            if (splitDTO.getSessionId().equals("componentTasks")) {
                 varTable = "component_variable";
-                whereId = rowMoveDTO.getHomeBankingId();
+                whereId = splitDTO.getHomeBankingId();
             }
 
-            if (this.rowMoveDTO != null && !rowMoveDTO.getUpdatedRows().isEmpty()) {
+            if (this.splitDTO != null) {
                 ARLogger.getInstance(ARNewCommandPane.class)
-                        .info("creating variable for instruction Name "
-                                + rowMoveDTO.getUpdatedRows().get(0).getInstructionName());
+                        .info("creating variable for instruction Name " + splitDTO.getInstructionName());
                 arElementValueScene.initialize(
-                        rowMoveDTO,
+                        splitDTO,
                         comboBoxVars.getValue().getVarId(),
                         comboBoxVars.getValue().getText(),
                         comboBoxVars.getValue().getValue(),
@@ -1334,7 +1326,7 @@ public class ARNewCommandPane extends ARPane {
                                 + comboBoxWebFields.getValue().getText());
 
                 arElementValueScene.initialize(
-                        rowMoveDTO,
+                        splitDTO,
                         comboBoxVars.getValue().getVarId(),
                         comboBoxVars.getValue().getText(),
                         comboBoxVars.getValue().getValue(),
@@ -1373,10 +1365,10 @@ public class ARNewCommandPane extends ARPane {
             if (newValue != null) {
                 if (!firstLoad) {
                     String varTable = "variable";
-                    int whereId = rowMoveDTO.getBotJobId();
-                    if (rowMoveDTO.getSessionId().equals("componentTasks")) {
+                    int whereId = splitDTO.getBotJobId();
+                    if (splitDTO.getSessionId().equals("componentTasks")) {
                         varTable = "component_variable";
-                        whereId = rowMoveDTO.getHomeBankingId();
+                        whereId = splitDTO.getHomeBankingId();
                     }
                     reloadComboVars(varTable, whereId, newValue.getInstructionId(), false, -1);
                     comboBoxVars.getSelectionModel().selectFirst();
@@ -1406,7 +1398,7 @@ public class ARNewCommandPane extends ARPane {
                                 comboBoxVars.getValue().getVarId());
                     } else {
                         arElementValueScene.initialize(
-                                rowMoveDTO,
+                                splitDTO,
                                 comboBoxVars.getValue().getVarId(),
                                 comboBoxVars.getValue().getText(),
                                 comboBoxVars.getValue().getValue(),
@@ -1426,7 +1418,7 @@ public class ARNewCommandPane extends ARPane {
                     if (comboBoxVars.getValue() != null
                             && comboBoxVars.getValue().getVarId() > -1) {
                         arElementValueScene.initialize(
-                                rowMoveDTO,
+                                splitDTO,
                                 comboBoxVars.getValue().getVarId(),
                                 comboBoxVars.getValue().getText(),
                                 comboBoxVars.getValue().getValue(),
@@ -1438,7 +1430,7 @@ public class ARNewCommandPane extends ARPane {
                                 comboBoxVars.getValue().getVarId());
                     } else {
                         arElementValueScene.initialize(
-                                rowMoveDTO,
+                                splitDTO,
                                 comboBoxVars.getValue().getVarId(),
                                 comboBoxVars.getValue().getText(),
                                 comboBoxVars.getValue().getValue(),
@@ -1454,8 +1446,7 @@ public class ARNewCommandPane extends ARPane {
         comboBoxAllBlocks.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue != null) {
                 if (!firstLoad) {
-                    if (rowMoveDTO.getUpdatedRows().get(0).getActions() != null
-                            && rowMoveDTO.getUpdatedRows().get(0).getActions().equals("EXCEL GOTO")) {
+                    if (splitDTO.getActions() != null && splitDTO.getActions().equals("EXCEL GOTO")) {
                         loadBlockGoto(-99);
                     } else {
                         loadBlockGoto(newValue.getBlockId());
@@ -2469,8 +2460,8 @@ public class ARNewCommandPane extends ARPane {
                 comboBoxAllBlocks.setItems(FXCollections.observableArrayList(listOptions));
 
                 // Select target block
-                if (rowMoveDTO.getBlockId() > -1) {
-                    int targetBlockId = rowMoveDTO.getBlockId();
+                if (splitDTO.getBlockId() > -1) {
+                    int targetBlockId = splitDTO.getBlockId();
                     comboBoxAllBlocks.getItems().stream()
                             .filter(item -> item.getBlockId() != null && item.getBlockId() == targetBlockId)
                             .findFirst()
@@ -2522,12 +2513,12 @@ public class ARNewCommandPane extends ARPane {
             Integer variableId,
             Integer parentId,
             Integer parentBlockId,
-            RowMoveDTO rowMoveDTO) {
+            SplitDTO splitDTO) {
 
         Integer blockId = comboBoxAllBlocks.getValue().getBlockId();
         String blockName = comboBoxAllBlocks.getValue().getText();
 
-        if (!rowMoveDTO.getBlockId().equals(blockId)) {
+        if (!this.splitDTO.getBlockId().equals(blockId)) {
             blockIdChanged = true;
         } else {
             blockIdChanged = false;
@@ -2538,28 +2529,26 @@ public class ARNewCommandPane extends ARPane {
         if (parentBlockId != null && actions.equals("EXCEL GOTO")) {
             blockId = comboBoxBlocksGoto.getValue().getBlockId();
             blockName = comboBoxBlocksGoto.getValue().getText();
-            rowMoveDTO.setBlockId(blockId);
-            rowMoveDTO.setBlockName(blockName);
-            rowMoveDTO.getUpdatedRows().get(0).setBlockId(parentBlockId);
-            rowMoveDTO.setParentBlockId(parentBlockId);
+            this.splitDTO.setBlockId(blockId);
+            this.splitDTO.setBlockName(blockName);
+            this.splitDTO.setBlockId(parentBlockId);
+            this.splitDTO.setParentBlockId(parentBlockId);
 
             String tableName =
-                    rowMoveDTO.getSessionId().equals("componentTasks") ? "component_instruction" : "instruction";
-            int whereId = rowMoveDTO.getSessionId().equals("componentTasks")
-                    ? rowMoveDTO.getHomeBankingId()
-                    : rowMoveDTO.getBotJobId();
+                    this.splitDTO.getSessionId().equals("componentTasks") ? "component_instruction" : "instruction";
+            int whereId = this.splitDTO.getSessionId().equals("componentTasks")
+                    ? this.splitDTO.getHomeBankingId()
+                    : this.splitDTO.getBotJobId();
             try {
                 List<InstructionLoad> excelDataGoto = performDBEngine.loadExcelGotoBlock(whereId, tableName);
 
                 // THIS IS VERY IMPORTANT BECAUSE JUST ALLOWS ONLY ONE "EXCEL GOTO" PER BOT JOB
                 if (!excelDataGoto.isEmpty()) {
-                    rowMoveDTO.setType("EDIT_OPERATION");
-                    rowMoveDTO
-                            .getUpdatedRows()
-                            .get(0)
-                            .setId(excelDataGoto.get(0).getId());
+                    this.splitDTO.setType("EDIT_OPERATION");
+                    this.splitDTO.setInstructionId(excelDataGoto.get(0).getId());
+
                 } else {
-                    rowMoveDTO.setType("INSERT_AFTER");
+                    this.splitDTO.setType("INSERT_AFTER");
                 }
             } catch (Exception error) {
                 ARLogger.getInstance(ARNewCommandScene.class)
@@ -2567,24 +2556,23 @@ public class ARNewCommandPane extends ARPane {
             }
 
         } else {
-            rowMoveDTO.setBlockId(blockId);
-            rowMoveDTO.setBlockName(blockName);
+            this.splitDTO.setBlockId(blockId);
+            this.splitDTO.setBlockName(blockName);
 
             if (parentBlockId != null) {
-                rowMoveDTO.setParentBlockId(parentBlockId);
-                rowMoveDTO.getUpdatedRows().get(0).setBlockId(parentBlockId);
+                this.splitDTO.setParentBlockId(parentBlockId);
+                this.splitDTO.setBlockId(parentBlockId);
             }
             // Parent Id
-            rowMoveDTO.getUpdatedRows().get(0).setParentId(parentId);
+            this.splitDTO.setParentId(parentId);
         }
 
-        rowMoveDTO.getUpdatedRows().get(0).setVariableId(variableId);
+        this.splitDTO.setVariableId(variableId);
 
         // This prevents if was deleted when in EDIT _OPERATION
-        if (rowMoveDTO.getType().equals("EDIT_OPERATION")) {
-            if (!performDataBase.instructionIdExists(
-                    rowMoveDTO.getUpdatedRows().get(0).getId())) {
-                rowMoveDTO.setType("INSERT_AFTER");
+        if (this.splitDTO.getType().equals("EDIT_OPERATION")) {
+            if (!performDataBase.instructionIdExists(this.splitDTO.getInstructionId())) {
+                this.splitDTO.setType("INSERT_AFTER");
             }
         }
 
@@ -2615,7 +2603,7 @@ public class ARNewCommandPane extends ARPane {
 
         // Run the instruction add in a separate Task
         ErrorMessage errorMessage = performDataBase.preFillNewInstruction(
-                name, description, actions, operation, onHold, rowMoveDTO, blockIdChanged);
+                name, description, actions, operation, onHold, this.splitDTO, blockIdChanged);
 
         if (errorMessage == null) {
 
@@ -2623,17 +2611,17 @@ public class ARNewCommandPane extends ARPane {
             Integer whereId;
 
             tableName = "instruction";
-            whereId = rowMoveDTO.getBotJobId();
-            rowMoveDTO.setOperationId("updateInstructions");
+            whereId = this.splitDTO.getBotJobId();
+            this.splitDTO.setOperationId("updateInstructions");
 
             // Check componentTasks case
-            if ("componentTasks".equalsIgnoreCase(rowMoveDTO.getSessionId())) {
+            if ("componentTasks".equalsIgnoreCase(this.splitDTO.getSessionId())) {
                 tableName = "component_instruction";
-                whereId = rowMoveDTO.getHomeBankingId();
-                rowMoveDTO.setOperationId("componentsUpdate");
+                whereId = this.splitDTO.getHomeBankingId();
+                this.splitDTO.setOperationId("componentsUpdate");
 
                 errorMessage = performDataBase.loadComponentsComplete(
-                        rowMoveDTO.getHomeBankingId(), rowMoveDTO.getBotJobId(), rowMoveDTO.getBotJobName());
+                        this.splitDTO.getHomeBankingId(), this.splitDTO.getBotJobId(), this.splitDTO.getBotJobName());
 
                 if (errorMessage != null) {
                     performMessage.errorMessage(
@@ -2647,7 +2635,7 @@ public class ARNewCommandPane extends ARPane {
                 }
 
             } else {
-                errorMessage = performDBEngine.loadCompleteJobs(rowMoveDTO.getBotJobId());
+                errorMessage = performDBEngine.loadCompleteJobs(this.splitDTO.getBotJobId());
 
                 if (errorMessage != null) {
                     performMessage.errorMessage(
@@ -2671,9 +2659,12 @@ public class ARNewCommandPane extends ARPane {
             }
 
             webSocketSessionManager.sendMessageJson(
-                    rowMoveDTO.getHomeBankingId(), rowMoveDTO.getSessionId(), jsonData, rowMoveDTO.getOperationId());
+                    this.splitDTO.getHomeBankingId(),
+                    this.splitDTO.getSessionId(),
+                    jsonData,
+                    this.splitDTO.getOperationId());
 
-            //            if (!rowMoveDTO.getType().equals("EDIT_OPERATION")) {
+            //            if (!splitDTO.getType().equals("EDIT_OPERATION")) {
             //                updateFields();
             //            }
         }
@@ -2711,13 +2702,9 @@ public class ARNewCommandPane extends ARPane {
             //                    || instrValue.equals("CheckValue")
             //                    || instrValue.equals("ExcelWrite")) {
 
-            Integer instrunctionId = rowMoveDTO.getUpdatedRows().get(0).getParentId() != null
-                    ? rowMoveDTO.getUpdatedRows().get(0).getParentId()
-                    : -1;
+            Integer instrunctionId = splitDTO.getParentId() != null ? splitDTO.getParentId() : -1;
 
-            Integer variableId = rowMoveDTO.getUpdatedRows().get(0).getVariableId() != null
-                    ? rowMoveDTO.getUpdatedRows().get(0).getVariableId()
-                    : -1;
+            Integer variableId = splitDTO.getVariableId() != null ? splitDTO.getVariableId() : -1;
 
             String operValue = "";
             if (instrValue.equals("CheckValue") && operations.length == 3) {
@@ -2735,10 +2722,10 @@ public class ARNewCommandPane extends ARPane {
             }
 
             String varTable = "variable";
-            int whereId = rowMoveDTO.getBotJobId();
-            if (rowMoveDTO.getSessionId().equals("componentTasks")) {
+            int whereId = splitDTO.getBotJobId();
+            if (splitDTO.getSessionId().equals("componentTasks")) {
                 varTable = "component_variable";
-                whereId = rowMoveDTO.getHomeBankingId();
+                whereId = splitDTO.getHomeBankingId();
             }
 
             reloadComboVars(varTable, whereId, instrunctionId, false, -1);
@@ -2804,10 +2791,7 @@ public class ARNewCommandPane extends ARPane {
             indexGeneric = -1;
             if (instrValue.equals("GOTO")) {
                 for (int i = 0; i < listOptions.size(); i++) {
-                    if (listOptions
-                            .get(i)
-                            .getBlockId()
-                            .equals(rowMoveDTO.getUpdatedRows().get(0).getParentBlockId())) {
+                    if (listOptions.get(i).getBlockId().equals(splitDTO.getParentBlockId())) {
                         comboBoxBlocksGoto.getSelectionModel().select(i);
                         indexGeneric = i;
                         break;
@@ -2845,10 +2829,7 @@ public class ARNewCommandPane extends ARPane {
             indexGeneric = -1;
             if (instrValue.equals("EXCEL GOTO")) {
                 for (int i = 0; i < listOptions.size(); i++) {
-                    if (listOptions
-                            .get(i)
-                            .getBlockId()
-                            .equals(rowMoveDTO.getUpdatedRows().get(0).getParentBlockId())) {
+                    if (listOptions.get(i).getBlockId().equals(splitDTO.getParentBlockId())) {
                         comboBoxBlocksGoto.getSelectionModel().select(i);
                         indexGeneric = i;
                         break;
@@ -2913,16 +2894,16 @@ public class ARNewCommandPane extends ARPane {
         try {
             // Handle INSERT_NEW case
             listOptions = performLists.loadComboOptions(tableName, "NewCommandPane");
-            if (rowMoveDTO != null && "INSERT_NEW".equals(rowMoveDTO.getType()) && listOptions.size() == 1) {
-                rowMoveDTO.setBlockId(listOptions.get(0).getBlockId());
+            if (splitDTO != null && "INSERT_NEW".equals(splitDTO.getType()) && listOptions.size() == 1) {
+                splitDTO.setBlockId(listOptions.get(0).getBlockId());
             }
 
             // Handle GOTO case
-            if (rowMoveDTO != null) {
-                if ("EXCEL GOTO".equals(rowMoveDTO.getUpdatedRows().get(0).getActions())) {
+            if (splitDTO != null) {
+                if ("EXCEL GOTO".equals(splitDTO.getActions())) {
                     loadBlockGoto(-99);
                 } else {
-                    loadBlockGoto(rowMoveDTO.getBlockId());
+                    loadBlockGoto(splitDTO.getBlockId());
                 }
             }
 
@@ -2937,11 +2918,11 @@ public class ARNewCommandPane extends ARPane {
 
     public void reloadCombosBlocks() {
         if (listOptions != null) {
-            if (rowMoveDTO != null) {
-                if ("EXCEL GOTO".equals(rowMoveDTO.getUpdatedRows().get(0).getActions())) {
+            if (splitDTO != null) {
+                if ("EXCEL GOTO".equals(splitDTO.getActions())) {
                     loadBlockGoto(-99);
                 } else {
-                    loadBlockGoto(rowMoveDTO.getBlockId());
+                    loadBlockGoto(splitDTO.getBlockId());
                 }
             }
             loadAllBlocks();

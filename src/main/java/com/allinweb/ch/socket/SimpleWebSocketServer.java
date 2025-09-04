@@ -216,10 +216,45 @@ public class SimpleWebSocketServer {
         String sessionIdToSend = null;
         boolean alreadySentMgsSocket = false;
 
+        // Optional: check for duplicates or gaps
+
+        //        List<BlockLoadDTO> listBlocks =
+        //                blockTable.equals("block") ? performLists.getListBlock() : performLists.getListBlockComp();
+        ErrorMessage errorMessage = null;
+        //        Set<Integer> seenNumbers = new HashSet<>();
+        //        for (BlockLoadDTO block : performLists.getListBlock()) {
+        //            if (!seenNumbers.add(block.getBlockOrderNumber())) {
+        //                System.out.println("Duplicate blockOrderNumber found: " + block.getBlockOrderNumber() + "
+        // (Block ID: " + block.getId() + ")");
+        //// updateBlockOrderNumber  ALREADY UPDATE MEMORY LIST
+        //                if (errorMessage == null) {
+        //                    errorMessage = performDataBase.updateBlockOrderNumber(blockTable, whereId, true);
+        //                }
+        //                break;
+        //            }
+        //        }
+        //
+        //        ErrorMessage errorMessage = null;
+        //        String blockTable = null;
+        //        int whereId = -1;
+        //        String updteBlocks = "";
+        //
+        //        if (sessionIdToSend != null) {
+        //            if (sessionIdToSend.matches(".*botJobTasks.*")) {
+        //                blockTable = "block";
+        //                whereId = blockSplitDTO.getBotJobId();
+        //                updteBlocks = "UPDATE_BLOCKS";
+        //            } else if (sessionIdToSend.matches(".*componentTasks.*")) {
+        //                blockTable = "component_block";
+        //                whereId = blockSplitDTO.getHomeBankingId();
+        //                updteBlocks = "UPDATE_BLOCKS_COMP";
+        //            }
+        //        }
+
         switch (type) {
             case "CLOSE_BROWSER":
                 // Extract the "body" field from the JsonObject
-                ElementSplitDTO elementSplitDTO = gson.fromJson(jsonEntry, ElementSplitDTO.class);
+                SplitDTO elementSplitDTO = gson.fromJson(jsonEntry, SplitDTO.class);
 
                 homeBankingId = elementSplitDTO.getHomeBankingId() != null ? elementSplitDTO.getHomeBankingId() : -1;
                 sessionIdToSend = elementSplitDTO.getSessionId();
@@ -235,7 +270,7 @@ public class SimpleWebSocketServer {
                 break;
             case "HOVERED_ROW":
                 // Extract the "body" field from the JsonObject
-                elementSplitDTO = gson.fromJson(jsonEntry, ElementSplitDTO.class);
+                elementSplitDTO = gson.fromJson(jsonEntry, SplitDTO.class);
 
                 homeBankingId = elementSplitDTO.getHomeBankingId() != null ? elementSplitDTO.getHomeBankingId() : -1;
                 sessionIdToSend = elementSplitDTO.getSessionId();
@@ -251,9 +286,9 @@ public class SimpleWebSocketServer {
                 break;
             case "SEARCH_TOOL":
                 // Extract the "body" field from the JsonObject
-                elementSplitDTO = gson.fromJson(jsonEntry, ElementSplitDTO.class);
+                elementSplitDTO = gson.fromJson(jsonEntry, SplitDTO.class);
                 //                elementSplitDTO.setType("RETURN FROM MARTINI Total Rows: " +
-                // elementSplitDTO.getDetails().length);
+                // elementSplitDTO.getElementDetails().length);
 
                 homeBankingId = elementSplitDTO.getHomeBankingId() != null ? elementSplitDTO.getHomeBankingId() : -1;
                 sessionIdToSend = elementSplitDTO.getSessionId();
@@ -263,7 +298,7 @@ public class SimpleWebSocketServer {
                     webSocketSessionManager.sendMessageJson(homeBankingId, sessionIdToSend, jsonData, "addPickOne");
                     //                    broadcastMessageToAll(jsonData);
                     List<String> excludeList = List.of("optional", "blockMarked", "editMode");
-                    performMessage.outputJsonElementDTO(elementSplitDTO.getDetails(), excludeList, "elementDTO");
+                    performMessage.outputJsonElementDTO(elementSplitDTO.getElementDetails(), excludeList, "elementDTO");
                     excludeList = List.of(
                             "optional",
                             "blockMarked",
@@ -277,7 +312,8 @@ public class SimpleWebSocketServer {
                             "searchAttributeValue",
                             "attributeType",
                             "attributeValue");
-                    performMessage.outputJsonElementDTO(elementSplitDTO.getDetails(), excludeList, "AI-ElementDTO");
+                    performMessage.outputJsonElementDTO(
+                            elementSplitDTO.getElementDetails(), excludeList, "AI-ElementDTO");
                 }
 
                 alreadySentMgsSocket = true;
@@ -290,13 +326,13 @@ public class SimpleWebSocketServer {
             case "TEST_CLICK_DTO":
             case "TEST_INPUT_DTO":
                 // Extract the "body" field from the JsonObject
-                ElementSplitDTO processDTO = gson.fromJson(jsonEntry, ElementSplitDTO.class);
+                SplitDTO processDTO = gson.fromJson(jsonEntry, SplitDTO.class);
 
                 homeBankingId = processDTO.getHomeBankingId();
                 sessionIdToSend = processDTO.getSessionId();
                 //                botJobIdTask = processDTO.getBotJobId();
 
-                if (processDTO.getDetails() != null && processDTO.getDetails().length > 0) {
+                if (processDTO.getElementDetails() != null && processDTO.getElementDetails().length > 0) {
                     webSocketSessionManager.sendMessageJson(
                             "scanner-element-pane", gson.toJson(processDTO)); // Sending as details
                 }
@@ -304,7 +340,7 @@ public class SimpleWebSocketServer {
                 break;
             case "RESPONSE_BACK":
                 // Extract the "body" field from the JsonObject
-                BlockSplitDTO received = gson.fromJson(jsonEntry, BlockSplitDTO.class);
+                SplitDTO received = gson.fromJson(jsonEntry, SplitDTO.class);
                 received.setType("MARTINI");
 
                 String jsonData = gson.toJson(received);
@@ -318,7 +354,7 @@ public class SimpleWebSocketServer {
                 alreadySentMgsSocket = true;
                 break;
             case "BLOCKS_COMPONENT":
-                BlockSplitDTO creteComp = gson.fromJson(jsonEntry, BlockSplitDTO.class);
+                SplitDTO creteComp = gson.fromJson(jsonEntry, SplitDTO.class);
 
                 homeBankingId = creteComp.getHomeBankingId();
                 sessionIdToSend = creteComp.getSessionId();
@@ -336,7 +372,7 @@ public class SimpleWebSocketServer {
 
                 break;
             case "COMPONENT_INJECT":
-                BlockSplitDTO injectComp = gson.fromJson(jsonEntry, BlockSplitDTO.class);
+                SplitDTO injectComp = gson.fromJson(jsonEntry, SplitDTO.class);
 
                 homeBankingId = injectComp.getHomeBankingId();
                 sessionIdToSend = injectComp.getSessionId();
@@ -353,7 +389,7 @@ public class SimpleWebSocketServer {
 
                 break;
             case "BLOCKS_SPLITTER":
-                BlockSplitDTO blockSplitDTO = gson.fromJson(jsonEntry, BlockSplitDTO.class);
+                SplitDTO blockSplitDTO = gson.fromJson(jsonEntry, SplitDTO.class);
 
                 homeBankingId = blockSplitDTO.getHomeBankingId();
                 sessionIdToSend = blockSplitDTO.getSessionId();
@@ -361,7 +397,6 @@ public class SimpleWebSocketServer {
 
                 alreadySentMgsSocket = false;
 
-                ErrorMessage errorMessage = null;
                 String blockTable = null;
                 int whereId = -1;
                 String updteBlocks = "";
@@ -468,7 +503,7 @@ public class SimpleWebSocketServer {
 
                 break;
             case "ROW_UPDATE":
-                RowMoveDTO rowUpdateDTO = gson.fromJson(jsonEntry, RowMoveDTO.class);
+                SplitDTO rowUpdateDTO = gson.fromJson(jsonEntry, SplitDTO.class);
 
                 homeBankingId = rowUpdateDTO.getHomeBankingId();
                 sessionIdToSend = rowUpdateDTO.getSessionId();
@@ -490,15 +525,15 @@ public class SimpleWebSocketServer {
                     }
                 }
 
-                if (rowUpdateDTO.getUpdatedRows().size() > 0) {
+                if (rowUpdateDTO != null) {
 
-                    errorMessage = performDataBase.rowsUpdateName(instTable, whereId, rowUpdateDTO.getUpdatedRows());
+                    InstructionLoad instructionLoad = SplitDTO.mapSplitToInstruction(rowUpdateDTO);
+                    errorMessage = performDataBase.rowsUpdateName(
+                            instTable, whereId, Collections.singletonList(instructionLoad));
 
                     if (errorMessage == null) {
-                        errorMessage = performDataBase.loadAllParents(
-                                instTable,
-                                whereId,
-                                rowUpdateDTO.getUpdatedRows().get(0).getId());
+                        errorMessage =
+                                performDataBase.loadAllParents(instTable, whereId, rowUpdateDTO.getInstructionId());
 
                         if (errorMessage == null) {
                             if (!performLists.getListParentOperations().isEmpty()) {
@@ -525,7 +560,8 @@ public class SimpleWebSocketServer {
 
                     // UPDATE MEMORY LIST FOR PARENTS INSTRUCION NAME
                     if (errorMessage == null) {
-                        performLists.updateMemoryInstructionName(instTable, whereId, rowUpdateDTO.getUpdatedRows());
+                        performLists.updateMemoryInstructionName(
+                                instTable, whereId, Collections.singletonList(instructionLoad));
                         performLists.updateMemoryParentOpenName(
                                 instTable, whereId, performLists.getListParentOperations());
                     }
@@ -692,7 +728,7 @@ public class SimpleWebSocketServer {
             case "INSERT_AFTER_ELSEIF":
             case "INSERT_BEFORE_ELSEIF":
             case "EDIT_OPERATION":
-                RowMoveDTO insertBeforeDTO = gson.fromJson(jsonEntry, RowMoveDTO.class);
+                SplitDTO insertBeforeDTO = gson.fromJson(jsonEntry, SplitDTO.class);
 
                 homeBankingId = insertBeforeDTO.getHomeBankingId();
                 sessionIdToSend = insertBeforeDTO.getSessionId();
@@ -711,7 +747,7 @@ public class SimpleWebSocketServer {
                     }
                 }
 
-                injectStepAfterOrBefore(blockTable, whereId, sessionIdToSend, insertBeforeDTO);
+                injectStepAfterOrBefore(blockTable, whereId, insertBeforeDTO);
 
                 if (type.equals("INSERT_AFTER_ELSEIF") || type.equals("INSERT_BEFORE_ELSEIF")) {
                     alreadySentMgsSocket = false;
@@ -939,7 +975,7 @@ public class SimpleWebSocketServer {
 
                 break;
             case "DELETE_INSTRUCTION":
-                InstructionLoad toDelete = gson.fromJson(jsonEntry, InstructionLoad.class);
+                SplitDTO toDelete = gson.fromJson(jsonEntry, SplitDTO.class);
 
                 homeBankingId = toDelete.getHomeBankingId();
                 botJobIdTask = toDelete.getBotJobId();
@@ -996,7 +1032,7 @@ public class SimpleWebSocketServer {
 
                     ARConstants.DialogModal respModal = ARConstants.DialogModal.NONE;
 
-                    errorMessage = performDataBase.loadAllParents(instTable, whereId, toDelete.getId());
+                    errorMessage = performDataBase.loadAllParents(instTable, whereId, toDelete.getInstructionId());
 
                     if (errorMessage != null) {
                         performMessage.errorMessage(
@@ -1042,9 +1078,11 @@ public class SimpleWebSocketServer {
                         }
 
                         if (continueDelete && deleteParents) {
-                            errorMessage = performDataBase.deleteRowParents(instTable, whereId, toDelete.getId());
+                            errorMessage =
+                                    performDataBase.deleteRowParents(instTable, whereId, toDelete.getInstructionId());
                             if (errorMessage == null) {
-                                performLists.updateMemoryRemoveInstructionId(instTable, whereId, toDelete.getId());
+                                performLists.updateMemoryRemoveInstructionId(
+                                        instTable, whereId, toDelete.getInstructionId());
                             }
 
                             if (errorMessage != null) {
@@ -1066,9 +1104,12 @@ public class SimpleWebSocketServer {
 
                     if (continueDelete && deleteParents) {
 
-                        errorMessage = performDataBase.deleteInstruction(instTable, whereId, toDelete, false);
+                        InstructionLoad instrDelete = SplitDTO.mapSplitToInstruction(toDelete);
+
+                        errorMessage = performDataBase.deleteInstruction(instTable, whereId, instrDelete, false);
                         if (errorMessage == null) {
-                            performLists.updateMemoryRemoveInstructionId(instTable, whereId, toDelete.getId());
+                            performLists.updateMemoryRemoveInstructionId(
+                                    instTable, whereId, toDelete.getInstructionId());
                         }
 
                         if (errorMessage == null) {
@@ -1177,7 +1218,7 @@ public class SimpleWebSocketServer {
 
                 break;
             case "DELETE_BLOCK":
-                DeleteBlockDTO deleteBlock = gson.fromJson(jsonEntry, DeleteBlockDTO.class);
+                SplitDTO deleteBlock = gson.fromJson(jsonEntry, SplitDTO.class);
 
                 homeBankingId = deleteBlock.getHomeBankingId();
                 sessionIdToSend = deleteBlock.getSessionId();
@@ -1350,7 +1391,7 @@ public class SimpleWebSocketServer {
 
         String instrTable = "instruction";
         String updateAction = "updateInstructions";
-        ErrorMessage errorMessage = null;
+        errorMessage = null;
 
         if (!alreadySentMgsSocket && (sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
             if (performLists.getListBotJob().isEmpty()) {
@@ -1422,7 +1463,7 @@ public class SimpleWebSocketServer {
     }
 
     // Handle BLOCKS_SPLITTED message
-    private ErrorMessage splitBlocks(BlockSplitDTO blockSplitDTO) {
+    private ErrorMessage splitBlocks(SplitDTO blockSplitDTO) {
         BlockDetailsDTO originalBlock = blockSplitDTO.getDetails().getOriginalBlock();
         BlockDetailsDTO newBlock = blockSplitDTO.getDetails().getNewBlock();
         List<BlockOrderDetailDTO> updatedBlock = blockSplitDTO.getDetails().getUpdatedBlocks();
@@ -1504,74 +1545,54 @@ public class SimpleWebSocketServer {
         return errorMessage;
     }
 
-    private void injectStepAfterOrBefore(String blockTable, int whereId, String sessionId, RowMoveDTO rowMoveDTO) {
+    private void injectStepAfterOrBefore(String blockTable, int whereId, SplitDTO splitDTO) {
 
-        if (rowMoveDTO.getUpdatedRows().size() > 0) {
+        BlockLoadDTO blockLoadFound = performLists.getBlockLoadByBankId(blockTable, whereId, splitDTO.getBlockId());
 
-            BlockLoadDTO blockLoadFound =
-                    performLists.getBlockLoadByBankId(blockTable, whereId, rowMoveDTO.getBlockId());
+        ErrorMessage errorMessage = null;
+        if (blockLoadFound == null) {
+            errorMessage =
+                    performDataBase.initiateNewBlock(blockTable, whereId, "Default Block", "Default Block", 1, false);
+        }
 
-            ErrorMessage errorMessage = null;
-            if (blockLoadFound == null) {
-                errorMessage = performDataBase.initiateNewBlock(
-                        blockTable, whereId, "Default Block", "Default Block", 1, false);
+        if (errorMessage == null && blockLoadFound == null) {
+            int newBlockId = -9999;
+            if (!performDataBase.getIdsBlockAfter().isEmpty()
+                    && performDataBase.getIdsBlockAfter().get(0) > 0) {
+                newBlockId = performDataBase.getIdsBlockAfter().get(0);
             }
+            // IT SETS THE NEW TARGET IN CASE TO ADD MORE INSTRUCTIONS
+            splitDTO.setBlockId(newBlockId);
+        }
 
-            if (errorMessage == null) {
-                int newBlockId = -9999;
-                if (!performDataBase.getIdsBlockAfter().isEmpty()
-                        && performDataBase.getIdsBlockAfter().get(0) > 0) {
-                    newBlockId = performDataBase.getIdsBlockAfter().get(0);
-                }
+        if (errorMessage != null) {
+            performMessage.errorMessage(
+                    errorMessage.getErrorTitle(),
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                            + errorMessage.getErrorHeader(),
+                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                    null,
+                    0);
+        }
 
-                // IT SETS THE NEW TARGET IN CASE TO ADD MORE INSTRUCTIONS
-                rowMoveDTO.setBlockId(newBlockId);
-            }
+        if (!splitDTO.getType().equals("INSERT_BEFORE_ELSEIF")
+                && !splitDTO.getType().equals("INSERT_AFTER_ELSEIF")) {
 
-            if (errorMessage != null) {
-                performMessage.errorMessage(
-                        errorMessage.getErrorTitle(),
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                + errorMessage.getErrorHeader(),
-                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                        null,
-                        0);
-            }
+            webSocketSessionManager.sendMessageJson("new-command-scene", gson.toJson(splitDTO));
 
-            if (!rowMoveDTO.getType().equals("INSERT_BEFORE_ELSEIF")
-                    && !rowMoveDTO.getType().equals("INSERT_AFTER_ELSEIF")) {
+        } else {
 
-                webSocketSessionManager.sendMessageJson(
-                        "new-command-scene", gson.toJson(rowMoveDTO)); // Sending as details
+            try {
+                ErrorMessage message = performDataBase.preFillNewInstruction(
+                        "ELSEIF", "ELSEIF", ARConstants.ELSEIF, ARConstants.ELSEIF, 1, splitDTO, false);
 
-                //                this.webPageItems = performDataBase.loadWebPageFields(rowMoveDTO.getBotJobId());
+            } catch (Exception e) {
 
-                // Ensure JavaFX UI updates are done on the JavaFX Application Thread
-                //                Platform.runLater(() -> {
-                //                    arNewCommandScene.initialize(rowMoveDTO, botJobLoad, this.webPageItems,
-                // sessionId);
-                //                    arNewCommandScene.showModal();
-                //                });
-            } else {
-
-                if (!rowMoveDTO.getUpdatedRows().isEmpty()) {
-
-                    int parentId = rowMoveDTO.getUpdatedRows().get(0).getParentId();
-                    try {
-                        // Run the instruction add in a separate Task
-
-                        ErrorMessage message = performDataBase.preFillNewInstruction(
-                                "ELSEIF", "ELSEIF", ARConstants.ELSEIF, ARConstants.ELSEIF, 1, rowMoveDTO, false);
-
-                    } catch (Exception e) {
-
-                        ARLogger.getInstance(SimpleWebSocketServer.class)
-                                .severe(String.format(
-                                        "Cannot Insert \"Instruction\"  \"%s\"\nCannot be saved!\nError: %s",
-                                        ARConstants.ELSEIF, e.getMessage()));
-                    }
-                }
+                ARLogger.getInstance(SimpleWebSocketServer.class)
+                        .severe(String.format(
+                                "Cannot Insert \"Instruction\"  \"%s\"\nCannot be saved!\nError: %s",
+                                ARConstants.ELSEIF, e.getMessage()));
             }
         }
     }
@@ -1584,7 +1605,7 @@ public class SimpleWebSocketServer {
         });
     }
 
-    private void createBlockComponent(BlockSplitDTO blockSplitDTO) {
+    private void createBlockComponent(SplitDTO blockSplitDTO) {
         // Ensure JavaFX UI updates are done on the JavaFX Application Thread
 
         BlockDetailsDTO blockDetailsDTO = blockSplitDTO.getDetails().getNewBlock();
@@ -1609,7 +1630,7 @@ public class SimpleWebSocketServer {
         });
     }
 
-    private void injectBlockComponent(BlockSplitDTO blockSplitDTO) {
+    private void injectBlockComponent(SplitDTO blockSplitDTO) {
         // Ensure JavaFX UI updates are done on the JavaFX Application Thread
 
         BlockDetailsDTO blockDetailsDTO = blockSplitDTO.getDetails().getNewBlock();

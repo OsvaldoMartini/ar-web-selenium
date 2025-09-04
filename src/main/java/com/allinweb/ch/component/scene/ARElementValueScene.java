@@ -1,6 +1,6 @@
 package com.allinweb.ch.component.scene;
 
-import com.allinweb.ch.component.model.RowMoveDTO;
+import com.allinweb.ch.component.model.SplitDTO;
 import com.allinweb.ch.component.pane.ARElementValuePane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
@@ -34,14 +34,14 @@ public class ARElementValueScene extends ARScene {
     }
 
     public void initialize(
-            RowMoveDTO rowMoveDTO,
+            SplitDTO splitDTO,
             int varId,
             String varName,
             String varValue,
             int instructionId,
             String instructionName,
             String instructionType) {
-        this.rowMoveDTO = rowMoveDTO;
+        this.splitDTO = splitDTO;
         this.varId = varId;
         this.varName = (varName != null && varName.length() > 0) ? varName.substring(1) : varName;
         this.varValue = varValue;
@@ -51,7 +51,7 @@ public class ARElementValueScene extends ARScene {
 
         if (!firstLoad) {
             arElementValuePane.initialize(
-                    rowMoveDTO, varId, varValue, instructionId, instructionName, varName, instructionType);
+                    splitDTO, varId, varValue, instructionId, instructionName, varName, instructionType);
         }
     }
 
@@ -66,7 +66,7 @@ public class ARElementValueScene extends ARScene {
 
     @Getter
     @Setter
-    public RowMoveDTO rowMoveDTO;
+    public SplitDTO splitDTO;
 
     private int varId;
     private String varValue;
@@ -103,7 +103,7 @@ public class ARElementValueScene extends ARScene {
         firstLoad = false;
 
         arElementValuePane.initialize(
-                rowMoveDTO, varId, varValue, instructionId, instructionName, varName, instructionType);
+                splitDTO, varId, varValue, instructionId, instructionName, varName, instructionType);
 
         if (modalStage == null) {
             modalStage = new Stage();

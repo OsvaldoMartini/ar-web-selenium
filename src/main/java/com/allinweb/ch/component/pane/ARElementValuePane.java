@@ -45,7 +45,7 @@ public class ARElementValuePane extends ARPane {
     private Connection conn = null;
 
     private TableView<VariableUserDTO> tableView = new TableView<>();
-    private RowMoveDTO rowMoveDTO;
+    private SplitDTO splitDTO;
     private int varId;
     private String varValue;
     private int instructionId;
@@ -82,14 +82,14 @@ public class ARElementValuePane extends ARPane {
     private static final ARNewCommandPane arNewCommandPane = ARNewCommandPane.getInstance();
 
     public void initialize(
-            RowMoveDTO rowMoveDTO,
+            SplitDTO splitDTO,
             int varId,
             String varValue,
             int instructionId,
             String instructionName,
             String varName,
             String instructionType) {
-        this.rowMoveDTO = rowMoveDTO;
+        this.splitDTO = splitDTO;
         this.varId = varId;
         this.varValue = varValue;
         this.instructionId = instructionId;
@@ -97,10 +97,9 @@ public class ARElementValuePane extends ARPane {
         this.varName = varName;
         this.instructionType = instructionType;
 
-        String varTable = rowMoveDTO.getSessionId().equals("componentTasks") ? "component_variable" : "variable";
-        int whereId = rowMoveDTO.getSessionId().equals("componentTasks")
-                ? rowMoveDTO.getHomeBankingId()
-                : rowMoveDTO.getBotJobId();
+        String varTable = splitDTO.getSessionId().equals("componentTasks") ? "component_variable" : "variable";
+        int whereId =
+                splitDTO.getSessionId().equals("componentTasks") ? splitDTO.getHomeBankingId() : splitDTO.getBotJobId();
 
         // if (performLists.getListVariablesUser().isEmpty()) {
         String instrTable = varTable.equals("variable") ? "instruction" : "component_instruction";
@@ -457,10 +456,10 @@ public class ARElementValuePane extends ARPane {
                 delimiter = selected.getValue(); // "US" or "EU"
             }
 
-            String varTable = rowMoveDTO.getSessionId().equals("componentTasks") ? "component_variable" : "variable";
-            int whereId = rowMoveDTO.getSessionId().equals("componentTasks")
-                    ? rowMoveDTO.getHomeBankingId()
-                    : rowMoveDTO.getBotJobId();
+            String varTable = splitDTO.getSessionId().equals("componentTasks") ? "component_variable" : "variable";
+            int whereId = splitDTO.getSessionId().equals("componentTasks")
+                    ? splitDTO.getHomeBankingId()
+                    : splitDTO.getBotJobId();
 
             // if (performLists.getListVariablesUser().isEmpty()) {
             String instrTable = varTable.equals("variable") ? "instruction" : "component_instruction";
@@ -471,7 +470,7 @@ public class ARElementValuePane extends ARPane {
                     selectedType,
                     nameField.getText().trim(),
                     valueVar,
-                    rowMoveDTO.getBotJobId(),
+                    splitDTO.getBotJobId(),
                     instructionLoad.getId(),
                     instructionLoad.getName(),
                     localFormat,
@@ -546,12 +545,12 @@ public class ARElementValuePane extends ARPane {
             }
             selectedUser.setDelimiter(delimiter);
 
-            String varTable = rowMoveDTO.getSessionId().equals("componentTasks") ? "component_variable" : "variable";
+            String varTable = splitDTO.getSessionId().equals("componentTasks") ? "component_variable" : "variable";
             String instrTable =
-                    rowMoveDTO.getSessionId().equals("componentTasks") ? "component_instruction" : "instruction";
-            int whereId = rowMoveDTO.getSessionId().equals("componentTasks")
-                    ? rowMoveDTO.getHomeBankingId()
-                    : rowMoveDTO.getBotJobId();
+                    splitDTO.getSessionId().equals("componentTasks") ? "component_instruction" : "instruction";
+            int whereId = splitDTO.getSessionId().equals("componentTasks")
+                    ? splitDTO.getHomeBankingId()
+                    : splitDTO.getBotJobId();
 
             performDataBase.updateUserData(varTable, whereId, selectedUser);
 
@@ -590,10 +589,10 @@ public class ARElementValuePane extends ARPane {
                         : performLists.getListBotJobComp();
 
                 setPayloadEmpty(
-                        rowMoveDTO.getSessionId(),
-                        rowMoveDTO.getHomeBankingId(),
-                        rowMoveDTO.getBotJobId(),
-                        rowMoveDTO.getBotJobName());
+                        splitDTO.getSessionId(),
+                        splitDTO.getHomeBankingId(),
+                        splitDTO.getBotJobId(),
+                        splitDTO.getBotJobName());
                 String jsonData = gson.toJson(payloadEmpty);
                 if (!listBot.isEmpty()) {
                     List<InstructionLoad> instructionLoads = performLists.buildJsonViewData(listBot);
@@ -601,7 +600,7 @@ public class ARElementValuePane extends ARPane {
                 }
 
                 webSocketSessionManager.sendMessageJson(
-                        rowMoveDTO.getHomeBankingId(), rowMoveDTO.getSessionId(), jsonData, updateAction);
+                        splitDTO.getHomeBankingId(), splitDTO.getSessionId(), jsonData, updateAction);
             }
 
             //            // UPDATE MEMORY LIST FOR PARENTS INSTRUCION NAME
@@ -638,10 +637,10 @@ public class ARElementValuePane extends ARPane {
                 return;
             }
 
-            String varTable = rowMoveDTO.getSessionId().equals("componentTasks") ? "component_variable" : "variable";
-            int whereId = rowMoveDTO.getSessionId().equals("componentTasks")
-                    ? rowMoveDTO.getHomeBankingId()
-                    : rowMoveDTO.getBotJobId();
+            String varTable = splitDTO.getSessionId().equals("componentTasks") ? "component_variable" : "variable";
+            int whereId = splitDTO.getSessionId().equals("componentTasks")
+                    ? splitDTO.getHomeBankingId()
+                    : splitDTO.getBotJobId();
 
             int idVar = -1;
             try {
@@ -739,14 +738,13 @@ public class ARElementValuePane extends ARPane {
     }
 
     public void selectRowById(int idToFind) {
-        if (rowMoveDTO != null && rowMoveDTO.getBotJobId() != null) {
+        if (splitDTO != null && splitDTO.getBotJobId() != null) {
 
             if (performLists.getListVariablesUser().isEmpty()) {
-                String varTable =
-                        rowMoveDTO.getSessionId().equals("componentTasks") ? "component_variable" : "variable";
-                int whereId = rowMoveDTO.getSessionId().equals("componentTasks")
-                        ? rowMoveDTO.getHomeBankingId()
-                        : rowMoveDTO.getBotJobId();
+                String varTable = splitDTO.getSessionId().equals("componentTasks") ? "component_variable" : "variable";
+                int whereId = splitDTO.getSessionId().equals("componentTasks")
+                        ? splitDTO.getHomeBankingId()
+                        : splitDTO.getBotJobId();
 
                 String instrTable = varTable.equals("variable") ? "instruction" : "component_instruction";
                 InstructionLoad instructionLoad = performLists.getInstructionById(instrTable, whereId, instructionId);
