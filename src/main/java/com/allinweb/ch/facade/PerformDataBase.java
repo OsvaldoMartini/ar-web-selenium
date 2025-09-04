@@ -904,8 +904,11 @@ public class PerformDataBase {
         }
     }
 
-    public ErrorMessage updateBlockExportFile(String tableTarget, int botJobId, int blockId, String exportFile) {
-        String updateSQL = "UPDATE " + tableTarget + " SET export_file = ? WHERE id = ? AND bot_job_id = ?";
+    public ErrorMessage updateBlockExportFile(String blockTable, int whereId, int blockId, String exportFile) {
+
+        // Determine the correct ID column
+        String idColumn = blockTable.equalsIgnoreCase("block") ? "bot_job_id" : "home_banking_id";
+        String updateSQL = "UPDATE " + blockTable + " SET export_file = ? WHERE id = ? AND " + idColumn + " = ?";
 
         try (Connection conn = getConnection();
                 PreparedStatement pstmt = conn.prepareStatement(updateSQL)) {
@@ -914,54 +917,28 @@ public class PerformDataBase {
 
             pstmt.setString(1, exportFile);
             pstmt.setInt(2, blockId);
-            pstmt.setInt(3, botJobId);
-            pstmt.addBatch();
+            pstmt.setInt(3, whereId);
 
+            pstmt.addBatch();
             pstmt.executeBatch();
             conn.commit();
 
-        } catch (SQLException error) {
             ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("Error updateBlockExportFile. Error: %s", error.getMessage()));
-
-            return new ErrorMessage(
-                    "Error Update Block Export File", "Failed to update block export file", error.getMessage());
-        }
-        return null;
-    }
-
-    // Handle BLOCK_UPDATE message
-    public boolean updateExportAR(InstructionLoad instruction) {
-        try (Statement stmt = getConnection().createStatement()) {
-
-            // Update each export_to_abr
-            String updateSQL = "UPDATE instruction SET export_to_abr = " + instruction.getExportToABR()
-                    + " WHERE id = " + instruction.getBlockId()
-                    + " and bot_job_id = " + instruction.getBotJobId();
-
-            int rowsAffected = stmt.executeUpdate(updateSQL);
-
-            if (rowsAffected > 0) {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .info(String.format(
-                                "Instruction updated blockId: %s, Export to AR: %s",
-                                instruction.getBlockId(), instruction.getExportToABR()));
-            } else {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .warning(String.format(
-                                "updateExportAR - No matching record found to update botJobId: %d blockId: %d",
-                                instruction.getBotJobId(), instruction.getBlockId()));
-
-                return false;
-            }
-
-            return true;
+                    .info(String.format(
+                            "Block export file updated. Table: %s, BlockId: %d, WhereId: %d",
+                            blockTable, blockId, whereId));
 
         } catch (SQLException e) {
             ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("Error updateBlockExportFile. Error: %s", e.getMessage()));
+                    .severe(String.format(
+                            "Error updating block export file. Table: %s, BlockId: %d, Error: %s",
+                            blockTable, blockId, e.getMessage()));
+
+            return new ErrorMessage(
+                    "Update Block Export File Error", "Failed to update block export file", e.getMessage());
         }
-        return false;
+
+        return null; // Success
     }
 
     public ErrorMessage insertNewBlock(String tableName, Integer whereId, BlockDetailsDTO blockDTO) {
@@ -2024,223 +2001,218 @@ public class PerformDataBase {
         return null;
     }
 
-    public boolean updateInstructionStatus(InstructionLoad instruction) {
+    public ErrorMessage updateInstructionStatus(
+            String tableName, // "instruction" or "component_instruction"
+            int whereId, // bot_job_id or home_banking_id
+            int instructionId,
+            int blockId,
+            int parentId,
+            String actions,
+            boolean active) {
+
+        final int BATCH_SIZE = 100;
+        boolean isConditional =
+                "IF".equals(actions) || "ELSEIF".equals(actions) || "ELSE".equals(actions) || "ENDIF".equals(actions);
+
+        // Determine correct ID column based on table type
+        String idColumn = tableName.equalsIgnoreCase("instruction") ? "bot_job_id" : "home_banking_id";
+
         String updateSQL;
-
-        boolean isConditional = instruction.getActions().equals("IF")
-                || instruction.getActions().equals("ELSEIF")
-                || instruction.getActions().equals("ELSE")
-                || instruction.getActions().equals("ENDIF");
-
         if (isConditional) {
-            updateSQL = "UPDATE instruction SET active = ? WHERE block_id = ? AND parent_id = ?";
+            updateSQL = "UPDATE " + tableName + " SET active = ? WHERE block_id = ? AND parent_id = ? AND " + idColumn
+                    + " = ?";
         } else {
-            updateSQL = "UPDATE instruction SET active = ? WHERE id = ? AND block_id = ?";
+            updateSQL =
+                    "UPDATE " + tableName + " SET active = ? WHERE id = ? AND block_id = ? AND " + idColumn + " = ?";
         }
 
-        try (PreparedStatement updateStmt = getConnection().prepareStatement(updateSQL)) {
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false); // Disable auto-commit
 
-            if (POSTGRES_DB) {
-                updateStmt.setInt(1, instruction.getInstructionActive() ? 1 : 0);
-            } else {
-                updateStmt.setBoolean(1, instruction.getInstructionActive());
-            }
+            try (PreparedStatement pstmt = conn.prepareStatement(updateSQL)) {
 
-            if (isConditional) {
-                updateStmt.setInt(2, instruction.getBlockId());
-                updateStmt.setInt(3, instruction.getParentId());
-            } else {
-                updateStmt.setInt(2, instruction.getId());
-                updateStmt.setInt(3, instruction.getBlockId());
-            }
+                // Postgres compatibility: 1/0 instead of true/false
+                if (POSTGRES_DB) {
+                    pstmt.setInt(1, active ? 1 : 0);
+                } else {
+                    pstmt.setBoolean(1, active);
+                }
 
-            int rowsAffected = updateStmt.executeUpdate();
+                if (isConditional) {
+                    pstmt.setInt(2, blockId);
+                    pstmt.setInt(3, parentId);
+                    pstmt.setInt(4, whereId);
+                } else {
+                    pstmt.setInt(2, instructionId);
+                    pstmt.setInt(3, blockId);
+                    pstmt.setInt(4, whereId);
+                }
 
-            if (rowsAffected > 0) {
+                pstmt.addBatch();
+                int[] batchResults = pstmt.executeBatch();
+                conn.commit();
+
+                int rowsAffected = Arrays.stream(batchResults).sum();
+
+                if (rowsAffected > 0) {
+                    ARLogger.getInstance(PerformDataBase.class)
+                            .info(String.format(
+                                    "Instruction status updated. Rows affected: %d (InstructionId: %d, BlockId: %d, Actions: %s, WhereId: %d)",
+                                    rowsAffected, instructionId, blockId, actions, whereId));
+                } else {
+                    ARLogger.getInstance(PerformDataBase.class)
+                            .warning(String.format(
+                                    "No instruction updated (InstructionId: %d, BlockId: %d, Actions: %s, WhereId: %d)",
+                                    instructionId, blockId, actions, whereId));
+                }
+
+            } catch (SQLException e) {
+                conn.rollback(); // Rollback if failure
                 ARLogger.getInstance(PerformDataBase.class)
-                        .warning(String.format(
-                                "RowsUpdateName - InstructionId: %s now have name: %s",
-                                instruction.getId(), instruction.getInstructionName()));
-            } else {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .warning(String.format(
-                                "UpdateMoveRowsOrder - No matching record found to update InstructionId: %d and name: %s",
-                                instruction.getId(), instruction.getInstructionName()));
+                        .severe(String.format(
+                                "Error updating instruction status. InstructionId: %d, Error: %s",
+                                instructionId, e.getMessage()));
+                return new ErrorMessage(
+                        "Update Instruction Status Error", "Failed to update instruction status", e.getMessage());
             }
 
-            return true;
-
-        } catch (SQLException e) {
+        } catch (SQLException ex) {
             ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("This Instruction\n cannot be updated.\nError: %s", e.getMessage()));
+                    .severe(String.format(
+                            "Connection error while updating instruction status. InstructionId: %d, Error: %s",
+                            instructionId, ex.getMessage()));
+            return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
 
-        return false;
+        return null; // Success
     }
 
-    public boolean updateCompInstructionStatus(InstructionLoad instruction) {
-        // Build the SQL update statement
-        try (Statement stmt = getConnection().createStatement()) {
-            int rowsAffected = 0;
+    public ErrorMessage updateBlockStatus(
+            String tableName, // "block" or "component_block"
+            int whereId, // bot_job_id or home_banking_id
+            int blockId,
+            boolean blockActive) {
 
-            if (instruction.getActions().equals("IF")
-                    || instruction.getActions().equals("ELSEIF")
-                    || instruction.getActions().equals("ELSE")
-                    || instruction.getActions().equals("ENDIF")) {
-                rowsAffected = stmt.executeUpdate(
-                        "UPDATE component_instruction SET active = '" + instruction.getInstructionActive() + "'"
-                                + " WHERE "
-                                + " block_id = " + instruction.getBlockId() + " AND parent_id = "
-                                + instruction.getParentId());
-            } else {
+        String idColumn = tableName.equalsIgnoreCase("block") ? "bot_job_id" : "home_banking_id";
 
-                String updateSQL =
-                        "UPDATE component_instruction SET active = '" + instruction.getInstructionActive() + "'"
-                                + " WHERE id = " + instruction.getId()
-                                + " and block_id = " + instruction.getBlockId();
+        String updateSQL = "UPDATE " + tableName + " SET active = ? WHERE id = ? AND " + idColumn + " = ?";
 
-                rowsAffected = stmt.executeUpdate(updateSQL);
-            }
-            if (rowsAffected > 0) {
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false); // Disable auto-commit
+
+            try (PreparedStatement pstmt = conn.prepareStatement(updateSQL)) {
+
+                // Postgres compatibility: 1/0 instead of true/false
+                if (POSTGRES_DB) {
+                    pstmt.setInt(1, blockActive ? 1 : 0);
+                } else {
+                    pstmt.setBoolean(1, blockActive);
+                }
+
+                pstmt.setInt(2, blockId);
+                pstmt.setInt(3, whereId);
+
+                pstmt.addBatch();
+                int[] batchResults = pstmt.executeBatch();
+                conn.commit();
+
+                int rowsAffected = Arrays.stream(batchResults).sum();
+
+                if (rowsAffected > 0) {
+                    ARLogger.getInstance(PerformDataBase.class)
+                            .info(String.format(
+                                    "Block status updated. Table: %s, BlockId: %d, Active: %s",
+                                    tableName, blockId, blockActive));
+                } else {
+                    ARLogger.getInstance(PerformDataBase.class)
+                            .warning(String.format(
+                                    "No block status updated. Table: %s, WhereId: %d, BlockId: %d",
+                                    tableName, whereId, blockId));
+                }
+
+            } catch (SQLException e) {
+                conn.rollback(); // Rollback if failure
                 ARLogger.getInstance(PerformDataBase.class)
-                        .warning(String.format(
-                                "RowsUpdateName - InstructionId: %s now have name: %s",
-                                instruction.getId(), instruction.getInstructionName()));
-            } else {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .warning(String.format(
-                                "UpdateMoveRowsOrder - No matching record found to update InstructionId: %d and name: %s",
-                                instruction.getId(), instruction.getInstructionName()));
+                        .severe(String.format(
+                                "Error updating block status in table '%s'. Error: %s", tableName, e.getMessage()));
+                return new ErrorMessage("Update Block Status Error", "Failed to update block status", e.getMessage());
             }
-            return true;
-        } catch (SQLException e) {
+
+        } catch (SQLException ex) {
             ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("This Instruction\n cannot be updated.\nError: %s", e.getMessage()));
+                    .severe(String.format(
+                            "Connection error while updating block status in table '%s'. Error: %s",
+                            tableName, ex.getMessage()));
+            return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
-        return false;
+
+        return null; // Success
     }
 
-    public boolean updateInstructionStatusByBlock(int botJobId, int blockId, boolean blockActive) {
-        // Build the SQL update statement
-        try (Statement stmt = getConnection().createStatement()) {
-            int rowsAffected = 0;
+    public ErrorMessage updateInstructionStatusByBlock(
+            String tableName, // "instruction" or "component_instruction"
+            int whereId, // bot_job_id or home_banking_id
+            int blockId,
+            boolean blockActive) {
 
-            rowsAffected = stmt.executeUpdate("UPDATE instruction SET active = '" + blockActive + "'"
-                    + " WHERE "
-                    + " block_id = " + blockId + " AND bot_job_id = " + botJobId);
+        final int BATCH_SIZE = 100;
 
-            if (rowsAffected > 0) {
+        String updateSQL = "UPDATE " + tableName
+                + " SET active = ? WHERE block_id = ? AND "
+                + (tableName.equalsIgnoreCase("instruction") ? "bot_job_id" : "home_banking_id") + " = ?";
+
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false); // Disable auto-commit
+
+            try (PreparedStatement pstmt = conn.prepareStatement(updateSQL)) {
+
+                // Postgres compatibility: use 1/0 instead of true/false
+                if (POSTGRES_DB) {
+                    pstmt.setInt(1, blockActive ? 1 : 0);
+                } else {
+                    pstmt.setBoolean(1, blockActive);
+                }
+
+                pstmt.setInt(2, blockId);
+                pstmt.setInt(3, whereId);
+
+                pstmt.addBatch();
+                int[] batchResults = pstmt.executeBatch();
+                conn.commit();
+
+                int rowsAffected = Arrays.stream(batchResults).sum();
+
+                if (rowsAffected > 0) {
+                    ARLogger.getInstance(PerformDataBase.class)
+                            .info(String.format(
+                                    "Instruction status updated. Rows affected: %d (Table: %s, BlockId: %d, WhereId: %d)",
+                                    rowsAffected, tableName, blockId, whereId));
+                } else {
+                    ARLogger.getInstance(PerformDataBase.class)
+                            .warning(String.format(
+                                    "No instruction statuses were updated (Table: %s, BlockId: %d, WhereId: %d)",
+                                    tableName, blockId, whereId));
+                }
+
+            } catch (SQLException e) {
+                conn.rollback(); // Roll back in case of error
                 ARLogger.getInstance(PerformDataBase.class)
-                        .info(String.format("Instruction Status Updated - rowsAffected: %s ", rowsAffected));
-            } else {
-                ARLogger.getInstance(PerformDataBase.class).warning("No Instruction Status were Updated!");
-            }
-            return true;
-        } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("This Instruction\n cannot be updated.\nError: %s", e.getMessage()));
-        }
-        return false;
-    }
-
-    public boolean updateCompInstructionStatusByBlock(int botJobId, int blockId, boolean blockActive) {
-        // Build the SQL update statement
-        try (Statement stmt = getConnection().createStatement()) {
-            int rowsAffected = 0;
-
-            rowsAffected = stmt.executeUpdate("UPDATE instruction SET active = '" + blockActive + "'"
-                    + " WHERE "
-                    + " block_id = " + blockId + " AND bot_job_id = " + botJobId);
-
-            if (rowsAffected > 0) {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .info(String.format("Instruction Status Updated - rowsAffected: %s ", rowsAffected));
-            } else {
-                ARLogger.getInstance(PerformDataBase.class).warning("No Instruction Status were Updated!");
-            }
-            return true;
-        } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("This Instruction\n cannot be updated.\nError: %s", e.getMessage()));
-        }
-        return false;
-    }
-
-    public void updateBlockStatus(int botJobId, int blockId, String blockName, boolean blockActive, int wait) {
-        try (Statement stmt = getConnection().createStatement()) {
-
-            // Update each block's block_order_number starting from 1
-            String updateSQL = "UPDATE block SET active = '" + blockActive + "',"
-                    + " wait = " + wait
-                    + " WHERE id = " + blockId
-                    + " and bot_job_id = " + botJobId;
-
-            int rowsAffected = stmt.executeUpdate(updateSQL);
-
-            if (rowsAffected > 0) {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .info(String.format(
-                                "Block Status updated blockId: %s, name: %s, Active: %s",
-                                blockId, blockName, blockActive));
-            } else {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .warning(String.format(
-                                "updateBlockStatus - No matching record found to update botJobId: %d blockId: %d",
-                                botJobId, blockId));
+                        .severe(String.format(
+                                "Error updating instruction status in table '%s'. Error: %s",
+                                tableName, e.getMessage()));
+                return new ErrorMessage(
+                        "Update Instruction Status Error", "Failed to update instruction status", e.getMessage());
             }
 
-        } catch (SQLException e) {
+        } catch (SQLException ex) {
             ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("Error updateBlockStatus. Error: %s", e.getMessage()));
-        }
-    }
-
-    public void updateCompBlockStatus(int botJobId, int blockId, String blockName, boolean blockActive, int wait) {
-        try (Statement stmt = getConnection().createStatement()) {
-
-            // Update each block's block_order_number starting from 1
-            String updateSQL = "UPDATE component_block SET active = '" + blockActive + "',"
-                    + " wait = " + wait
-                    + " WHERE id = " + blockId
-                    + " and bot_job_id = " + botJobId;
-
-            int rowsAffected = stmt.executeUpdate(updateSQL);
-
-            if (rowsAffected > 0) {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .info(String.format(
-                                "Block Status updated blockId: %s, name: %s, Active: %s",
-                                blockId, blockName, blockActive));
-            } else {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .warning(String.format(
-                                "updateCompBlockStatus - No matching record found to update botJobId: %d blockId: %d",
-                                botJobId, blockId));
-            }
-
-        } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("Error updateCompBlockStatus. Error: %s", e.getMessage()));
-        }
-    }
-
-    public boolean updateBotStatus() {
-        // SQL query to get the blocks for a specific bot job
-        String query = "update bot_job set active = 1";
-
-        // Initialize the necessary data structures
-
-        // Use Statement to execute the query
-        try (Statement stmt = getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(query)) {
-            return true;
-
-        } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("Error updating Active = 1 all botjobs,  Error: %s", error.getMessage()));
+                    .severe(String.format(
+                            "Connection error while updating instruction status in table '%s'. Error: %s",
+                            tableName, ex.getMessage()));
+            return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
 
-        return false;
+        return null; // Success
     }
 
     public ErrorMessage loadBlocks(
@@ -3312,82 +3284,6 @@ public class PerformDataBase {
                         && !ARConstants.ELSE.equals(instruction.getActions())
                         && !ARConstants.ENDIF.equals(instruction.getActions()))
                 .collect(Collectors.toList());
-    }
-
-    public List<InstructionLoad> buildJsonViewData(List<BotJobLoadDTO> listInstruction, int whereId, String tableName) {
-        if (!listInstruction.isEmpty()
-                && !listInstruction.get(0).getBlockLoadDTOList().isEmpty()) {
-
-            List<InstructionLoad> rowList = null;
-            try {
-
-                //                for (BlockLoadDTO block : listInstruction.get(0).getBlockLoadDTOList()) {
-                //                    loadInstructions(whereId, block.getId(), -1, tableName);
-                //                    rowList = tableName.equals("instruction")
-                //                            ? performLists.getListInstruction()
-                //                            : performLists.getListInstructionComp();
-                //                    reorderInstructions(rowList, tableName, false);
-                //                }
-
-                List<InstructionLoad> blockLoopInstructions = listInstruction.get(0).getBlockLoadDTOList().stream()
-                        .flatMap(itemBlock -> itemBlock.getInstructionLoad().stream()
-                                .map(loopInstLoad -> new InstructionLoad(
-                                        listInstruction.get(0).getHomeBankingId(), // homBankingId
-                                        itemBlock.getBotJobId(), // botJobId
-                                        itemBlock.getBotJobName(), // botJob Name
-                                        loopInstLoad.getId(), // Instruction Id
-                                        loopInstLoad.getInstructionOrderNumber(), // Instruction Order
-                                        loopInstLoad.getName(), // Instruction Name
-                                        loopInstLoad.getDescription(), // Instruction Description
-                                        itemBlock.getId(), // block ID
-                                        itemBlock.getBlockOrderNumber(), // block Order
-                                        itemBlock.getName(), // block Name
-                                        itemBlock.getActive(),
-                                        loopInstLoad.getInstructionActive(),
-                                        itemBlock.getWait(),
-                                        loopInstLoad.getActions(),
-                                        loopInstLoad.getParentBlockId(), // Parent Block Id
-                                        loopInstLoad.getParentId(),
-                                        loopInstLoad.getVariableId(),
-                                        loopInstLoad.getOperation(),
-                                        itemBlock.getExportFile(),
-                                        loopInstLoad.getTagName())))
-                        .collect(Collectors.toList());
-
-                // Step 1: Filter rows where actions = "REFRESH_LOOP" and collect their parent IDs
-                Set<Integer> parentIdsForRefreshLoop = blockLoopInstructions.stream()
-                        .filter(instruction -> "REFRESH_LOOP".equalsIgnoreCase(instruction.getActions()))
-                        .map(InstructionLoad::getParentId)
-                        .collect(Collectors.toSet());
-
-                // Step 2: Iterate through the list and set refreshLoop = true for rows with id in
-                // parentIdsForRefreshLoop
-                blockLoopInstructions.forEach(instruction -> {
-                    if (parentIdsForRefreshLoop.contains(instruction.getId())) {
-                        instruction.setRefreshLoop(true);
-                    }
-                });
-
-                // Step 1: Filter rows where actions = "LOOP" and collect their parent IDs
-                Set<Integer> parentIdsForLoopOnly = blockLoopInstructions.stream()
-                        .filter(instruction -> "LOOP".equalsIgnoreCase(instruction.getActions()))
-                        .map(InstructionLoad::getParentId)
-                        .collect(Collectors.toSet());
-
-                // Step 2: Iterate through the list and set loopOnly = true for rows with id in parentIdsForLoopOnly
-                blockLoopInstructions.forEach(instruction -> {
-                    if (parentIdsForLoopOnly.contains(instruction.getId())) {
-                        instruction.setLoopOnly(true);
-                    }
-                });
-
-                return blockLoopInstructions;
-            } catch (Exception error) {
-                System.err.println("No BotJob Loaded for buildJsonViewData");
-            }
-        }
-
-        return new ArrayList<>();
     }
 
     public List<BlockLoadDTO> loadSavedBlocksForBotJob(int homeBankingId, Integer botJobId, String botJobName) {

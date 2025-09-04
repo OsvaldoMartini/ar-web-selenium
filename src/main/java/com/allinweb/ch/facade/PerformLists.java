@@ -566,6 +566,218 @@ public class PerformLists {
         }
     }
 
+    public void updateMemoryBlockStatusUpdate(String blockTable, Integer whereId, Integer blockId, boolean status) {
+        try {
+            if ("block".equalsIgnoreCase(blockTable)) {
+
+                // 1. Update global instruction list
+                for (InstructionLoad instr : getListInstruction()) {
+                    if (Objects.equals(instr.getBlockId(), blockId) && Objects.equals(instr.getBotJobId(), whereId)) {
+                        instr.setInstructionActive(status);
+                    }
+                }
+
+                // 2. Update global block list
+                for (BlockLoadDTO block : getListBlock()) {
+                    if (Objects.equals(block.getId(), blockId) && Objects.equals(block.getBotJobId(), whereId)) {
+                        block.setActive(status);
+                    }
+                }
+
+                // 3. Update inside BotJob -> Block -> Instruction
+                for (BotJobLoadDTO botJob : getListBotJob()) {
+                    if (Objects.equals(botJob.getId(), whereId)) {
+                        if (botJob.getBlockLoadDTOList() != null) {
+                            for (BlockLoadDTO block : botJob.getBlockLoadDTOList()) {
+                                if (Objects.equals(block.getId(), blockId)) {
+                                    block.setActive(status);
+                                    if (block.getInstructionLoad() != null) {
+                                        for (InstructionLoad instr : block.getInstructionLoad()) {
+                                            instr.setInstructionActive(status);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+            } else if ("component_block".equalsIgnoreCase(blockTable)) {
+
+                // 1. Update global instruction list
+                for (InstructionLoad instr : getListInstructionComp()) {
+                    if (Objects.equals(instr.getBlockId(), blockId)
+                            && Objects.equals(instr.getHomeBankingId(), whereId)) {
+                        instr.setInstructionActive(status);
+                    }
+                }
+
+                // 2. Update global block list
+                for (BlockLoadDTO block : getListBlockComp()) {
+                    if (Objects.equals(block.getId(), blockId) && Objects.equals(block.getHomeBankingId(), whereId)) {
+                        block.setActive(status);
+                    }
+                }
+
+                // 3. Update inside BotJob -> Block -> Instruction
+                for (BotJobLoadDTO botJob : getListBotJobComp()) {
+                    if (Objects.equals(botJob.getHomeBankingId(), whereId)) {
+                        if (botJob.getBlockLoadDTOList() != null) {
+                            for (BlockLoadDTO block : botJob.getBlockLoadDTOList()) {
+                                if (Objects.equals(block.getId(), blockId)) {
+                                    block.setActive(status);
+                                    if (block.getInstructionLoad() != null) {
+                                        for (InstructionLoad instr : block.getInstructionLoad()) {
+                                            instr.setInstructionActive(status);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+            } else {
+                throw new IllegalArgumentException("Invalid tableName: " + blockTable);
+            }
+
+        } catch (Exception error) {
+            ARLogger.getInstance(PerformLists.class)
+                    .severe("Error: Memory Update failed for 'updateMemoryStatusUpdate': " + error.getMessage());
+        }
+    }
+
+    public void updateMemoryInstructionStatusUpdate(
+            String tableName, Integer whereId, Integer instructionId, boolean status) {
+        try {
+            if ("instruction".equalsIgnoreCase(tableName)) {
+
+                // Update global instruction list
+                for (InstructionLoad instr : getListInstruction()) {
+                    if (Objects.equals(instr.getId(), instructionId) && Objects.equals(instr.getBotJobId(), whereId)) {
+                        instr.setInstructionActive(status);
+                        break; // only one instruction matches
+                    }
+                }
+
+                // Update inside BotJob -> Block -> Instruction
+                for (BotJobLoadDTO botJob : getListBotJob()) {
+                    if (Objects.equals(botJob.getId(), whereId)) {
+                        if (botJob.getBlockLoadDTOList() != null) {
+                            for (BlockLoadDTO block : botJob.getBlockLoadDTOList()) {
+                                if (block.getInstructionLoad() != null) {
+                                    for (InstructionLoad instr : block.getInstructionLoad()) {
+                                        if (Objects.equals(instr.getId(), instructionId)) {
+                                            instr.setInstructionActive(status);
+                                            break; // only one instruction matches
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+            } else if ("component_instruction".equalsIgnoreCase(tableName)) {
+
+                // Update global component instruction list
+                for (InstructionLoad instr : getListInstructionComp()) {
+                    if (Objects.equals(instr.getId(), instructionId)
+                            && Objects.equals(instr.getHomeBankingId(), whereId)) {
+                        instr.setInstructionActive(status);
+                        break; // only one instruction matches
+                    }
+                }
+
+                // Update inside BotJobComp -> Block -> Instruction
+                for (BotJobLoadDTO botJob : getListBotJobComp()) {
+                    if (Objects.equals(botJob.getHomeBankingId(), whereId)) {
+                        if (botJob.getBlockLoadDTOList() != null) {
+                            for (BlockLoadDTO block : botJob.getBlockLoadDTOList()) {
+                                if (block.getInstructionLoad() != null) {
+                                    for (InstructionLoad instr : block.getInstructionLoad()) {
+                                        if (Objects.equals(instr.getId(), instructionId)) {
+                                            instr.setInstructionActive(status);
+                                            break; // only one instruction matches
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+            } else {
+                throw new IllegalArgumentException("Invalid tableName: " + tableName);
+            }
+
+        } catch (Exception error) {
+            ARLogger.getInstance(PerformLists.class)
+                    .severe("Error: Memory Update failed for 'updateMemoryInstructionStatusUpdate': "
+                            + error.getMessage());
+        }
+    }
+
+    public void updateMemoryBlockExcelExport(String tableName, Integer whereId, Integer blockId, String exportFile) {
+        try {
+            if ("block".equalsIgnoreCase(tableName)) {
+
+                // 1. Update global block list
+                for (BlockLoadDTO block : getListBlock()) {
+                    if (Objects.equals(block.getId(), blockId) && Objects.equals(block.getBotJobId(), whereId)) {
+                        block.setExportFile(exportFile);
+                        break;
+                    }
+                }
+
+                // 2. Update inside BotJob -> Block -> Instruction
+                for (BotJobLoadDTO botJob : getListBotJob()) {
+                    if (Objects.equals(botJob.getId(), whereId)) {
+                        if (botJob.getBlockLoadDTOList() != null) {
+                            for (BlockLoadDTO block : botJob.getBlockLoadDTOList()) {
+                                if (Objects.equals(block.getId(), blockId)) {
+                                    block.setExportFile(exportFile);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+            } else if ("component_block".equalsIgnoreCase(tableName)) {
+
+                // 1. Update global block list
+                for (BlockLoadDTO block : getListBlockComp()) {
+                    if (Objects.equals(block.getId(), blockId) && Objects.equals(block.getHomeBankingId(), whereId)) {
+                        block.setExportFile(exportFile);
+                        break;
+                    }
+                }
+
+                // 2. Update inside BotJob -> Block -> Instruction
+                for (BotJobLoadDTO botJob : getListBotJobComp()) {
+                    if (Objects.equals(botJob.getHomeBankingId(), whereId)) {
+                        if (botJob.getBlockLoadDTOList() != null) {
+                            for (BlockLoadDTO block : botJob.getBlockLoadDTOList()) {
+                                if (Objects.equals(block.getId(), blockId)) {
+                                    block.setExportFile(exportFile);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+            } else {
+                throw new IllegalArgumentException("Invalid tableName: " + tableName);
+            }
+
+        } catch (Exception error) {
+            ARLogger.getInstance(PerformLists.class)
+                    .severe("Error: Memory Update failed for 'updateMemoryStatusUpdate': " + error.getMessage());
+        }
+    }
+
     public void updateMemoryParentOpenName(String tableName, Integer whereId, List<ParentOperations> listToUpdate) {
 
         if (listToUpdate == null || listToUpdate.isEmpty()) {
@@ -1079,5 +1291,81 @@ public class PerformLists {
         for (InstructionLoad instr : block.getInstructionLoad()) {
             instr.setInstructionOrderNumber(order++);
         }
+    }
+
+    public List<InstructionLoad> buildJsonViewData(List<BotJobLoadDTO> listInstruction) {
+        if (!listInstruction.isEmpty()
+                && !listInstruction.get(0).getBlockLoadDTOList().isEmpty()) {
+
+            List<InstructionLoad> rowList = null;
+            try {
+
+                //                for (BlockLoadDTO block : listInstruction.get(0).getBlockLoadDTOList()) {
+                //                    loadInstructions(whereId, block.getId(), -1, tableName);
+                //                    rowList = tableName.equals("instruction")
+                //                            ? performLists.getListInstruction()
+                //                            : performLists.getListInstructionComp();
+                //                    reorderInstructions(rowList, tableName, false);
+                //                }
+
+                List<InstructionLoad> blockLoopInstructions = listInstruction.get(0).getBlockLoadDTOList().stream()
+                        .flatMap(itemBlock -> itemBlock.getInstructionLoad().stream()
+                                .map(loopInstLoad -> new InstructionLoad(
+                                        listInstruction.get(0).getHomeBankingId(), // homBankingId
+                                        itemBlock.getBotJobId(), // botJobId
+                                        itemBlock.getBotJobName(), // botJob Name
+                                        loopInstLoad.getId(), // Instruction Id
+                                        loopInstLoad.getInstructionOrderNumber(), // Instruction Order
+                                        loopInstLoad.getName(), // Instruction Name
+                                        loopInstLoad.getDescription(), // Instruction Description
+                                        itemBlock.getId(), // block ID
+                                        itemBlock.getBlockOrderNumber(), // block Order
+                                        itemBlock.getName(), // block Name
+                                        itemBlock.getActive(),
+                                        loopInstLoad.getInstructionActive(),
+                                        itemBlock.getWait(),
+                                        loopInstLoad.getActions(),
+                                        loopInstLoad.getParentBlockId(), // Parent Block Id
+                                        loopInstLoad.getParentId(),
+                                        loopInstLoad.getVariableId(),
+                                        loopInstLoad.getOperation(),
+                                        itemBlock.getExportFile(),
+                                        loopInstLoad.getTagName())))
+                        .collect(Collectors.toList());
+
+                // Step 1: Filter rows where actions = "REFRESH_LOOP" and collect their parent IDs
+                Set<Integer> parentIdsForRefreshLoop = blockLoopInstructions.stream()
+                        .filter(instruction -> "REFRESH_LOOP".equalsIgnoreCase(instruction.getActions()))
+                        .map(InstructionLoad::getParentId)
+                        .collect(Collectors.toSet());
+
+                // Step 2: Iterate through the list and set refreshLoop = true for rows with id in
+                // parentIdsForRefreshLoop
+                blockLoopInstructions.forEach(instruction -> {
+                    if (parentIdsForRefreshLoop.contains(instruction.getId())) {
+                        instruction.setRefreshLoop(true);
+                    }
+                });
+
+                // Step 1: Filter rows where actions = "LOOP" and collect their parent IDs
+                Set<Integer> parentIdsForLoopOnly = blockLoopInstructions.stream()
+                        .filter(instruction -> "LOOP".equalsIgnoreCase(instruction.getActions()))
+                        .map(InstructionLoad::getParentId)
+                        .collect(Collectors.toSet());
+
+                // Step 2: Iterate through the list and set loopOnly = true for rows with id in parentIdsForLoopOnly
+                blockLoopInstructions.forEach(instruction -> {
+                    if (parentIdsForLoopOnly.contains(instruction.getId())) {
+                        instruction.setLoopOnly(true);
+                    }
+                });
+
+                return blockLoopInstructions;
+            } catch (Exception error) {
+                System.err.println("No BotJob Loaded for buildJsonViewData");
+            }
+        }
+
+        return new ArrayList<>();
     }
 }

@@ -882,8 +882,7 @@ public class ARScannedElementScene extends ARScene {
 
         String jsonData = "[]";
         if (!performLists.getListBotJob().isEmpty()) {
-            List<InstructionLoad> blockLoopInstructions =
-                    performDataBase.buildJsonViewData(performLists.getListBotJob(), currentBotJobId, "instruction");
+            List<InstructionLoad> blockLoopInstructions = performLists.buildJsonViewData(performLists.getListBotJob());
             jsonData = gson.toJson(blockLoopInstructions);
         }
         webSocketSessionManager.sendMessageJson(

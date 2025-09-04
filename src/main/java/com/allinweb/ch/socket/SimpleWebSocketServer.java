@@ -787,19 +787,53 @@ public class SimpleWebSocketServer {
 
                 break;
             case "INSTRUCTION_STATUS":
-                InstructionLoad instructions = gson.fromJson(jsonEntry, InstructionLoad.class);
+                InstructionLoad instructionStatus = gson.fromJson(jsonEntry, InstructionLoad.class);
 
-                homeBankingId = instructions.getHomeBankingId();
-                sessionIdToSend = instructions.getSessionId();
-                botJobIdTask = instructions.getBotJobId();
+                homeBankingId = instructionStatus.getHomeBankingId();
+                sessionIdToSend = instructionStatus.getSessionId();
+                botJobIdTask = instructionStatus.getBotJobId();
+
+                int instrId = instructionStatus.getId();
+                int blockId = instructionStatus.getBlockId();
+                int parentId = instructionStatus.getParentId();
+                String actions = instructionStatus.getActions();
+                boolean active = instructionStatus.getInstructionActive();
 
                 alreadySentMgsSocket = false;
 
-                if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
-                    performDataBase.updateInstructionStatus(instructions);
-                } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
-                    performDataBase.updateCompInstructionStatus(instructions);
+                instTable = null;
+                blockTable = null;
+                whereId = -1;
+
+                if (sessionIdToSend.matches(".*botJobTasks.*")) {
+                    instTable = "instruction";
+                    whereId = instructionStatus.getBotJobId();
+                } else if (sessionIdToSend.matches(".*componentTasks.*")) {
+                    instTable = "component_instruction";
+                    whereId = instructionStatus.getHomeBankingId();
                 }
+
+                if (instTable != null) {
+
+                    errorMessage = performDataBase.updateInstructionStatus(
+                            instTable, whereId, instrId, blockId, parentId, actions, active);
+
+                    if (errorMessage == null) {
+                        performLists.updateMemoryInstructionStatusUpdate(instTable, whereId, instrId, active);
+                    }
+
+                    if (errorMessage != null) {
+                        performMessage.errorMessage(
+                                errorMessage.getErrorTitle(),
+                                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                                "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                        + errorMessage.getErrorHeader(),
+                                "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                                null,
+                                0);
+                    }
+                }
+
                 break;
             case "BLOCK_STATUS":
                 RowMoveDTO blockStateDTO = gson.fromJson(jsonEntry, RowMoveDTO.class);
@@ -808,28 +842,47 @@ public class SimpleWebSocketServer {
                 sessionIdToSend = blockStateDTO.getSessionId();
                 botJobIdTask = blockStateDTO.getBotJobId();
 
+                blockId = blockStateDTO.getBlockId();
+                active = blockStateDTO.getBlockActive();
+
                 alreadySentMgsSocket = false;
 
-                if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
-                    performDataBase.updateBlockStatus(
-                            blockStateDTO.getBotJobId(),
-                            blockStateDTO.getBlockId(),
-                            blockStateDTO.getBlockName(),
-                            blockStateDTO.getBlockActive(),
-                            3); // Block wait time Default 3 seconds per block
+                instTable = null;
+                blockTable = null;
+                whereId = -1;
 
-                    performDataBase.updateInstructionStatusByBlock(
-                            blockStateDTO.getBotJobId(), blockStateDTO.getBlockId(), blockStateDTO.getBlockActive());
-                } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
-                    performDataBase.updateCompBlockStatus(
-                            blockStateDTO.getBotJobId(),
-                            blockStateDTO.getBlockId(),
-                            blockStateDTO.getBlockName(),
-                            blockStateDTO.getBlockActive(),
-                            3); // Block wait time Default 3 seconds per block
+                if (sessionIdToSend.matches(".*botJobTasks.*")) {
+                    instTable = "instruction";
+                    blockTable = "block";
+                    whereId = blockStateDTO.getBotJobId();
+                } else if (sessionIdToSend.matches(".*componentTasks.*")) {
+                    instTable = "component_instruction";
+                    blockTable = "component_block";
+                    whereId = blockStateDTO.getHomeBankingId();
+                }
 
-                    performDataBase.updateCompInstructionStatusByBlock(
-                            blockStateDTO.getBotJobId(), blockStateDTO.getBlockId(), blockStateDTO.getBlockActive());
+                if (instTable != null) {
+                    errorMessage = performDataBase.updateBlockStatus(
+                            blockTable, whereId, blockStateDTO.getBlockId(), blockStateDTO.getBlockActive());
+
+                    if (errorMessage == null) {
+                        performDataBase.updateInstructionStatusByBlock(instTable, whereId, blockId, active);
+                    }
+
+                    if (errorMessage == null) {
+                        performLists.updateMemoryBlockStatusUpdate(blockTable, whereId, blockId, active);
+                    }
+
+                    if (errorMessage != null) {
+                        performMessage.errorMessage(
+                                errorMessage.getErrorTitle(),
+                                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                                "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                        + errorMessage.getErrorHeader(),
+                                "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                                null,
+                                0);
+                    }
                 }
 
                 break;
@@ -865,6 +918,7 @@ public class SimpleWebSocketServer {
                     blockUpdateDTO.setType(updteBlocks);
                     blockUpdateDTO.setBlockName(blockUpdateDTO.getBlockName());
 
+                    // MEMORY UPDATE BLOCK NAME
                     performLists.updateMemoryBlockName(
                             blockTable, whereId, blockUpdateDTO.getBlockId(), blockUpdateDTO.getBlockName());
 
@@ -1339,8 +1393,7 @@ public class SimpleWebSocketServer {
             setPayloadEmpty(sessionId, homeBankingId, botJobIdTask, botJobNameTask);
             String jsonData = gson.toJson(payloadEmpty);
             if (!listBot.isEmpty()) {
-                List<InstructionLoad> instructionLoads =
-                        performDataBase.buildJsonViewData(listBot, homeBankingId, instrTable);
+                List<InstructionLoad> instructionLoads = performLists.buildJsonViewData(listBot);
                 if (!instructionLoads.isEmpty()) {
                     jsonData = gson.toJson(instructionLoads);
                 }
@@ -1619,8 +1672,8 @@ public class SimpleWebSocketServer {
 
             String jsonData = "[]";
             if (!performLists.getListBotJob().isEmpty()) {
-                List<InstructionLoad> blockLoopInstructions = performDataBase.buildJsonViewData(
-                        performLists.getListBotJob(), blockDetailsDTO.getBotJobId(), "instruction");
+                List<InstructionLoad> blockLoopInstructions =
+                        performLists.buildJsonViewData(performLists.getListBotJob());
                 jsonData = gson.toJson(blockLoopInstructions);
             }
             webSocketSessionManager.sendMessageJson(

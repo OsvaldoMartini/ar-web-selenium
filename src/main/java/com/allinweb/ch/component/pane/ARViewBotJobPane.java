@@ -247,8 +247,7 @@ public class ARViewBotJobPane extends ARPane {
             String jsonData = gson.toJson(payloadEmpty);
 
             if (!performLists.getListBotJob().isEmpty()) {
-                List<InstructionLoad> instructions = performDataBase.buildJsonViewData(
-                        performLists.getListBotJob(), selectedBotJob.getId(), "instruction");
+                List<InstructionLoad> instructions = performLists.buildJsonViewData(performLists.getListBotJob());
                 if (!instructions.isEmpty()) {
                     jsonData = gson.toJson(instructions);
                 }
@@ -277,8 +276,7 @@ public class ARViewBotJobPane extends ARPane {
             String jsonData = gson.toJson(payloadEmpty);
 
             if (!performLists.getListBotJobComp().isEmpty()) {
-                List<InstructionLoad> instructions = performDataBase.buildJsonViewData(
-                        performLists.getListBotJobComp(), selectedBotJob.getHomeBankingId(), "component_instruction");
+                List<InstructionLoad> instructions = performLists.buildJsonViewData(performLists.getListBotJobComp());
                 if (!instructions.isEmpty()) {
                     jsonData = gson.toJson(instructions);
                 }
@@ -312,8 +310,7 @@ public class ARViewBotJobPane extends ARPane {
 
         // Load blocks based on the BotJobLoadDTO instead of blockDTOObservableList
         if (!performLists.getListBotJob().isEmpty()) {
-            List<InstructionLoad> instructions = performDataBase.buildJsonViewData(
-                    performLists.getListBotJob(), selectedBotJob.getId(), "instruction");
+            List<InstructionLoad> instructions = performLists.buildJsonViewData(performLists.getListBotJob());
             if (!instructions.isEmpty()) {
                 performMessage.outputJson(instructions, "botJobTasks-" + selectedBotJob.getId(), false);
                 jsonData = gson.toJson(instructions);
@@ -355,8 +352,7 @@ public class ARViewBotJobPane extends ARPane {
         jsonData = gson.toJson(payloadEmpty);
 
         if (!performLists.getListBotJobComp().isEmpty()) {
-            List<InstructionLoad> instructions = performDataBase.buildJsonViewData(
-                    performLists.getListBotJobComp(), selectedBotJob.getHomeBankingId(), "component_instruction");
+            List<InstructionLoad> instructions = performLists.buildJsonViewData(performLists.getListBotJobComp());
             if (!instructions.isEmpty()) {
                 performMessage.outputJson(instructions, "componentTasks-" + selectedBotJob.getId(), false);
                 jsonData = gson.toJson(instructions);

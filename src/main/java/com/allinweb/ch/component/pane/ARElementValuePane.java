@@ -596,8 +596,7 @@ public class ARElementValuePane extends ARPane {
                         rowMoveDTO.getBotJobName());
                 String jsonData = gson.toJson(payloadEmpty);
                 if (!listBot.isEmpty()) {
-                    List<InstructionLoad> instructionLoads =
-                            performDataBase.buildJsonViewData(listBot, whereId, instrTable);
+                    List<InstructionLoad> instructionLoads = performLists.buildJsonViewData(listBot);
                     jsonData = gson.toJson(instructionLoads);
                 }
 

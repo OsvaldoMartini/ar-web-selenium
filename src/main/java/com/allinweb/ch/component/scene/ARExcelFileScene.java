@@ -39,11 +39,7 @@ public class ARExcelFileScene extends ARScene {
     private Stage modalStage;
     private Scene modalScene;
 
-    private static ARExcelFilePane arExcelFilePane;
-
-    static {
-        arExcelFilePane = ARExcelFilePane.getInstance();
-    }
+    private static ARExcelFilePane arExcelFilePane = ARExcelFilePane.getInstance();
 
     private static final Double SCENE_HEIGHT = 300D;
     private static final Double SCENE_WIDTH = 800D;

@@ -6,7 +6,6 @@ import com.allinweb.ch.component.model.FormatOption;
 import com.allinweb.ch.component.model.InstructionLoad;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.control.ARComponentBuilder;
-import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
@@ -93,7 +92,6 @@ public class ARExcelFilePane extends ARPane {
 
     private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
     private static final PerformLists performLists = PerformLists.getInstance();
-    private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
     private static final PerformMessage performMessage = PerformMessage.getInstance();
     private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
@@ -420,24 +418,20 @@ public class ARExcelFilePane extends ARPane {
 
         exportFile = exportFile.replace("\\", "/");
 
-        String instTable = "instruction";
         String blockTable = "block";
         String updateAction = "updateInstructions";
+        int whereId = blockExcelDTO.getBotJobId();
 
         if ((sessionId != null && sessionId.matches(".*componentTasks.*"))) {
-            instTable = "component_instruction";
             blockTable = "component_block";
+            whereId = blockExcelDTO.getHomeBankingId();
+            updateAction = "componentsUpdate";
         }
 
         exportFile = exportFile + ":" + delimiter;
 
-        ErrorMessage errorMessage = performDataBase.updateBlockExportFile(
-                blockTable, blockExcelDTO.getBotJobId(), blockExcelDTO.getBlockId(), exportFile);
-
-        boolean updateBlock = false;
-        if (errorMessage == null) {
-            updateBlock = true;
-        }
+        ErrorMessage errorMessage =
+                performDataBase.updateBlockExportFile(blockTable, whereId, blockExcelDTO.getBlockId(), exportFile);
 
         if (errorMessage != null) {
             performMessage.errorMessage(
@@ -450,68 +444,31 @@ public class ARExcelFilePane extends ARPane {
                     0);
         }
 
-        if ((sessionId != null && sessionId.matches(".*botJobTasks.*"))) {
-            if (performLists.getListBotJob().isEmpty()) {
-                errorMessage = performDBEngine.loadCompleteJobs(blockExcelDTO.getBotJobId());
+        if (errorMessage == null) {
+            performLists.updateMemoryBlockExcelExport(blockTable, whereId, blockExcelDTO.getBlockId(), exportFile);
 
-                if (errorMessage != null) {
-                    performMessage.errorMessage(
-                            errorMessage.getErrorTitle(),
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                    + errorMessage.getErrorHeader(),
-                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                            null,
-                            0);
-                }
+            String jsonData = "[]";
+            List<BotJobLoadDTO> listToSend =
+                    blockTable.equals("block") ? performLists.getListBotJob() : performLists.getListBotJobComp();
+
+            if (!listToSend.isEmpty()) {
+                List<InstructionLoad> instructions = performLists.buildJsonViewData(listToSend);
+                jsonData = gson.toJson(instructions);
             }
-
-        } else if ((sessionId != null && sessionId.matches(".*componentTasks.*"))) {
-            errorMessage = performDataBase.loadComponentsComplete(
-                    blockExcelDTO.getHomeBankingId(), blockExcelDTO.getBotJobId(), blockExcelDTO.getBotJobName());
-            if (errorMessage != null) {
-                performMessage.errorMessage(
-                        errorMessage.getErrorTitle(),
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                + errorMessage.getErrorHeader(),
-                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                        null,
-                        0);
-            }
+            webSocketSessionManager.sendMessageJson(
+                    blockExcelDTO.getHomeBankingId(), sessionId, jsonData, updateAction);
         }
-
-        String jsonData = "[]";
-        List<BotJobLoadDTO> listToSend =
-                instTable.equals("instruction") ? performLists.getListBotJob() : performLists.getListBotJobComp();
-
-        if (!listToSend.isEmpty()) {
-            List<InstructionLoad> instructions =
-                    performDataBase.buildJsonViewData(listToSend, blockExcelDTO.getHomeBankingId(), instTable);
-            jsonData = gson.toJson(instructions);
-        }
-        webSocketSessionManager.sendMessageJson(blockExcelDTO.getHomeBankingId(), sessionId, jsonData, updateAction);
 
         performMessage.showCustomModalDialogDragWin11(
                 "Export File: ",
                 exportFile,
-                updateBlock ? "Bot-Job Updated successfully!" : "Bot-Job NOT Update!\"",
+                errorMessage == null ? "Bot-Job Updated successfully!" : "Bot-Job NOT Update!\"",
                 null,
                 null,
                 false,
                 "OK",
                 null,
                 300);
-    }
-
-    private TextField createPathTextField(ARPropertyEnum property) {
-        TextField textField = new TextField();
-        textField.setText(arPropertyManager.getProperty(property));
-        AnchorPane.setTopAnchor(textField, ARConstants.SPACE_ZERO);
-        AnchorPane.setBottomAnchor(textField, ARConstants.SPACE_ZERO);
-        AnchorPane.setRightAnchor(textField, ARConstants.SPACE_XL);
-        AnchorPane.setLeftAnchor(textField, ARConstants.SPACE_ZERO);
-        return textField;
     }
 
     private TextField createPathTextField(String text) {

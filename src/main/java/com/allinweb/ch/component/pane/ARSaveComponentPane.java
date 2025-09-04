@@ -293,10 +293,8 @@ public class ARSaveComponentPane extends ARPane {
 
                             String jsonData = "[]";
                             if (!performLists.getListBotJobComp().isEmpty()) {
-                                List<InstructionLoad> blockLoopInstructions = performDataBase.buildJsonViewData(
-                                        performLists.getListBotJobComp(),
-                                        blockDetailsDTO.getHomeBankingId(),
-                                        "component_instruction");
+                                List<InstructionLoad> blockLoopInstructions =
+                                        performLists.buildJsonViewData(performLists.getListBotJobComp());
                                 jsonData = gson.toJson(blockLoopInstructions);
                             }
                             // simpleWebSocketServer.sendMessageJson(blockDetailsDTO.getSessionId(), jsonData,

@@ -2666,7 +2666,7 @@ public class ARNewCommandPane extends ARPane {
 
             String jsonData = "[]";
             if (!listBotJobs.isEmpty()) {
-                List<InstructionLoad> instructions = performDataBase.buildJsonViewData(listBotJobs, whereId, tableName);
+                List<InstructionLoad> instructions = performLists.buildJsonViewData(listBotJobs);
                 jsonData = gson.toJson(instructions);
             }
 
