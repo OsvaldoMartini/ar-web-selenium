@@ -519,6 +519,7 @@ public class SimpleWebSocketServer {
                 } else if (errorMessage == null
                         && !restToDeleteIds.isEmpty()
                         && (blockTable.equals("component_block"))) {
+                    errorMessage = performDataBase.deleteNullBlocks(blockTable, whereId, restToDeleteIds);
 
                     // UPDATE REMOVAL MEMORY LIST
                     if (errorMessage == null) {
