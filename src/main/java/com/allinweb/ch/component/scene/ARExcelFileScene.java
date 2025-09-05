@@ -1,6 +1,6 @@
 package com.allinweb.ch.component.scene;
 
-import com.allinweb.ch.component.model.BlockDetailsDTO;
+import com.allinweb.ch.component.model.SplitDTO;
 import com.allinweb.ch.component.pane.ARExcelFilePane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
@@ -31,9 +31,9 @@ public class ARExcelFileScene extends ARScene {
         return instance;
     }
 
-    public void initialize(String sessionId, BlockDetailsDTO blockExcelDTO) {
+    public void initialize(String sessionId, SplitDTO splitDTO) {
         this.sessionId = sessionId;
-        this.blockExcelDTO = blockExcelDTO;
+        this.splitDTO = splitDTO;
     }
 
     private Stage modalStage;
@@ -44,7 +44,7 @@ public class ARExcelFileScene extends ARScene {
     private static final Double SCENE_HEIGHT = 300D;
     private static final Double SCENE_WIDTH = 800D;
     private static final String TITLE = "Create or Delete the Export Excel File";
-    private BlockDetailsDTO blockExcelDTO;
+    private SplitDTO splitDTO;
     private String sessionId;
 
     @Override
@@ -70,7 +70,7 @@ public class ARExcelFileScene extends ARScene {
 
     public void showModal() {
 
-        arExcelFilePane.initialize(sessionId, blockExcelDTO, modalStage);
+        arExcelFilePane.initialize(sessionId, splitDTO, modalStage);
 
         if (modalStage == null) {
             modalStage = new Stage();

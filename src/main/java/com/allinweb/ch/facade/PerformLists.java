@@ -1179,7 +1179,7 @@ public class PerformLists {
         }
     }
 
-    public void updateMemoryRowMove(String tableName, Integer whereId, List<InstructionLoad> updatedRows) {
+    public void updateMemoryRowMove(String tableName, Integer whereId, List<UpdatedRow> updatedRows) {
         try {
             if ("block".equalsIgnoreCase(tableName)) {
                 for (BotJobLoadDTO botJob : getListBotJob()) {
@@ -1208,16 +1208,16 @@ public class PerformLists {
         }
     }
 
-    private void applyUpdates(List<BlockLoadDTO> blockList, List<InstructionLoad> updatedRows) {
+    private void applyUpdates(List<BlockLoadDTO> blockList, List<UpdatedRow> updatedRows) {
         Map<Integer, BlockLoadDTO> blockMap = blockList.stream().collect(Collectors.toMap(BlockLoadDTO::getId, b -> b));
 
-        for (InstructionLoad mapped : updatedRows) {
+        for (UpdatedRow mapped : updatedRows) {
             for (BlockLoadDTO block : blockList) {
                 if (block.getInstructionLoad() != null) {
                     Iterator<InstructionLoad> it = block.getInstructionLoad().iterator();
                     while (it.hasNext()) {
                         InstructionLoad instr = it.next();
-                        if (instr.getId().equals(mapped.getId())) {
+                        if (instr.getId().equals(mapped.getInstructionId())) {
 
                             // If blockId changed, move instruction to new block
                             if (!Objects.equals(instr.getBlockId(), mapped.getBlockId())) {

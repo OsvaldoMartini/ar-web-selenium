@@ -1,34 +1,50 @@
 package com.allinweb.ch.component.model;
 
+import java.util.List;
 import lombok.Data;
 
 @Data
 public class SplitDTO {
     private String type;
-    private Integer botJobId;
-    private Integer homeBankingId;
     private String sessionId;
+    private String operationId;
+
+    private Integer homeBankingId;
+    private Integer botJobId;
+    private String botJobName;
+
+    private Integer blockId;
+    private String blockName;
+    private Integer blockOrderNumber;
+    private Boolean blockActive;
+
+    private Integer instructionId;
+    private String instructionName;
+    private Integer instructionOrderNumber;
+    private Boolean instructionActive;
 
     private String actions;
     private String operation;
 
-    private Integer instructionId;
+    private Integer variableId;
     private Integer parentId;
     private Integer parentBlockId;
-    private Integer variableId;
-    private Integer blockId;
-    private Integer instructionOrderNumber;
-    private Integer blockOrderNumber;
-    private String instructionName;
-    private String blockName;
+
+    private String exportFile;
 
     // Optional fields for SplitDTO
-    private String operationId;
     private ElementDTO[] elementDetails;
 
     // Optional fields for BlockSplitDTO
-    private String botJobName;
     private DetailsDTO details;
+
+    // Optional fields for UpdtateRows
+    private List<UpdatedRow> updatedRows;
+    // Optional fields for UpdtateRows
+    private List<UpdatedRow> instructions;
+
+    // Optional fields for BlockOrderDetail
+    private List<BlockOrderDetailDTO> updatedBlocks;
 
     public static InstructionLoad mapSplitToInstruction(SplitDTO split) {
         if (split == null) return null;

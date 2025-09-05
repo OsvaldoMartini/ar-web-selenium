@@ -203,24 +203,24 @@ public class ARNewCommandScene extends ARScene {
                 case "INSERT_BEFORE_ELSEIF":
                 case "EDIT_OPERATION":
                     try {
-                        RowMoveDTO rowUpdateDTO = gson.fromJson(jsonObjMSG, RowMoveDTO.class);
+                        SplitDTO splitDTO = gson.fromJson(jsonObjMSG, SplitDTO.class);
                         //                        if (previousBlock == null)  {
                         //                            previousBlock = type;
                         //                        }
 
                         //                this.webPageItems =
-                        // performDataBase.loadWebPageFields(rowUpdateDTO.getBotJobId());
+                        // performDataBase.loadWebPageFields(splitDTO.getBotJobId());
 
                         // Ensure JavaFX UI updates are done on the JavaFX Application Thread
-                        String instTable = rowUpdateDTO.getSessionId().equals("componentTasks")
+                        String instTable = splitDTO.getSessionId().equals("componentTasks")
                                 ? "component_instruction"
                                 : "instruction";
                         String blockTable =
-                                rowUpdateDTO.getSessionId().equals("componentTasks") ? "component_block" : "block";
-                        int whereId = rowUpdateDTO.getSessionId().equals("componentTasks")
-                                ? rowUpdateDTO.getHomeBankingId()
-                                : rowUpdateDTO.getBotJobId();
-                        String blockUpdate = rowUpdateDTO.getSessionId().equals("componentTasks")
+                                splitDTO.getSessionId().equals("componentTasks") ? "component_block" : "block";
+                        int whereId = splitDTO.getSessionId().equals("componentTasks")
+                                ? splitDTO.getHomeBankingId()
+                                : splitDTO.getBotJobId();
+                        String blockUpdate = splitDTO.getSessionId().equals("componentTasks")
                                 ? "UPDATE_BLOCKS_COMP"
                                 : "UPDATE_BLOCKS";
 

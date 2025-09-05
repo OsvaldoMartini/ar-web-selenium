@@ -1152,7 +1152,7 @@ public class PerformDataBase {
     public ErrorMessage updateMoveRowsOrder(
             String tableName,
             int whereId, // either bot_job_id or home_banking_id
-            List<InstructionLoad> instructions) {
+            List<UpdatedRow> instructions) {
         if (instructions == null || instructions.isEmpty()) {
             return null; // nothing to do
         }
@@ -1173,10 +1173,10 @@ public class PerformDataBase {
 
             conn.setAutoCommit(false);
 
-            for (InstructionLoad instruction : instructions) {
+            for (UpdatedRow instruction : instructions) {
                 pstmt.setInt(1, instruction.getInstructionOrderNumber());
                 pstmt.setInt(2, instruction.getBlockId());
-                pstmt.setInt(3, instruction.getId());
+                pstmt.setInt(3, instruction.getInstructionId());
                 pstmt.setInt(4, whereId);
                 pstmt.addBatch();
             }
@@ -1192,7 +1192,7 @@ public class PerformDataBase {
         }
     }
 
-    public ErrorMessage rollBackBlocksRows(String targetTable, RollBackBlocksDTO rollBackBlocksDTO) {
+    public ErrorMessage rollBackBlocksRows(String targetTable, SplitDTO splitDTO) {
         final int BATCH_SIZE = 100; // Batch size for executeBatch()
         String updateSQL = "UPDATE " + targetTable
                 + " SET instruction_order_number = ?, block_id = ?, parent_block_id = ? WHERE id = ?";
@@ -1203,15 +1203,15 @@ public class PerformDataBase {
             try (PreparedStatement pstmt = conn.prepareStatement(updateSQL)) {
                 int count = 0;
 
-                for (InstructionLoad instruction : rollBackBlocksDTO.getInstructions()) {
+                for (UpdatedRow instruction : splitDTO.getUpdatedRows()) {
                     pstmt.setInt(1, instruction.getInstructionOrderNumber());
-                    pstmt.setInt(2, rollBackBlocksDTO.getBlockId());
+                    pstmt.setInt(2, splitDTO.getBlockId());
                     if (instruction.getParentBlockId() != null && instruction.getParentBlockId() > 0) {
-                        pstmt.setInt(3, rollBackBlocksDTO.getBlockId());
+                        pstmt.setInt(3, splitDTO.getBlockId());
                     } else {
                         pstmt.setNull(3, Types.INTEGER);
                     }
-                    pstmt.setInt(4, instruction.getId());
+                    pstmt.setInt(4, instruction.getInstructionId());
 
                     pstmt.addBatch();
                     count++;
@@ -1221,7 +1221,7 @@ public class PerformDataBase {
                         conn.commit();
                         ARLogger.getInstance(PerformDataBase.class)
                                 .info("Executed batch of " + BATCH_SIZE + " updates for blockId "
-                                        + rollBackBlocksDTO.getBlockId());
+                                        + splitDTO.getBlockId());
                     }
                 }
 
@@ -1231,7 +1231,7 @@ public class PerformDataBase {
                     conn.commit();
                     ARLogger.getInstance(PerformDataBase.class)
                             .info("Executed final batch of " + (count % BATCH_SIZE) + " updates for blockId "
-                                    + rollBackBlocksDTO.getBlockId());
+                                    + splitDTO.getBlockId());
                 }
 
                 return null; // Success
@@ -1240,14 +1240,14 @@ public class PerformDataBase {
                 ARLogger.getInstance(PerformDataBase.class)
                         .severe(String.format(
                                 "RollBackBlocks - Error updating BlockId %d. Error: %s",
-                                rollBackBlocksDTO.getBlockId(), e.getMessage()));
+                                splitDTO.getBlockId(), e.getMessage()));
                 return new ErrorMessage("RollBack Error", "Failed to roll back instructions", e.getMessage());
             }
         } catch (SQLException ex) {
             ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "Connection error while rolling back BlockId %d. Error: %s",
-                            rollBackBlocksDTO.getBlockId(), ex.getMessage()));
+                            splitDTO.getBlockId(), ex.getMessage()));
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
     }
@@ -2776,7 +2776,7 @@ public class PerformDataBase {
                 } else {
                     rowList = preInsertStep(operType, targetOrderNumber, rowList, 1);
                 }
-                reorderInstructionsPerBlock(rowList, instrName, true);
+                reorderInstructionsPerBlock(rowList, instrName, false);
 
             } else {
                 splitDTO.setInstructionOrderNumber(rowList.size() + 1);

@@ -1,9 +1,6 @@
 package com.allinweb.ch.component.pane;
 
-import com.allinweb.ch.component.model.BlockDetailsDTO;
-import com.allinweb.ch.component.model.BotJobLoadDTO;
-import com.allinweb.ch.component.model.FormatOption;
-import com.allinweb.ch.component.model.InstructionLoad;
+import com.allinweb.ch.component.model.*;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.facade.PerformDataBase;
@@ -57,17 +54,17 @@ public class ARExcelFilePane extends ARPane {
     }
 
     private Stage modalStage;
-    private BlockDetailsDTO blockExcelDTO;
+    private SplitDTO splitDTO;
     private String sessionId;
 
-    public void initialize(String sessionId, BlockDetailsDTO blockExcelDTO, Stage modalStage) {
+    public void initialize(String sessionId, SplitDTO splitDTO, Stage modalStage) {
         this.sessionId = sessionId;
-        this.blockExcelDTO = blockExcelDTO;
+        this.splitDTO = splitDTO;
         this.modalStage = modalStage;
 
         if (titleLabel != null) {
-            titleLabel.setText("Block name: #" + this.blockExcelDTO.getBlockOrderNumber() + "-"
-                    + this.blockExcelDTO.getBlockName());
+            titleLabel.setText(
+                    "Block name: #" + this.splitDTO.getBlockOrderNumber() + "-" + this.splitDTO.getBlockName());
         }
 
         if (fileExport != null && pathExport != null) {
@@ -77,9 +74,9 @@ public class ARExcelFilePane extends ARPane {
             fileExport.setText(fileName);
         }
 
-        if (comboBoxCSVColumns != null && !Strings.isNullOrEmpty(blockExcelDTO.getExportFile())) {
+        if (comboBoxCSVColumns != null && !Strings.isNullOrEmpty(splitDTO.getExportFile())) {
             // Update the checkboxes based on the selected user's type
-            String[] fileParts = blockExcelDTO.getExportFile().split(":");
+            String[] fileParts = splitDTO.getExportFile().split(":");
             if (fileParts.length > 2 && fileParts[2].equals("|")) {
                 comboBoxCSVColumns.getSelectionModel().selectLast();
             } else {
@@ -144,8 +141,7 @@ public class ARExcelFilePane extends ARPane {
         blockNameLabel.setStyle("-fx-font-size: 18px; -fx-text-fill: blue;"); // Blue font color
 
         // Create the title label
-        titleLabel =
-                new Label("#" + this.blockExcelDTO.getBlockOrderNumber() + "-" + this.blockExcelDTO.getBlockName());
+        titleLabel = new Label("#" + this.splitDTO.getBlockOrderNumber() + "-" + this.splitDTO.getBlockName());
         titleLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: darkgreen;"); // Green dark
 
         HBox titleBox = new HBox(10, blockNameLabel, titleLabel); // Put labels in an HBox
@@ -209,7 +205,7 @@ public class ARExcelFilePane extends ARPane {
             }
         });
 
-        if (comboBoxCSVColumns != null && !Strings.isNullOrEmpty(blockExcelDTO.getExportFile())) {
+        if (comboBoxCSVColumns != null && !Strings.isNullOrEmpty(splitDTO.getExportFile())) {
             // Update the checkboxes based on the selected user's type
             if (delimiter.equals("|")) {
                 comboBoxCSVColumns.getSelectionModel().selectLast();
@@ -325,10 +321,8 @@ public class ARExcelFilePane extends ARPane {
         directory = "";
         fileName = "";
 
-        excelPath = blockExcelDTO.getExportFile() != null
-                        && !blockExcelDTO.getExportFile().isEmpty()
-                ? blockExcelDTO.getExportFile()
-                : "";
+        excelPath =
+                splitDTO.getExportFile() != null && !splitDTO.getExportFile().isEmpty() ? splitDTO.getExportFile() : "";
         String[] fileParts = excelPath.split(":");
         delimiter = ",";
 
@@ -420,18 +414,18 @@ public class ARExcelFilePane extends ARPane {
 
         String blockTable = "block";
         String updateAction = "updateInstructions";
-        int whereId = blockExcelDTO.getBotJobId();
+        int whereId = splitDTO.getBotJobId();
 
         if ((sessionId != null && sessionId.matches(".*componentTasks.*"))) {
             blockTable = "component_block";
-            whereId = blockExcelDTO.getHomeBankingId();
+            whereId = splitDTO.getHomeBankingId();
             updateAction = "componentsUpdate";
         }
 
         exportFile = exportFile + ":" + delimiter;
 
         ErrorMessage errorMessage =
-                performDataBase.updateBlockExportFile(blockTable, whereId, blockExcelDTO.getBlockId(), exportFile);
+                performDataBase.updateBlockExportFile(blockTable, whereId, splitDTO.getBlockId(), exportFile);
 
         if (errorMessage != null) {
             performMessage.errorMessage(
@@ -445,7 +439,7 @@ public class ARExcelFilePane extends ARPane {
         }
 
         if (errorMessage == null) {
-            performLists.updateMemoryBlockExcelExport(blockTable, whereId, blockExcelDTO.getBlockId(), exportFile);
+            performLists.updateMemoryBlockExcelExport(blockTable, whereId, splitDTO.getBlockId(), exportFile);
 
             String jsonData = "[]";
             List<BotJobLoadDTO> listToSend =
@@ -455,8 +449,7 @@ public class ARExcelFilePane extends ARPane {
                 List<InstructionLoad> instructions = performLists.buildJsonViewData(listToSend);
                 jsonData = gson.toJson(instructions);
             }
-            webSocketSessionManager.sendMessageJson(
-                    blockExcelDTO.getHomeBankingId(), sessionId, jsonData, updateAction);
+            webSocketSessionManager.sendMessageJson(splitDTO.getHomeBankingId(), sessionId, jsonData, updateAction);
         }
 
         performMessage.showCustomModalDialogDragWin11(

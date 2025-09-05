@@ -210,95 +210,129 @@ public class SimpleWebSocketServer {
     private void handleMessageByType(String type, JsonObject jsonEntry, Session session, String sessionId) {
         // Dispatch to the correct method based on the message type
 
-        int botJobIdTask = -1;
-        String botJobNameTask = "1# Default Block";
-        int homeBankingId = -1;
-        String sessionIdToSend = null;
         boolean alreadySentMgsSocket = false;
 
-        // Optional: check for duplicates or gaps
+        SplitDTO splitDTO = parseSplitDTO(jsonEntry);
 
-        //        List<BlockLoadDTO> listBlocks =
-        //                blockTable.equals("block") ? performLists.getListBlock() : performLists.getListBlockComp();
+        String sessionIdToSend = splitDTO.getSessionId();
+        String operationId = splitDTO.getOperationId() != null ? splitDTO.getOperationId() : "";
+
+        int homeBankingId = splitDTO.getHomeBankingId() != null ? splitDTO.getHomeBankingId() : -1;
+        int botJobIdTask = splitDTO.getBotJobId() != null ? splitDTO.getBotJobId() : -1;
+        String botJobNameTask = splitDTO.getBotJobName() != null ? splitDTO.getBotJobName() : "1# Default Block";
+
+        // Block-level details
+        int blockId = splitDTO.getBlockId() != null ? splitDTO.getBlockId() : -1;
+        String blockName = splitDTO.getBlockName() != null ? splitDTO.getBlockName() : "";
+        int blockOrderNum = splitDTO.getBlockOrderNumber() != null ? splitDTO.getBlockOrderNumber() : -1;
+        boolean blockActive = splitDTO.getBlockActive() != null && splitDTO.getBlockActive();
+
+        // Instruction-level details
+        int instructionId = splitDTO.getInstructionId() != null ? splitDTO.getInstructionId() : -1;
+        String instructionName = splitDTO.getInstructionName() != null ? splitDTO.getInstructionName() : "";
+        int instructionOrderNum =
+                splitDTO.getInstructionOrderNumber() != null ? splitDTO.getInstructionOrderNumber() : -1;
+        boolean instrucionActive = splitDTO.getInstructionActive() != null && splitDTO.getInstructionActive();
+
+        // Other instruction metadata
+        String actions = splitDTO.getActions() != null ? splitDTO.getActions() : "";
+        String operation = splitDTO.getOperation() != null ? splitDTO.getOperation() : "";
+
+        // Hierarchy & variables
+        int variableId = splitDTO.getVariableId() != null ? splitDTO.getVariableId() : -1;
+        int parentId = splitDTO.getParentId() != null ? splitDTO.getParentId() : -1;
+        int parentBlockId = splitDTO.getParentBlockId() != null ? splitDTO.getParentBlockId() : -1;
+
+        // Optional fields for SplitDTO
+        ElementDTO[] elementDetails =
+                splitDTO.getElementDetails() != null ? splitDTO.getElementDetails() : new ElementDTO[0];
+
+        // Optional fields for BlockSplitDTO
+        DetailsDTO details = splitDTO.getDetails() != null ? splitDTO.getDetails() : new DetailsDTO();
+
+        // Optional fields for UpdateRows
+        List<UpdatedRow> updatedRows =
+                splitDTO.getUpdatedRows() != null ? splitDTO.getUpdatedRows() : new ArrayList<>();
+
         ErrorMessage errorMessage = null;
-        //        Set<Integer> seenNumbers = new HashSet<>();
-        //        for (BlockLoadDTO block : performLists.getListBlock()) {
-        //            if (!seenNumbers.add(block.getBlockOrderNumber())) {
-        //                System.out.println("Duplicate blockOrderNumber found: " + block.getBlockOrderNumber() + "
-        // (Block ID: " + block.getId() + ")");
-        //// updateBlockOrderNumber  ALREADY UPDATE MEMORY LIST
-        //                if (errorMessage == null) {
-        //                    errorMessage = performDataBase.updateBlockOrderNumber(blockTable, whereId, true);
-        //                }
-        //                break;
-        //            }
-        //        }
-        //
-        //        ErrorMessage errorMessage = null;
-        //        String blockTable = null;
-        //        int whereId = -1;
-        //        String updteBlocks = "";
-        //
-        //        if (sessionIdToSend != null) {
-        //            if (sessionIdToSend.matches(".*botJobTasks.*")) {
-        //                blockTable = "block";
-        //                whereId = blockSplitDTO.getBotJobId();
-        //                updteBlocks = "UPDATE_BLOCKS";
-        //            } else if (sessionIdToSend.matches(".*componentTasks.*")) {
-        //                blockTable = "component_block";
-        //                whereId = blockSplitDTO.getHomeBankingId();
-        //                updteBlocks = "UPDATE_BLOCKS_COMP";
-        //            }
-        //        }
+        String instrTable = null;
+        String blockTable = null;
+        String variableTable = null;
+        String updteBlocks = "";
+        String updateAction = null;
+
+        List<Integer> previousIds = null;
+        List<Integer> currentIds = null;
+        List<Integer> restToDeleteIds = null;
+
+        int whereId = -1;
+
+        if (sessionIdToSend != null) {
+            if (sessionIdToSend.matches(".*botJobTasks.*")) {
+                instrTable = "instruction";
+                blockTable = "block";
+                variableTable = "variable";
+                whereId = splitDTO.getBotJobId();
+                updteBlocks = "UPDATE_BLOCKS";
+                updateAction = "updateInstructions";
+            } else if (sessionIdToSend.matches(".*componentTasks.*")) {
+                instrTable = "component_instruction";
+                blockTable = "component_block";
+                variableTable = "component_variable";
+                whereId = splitDTO.getHomeBankingId();
+                updteBlocks = "UPDATE_BLOCKS_COMP";
+                updateAction = "componentsUpdate";
+            }
+        }
+
+        List<BotJobLoadDTO> listBotJob =
+                blockTable.equals("block") ? performLists.getListBotJob() : performLists.getListBotJobComp();
+
+        List<BlockLoadDTO> listBlocks =
+                blockTable.equals("block") ? performLists.getListBlock() : performLists.getListBlockComp();
+
+        if (!listBotJob.isEmpty() && listBlocks.isEmpty()) {
+            errorMessage = performDataBase.loadBlocks(whereId, botJobNameTask, blockTable);
+        }
+
+        // Optional: check for duplicates or gaps
+        Set<Integer> seenNumbers = new HashSet<>();
+        for (BlockLoadDTO block : performLists.getListBlock()) {
+            if (!seenNumbers.add(block.getBlockOrderNumber())) {
+                System.out.println("Duplicate blockOrderNumber found: " + block.getBlockOrderNumber() + " (Block ID: "
+                        + block.getId() + ")");
+                // updateBlockOrderNumber  ALREADY UPDATE MEMORY LIST
+                if (errorMessage == null) {
+                    errorMessage = performDataBase.updateBlockOrderNumber(blockTable, whereId, true);
+                }
+                break;
+            }
+        }
 
         switch (type) {
             case "CLOSE_BROWSER":
-                // Extract the "body" field from the JsonObject
-                SplitDTO elementSplitDTO = gson.fromJson(jsonEntry, SplitDTO.class);
-
-                homeBankingId = elementSplitDTO.getHomeBankingId() != null ? elementSplitDTO.getHomeBankingId() : -1;
-                sessionIdToSend = elementSplitDTO.getSessionId();
-
                 if (sessionIdToSend.equals("scanner-element-pane")) {
-                    elementSplitDTO.setOperationId("closeBrowser");
-                    String jsonData = gson.toJson(elementSplitDTO);
+                    splitDTO.setOperationId("closeBrowser");
+                    String jsonData = gson.toJson(splitDTO);
                     webSocketSessionManager.sendMessageJson(homeBankingId, sessionIdToSend, jsonData, "closeBrowser");
                 }
-
                 alreadySentMgsSocket = true;
-
                 break;
             case "HOVERED_ROW":
-                // Extract the "body" field from the JsonObject
-                elementSplitDTO = gson.fromJson(jsonEntry, SplitDTO.class);
-
-                homeBankingId = elementSplitDTO.getHomeBankingId() != null ? elementSplitDTO.getHomeBankingId() : -1;
-                sessionIdToSend = elementSplitDTO.getSessionId();
-
                 if (sessionIdToSend.equals("scannerTool")) {
-                    elementSplitDTO.setOperationId("highlight");
-                    String jsonData = gson.toJson(elementSplitDTO);
+                    splitDTO.setOperationId("highlight");
+                    String jsonData = gson.toJson(splitDTO);
                     webSocketSessionManager.sendMessageJson(homeBankingId, sessionIdToSend, jsonData, null);
                 }
-
                 alreadySentMgsSocket = true;
-
                 break;
             case "SEARCH_TOOL":
-                // Extract the "body" field from the JsonObject
-                elementSplitDTO = gson.fromJson(jsonEntry, SplitDTO.class);
-                //                elementSplitDTO.setType("RETURN FROM MARTINI Total Rows: " +
-                // elementSplitDTO.getElementDetails().length);
-
-                homeBankingId = elementSplitDTO.getHomeBankingId() != null ? elementSplitDTO.getHomeBankingId() : -1;
-                sessionIdToSend = elementSplitDTO.getSessionId();
-
                 if (sessionIdToSend.equals("scannerGrid")) {
-                    String jsonData = gson.toJson(elementSplitDTO);
+                    String jsonData = gson.toJson(splitDTO);
                     webSocketSessionManager.sendMessageJson(homeBankingId, sessionIdToSend, jsonData, "addPickOne");
-                    //                    broadcastMessageToAll(jsonData);
+
                     List<String> excludeList = List.of("optional", "blockMarked", "editMode");
-                    performMessage.outputJsonElementDTO(elementSplitDTO.getElementDetails(), excludeList, "elementDTO");
+                    performMessage.outputJsonElementDTO(splitDTO.getElementDetails(), excludeList, "elementDTO");
                     excludeList = List.of(
                             "optional",
                             "blockMarked",
@@ -312,12 +346,9 @@ public class SimpleWebSocketServer {
                             "searchAttributeValue",
                             "attributeType",
                             "attributeValue");
-                    performMessage.outputJsonElementDTO(
-                            elementSplitDTO.getElementDetails(), excludeList, "AI-ElementDTO");
+                    performMessage.outputJsonElementDTO(splitDTO.getElementDetails(), excludeList, "AI-ElementDTO");
                 }
-
                 alreadySentMgsSocket = true;
-
                 break;
             case "NEW_ELEMENT_DTO":
             case "SEND_ALL_ELEMENTS_DTO":
@@ -325,154 +356,54 @@ public class SimpleWebSocketServer {
             case "DETAILS_ELEMENT_DTO":
             case "TEST_CLICK_DTO":
             case "TEST_INPUT_DTO":
-                // Extract the "body" field from the JsonObject
-                SplitDTO processDTO = gson.fromJson(jsonEntry, SplitDTO.class);
-
-                homeBankingId = processDTO.getHomeBankingId();
-                sessionIdToSend = processDTO.getSessionId();
-                //                botJobIdTask = processDTO.getBotJobId();
-
-                if (processDTO.getElementDetails() != null && processDTO.getElementDetails().length > 0) {
+                if (splitDTO.getElementDetails() != null && splitDTO.getElementDetails().length > 0) {
                     webSocketSessionManager.sendMessageJson(
-                            "scanner-element-pane", gson.toJson(processDTO)); // Sending as details
+                            "scanner-element-pane", gson.toJson(splitDTO)); // Sending as details
                 }
                 alreadySentMgsSocket = true;
                 break;
             case "RESPONSE_BACK":
-                // Extract the "body" field from the JsonObject
-                SplitDTO received = gson.fromJson(jsonEntry, SplitDTO.class);
-                received.setType("MARTINI");
-
-                String jsonData = gson.toJson(received);
-
-                homeBankingId = received.getHomeBankingId();
-                sessionIdToSend = received.getSessionId();
-                botJobIdTask = received.getBotJobId();
-
+                splitDTO.setType("MARTINI");
+                String jsonData = gson.toJson(splitDTO);
                 webSocketSessionManager.sendMessageJson(homeBankingId, session, "Martini", jsonData, null);
-
                 alreadySentMgsSocket = true;
                 break;
             case "BLOCKS_COMPONENT":
-                SplitDTO creteComp = gson.fromJson(jsonEntry, SplitDTO.class);
-
-                homeBankingId = creteComp.getHomeBankingId();
-                sessionIdToSend = creteComp.getSessionId();
-                botJobIdTask = creteComp.getBotJobId();
-
-                createBlockComponent(creteComp);
-
-                alreadySentMgsSocket = true;
+                createBlockComponent(splitDTO);
 
                 // calls perform list block update
-                creteComp.setType("UPDATE_BLOCKS_COMP");
-                jsonData = gson.toJson(creteComp);
+                splitDTO.setType("UPDATE_BLOCKS_COMP");
+                jsonData = gson.toJson(splitDTO);
                 webSocketSessionManager.sendMessageJson(
                         homeBankingId, "perform-list-data", jsonData, "UPDATE_BLOCKS_COMP");
-
+                alreadySentMgsSocket = true;
                 break;
             case "COMPONENT_INJECT":
-                SplitDTO injectComp = gson.fromJson(jsonEntry, SplitDTO.class);
-
-                homeBankingId = injectComp.getHomeBankingId();
-                sessionIdToSend = injectComp.getSessionId();
-                botJobIdTask = injectComp.getBotJobId();
-
-                injectBlockComponent(injectComp);
-
-                alreadySentMgsSocket = true;
-
+                injectBlockComponent(splitDTO);
                 // calls perform list block update
-                injectComp.setType("UPDATE_BLOCKS");
-                jsonData = gson.toJson(injectComp);
+                splitDTO.setType("UPDATE_BLOCKS");
+                jsonData = gson.toJson(splitDTO);
                 webSocketSessionManager.sendMessageJson(homeBankingId, "perform-list-data", jsonData, "UPDATE_BLOCKS");
-
+                alreadySentMgsSocket = true;
                 break;
             case "BLOCKS_SPLITTER":
-                SplitDTO blockSplitDTO = gson.fromJson(jsonEntry, SplitDTO.class);
-
-                homeBankingId = blockSplitDTO.getHomeBankingId();
-                sessionIdToSend = blockSplitDTO.getSessionId();
-                botJobIdTask = blockSplitDTO.getBotJobId();
-
-                alreadySentMgsSocket = false;
-
-                String blockTable = null;
-                int whereId = -1;
-                String updteBlocks = "";
-
-                if (sessionIdToSend != null) {
-                    if (sessionIdToSend.matches(".*botJobTasks.*")) {
-                        blockTable = "block";
-                        whereId = blockSplitDTO.getBotJobId();
-                        updteBlocks = "UPDATE_BLOCKS";
-                    } else if (sessionIdToSend.matches(".*componentTasks.*")) {
-                        blockTable = "component_block";
-                        whereId = blockSplitDTO.getHomeBankingId();
-                        updteBlocks = "UPDATE_BLOCKS_COMP";
-                    }
-                }
-
-                errorMessage = splitBlocks(blockSplitDTO);
+                errorMessage = splitBlocks(splitDTO);
 
                 if (blockTable != null && errorMessage == null) {
-                    //                    errorMessage = performDataBase.loadBlocks(whereId, "", blockTable);
-
                     // updateBlockOrderNumber  ALREADY UPDATE MEMORY LIST
-                    if (errorMessage == null) {
-                        errorMessage = performDataBase.updateBlockOrderNumber(blockTable, whereId, true);
-                    }
-                }
-
-                if (errorMessage != null) {
-                    performMessage.errorMessage(
-                            errorMessage.getErrorTitle(),
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                    + errorMessage.getErrorHeader(),
-                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                            null,
-                            0);
+                    errorMessage = performDataBase.updateBlockOrderNumber(blockTable, whereId, true);
                 }
 
                 // calls perform list block update
-                blockSplitDTO.setType(updteBlocks);
-                jsonData = gson.toJson(blockSplitDTO);
+                splitDTO.setType(updteBlocks);
+                jsonData = gson.toJson(splitDTO);
                 webSocketSessionManager.sendMessageJson(homeBankingId, "perform-list-data", jsonData, updteBlocks);
-
+                alreadySentMgsSocket = false;
                 break;
             case "BLOCK_MOVE":
-                BlockMoveDTO blockMoveDTO = gson.fromJson(jsonEntry, BlockMoveDTO.class);
-
-                homeBankingId = blockMoveDTO.getHomeBankingId();
-                sessionIdToSend = blockMoveDTO.getSessionId();
-                botJobIdTask = blockMoveDTO.getBotJobId();
-
-                alreadySentMgsSocket = false;
-
-                errorMessage = null;
-                blockTable = null;
-                whereId = -1;
-                updteBlocks = "";
-
-                if (sessionIdToSend != null) {
-                    if (sessionIdToSend.matches(".*botJobTasks.*")) {
-                        blockTable = "block";
-                        whereId = blockMoveDTO.getBotJobId();
-                        updteBlocks = "UPDATE_BLOCKS";
-                    } else if (sessionIdToSend.matches(".*componentTasks.*")) {
-                        blockTable = "component_block";
-                        whereId = blockMoveDTO.getHomeBankingId();
-                        updteBlocks = "UPDATE_BLOCKS_COMP";
-                    }
-                }
-
                 try {
-
                     if (blockTable != null) {
-
-                        List<BlockLoadDTO> mappedBlocks =
-                                mapToBlockLoad(homeBankingId, blockMoveDTO.getUpdatedBlocks());
+                        List<BlockLoadDTO> mappedBlocks = mapToBlockLoad(homeBankingId, splitDTO.getUpdatedBlocks());
                         errorMessage = performDataBase.updateSwiftBlockOrderNumber(blockTable, whereId, mappedBlocks);
 
                         // UPDATE BLOCK ORDER MEMORY LIST
@@ -481,542 +412,60 @@ public class SimpleWebSocketServer {
                         }
 
                         // calls perform list block update
-                        blockMoveDTO.setType(updteBlocks);
-                        jsonData = gson.toJson(blockMoveDTO);
+                        splitDTO.setType(updteBlocks);
+                        jsonData = gson.toJson(splitDTO);
                         webSocketSessionManager.sendMessageJson(
                                 homeBankingId, "perform-list-data", jsonData, updteBlocks);
                     }
 
-                    if (errorMessage != null) {
-                        performMessage.errorMessage(
-                                errorMessage.getErrorTitle(),
-                                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                                "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                        + errorMessage.getErrorHeader(),
-                                "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                                null,
-                                0);
-                    }
                 } catch (Exception error) {
                     ARLogger.getInstance(SimpleWebSocketServer.class).severe("Error: " + error.getMessage());
                 }
-
+                alreadySentMgsSocket = false;
                 break;
             case "ROW_UPDATE":
-                SplitDTO rowUpdateDTO = gson.fromJson(jsonEntry, SplitDTO.class);
+                InstructionLoad instructionLoad = SplitDTO.mapSplitToInstruction(splitDTO);
+                errorMessage =
+                        performDataBase.rowsUpdateName(instrTable, whereId, Collections.singletonList(instructionLoad));
 
-                homeBankingId = rowUpdateDTO.getHomeBankingId();
-                sessionIdToSend = rowUpdateDTO.getSessionId();
-                botJobIdTask = rowUpdateDTO.getBotJobId();
-
-                alreadySentMgsSocket = false;
-
-                whereId = -1;
-                updteBlocks = null;
-
-                String instTable = "instruction";
-                if (sessionIdToSend != null) {
-                    if (sessionIdToSend.matches(".*botJobTasks.*")) {
-                        instTable = "instruction";
-                        whereId = rowUpdateDTO.getBotJobId();
-                    } else if (sessionIdToSend.matches(".*componentTasks.*")) {
-                        instTable = "component_instruction";
-                        whereId = rowUpdateDTO.getHomeBankingId();
-                    }
-                }
-
-                if (rowUpdateDTO != null) {
-
-                    InstructionLoad instructionLoad = SplitDTO.mapSplitToInstruction(rowUpdateDTO);
-                    errorMessage = performDataBase.rowsUpdateName(
-                            instTable, whereId, Collections.singletonList(instructionLoad));
+                if (errorMessage == null) {
+                    errorMessage = performDataBase.loadAllParents(instrTable, whereId, splitDTO.getInstructionId());
 
                     if (errorMessage == null) {
-                        errorMessage =
-                                performDataBase.loadAllParents(instTable, whereId, rowUpdateDTO.getInstructionId());
-
-                        if (errorMessage == null) {
-                            if (!performLists.getListParentOperations().isEmpty()) {
-                                for (ParentOperations parent : performLists.getListParentOperations()) {
-                                    if ("GET".equals(parent.getActions()) || "SET".equals(parent.getActions())) {
-                                        if (parent.getParentName() != null) {
-                                            String[] parts =
-                                                    parent.getOperations().split(":");
-                                            parent.setOperations(parent.getParentName() + ":" + parts[1]);
-                                        }
+                        if (!performLists.getListParentOperations().isEmpty()) {
+                            for (ParentOperations parent : performLists.getListParentOperations()) {
+                                if ("GET".equals(parent.getActions()) || "SET".equals(parent.getActions())) {
+                                    if (parent.getParentName() != null) {
+                                        String[] parts = parent.getOperations().split(":");
+                                        parent.setOperations(parent.getParentName() + ":" + parts[1]);
                                     }
                                 }
-
-                                errorMessage = performDataBase.rowsGetUpdateName(
-                                        instTable, whereId, performLists.getListParentOperations());
-
-                                // UPDATE MEMORY LIST FOR PARENTS OPERATION NAMES
-                                //                            performLists.updateMemoryParentOpenName(instTable,
-                                // whereId,
-                                // listParents);
                             }
+
+                            errorMessage = performDataBase.rowsGetUpdateName(
+                                    instrTable, whereId, performLists.getListParentOperations());
+
+                            // UPDATE MEMORY LIST FOR PARENTS OPERATION NAMES
+                            //                            performLists.updateMemoryParentOpenName(instrTable,
+                            // whereId,
+                            // listParents);
                         }
                     }
-
-                    // UPDATE MEMORY LIST FOR PARENTS INSTRUCION NAME
-                    if (errorMessage == null) {
-                        performLists.updateMemoryInstructionName(
-                                instTable, whereId, Collections.singletonList(instructionLoad));
-                        performLists.updateMemoryParentOpenName(
-                                instTable, whereId, performLists.getListParentOperations());
-                    }
-
-                    if (errorMessage != null) {
-                        performMessage.errorMessage(
-                                errorMessage.getErrorTitle(),
-                                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                                "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                        + errorMessage.getErrorHeader(),
-                                "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                                null,
-                                0);
-                    }
                 }
+
+                // UPDATE MEMORY LIST FOR PARENTS INSTRUCION NAME
+                if (errorMessage == null) {
+                    performLists.updateMemoryInstructionName(
+                            instrTable, whereId, Collections.singletonList(instructionLoad));
+                    performLists.updateMemoryParentOpenName(
+                            instrTable, whereId, performLists.getListParentOperations());
+                }
+
+                alreadySentMgsSocket = false;
                 break;
             case "ROW_MOVE":
-                RowMoveDTO rowMoveDTO = gson.fromJson(jsonEntry, RowMoveDTO.class);
-
-                homeBankingId = rowMoveDTO.getHomeBankingId();
-                sessionIdToSend = rowMoveDTO.getSessionId();
-                botJobIdTask = rowMoveDTO.getBotJobId();
-
-                alreadySentMgsSocket = false;
-
-                blockTable = null;
-                whereId = -1;
-                updteBlocks = null;
-
-                instTable = "instruction";
-                if (sessionIdToSend != null) {
-                    if (sessionIdToSend.matches(".*botJobTasks.*")) {
-                        instTable = "instruction";
-                        blockTable = "block";
-                        whereId = rowMoveDTO.getBotJobId();
-                        updteBlocks = "UPDATE_BLOCKS";
-                    } else if (sessionIdToSend.matches(".*componentTasks.*")) {
-                        instTable = "component_instruction";
-                        blockTable = "component_block";
-                        whereId = rowMoveDTO.getHomeBankingId();
-                        updteBlocks = "UPDATE_BLOCKS_COMP";
-                    }
-                }
-
-                errorMessage = null;
-                if (blockTable != null) {
-
-                    if (blockTable.equals("block")
-                                    && performLists.getListBlock().isEmpty()
-                            || blockTable.equals("component_block")
-                                    && performLists.getListBlock().isEmpty()) {
-                        performDataBase.loadBlocks(whereId, "", blockTable);
-                    }
-
-                    // Snapshot of previous IDs
-                    List<Integer> previousIds = (blockTable.equals("block")
-                                    ? performLists.getListBlock()
-                                    : performLists.getListBlockComp())
-                            .stream()
-                                    .map(BlockLoadDTO::getId)
-                                    .filter(Objects::nonNull)
-                                    .toList();
-
-                    errorMessage =
-                            performDataBase.updateMoveRowsOrder(blockTable, whereId, rowMoveDTO.getUpdatedRows());
-
-                    performDataBase.loadInstructions(whereId, -1, -1, instTable);
-
-                    List<InstructionLoad> rowsList = instTable.equals("instruction")
-                            ? performLists.getListInstruction()
-                            : performLists.getListInstructionComp();
-
-                    InstructionLoad hasExcelGotoOneBlock = hasOnlyExcelGoto(rowsList, instTable);
-
-                    if (hasExcelGotoOneBlock != null) {
-                        errorMessage =
-                                performDataBase.deleteInstruction(instTable, whereId, hasExcelGotoOneBlock, false);
-                    }
-
-                    // Snapshot of previous IDs without repetitions
-                    List<Integer> currentIds = (instTable.equals("instruction")
-                                    ? performLists.getListInstruction()
-                                    : performLists.getListInstructionComp())
-                            .stream()
-                                    .map(InstructionLoad::getBlockId)
-                                    .filter(Objects::nonNull)
-                                    .distinct() // removes duplicates
-                                    .toList();
-
-                    List<Integer> restToDeleteIds = previousIds.stream()
-                            .filter(id -> !currentIds.contains(id))
-                            .collect(Collectors.toList());
-
-                    List<BlockLoadDTO> listBlocks =
-                            blockTable.equals("block") ? performLists.getListBlock() : performLists.getListBlockComp();
-                    // Keep at least One for BLOCK TABLE
-                    if (errorMessage == null
-                            && !restToDeleteIds.isEmpty()
-                            && (blockTable.equals("block") && listBlocks.size() > 1)) {
-                        errorMessage = performDataBase.deleteNullBlocks(blockTable, whereId, restToDeleteIds);
-
-                        // UPDATE REMOVAL MEMORY LIST
-                        if (errorMessage == null) {
-                            performLists.updateMemoryRemoveBlockIds(blockTable, whereId, restToDeleteIds);
-                        }
-                    } else if (errorMessage == null
-                            && !restToDeleteIds.isEmpty()
-                            && (blockTable.equals("component_block"))) {
-                        errorMessage = performDataBase.deleteNullBlocks(blockTable, whereId, restToDeleteIds);
-
-                        // UPDATE REMOVAL MEMORY LIST
-                        if (errorMessage == null) {
-                            performLists.updateMemoryRemoveBlockIds(blockTable, whereId, restToDeleteIds);
-                        }
-                    }
-
-                    // updateMemoryRowMove  ALREADY UPDATE MEMORY LIST
-                    performLists.updateMemoryRowMove(blockTable, whereId, rowMoveDTO.getUpdatedRows());
-
-                    // updateBlockOrderNumber  ALREADY UPDATE MEMORY LIST
-                    if (errorMessage == null) {
-                        errorMessage = performDataBase.updateBlockOrderNumber(blockTable, whereId, true);
-                    }
-
-                    if (errorMessage == null) {
-                        final int finalWhereId = whereId;
-
-                        List<BlockLoadDTO> blockLoad = instTable.equals("instruction")
-                                ? performLists.getListBotJob().stream()
-                                        .filter(b -> Objects.equals(b.getId(), finalWhereId))
-                                        .findFirst()
-                                        .map(BotJobLoadDTO::getBlockLoadDTOList)
-                                        .orElse(Collections.emptyList())
-                                : performLists.getListBotJobComp().stream()
-                                        .filter(b -> Objects.equals(b.getHomeBankingId(), finalWhereId))
-                                        .findFirst()
-                                        .map(BotJobLoadDTO::getBlockLoadDTOList)
-                                        .orElse(Collections.emptyList());
-
-                        errorMessage = performDataBase.reorderInstructionsListBlock(blockLoad, instTable, true);
-                    }
-
-                    // calls perform list block update
-                    rowMoveDTO.setType(updteBlocks);
-                    jsonData = gson.toJson(rowMoveDTO);
-                    webSocketSessionManager.sendMessageJson(homeBankingId, "perform-list-data", jsonData, updteBlocks);
-                }
-
-                if (errorMessage != null) {
-                    performMessage.errorMessage(
-                            errorMessage.getErrorTitle(),
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                    + errorMessage.getErrorHeader(),
-                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                            null,
-                            0);
-                }
-
-                break;
-            case "INSERT_BEFORE":
-            case "INSERT_AFTER":
-            case "INSERT_NEW":
-            case "INSERT_AFTER_ELSEIF":
-            case "INSERT_BEFORE_ELSEIF":
-            case "EDIT_OPERATION":
-                SplitDTO insertBeforeDTO = gson.fromJson(jsonEntry, SplitDTO.class);
-
-                homeBankingId = insertBeforeDTO.getHomeBankingId();
-                sessionIdToSend = insertBeforeDTO.getSessionId();
-                botJobIdTask = insertBeforeDTO.getBotJobId();
-
-                blockTable = null;
-                whereId = -1;
-
-                if (sessionIdToSend != null) {
-                    if (sessionIdToSend.matches(".*botJobTasks.*")) {
-                        blockTable = "block";
-                        whereId = insertBeforeDTO.getBotJobId();
-                    } else if (sessionIdToSend.matches(".*componentTasks.*")) {
-                        blockTable = "component_block";
-                        whereId = insertBeforeDTO.getHomeBankingId();
-                    }
-                }
-
-                injectStepAfterOrBefore(blockTable, whereId, insertBeforeDTO);
-
-                if (type.equals("INSERT_AFTER_ELSEIF") || type.equals("INSERT_BEFORE_ELSEIF")) {
-                    alreadySentMgsSocket = false;
-                } else {
-                    alreadySentMgsSocket = true;
-                }
-
-                break;
-            case "BLOCK_EXCEL_FILE":
-                BlockDetailsDTO blockExcelDTO = gson.fromJson(jsonEntry, BlockDetailsDTO.class);
-
-                homeBankingId = blockExcelDTO.getHomeBankingId();
-                sessionIdToSend = blockExcelDTO.getSessionId();
-                botJobIdTask = blockExcelDTO.getBotJobId();
-
-                excelFileBlock(sessionIdToSend, blockExcelDTO);
-
-                alreadySentMgsSocket = true;
-                break;
-            case "BLOCK_ORDER":
-                BlockOrderDTO blockReorder = gson.fromJson(jsonEntry, BlockOrderDTO.class);
-                if (blockReorder.getUpdatedBlocks().size() > 0) {
-
-                    homeBankingId = blockReorder.getHomeBankingId();
-                    sessionIdToSend = blockReorder.getSessionId();
-                    botJobIdTask = blockReorder.getBotJobId();
-
-                    alreadySentMgsSocket = false;
-
-                    blockTable = null;
-                    updteBlocks = null;
-                    whereId = -1;
-
-                    if (sessionIdToSend != null) {
-                        if (sessionIdToSend.matches(".*botJobTasks.*")) {
-                            blockTable = "block";
-                            whereId = blockReorder.getBotJobId();
-                            updteBlocks = "UPDATE_BLOCKS";
-                        } else if (sessionIdToSend.matches(".*componentTasks.*")) {
-                            blockTable = "component_block";
-                            whereId = blockReorder.getHomeBankingId();
-                            updteBlocks = "UPDATE_BLOCKS_COMP";
-                        }
-                    }
-
-                    errorMessage = null;
-                    if (blockTable != null) {
-                        errorMessage = performDataBase.loadBlocks(whereId, "", blockTable);
-
-                        // updateBlockOrderNumber  ALREADY UPDATE MEMORY LIST
-                        if (errorMessage == null) {
-                            errorMessage = performDataBase.updateBlockOrderNumber(blockTable, whereId, true);
-                        }
-
-                        // calls perform list block update
-                        blockReorder.setType(updteBlocks);
-                        jsonData = gson.toJson(blockReorder);
-                        webSocketSessionManager.sendMessageJson(
-                                homeBankingId, "perform-list-data", jsonData, updteBlocks);
-                    }
-
-                    if (errorMessage != null) {
-                        performMessage.errorMessage(
-                                errorMessage.getErrorTitle(),
-                                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                                "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                        + errorMessage.getErrorHeader(),
-                                "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                                null,
-                                0);
-                    }
-                }
-
-                break;
-            case "INSTRUCTION_STATUS":
-                InstructionLoad instructionStatus = gson.fromJson(jsonEntry, InstructionLoad.class);
-
-                homeBankingId = instructionStatus.getHomeBankingId();
-                sessionIdToSend = instructionStatus.getSessionId();
-                botJobIdTask = instructionStatus.getBotJobId();
-
-                int instrId = instructionStatus.getId();
-                int blockId = instructionStatus.getBlockId();
-                int parentId = instructionStatus.getParentId();
-                String actions = instructionStatus.getActions();
-                boolean active = instructionStatus.getInstructionActive();
-
-                alreadySentMgsSocket = false;
-
-                instTable = null;
-                blockTable = null;
-                whereId = -1;
-
-                if (sessionIdToSend.matches(".*botJobTasks.*")) {
-                    instTable = "instruction";
-                    whereId = instructionStatus.getBotJobId();
-                } else if (sessionIdToSend.matches(".*componentTasks.*")) {
-                    instTable = "component_instruction";
-                    whereId = instructionStatus.getHomeBankingId();
-                }
-
-                if (instTable != null) {
-
-                    errorMessage = performDataBase.updateInstructionStatus(
-                            instTable, whereId, instrId, blockId, parentId, actions, active);
-
-                    if (errorMessage == null) {
-                        performLists.updateMemoryInstructionStatusUpdate(instTable, whereId, instrId, active);
-                    }
-
-                    if (errorMessage != null) {
-                        performMessage.errorMessage(
-                                errorMessage.getErrorTitle(),
-                                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                                "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                        + errorMessage.getErrorHeader(),
-                                "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                                null,
-                                0);
-                    }
-                }
-
-                break;
-            case "BLOCK_STATUS":
-                RowMoveDTO blockStateDTO = gson.fromJson(jsonEntry, RowMoveDTO.class);
-
-                homeBankingId = blockStateDTO.getHomeBankingId();
-                sessionIdToSend = blockStateDTO.getSessionId();
-                botJobIdTask = blockStateDTO.getBotJobId();
-
-                blockId = blockStateDTO.getBlockId();
-                active = blockStateDTO.getBlockActive();
-
-                alreadySentMgsSocket = false;
-
-                instTable = null;
-                blockTable = null;
-                whereId = -1;
-
-                if (sessionIdToSend.matches(".*botJobTasks.*")) {
-                    instTable = "instruction";
-                    blockTable = "block";
-                    whereId = blockStateDTO.getBotJobId();
-                } else if (sessionIdToSend.matches(".*componentTasks.*")) {
-                    instTable = "component_instruction";
-                    blockTable = "component_block";
-                    whereId = blockStateDTO.getHomeBankingId();
-                }
-
-                if (instTable != null) {
-                    errorMessage = performDataBase.updateBlockStatus(
-                            blockTable, whereId, blockStateDTO.getBlockId(), blockStateDTO.getBlockActive());
-
-                    if (errorMessage == null) {
-                        performDataBase.updateInstructionStatusByBlock(instTable, whereId, blockId, active);
-                    }
-
-                    if (errorMessage == null) {
-                        performLists.updateMemoryBlockStatusUpdate(blockTable, whereId, blockId, active);
-                    }
-
-                    if (errorMessage != null) {
-                        performMessage.errorMessage(
-                                errorMessage.getErrorTitle(),
-                                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                                "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                        + errorMessage.getErrorHeader(),
-                                "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                                null,
-                                0);
-                    }
-                }
-
-                break;
-            case "BLOCK_UPDATE":
-                RowMoveDTO blockUpdateDTO = gson.fromJson(jsonEntry, RowMoveDTO.class);
-
-                homeBankingId = blockUpdateDTO.getHomeBankingId();
-                sessionIdToSend = blockUpdateDTO.getSessionId();
-                botJobIdTask = blockUpdateDTO.getBotJobId();
-
-                alreadySentMgsSocket = false;
-
-                blockTable = null;
-                updteBlocks = null;
-                whereId = -1;
-                errorMessage = null;
-
-                if (sessionIdToSend != null) {
-                    if (sessionIdToSend.matches(".*botJobTasks.*")) {
-                        blockTable = "block";
-                        whereId = blockUpdateDTO.getBotJobId();
-                        updteBlocks = "UPDATE_BLOCKS";
-                    } else if (sessionIdToSend.matches(".*componentTasks.*")) {
-                        blockTable = "component_block";
-                        whereId = blockUpdateDTO.getHomeBankingId();
-                        updteBlocks = "UPDATE_BLOCKS_COMP";
-                    }
-                }
-
-                if (blockTable != null) {
-                    errorMessage = performDataBase.updateBlockName(
-                            whereId, blockTable, blockUpdateDTO.getBlockId(), blockUpdateDTO.getBlockName());
-                    blockUpdateDTO.setType(updteBlocks);
-                    blockUpdateDTO.setBlockName(blockUpdateDTO.getBlockName());
-
-                    // MEMORY UPDATE BLOCK NAME
-                    performLists.updateMemoryBlockName(
-                            blockTable, whereId, blockUpdateDTO.getBlockId(), blockUpdateDTO.getBlockName());
-
-                    jsonData = gson.toJson(blockUpdateDTO);
-                    webSocketSessionManager.sendMessageJson(homeBankingId, "perform-list-data", jsonData, updteBlocks);
-                }
-
-                if (errorMessage != null) {
-                    performMessage.errorMessage(
-                            errorMessage.getErrorTitle(),
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                    + errorMessage.getErrorHeader(),
-                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                            null,
-                            0);
-                } // calls perform list block update
-
-                break;
-            case "DELETE_INSTRUCTION":
-                SplitDTO toDelete = gson.fromJson(jsonEntry, SplitDTO.class);
-
-                homeBankingId = toDelete.getHomeBankingId();
-                botJobIdTask = toDelete.getBotJobId();
-                sessionIdToSend = toDelete.getSessionId();
-
-                alreadySentMgsSocket = false;
-
-                instTable = "instruction";
-                blockTable = null;
-                whereId = -1;
-                updteBlocks = null;
-
-                if (sessionIdToSend != null) {
-                    if (sessionIdToSend.matches(".*botJobTasks.*")) {
-                        instTable = "instruction";
-                        blockTable = "block";
-                        whereId = toDelete.getBotJobId();
-                        updteBlocks = "UPDATE_BLOCKS";
-                    } else if (sessionIdToSend.matches(".*componentTasks.*")) {
-                        instTable = "component_instruction";
-                        blockTable = "component_block";
-                        whereId = toDelete.getHomeBankingId();
-                        updteBlocks = "UPDATE_BLOCKS_COMP";
-                    }
-                }
-
-                errorMessage = performDataBase.loadBlocks(whereId, "", blockTable);
-
-                if (errorMessage != null) {
-                    performMessage.errorMessage(
-                            errorMessage.getErrorTitle(),
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                    + errorMessage.getErrorHeader(),
-                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                            null,
-                            0);
-                }
-
                 // Snapshot of previous IDs
-                List<Integer> previousIds = (blockTable.equals("block")
+                previousIds = (blockTable.equals("block")
                                 ? performLists.getListBlock()
                                 : performLists.getListBlockComp())
                         .stream()
@@ -1024,291 +473,162 @@ public class SimpleWebSocketServer {
                                 .filter(Objects::nonNull)
                                 .toList();
 
-                List<Integer> currentIds;
-                List<Integer> restToDeleteIds;
-                List<BlockLoadDTO> listBlocks;
+                errorMessage = performDataBase.updateMoveRowsOrder(blockTable, whereId, splitDTO.getUpdatedRows());
 
-                if (instTable != null) {
+                performDataBase.loadInstructions(whereId, -1, -1, instrTable);
 
-                    ARConstants.DialogModal respModal = ARConstants.DialogModal.NONE;
+                List<InstructionLoad> rowsList = instrTable.equals("instruction")
+                        ? performLists.getListInstruction()
+                        : performLists.getListInstructionComp();
 
-                    errorMessage = performDataBase.loadAllParents(instTable, whereId, toDelete.getInstructionId());
+                InstructionLoad hasExcelGotoOneBlock = hasOnlyExcelGoto(rowsList, instrTable);
 
-                    if (errorMessage != null) {
-                        performMessage.errorMessage(
-                                errorMessage.getErrorTitle(),
-                                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                                "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                        + errorMessage.getErrorHeader(),
-                                "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                                null,
-                                0);
-                    }
+                if (hasExcelGotoOneBlock != null) {
+                    errorMessage = performDataBase.deleteInstruction(instrTable, whereId, hasExcelGotoOneBlock, false);
+                }
 
-                    boolean continueDelete = true;
-                    boolean deleteParents = false;
+                // FIRST updateMemoryRowMove  ALREADY UPDATE MEMORY LIST
+                performLists.updateMemoryRowMove(blockTable, whereId, splitDTO.getUpdatedRows());
 
-                    if (!performLists.getListParentOperations().isEmpty()) {
-
-                        boolean isIF = toDelete.getActions().equalsIgnoreCase("IF")
-                                || toDelete.getActions().equalsIgnoreCase("ELSE")
-                                || toDelete.getActions().equalsIgnoreCase("ENDIF")
-                                || toDelete.getActions().equalsIgnoreCase("ELSEIF");
-
-                        if (!isIF) {
-                            List<String> lstMsg =
-                                    performMessage.distributeMsg(performLists.getListParentOperations().stream()
-                                            .map(p -> p.getName() + " --> (" + p.getInstructionId() + ")-"
-                                                    + p.getParentName())
-                                            .collect(Collectors.toList()));
-
-                            respModal = performMessage.showCustomModalDialogDragWin11(
-                                    "Steps Attached",
-                                    "Are you Sure you want to delete?",
-                                    lstMsg.get(0),
-                                    lstMsg.get(1),
-                                    lstMsg.get(2),
-                                    false,
-                                    "Confirm",
-                                    "Cancel",
-                                    0);
-
-                            continueDelete = respModal.equals(ARConstants.DialogModal.OK);
-                            deleteParents = continueDelete;
-                        }
-
-                        if (continueDelete && deleteParents) {
-                            errorMessage =
-                                    performDataBase.deleteRowParents(instTable, whereId, toDelete.getInstructionId());
-                            if (errorMessage == null) {
-                                performLists.updateMemoryRemoveInstructionId(
-                                        instTable, whereId, toDelete.getInstructionId());
-                            }
-
-                            if (errorMessage != null) {
-                                performMessage.errorMessage(
-                                        errorMessage.getErrorTitle(),
-                                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                                + errorMessage.getErrorHeader(),
-                                        "<span style='font-style: italic;'>Detail:</span> "
-                                                + errorMessage.getErrorMessage(),
-                                        null,
-                                        0);
-                            }
-                        }
-                    } else {
-                        continueDelete = true;
-                        deleteParents = true;
-                    }
-
-                    if (continueDelete && deleteParents) {
-
-                        InstructionLoad instrDelete = SplitDTO.mapSplitToInstruction(toDelete);
-
-                        errorMessage = performDataBase.deleteInstruction(instTable, whereId, instrDelete, false);
-                        if (errorMessage == null) {
-                            performLists.updateMemoryRemoveInstructionId(
-                                    instTable, whereId, toDelete.getInstructionId());
-                        }
-
-                        if (errorMessage == null) {
-                            errorMessage = performDataBase.loadInstructions(whereId, -1, -1, instTable);
-                        }
-
-                        List<InstructionLoad> rowsList = instTable.equals("instruction")
+                // Snapshot of previous IDs without repetitions
+                currentIds = (instrTable.equals("instruction")
                                 ? performLists.getListInstruction()
-                                : performLists.getListInstructionComp();
+                                : performLists.getListInstructionComp())
+                        .stream()
+                                .map(InstructionLoad::getBlockId)
+                                .filter(Objects::nonNull)
+                                .distinct() // removes duplicates
+                                .toList();
 
-                        InstructionLoad hasExcelGotoOneBlock = hasOnlyExcelGoto(rowsList, instTable);
+                List<Integer> finalCurrentIds2 = currentIds;
+                restToDeleteIds = previousIds.stream()
+                        .filter(id -> !finalCurrentIds2.contains(id))
+                        .collect(Collectors.toList());
 
-                        if (hasExcelGotoOneBlock != null) {
-                            errorMessage =
-                                    performDataBase.deleteInstruction(instTable, whereId, hasExcelGotoOneBlock, false);
-                        }
+                listBlocks = blockTable.equals("block") ? performLists.getListBlock() : performLists.getListBlockComp();
+                // Keep at least One for BLOCK TABLE
+                if (errorMessage == null
+                        && !restToDeleteIds.isEmpty()
+                        && (blockTable.equals("block") && listBlocks.size() > 1)) {
+                    errorMessage = performDataBase.deleteNullBlocks(blockTable, whereId, restToDeleteIds);
 
-                        // Snapshot of previous IDs without repetitions
-                        currentIds = (instTable.equals("instruction")
-                                        ? performLists.getListInstruction()
-                                        : performLists.getListInstructionComp())
-                                .stream()
-                                        .map(InstructionLoad::getBlockId)
-                                        .filter(Objects::nonNull)
-                                        .distinct() // removes duplicates
-                                        .toList();
-
-                        restToDeleteIds = previousIds.stream()
-                                .filter(id -> !currentIds.contains(id))
-                                .collect(Collectors.toList());
-
-                        listBlocks = instTable.equals("instruction")
-                                ? performLists.getListBlock()
-                                : performLists.getListBlockComp();
-                        // Keep at least One for BLOCK TABLE
-                        if (errorMessage == null
-                                && !restToDeleteIds.isEmpty()
-                                && (blockTable.equals("block") && listBlocks.size() > 1)) {
-                            errorMessage = performDataBase.deleteNullBlocks(blockTable, whereId, restToDeleteIds);
-
-                            // UPDATE REMOVAL MEMORY LIST
-                            if (errorMessage == null) {
-                                performLists.updateMemoryRemoveBlockIds(blockTable, whereId, restToDeleteIds);
-                            }
-
-                        } else if (errorMessage == null
-                                && !restToDeleteIds.isEmpty()
-                                && (blockTable.equals("component_block"))) {
-                            errorMessage = performDataBase.deleteNullBlocks(blockTable, whereId, restToDeleteIds);
-
-                            // UPDATE REMOVAL MEMORY LIST
-                            if (errorMessage == null) {
-                                performLists.updateMemoryRemoveBlockIds(blockTable, whereId, restToDeleteIds);
-                            }
-                        }
-
-                        // updateBlockOrderNumber  ALREADY UPDATE MEMORY LIST
-                        if (errorMessage == null) {
-                            performDataBase.updateBlockOrderNumber(blockTable, whereId, true);
-                        }
-
-                        if (errorMessage == null) {
-                            final int finalWhereId = whereId;
-
-                            List<BlockLoadDTO> blockLoad = instTable.equals("instruction")
-                                    ? performLists.getListBotJob().stream()
-                                            .filter(b -> Objects.equals(b.getId(), finalWhereId))
-                                            .findFirst()
-                                            .map(b -> b.getBlockLoadDTOList().stream()
-                                                    .filter(block ->
-                                                            Objects.equals(block.getId(), toDelete.getBlockId()))
-                                                    .toList())
-                                            .orElse(Collections.emptyList())
-                                    : performLists.getListBotJobComp().stream()
-                                            .filter(b -> Objects.equals(b.getHomeBankingId(), finalWhereId))
-                                            .findFirst()
-                                            .map(b -> b.getBlockLoadDTOList().stream()
-                                                    .filter(block ->
-                                                            Objects.equals(block.getId(), toDelete.getBlockId()))
-                                                    .toList())
-                                            .orElse(Collections.emptyList());
-
-                            // Only Need the Block I am Current Working
-                            errorMessage = performDataBase.reorderInstructionsListBlock(blockLoad, instTable, true);
-                        }
-
-                        // calls perform list block update
-                        toDelete.setType(updteBlocks);
-                        jsonData = gson.toJson(toDelete);
-                        webSocketSessionManager.sendMessageJson(
-                                homeBankingId, "perform-list-data", jsonData, updteBlocks);
-
-                        if (errorMessage != null) {
-                            performMessage.errorMessage(
-                                    errorMessage.getErrorTitle(),
-                                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                            + errorMessage.getErrorHeader(),
-                                    "<span style='font-style: italic;'>Detail:</span> "
-                                            + errorMessage.getErrorMessage(),
-                                    null,
-                                    0);
-                        }
+                    // UPDATE REMOVAL MEMORY LIST
+                    if (errorMessage == null) {
+                        performLists.updateMemoryRemoveBlockIds(blockTable, whereId, restToDeleteIds);
                     }
-                }
+                } else if (errorMessage == null
+                        && !restToDeleteIds.isEmpty()
+                        && (blockTable.equals("component_block"))) {
 
-                break;
-            case "DELETE_BLOCK":
-                SplitDTO deleteBlock = gson.fromJson(jsonEntry, SplitDTO.class);
-
-                homeBankingId = deleteBlock.getHomeBankingId();
-                sessionIdToSend = deleteBlock.getSessionId();
-                botJobIdTask = deleteBlock.getBotJobId();
-
-                blockTable = null;
-                whereId = -1;
-                updteBlocks = null;
-                if (sessionIdToSend != null) {
-                    if (sessionIdToSend.matches(".*botJobTasks.*")) {
-                        blockTable = "block";
-                        whereId = deleteBlock.getBotJobId();
-                        updteBlocks = "UPDATE_BLOCKS";
-                    } else if (sessionIdToSend.matches(".*componentTasks.*")) {
-                        blockTable = "component_block";
-                        whereId = deleteBlock.getHomeBankingId();
-                        updteBlocks = "UPDATE_BLOCKS_COMP";
+                    // UPDATE REMOVAL MEMORY LIST
+                    if (errorMessage == null) {
+                        performLists.updateMemoryRemoveBlockIds(blockTable, whereId, restToDeleteIds);
                     }
-                }
-
-                errorMessage = null;
-
-                alreadySentMgsSocket = false;
-
-                if (blockTable != null) {
-                    errorMessage = performDataBase.deleteBlockDirect(blockTable, whereId, deleteBlock.getBlockId());
-                }
-
-                // UPDATE REMOVAL MEMORY LIST
-                if (errorMessage == null) {
-                    List<Integer> listDelete = Collections.singletonList(deleteBlock.getBlockId());
-                    performLists.updateMemoryRemoveBlockIds(blockTable, whereId, listDelete);
                 }
 
                 // updateBlockOrderNumber  ALREADY UPDATE MEMORY LIST
                 if (errorMessage == null) {
-                    performDataBase.updateBlockOrderNumber(blockTable, whereId, true);
+                    errorMessage = performDataBase.updateBlockOrderNumber(blockTable, whereId, true);
+                }
+
+                if (errorMessage == null) {
+                    final int finalWhereId = whereId;
+
+                    List<BlockLoadDTO> blockLoad = instrTable.equals("instruction")
+                            ? performLists.getListBotJob().stream()
+                                    .filter(b -> Objects.equals(b.getId(), finalWhereId))
+                                    .findFirst()
+                                    .map(BotJobLoadDTO::getBlockLoadDTOList)
+                                    .orElse(Collections.emptyList())
+                            : performLists.getListBotJobComp().stream()
+                                    .filter(b -> Objects.equals(b.getHomeBankingId(), finalWhereId))
+                                    .findFirst()
+                                    .map(BotJobLoadDTO::getBlockLoadDTOList)
+                                    .orElse(Collections.emptyList());
+
+                    errorMessage = performDataBase.reorderInstructionsListBlock(blockLoad, instrTable, true);
                 }
 
                 // calls perform list block update
-                deleteBlock.setType(updteBlocks);
-                jsonData = gson.toJson(deleteBlock);
+                splitDTO.setType(updteBlocks);
+                jsonData = gson.toJson(splitDTO);
                 webSocketSessionManager.sendMessageJson(homeBankingId, "perform-list-data", jsonData, updteBlocks);
 
-                if (errorMessage != null) {
-                    performMessage.errorMessage(
-                            errorMessage.getErrorTitle(),
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                    + errorMessage.getErrorHeader(),
-                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                            null,
-                            0);
-                }
-
+                alreadySentMgsSocket = false;
                 break;
-            case "BLOCK_ROLLBACK":
-                RollBackBlocksDTO rollBack = gson.fromJson(jsonEntry, RollBackBlocksDTO.class);
+            case "INSERT_BEFORE":
+            case "INSERT_AFTER":
+            case "INSERT_NEW":
+            case "INSERT_AFTER_ELSEIF":
+            case "INSERT_BEFORE_ELSEIF":
+            case "EDIT_OPERATION":
+                injectStepAfterOrBefore(blockTable, whereId, splitDTO);
 
-                homeBankingId = rollBack.getHomeBankingId();
-                sessionIdToSend = rollBack.getSessionId();
-                botJobIdTask = rollBack.getBotJobId();
+                if (type.equals("INSERT_AFTER_ELSEIF") || type.equals("INSERT_BEFORE_ELSEIF")) {
+                    alreadySentMgsSocket = false;
+                } else {
+                    alreadySentMgsSocket = true;
+                }
+                break;
+            case "BLOCK_EXCEL_FILE":
+                excelFileBlock(sessionIdToSend, splitDTO);
+                alreadySentMgsSocket = true;
+                break;
+            case "BLOCK_ORDER":
+                if (!splitDTO.getUpdatedBlocks().isEmpty()) {
+                    errorMessage = performDataBase.loadBlocks(whereId, "", blockTable);
 
-                instTable = null;
-                blockTable = null;
-                whereId = -1;
-                updteBlocks = null;
-
-                if (sessionIdToSend != null) {
-                    if (sessionIdToSend.matches(".*botJobTasks.*")) {
-                        instTable = "instruction";
-                        blockTable = "block";
-                        whereId = rollBack.getBotJobId();
-                        updteBlocks = "UPDATE_BLOCKS";
-                    } else if (sessionIdToSend.matches(".*componentTasks.*")) {
-                        instTable = "component_instruction";
-                        blockTable = "component_block";
-                        whereId = rollBack.getHomeBankingId();
-                        updteBlocks = "UPDATE_BLOCKS_COMP";
+                    // updateBlockOrderNumber  ALREADY UPDATE MEMORY LIST
+                    if (errorMessage == null) {
+                        errorMessage = performDataBase.updateBlockOrderNumber(blockTable, whereId, true);
                     }
+
+                    // calls perform list block update
+                    splitDTO.setType(updteBlocks);
+                    jsonData = gson.toJson(splitDTO);
+                    webSocketSessionManager.sendMessageJson(homeBankingId, "perform-list-data", jsonData, updteBlocks);
+
+                    alreadySentMgsSocket = false;
+                }
+                break;
+            case "INSTRUCTION_STATUS":
+                errorMessage = performDataBase.updateInstructionStatus(
+                        instrTable, whereId, instructionId, blockId, parentId, actions, instrucionActive);
+
+                // MEMORY UPDATE
+                if (errorMessage == null) {
+                    performLists.updateMemoryInstructionStatusUpdate(
+                            instrTable, whereId, instructionId, instrucionActive);
+                }
+                alreadySentMgsSocket = false;
+                break;
+            case "BLOCK_STATUS":
+                errorMessage = performDataBase.updateBlockStatus(blockTable, whereId, blockId, blockActive);
+
+                if (errorMessage == null) {
+                    performDataBase.updateInstructionStatusByBlock(instrTable, whereId, blockId, blockActive);
                 }
 
-                errorMessage = null;
+                if (errorMessage == null) {
+                    performLists.updateMemoryBlockStatusUpdate(blockTable, whereId, blockId, blockActive);
+                }
 
                 alreadySentMgsSocket = false;
+                break;
+            case "BLOCK_UPDATE":
+                errorMessage = performDataBase.updateBlockName(whereId, blockTable, blockId, blockName);
+                splitDTO.setType(updteBlocks);
 
-                if (blockTable != null) {
-                    if (performLists.getListBlock().isEmpty()) {
-                        performDataBase.loadBlocks(whereId, "", blockTable);
-                    }
+                // MEMORY UPDATE BLOCK NAME
+                performLists.updateMemoryBlockName(blockTable, whereId, blockId, blockName);
+
+                jsonData = gson.toJson(splitDTO);
+                webSocketSessionManager.sendMessageJson(homeBankingId, "perform-list-data", jsonData, updteBlocks);
+                alreadySentMgsSocket = false;
+                break;
+            case "DELETE_INSTRUCTION":
+                errorMessage = performDataBase.loadBlocks(whereId, "", blockTable);
+                if (errorMessage == null) {
 
                     // Snapshot of previous IDs
                     previousIds = (blockTable.equals("block")
@@ -1318,13 +638,84 @@ public class SimpleWebSocketServer {
                                     .map(BlockLoadDTO::getId)
                                     .filter(Objects::nonNull)
                                     .toList();
+                }
 
-                    errorMessage = performDataBase.rollBackBlocksRows("instruction", rollBack);
+                ARConstants.DialogModal respModal = ARConstants.DialogModal.NONE;
 
-                    performDataBase.loadInstructions(whereId, -1, -1, instTable);
+                errorMessage = performDataBase.loadAllParents(instrTable, whereId, instructionId);
+
+                boolean continueDelete = true;
+                boolean deleteParents = false;
+
+                if (errorMessage == null
+                        && !performLists.getListParentOperations().isEmpty()) {
+
+                    boolean isIF = actions.equalsIgnoreCase("IF")
+                            || actions.equalsIgnoreCase("ELSE")
+                            || actions.equalsIgnoreCase("ENDIF")
+                            || actions.equalsIgnoreCase("ELSEIF");
+
+                    if (!isIF) {
+                        List<String> lstMsg =
+                                performMessage.distributeMsg(performLists.getListParentOperations().stream()
+                                        .map(p -> p.getName() + " --> (" + p.getInstructionId() + ")-"
+                                                + p.getParentName())
+                                        .collect(Collectors.toList()));
+
+                        respModal = performMessage.showCustomModalDialogDragWin11(
+                                "Steps Attached",
+                                "Are you Sure you want to delete?",
+                                lstMsg.get(0),
+                                lstMsg.get(1),
+                                lstMsg.get(2),
+                                false,
+                                "Confirm",
+                                "Cancel",
+                                0);
+
+                        continueDelete = respModal.equals(ARConstants.DialogModal.OK);
+                        deleteParents = continueDelete;
+                    }
+
+                    if (continueDelete && deleteParents) {
+                        errorMessage =
+                                performDataBase.deleteRowParents(instrTable, whereId, splitDTO.getInstructionId());
+                        if (errorMessage == null) {
+                            performLists.updateMemoryRemoveInstructionId(
+                                    instrTable, whereId, splitDTO.getInstructionId());
+                        }
+                    }
+                } else {
+                    continueDelete = true;
+                    deleteParents = true;
+                }
+
+                if (continueDelete && deleteParents) {
+
+                    InstructionLoad instrDelete = SplitDTO.mapSplitToInstruction(splitDTO);
+
+                    errorMessage = performDataBase.deleteInstruction(instrTable, whereId, instrDelete, false);
+                    if (errorMessage == null) {
+                        performLists.updateMemoryRemoveInstructionId(instrTable, whereId, splitDTO.getInstructionId());
+                    }
+
+                    if (errorMessage == null) {
+                        errorMessage = performDataBase.loadInstructions(whereId, -1, -1, instrTable);
+                    }
+
+                    rowsList = instrTable.equals("instruction")
+                            ? performLists.getListInstruction()
+                            : performLists.getListInstructionComp();
+
+                    hasExcelGotoOneBlock = hasOnlyExcelGoto(rowsList, instrTable);
+
+                    if (hasExcelGotoOneBlock != null) {
+                        errorMessage =
+                                performDataBase.deleteInstruction(instrTable, whereId, hasExcelGotoOneBlock, false);
+                    }
 
                     // Snapshot of previous IDs without repetitions
-                    currentIds = (instTable.equals("instruction")
+                    currentIds = (instrTable.equals("instruction")
                                     ? performLists.getListInstruction()
                                     : performLists.getListInstructionComp())
                             .stream()
@@ -1333,12 +724,14 @@ public class SimpleWebSocketServer {
                                     .distinct() // removes duplicates
                                     .toList();
 
+                    List<Integer> finalCurrentIds = currentIds;
                     restToDeleteIds = previousIds.stream()
-                            .filter(id -> !currentIds.contains(id))
+                            .filter(id -> !finalCurrentIds.contains(id))
                             .collect(Collectors.toList());
 
-                    listBlocks =
-                            blockTable.equals("block") ? performLists.getListBlock() : performLists.getListBlockComp();
+                    listBlocks = instrTable.equals("instruction")
+                            ? performLists.getListBlock()
+                            : performLists.getListBlockComp();
                     // Keep at least One for BLOCK TABLE
                     if (errorMessage == null
                             && !restToDeleteIds.isEmpty()
@@ -1347,8 +740,9 @@ public class SimpleWebSocketServer {
 
                         // UPDATE REMOVAL MEMORY LIST
                         if (errorMessage == null) {
-                            performLists.updateMemoryRollBackToOneBlock(blockTable, whereId, restToDeleteIds);
+                            performLists.updateMemoryRemoveBlockIds(blockTable, whereId, restToDeleteIds);
                         }
+
                     } else if (errorMessage == null
                             && !restToDeleteIds.isEmpty()
                             && (blockTable.equals("component_block"))) {
@@ -1356,42 +750,144 @@ public class SimpleWebSocketServer {
 
                         // UPDATE REMOVAL MEMORY LIST
                         if (errorMessage == null) {
-                            performLists.updateMemoryRollBackToOneBlock(blockTable, whereId, restToDeleteIds);
+                            performLists.updateMemoryRemoveBlockIds(blockTable, whereId, restToDeleteIds);
                         }
                     }
 
-                    //                    // ROLL BACK I LOAD AGAIN JUST FOR SAFETY
-                    //                    if (errorMessage == null) {
-                    //                        errorMessage = performDataBase.loadBlocks(whereId, "", blockTable);
-                    //                    }
+                    // updateBlockOrderNumber  ALREADY UPDATE MEMORY LIST
+                    if (errorMessage == null) {
+                        performDataBase.updateBlockOrderNumber(blockTable, whereId, true);
+                    }
+
+                    if (errorMessage == null) {
+                        final int finalWhereId = whereId;
+
+                        List<BlockLoadDTO> blockLoad = instrTable.equals("instruction")
+                                ? performLists.getListBotJob().stream()
+                                        .filter(b -> Objects.equals(b.getId(), finalWhereId))
+                                        .findFirst()
+                                        .map(b -> b.getBlockLoadDTOList().stream()
+                                                .filter(block -> Objects.equals(block.getId(), splitDTO.getBlockId()))
+                                                .toList())
+                                        .orElse(Collections.emptyList())
+                                : performLists.getListBotJobComp().stream()
+                                        .filter(b -> Objects.equals(b.getHomeBankingId(), finalWhereId))
+                                        .findFirst()
+                                        .map(b -> b.getBlockLoadDTOList().stream()
+                                                .filter(block -> Objects.equals(block.getId(), splitDTO.getBlockId()))
+                                                .toList())
+                                        .orElse(Collections.emptyList());
+
+                        // Only Need the Block I am Current Working
+                        errorMessage = performDataBase.reorderInstructionsListBlock(blockLoad, instrTable, true);
+                    }
+
+                    // calls perform list block update
+                    splitDTO.setType(updteBlocks);
+                    jsonData = gson.toJson(splitDTO);
+                    webSocketSessionManager.sendMessageJson(homeBankingId, "perform-list-data", jsonData, updteBlocks);
+                }
+
+                alreadySentMgsSocket = false;
+                break;
+            case "DELETE_BLOCK":
+                errorMessage = performDataBase.deleteBlockDirect(blockTable, whereId, splitDTO.getBlockId());
+                // UPDATE REMOVAL MEMORY LIST
+                if (errorMessage == null) {
+                    List<Integer> listDelete = Collections.singletonList(splitDTO.getBlockId());
+                    performLists.updateMemoryRemoveBlockIds(blockTable, whereId, listDelete);
+                }
+
+                // updateBlockOrderNumber  ALREADY UPDATE MEMORY LIST
+                if (errorMessage == null) {
+                    performDataBase.updateBlockOrderNumber(blockTable, whereId, true);
                 }
 
                 // calls perform list block update
-                rollBack.setType(updteBlocks);
-                jsonData = gson.toJson(rollBack);
+                splitDTO.setType(updteBlocks);
+                jsonData = gson.toJson(splitDTO);
                 webSocketSessionManager.sendMessageJson(homeBankingId, "perform-list-data", jsonData, updteBlocks);
 
-                if (errorMessage != null) {
-                    performMessage.errorMessage(
-                            errorMessage.getErrorTitle(),
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                    + errorMessage.getErrorHeader(),
-                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                            null,
-                            0);
-                }
+                alreadySentMgsSocket = false;
                 break;
+            case "BLOCK_ROLLBACK":
+                // Snapshot of previous IDs
+                previousIds = (blockTable.equals("block")
+                                ? performLists.getListBlock()
+                                : performLists.getListBlockComp())
+                        .stream()
+                                .map(BlockLoadDTO::getId)
+                                .filter(Objects::nonNull)
+                                .toList();
 
+                errorMessage = performDataBase.rollBackBlocksRows("instruction", splitDTO);
+
+                performDataBase.loadInstructions(whereId, -1, -1, instrTable);
+
+                // Snapshot of previous IDs without repetitions
+                currentIds = (instrTable.equals("instruction")
+                                ? performLists.getListInstruction()
+                                : performLists.getListInstructionComp())
+                        .stream()
+                                .map(InstructionLoad::getBlockId)
+                                .filter(Objects::nonNull)
+                                .distinct() // removes duplicates
+                                .toList();
+
+                List<Integer> finalCurrentIds1 = currentIds;
+                restToDeleteIds = previousIds.stream()
+                        .filter(id -> !finalCurrentIds1.contains(id))
+                        .collect(Collectors.toList());
+
+                listBlocks = blockTable.equals("block") ? performLists.getListBlock() : performLists.getListBlockComp();
+                // Keep at least One for BLOCK TABLE
+                if (errorMessage == null
+                        && !restToDeleteIds.isEmpty()
+                        && (blockTable.equals("block") && listBlocks.size() > 1)) {
+                    errorMessage = performDataBase.deleteNullBlocks(blockTable, whereId, restToDeleteIds);
+
+                    // UPDATE REMOVAL MEMORY LIST
+                    if (errorMessage == null) {
+                        performLists.updateMemoryRollBackToOneBlock(blockTable, whereId, restToDeleteIds);
+                    }
+                } else if (errorMessage == null
+                        && !restToDeleteIds.isEmpty()
+                        && (blockTable.equals("component_block"))) {
+                    errorMessage = performDataBase.deleteNullBlocks(blockTable, whereId, restToDeleteIds);
+
+                    // UPDATE REMOVAL MEMORY LIST
+                    if (errorMessage == null) {
+                        performLists.updateMemoryRollBackToOneBlock(blockTable, whereId, restToDeleteIds);
+                    }
+                }
+
+                //                    // ROLL BACK I LOAD AGAIN JUST FOR SAFETY
+                //                    if (errorMessage == null) {
+                //                        errorMessage = performDataBase.loadBlocks(whereId, "", blockTable);
+                //                    }
+
+                // calls perform list block update
+                splitDTO.setType(updteBlocks);
+                jsonData = gson.toJson(splitDTO);
+                webSocketSessionManager.sendMessageJson(homeBankingId, "perform-list-data", jsonData, updteBlocks);
+                alreadySentMgsSocket = false;
+                break;
             default:
                 webSocketSessionManager.sendMessageJson(
                         homeBankingId, session, type, "Action type : \"" + type + "\"", "cannot be processed");
                 break;
         }
 
-        String instrTable = "instruction";
-        String updateAction = "updateInstructions";
-        errorMessage = null;
+        if (errorMessage != null) {
+            performMessage.errorMessage(
+                    errorMessage.getErrorTitle(),
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                            + errorMessage.getErrorHeader(),
+                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                    null,
+                    0);
+        }
 
         if (!alreadySentMgsSocket && (sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
             if (performLists.getListBotJob().isEmpty()) {
@@ -1409,9 +905,6 @@ public class SimpleWebSocketServer {
             }
         } else if (!alreadySentMgsSocket
                 && (sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
-            instrTable = "component_instruction";
-            updateAction = "componentsUpdate";
-
             if (performLists.getListBotJobComp().isEmpty()) {
                 errorMessage = performDataBase.loadComponentsComplete(homeBankingId, botJobIdTask, botJobNameTask);
                 if (errorMessage != null) {
@@ -1597,10 +1090,10 @@ public class SimpleWebSocketServer {
         }
     }
 
-    private void excelFileBlock(String sessionId, BlockDetailsDTO blockExcelDTO) {
+    private void excelFileBlock(String sessionId, SplitDTO splitDTO) {
         // Ensure JavaFX UI updates are done on the JavaFX Application Thread
         Platform.runLater(() -> {
-            arExcelFileScene.initialize(sessionId, blockExcelDTO);
+            arExcelFileScene.initialize(sessionId, splitDTO);
             arExcelFileScene.showModal();
         });
     }
@@ -1702,13 +1195,6 @@ public class SimpleWebSocketServer {
 
         } else {
             performDataBase.deleteBlockDirect("block", blockDetailsDTO.getBotJobId(), newBlockId);
-            performMessage.errorMessage(
-                    "Access Database error",
-                    errorMessage.getErrorTitle(),
-                    errorMessage.getErrorHeader(),
-                    "Verify  [INSERT] or [UPDATE] or [SELECT]",
-                    null,
-                    0);
         }
     }
 
@@ -1737,7 +1223,7 @@ public class SimpleWebSocketServer {
         this.payloadEmpty = new PayloadJson(whereId, blockId, botJobName, 0);
     }
 
-    public InstructionLoad hasOnlyExcelGoto(List<InstructionLoad> instructions, String instTable) {
+    public InstructionLoad hasOnlyExcelGoto(List<InstructionLoad> instructions, String instrTable) {
 
         List<InstructionLoad> excelGotoInstructions = instructions.stream()
                 .filter(instr -> "EXCEL GOTO".equalsIgnoreCase(instr.getActions()))
@@ -1796,5 +1282,21 @@ public class SimpleWebSocketServer {
                     return blockLoadDTO;
                 })
                 .toList();
+    }
+
+    private SplitDTO parseSplitDTO(JsonObject jsonEntry) {
+        if (jsonEntry == null || jsonEntry.isEmpty()) {
+            ARLogger.getInstance(SimpleWebSocketServer.class)
+                    .warning("parseSplitDTO called with null or empty JSON object");
+            return null;
+        }
+
+        try {
+            return gson.fromJson(jsonEntry, SplitDTO.class);
+        } catch (Exception error) {
+            ARLogger.getInstance(SimpleWebSocketServer.class)
+                    .severe("Cannot parse SplitDTO: " + error.getMessage() + " | JSON: " + jsonEntry);
+        }
+        return null;
     }
 }
