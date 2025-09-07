@@ -962,7 +962,7 @@ public class PerformDataBase {
         }
     }
 
-    public ErrorMessage updateInstructionsSplitter(List<InstructionLoad> instructions, int oldBlockId, int newBlockId) {
+    public ErrorMessage updateInstructionsSplitter(List<UpdatedRow> instructions, int oldBlockId, int newBlockId) {
         final int BATCH_SIZE = 100;
         String updateSQL =
                 "UPDATE instruction SET instruction_order_number = ?, block_id = ? WHERE id = ? AND block_id = ?";
@@ -973,10 +973,10 @@ public class PerformDataBase {
             try (PreparedStatement pstmt = conn.prepareStatement(updateSQL)) {
                 int count = 0;
 
-                for (InstructionLoad instruction : instructions) {
+                for (UpdatedRow instruction : instructions) {
                     pstmt.setInt(1, instruction.getInstructionOrderNumber());
                     pstmt.setInt(2, newBlockId);
-                    pstmt.setInt(3, instruction.getId());
+                    pstmt.setInt(3, instruction.getInstructionId());
                     pstmt.setInt(4, oldBlockId);
                     pstmt.addBatch();
                     count++;
@@ -2759,7 +2759,21 @@ public class PerformDataBase {
 
         BlockLoadDTO blockLoadFound = performLists.getBlockLoadByBankId(blockTable, whereId, splitDTO.getBlockId());
 
-        if (!updateRow) {
+        List<BotJobLoadDTO> listBotJob =
+                blockTable.equals("block") ? performLists.getListBotJob() : performLists.getListBotJobComp();
+
+        List<BlockLoadDTO> listBlocks =
+                blockTable.equals("block") ? performLists.getListBlock() : performLists.getListBlockComp();
+
+        if (!listBotJob.isEmpty() && listBlocks.isEmpty()) {
+            errorMessage = loadBlocks(whereId, splitDTO.getBotJobName(), blockTable);
+        }
+
+        if (errorMessage == null) {
+            errorMessage = checkGapsBlockOrder(listBlocks, blockTable, whereId, splitDTO.getBotJobName());
+        }
+
+        if (!updateRow && errorMessage == null) {
             rowList = instrName.equals("instruction")
                     ? performLists.getListInstruction()
                     : performLists.getListInstructionComp();
@@ -6919,5 +6933,51 @@ GROUP BY
 
     public boolean isConnDBWorks() {
         return connDBWorks;
+    }
+
+    public ErrorMessage checkGapsBlockOrder(
+            List<BlockLoadDTO> listBlock, String blockTable, int whereId, String botJobName) {
+        ErrorMessage errorMessage = null;
+        boolean mustReload = false;
+
+        // Optional: check for duplicates or gaps
+        Set<Integer> seenNumbers = new HashSet<>();
+        for (BlockLoadDTO block : listBlock) {
+            if (!seenNumbers.add(block.getBlockOrderNumber())) {
+                System.out.println("Duplicate blockOrderNumber found: " + block.getBlockOrderNumber() + " (Block ID: "
+                        + block.getId() + ")");
+                // updateBlockOrderNumber  ALREADY UPDATE MEMORY LIST
+                if (errorMessage == null) {
+                    errorMessage = updateBlockOrderNumber(blockTable, whereId, true);
+                    mustReload = true;
+                }
+                break;
+            }
+        }
+
+        // Collect all block order numbers
+        List<Integer> orderNumbers = listBlock.stream()
+                .map(BlockLoadDTO::getBlockOrderNumber)
+                .sorted()
+                .toList();
+
+        // Check for gaps
+        for (int i = 1; i < orderNumbers.size(); i++) {
+            int expected = orderNumbers.get(i - 1) + 1;
+            int actual = orderNumbers.get(i);
+            if (actual != expected) {
+                System.out.println("Gap found: expected " + expected + " but found " + actual);
+                if (errorMessage == null) {
+                    errorMessage = updateBlockOrderNumber(blockTable, whereId, true);
+                    mustReload = true;
+                }
+                break; // stop after first gap, or remove if you want to list all gaps
+            }
+        }
+
+        if (mustReload) {
+            errorMessage = loadBlocks(whereId, botJobName, blockTable);
+        }
+        return errorMessage;
     }
 }
