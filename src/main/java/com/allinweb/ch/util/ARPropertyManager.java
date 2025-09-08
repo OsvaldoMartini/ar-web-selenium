@@ -11,7 +11,9 @@ import java.util.Properties;
 import java.util.logging.Level;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class ARPropertyManager {
     protected static volatile ARPropertyManager instance;
 

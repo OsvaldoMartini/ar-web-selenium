@@ -38,7 +38,7 @@ import javafx.stage.Stage;
 import lombok.Getter;
 import org.openqa.selenium.WebDriver;
 
-public class ARMainPane extends ARPane {
+import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARMainPane extends ARPane {
 
     protected static volatile ARMainPane instance;
 
@@ -286,12 +286,12 @@ public class ARMainPane extends ARPane {
             try {
                 Connection conn = performDataBase.getConnection();
                 if (conn != null) {
-                    ARLogger.getInstance(ARMainPane.class).severe(dataBaseType + " Database connected!");
+                    log.error(dataBaseType + " Database connected!");
                 } else {
-                    ARLogger.getInstance(ARMainPane.class).severe(dataBaseType + " Database NOT connected!");
+                    log.error(dataBaseType + " Database NOT connected!");
                 }
             } catch (Exception error) {
-                ARLogger.getInstance(ARMainPane.class).severe(dataBaseType + " Database error!" + error.getMessage());
+                log.error(dataBaseType + " Database error!" + error.getMessage());
             }
 
             var selecBotJobDTO = viewBotJobListView.getSelectionModel().getSelectedItem();
@@ -329,11 +329,11 @@ public class ARMainPane extends ARPane {
 
                 Connection conn = performDataBase.getConnection();
                 if (conn != null) {
-                    ARLogger.getInstance(ARMainPane.class).info(dataBaseType + " Database connected!");
+                    log.info(dataBaseType + " Database connected!");
                 }
             } catch (Exception error) {
-                ARLogger.getInstance(ARMainPane.class)
-                        .severe(dataBaseType + " Database Connection failed : " + error.getMessage());
+                
+                        log.error(dataBaseType + " Database Connection failed : " + error.getMessage());
             }
 
             if (performDataBase.isConnDBWorks()) {
@@ -468,7 +468,7 @@ public class ARMainPane extends ARPane {
                         try {
                             file.createNewFile();
                         } catch (IOException ex) {
-                            ARLogger.getInstance(ARMainPane.class).fine("Error : " + ex);
+                            log.info("Error : " + ex);
                         }
                     }
                 }
@@ -478,7 +478,7 @@ public class ARMainPane extends ARPane {
                 try {
                     processBuilder.start();
                 } catch (IOException ex) {
-                    ARLogger.getInstance(ARMainPane.class).fine("Error : " + ex);
+                    log.info("Error : " + ex);
                 }
             } else {
                 performMessage.errorMessage("Select a Bot Job", "There is NOT a Job Selected", null, null, null, 0);
@@ -492,9 +492,9 @@ public class ARMainPane extends ARPane {
             try {
                 Platform.runLater(() -> arWebDriver.getWebDriverList().remove(driver));
                 Platform.runLater(driver::quit);
-                ARLogger.getInstance(ARMainPane.class).info("WebDriver closed.");
+                log.info("WebDriver closed.");
             } catch (Exception e) {
-                ARLogger.getInstance(ARMainPane.class).warning("Error closing WebDriver: " + e.getMessage());
+                log.warn("Error closing WebDriver: " + e.getMessage());
             }
         }
         Platform.runLater(() -> {
@@ -621,8 +621,8 @@ public class ARMainPane extends ARPane {
             }
             return true;
         } catch (Exception error) {
-            ARLogger.getInstance(ARMainPane.class)
-                    .severe("Cannot read/validate the License path/file. Error: " + error.getMessage());
+            
+                    log.error("Cannot read/validate the License path/file. Error: " + error.getMessage());
             return false;
         }
     }
@@ -656,8 +656,8 @@ public class ARMainPane extends ARPane {
                     "block", selecBotJobDTO.getId(), "Default Block", "Default Block", 1, false);
 
             if (errorMessage == null) {
-                ARLogger.getInstance(Thread.class)
-                        .info(String.format("A new Block was created for bot job Id %d", selecBotJobDTO.getId()));
+                
+                        log.info(String.format("A new Block was created for bot job Id %d", selecBotJobDTO.getId()));
             } else {
                 performMessage.errorMessage(
                         errorMessage.getErrorTitle(),

@@ -1,6 +1,6 @@
 package com.allinweb.ch.facade;
 
-import com.allinweb.ch.util.ARLogger;
+
 import com.allinweb.ch.util.ErrorMessage;
 import java.io.*;
 import java.nio.charset.Charset;
@@ -11,14 +11,17 @@ import java.util.Map;
 import java.util.TreeMap;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
 /**
- * PerformActions.
+ * PerformBackup.
  *
  * @author Osvaldo Martini
  * @version 1.0
  */
-public class PerformBackup {
+import lombok.extern.slf4j.Slf4j;
+
+  @Slf4j public class PerformBackup {
     protected static volatile PerformBackup instance;
 
     @Getter
@@ -109,13 +112,13 @@ public class PerformBackup {
             }
 
             writer.flush();
-            ARLogger.getInstance(PerformDataBase.class)
-                    .info("HomeBanking backup completed at: " + sqlFile.getAbsolutePath());
+            
+                    log.info("HomeBanking backup completed at: " + sqlFile.getAbsolutePath());
             return null;
 
         } catch (Exception error) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe("Error during home_banking backup: " + error.getMessage());
+            
+                    log.error("Error during home_banking backup: " + error.getMessage());
             return new ErrorMessage("Error in backup process", "Error during home_banking backup", error.getMessage());
         }
     }
@@ -150,12 +153,12 @@ public class PerformBackup {
             }
 
             writer.flush();
-            ARLogger.getInstance(PerformDataBase.class)
-                    .info("Home URL backup completed at: " + sqlFile.getAbsolutePath());
+            
+                    log.info("Home URL backup completed at: " + sqlFile.getAbsolutePath());
             return null;
 
         } catch (Exception error) {
-            ARLogger.getInstance(PerformDataBase.class).severe("Error during home_url backup: " + error.getMessage());
+            log.error("Error during home_url backup: " + error.getMessage());
             return new ErrorMessage("Error in backup process", "Error during home_url backup", error.getMessage());
         }
     }
@@ -205,11 +208,11 @@ public class PerformBackup {
             }
 
             writer.flush();
-            ARLogger.getInstance(PerformDataBase.class).info("Backup completed at: " + sqlFile.getAbsolutePath());
+            log.info("Backup completed at: " + sqlFile.getAbsolutePath());
             return null;
 
         } catch (Exception error) {
-            ARLogger.getInstance(PerformDataBase.class).severe("Error during bot_job backup: " + error.getMessage());
+            log.error("Error during bot_job backup: " + error.getMessage());
             return new ErrorMessage("Error in backup process", "Error during bot_job backup", error.getMessage());
         }
     }
@@ -303,13 +306,13 @@ public class PerformBackup {
             }
 
             writer.flush();
-            ARLogger.getInstance(PerformDataBase.class)
-                    .info("Instruction backup completed at: " + sqlFile.getAbsolutePath());
+            
+                    log.info("Instruction backup completed at: " + sqlFile.getAbsolutePath());
             return null;
 
         } catch (Exception error) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe("Error during instruction backup: " + error.getMessage());
+            
+                    log.error("Error during instruction backup: " + error.getMessage());
             return new ErrorMessage("Error in backup process", "Error during instruction backup", error.getMessage());
         }
     }
@@ -356,12 +359,12 @@ public class PerformBackup {
             }
 
             writer.flush();
-            ARLogger.getInstance(PerformDataBase.class)
-                    .info("Variable backup completed at: " + sqlFile.getAbsolutePath());
+            
+                    log.info("Variable backup completed at: " + sqlFile.getAbsolutePath());
             return null;
 
         } catch (Exception error) {
-            ARLogger.getInstance(PerformDataBase.class).severe("Error during variable backup: " + error.getMessage());
+            log.error("Error during variable backup: " + error.getMessage());
             return new ErrorMessage("Error in backup process", "Error during variable backup", error.getMessage());
         }
     }
@@ -397,12 +400,12 @@ public class PerformBackup {
             }
 
             writer.flush();
-            ARLogger.getInstance(PerformDataBase.class)
-                    .info("Reference backup completed at: " + sqlFile.getAbsolutePath());
+            
+                    log.info("Reference backup completed at: " + sqlFile.getAbsolutePath());
             return null;
 
         } catch (Exception error) {
-            ARLogger.getInstance(PerformDataBase.class).severe("Error during reference backup: " + error.getMessage());
+            log.error("Error during reference backup: " + error.getMessage());
             return new ErrorMessage("Error in backup process", "Error during reference backup", error.getMessage());
         }
     }
@@ -458,11 +461,11 @@ public class PerformBackup {
             }
 
             writer.flush();
-            ARLogger.getInstance(PerformDataBase.class).info("Block backup completed at: " + sqlFile.getAbsolutePath());
+            log.info("Block backup completed at: " + sqlFile.getAbsolutePath());
             return null;
 
         } catch (Exception error) {
-            ARLogger.getInstance(PerformDataBase.class).severe("Error during block backup: " + error.getMessage());
+            log.error("Error during block backup: " + error.getMessage());
             return new ErrorMessage("Error in backup process", "Error during block backup", error.getMessage());
         }
     }
@@ -521,13 +524,13 @@ public class PerformBackup {
             }
 
             writer.flush();
-            ARLogger.getInstance(PerformDataBase.class)
-                    .info("ComponentBlock backup completed at: " + sqlFile.getAbsolutePath());
+            
+                    log.info("ComponentBlock backup completed at: " + sqlFile.getAbsolutePath());
             return null;
 
         } catch (Exception error) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe("Error during component_block backup: " + error.getMessage());
+            
+                    log.error("Error during component_block backup: " + error.getMessage());
             return new ErrorMessage(
                     "Error in backup process", "Error during component_block backup", error.getMessage());
         }
@@ -648,13 +651,13 @@ public class PerformBackup {
             }
 
             writer.flush();
-            ARLogger.getInstance(PerformDataBase.class)
-                    .info("ComponentInstruction backup completed at: " + sqlFile.getAbsolutePath());
+            
+                    log.info("ComponentInstruction backup completed at: " + sqlFile.getAbsolutePath());
             return null;
 
         } catch (Exception error) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe("Error during component_instruction backup: " + error.getMessage());
+            
+                    log.error("Error during component_instruction backup: " + error.getMessage());
             return new ErrorMessage(
                     "Error in backup process", "Error during component_instruction backup", error.getMessage());
         }
@@ -706,13 +709,13 @@ public class PerformBackup {
             }
 
             writer.flush();
-            ARLogger.getInstance(PerformDataBase.class)
-                    .info("ComponentVariable backup completed at: " + sqlFile.getAbsolutePath());
+            
+                    log.info("ComponentVariable backup completed at: " + sqlFile.getAbsolutePath());
             return null;
 
         } catch (Exception error) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe("Error during component_variable backup: " + error.getMessage());
+            
+                    log.error("Error during component_variable backup: " + error.getMessage());
             return new ErrorMessage(
                     "Error in backup process", "Error during component_variable backup", error.getMessage());
         }
@@ -752,13 +755,13 @@ public class PerformBackup {
             }
 
             writer.flush();
-            ARLogger.getInstance(PerformDataBase.class)
-                    .info("ComponentReference backup completed at: " + sqlFile.getAbsolutePath());
+            
+                    log.info("ComponentReference backup completed at: " + sqlFile.getAbsolutePath());
             return null;
 
         } catch (Exception error) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe("Error during component_reference backup: " + error.getMessage());
+            
+                    log.error("Error during component_reference backup: " + error.getMessage());
             return new ErrorMessage(
                     "Error in backup process", "Error during component_reference backup", error.getMessage());
         }
@@ -1816,14 +1819,14 @@ public class PerformBackup {
                         System.out.println("Updated final batch of " + (count % BATCH_SIZE));
                     }
 
-                    ARLogger.getInstance(PerformDataBase.class).info("Updated instruction records: " + count);
+                    log.info("Updated instruction records: " + count);
                 }
             }
 
             return null;
 
         } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class).severe("Failed to update instructions: " + e.getMessage());
+            log.error("Failed to update instructions: " + e.getMessage());
             return new ErrorMessage("Restore Failed", "Failed to update instruction data", e.getMessage());
         }
     }
@@ -2561,15 +2564,15 @@ public class PerformBackup {
                         System.out.println("Updated final batch of " + (count % BATCH_SIZE));
                     }
 
-                    ARLogger.getInstance(PerformDataBase.class).info("Updated component_instruction records: " + count);
+                    log.info("Updated component_instruction records: " + count);
                 }
             }
 
             return null;
 
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe("Failed to update component_instruction: " + error.getMessage());
+            
+                    log.error("Failed to update component_instruction: " + error.getMessage());
             return new ErrorMessage(
                     "Restore Failed", "Failed to update component_instruction data", error.getMessage());
         }

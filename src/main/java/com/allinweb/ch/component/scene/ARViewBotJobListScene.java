@@ -4,7 +4,7 @@ import com.allinweb.ch.component.pane.ARViewBotJobListPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.driver.ARWebDriver;
-import com.allinweb.ch.util.ARLogger;
+
 import javafx.application.Platform;
 import javafx.collections.ObservableList;
 import javafx.scene.Scene;
@@ -12,7 +12,7 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import org.openqa.selenium.WebDriver;
 
-public class ARViewBotJobListScene extends ARScene {
+import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARViewBotJobListScene extends ARScene {
 
     protected static volatile ARViewBotJobListScene instance;
 
@@ -101,7 +101,7 @@ public class ARViewBotJobListScene extends ARScene {
                 });
             } else {
                 // Handle the case where pane creation failed
-                ARLogger.getInstance(ARViewBotJobScene.class).severe("Failed to build pane for modal.");
+                log.error("Failed to build pane for modal.");
                 return;
             }
         }

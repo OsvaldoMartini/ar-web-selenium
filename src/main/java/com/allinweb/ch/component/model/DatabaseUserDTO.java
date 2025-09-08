@@ -3,6 +3,7 @@ package com.allinweb.ch.component.model;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 
+
 public class DatabaseUserDTO {
     private StringProperty id;
     private StringProperty jobs;

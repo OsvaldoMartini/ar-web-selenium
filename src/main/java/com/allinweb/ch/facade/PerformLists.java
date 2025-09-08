@@ -3,7 +3,7 @@ package com.allinweb.ch.facade;
 import com.allinweb.ch.component.model.*;
 import com.allinweb.ch.component.model.DatabaseUserDTO;
 import com.allinweb.ch.socket.WebSocketSessionManager;
-import com.allinweb.ch.util.ARLogger;
+
 import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ComboBoxVars;
 import com.google.common.base.Strings;
@@ -18,10 +18,12 @@ import java.util.stream.Collectors;
 import javax.websocket.*;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
 @Getter
 @Setter
 @ClientEndpoint
+@Slf4j
 public class PerformLists {
 
     // Static final variable to hold the singleton instance
@@ -422,7 +424,7 @@ public class PerformLists {
             return newList;
 
         } catch (Exception error) {
-            ARLogger.getInstance(PerformLists.class).severe("Error loading combo options: " + error.getMessage());
+            log.error("Error loading combo options: " + error.getMessage());
         }
 
         return new ArrayList<>();
@@ -481,8 +483,8 @@ public class PerformLists {
                 throw new IllegalArgumentException("Invalid tableName: " + tableName);
             }
         } catch (Exception error) {
-            ARLogger.getInstance(PerformLists.class)
-                    .severe("Error: Memory Update failed for 'updateMemoryBlockName': " + error.getMessage());
+            
+                    log.error("Error: Memory Update failed for 'updateMemoryBlockName': " + error.getMessage());
         }
     }
 
@@ -560,8 +562,8 @@ public class PerformLists {
             }
 
         } catch (Exception error) {
-            ARLogger.getInstance(PerformLists.class)
-                    .severe("Error: Memory Update failed for 'updateMemoryInstructionName': " + error.getMessage());
+            
+                    log.error("Error: Memory Update failed for 'updateMemoryInstructionName': " + error.getMessage());
         }
     }
 
@@ -641,8 +643,8 @@ public class PerformLists {
             }
 
         } catch (Exception error) {
-            ARLogger.getInstance(PerformLists.class)
-                    .severe("Error: Memory Update failed for 'updateMemoryStatusUpdate': " + error.getMessage());
+            
+                    log.error("Error: Memory Update failed for 'updateMemoryStatusUpdate': " + error.getMessage());
         }
     }
 
@@ -711,8 +713,8 @@ public class PerformLists {
             }
 
         } catch (Exception error) {
-            ARLogger.getInstance(PerformLists.class)
-                    .severe("Error: Memory Update failed for 'updateMemoryInstructionStatusUpdate': "
+            
+                    log.error("Error: Memory Update failed for 'updateMemoryInstructionStatusUpdate': "
                             + error.getMessage());
         }
     }
@@ -772,8 +774,8 @@ public class PerformLists {
             }
 
         } catch (Exception error) {
-            ARLogger.getInstance(PerformLists.class)
-                    .severe("Error: Memory Update failed for 'updateMemoryStatusUpdate': " + error.getMessage());
+            
+                    log.error("Error: Memory Update failed for 'updateMemoryStatusUpdate': " + error.getMessage());
         }
     }
 
@@ -859,8 +861,8 @@ public class PerformLists {
             }
 
         } catch (Exception error) {
-            ARLogger.getInstance(PerformLists.class)
-                    .severe("Error: Memory Update failed for 'updateMemoryParentOpenName': " + error.getMessage());
+            
+                    log.error("Error: Memory Update failed for 'updateMemoryParentOpenName': " + error.getMessage());
         }
     }
 
@@ -926,8 +928,8 @@ public class PerformLists {
                 throw new IllegalArgumentException("Invalid tableName: " + tableName);
             }
         } catch (Exception error) {
-            ARLogger.getInstance(PerformLists.class)
-                    .severe("Error: Memory Update failed for 'updateMemoryBlockOrder': " + error.getMessage());
+            
+                    log.error("Error: Memory Update failed for 'updateMemoryBlockOrder': " + error.getMessage());
         }
     }
 
@@ -971,8 +973,8 @@ public class PerformLists {
                 }
             }
         } catch (Exception error) {
-            ARLogger.getInstance(PerformLists.class)
-                    .severe("Error: Memory Update failed for 'updateMemoryRemoveInstructionId': " + error.getMessage());
+            
+                    log.error("Error: Memory Update failed for 'updateMemoryRemoveInstructionId': " + error.getMessage());
         }
     }
 
@@ -1027,8 +1029,8 @@ public class PerformLists {
                 throw new IllegalArgumentException("Invalid tableName: " + tableName);
             }
         } catch (Exception error) {
-            ARLogger.getInstance(PerformLists.class)
-                    .severe("Error: Memory Update failed for 'updateMemoryRemoveInstructionId': " + error.getMessage());
+            
+                    log.error("Error: Memory Update failed for 'updateMemoryRemoveInstructionId': " + error.getMessage());
         }
     }
 
@@ -1069,8 +1071,8 @@ public class PerformLists {
                 throw new IllegalArgumentException("Invalid tableName: " + tableName);
             }
         } catch (Exception error) {
-            ARLogger.getInstance(PerformLists.class)
-                    .severe("Error: Memory Update failed for 'updateMemoryRemoveBlockIds': " + error.getMessage());
+            
+                    log.error("Error: Memory Update failed for 'updateMemoryRemoveBlockIds': " + error.getMessage());
         }
     }
 
@@ -1174,8 +1176,8 @@ public class PerformLists {
                 throw new IllegalArgumentException("Invalid tableName: " + tableName);
             }
         } catch (Exception error) {
-            ARLogger.getInstance(PerformLists.class)
-                    .severe("Error: Memory Update failed for 'updateMemoryRemoveBlockIds': " + error.getMessage());
+            
+                    log.error("Error: Memory Update failed for 'updateMemoryRemoveBlockIds': " + error.getMessage());
         }
     }
 
@@ -1203,8 +1205,8 @@ public class PerformLists {
                 throw new IllegalArgumentException("Invalid tableName: " + tableName);
             }
         } catch (Exception error) {
-            ARLogger.getInstance(PerformLists.class)
-                    .severe("Error: Memory Update failed for 'updateMemoryRowMove': " + error.getMessage());
+            
+                    log.error("Error: Memory Update failed for 'updateMemoryRowMove': " + error.getMessage());
         }
     }
 

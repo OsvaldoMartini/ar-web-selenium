@@ -16,7 +16,7 @@ import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 
-public class ARInfoPane extends ARPane {
+import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARInfoPane extends ARPane {
 
     protected static volatile ARInfoPane instance;
 

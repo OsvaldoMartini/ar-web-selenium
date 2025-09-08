@@ -3,7 +3,7 @@ package com.allinweb.ch.component.scene;
 import com.allinweb.ch.component.pane.ARMainPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
-import com.allinweb.ch.util.ARLogger;
+
 import com.allinweb.ch.util.ARPropertyManager;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -13,9 +13,12 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import javax.websocket.server.ServerContainer;
+
+import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jetty.server.Server;
 import org.openqa.selenium.WebDriver;
 
+@Slf4j
 public class ARMainScene extends ARScene {
 
     protected static volatile ARMainScene instance;
@@ -63,7 +66,7 @@ public class ARMainScene extends ARScene {
         //        try {
         //            arWebSocketServerIP = ARWebSocketServerIP.getInstance();
         //        } catch (Exception error) {
-        //            ARLogger.getInstance(ARMainScene.class).severe("ARWebSocketServerIP with IP failed " +
+        //            log.error("ARWebSocketServerIP with IP failed " +
         // error.getMessage());
         //
         //            throw new RuntimeException(error);
@@ -71,7 +74,7 @@ public class ARMainScene extends ARScene {
         //        try {
         //            arWebSocketServer = ARWebSocketServer.getInstance();
         //        } catch (Exception error) {
-        //            ARLogger.getInstance(ARMainScene.class).severe("ARWebSocketServer NO IP failed " +
+        //            log.error("ARWebSocketServer NO IP failed " +
         // error.getMessage());
         //            throw new RuntimeException(error);
         //        }
@@ -153,7 +156,7 @@ public class ARMainScene extends ARScene {
                 //                });
             } else {
                 // Handle the case where pane creation failed
-                ARLogger.getInstance(ARConfigurationScene.class).severe("Failed to build pane for modal.");
+                log.error("Failed to build pane for modal.");
                 return;
             }
         }
@@ -210,8 +213,8 @@ public class ARMainScene extends ARScene {
     //                    try {
     //                        startWebSocketServer(finalPort);
     //                    } catch (Exception error) {
-    //                        ARLogger.getInstance(ARMainScene.class)
-    //                                .severe("Port : " + finalPort + " error : " + error.getMessage());
+    //                        
+    //                                log.error("Port : " + finalPort + " error : " + error.getMessage());
     //
     //                        //                        performMessage.errorMessage(
     //                        //                                "Port Error", "Port %d already in Use!",
@@ -263,9 +266,9 @@ public class ARMainScene extends ARScene {
             try {
                 Platform.runLater(() -> webDriverList.remove(driver));
                 Platform.runLater(driver::quit);
-                ARLogger.getInstance(ARMainScene.class).info("WebDriver closed.");
+                log.info("WebDriver closed.");
             } catch (Exception e) {
-                ARLogger.getInstance(ARMainScene.class).warning("Error closing WebDriver: " + e.getMessage());
+                log.warn("Error closing WebDriver: " + e.getMessage());
             }
         }
         Platform.runLater(() -> {
@@ -279,10 +282,10 @@ public class ARMainScene extends ARScene {
     //            try {
     //                jettyServer.stop();
     //            } catch (Exception e) {
-    //                ARLogger.getInstance(ARMainScene.class).severe("stopWebSocketServer  \nError: " + e.getMessage());
+    //                log.error("stopWebSocketServer  \nError: " + e.getMessage());
     //            }
     //            jettyServer.destroy();
-    //            ARLogger.getInstance(ARMainScene.class).info("WebSocket server stopped.");
+    //            log.info("WebSocket server stopped.");
     //            //            System.out.println("WebSocket server stopped.");
     //        }
     //    }

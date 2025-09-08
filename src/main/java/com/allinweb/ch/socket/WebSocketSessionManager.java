@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.websocket.Session;
 
-public class WebSocketSessionManager {
+import lombok.extern.slf4j.Slf4j;  @Slf4j public class WebSocketSessionManager {
 
     protected static volatile WebSocketSessionManager instance;
 

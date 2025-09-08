@@ -6,7 +6,7 @@ import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.license.LicenceVal;
 import com.allinweb.ch.license.LicenseManager;
 import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARLogger;
+
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
@@ -35,7 +35,9 @@ import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class ARLicensePane extends ARPane {
 
     protected static volatile ARLicensePane instance;
@@ -318,7 +320,7 @@ public class ARLicensePane extends ARPane {
         cbAgree.setOnAction(event -> btnProceed.setDisable(!cbAgree.isSelected()));
 
         btnClose.setOnAction(event -> {
-            ARLogger.getInstance(ARLicensePane.class).finer("ARLicensePane close()");
+            log.info("ARLicensePane close()");
             Platform.runLater(() -> {
                 Stage stage = (Stage) btnClose.getScene().getWindow();
                 stage.close();

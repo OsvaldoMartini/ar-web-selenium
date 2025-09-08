@@ -10,7 +10,7 @@ import org.openqa.selenium.WebDriver;
  * @author Osvaldo Martini
  * @version 1.0
  */
-public class PerformCloneLoad {
+import lombok.extern.slf4j.Slf4j;  @Slf4j public class PerformCloneLoad {
     protected static volatile PerformCloneLoad instance;
 
     // Private constructor to prevent instantiation

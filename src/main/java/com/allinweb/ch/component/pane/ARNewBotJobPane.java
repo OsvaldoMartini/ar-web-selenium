@@ -25,7 +25,9 @@ import javafx.scene.layout.*;
 import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class ARNewBotJobPane extends ARPane {
 
     protected static volatile ARNewBotJobPane instance;
@@ -352,7 +354,7 @@ public class ARNewBotJobPane extends ARPane {
                 arViewBotJobScene.initialize(arWebDriver, createdBotJob, isEnabledLicence);
                 arViewBotJobScene.showModal();
 
-                ARLogger.getInstance(ARNewBotJobPane.class).info("Success creating new Bot Job ID: " + newBotJobId);
+                log.info("Success creating new Bot Job ID: " + newBotJobId);
                 Platform.runLater(() -> {
                     Stage currentStage = (Stage) createBotJobButton.getScene().getWindow();
                     if (currentStage != null) {
@@ -360,8 +362,8 @@ public class ARNewBotJobPane extends ARPane {
                     }
                 });
             } else {
-                ARLogger.getInstance(ARNewBotJobPane.class)
-                        .severe("Error creating BotJobDTO. Check the Block Creation!");
+                
+                        log.error("Error creating BotJobDTO. Check the Block Creation!");
                 performMessage.errorMessage(
                         "Create New Bot Job Failed ❌",
                         "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>"
@@ -407,8 +409,7 @@ public class ARNewBotJobPane extends ARPane {
             }
             return true;
         } catch (Exception error) {
-            ARLogger.getInstance(ARConfigurationPane.class)
-                    .severe("Cannot read/validate the License path/file. Error: " + error.getMessage());
+                    log.error("Cannot read/validate the License path/file. Error: " + error.getMessage());
             return false;
         }
     }

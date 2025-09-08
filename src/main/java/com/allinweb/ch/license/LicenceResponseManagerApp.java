@@ -22,7 +22,7 @@ import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.util.converter.IntegerStringConverter;
 
-public class LicenceResponseManagerApp extends Application {
+import lombok.extern.slf4j.Slf4j;  @Slf4j public class LicenceResponseManagerApp extends Application {
 
     private static final PerformMessage performMessage;
 

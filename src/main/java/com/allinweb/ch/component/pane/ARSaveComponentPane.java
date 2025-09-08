@@ -9,7 +9,7 @@ import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARLogger;
+
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -37,8 +37,11 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import lombok.extern.slf4j.Slf4j;
+
 import javax.websocket.Session;
 
+@Slf4j
 public class ARSaveComponentPane extends ARPane {
 
     protected static volatile ARSaveComponentPane instance;
@@ -214,8 +217,8 @@ public class ARSaveComponentPane extends ARPane {
                     //                            detailsDTO, componentBlockDTO);
 
                     // Debugging: Ensure originalLoopInstruction has the right data
-                    //                    ARLogger.getInstance(ARSaveComponentPane.class)
-                    //                            .fine("originalLoopInstruction Size: " +
+                    //                    
+                    //                            log.info("originalLoopInstruction Size: " +
                     // originalLoopInstruction.size());
 
                     boolean existName = savedBlockLoadList.stream().anyMatch(block -> block.getName()
@@ -239,8 +242,8 @@ public class ARSaveComponentPane extends ARPane {
                     }
 
                     // Debugging: Print statements to track data
-                    ARLogger.getInstance(ARSaveComponentPane.class)
-                            .fine("Saving New Component Block: " + blockDetailsDTO.getBlockName());
+
+                            log.info("Saving New Component Block: " + blockDetailsDTO.getBlockName());
 
                     try (Connection conn = performDataBase.getConnection()) {
 
@@ -308,7 +311,7 @@ public class ARSaveComponentPane extends ARPane {
                                     null,
                                     0);
                         }
-                        ARLogger.getInstance(ARSaveComponentPane.class).finer("ARSaveComponentPane Close()");
+                        log.info("ARSaveComponentPane Close()");
                         Platform.runLater(() -> {
                             Stage stage =
                                     (Stage) ((Button) e.getSource()).getScene().getWindow();
@@ -324,8 +327,8 @@ public class ARSaveComponentPane extends ARPane {
                 } catch (Exception error) {
                     // Handle the exception and display a warning message on the JavaFX Application Thread
 
-                    ARLogger.getInstance(Task.class)
-                            .severe("Error: Unable to save the block. Please try again.\nError: " + error.getMessage());
+                    
+                            log.error("Error: Unable to save the block. Please try again.\nError: " + error.getMessage());
 
                     showAlertTimer(
                             Alert.AlertType.ERROR,
@@ -353,7 +356,7 @@ public class ARSaveComponentPane extends ARPane {
     }
 
     private void Close() {
-        ARLogger.getInstance(ARSaveClonePane.class).finer("ARSaveClonePane Close()");
+        log.info("ARSaveClonePane Close()");
         Platform.runLater(() -> {
             Stage stage = (Stage) mainPane.getScene().getWindow();
             stage.close();

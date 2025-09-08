@@ -2,7 +2,7 @@ package com.allinweb.ch.control;
 
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARLogger;
+
 import java.util.Objects;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -12,7 +12,7 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 
-public class ARComponentBuilder {
+import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARComponentBuilder {
 
     // Static final variable to hold the singleton instance
     protected static volatile ARComponentBuilder instance;
@@ -84,8 +84,8 @@ public class ARComponentBuilder {
             image.setPreserveRatio(true);
             return image;
         } catch (Exception e) {
-            ARLogger.getInstance(ARWebDriver.class)
-                    .severe(String.format("BuildImageView source: %s size %d \n%s", source, size, e.getMessage()));
+            
+                    log.error(String.format("BuildImageView source: %s size %d \n%s", source, size, e.getMessage()));
         }
         return null;
     }

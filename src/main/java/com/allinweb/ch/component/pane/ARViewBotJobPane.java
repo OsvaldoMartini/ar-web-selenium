@@ -51,7 +51,9 @@ import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class ARViewBotJobPane extends ARPane {
 
     protected static volatile ARViewBotJobPane instance;
@@ -654,7 +656,7 @@ public class ARViewBotJobPane extends ARPane {
                             + jsonData + "), " + finalPort + ", '" + sessionIdFromJava + "', " + homeBanking + ", "
                             + botJobId + ", '" + botJobName + "' ) }, 1000)");
                 } catch (Exception e) {
-                    ARLogger.getInstance(ARViewBotJobPane.class).severe("buildWebView  \nError: " + e.getMessage());
+                    log.error("buildWebView  \nError: " + e.getMessage());
                 }
             }
         });
@@ -995,7 +997,7 @@ public class ARViewBotJobPane extends ARPane {
         });
         this.closeBotJobButton.setOnMouseClicked((e) -> {
             //            stopWebSocketServer();
-            ARLogger.getInstance(ARScannedElementScene.class).finer("Close Bot Job Button");
+            log.info("Close Bot Job Button");
             Platform.runLater(() -> {
                 Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
                 stage.close();
@@ -1115,7 +1117,7 @@ public class ARViewBotJobPane extends ARPane {
         if (!isScannerButtonClicked) { // Check if the button action was not already triggered
             isScannerButtonClicked = true; // Set the flag to prevent further clicks
 
-            ARLogger.getInstance(ARViewBotJobPane.class).fine("Calling openScannerButton");
+            log.info("Calling openScannerButton");
 
             String threadName = "botJob-" + selectedBotJob.getId();
             arScene.startNewThread(threadName, () -> {
@@ -1209,8 +1211,8 @@ public class ARViewBotJobPane extends ARPane {
 
     private void handleExceptionScan(Exception error) {
         // Log the exception
-        ARLogger.getInstance(ARViewBotJobPane.class)
-                .severe("ERROR Calling openScannerButton -> Cause: " + error.getMessage());
+        
+                log.error("ERROR Calling openScannerButton -> Cause: " + error.getMessage());
 
         // Display the error message to the user
         String browser = arPropertyManager.getProperty(ARPropertyEnum.BROWSER);
@@ -1232,7 +1234,7 @@ public class ARViewBotJobPane extends ARPane {
             //            "invalid session id"
 
             if (!error.getMessage().contains("Current browser version")) {
-                ARLogger.getInstance(ARViewBotJobPane.class).severe("Error Open URL: " + error.getMessage());
+                log.error("Error Open URL: " + error.getMessage());
 
                 //                performMessage.errorMessage("Error Open URL", msg1, msg2, msg3, msg4, 0);
 
@@ -1263,7 +1265,7 @@ public class ARViewBotJobPane extends ARPane {
                             0);
                 }
             } else {
-                ARLogger.getInstance(ARViewBotJobPane.class).severe("Error Open URL: " + error.getMessage());
+                log.error("Error Open URL: " + error.getMessage());
 
                 int lastSlashIndex = webDriverPath.lastIndexOf('\\');
                 String directoryPath = webDriverPath.substring(0, lastSlashIndex + 1); // includes the last backslash
@@ -1475,8 +1477,8 @@ public class ARViewBotJobPane extends ARPane {
             }
             return true;
         } catch (Exception error) {
-            ARLogger.getInstance(ARConfigurationPane.class)
-                    .severe("Cannot read/validate the License path/file. Error: " + error.getMessage());
+            
+                    log.error("Cannot read/validate the License path/file. Error: " + error.getMessage());
             return false;
         }
     }

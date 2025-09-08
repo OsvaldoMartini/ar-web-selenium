@@ -23,6 +23,8 @@ import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.util.Callback;
 
+import lombok.extern.slf4j.Slf4j;
+@Slf4j
 public class ARElementValuePane extends ARPane {
 
     protected static volatile ARElementValuePane instance;

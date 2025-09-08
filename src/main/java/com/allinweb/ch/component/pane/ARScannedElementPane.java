@@ -52,9 +52,11 @@ import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import javafx.stage.Stage;
 import javafx.util.Pair;
+import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.*;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
+@Slf4j
 public class ARScannedElementPane extends ARPane {
 
     protected static volatile ARScannedElementPane instance;
@@ -795,7 +797,7 @@ public class ARScannedElementPane extends ARPane {
 
         defaultSearch = new String[] {"input", "textarea", "button", "a", "select", "label"};
 
-        ARLogger.getInstance(ARScannedElementPane.class).fine("Calling ARScannedElementPane");
+        log.info("Calling ARScannedElementPane");
 
         // Ensure botJob and arPriorities are not null before accessing their methods
         if (this.currentBotJob != null && arPriorities != null) {
@@ -1063,7 +1065,7 @@ public class ARScannedElementPane extends ARPane {
                             + jsonData + "), " + finalPort + ", '" + sessionIdFromJava + "', " + homeBanking + ", "
                             + botJobId + ", '" + botJobName + "' ) }, 1000)");
                 } catch (Exception e) {
-                    ARLogger.getInstance(ARScannedElementPane.class).severe("buildWebView  \nError: " + e.getMessage());
+                    log.error("buildWebView  \nError: " + e.getMessage());
                 }
             }
         });
@@ -1429,7 +1431,7 @@ public class ARScannedElementPane extends ARPane {
             AnchorPane.setRightAnchor(topPane, 0.0);
 
         } catch (Exception ex) {
-            ARLogger.getInstance(ARScannedElementPane.class).fine("Error using Separator line\n" + ex);
+            log.info("Error using Separator line\n" + ex);
         }
     }
 
@@ -1576,8 +1578,8 @@ public class ARScannedElementPane extends ARPane {
                 baseLogFile = new File(arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG)
                         + ARConstants.FILE_NAME_SCANNER_BASE_LOG);
             } catch (Exception error) {
-                ARLogger.getInstance(ARScannedElementPane.class)
-                        .severe("Error Defining Excel or BaseLog File: " + error.getMessage());
+                
+                        log.error("Error Defining Excel or BaseLog File: " + error.getMessage());
             }
 
             executeSpecificBlock = comboBoxBlocks.getValue().getWhereId(); // Start in a specific Block/UseCase
@@ -1597,7 +1599,7 @@ public class ARScannedElementPane extends ARPane {
             }
 
             if (errorMessage != null) {
-                ARLogger.getInstance(ARScannedElementPane.class).severe("Error: " + errorMessage.getErrorMessage());
+                log.error("Error: " + errorMessage.getErrorMessage());
                 performMessage.errorMessage(
                         errorMessage.getErrorTitle(),
                         "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
@@ -1609,13 +1611,13 @@ public class ARScannedElementPane extends ARPane {
             }
 
             if (performLists.getListBotJob().isEmpty()) {
-                ARLogger.getInstance(ARScannedElementPane.class)
-                        .severe("Cannot find Bot Jobs with this Id:" + this.currentBotJob.getId());
+                
+                        log.error("Cannot find Bot Jobs with this Id:" + this.currentBotJob.getId());
             }
             HomeBankingLoadDTO homeBanking = performLists.getHomeBankingById(this.currentBotJob.getHomeBankingId());
             if (homeBanking == null || StringUtils.isNullOrEmpty(homeBanking.getUrl())) {
-                ARLogger.getInstance(ARScannedElementPane.class)
-                        .severe("Cannot find Home Banking Environment Id:" + this.currentBotJob.getHomeBankingId());
+                
+                        log.error("Cannot find Home Banking Environment Id:" + this.currentBotJob.getHomeBankingId());
             }
 
             currentBotJob = performLists.getListBotJob().get(0);
@@ -2189,7 +2191,7 @@ public class ARScannedElementPane extends ARPane {
         List<WebElement> inputElements = (List<WebElement>) ((JavascriptExecutor) driver).executeScript(script);
 
         // Print the number of input elements found
-        ARLogger.getInstance(ARScannedElementPane.class).fine("Number of input elements: " + inputElements.size());
+        log.info("Number of input elements: " + inputElements.size());
         return inputElements;
     }
 
@@ -2265,15 +2267,15 @@ public class ARScannedElementPane extends ARPane {
                 });
             } catch (Exception ignore) {
                 // Log the error properly instead of ignoring
-                ARLogger.getInstance(ARScannedElementPane.class)
-                        .severe("Error submitting to executorServicePreLaunch: " + ignore.getMessage());
+                
+                        log.error("Error submitting to executorServicePreLaunch: " + ignore.getMessage());
                 isJobRunning.set(false); // Ensure flag is reset on submission failure
             }
         } else {
             // Optionally log that a new execution was requested but is already running
             System.out.println("recallJob() requested, but executeJob() is already running.");
-            ARLogger.getInstance(ARScannedElementPane.class)
-                    .info("recallJob() requested while executeJob() was running.");
+            
+                    log.info("recallJob() requested while executeJob() was running.");
         }
 
         if (performActions.getCurrentDriver().getWindowHandles().size() != performActions.windowHandlesList.size()) {
@@ -2374,8 +2376,8 @@ public class ARScannedElementPane extends ARPane {
 
             if (extractedData.getNumberOfDataRows() > 1 && excelDataGoto.isEmpty()) {
 
-                ARLogger.getInstance(ARScannedElementPane.class)
-                        .warning("Multiple Excel Rows Detected: each row wll return to first block");
+                
+                        log.warn("Multiple Excel Rows Detected: each row wll return to first block");
 
                 respModal = performMessage.showCustomModalDialogDragWin11(
                         "Multiple Excel Rows Detected",
@@ -2576,8 +2578,8 @@ public class ARScannedElementPane extends ARPane {
                                 String.format("Block: \"%s\" Wait %s Seconds: ", blockName, blockWait));
 
                     } catch (Exception ex) {
-                        ARLogger.getInstance(ARScannedElementPane.class)
-                                .severe(String.format("Error Wait Block for :\"%s\"", blockLoad.getName()));
+                        
+                                log.error(String.format("Error Wait Block for :\"%s\"", blockLoad.getName()));
                     }
 
                     // Step 1: Get all ParentIds For LOOPs Filter rows where actions = "REFRESH_LOOP" or "LOOP" on
@@ -3133,8 +3135,8 @@ public class ARScannedElementPane extends ARPane {
                                         if (repeat > 0) {
                                             mapLoops.put(parentFieldLoop, repeat);
 
-                                            ARLogger.getInstance(ARScannedElementPane.class)
-                                                    .info(String.format(
+                                            
+                                                    log.info(String.format(
                                                             "Loop to Parent :\"%s\" - %d Times",
                                                             parts[0] + "-(" + parts[1] + ") " + parts[2],
                                                             mapLoops.get(parentFieldLoop)));
@@ -3232,8 +3234,8 @@ public class ARScannedElementPane extends ARPane {
                                         if (repeat > 0) {
                                             continue instructionLoop;
                                         } else {
-                                            ARLogger.getInstance(ARScannedElementPane.class)
-                                                    .info(String.format(
+                                            
+                                                    log.info(String.format(
                                                             "IGNORING Loop to Parent :\"%s\" - %d Times",
                                                             parts[0] + "-(" + parts[1] + ") " + parts[2],
                                                             mapLoops.get(parentFieldLoop)));
@@ -3932,14 +3934,14 @@ public class ARScannedElementPane extends ARPane {
                 executorService.shutdownNow();
                 if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
                     System.err.println("ExecutorService did not terminate");
-                    ARLogger.getInstance(ARScannedElementPane.class).severe("ExecutorService did not terminate");
+                    log.error("ExecutorService did not terminate");
                 }
             }
         } catch (InterruptedException error) {
             executorService.shutdownNow();
             Thread.currentThread().interrupt();
-            ARLogger.getInstance(ARScannedElementPane.class)
-                    .severe("ExecutorService did not terminate\n" + error.getMessage());
+            
+                    log.error("ExecutorService did not terminate\n" + error.getMessage());
         }
     }
 
@@ -4262,7 +4264,7 @@ public class ARScannedElementPane extends ARPane {
 
     @Override
     public void start(Stage stage) throws Exception {
-        ARLogger.getInstance(ARScannedElementPane.class).severe("start from ARScannedElementPane");
+        log.error("start from ARScannedElementPane");
     }
 
     @Override
@@ -4274,7 +4276,7 @@ public class ARScannedElementPane extends ARPane {
                 executorServicePreLaunch.shutdownNow();
                 if (!executorServicePreLaunch.awaitTermination(5, TimeUnit.SECONDS)) {
                     System.err.println("ExecutorService did not terminate");
-                    ARLogger.getInstance(ARScannedElementPane.class).severe("ExecutorService did not terminate");
+                    log.error("ExecutorService did not terminate");
                 }
             }
         } catch (InterruptedException e) {
@@ -4284,7 +4286,7 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private void Close() {
-        ARLogger.getInstance(ARScannedElementPane.class).finer("ARScannedElementPane Close()");
+        log.info("ARScannedElementPane Close()");
         Platform.runLater(() -> {
             Stage stage = (Stage) mainPane.getScene().getWindow();
             stage.close();

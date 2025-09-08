@@ -10,7 +10,7 @@ import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARLogger;
+
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
 import java.net.MalformedURLException;
@@ -30,7 +30,9 @@ import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.*;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class ARNewHomeBankingPane extends ARPane {
 
     protected static volatile ARNewHomeBankingPane instance;
@@ -1065,19 +1067,19 @@ public class ARNewHomeBankingPane extends ARPane {
 
                     conn.commit();
 
-                    ARLogger.getInstance(Thread.class)
-                            .finer("Deleted " + urlRows + " rows from home_url and " + bankRows
+
+                            log.info("Deleted " + urlRows + " rows from home_url and " + bankRows
                                     + " rows from home_banking for ID: " + Id);
                 } catch (SQLException error) {
-                    ARLogger.getInstance(Thread.class).finer("Error Deleting: " + error.getMessage());
+                    log.info("Error Deleting: " + error.getMessage());
                 } finally {
                     conn.setAutoCommit(true); // restore auto-commit mode
                 }
             } catch (SQLException connError) {
-                ARLogger.getInstance(Thread.class).finer("Database connection error: " + connError.getMessage());
+                log.info("Database connection error: " + connError.getMessage());
             }
         } catch (NumberFormatException error) {
-            ARLogger.getInstance(Thread.class).finer("Invalid Format ID: " + Id);
+            log.info("Invalid Format ID: " + Id);
         }
     }
 

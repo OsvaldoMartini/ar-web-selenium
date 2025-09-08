@@ -10,7 +10,7 @@ import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
 
-public class CryptationAlgorithm {
+import lombok.extern.slf4j.Slf4j;  @Slf4j public class CryptationAlgorithm {
 
     private static final String SECRET_KEY = "lultimafrasenonlabbiamodeltuttocapita";
     private static final String SALT = "lasocietadelcocacola";

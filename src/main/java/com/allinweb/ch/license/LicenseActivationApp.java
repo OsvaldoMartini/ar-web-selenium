@@ -14,7 +14,7 @@ import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
 
-public class LicenseActivationApp extends Application {
+import lombok.extern.slf4j.Slf4j;  @Slf4j public class LicenseActivationApp extends Application {
 
     private static final PerformMessage performMessage;
 

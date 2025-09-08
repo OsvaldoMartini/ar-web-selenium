@@ -1,11 +1,14 @@
 package com.allinweb.ch.util;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
 
+@Slf4j
 public class Labels {
     public static Properties labelsValue;
 
@@ -25,7 +28,7 @@ public class Labels {
             // load a properties file
             labelsValue.load(inputStream);
         } catch (IOException ex) {
-            ARLogger.getInstance(Labels.class).severe("Cannot Read Lang Labels: " + ex.getMessage());
+            log.error("Cannot Read Lang Labels: " + ex.getMessage());
         }
     }
 }

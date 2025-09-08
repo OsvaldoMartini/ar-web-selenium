@@ -8,7 +8,7 @@ import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARLogger;
+
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
@@ -18,6 +18,8 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 import javafx.application.Platform;
+import lombok.extern.slf4j.Slf4j;
+
 import javax.websocket.CloseReason;
 import javax.websocket.OnClose;
 import javax.websocket.OnError;
@@ -28,6 +30,7 @@ import javax.websocket.server.ServerEndpoint;
 
 // Simple WebSocket server endpoint (for demonstration)
 @ServerEndpoint("/websocket")
+@Slf4j
 public class SimpleWebSocketServer {
 
     protected static volatile SimpleWebSocketServer instance;
@@ -420,7 +423,7 @@ public class SimpleWebSocketServer {
                         }
 
                     } catch (Exception error) {
-                        ARLogger.getInstance(SimpleWebSocketServer.class).severe("Error: " + error.getMessage());
+                        log.error("Error: " + error.getMessage());
                     }
                     alreadySentMgsSocket = false;
                     break;
@@ -754,7 +757,7 @@ public class SimpleWebSocketServer {
                 errorMessage = performDataBase.checkGapsBlockOrder(listBlocks, blockTable, whereId, botJobNameTask);
             }
         } catch (Exception error) {
-            ARLogger.getInstance(SimpleWebSocketServer.class).severe("Error: " + error.getMessage());
+            log.error("Error: " + error.getMessage());
 
             if (errorMessage == null) {
                 errorMessage = deleteNullsAndMemoryReload(instrTable, blockTable, whereId, previousBlockIds);
@@ -1057,8 +1060,8 @@ public class SimpleWebSocketServer {
 
             } catch (Exception e) {
 
-                ARLogger.getInstance(SimpleWebSocketServer.class)
-                        .severe(String.format(
+                
+                        log.error(String.format(
                                 "Cannot Insert \"Instruction\"  \"%s\"\nCannot be saved!\nError: %s",
                                 ARConstants.ELSEIF, e.getMessage()));
             }
@@ -1261,16 +1264,16 @@ public class SimpleWebSocketServer {
 
     private SplitDTO parseSplitDTO(JsonObject jsonEntry) {
         if (jsonEntry == null || jsonEntry.isEmpty()) {
-            ARLogger.getInstance(SimpleWebSocketServer.class)
-                    .warning("parseSplitDTO called with null or empty JSON object");
+            
+                    log.warn("parseSplitDTO called with null or empty JSON object");
             return null;
         }
 
         try {
             return gson.fromJson(jsonEntry, SplitDTO.class);
         } catch (Exception error) {
-            ARLogger.getInstance(SimpleWebSocketServer.class)
-                    .severe("Cannot parse SplitDTO: " + error.getMessage() + " | JSON: " + jsonEntry);
+            
+                    log.error("Cannot parse SplitDTO: " + error.getMessage() + " | JSON: " + jsonEntry);
         }
         return null;
     }

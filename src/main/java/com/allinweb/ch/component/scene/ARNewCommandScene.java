@@ -7,7 +7,7 @@ import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.util.ARLogger;
+
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -35,8 +35,9 @@ import javax.websocket.WebSocketContainer;
 import lombok.Getter;
 import lombok.Setter;
 
-@ClientEndpoint
-public class ARNewCommandScene extends ARScene {
+
+import lombok.extern.slf4j.Slf4j;
+@ClientEndpoint @Slf4j public class ARNewCommandScene extends ARScene {
 
     protected static volatile ARNewCommandScene instance;
 
@@ -250,7 +251,7 @@ public class ARNewCommandScene extends ARScene {
                         initialize(splitDTO);
                         Platform.runLater(() -> showModal());
                     } catch (Exception error) {
-                        ARLogger.getInstance(ARNewCommandScene.class).finer("Cannot Missing Value from  RowMoveDTO");
+                        log.info("Cannot Missing Value from  RowMoveDTO");
                     }
                     break;
                 default:
@@ -362,8 +363,8 @@ public class ARNewCommandScene extends ARScene {
                 }
 
             } catch (Exception error) {
-                ARLogger.getInstance(ARNewCommandScene.class)
-                        .severe("Error reading 'EXCEL GOTO' instructions: " + error.getMessage());
+                
+                        log.error("Error reading 'EXCEL GOTO' instructions: " + error.getMessage());
                 //                    performMessage.errorMessage(
                 //                            "Excel GOTO Detected",
                 //                            "<span style='font-weight: bold;'>This Bot Job already has an </span><span
@@ -405,7 +406,7 @@ public class ARNewCommandScene extends ARScene {
                 });
             } else {
                 // Handle the case where pane creation failed
-                ARLogger.getInstance(ARNewCommandScene.class).severe("Failed to build pane for modal.");
+                log.error("Failed to build pane for modal.");
                 return;
             }
         }

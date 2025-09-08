@@ -31,7 +31,9 @@ import javafx.scene.paint.Color;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class ARExcelFilePane extends ARPane {
 
     protected static volatile ARExcelFilePane instance;
@@ -342,14 +344,14 @@ public class ARExcelFilePane extends ARPane {
                     fileName = "";
                 }
 
-                ARLogger.getInstance(ARExcelFilePane.class).info("Identified Directory: " + directory);
-                ARLogger.getInstance(ARExcelFilePane.class).info("Identified File Name: " + fileName);
+                log.info("Identified Directory: " + directory);
+                log.info("Identified File Name: " + fileName);
             } catch (Exception ex) {
-                ARLogger.getInstance(ARExcelFilePane.class).severe("Excel Path  \nError: " + ex.getMessage());
+                log.error("Excel Path  \nError: " + ex.getMessage());
             }
 
         } else {
-            ARLogger.getInstance(ARExcelFilePane.class).info("No export file path provided.");
+            log.info("No export file path provided.");
         }
     }
 
@@ -364,7 +366,7 @@ public class ARExcelFilePane extends ARPane {
 
         saveButton.setOnMouseClicked(e -> saveConfigurations());
         cancelButton.setOnMouseClicked((e) -> {
-            ARLogger.getInstance(ARExcelFilePane.class).finer("ARExcelFilePane cancelButton");
+            log.info("ARExcelFilePane cancelButton");
             Platform.runLater(() -> {
                 Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
                 stage.close();

@@ -13,6 +13,7 @@ import org.openqa.selenium.WebElement;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+
 public class TargetElement {
     String nameLabel;
     String nameField;

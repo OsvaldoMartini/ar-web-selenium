@@ -7,7 +7,7 @@
 /// **
 // * Simulates a CSV file with dynamic columns, missing values, and row numbering.
 // */
-// public class CsvSimulatorWithColumns {
+// import lombok.extern.slf4j.Slf4j;  @Slf4j public class CsvSimulatorWithColumns {
 //    private List<String> columns; // Column headers
 //    private List<List<String>> rows; // Data rows
 //    private static final String END_OF_FILE_MARKER = "END OF FILE";

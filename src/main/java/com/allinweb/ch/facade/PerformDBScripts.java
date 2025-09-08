@@ -12,7 +12,7 @@ import lombok.Setter;
  * @author Osvaldo Martini
  * @version 1.0
  */
-public class PerformDBScripts {
+import lombok.extern.slf4j.Slf4j;  @Slf4j public class PerformDBScripts {
     protected static volatile PerformDBScripts instance;
 
     @Getter

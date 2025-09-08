@@ -28,7 +28,7 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-public class ExcelUtils {
+import lombok.extern.slf4j.Slf4j;  @Slf4j public class ExcelUtils {
     private static final int FIRST_ROW = 0;
     private static final int SECOND_ROW = 1;
 

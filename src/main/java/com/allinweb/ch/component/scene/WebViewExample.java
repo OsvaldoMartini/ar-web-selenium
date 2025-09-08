@@ -10,7 +10,7 @@ import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
-public class WebViewExample extends Application {
+import lombok.extern.slf4j.Slf4j;  @Slf4j public class WebViewExample extends Application {
 
     @Override
     public void start(Stage primaryStage) {

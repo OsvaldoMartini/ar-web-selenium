@@ -5,8 +5,11 @@ import com.allinweb.ch.util.*;
 import java.sql.*;
 import java.util.*;
 import java.util.stream.Collectors;
+
+import lombok.extern.slf4j.Slf4j;
 import org.sqlite.SQLiteConfig;
 
+@Slf4j
 public class PerformDBEngine {
 
     // Static final variable to hold the singleton instance
@@ -69,8 +72,8 @@ public class PerformDBEngine {
                 String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
                 String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
 
-                ARLogger.getInstance(PerformDBEngine.class).info("POSTGRES connection URL: " + dbUrl);
-                // ARLogger.getInstance(PerformDataBase.class).info("User Details: " + userDB + " - [PROTECTED]");
+                log.info("POSTGRES connection URL: " + dbUrl);
+                // log.info("User Details: " + userDB + " - [PROTECTED]");
 
                 Class.forName("org.postgresql.Driver");
                 Connection conn = DriverManager.getConnection(dbUrl, userDB, userPwd);
@@ -91,7 +94,7 @@ public class PerformDBEngine {
                         + dbPath
                         + ARConstants.FILE_NAME_SQLITE; // make sure you have FILE_NAME_SQLITE constant
 
-                ARLogger.getInstance(PerformDBEngine.class).info("SQLITE connection URL: " + sqliteUrl);
+                log.info("SQLITE connection URL: " + sqliteUrl);
 
                 Class.forName("org.sqlite.JDBC");
 
@@ -115,7 +118,7 @@ public class PerformDBEngine {
                 String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
                 String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
 
-                ARLogger.getInstance(PerformDBEngine.class).info("ACCESS connection URL: " + dbUrl);
+                log.info("ACCESS connection URL: " + dbUrl);
 
                 Class.forName("net.ucanaccess.jdbc.UcanaccessDriver");
                 Connection conn = DriverManager.getConnection(dbUrl);
@@ -131,7 +134,7 @@ public class PerformDBEngine {
             }
 
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDBEngine.class).severe("getConnection Error: " + error.getMessage());
+            log.error("getConnection Error: " + error.getMessage());
 
             String database = POSTGRES_DB ? "Postgres" : (SQLITE_DB ? "SQLite" : "Access");
             connDBWorks = false;
@@ -145,8 +148,8 @@ public class PerformDBEngine {
 
             throw error;
         } catch (ClassNotFoundException error) {
-            ARLogger.getInstance(PerformDBEngine.class)
-                    .severe("Driver DB Class not Found Error: " + error.getMessage());
+            
+                    log.error("Driver DB Class not Found Error: " + error.getMessage());
         }
 
         connDBWorks = false;
@@ -232,7 +235,7 @@ public class PerformDBEngine {
                             "Error selecting home banking record with ID %d. Error: %s", homeBankingId, e.getMessage())
                     : String.format("Error selecting ALL home banking records. Error: %s", e.getMessage());
 
-            ARLogger.getInstance(PerformDBEngine.class).severe(errorDetail);
+            log.error(errorDetail);
 
             return new ErrorMessage("Error Load Home Banking", "Failed to load HomeBanking records", errorDetail);
         }
@@ -269,7 +272,7 @@ public class PerformDBEngine {
             }
 
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDBEngine.class).severe("Failed to load Home URLs");
+            log.error("Failed to load Home URLs");
             return new ErrorMessage("Failed to load Home URLs", "Home URL Load Failure", error.getMessage());
         }
 
@@ -395,8 +398,8 @@ public class PerformDBEngine {
                 }
             }
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDBEngine.class)
-                    .severe(String.format(
+            
+                    log.error(String.format(
                             "Error loadCompleteJobs for Bot Job Id %d. Error: %s", botJobId, error.getMessage()));
             return new ErrorMessage("Error Loading Complete Job", "Error loading complete Job", error.getMessage());
         }
@@ -434,8 +437,8 @@ public class PerformDBEngine {
             performLists.setAllActions(actionsList);
 
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDBEngine.class)
-                    .severe(String.format("Error loading actions for blocks. Error: %s", error.getMessage()));
+            
+                    log.error(String.format("Error loading actions for blocks. Error: %s", error.getMessage()));
             return new ErrorMessage("Cannot get All Actions", "Error loading actions for blocks", error.getMessage());
         }
         return null;
@@ -498,8 +501,8 @@ public class PerformDBEngine {
             conn.commit();
             return null; // success
         } catch (SQLException e) {
-            ARLogger.getInstance(PerformDBEngine.class)
-                    .severe(String.format(
+            
+                    log.error(String.format(
                             "Error loading variables for %s=%d. Error: %s", whereColumn, whereId, e.getMessage()));
 
             return new ErrorMessage(
@@ -571,8 +574,8 @@ public class PerformDBEngine {
                 }
             }
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDBEngine.class)
-                    .severe(String.format(
+            
+                    log.error(String.format(
                             "Error getting All Excel data GOTO from table %s whereId %d. Error: %s",
                             tableName, whereId, error.getMessage()));
         }

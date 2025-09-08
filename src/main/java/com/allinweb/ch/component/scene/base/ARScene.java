@@ -2,7 +2,7 @@ package com.allinweb.ch.component.scene.base;
 
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARLogger;
+
 import java.util.ArrayList;
 import java.util.List;
 import javafx.application.Platform;
@@ -11,7 +11,9 @@ import javafx.scene.image.Image;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public abstract class ARScene implements IARScene, IconLoader {
 
     @Setter
@@ -57,7 +59,7 @@ public abstract class ARScene implements IARScene, IconLoader {
                 stage = new Stage(); // Retry stage creation if failed
                 setStageBehaviour(stage); // Ensure stage behavior is set
             } catch (IllegalStateException ex) {
-                ARLogger.getInstance(ARScene.class).severe("ARScene IllegalStateException: " + ex);
+                log.error("ARScene IllegalStateException: " + ex);
             }
         });
     }
@@ -138,7 +140,7 @@ public abstract class ARScene implements IARScene, IconLoader {
         cleanUpFinishedThreads();
         for (Thread existingThread : threadList) {
             if (existingThread.getName().equals(threadName) && existingThread.isAlive()) {
-                ARLogger.getInstance(ARScene.class).info("Thread with name '" + threadName + "' is already running.");
+                log.info("Thread with name '" + threadName + "' is already running.");
                 return;
             }
         }
@@ -151,7 +153,7 @@ public abstract class ARScene implements IARScene, IconLoader {
     }
 
     private void handleWindowClose(WindowEvent event) {
-        ARLogger.getInstance(ARScene.class).info("X button clicked. Window is closing.");
+        log.info("X button clicked. Window is closing.");
         // Platform.exit();
         System.exit(0);
     }

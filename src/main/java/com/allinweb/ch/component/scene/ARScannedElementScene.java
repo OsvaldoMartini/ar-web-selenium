@@ -32,8 +32,10 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 
-@ClientEndpoint
-public class ARScannedElementScene extends ARScene {
+
+import lombok.extern.slf4j.Slf4j;
+
+@ClientEndpoint @Slf4j public class ARScannedElementScene extends ARScene {
 
     protected static volatile ARScannedElementScene instance;
 
@@ -275,14 +277,14 @@ public class ARScannedElementScene extends ARScene {
                         arScannedElementPane.refreshBlocks(false);
 
                     } catch (Exception error) {
-                        ARLogger.getInstance(ARNewCommandPane.class).severe("Error: " + error.getMessage());
+                        log.error("Error: " + error.getMessage());
                     }
                     break;
                 case "CLOSE_BROWSER":
                     if (!arScannedElementPane.isJobRunning.get()) {
                         if (arScannedElementPane.launchBotJobButton != null
                                 && !performActions.isJustCalledRefreshPage()) {
-                            ARLogger.getInstance(ARScannedElementPane.class).finer("CLOSE_BROWSER");
+                            log.info("CLOSE_BROWSER");
                             Platform.runLater(() -> {
                                 Stage stage = (Stage) arScannedElementPane
                                         .launchBotJobButton
@@ -472,9 +474,9 @@ public class ARScannedElementScene extends ARScene {
         for (WebDriver driver : arWebDriver.getWebDriverList()) {
             try {
                 driver.quit();
-                ARLogger.getInstance(ARScannedElementPane.class).info("WebDriver closed.");
+                log.info("WebDriver closed.");
             } catch (Exception e) {
-                ARLogger.getInstance(ARScannedElementPane.class).warning("Closing WebDriver: " + e.getMessage());
+                log.warn("Closing WebDriver: " + e.getMessage());
             }
         }
         Platform.runLater(() -> {
@@ -509,13 +511,13 @@ public class ARScannedElementScene extends ARScene {
                 executorService.shutdownNow();
                 if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
                     System.err.println("ExecutorService did not terminate");
-                    ARLogger.getInstance(ARWebDriver.class).severe("ExecutorService did not terminate");
+                    log.error("ExecutorService did not terminate");
                 }
             }
         } catch (InterruptedException e) {
             executorService.shutdownNow();
             Thread.currentThread().interrupt();
-            ARLogger.getInstance(ARWebDriver.class).severe("ExecutorService did not terminate\n" + e.getMessage());
+            log.error("ExecutorService did not terminate\n" + e.getMessage());
         }
     }
 
@@ -547,7 +549,7 @@ public class ARScannedElementScene extends ARScene {
                         });
                     } else {
                         // Handle the case where pane creation failed
-                        ARLogger.getInstance(ARViewBotJobScene.class).severe("Failed to build pane for modal.");
+                        log.error("Failed to build pane for modal.");
                         return;
                     }
                 }
@@ -587,8 +589,8 @@ public class ARScannedElementScene extends ARScene {
                             "<span style='font-style: italic;'>Refer to your browser's documentation or the WebDriver's release notes for compatibility information.</span>",
                             0);
                 } else {
-                    ARLogger.getInstance(ARScannedElementScene.class)
-                            .severe("Scanner Pane showModal error:" + error.getMessage());
+                    
+                            log.error("Scanner Pane showModal error:" + error.getMessage());
                 }
             }
         });
@@ -788,8 +790,8 @@ public class ARScannedElementScene extends ARScene {
                     }
 
                 } catch (Exception e) {
-                    ARLogger.getInstance(ARScannedElementPane.class)
-                            .warning(String.format(
+                    
+                            log.warn(String.format(
                                     "Cannot locate a Web Element with Name: \n%s", target.getAttribName()));
                 }
             } else if (elementValid == null) {
@@ -801,8 +803,8 @@ public class ARScannedElementScene extends ARScene {
                                 ARConstants.REGULAR_XPATH); // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
                     }
                 } catch (Exception e) {
-                    ARLogger.getInstance(ARScannedElementPane.class)
-                            .warning(String.format(
+                    
+                            log.warn(String.format(
                                     "Cannot locate a Web Element with Regular XPath\n%s", target.getCurrentXPath()));
                 }
             } else if (elementValid == null) {
@@ -814,8 +816,8 @@ public class ARScannedElementScene extends ARScene {
                                 ARConstants.CUSTOM_XPATH); // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
                     }
                 } catch (Exception e) {
-                    ARLogger.getInstance(ARScannedElementPane.class)
-                            .warning(String.format(
+                    
+                            log.warn(String.format(
                                     "Cannot locate a Web Element with Absolut XPath\n%s", target.getAttributeData()));
                 }
             } else {
@@ -831,8 +833,8 @@ public class ARScannedElementScene extends ARScene {
                                 target.setAttributeValue(target.getAttribId());
                             }
                         } catch (Exception e) {
-                            ARLogger.getInstance(ARScannedElementPane.class)
-                                    .warning(String.format(
+                            
+                                    log.warn(String.format(
                                             "Cannot locate a Web Element with ID: \n%s", target.getAttribId()));
                         }
                     }
@@ -848,8 +850,8 @@ public class ARScannedElementScene extends ARScene {
                                 target.setXPathWorkedFirst(ARConstants.ATTRIBUTE_NAME);
                             }
                         } catch (Exception e) {
-                            ARLogger.getInstance(ARScannedElementPane.class)
-                                    .warning(String.format(
+                            
+                                    log.warn(String.format(
                                             "Cannot locate a Web Element with Name: \n%s", target.getAttribName()));
                         }
                     }

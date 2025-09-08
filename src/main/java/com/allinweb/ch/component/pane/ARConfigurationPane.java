@@ -18,7 +18,6 @@ import com.allinweb.ch.facade.*;
 import com.allinweb.ch.license.LicenceVal;
 import com.allinweb.ch.license.LicenseManager;
 import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ErrorMessage;
@@ -46,7 +45,9 @@ import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class ARConfigurationPane extends ARPane {
 
     protected static volatile ARConfigurationPane instance;
@@ -946,8 +947,7 @@ public class ARConfigurationPane extends ARPane {
                             0);
                 } else {
 
-                    ARLogger.getInstance(ARConfigurationPane.class)
-                            .severe("Restore Database error: " + errorMessage.getErrorMessage());
+                    log.error("Restore Database error: " + errorMessage.getErrorMessage());
 
                     performMessage.errorMessage(
                             "Restore Database error",
@@ -960,7 +960,7 @@ public class ARConfigurationPane extends ARPane {
                             0);
                 }
             } catch (SQLException error) {
-                ARLogger.getInstance(ARConfigurationPane.class).severe("Restore Database error: " + error.getMessage());
+                log.error("Restore Database error: " + error.getMessage());
             }
         }
     }
@@ -1064,7 +1064,7 @@ public class ARConfigurationPane extends ARPane {
                         dbUser.getText().trim(),
                         dbPwd.getText().trim());
             } catch (Exception error) {
-                ARLogger.getInstance(PerformDataBase.class).severe("testConnection Error: " + error.getMessage());
+                log.error("testConnection Error: " + error.getMessage());
                 performMessage.errorMessage(
                         "Database connection Failed",
                         "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>An error occurred during the Database connection.</span>",
@@ -1356,8 +1356,8 @@ public class ARConfigurationPane extends ARPane {
             }
             return true;
         } catch (Exception error) {
-            ARLogger.getInstance(ARConfigurationPane.class)
-                    .severe("Cannot read/validate the License path/file. Error: " + error.getMessage());
+
+            log.error("Cannot read/validate the License path/file. Error: " + error.getMessage());
             return false;
         }
     }

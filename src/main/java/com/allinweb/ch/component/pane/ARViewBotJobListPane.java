@@ -19,7 +19,7 @@ import javafx.scene.control.ListView;
 import javafx.scene.layout.*;
 import org.openqa.selenium.WebDriver;
 
-public class ARViewBotJobListPane extends ARPane {
+import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARViewBotJobListPane extends ARPane {
 
     protected static volatile ARViewBotJobListPane instance;
 

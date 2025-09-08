@@ -2,8 +2,9 @@ package com.allinweb.ch.component.model;
 
 import java.util.List;
 import lombok.Data;
-
+import lombok.extern.slf4j.Slf4j;
 @Data
+
 public class SplitDTO {
     private String type;
     private String sessionId;

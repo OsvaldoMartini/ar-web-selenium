@@ -1,9 +1,12 @@
 package com.allinweb.ch.util;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
+@Slf4j
 public class ExtractedData {
     private Map<String, Map<Integer, String>> extractedData = new HashMap<>();
 

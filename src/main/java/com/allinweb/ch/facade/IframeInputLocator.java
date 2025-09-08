@@ -11,7 +11,7 @@ import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
-public class IframeInputLocator {
+import lombok.extern.slf4j.Slf4j;  @Slf4j public class IframeInputLocator {
 
     // Public method to access the singleton instance
     private static volatile IframeInputLocator instance;

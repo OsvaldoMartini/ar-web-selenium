@@ -1,5 +1,6 @@
 package com.allinweb.ch.component.model;
 
+
 public class BlockDTO {
     private int blockOrderNumber;
     private String name;

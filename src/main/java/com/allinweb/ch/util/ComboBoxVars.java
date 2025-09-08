@@ -1,10 +1,11 @@
 package com.allinweb.ch.util;
 
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 // Helper class to hold text and varID
 @Getter
-public class ComboBoxVars {
+  @Slf4j public class ComboBoxVars {
     private final String text;
     private final String value;
     private final Integer instructionId;

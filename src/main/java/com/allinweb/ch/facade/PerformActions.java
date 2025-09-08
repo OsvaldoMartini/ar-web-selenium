@@ -39,6 +39,7 @@ import javafx.scene.control.ButtonType;
 import javafx.util.Pair;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.openqa.selenium.By;
 import org.openqa.selenium.ElementClickInterceptedException;
@@ -62,6 +63,7 @@ import org.openqa.selenium.support.ui.WebDriverWait;
  * @author Osvaldo Martini
  * @version 1.0
  */
+@Slf4j
 public class PerformActions {
     // Static final variable to hold the singleton instance
     protected static volatile PerformActions instance;
@@ -397,8 +399,8 @@ public class PerformActions {
             tagName = removeTrailingSlash(targetXPath);
             tagName = extractTagName(targetXPath);
         } catch (Exception e) {
-            ARLogger.getInstance(PerformActions.class)
-                    .fine(String.format(
+
+                    log.info(String.format(
                             "Error RemoveTrailingSlash for %s -> xPath  %s -> Cause: %s",
                             tagName, targetXPath, e.getMessage()));
         }
@@ -420,8 +422,8 @@ public class PerformActions {
                         try {
                             waitForPage.until(ExpectedConditions.visibilityOfElementLocated(criteria));
                         } catch (Exception e) {
-                            ARLogger.getInstance(PerformActions.class)
-                                    .fine(String.format(
+                            
+                                    log.info(String.format(
                                             "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
                                             targetXPath, criteria, e.getMessage()));
 
@@ -438,8 +440,8 @@ public class PerformActions {
                             new WebDriverWait(this.currentDriver, Duration.ofSeconds(actionCustomMaxWaitSec))
                                     .until(ExpectedConditions.presenceOfElementLocated(criteria));
                         } catch (Exception e) {
-                            ARLogger.getInstance(PerformActions.class)
-                                    .fine(String.format(
+                            
+                                    log.info(String.format(
                                             "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
                                             targetXPath, criteria, e.getMessage()));
                             if (!byPassNotFound) {
@@ -450,8 +452,8 @@ public class PerformActions {
                         try {
                             waitForAction.until(ExpectedConditions.visibilityOfElementLocated(criteria));
                         } catch (Exception e) {
-                            ARLogger.getInstance(PerformActions.class)
-                                    .fine(String.format(
+                            
+                                    log.info(String.format(
                                             "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
                                             targetXPath, criteria, e.getMessage()));
 
@@ -518,16 +520,16 @@ public class PerformActions {
             tagName = removeTrailingSlash(instructionPath);
             tagName = extractTagName(instructionPath);
         } catch (Exception e) {
-            ARLogger.getInstance(PerformActions.class)
-                    .fine(String.format(
+            
+                    log.info(String.format(
                             "Error RemoveTrailingSlash for %s -> xPath  %s -> Cause: %s",
                             tagName, instructionPath, e.getMessage()));
         }
         List<ReferenceLoadDTO> instructionReferenceList = currentInstruction.getReferenceLoadDTOList();
 
         if (instructionReferenceList.size() == 0) {
-            ARLogger.getInstance(PerformActions.class)
-                    .warning("####    Not XPath to Be Located!   ####"
+            
+                    log.warn("####    Not XPath to Be Located!   ####"
                             + "\n####    Remove and Re-Scan the Failed Field Again   ####");
 
             return null;
@@ -592,8 +594,8 @@ public class PerformActions {
                 // Print or process the first matching instruction reference
                 if (instructionReference.isPresent()) {
 
-                    ARLogger.getInstance(PerformActions.class)
-                            .fine(String.format(
+                    
+                            log.info(String.format(
                                     "Search for %s   Type:  %s   Value: %s",
                                     priority.getName(),
                                     instructionReference.get().getReferenceType(),
@@ -654,7 +656,7 @@ public class PerformActions {
                         return null;
                     }
 
-                    ARLogger.getInstance(PerformActions.class).fine("WebDriver Session ID: " + getSessionId());
+                    log.info("WebDriver Session ID: " + getSessionId());
 
                     // Actualy here is Calling the Actions
                     if (criterias != null) {
@@ -676,8 +678,8 @@ public class PerformActions {
                                     try {
                                         waitForPage.until(ExpectedConditions.visibilityOfElementLocated(criteria));
                                     } catch (Exception e) {
-                                        ARLogger.getInstance(PerformActions.class)
-                                                .fine(String.format(
+                                        
+                                                log.info(String.format(
                                                         "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
                                                         instructionPath, criteria, e.getMessage()));
 
@@ -693,8 +695,8 @@ public class PerformActions {
                                                                 currentInstruction.getActionCustomMaxWaitSec()))
                                                 .until(ExpectedConditions.presenceOfElementLocated(criteria));
                                     } catch (Exception e) {
-                                        ARLogger.getInstance(PerformActions.class)
-                                                .fine(String.format(
+                                        
+                                                log.info(String.format(
                                                         "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
                                                         instructionPath, criteria, e.getMessage()));
 
@@ -705,8 +707,8 @@ public class PerformActions {
                                     try {
                                         waitForAction.until(ExpectedConditions.visibilityOfElementLocated(criteria));
                                     } catch (Exception e) {
-                                        ARLogger.getInstance(PerformActions.class)
-                                                .fine(String.format(
+                                        
+                                                log.info(String.format(
                                                         "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
                                                         instructionPath, criteria, e.getMessage()));
 
@@ -764,8 +766,8 @@ public class PerformActions {
             tagName = removeTrailingSlash(instructionPath);
             tagName = extractTagName(instructionPath);
         } catch (Exception e) {
-            ARLogger.getInstance(PerformActions.class)
-                    .fine(String.format(
+            
+                    log.info(String.format(
                             "Error RemoveTrailingSlash for %s -> xPath  %s -> Cause: %s",
                             tagName, instructionPath, e.getMessage()));
         }
@@ -773,8 +775,8 @@ public class PerformActions {
         List<ReferenceLoadDTO> instructionReferenceList = currentInstruction.getReferenceLoadDTOList();
 
         if (instructionReferenceList.isEmpty()) {
-            ARLogger.getInstance(PerformActions.class)
-                    .warning("####    Not XPath to Be Located!   ####"
+            
+                    log.warn("####    Not XPath to Be Located!   ####"
                             + "\n####    Remove and Re-Scan the Failed Field Again   ####");
             return null;
         }
@@ -864,8 +866,8 @@ public class PerformActions {
                         .findFirst();
 
                 if (instructionReference.isPresent()) {
-                    ARLogger.getInstance(PerformActions.class)
-                            .fine(String.format(
+                    
+                            log.info(String.format(
                                     "Search for %s   Type:  %s   Value: %s",
                                     priority.getName(),
                                     instructionReference.get().getReferenceType(),
@@ -985,8 +987,8 @@ public class PerformActions {
                                 // waitForPage.until(ExpectedConditions.visibilityOfElementLocated(criteria));
                                 //                                    scrollToElement(currentInstruction.getXpath());
                                 //                                } catch (Exception e) {
-                                //                                    ARLogger.getInstance(PerformActions.class)
-                                //                                            .fine(String.format(
+                                //                                    
+                                //                                            log.info(String.format(
                                 //                                                    "Could Not Find xPath \"%s\"
                                 // Criteria \"%s\" -> Cause: %s",
                                 //                                                    instructionPath, criteria,
@@ -1030,8 +1032,8 @@ public class PerformActions {
                         break;
                     }
                     onHoldInSeconds(5);
-                    ARLogger.getInstance(PerformActions.class)
-                            .fine(String.format(
+                    
+                            log.info(String.format(
                                     "Re-try %d Locate Web Element TagName \"%s\"",
                                     attempts, currentInstruction.getName()));
 
@@ -1114,8 +1116,8 @@ public class PerformActions {
         try {
             waitForAction.until(ExpectedConditions.visibilityOf(element));
         } catch (Exception e) {
-            ARLogger.getInstance(PerformActions.class)
-                    .fine(String.format(
+            
+                    log.info(String.format(
                             "Could Not Find Field Name \"%s\" Value \"%s\" -> Cause: %s",
                             fieldName, dataFieldValue, e.getMessage()));
 
@@ -1138,8 +1140,8 @@ public class PerformActions {
         try {
             waitForAction.until(ExpectedConditions.visibilityOf(element));
         } catch (Exception e) {
-            ARLogger.getInstance(PerformActions.class)
-                    .fine(String.format(
+            
+                    log.info(String.format(
                             "Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
 
             if (!byPassNotFound) {
@@ -1200,16 +1202,16 @@ public class PerformActions {
                         .executeScript("return document.readyState")
                         .equals("complete"));
             } catch (Exception ex) {
-                ARLogger.getInstance(PerformActions.class)
-                        .warning(String.format(
+                
+                        log.warn(String.format(
                                 "WaitForPage.until(d -> ((JavascriptExecutor) driver) error: %s", ex.getMessage()));
 
                 performMessage.couldNotFindElement("WaitForPage.until");
             }
         } else {
             // Handle the case when driver is null (e.g., throw an exception or initialize the driver)
-            ARLogger.getInstance(PerformActions.class)
-                    .warning("WaitForPage.until(d -> ((JavascriptExecutor) driver) is returning nulls");
+            
+                    log.warn("WaitForPage.until(d -> ((JavascriptExecutor) driver) is returning nulls");
         }
     }
 
@@ -1219,8 +1221,8 @@ public class PerformActions {
             ((JavascriptExecutor) this.currentDriver).executeScript("arguments[0].scrollIntoView(true);", element);
             return true;
         } catch (Exception e) {
-            ARLogger.getInstance(PerformActions.class)
-                    .severe(String.format(
+            
+                    log.error(String.format(
                             "Failed to Scroll to Element \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
             if (!byPassNotFound) {
                 performMessage.couldNotFindElement("Failed to Scroll to Element " + element.getTagName());
@@ -1238,8 +1240,8 @@ public class PerformActions {
                 return waitForAction.until(ExpectedConditions.elementToBeClickable(element));
             }));
         } catch (Exception e) {
-            ARLogger.getInstance(PerformActions.class)
-                    .fine(String.format(
+            
+                    log.info(String.format(
                             "Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
 
             if (!byPassNotFound) {
@@ -1296,8 +1298,8 @@ public class PerformActions {
                 return true;
             } catch (Exception ex) {
 
-                ARLogger.getInstance(PerformActions.class)
-                        .fine(String.format(
+                
+                        log.info(String.format(
                                 "Could Not Click on  \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
                 return false;
             }
@@ -1337,8 +1339,8 @@ public class PerformActions {
         try {
             waitForAction.until(ExpectedConditions.visibilityOf(element));
         } catch (Exception e) {
-            ARLogger.getInstance(PerformActions.class)
-                    .fine(String.format(
+            
+                    log.info(String.format(
                             "Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
             if (!byPassNotFound) {
                 performMessage.couldNotFindElement(element.getTagName());
@@ -1397,8 +1399,8 @@ public class PerformActions {
                 }
             }
         } catch (Exception e) {
-            ARLogger.getInstance(PerformActions.class)
-                    .severe(String.format(
+            
+                    log.error(String.format(
                             "Could Not Input Value to \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
 
             //            performMessage.couldNotFindElement("Could Input Values to Element " + element.getTagName());
@@ -1454,8 +1456,8 @@ public class PerformActions {
         try {
             waitForAction.until(ExpectedConditions.visibilityOf(element));
         } catch (Exception e) {
-            ARLogger.getInstance(PerformActions.class)
-                    .fine(String.format(
+            
+                    log.info(String.format(
                             "Could Not Find Select \"%s\" Value  \"%s\" -> Cause: %s",
                             data.getKey(), data.getValue(), e.getMessage()));
             if (!byPassNotFound) {
@@ -1473,8 +1475,8 @@ public class PerformActions {
             sequenceOfCommands(element, ARConstants.SELECT, coordArray, data, this.currentDriver, pressEnterAfter);
 
         } catch (Exception e) {
-            ARLogger.getInstance(PerformActions.class)
-                    .severe(String.format(
+            
+                    log.error(String.format(
                             "Could Not Input Value to \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
 
             performMessage.couldNotFindElement("Could Input Values to Element " + element.getTagName());
@@ -1497,8 +1499,8 @@ public class PerformActions {
         try {
             waitForAction.until(ExpectedConditions.visibilityOf(element));
         } catch (Exception ex) {
-            ARLogger.getInstance(PerformActions.class)
-                    .warning(
+            
+                    log.warn(
                             String.format("Could Not Find Field Name \"%s\" -> Cause: %s", fieldName, ex.getMessage()));
 
             if (!byPassNotFound) {
@@ -1516,8 +1518,8 @@ public class PerformActions {
             JavascriptExecutor js = (JavascriptExecutor) this.currentDriver;
             textByhJS = (String) js.executeScript("return arguments[0].textContent;", element);
         } catch (Exception ex) {
-            ARLogger.getInstance(PerformActions.class)
-                    .warning(String.format(
+            
+                    log.warn(String.format(
                             "By JavascriptExecutor - Not succeeded to get a Text from Label for: %s", fieldName));
         }
 
@@ -1529,16 +1531,16 @@ public class PerformActions {
             }
             finalTextNested = textByNested.toString().trim();
         } catch (Exception ex) {
-            ARLogger.getInstance(PerformActions.class)
-                    .warning(String.format(
+            
+                    log.warn(String.format(
                             "By Text Nested - Not succeeded to get a Text from Label for: %s", fieldName));
         }
 
         try {
             textAttribute = element.getAttribute("value");
         } catch (Exception ex) {
-            ARLogger.getInstance(PerformActions.class)
-                    .warning(String.format(
+            
+                    log.warn(String.format(
                             "By Text Attribute - Not succeeded to get a Text from Label for: %s Operation: %s",
                             fieldName, action));
         }
@@ -1546,8 +1548,8 @@ public class PerformActions {
         try {
             textContext = element.getAttribute("textContent");
         } catch (Exception ex) {
-            ARLogger.getInstance(PerformActions.class)
-                    .warning(String.format(
+            
+                    log.warn(String.format(
                             "By Text Content - Not succeeded to get a Text from Label for: %s Operation: %s",
                             fieldName, action));
         }
@@ -1558,8 +1560,8 @@ public class PerformActions {
             waitForAction.until(ExpectedConditions.elementToBeClickable(element));
             isClickable = true;
         } catch (Exception e) {
-            ARLogger.getInstance(PerformActions.class)
-                    .warning(String.format("Element is not clickable: \"%s\"", fieldName));
+            
+                    log.warn(String.format("Element is not clickable: \"%s\"", fieldName));
         }
 
         // Set the final text value by priority and add to mapOperators
@@ -1582,8 +1584,8 @@ public class PerformActions {
             mapOperators.put(fieldName.trim(), finalText.trim());
         } else {
             mapOperators.put(fieldName.trim(), "Failed to Load teh Text");
-            ARLogger.getInstance(PerformActions.class)
-                    .severe(String.format("Failed to retrieve text from element for: %s", fieldName));
+            
+                    log.error(String.format("Failed to retrieve text from element for: %s", fieldName));
         }
 
         return finalText;
@@ -1600,8 +1602,8 @@ public class PerformActions {
 
         if (success) {
 
-            ARLogger.getInstance(PerformActions.class)
-                    .info(String.format(
+            
+                    log.info(String.format(
                             success
                                     ? "SUCCESS %s Current Cmd: %s - Duration: %s"
                                     : "FAILED %s Current Cmd: %s - Duration: %s",
@@ -1610,8 +1612,8 @@ public class PerformActions {
                             LocalTime.ofNanoOfDay(duration).format(FORMAT_TIME)));
         } else {
 
-            ARLogger.getInstance(PerformActions.class)
-                    .warning(String.format(
+            
+                    log.warn(String.format(
                             success
                                     ? "SUCCESS %s Current Cmd: %s - Duration: %s"
                                     : "FAILED %s Current Cmd: %s - Duration: %s",
@@ -1785,8 +1787,8 @@ public class PerformActions {
                 : elseClause ? "Closing Block { ELSE -> ENDIF }  -> " : "";
 
         if (ifClause || elseClause) {
-            ARLogger.getInstance(PerformActions.class)
-                    .warning(String.format(
+            
+                    log.warn(String.format(
                             "%sParent Id Error Check Parent Id: %d "
                                     + "For the \"%s\" Does not belong to this block: "
                                     + blockLoad.getId() + "-" + blockLoad.getName(),
@@ -1795,8 +1797,8 @@ public class PerformActions {
                             currentInstruction.getOperation()));
 
         } else {
-            ARLogger.getInstance(PerformActions.class)
-                    .severe(String.format(
+            
+                    log.error(String.format(
                             "Parent Id Error Check Parent Id: %d "
                                     + "For the \"%s\" Does not belong to this block: "
                                     + blockLoad.getId() + "-" + blockLoad.getName(),
@@ -1843,8 +1845,8 @@ public class PerformActions {
                                 : "Parent Id in Wrong Block";
 
         if (!conditionStatus.equals(ARConstants.ConditionStatus.NONE)) {
-            ARLogger.getInstance(PerformActions.class)
-                    .warning(String.format(
+            
+                    log.warn(String.format(
                             "%sParent Id Error Check Parent Id: %d For the \"%s\" Does not belong to this block: %d-%s",
                             conditionalBlock,
                             currentInstruction.getParentId(),
@@ -1852,8 +1854,8 @@ public class PerformActions {
                             blockLoad.getId(),
                             blockLoad.getName()));
         } else {
-            ARLogger.getInstance(PerformActions.class)
-                    .severe(String.format(
+            
+                    log.error(String.format(
                             "Parent Id Error Check Parent Id: %d For the \"%s\" Does not belong to this block: %d-%s",
                             currentInstruction.getParentId(),
                             currentInstruction.getOperation(),
@@ -2004,8 +2006,8 @@ public class PerformActions {
 
         performMessage.errorMessage("Parent Id Error", msg1, msg2, msg3, null, 0);
 
-        ARLogger.getInstance(PerformActions.class)
-                .severe("Block GO TO Error: -> Check Correct Block Existence! -> CMD: " + resultActions);
+        
+                log.error("Block GO TO Error: -> Check Correct Block Existence! -> CMD: " + resultActions);
 
         return resultActions;
     }
@@ -3467,7 +3469,7 @@ public class PerformActions {
             }
 
         } catch (Exception e) {
-            ARLogger.getInstance(PerformActions.class).fine("Error define Target Name Titles");
+            log.info("Error define Target Name Titles");
         }
         return target;
     }
@@ -3539,8 +3541,8 @@ public class PerformActions {
             return targetTagType;
 
         } catch (Exception ex) {
-            ARLogger.getInstance(PerformActions.class)
-                    .severe("Could not find any Web Element with XPath/Id/Attributes values.");
+            
+                    log.error("Could not find any Web Element with XPath/Id/Attributes values.");
         }
         return null;
     }
@@ -3857,8 +3859,8 @@ public class PerformActions {
                     getCurrentDriver().switchTo().frame(iFrame);
                     elementFound = getCurrentDriver().findElement(By.xpath(targetFind.getXPath()));
                 } catch (Exception error) {
-                    ARLogger.getInstance(PerformActions.class)
-                            .info("iFrame Element not Located\niFrameXPath"
+                    
+                            log.info("iFrame Element not Located\niFrameXPath"
                                     + targetFind.getIFrameXPath()
                                     + "iFrameChild: "
                                     + targetFind.getXPath());
@@ -3868,7 +3870,7 @@ public class PerformActions {
             }
 
         } catch (Exception error) {
-            ARLogger.getInstance(PerformActions.class).info("Element not Located: " + targetFind.getXPath());
+            log.info("Element not Located: " + targetFind.getXPath());
             //            performMessage.errorMessage(
             //                    "Element not Located",
             //                    "Cannot able to find the ",
@@ -3896,15 +3898,15 @@ public class PerformActions {
             WebElement foundElement = (WebElement) ((JavascriptExecutor) this.currentDriver).executeScript(script);
 
             if (foundElement == null) {
-                ARLogger.getInstance(PerformActions.class)
-                        .fine(String.format("Element with CSS Selector \"%s\" not found.", cssSelector));
+                
+                        log.info(String.format("Element with CSS Selector \"%s\" not found.", cssSelector));
                 return null;
             }
             return foundElement;
 
         } catch (Exception e) {
-            ARLogger.getInstance(PerformActions.class)
-                    .severe(String.format(
+            
+                    log.error(String.format(
                             "Error finding element with CSS Selector \"%s\" -> Cause: %s",
                             cssSelector, e.getMessage()));
             return null;
@@ -4020,8 +4022,8 @@ public class PerformActions {
     //
     // waitForPage.until(ExpectedConditions.visibilityOfElementLocated(By.tagName(complexActionParts[2])));
     //            } catch (Exception e) {
-    //                ARLogger.getInstance(PerformActions.class)
-    //                        .fine(String.format(
+    //                
+    //                        log.info(String.format(
     //                                "Could Not Find TagName \"%s\" Criteria \"%s\" -> Cause: %s",
     //                                complexActionParts[2], By.tagName(complexActionParts[2]), e.getMessage()));
     //
@@ -4045,8 +4047,8 @@ public class PerformActions {
     //                                ExpectedConditions.visibilityOfElementLocated(By.tagName(complexActionParts[2])));
     //                        webElementList = this.currentDriver.findElements(By.tagName(complexActionParts[2]));
     //                    } catch (Exception e) {
-    //                        ARLogger.getInstance(PerformActions.class)
-    //                                .fine(String.format(
+    //                        
+    //                                log.info(String.format(
     //                                        "Could Not Find TagName \"%s\" Criteria \"%s\" -> Cause: %s",
     //                                        complexActionParts[2], By.tagName(complexActionParts[2]),
     // e.getMessage()));

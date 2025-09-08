@@ -12,7 +12,7 @@ import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.websocket.jsr356.server.ServerContainer;
 import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainerInitializer;
 
-public class ARWebSocketServerIP {
+import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARWebSocketServerIP {
 
     protected static volatile ARWebSocketServerIP instance;
 
@@ -30,7 +30,7 @@ public class ARWebSocketServerIP {
                         instance = new ARWebSocketServerIP();
                     } catch (Exception e) {
                         // Log here instead of the caller
-                        //                        logger.severe("Failed to start ARWebSocketServerIP: " +
+                        //                        loggerlog.error("Failed to start ARWebSocketServerIP: " +
                         // e.getMessage());
                         throw new RuntimeException("ARWebSocketServerIP initialization failed", e);
                     }
@@ -59,7 +59,7 @@ public class ARWebSocketServerIP {
 
         // 2. Check if the determined port is already in use
         if (isPortInUse(this.boundPort)) {
-            //            logger.warning("Initial port " + this.boundPort + " is already in use. Checking for fallback
+            //            loggerlog.warn("Initial port " + this.boundPort + " is already in use. Checking for fallback
             // port from properties.");
 
             // Try to get a fallback fixed port from properties if the initial one is busy
@@ -69,19 +69,19 @@ public class ARWebSocketServerIP {
                 try {
                     int fallbackPort = Integer.parseInt(fallbackPortStr);
                     if (isPortInUse(fallbackPort)) {
-                        //                        logger.severe("Fallback port " + fallbackPort + " is also in use.
+                        //                        loggerlog.error("Fallback port " + fallbackPort + " is also in use.
                         // Cannot start server.");
                         throw new IOException("Cannot start server: Both initial and fallback ports are in use.");
                     }
                     this.boundPort = fallbackPort;
-                    //                    logger.info("Using fallback port: " + this.boundPort);
+                    //                    loggerlog.info("Using fallback port: " + this.boundPort);
                 } catch (NumberFormatException e) {
-                    //                    logger.severe("Invalid port number in properties: " + fallbackPortStr + " " +
+                    //                    loggerlog.error("Invalid port number in properties: " + fallbackPortStr + " " +
                     // e.getMessage());
                     throw new IOException("Invalid port number in properties.");
                 }
             } else {
-                //                logger.severe("No fallback port defined in properties. Cannot start server.");
+                //                loggerlog.error("No fallback port defined in properties. Cannot start server.");
                 throw new IOException(
                         "Cannot start server: Initial port " + initialPort + " is in use and no fallback defined.");
             }
@@ -113,9 +113,9 @@ public class ARWebSocketServerIP {
 
         // 7. Start the Jetty Server
         jettyServer.start();
-        //        logger.info("Jetty WebSocket server started on ws://" + BIND_IP_ADDRESS + ":" + this.boundPort +
+        //        loggerlog.info("Jetty WebSocket server started on ws://" + BIND_IP_ADDRESS + ":" + this.boundPort +
         // "/websocket");
-        //        logger.info("Current active WebSocket sessions: " + webSocketSessionManager.getAllSessions().size());
+        //        loggerlog.info("Current active WebSocket sessions: " + webSocketSessionManager.getAllSessions().size());
     }
 
     /**
@@ -126,9 +126,9 @@ public class ARWebSocketServerIP {
             try {
                 jettyServer.stop();
                 jettyServer.destroy(); // Release resources
-                //                logger.info("WebSocket server stopped.");
+                //                loggerlog.info("WebSocket server stopped.");
             } catch (Exception e) {
-                //                logger.severe("Error stopping WebSocket server: " + e.getMessage());
+                //                loggerlog.error("Error stopping WebSocket server: " + e.getMessage());
             }
         }
     }
@@ -154,10 +154,10 @@ public class ARWebSocketServerIP {
         try (ServerSocket tempSocket = new ServerSocket(0)) {
             tempSocket.setReuseAddress(true); // Allow immediate reuse of the address
             chosenPort = tempSocket.getLocalPort();
-            //            logger.info("Found available ephemeral port: " + chosenPort);
+            //            loggerlog.info("Found available ephemeral port: " + chosenPort);
         } catch (IOException e) {
             // If finding an ephemeral port fails, log the warning and fall back to the fixed default
-            //            logger.warning("Could not find an ephemeral port. Falling back to default fixed port: " +
+            //            loggerlog.warn("Could not find an ephemeral port. Falling back to default fixed port: " +
             // defaultFixedPort + ". Error: " + e.getMessage());
             chosenPort = defaultFixedPort;
         }
@@ -165,7 +165,7 @@ public class ARWebSocketServerIP {
         // 2. Persist the chosen port to properties
         //        arPropertyManager.setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), String.valueOf(chosenPort));
         System.setProperty("ARWebChosenPortIP", String.valueOf(chosenPort));
-        //        logger.info("Set " + ARPropertyEnum.PORT_SOCKET.getValue() + " to: " + chosenPort + " in
+        //        loggerlog.info("Set " + ARPropertyEnum.PORT_SOCKET.getValue() + " to: " + chosenPort + " in
         // properties.");
 
         return chosenPort;
@@ -178,7 +178,7 @@ public class ARWebSocketServerIP {
      */
     private boolean isPortInUse(int port) {
         if (port < 1 || port > 65535) {
-            //            logger.severe("Invalid port number provided for check: " + port);
+            //            loggerlog.error("Invalid port number provided for check: " + port);
             return true; // Treat as in use or problematic
         }
         try (ServerSocket serverSocket = new ServerSocket(port)) {
@@ -190,10 +190,10 @@ public class ARWebSocketServerIP {
                     && (message.contains("Address already in use") || message.contains("socket bind failed"))) {
                 return true; // Port is definitely in use
             }
-            //            logger.warning("Unexpected SocketException when checking port " + port + ": " + message);
+            //            loggerlog.warn("Unexpected SocketException when checking port " + port + ": " + message);
             return true; // Assume in use for other socket exceptions
         } catch (IOException e) {
-            //            logger.warning("IOException when checking port " + port + ": " + e.getMessage());
+            //            loggerlog.warn("IOException when checking port " + port + ": " + e.getMessage());
             return true; // Assume in use for general IO exceptions
         }
     }

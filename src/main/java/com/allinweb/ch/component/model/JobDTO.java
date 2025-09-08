@@ -2,6 +2,7 @@ package com.allinweb.ch.component.model;
 
 import java.util.List;
 
+
 public class JobDTO {
     private String name;
     private String description;

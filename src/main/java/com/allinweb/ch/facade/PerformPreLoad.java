@@ -12,7 +12,7 @@ import org.openqa.selenium.WebDriver;
  * @author Osvaldo Martini
  * @version 1.0
  */
-public class PerformPreLoad {
+import lombok.extern.slf4j.Slf4j;  @Slf4j public class PerformPreLoad {
 
     protected static volatile PerformPreLoad instance;
 

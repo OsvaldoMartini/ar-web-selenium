@@ -28,6 +28,8 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
+import lombok.extern.slf4j.Slf4j;
+
 import javax.swing.*;
 
 /**
@@ -36,6 +38,7 @@ import javax.swing.*;
  * @author Osvaldo Martini
  * @version 1.0
  */
+@Slf4j
 public class PerformMessage {
 
     // Static final variable to hold the singleton instance

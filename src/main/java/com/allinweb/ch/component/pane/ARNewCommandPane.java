@@ -35,7 +35,9 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
 import javafx.stage.Stage;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class ARNewCommandPane extends ARPane {
 
     protected static volatile ARNewCommandPane instance;
@@ -272,8 +274,8 @@ public class ARNewCommandPane extends ARPane {
                     "Refresh Loop", new Image(ARConstants.ICON_REFRESH_LOOP), ARConstants.REFRESH_LOOP, -1, -1, -1));
 
         } catch (Exception ex) {
-            ARLogger.getInstance(ARNewCommandPane.class)
-                    .severe("Error creating \"DropBox Instructions\"\nError: " + ex.getMessage());
+
+                    log.error("Error creating \"DropBox Instructions\"\nError: " + ex.getMessage());
         }
 
         try {
@@ -283,8 +285,8 @@ public class ARNewCommandPane extends ARPane {
                     new ComboBoxOperator("Less", new Image(ARConstants.ICON_LESS), "<"),
                     new ComboBoxOperator("!=", new Image(ARConstants.ICON_DIFFERENT), "!="));
         } catch (Exception ex) {
-            ARLogger.getInstance(ARNewCommandPane.class)
-                    .severe("Error creating \"DropBox Operators\"\nError: " + ex.getMessage());
+            
+                    log.error("Error creating \"DropBox Operators\"\nError: " + ex.getMessage());
         }
 
         if (itemsInstructions.isEmpty() || itemsInstructions.size() == 0) {
@@ -1288,7 +1290,7 @@ public class ARNewCommandPane extends ARPane {
         });
 
         cancelButton.setOnMouseClicked((e) -> {
-            ARLogger.getInstance(ARNewCommandPane.class).finer("ARNewCommandPane Close()");
+            log.info("ARNewCommandPane Close()");
             Platform.runLater(() -> {
                 Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
                 stage.close();
@@ -1304,8 +1306,8 @@ public class ARNewCommandPane extends ARPane {
             }
 
             if (this.splitDTO != null) {
-                ARLogger.getInstance(ARNewCommandPane.class)
-                        .info("creating variable for instruction Name " + splitDTO.getInstructionName());
+                
+                        log.info("creating variable for instruction Name " + splitDTO.getInstructionName());
 
                 String varName = prepareVarName();
 
@@ -1319,8 +1321,8 @@ public class ARNewCommandPane extends ARPane {
                 callInitializeElementValueScene(varName);
                 arElementValueScene.showModal();
             } else {
-                ARLogger.getInstance(ARNewCommandPane.class)
-                        .info("creating variable for instruction Name "
+                
+                        log.info("creating variable for instruction Name "
                                 + comboBoxWebFields.getValue().getText());
 
                 String varName = prepareVarName();
@@ -2562,8 +2564,8 @@ public class ARNewCommandPane extends ARPane {
                     this.splitDTO.setType("INSERT_AFTER");
                 }
             } catch (Exception error) {
-                ARLogger.getInstance(ARNewCommandScene.class)
-                        .severe("Error reading 'EXCEL GOTO' instructions: " + error.getMessage());
+                
+                        log.error("Error reading 'EXCEL GOTO' instructions: " + error.getMessage());
             }
 
         } else {
@@ -2916,7 +2918,7 @@ public class ARNewCommandPane extends ARPane {
             loadAllBlocks();
             return null;
         } catch (Exception error) {
-            ARLogger.getInstance(ARNewCommandPane.class).severe("Error :" + error.getMessage());
+            log.error("Error :" + error.getMessage());
             return new ErrorMessage(
                     "Error in Reload DB Blocks", "Error during loading reloadDBBlocks", error.getMessage());
         }

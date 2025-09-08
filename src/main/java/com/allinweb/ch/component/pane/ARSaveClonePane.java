@@ -25,7 +25,7 @@ import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
 
-public class ARSaveClonePane extends ARPane {
+import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARSaveClonePane extends ARPane {
 
     protected static volatile ARSaveClonePane instance;
 
@@ -463,7 +463,7 @@ public class ARSaveClonePane extends ARPane {
                     0);
         }
 
-        ARLogger.getInstance(ARSaveClonePane.class).finer("ARSaveClonePane Close()");
+        log.info("ARSaveClonePane Close()");
         Platform.runLater(() -> {
             stage.close();
         });
@@ -536,8 +536,8 @@ public class ARSaveClonePane extends ARPane {
             }
             return true;
         } catch (Exception error) {
-            ARLogger.getInstance(ARConfigurationPane.class)
-                    .severe("Cannot read/validate the License path/file. Error: " + error.getMessage());
+            
+                    log.error("Cannot read/validate the License path/file. Error: " + error.getMessage());
             return false;
         }
     }

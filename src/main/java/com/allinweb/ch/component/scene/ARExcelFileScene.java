@@ -4,12 +4,14 @@ import com.allinweb.ch.component.model.SplitDTO;
 import com.allinweb.ch.component.pane.ARExcelFilePane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
-import com.allinweb.ch.util.ARLogger;
+
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class ARExcelFileScene extends ARScene {
 
     protected static volatile ARExcelFileScene instance;
@@ -92,7 +94,7 @@ public class ARExcelFileScene extends ARScene {
                 });
             } else {
                 // Handle the case where pane creation failed
-                ARLogger.getInstance(ARExcelFileScene.class).severe("Failed to build pane for modal.");
+                log.error("Failed to build pane for modal.");
                 return;
             }
         }

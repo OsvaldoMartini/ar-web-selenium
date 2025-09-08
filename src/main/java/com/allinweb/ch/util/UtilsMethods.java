@@ -3,7 +3,7 @@ package com.allinweb.ch.util;
 import java.util.Random;
 import org.openqa.selenium.WebElement;
 
-public class UtilsMethods {
+import lombok.extern.slf4j.Slf4j;  @Slf4j public class UtilsMethods {
 
     public static String generateRandomID(int length) {
         String AB = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";

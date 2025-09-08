@@ -3,7 +3,7 @@ package com.allinweb.ch.component.pane;
 import java.util.Objects;
 import org.openqa.selenium.WebElement;
 
-public class WebElementWrapper {
+import lombok.extern.slf4j.Slf4j;  @Slf4j public class WebElementWrapper {
     private String text;
     private String href;
     private String tagName;

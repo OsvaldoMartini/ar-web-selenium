@@ -3,7 +3,7 @@ package com.allinweb.ch.facade;
 import com.allinweb.ch.component.model.*;
 import com.allinweb.ch.component.model.DatabaseUserDTO;
 import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARLogger;
+
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ComboBoxVars;
@@ -16,9 +16,10 @@ import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.sqlite.SQLiteConfig;
 
-public class PerformDataBase {
+ @Slf4j public class PerformDataBase {
 
     // Static final variable to hold the singleton instance
     protected static volatile PerformDataBase instance;
@@ -146,8 +147,8 @@ public class PerformDataBase {
                 String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
                 String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
 
-                ARLogger.getInstance(PerformDataBase.class).info("POSTGRES connection URL: " + dbUrl);
-                // ARLogger.getInstance(PerformDataBase.class).info("User Details: " + userDB + " - [PROTECTED]");
+                log.info("POSTGRES connection URL: " + dbUrl);
+                // log.info("User Details: " + userDB + " - [PROTECTED]");
 
                 Class.forName("org.postgresql.Driver");
                 Connection conn = DriverManager.getConnection(dbUrl, userDB, userPwd);
@@ -168,7 +169,7 @@ public class PerformDataBase {
                         + dbPath
                         + ARConstants.FILE_NAME_SQLITE; // make sure you have FILE_NAME_SQLITE constant
 
-                ARLogger.getInstance(PerformDataBase.class).info("SQLITE connection URL: " + sqliteUrl);
+                log.info("SQLITE connection URL: " + sqliteUrl);
 
                 Class.forName("org.sqlite.JDBC");
 
@@ -192,7 +193,7 @@ public class PerformDataBase {
                 String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
                 String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
 
-                ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + dbUrl);
+                log.info("ACCESS connection URL: " + dbUrl);
 
                 Class.forName("net.ucanaccess.jdbc.UcanaccessDriver");
                 Connection conn = DriverManager.getConnection(dbUrl);
@@ -208,7 +209,7 @@ public class PerformDataBase {
             }
 
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class).severe("getConnection Error: " + error.getMessage());
+            log.error("getConnection Error: " + error.getMessage());
 
             String database = POSTGRES_DB ? "Postgres" : (SQLITE_DB ? "SQLite" : "Access");
             connDBWorks = false;
@@ -222,8 +223,8 @@ public class PerformDataBase {
 
             throw error;
         } catch (ClassNotFoundException error) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe("Driver DB Class not Found Error: " + error.getMessage());
+            
+                    log.error("Driver DB Class not Found Error: " + error.getMessage());
         }
 
         connDBWorks = false;
@@ -304,8 +305,8 @@ public class PerformDataBase {
             return null; // success
 
         } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
+            
+                    log.error(String.format(
                             "Error loading parents for instruction ID %d in %s=%d. Error: %s",
                             instructionId, whereColumn, whereId, e.getMessage()));
 
@@ -377,15 +378,15 @@ public class PerformDataBase {
 
             conn.commit();
 
-            ARLogger.getInstance(PerformDataBase.class)
-                    .info(String.format(
+            
+                    log.info(String.format(
                             "Batch delete completed for %d variable records in %s", count, tableName.toUpperCase()));
 
             return null; // success
 
         } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe("Batch delete error for " + tableName + ": " + e.getMessage());
+            
+                    log.error("Batch delete error for " + tableName + ": " + e.getMessage());
             return new ErrorMessage(
                     "Delete Variables Error",
                     "Failed batch deletion for variables in table: " + tableName,
@@ -448,15 +449,15 @@ public class PerformDataBase {
 
             conn.commit();
 
-            ARLogger.getInstance(PerformDataBase.class)
-                    .info(String.format(
+            
+                    log.info(String.format(
                             "Batch delete completed for %d instruction records in %s", count, tableName.toUpperCase()));
 
             return null; // success
 
         } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe("Batch delete error for " + tableName + ": " + e.getMessage());
+            
+                    log.error("Batch delete error for " + tableName + ": " + e.getMessage());
             return new ErrorMessage(
                     "Delete Instructions Error",
                     "Failed batch deletion for instructions in table: " + tableName,
@@ -518,15 +519,15 @@ public class PerformDataBase {
 
             conn.commit();
 
-            ARLogger.getInstance(PerformDataBase.class)
-                    .info(String.format(
+            
+                    log.info(String.format(
                             "Batch delete completed for %d reference records in %s", count, tableName.toUpperCase()));
 
             return null; // success
 
         } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe("Batch delete error for " + tableName + ": " + e.getMessage());
+            
+                    log.error("Batch delete error for " + tableName + ": " + e.getMessage());
             return new ErrorMessage(
                     "Delete References Error",
                     "Failed batch deletion for references in table: " + tableName,
@@ -554,13 +555,13 @@ public class PerformDataBase {
                 conn.commit();
 
                 if (rowsAffected > 0) {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .info(String.format(
+                    
+                            log.info(String.format(
                                     "Deleted %d parents - parent ID %d in %s = %d",
                                     rowsAffected, parentId, foreignKeyColumn, whereId));
                 } else {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .warning(String.format(
+                    
+                            log.warn(String.format(
                                     "No parents found to delete - parent ID %d in %s = %d",
                                     parentId, foreignKeyColumn, whereId));
                 }
@@ -568,8 +569,8 @@ public class PerformDataBase {
                 return null; // success
             } catch (SQLException e) {
 
-                ARLogger.getInstance(PerformDataBase.class)
-                        .severe(String.format(
+                
+                        log.error(String.format(
                                 "Error deleting parent ID %d in %s = %d. Error: %s",
                                 parentId, foreignKeyColumn, whereId, e.getMessage()));
 
@@ -577,8 +578,8 @@ public class PerformDataBase {
                         "Delete Parent Error", "Failed to delete parent ID: " + parentId, e.getMessage());
             }
         } catch (SQLException ex) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
+            
+                    log.error(String.format(
                             "Connection error while deleting parent ID %d in %s = %d. Error: %s",
                             parentId, foreignKeyColumn, whereId, ex.getMessage()));
 
@@ -632,8 +633,8 @@ public class PerformDataBase {
                     if (count % BATCH_SIZE == 0) {
                         pstmt.executeBatch();
                         conn.commit();
-                        ARLogger.getInstance(PerformDataBase.class)
-                                .info("Executed batch of " + BATCH_SIZE + " block order updates for table: "
+                        
+                                log.info("Executed batch of " + BATCH_SIZE + " block order updates for table: "
                                         + tableName);
                     }
                 }
@@ -642,8 +643,8 @@ public class PerformDataBase {
                 if (count % BATCH_SIZE != 0) {
                     pstmt.executeBatch();
                     conn.commit();
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .info("Executed final batch of " + (count % BATCH_SIZE) + " block order updates for table: "
+                    
+                            log.info("Executed final batch of " + (count % BATCH_SIZE) + " block order updates for table: "
                                     + tableName);
                 }
 
@@ -651,16 +652,16 @@ public class PerformDataBase {
 
             } catch (SQLException e) {
 
-                ARLogger.getInstance(PerformDataBase.class)
-                        .severe(String.format(
+                
+                        log.error(String.format(
                                 "Error updating block order numbers in table '%s'. Error: %s",
                                 tableName, e.getMessage()));
                 return new ErrorMessage(
                         "Update Block Order Error", "Failed to update block order numbers", e.getMessage());
             }
         } catch (SQLException ex) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
+            
+                    log.error(String.format(
                             "Connection error while updating block order numbers in table '%s'. Error: %s",
                             tableName, ex.getMessage()));
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
@@ -705,8 +706,8 @@ public class PerformDataBase {
                     if (count % BATCH_SIZE == 0) {
                         pstmt.executeBatch();
                         conn.commit();
-                        ARLogger.getInstance(PerformDataBase.class)
-                                .info("Executed batch of " + BATCH_SIZE + " block order updates for table: "
+                        
+                                log.info("Executed batch of " + BATCH_SIZE + " block order updates for table: "
                                         + tableName);
                     }
                 }
@@ -715,22 +716,22 @@ public class PerformDataBase {
                 if (count % BATCH_SIZE != 0) {
                     pstmt.executeBatch();
                     conn.commit();
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .info("Executed final batch of " + (count % BATCH_SIZE) + " block order updates for table: "
+                    
+                            log.info("Executed final batch of " + (count % BATCH_SIZE) + " block order updates for table: "
                                     + tableName);
                 }
             } catch (SQLException e) {
 
-                ARLogger.getInstance(PerformDataBase.class)
-                        .severe(String.format(
+                
+                        log.error(String.format(
                                 "Error updating block order numbers in table '%s'. Error: %s",
                                 tableName, e.getMessage()));
                 return new ErrorMessage(
                         "Update Block Order Error", "Failed to update block order numbers", e.getMessage());
             }
         } catch (SQLException ex) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
+            
+                    log.error(String.format(
                             "Connection error while updating block order numbers in table '%s'. Error: %s",
                             tableName, ex.getMessage()));
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
@@ -764,14 +765,14 @@ public class PerformDataBase {
                 conn.commit();
 
                 if (rowsAffected > 0) {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .info(String.format(
+                    
+                            log.info(String.format(
                                     "Updated block name in table %s - blockId %d, whereId %d, name: %s",
                                     tableName, blockId, whereId, blockName));
                     return null; // success
                 } else {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .warning(String.format(
+                    
+                            log.warn(String.format(
                                     "No record found to update in %s - blockId %d, whereId %d",
                                     tableName, blockId, whereId));
                     return new ErrorMessage(
@@ -780,15 +781,15 @@ public class PerformDataBase {
                             String.format("table: %s, blockId: %d, whereId: %d", tableName, blockId, whereId));
                 }
             } catch (SQLException e) {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .severe(String.format(
+                
+                        log.error(String.format(
                                 "Error updating block name in %s - blockId %d, whereId %d. Error: %s",
                                 tableName, blockId, whereId, e.getMessage()));
                 return new ErrorMessage("Update Block Name", "Failed to update block name", e.getMessage());
             }
         } catch (SQLException ex) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
+            
+                    log.error(String.format(
                             "Connection error while updating block name in %s - blockId %d, whereId %d. Error: %s",
                             tableName, blockId, whereId, ex.getMessage()));
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
@@ -814,14 +815,14 @@ public class PerformDataBase {
             pstmt.executeBatch();
             conn.commit();
 
-            ARLogger.getInstance(PerformDataBase.class)
-                    .info(String.format(
+            
+                    log.info(String.format(
                             "Block export file updated. Table: %s, BlockId: %d, WhereId: %d",
                             blockTable, blockId, whereId));
 
         } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
+            
+                    log.error(String.format(
                             "Error updating block export file. Table: %s, BlockId: %d, Error: %s",
                             blockTable, blockId, e.getMessage()));
 
@@ -886,19 +887,19 @@ public class PerformDataBase {
             idsBlockAfter.removeAll(idsBefore);
             if (idsBlockAfter.size() == 1) {
                 int newId = idsBlockAfter.get(0);
-                ARLogger.getInstance(PerformDataBase.class)
-                        .info(String.format("Block data saved successfully in %s.\nBlockId: %d", tableName, newId));
+                
+                        log.info(String.format("Block data saved successfully in %s.\nBlockId: %d", tableName, newId));
             } else {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .warning("Block inserted, but new ID could not be uniquely identified.");
+                
+                        log.warn("Block inserted, but new ID could not be uniquely identified.");
             }
 
             conn.commit(); // ✅ Commit transaction
             return null;
 
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("Error Initiate New Block in %s: %s", tableName, error.getMessage()));
+            
+                    log.error(String.format("Error Initiate New Block in %s: %s", tableName, error.getMessage()));
             return new ErrorMessage("Error Initiate New Block", "Cannot create a new block", error.getMessage());
         }
     }
@@ -949,14 +950,14 @@ public class PerformDataBase {
             // Step 4: Keep only the new IDs
             idsBotJobAfter.removeAll(idsBefore);
 
-            ARLogger.getInstance(PerformDataBase.class)
-                    .info(String.format("BotJob inserted successfully. New IDs: %s", idsBotJobAfter));
+            
+                    log.info(String.format("BotJob inserted successfully. New IDs: %s", idsBotJobAfter));
 
             return null; // null means no error
 
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("createNewBotJob - Error: %s", error.getMessage()));
+            
+                    log.error(String.format("createNewBotJob - Error: %s", error.getMessage()));
 
             return new ErrorMessage("Bot Job Insertion Error", "Error inserting a new bot job.", error.getMessage());
         }
@@ -984,8 +985,8 @@ public class PerformDataBase {
                     if (count % BATCH_SIZE == 0) {
                         int[] rowsAffected = pstmt.executeBatch();
                         conn.commit();
-                        ARLogger.getInstance(PerformDataBase.class)
-                                .info("Executed batch of " + BATCH_SIZE + " updates for oldBlockId " + oldBlockId
+                        
+                                log.info("Executed batch of " + BATCH_SIZE + " updates for oldBlockId " + oldBlockId
                                         + " -> newBlockId " + newBlockId);
                     }
                 }
@@ -994,23 +995,23 @@ public class PerformDataBase {
                 if (count % BATCH_SIZE != 0) {
                     int[] rowsAffected = pstmt.executeBatch();
                     conn.commit();
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .info("Executed final batch of " + (count % BATCH_SIZE) + " updates for oldBlockId "
+                    
+                            log.info("Executed final batch of " + (count % BATCH_SIZE) + " updates for oldBlockId "
                                     + oldBlockId + " -> newBlockId " + newBlockId);
                 }
 
                 return null; // Success
             } catch (SQLException e) {
                 // rollback changes on error
-                ARLogger.getInstance(PerformDataBase.class)
-                        .severe(String.format(
+                
+                        log.error(String.format(
                                 "updateInstructionsSplitter - Error updating instructions from blockId %d to %d. Error: %s",
                                 oldBlockId, newBlockId, e.getMessage()));
                 return new ErrorMessage("Update Error", "Failed to update instructions", e.getMessage());
             }
         } catch (SQLException ex) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
+            
+                    log.error(String.format(
                             "Connection error while updating instructions from blockId %d to %d. Error: %s",
                             oldBlockId, newBlockId, ex.getMessage()));
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
@@ -1055,7 +1056,7 @@ public class PerformDataBase {
 
             return null; // success
         } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class).severe("RowsGetUpdateName Error: " + e.getMessage());
+            log.error("RowsGetUpdateName Error: " + e.getMessage());
             return new ErrorMessage("RowsGetUpdateName Error", "Failed to update parent operations", e.getMessage());
         }
     }
@@ -1100,7 +1101,7 @@ public class PerformDataBase {
 
             return null; // success
         } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class).severe("RowsGetUpdateName Error: " + e.getMessage());
+            log.error("RowsGetUpdateName Error: " + e.getMessage());
             return new ErrorMessage("RowsGetUpdateName Error", "Failed to update parent operations", e.getMessage());
         }
     }
@@ -1143,7 +1144,7 @@ public class PerformDataBase {
 
             return null; // success
         } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class).severe("Update Instruction Name Error: " + e.getMessage());
+            log.error("Update Instruction Name Error: " + e.getMessage());
             return new ErrorMessage(
                     "Update Instruction Name Error", "Failed to update instruction names", e.getMessage());
         }
@@ -1186,7 +1187,7 @@ public class PerformDataBase {
 
             return null; // success
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class).severe("Update Move Rows Order Error: " + error.getMessage());
+            log.error("Update Move Rows Order Error: " + error.getMessage());
             return new ErrorMessage(
                     "Update Move Rows Order Error", "Failed to update instruction order numbers", error.getMessage());
         }
@@ -1219,8 +1220,8 @@ public class PerformDataBase {
                     if (count % BATCH_SIZE == 0) {
                         int[] rowsAffected = pstmt.executeBatch();
                         conn.commit();
-                        ARLogger.getInstance(PerformDataBase.class)
-                                .info("Executed batch of " + BATCH_SIZE + " updates for blockId "
+                        
+                                log.info("Executed batch of " + BATCH_SIZE + " updates for blockId "
                                         + splitDTO.getBlockId());
                     }
                 }
@@ -1229,23 +1230,23 @@ public class PerformDataBase {
                 if (count % BATCH_SIZE != 0) {
                     int[] rowsAffected = pstmt.executeBatch();
                     conn.commit();
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .info("Executed final batch of " + (count % BATCH_SIZE) + " updates for blockId "
+                    
+                            log.info("Executed final batch of " + (count % BATCH_SIZE) + " updates for blockId "
                                     + splitDTO.getBlockId());
                 }
 
                 return null; // Success
             } catch (SQLException e) {
 
-                ARLogger.getInstance(PerformDataBase.class)
-                        .severe(String.format(
+                
+                        log.error(String.format(
                                 "RollBackBlocks - Error updating BlockId %d. Error: %s",
                                 splitDTO.getBlockId(), e.getMessage()));
                 return new ErrorMessage("RollBack Error", "Failed to roll back instructions", e.getMessage());
             }
         } catch (SQLException ex) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
+            
+                    log.error(String.format(
                             "Connection error while rolling back BlockId %d. Error: %s",
                             splitDTO.getBlockId(), ex.getMessage()));
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
@@ -1264,19 +1265,19 @@ public class PerformDataBase {
 
             int rowsAffected = stmt.executeUpdate(updateSQL);
             if (rowsAffected > 0) {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .warning(String.format(
+                
+                        log.warn(String.format(
                                 "rollBackBlocksOrder - Block Order Reset for blockId: %d - Name: %s",
                                 rollBackBlocksDTO.getBlockId(), rollBackBlocksDTO.getBlockName()));
             } else {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .warning(String.format(
+                
+                        log.warn(String.format(
                                 "RollBackBlocks - No matching record found to update for blockId: %d - Name: %s",
                                 rollBackBlocksDTO.getBlockId(), rollBackBlocksDTO.getBlockName()));
             }
         } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
+            
+                    log.error(String.format(
                             "This BlockId '%d' - Name: %s \n cannot be updated.\nError: %s",
                             rollBackBlocksDTO.getBlockId(), rollBackBlocksDTO.getBlockName(), e.getMessage()));
             return;
@@ -1313,8 +1314,8 @@ public class PerformDataBase {
             }
 
             if (errorMessage != null) {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .severe("Error: " + errorMessage.getErrorTitle() + "-" + errorMessage.getErrorMessage());
+                
+                        log.error("Error: " + errorMessage.getErrorTitle() + "-" + errorMessage.getErrorMessage());
             }
         }
 
@@ -1331,13 +1332,13 @@ public class PerformDataBase {
                 conn.commit();
 
                 if (rowsAffected > 0) {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .info(String.format(
+                    
+                            log.info(String.format(
                                     "The Block id %d has been successfully deleted from %s = %d.",
                                     blockId, whereColumn, whereId));
                 } else {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .warning(String.format(
+                    
+                            log.warn(String.format(
                                     "No matching record found for blockId %d in %s = %d.",
                                     blockId, whereColumn, whereId));
                 }
@@ -1345,15 +1346,15 @@ public class PerformDataBase {
                 return null; // success
             } catch (SQLException e) {
 
-                ARLogger.getInstance(PerformDataBase.class)
-                        .severe(String.format(
+                
+                        log.error(String.format(
                                 "Error deleting blockId %d from %s = %d. Error: %s",
                                 blockId, whereColumn, whereId, e.getMessage()));
                 return new ErrorMessage("Delete Block Error", "Failed to delete block", e.getMessage());
             }
         } catch (SQLException ex) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
+            
+                    log.error(String.format(
                             "Connection error while deleting blockId %d from %s = %d. Error: %s",
                             blockId, whereColumn, whereId, ex.getMessage()));
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
@@ -1502,8 +1503,8 @@ public class PerformDataBase {
                 }
             }
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
+            
+                    log.error(String.format(
                             "Error loadComponentsComplete for Home Bank %d. Error: %s",
                             homeBankingId, error.getMessage()));
             return new ErrorMessage(
@@ -1537,8 +1538,8 @@ public class PerformDataBase {
                 Integer blockId = instruction.getBlockId();
 
                 if (instrId == null || blockId == null) {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .warning("Skipping reorder: instructionId or blockId is null.");
+                    
+                            log.warn("Skipping reorder: instructionId or blockId is null.");
                     continue;
                 }
 
@@ -1564,8 +1565,8 @@ public class PerformDataBase {
             return null; // success
 
         } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe("Error batch updating instruction order numbers: " + e.getMessage());
+            
+                    log.error("Error batch updating instruction order numbers: " + e.getMessage());
             return new ErrorMessage(
                     "Reorder Error", "Failed to reorder instructions in table " + tableName, e.getMessage());
         }
@@ -1601,8 +1602,8 @@ public class PerformDataBase {
                         Integer blockId = block.getId(); // take blockId from block
 
                         if (instrId == null || blockId == null) {
-                            ARLogger.getInstance(PerformDataBase.class)
-                                    .warning("Skipping reorder: instructionId or blockId is null.");
+                            
+                                    log.warn("Skipping reorder: instructionId or blockId is null.");
                             continue;
                         }
 
@@ -1631,8 +1632,8 @@ public class PerformDataBase {
             return null; // success
 
         } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe("Error batch updating instruction order numbers: " + e.getMessage());
+            
+                    log.error("Error batch updating instruction order numbers: " + e.getMessage());
             return new ErrorMessage(
                     "Reorder Error", "Failed to reorder instructions in table " + tableName, e.getMessage());
         }
@@ -1672,8 +1673,8 @@ public class PerformDataBase {
 
                 int rowsAffected = pstmt.executeUpdate();
                 if (rowsAffected > 0) {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .info(String.format("Bot Job id %d successfully updated!", botJobId));
+                    
+                            log.info(String.format("Bot Job id %d successfully updated!", botJobId));
                 } else {
                     conn.commit(); // Commit even though nothing changed
                     return new ErrorMessage(
@@ -1685,13 +1686,13 @@ public class PerformDataBase {
                 conn.commit(); // Commit transaction
                 return null; // Success, no error
             } catch (SQLException e) {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .severe(String.format("Error updating BotJobId %d. Error: %s", botJobId, e.getMessage()));
+                
+                        log.error(String.format("Error updating BotJobId %d. Error: %s", botJobId, e.getMessage()));
                 return new ErrorMessage("Bot Job Update Error", "Error updating Bot Job", e.getMessage());
             }
         } catch (SQLException ex) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
+            
+                    log.error(String.format(
                             "Connection error while updating BotJobId %d. Error: %s", botJobId, ex.getMessage()));
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
@@ -1706,16 +1707,16 @@ public class PerformDataBase {
             // Execute the update statement and check if any rows were affected
             int rowsAffected = stmt.executeUpdate(updateSQL);
             if (rowsAffected > 0) {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .info(String.format("The Status Bot Job  id %d has been successfully updated!", botJobId));
+                
+                        log.info(String.format("The Status Bot Job  id %d has been successfully updated!", botJobId));
             } else {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .warning(String.format("No matching record found for botJobId %d.", botJobId));
+                
+                        log.warn(String.format("No matching record found for botJobId %d.", botJobId));
             }
             return true;
         } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
+            
+                    log.error(String.format(
                             "Error updating Status for BotJobId ID %d. Error: %s", botJobId, e.getMessage()));
         }
         return false;
@@ -1744,12 +1745,12 @@ public class PerformDataBase {
                 blockLoadDTO.setBlockOrderNumber(rs.getInt("wait"));
             }
 
-            ARLogger.getInstance(PerformDataBase.class)
-                    .info(String.format("Fetched Block \"%s\"", blockLoadDTO.getName()));
+            
+                    log.info(String.format("Fetched Block \"%s\"", blockLoadDTO.getName()));
 
         } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
+            
+                    log.error(String.format(
                             "Error fetching Block ID %d with BotJob Id %d. Error: %s: ",
                             blockId, botJobId, e.getMessage()));
         }
@@ -1780,12 +1781,12 @@ public class PerformDataBase {
                 blockLoadDTO.setBlockOrderNumber(rs.getInt("wait"));
             }
 
-            ARLogger.getInstance(PerformDataBase.class)
-                    .info(String.format("Fetched Block \"%s\"", blockLoadDTO.getName()));
+            
+                    log.info(String.format("Fetched Block \"%s\"", blockLoadDTO.getName()));
 
         } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
+            
+                    log.error(String.format(
                             "Error fetching Block ID %d with BotJob Id %d. Error: %s: ",
                             blockId, botJobId, e.getMessage()));
         }
@@ -1881,8 +1882,8 @@ public class PerformDataBase {
             }
 
         } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("Error loadQuickBotJobs: %s", e.getMessage()));
+            
+                    log.error(String.format("Error loadQuickBotJobs: %s", e.getMessage()));
 
             return new ErrorMessage("Failed to load Quick Bot Jobs", "Database query error", e.getMessage());
         }
@@ -1944,21 +1945,21 @@ public class PerformDataBase {
                 int rowsAffected = Arrays.stream(batchResults).sum();
 
                 if (rowsAffected > 0) {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .info(String.format(
+                    
+                            log.info(String.format(
                                     "Instruction status updated. Rows affected: %d (InstructionId: %d, BlockId: %d, Actions: %s, WhereId: %d)",
                                     rowsAffected, instructionId, blockId, actions, whereId));
                 } else {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .warning(String.format(
+                    
+                            log.warn(String.format(
                                     "No instruction updated (InstructionId: %d, BlockId: %d, Actions: %s, WhereId: %d)",
                                     instructionId, blockId, actions, whereId));
                 }
 
             } catch (SQLException e) {
                 conn.rollback(); // Rollback if failure
-                ARLogger.getInstance(PerformDataBase.class)
-                        .severe(String.format(
+                
+                        log.error(String.format(
                                 "Error updating instruction status. InstructionId: %d, Error: %s",
                                 instructionId, e.getMessage()));
                 return new ErrorMessage(
@@ -1966,8 +1967,8 @@ public class PerformDataBase {
             }
 
         } catch (SQLException ex) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
+            
+                    log.error(String.format(
                             "Connection error while updating instruction status. InstructionId: %d, Error: %s",
                             instructionId, ex.getMessage()));
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
@@ -2008,28 +2009,28 @@ public class PerformDataBase {
                 int rowsAffected = Arrays.stream(batchResults).sum();
 
                 if (rowsAffected > 0) {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .info(String.format(
+                    
+                            log.info(String.format(
                                     "Block status updated. Table: %s, BlockId: %d, Active: %s",
                                     tableName, blockId, blockActive));
                 } else {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .warning(String.format(
+                    
+                            log.warn(String.format(
                                     "No block status updated. Table: %s, WhereId: %d, BlockId: %d",
                                     tableName, whereId, blockId));
                 }
 
             } catch (SQLException e) {
                 conn.rollback(); // Rollback if failure
-                ARLogger.getInstance(PerformDataBase.class)
-                        .severe(String.format(
+                
+                        log.error(String.format(
                                 "Error updating block status in table '%s'. Error: %s", tableName, e.getMessage()));
                 return new ErrorMessage("Update Block Status Error", "Failed to update block status", e.getMessage());
             }
 
         } catch (SQLException ex) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
+            
+                    log.error(String.format(
                             "Connection error while updating block status in table '%s'. Error: %s",
                             tableName, ex.getMessage()));
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
@@ -2072,21 +2073,21 @@ public class PerformDataBase {
                 int rowsAffected = Arrays.stream(batchResults).sum();
 
                 if (rowsAffected > 0) {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .info(String.format(
+                    
+                            log.info(String.format(
                                     "Instruction status updated. Rows affected: %d (Table: %s, BlockId: %d, WhereId: %d)",
                                     rowsAffected, tableName, blockId, whereId));
                 } else {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .warning(String.format(
+                    
+                            log.warn(String.format(
                                     "No instruction statuses were updated (Table: %s, BlockId: %d, WhereId: %d)",
                                     tableName, blockId, whereId));
                 }
 
             } catch (SQLException e) {
                 conn.rollback(); // Roll back in case of error
-                ARLogger.getInstance(PerformDataBase.class)
-                        .severe(String.format(
+                
+                        log.error(String.format(
                                 "Error updating instruction status in table '%s'. Error: %s",
                                 tableName, e.getMessage()));
                 return new ErrorMessage(
@@ -2094,8 +2095,8 @@ public class PerformDataBase {
             }
 
         } catch (SQLException ex) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
+            
+                    log.error(String.format(
                             "Connection error while updating instruction status in table '%s'. Error: %s",
                             tableName, ex.getMessage()));
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
@@ -2192,8 +2193,8 @@ public class PerformDataBase {
                 }
             }
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
+            
+                    log.error(String.format(
                             "Error loading blocks for %s id %d\nError: %s", tableName, whereId, error.getMessage()));
 
             return new ErrorMessage(
@@ -2343,16 +2344,16 @@ public class PerformDataBase {
 
             idsInstrucAfter.removeAll(idsBefore);
 
-            ARLogger.getInstance(PerformDataBase.class)
-                    .info(String.format(
+            
+                    log.info(String.format(
                             "Batch insert completed for %d %s records. New IDs: %s",
                             count, tableName.toUpperCase(), idsInstrucAfter));
 
             return null;
 
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe("Batch insert error for " + tableName + ": " + error.getMessage());
+            
+                    log.error("Batch insert error for " + tableName + ": " + error.getMessage());
             return new ErrorMessage(
                     "Instruction Insertion Error", "Error inserting batch instructions.", error.getMessage());
         }
@@ -2476,16 +2477,16 @@ public class PerformDataBase {
             // Step 4: Compute new inserted IDs
             idsInstrucAfter.removeAll(idsBefore);
 
-            ARLogger.getInstance(PerformDataBase.class)
-                    .info(String.format(
+            
+                    log.info(String.format(
                             "Batch insert completed for %d %s records. New IDs: %s",
                             count, tableName.toUpperCase(), idsInstrucAfter));
 
             return null;
 
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe("Batch insert error for " + tableName + ": " + error.getMessage());
+            
+                    log.error("Batch insert error for " + tableName + ": " + error.getMessage());
             return new ErrorMessage("Instruction Insert Error", "Failed during batch insert", error.getMessage());
         }
     }
@@ -2504,8 +2505,8 @@ public class PerformDataBase {
 
             for (InstructionOperationDTO operation : operations) {
                 if (operation.getId() == null || operation.getParentId() == null) {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .warning("Skipping: Instruction ID or Parent ID is null.");
+                    
+                            log.warn("Skipping: Instruction ID or Parent ID is null.");
                     continue;
                 }
 
@@ -2518,12 +2519,12 @@ public class PerformDataBase {
             }
 
             stmt.executeBatch();
-            ARLogger.getInstance(PerformDataBase.class).info("Parent ID update batch executed:\n" + batchSQL);
+            log.info("Parent ID update batch executed:\n" + batchSQL);
 
             return null;
 
         } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class).severe("Batch parent_id update failed: " + e.getMessage());
+            log.error("Batch parent_id update failed: " + e.getMessage());
 
             return new ErrorMessage("Update Error", "Failed to update parent_id in instructions.", e.getMessage());
         }
@@ -2543,7 +2544,7 @@ public class PerformDataBase {
 
         try (Statement stmt = getConnection().createStatement()) {
             if (InstructionOperation.getId() == null) {
-                ARLogger.getInstance(PerformDataBase.class).warning("Instruction ID is null. Update failed.");
+                log.warn("Instruction ID is null. Update failed.");
                 return new ErrorMessage(
                         "Error Update Instruction",
                         "Error during updating instruction",
@@ -2614,8 +2615,8 @@ public class PerformDataBase {
                             : null);
 
             if (setClause.isEmpty()) {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .warning("No fields to update for instruction ID: " + InstructionOperation.getId());
+                
+                        log.warn("No fields to update for instruction ID: " + InstructionOperation.getId());
                 return new ErrorMessage(
                         "Error Update Instruction",
                         "Error during updating instruction",
@@ -2628,8 +2629,8 @@ public class PerformDataBase {
 
             int rowsAffected = stmt.executeUpdate(updateSQL);
             if (rowsAffected > 0) {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .info(String.format(
+                
+                        log.info(String.format(
                                 "%s UPDATED SUCCESSFULLY id: %d Name: %s Actions: %s Operation: %s",
                                 tableName.toUpperCase(),
                                 InstructionOperation.getId(),
@@ -2637,8 +2638,8 @@ public class PerformDataBase {
                                 InstructionOperation.getActions(),
                                 InstructionOperation.getOperation()));
             } else {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .warning(String.format(
+                
+                        log.warn(String.format(
                                 "%s NOT UPDATED id: %d Name: %s Actions: %s Operations: %s",
                                 tableName.toUpperCase(),
                                 InstructionOperation.getId(),
@@ -2648,8 +2649,8 @@ public class PerformDataBase {
             }
             return null;
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .warning(String.format(
+            
+                    log.warn(String.format(
                             "%s UPDATE FAILED id: %d Name: %s Actions: %s Operations: %s",
                             tableName.toUpperCase(),
                             InstructionOperation.getId(),
@@ -2673,8 +2674,8 @@ public class PerformDataBase {
                 }
             }
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
+            
+                    log.error(String.format(
                             "Error checking for instruction ID %d. Error: %s", instructionId, error.getMessage()));
         }
         return false; // Return false if an error occurs or the ID is not found
@@ -2691,8 +2692,8 @@ public class PerformDataBase {
                     .anyMatch(instruction -> instruction.getInstructionOrderNumber() == targetOrderNumber);
 
             if (!orderNumberExists) {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .warning(String.format(
+                
+                        log.warn(String.format(
                                 "preInsertStep - Target order number %d does not exist in the row list.",
                                 targetOrderNumber));
             }
@@ -2958,13 +2959,13 @@ public class PerformDataBase {
                     reorderInstructionsPerBlock(rowList, instrName, true);
                 }
 
-                ARLogger.getInstance(PerformDataBase.class)
-                        .info(String.format(
+                
+                        log.info(String.format(
                                 "\"Component\" Instruction: \"%s\" has been added successfully!",
                                 instruction.getName()));
             } else {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .severe(String.format(
+                
+                        log.error(String.format(
                                 "Error Add New \"Component\" Instruction: \"%s\" Cannot be saved!",
                                 instruction.getName()));
 
@@ -2979,7 +2980,7 @@ public class PerformDataBase {
             }
 
         } catch (Exception e) {
-            ARLogger.getInstance(PerformDataBase.class).severe("Cannot Insert Instruction\nError: " + e.getMessage());
+            log.error("Cannot Insert Instruction\nError: " + e.getMessage());
         } finally {
             performLists.getInstrucOperList().clear();
         }
@@ -3075,14 +3076,14 @@ public class PerformDataBase {
                 }
             }
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("loadWebPageFields - SQL Error: %s", error.getMessage()));
+            
+                    log.error(String.format("loadWebPageFields - SQL Error: %s", error.getMessage()));
             return new ErrorMessage(
                     "Error loading Web Page Fields", "Error loading Web Page Fields", error.getMessage());
 
         } catch (Exception error) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("loadWebPageFields - General Error: %s", error.getMessage()));
+            
+                    log.error(String.format("loadWebPageFields - General Error: %s", error.getMessage()));
             return new ErrorMessage(
                     "Error loading Web Page Fields", "Error loading Web Page Fields", error.getMessage());
         }
@@ -3162,14 +3163,14 @@ public class PerformDataBase {
             }
 
             if (rowsAffected > 0) {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .warning(String.format("Migration DB Scripts - RowsUpdated - %s", rowsAffected));
+                
+                        log.warn(String.format("Migration DB Scripts - RowsUpdated - %s", rowsAffected));
             } else {
-                ARLogger.getInstance(PerformDataBase.class).info("Migration DB Scripts - No Rows were updated");
+                log.info("Migration DB Scripts - No Rows were updated");
             }
             return rowsAffected;
         } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class).warning("Migration DB Scripts - Error: " + e.getMessage());
+            log.warn("Migration DB Scripts - Error: " + e.getMessage());
         }
         return -1;
     }
@@ -3238,8 +3239,8 @@ public class PerformDataBase {
                 }
             }
         } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
+            
+                    log.error(String.format(
                             "Error loadSavedBlocksForBotJob for Home Banking Id %d\nError: %s",
                             homeBankingId, e.getMessage()));
         }
@@ -3287,17 +3288,17 @@ public class PerformDataBase {
                 pstmt.clearBatch();
             }
 
-            ARLogger.getInstance(PerformDataBase.class).info("Reference batch insert completed successfully.");
+            log.info("Reference batch insert completed successfully.");
             return null; // No error
 
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe("Failed to insert references into database: " + error.getMessage());
+            
+                    log.error("Failed to insert references into database: " + error.getMessage());
             return new ErrorMessage(
                     "Reference Insertion Error", "An error occurred during reference insertion.", error.getMessage());
         } catch (Exception error) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe("Unexpected error inserting references: " + error.getMessage());
+            
+                    log.error("Unexpected error inserting references: " + error.getMessage());
             return new ErrorMessage(
                     "Reference Insertion Error",
                     "An unexpected error occurred during reference insertion.",
@@ -3338,16 +3339,16 @@ public class PerformDataBase {
                 pstmt.clearBatch();
             }
 
-            ARLogger.getInstance(PerformDataBase.class).info("Reference batch insert completed successfully.");
+            log.info("Reference batch insert completed successfully.");
             return null; // No error
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe("Failed to insert references into database: " + error.getMessage());
+            
+                    log.error("Failed to insert references into database: " + error.getMessage());
             return new ErrorMessage(
                     "Reference Insertion Error", "An error occurred during reference insertion.", error.getMessage());
         } catch (Exception error) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe("Failed to insert references into database: " + error.getMessage());
+            
+                    log.error("Failed to insert references into database: " + error.getMessage());
             return new ErrorMessage(
                     "Reference Insertion Error", "An error occurred during reference insertion.", error.getMessage());
         }
@@ -3379,8 +3380,8 @@ public class PerformDataBase {
         }
 
         if (errorMessage != null) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe("Error: " + errorMessage.getErrorTitle() + "-" + errorMessage.getErrorMessage());
+            
+                    log.error("Error: " + errorMessage.getErrorTitle() + "-" + errorMessage.getErrorMessage());
         }
 
         return errorMessage;
@@ -3494,7 +3495,7 @@ public class PerformDataBase {
             System.out.println("All foreign key constraints removed.");
 
         } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class).severe("Error disable Foreign Key Constraints");
+            log.error("Error disable Foreign Key Constraints");
         }
     }
 
@@ -3597,14 +3598,14 @@ public class PerformDataBase {
             // Step 5: Keep only the new IDs
             idsHomeBankAfter.removeAll(idsBefore);
 
-            ARLogger.getInstance(PerformDataBase.class)
-                    .info(String.format("HomeBanking inserted successfully. New IDs: %s", idsHomeBankAfter));
+            
+                    log.info(String.format("HomeBanking inserted successfully. New IDs: %s", idsHomeBankAfter));
 
             return null; // null means no error
 
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("saveUserData - Error: %s", error.getMessage()));
+            
+                    log.error(String.format("saveUserData - Error: %s", error.getMessage()));
 
             return new ErrorMessage(
                     "HomeBanking Insertion Error", "Error inserting a new HomeBanking record.", error.getMessage());
@@ -3655,15 +3656,15 @@ public class PerformDataBase {
             // Step 4: Keep only the new IDs
             idsHomeUrlAfter.removeAll(idsBefore);
 
-            ARLogger.getInstance(PerformDataBase.class)
-                    .info(String.format("HomeUrl inserted successfully. New IDs: %s", idsHomeUrlAfter));
+            
+                    log.info(String.format("HomeUrl inserted successfully. New IDs: %s", idsHomeUrlAfter));
 
             conn.commit(); // Commit transaction
             return null; // Success
 
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("createHomeUrlChild - Error: %s", error.getMessage()));
+            
+                    log.error(String.format("createHomeUrlChild - Error: %s", error.getMessage()));
 
             return new ErrorMessage("Home URL Insertion Error", "Error inserting a new home URL.", error.getMessage());
         }
@@ -3724,15 +3725,15 @@ public class PerformDataBase {
             // Step 5: Keep only the new IDs
             idsHomeUrlAfter.removeAll(idsBefore);
 
-            ARLogger.getInstance(PerformDataBase.class)
-                    .info(String.format("HomeUrl inserted successfully. New IDs: %s", idsHomeUrlAfter));
+            
+                    log.info(String.format("HomeUrl inserted successfully. New IDs: %s", idsHomeUrlAfter));
 
             conn.commit(); // Commit transaction
             return null; // Success, no error
 
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("insertNewHomeUrl - Error: %s", error.getMessage()));
+            
+                    log.error(String.format("insertNewHomeUrl - Error: %s", error.getMessage()));
 
             return new ErrorMessage("Home URL Insertion Error", "Error inserting a new home URL.", error.getMessage());
         }
@@ -3897,8 +3898,8 @@ public class PerformDataBase {
             }
 
         } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("Error loadAllDataUsers: %s", e.getMessage()));
+            
+                    log.error(String.format("Error loadAllDataUsers: %s", e.getMessage()));
 
             return new ErrorMessage("Failed to load Database Users", "Database query error", e.getMessage());
         }
@@ -3924,7 +3925,7 @@ public class PerformDataBase {
     public void selectHomeBankinOneRow() {
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
         String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
-        ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + accessDbUrl);
+        log.info("ACCESS connection URL: " + accessDbUrl);
 
         String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
         String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
@@ -3932,8 +3933,8 @@ public class PerformDataBase {
 
         // String userData = userDB + " - " + userPwd;
 
-        ARLogger.getInstance(PerformDataBase.class).info("POSTGRES connection URL: " + postgresDbUrl);
-        // ARLogger.getInstance(PerformDataBase.class).info("User Details: " + userData);
+        log.info("POSTGRES connection URL: " + postgresDbUrl);
+        // log.info("User Details: " + userData);
 
         final int BATCH_SIZE = 100;
 
@@ -4006,7 +4007,7 @@ public class PerformDataBase {
 
             System.out.println("Sync completed.");
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class).severe("Error export HomeBanking");
+            log.error("Error export HomeBanking");
         }
     }
 
@@ -4048,22 +4049,22 @@ public class PerformDataBase {
                 //            rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"variable_id_seq\";");
 
                 if (rowsAffected > 0) {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .warning(String.format("Migration DB Scripts - RowsUpdated - %s", rowsAffected));
+                    
+                            log.warn(String.format("Migration DB Scripts - RowsUpdated - %s", rowsAffected));
                 } else {
-                    ARLogger.getInstance(PerformDataBase.class).info("Migration DB Scripts - No Rows were updated");
+                    log.info("Migration DB Scripts - No Rows were updated");
                 }
                 return null;
 
             } catch (SQLException error) {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .warning("Migration DB Scripts - Error: " + error.getMessage());
+                
+                        log.warn("Migration DB Scripts - Error: " + error.getMessage());
                 return new ErrorMessage(
                         "Error Drop Tables Migration 2.7f", "Error dropping OLD objects", error.getMessage());
             }
 
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class).severe("Failed to dropPostGresSequences.");
+            log.error("Failed to dropPostGresSequences.");
             return new ErrorMessage("Connection Error", "Could not connect to Postgres DB", error.getMessage());
         }
     }
@@ -4206,7 +4207,7 @@ public class PerformDataBase {
             return null;
 
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class).severe("Failed to create saved component_block");
+            log.error("Failed to create saved component_block");
             return new ErrorMessage(
                     "Failed to create saved component_block", "component_block Insertion Failure", error.getMessage());
         }
@@ -4361,8 +4362,8 @@ public class PerformDataBase {
             return null;
 
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe("Failed to create saved component_instruction: " + error.getMessage());
+            
+                    log.error("Failed to create saved component_instruction: " + error.getMessage());
             return new ErrorMessage(
                     "Failed to create saved component_instruction",
                     "component_instruction Insertion Failure",
@@ -4504,7 +4505,7 @@ public class PerformDataBase {
             return null;
 
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class).severe("Failed to create saved component_variable");
+            log.error("Failed to create saved component_variable");
             return new ErrorMessage(
                     "Failed to create saved component_variable",
                     "component_variable Insertion Failure",
@@ -4607,14 +4608,14 @@ public class PerformDataBase {
                         System.out.println("Updated final batch of " + (count % BATCH_SIZE));
                     }
 
-                    ARLogger.getInstance(PerformDataBase.class).info("Updated component_instruction records: " + count);
+                    log.info("Updated component_instruction records: " + count);
                 }
             }
 
             return null;
 
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class).severe("Failed to update component_instruction");
+            log.error("Failed to update component_instruction");
             return new ErrorMessage(
                     "Failed to update component_instruction",
                     "component_instruction Update Failure",
@@ -4745,7 +4746,7 @@ public class PerformDataBase {
             return null;
 
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class).severe("Failed to create saved component_reference");
+            log.error("Failed to create saved component_reference");
             return new ErrorMessage(
                     "Failed to create saved component_reference",
                     "component_reference Insertion Failure",
@@ -4879,7 +4880,7 @@ public class PerformDataBase {
             return null;
 
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class).severe("Failed to create saved block");
+            log.error("Failed to create saved block");
             return new ErrorMessage("Failed to create saved block", "block Insertion Failure", error.getMessage());
         }
     }
@@ -5035,7 +5036,7 @@ public class PerformDataBase {
             return null;
 
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class).severe("Failed to create saved instruction");
+            log.error("Failed to create saved instruction");
             return new ErrorMessage(
                     "Failed to create saved instruction", "instruction Insertion Failure", error.getMessage());
         }
@@ -5174,7 +5175,7 @@ public class PerformDataBase {
             return null;
 
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class).severe("Failed to create saved variable");
+            log.error("Failed to create saved variable");
             return new ErrorMessage(
                     "Failed to create saved variable", "variable Insertion Failure", error.getMessage());
         }
@@ -5274,14 +5275,14 @@ public class PerformDataBase {
                         System.out.println("Updated final batch of " + (count % BATCH_SIZE));
                     }
 
-                    ARLogger.getInstance(PerformDataBase.class).info("Updated instruction records: " + count);
+                    log.info("Updated instruction records: " + count);
                 }
             }
 
             return null;
 
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class).severe("Failed to update instruction");
+            log.error("Failed to update instruction");
             return new ErrorMessage("Failed to update instruction", "instruction Update Failure", error.getMessage());
         }
     }
@@ -5407,7 +5408,7 @@ public class PerformDataBase {
             return null;
 
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class).severe("Failed to create saved reference");
+            log.error("Failed to create saved reference");
             return new ErrorMessage(
                     "Failed to create saved reference", "reference Insertion Failure", error.getMessage());
         }
@@ -5456,7 +5457,7 @@ public class PerformDataBase {
                 insertStmt.addBatch();
                 insertStmt.executeBatch();
                 conn.commit();
-                ARLogger.getInstance(PerformDataBase.class).info("Inserted bot job record: 1");
+                log.info("Inserted bot job record: 1");
             }
 
             // Step 3: get component_block ids after insert
@@ -5491,7 +5492,7 @@ public class PerformDataBase {
             return null;
 
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class).severe("Failed to clone bot_job");
+            log.error("Failed to clone bot_job");
             return new ErrorMessage("Failed to clone bot_job", "bot_job Insertion Failure", error.getMessage());
         }
     }
@@ -5623,7 +5624,7 @@ public class PerformDataBase {
             return null;
 
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class).severe("Failed to clone block");
+            log.error("Failed to clone block");
             return new ErrorMessage("Failed to clone block", "block Insertion Failure", error.getMessage());
         }
     }
@@ -5778,7 +5779,7 @@ public class PerformDataBase {
             return null;
 
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class).severe("Failed to clono instruction");
+            log.error("Failed to clono instruction");
             return new ErrorMessage("Failed to clone instruction", "instruction Insertion Failure", error.getMessage());
         }
     }
@@ -5912,7 +5913,7 @@ public class PerformDataBase {
             return null;
 
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class).severe("Failed to clone variable");
+            log.error("Failed to clone variable");
             return new ErrorMessage("Failed to clone variable", "variable Insertion Failure", error.getMessage());
         }
     }
@@ -6013,14 +6014,14 @@ public class PerformDataBase {
                         System.out.println("Updated final batch of " + (count % BATCH_SIZE));
                     }
 
-                    ARLogger.getInstance(PerformDataBase.class).info("Updated instruction records: " + count);
+                    log.info("Updated instruction records: " + count);
                 }
             }
 
             return null;
 
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class).severe("Failed to update cloned instruction");
+            log.error("Failed to update cloned instruction");
             return new ErrorMessage(
                     "Failed to update cloned instruction", "cloned instruction Update Failure", error.getMessage());
         }
@@ -6147,7 +6148,7 @@ public class PerformDataBase {
             return null;
 
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class).severe("Failed to clone reference");
+            log.error("Failed to clone reference");
             return new ErrorMessage("Failed to clone reference", "reference Insertion Failure", error.getMessage());
         }
     }
@@ -6229,8 +6230,8 @@ public class PerformDataBase {
             //                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedBlockSeq\";");
             //                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"idgen\";");
             //            }
-            ARLogger.getInstance(PerformDataBase.class)
-                    .info("All Rows DELETED for:\n"
+            
+                    log.info("All Rows DELETED for:\n"
                             + "Variables;\n"
                             + "Instructions References;\n"
                             + "Instructions;\n"
@@ -6241,8 +6242,8 @@ public class PerformDataBase {
             return true;
 
         } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(dataBaseType + " Problems:\n"
+            
+                    log.error(dataBaseType + " Problems:\n"
                             + "Not Possible delete the  Rows was for these tables:\n"
                             + "ExcelReportDTO;\n"
                             + "Variables;\n"
@@ -6264,13 +6265,13 @@ public class PerformDataBase {
             // Execute each statement individually
             stmt.executeUpdate("DELETE FROM home_url;");
 
-            ARLogger.getInstance(PerformDataBase.class).info("All Rows DELETED for:\n" + "HomeUrl;");
+            log.info("All Rows DELETED for:\n" + "HomeUrl;");
 
             return true;
 
         } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(dataBaseType + " Problems:\n"
+            
+                    log.error(dataBaseType + " Problems:\n"
                             + "Not Possible delete the  Rows was for these tables:\n"
                             + "HomeUrl;\n"
                             + e.getMessage());
@@ -6343,8 +6344,8 @@ public class PerformDataBase {
                 }
             }
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe("loadAllVariablesByCriteria. Error: " + error.getMessage());
+            
+                    log.error("loadAllVariablesByCriteria. Error: " + error.getMessage());
             return new ErrorMessage("Error loading Variables", "Error loading Variables", error.getMessage());
         }
         return null;
@@ -6394,15 +6395,15 @@ public class PerformDataBase {
             // Step 4: Keep only the new IDs
             idsVariableAfter.removeAll(idsBefore);
 
-            ARLogger.getInstance(PerformDataBase.class)
-                    .info(String.format("Variable inserted successfully. New IDs: %s", idsVariableAfter));
+            
+                    log.info(String.format("Variable inserted successfully. New IDs: %s", idsVariableAfter));
 
             conn.commit(); // Commit transaction
             return null; // Success
 
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("createVariable - Error: %s", error.getMessage()));
+            
+                    log.error(String.format("createVariable - Error: %s", error.getMessage()));
 
             return new ErrorMessage("Variable Insertion Error", "Error inserting a new variable.", error.getMessage());
         }
@@ -6436,21 +6437,21 @@ public class PerformDataBase {
                 conn.commit();
 
                 if (rowsAffected > 0) {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .info(String.format(
+                    
+                            log.info(String.format(
                                     "Updated %d row(s) in %s where id = %d and %s = %d",
                                     rowsAffected, tableName, user.getId(), foreignKeyColumn, whereId));
                 } else {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .warning(String.format(
+                    
+                            log.warn(String.format(
                                     "No matching row found in %s where id = %d and %s = %d",
                                     tableName, user.getId(), foreignKeyColumn, whereId));
                 }
 
                 return null; // success
             } catch (SQLException e) {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .severe(String.format(
+                
+                        log.error(String.format(
                                 "Error updating row in %s where id = %d and %s = %d. Error: %s",
                                 tableName, user.getId(), foreignKeyColumn, whereId, e.getMessage()));
 
@@ -6461,8 +6462,8 @@ public class PerformDataBase {
                         e.getMessage());
             }
         } catch (SQLException ex) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
+            
+                    log.error(String.format(
                             "Connection error while updating row in %s where id = %d and %s = %d. Error: %s",
                             tableName, user.getId(), foreignKeyColumn, whereId, ex.getMessage()));
 
@@ -6491,21 +6492,21 @@ public class PerformDataBase {
                 int rowsAffected = rowsAffectedBatch.length > 0 ? rowsAffectedBatch[0] : 0;
 
                 if (rowsAffected > 0) {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .info(String.format(
+                    
+                            log.info(String.format(
                                     "Deleted %d row(s) from %s where id = %d and %s = %d",
                                     rowsAffected, tableName, variableId, foreignKeyColumn, whereId));
                 } else {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .warning(String.format(
+                    
+                            log.warn(String.format(
                                     "No rows found to delete in %s where id = %d and %s = %d",
                                     tableName, variableId, foreignKeyColumn, whereId));
                 }
 
                 return null; // success
             } catch (SQLException e) {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .severe(String.format(
+                
+                        log.error(String.format(
                                 "Error deleting row in %s where id = %d and %s = %d. Error: %s",
                                 tableName, variableId, foreignKeyColumn, whereId, e.getMessage()));
 
@@ -6516,8 +6517,8 @@ public class PerformDataBase {
                         e.getMessage());
             }
         } catch (SQLException ex) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
+            
+                    log.error(String.format(
                             "Connection error while deleting row in %s where id = %d and %s = %d. Error: %s",
                             tableName, variableId, foreignKeyColumn, whereId, ex.getMessage()));
 
@@ -6686,8 +6687,8 @@ public class PerformDataBase {
                 instructions.addAll(instructionMap.values());
                 targetList.addAll(instructions);
 
-                ARLogger.getInstance(PerformDataBase.class)
-                        .info(String.format(
+                
+                        log.info(String.format(
                                 "Fetched %d instructions (with references) from table %s%s%s",
                                 instructions.size(),
                                 tableName,
@@ -6696,8 +6697,8 @@ public class PerformDataBase {
             }
             return null;
         } catch (SQLException error) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
+            
+                    log.error(String.format(
                             "Error fetching instructions from table %s%s%s. Error: %s",
                             tableName,
                             blockId > 0 ? " for Block ID " + blockId : "",
@@ -6772,14 +6773,14 @@ public class PerformDataBase {
                     references.add(reference);
                 }
 
-                ARLogger.getInstance(PerformDataBase.class)
-                        .info(String.format(
+                
+                        log.info(String.format(
                                 "Fetched %d references from table %s where %s=%d and instrucIds=%s",
                                 references.size(), tableName, whereColumn, whereID, instrucIds));
             }
         } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
+            
+                    log.error(String.format(
                             "Error fetching references from table %s where %s=%d. Error: %s",
                             tableName, whereColumn, whereID, e.getMessage()));
         }
@@ -6810,8 +6811,8 @@ public class PerformDataBase {
             return null;
 
         } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe("Error ensuring parent_block_id column: " + e.getMessage());
+            
+                    log.error("Error ensuring parent_block_id column: " + e.getMessage());
             return new ErrorMessage(
                     "Database Column Error", "Error ensuring parent_block_id column exists in tables", e.getMessage());
         }
@@ -6869,8 +6870,8 @@ public class PerformDataBase {
                 errorMessage = deleteNullBlocks(blockTable, whereId, restToDeleteIds);
             }
             if (errorMessage != null) {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .severe("Error Deleting Nulls Blocks Table:" + blockTable + " Error: "
+                
+                        log.error("Error Deleting Nulls Blocks Table:" + blockTable + " Error: "
                                 + errorMessage.getErrorMessage());
             }
         }
@@ -6902,16 +6903,16 @@ public class PerformDataBase {
 
                 int totalDeleted = Arrays.stream(results).sum();
 
-                ARLogger.getInstance(PerformDataBase.class)
-                        .info(String.format(
+                
+                        log.info(String.format(
                                 "Deleted %d blocks from table %s where %s = %d (IDs: %s)",
                                 totalDeleted, tableName, foreignKeyColumn, whereId, restIds));
 
                 return null; // success
             } catch (SQLException e) {
 
-                ARLogger.getInstance(PerformDataBase.class)
-                        .severe(String.format(
+                
+                        log.error(String.format(
                                 "Error deleting blocks from table %s where %s = %d. IDs: %s. Error: %s",
                                 tableName, foreignKeyColumn, whereId, restIds, e.getMessage()));
 
@@ -6922,8 +6923,8 @@ public class PerformDataBase {
                         e.getMessage());
             }
         } catch (SQLException ex) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format(
+            
+                    log.error(String.format(
                             "Connection error while deleting blocks from table %s where %s = %d. IDs: %s. Error: %s",
                             tableName, foreignKeyColumn, whereId, restIds, ex.getMessage()));
 

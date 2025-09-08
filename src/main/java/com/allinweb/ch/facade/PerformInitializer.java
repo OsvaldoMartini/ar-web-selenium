@@ -1,6 +1,8 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.util.*;
+import lombok.extern.slf4j.Slf4j;
+
 import java.io.File;
 import java.sql.*;
 
@@ -10,6 +12,7 @@ import java.sql.*;
  * @author Osvaldo Martini
  * @version 1.0
  */
+@Slf4j
 public class PerformInitializer {
     protected static volatile PerformInitializer instance;
 
@@ -734,26 +737,26 @@ public class PerformInitializer {
         try {
             if ("Postgres".equalsIgnoreCase(dataBaseType)) {
                 // PostgreSQL
-                ARLogger.getInstance(PerformDataBase.class).info("Postgres URL: " + dbUrl);
+                log.info("Postgres URL: " + dbUrl);
                 Class.forName("org.postgresql.Driver");
                 conn = DriverManager.getConnection(dbUrl, userDB, userPwd);
 
             } else if ("SQLServer".equalsIgnoreCase(dataBaseType)) {
                 // SQLite
-                ARLogger.getInstance(PerformDataBase.class).info("SQLServer URL: " + dbUrl);
+                log.info("SQLServer URL: " + dbUrl);
                 Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
                 conn = DriverManager.getConnection(dbUrl, userDB, userPwd);
             } else if ("SQLite".equalsIgnoreCase(dataBaseType)) {
                 // SQLite
                 String dbSQLiteUrl = CONNECTION_TYPE_SQLITE + dbUrlPath + ARConstants.FILE_NAME_SQLITE;
-                ARLogger.getInstance(PerformDataBase.class).info("SQLite connection URL: " + dbSQLiteUrl);
+                log.info("SQLite connection URL: " + dbSQLiteUrl);
                 Class.forName("org.sqlite.JDBC");
                 conn = DriverManager.getConnection(dbSQLiteUrl);
 
             } else {
                 // Default to Access
                 String dbAccessUrl = CONNECTION_TYPE + dbUrlPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
-                ARLogger.getInstance(PerformDataBase.class).info("Access connection URL: " + dbAccessUrl);
+                log.info("Access connection URL: " + dbAccessUrl);
                 Class.forName("net.ucanaccess.jdbc.UcanaccessDriver");
                 conn = DriverManager.getConnection(dbAccessUrl);
             }
@@ -782,8 +785,8 @@ public class PerformInitializer {
                 if (doesNotInstructionTableExist(performDataBase.getConnection())) {
                     ErrorMessage errorMessage = initializeMainDatabasePostgres();
                     if (errorMessage != null) {
-                        ARLogger.getInstance(PerformInitializer.class)
-                                .severe("Database Creation Error: " + errorMessage.getErrorMessage());
+
+                                log.error("Database Creation Error: " + errorMessage.getErrorMessage());
 
                         performMessage.errorMessage(
                                 errorMessage.getErrorTitle(),
@@ -796,8 +799,8 @@ public class PerformInitializer {
                     }
                 }
             } catch (Exception error) {
-                ARLogger.getInstance(PerformInitializer.class)
-                        .severe("Error connection with Postgres: " + error.getMessage());
+                
+                        log.error("Error connection with Postgres: " + error.getMessage());
             }
         } else if (performDataBase.SQLITE_DB) {
             String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
@@ -809,8 +812,8 @@ public class PerformInitializer {
                         ErrorMessage errorMessage = initializeMainDatabaseSQLite(dbFile);
 
                         if (errorMessage != null) {
-                            ARLogger.getInstance(PerformInitializer.class)
-                                    .severe("Database Creation Error: " + errorMessage.getErrorMessage());
+                            
+                                    log.error("Database Creation Error: " + errorMessage.getErrorMessage());
 
                             performMessage.errorMessage(
                                     errorMessage.getErrorTitle(),
@@ -825,8 +828,8 @@ public class PerformInitializer {
                     }
                 }
             } catch (Exception error) {
-                ARLogger.getInstance(PerformInitializer.class)
-                        .severe("Error connection with SQLite: " + error.getMessage());
+                
+                        log.error("Error connection with SQLite: " + error.getMessage());
             }
         } else if (performDataBase.ACCESS_DB) {
             String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
@@ -838,8 +841,8 @@ public class PerformInitializer {
                         ErrorMessage errorMessage = initializeMainDatabaseAccess(dbFile);
 
                         if (errorMessage != null) {
-                            ARLogger.getInstance(PerformInitializer.class)
-                                    .severe("Database Creation Error: " + errorMessage.getErrorMessage());
+                            
+                                    log.error("Database Creation Error: " + errorMessage.getErrorMessage());
 
                             performMessage.errorMessage(
                                     errorMessage.getErrorTitle(),
@@ -854,8 +857,8 @@ public class PerformInitializer {
                     }
                 }
             } catch (Exception error) {
-                ARLogger.getInstance(PerformInitializer.class)
-                        .severe("Error connection with Access: " + error.getMessage());
+                
+                        log.error("Error connection with Access: " + error.getMessage());
             }
         }
     }

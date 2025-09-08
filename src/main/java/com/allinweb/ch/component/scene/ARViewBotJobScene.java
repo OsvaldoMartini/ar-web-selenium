@@ -9,7 +9,7 @@ import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.util.ARLogger;
+
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
@@ -33,9 +33,12 @@ import javax.websocket.OnMessage;
 import javax.websocket.OnOpen;
 import javax.websocket.Session;
 import javax.websocket.WebSocketContainer;
+
+import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.WebDriver;
 
 @ClientEndpoint
+@Slf4j
 public class ARViewBotJobScene extends ARScene {
 
     protected static volatile ARViewBotJobScene instance;
@@ -129,9 +132,9 @@ public class ARViewBotJobScene extends ARScene {
         for (WebDriver driver : arWebDriver.getWebDriverList()) {
             try {
                 driver.quit();
-                ARLogger.getInstance(ARMainPane.class).info("WebDriver closed.");
+                log.info("WebDriver closed.");
             } catch (Exception e) {
-                ARLogger.getInstance(ARMainPane.class).warning("Error closing WebDriver: " + e.getMessage());
+                log.warn("Error closing WebDriver: " + e.getMessage());
             }
         }
         Platform.runLater(() -> arWebDriver.getWebDriverList().clear());
@@ -187,7 +190,7 @@ public class ARViewBotJobScene extends ARScene {
                 });
             } else {
                 // Handle the case where pane creation failed
-                ARLogger.getInstance(ARViewBotJobScene.class).severe("Failed to build pane for modal.");
+                log.error("Failed to build pane for modal.");
                 return;
             }
         }

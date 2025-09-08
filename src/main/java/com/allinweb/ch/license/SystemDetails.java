@@ -9,7 +9,7 @@ import java.security.NoSuchAlgorithmException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
-public class SystemDetails {
+import lombok.extern.slf4j.Slf4j;  @Slf4j public class SystemDetails {
 
     public static String getSystemDetails() {
         try {

@@ -3,13 +3,15 @@ package com.allinweb.ch.component.scene;
 import com.allinweb.ch.component.pane.ARLicensePane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
-import com.allinweb.ch.util.ARLogger;
+
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class ARLicenseScene extends ARScene {
     protected static volatile ARLicenseScene instance;
 
@@ -120,7 +122,7 @@ public class ARLicenseScene extends ARScene {
 
             } else {
                 // Handle the case where pane creation failed
-                ARLogger.getInstance(ARLicenseScene.class).severe("Failed to build pane for modal.");
+                log.error("Failed to build pane for modal.");
                 return;
             }
         }

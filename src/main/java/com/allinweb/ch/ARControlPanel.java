@@ -1,6 +1,5 @@
 package com.allinweb.ch;
 
-import com.allinweb.ch.component.pane.ARMainPane;
 import com.allinweb.ch.component.scene.ARConfigurationScene;
 import com.allinweb.ch.component.scene.ARLicenseScene;
 import com.allinweb.ch.component.scene.ARMainScene;
@@ -23,7 +22,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.stage.Stage;
+import lombok.extern.slf4j.Slf4j;
 
+
+@Slf4j
 public class ARControlPanel extends Application {
 
     private static WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
@@ -59,6 +61,18 @@ public class ARControlPanel extends Application {
     }
 
     public static void main(String[] args) {
+        // Define log directory from config/env
+        String logPath = System.getProperty("app.log.dir", "logs/");
+
+        File logDir = new File(logPath);
+        if (!logDir.exists() && !logDir.mkdirs()) {
+            System.err.println("❌ Failed to create log directory: " + logDir.getAbsolutePath());
+            System.exit(1);
+        }
+
+        // Make path available to Logback via System property
+        System.setProperty("LOG_PATH", logDir.getAbsolutePath());
+
         List<String> arguments = Arrays.asList(args);
         if (arguments.contains("-c")) {
             int configurationValueIndex = arguments.indexOf("-c") + 1;
@@ -88,7 +102,7 @@ public class ARControlPanel extends Application {
                 });
             }
 
-            ARLogger.getInstance(ARControlPanel.class).fine("Configuration file path: " + configurationValue);
+            log.info("Configuration file path: " + configurationValue);
         } else {
             try {
                 System.setProperty("ARWebConfig", defaultConfigurationFileName);
@@ -112,7 +126,7 @@ public class ARControlPanel extends Application {
                 });
             }
 
-            ARLogger.getInstance(ARControlPanel.class).fine("Configuration file path: " + defaultConfigurationFileName);
+            log.info("Configuration file path: " + defaultConfigurationFileName);
         }
 
         arPropertyManager.setProperty(ARPropertyEnum.VERSION.getValue(), "AR Web v4.2f Beta Test");
@@ -199,7 +213,7 @@ public class ARControlPanel extends Application {
                         "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
                         0);
 
-                ARLogger.getInstance(ARControlPanel.class).fine(error.getMessage());
+                log.info(error.getMessage());
             }
         } else {
             databaseControl();
@@ -259,7 +273,7 @@ public class ARControlPanel extends Application {
             performDataBase.initialize(dataBaseType);
 
         } catch (Exception error) {
-            ARLogger.getInstance(ARMainPane.class).severe("Error Database Connections: " + error.getMessage());
+            log.error("Error Database Connections: " + error.getMessage());
         }
 
         if ("Postgres".equalsIgnoreCase(dataBaseType)) {
@@ -284,7 +298,7 @@ public class ARControlPanel extends Application {
                     }
                 }
             } catch (Exception error) {
-                ARLogger.getInstance(ARMainPane.class).severe("Error connection with Postgres: " + error.getMessage());
+                log.error("Error connection with Postgres: " + error.getMessage());
             }
 
             //            performDataBase.dropPostGresSequences();
@@ -292,10 +306,10 @@ public class ARControlPanel extends Application {
 
                 Connection conn = performDataBase.getConnection();
                 if (conn != null) {
-                    ARLogger.getInstance(ARMainPane.class).severe("Postgres Database connected!");
+                    log.error("Postgres Database connected!");
                 }
             } catch (Exception error) {
-                ARLogger.getInstance(ARMainPane.class).severe("Error Export to Postgres: " + error.getMessage());
+                log.error("Error Export to Postgres: " + error.getMessage());
             }
 
         } else if (performDataBase.ACCESS_DB) {
@@ -312,8 +326,7 @@ public class ARControlPanel extends Application {
 
                         ErrorMessage errorMessage = performInitializer.initializeMainDatabaseAccess(dbFile);
                         if (errorMessage != null) {
-                            ARLogger.getInstance(ARMainPane.class)
-                                    .severe("Database Creation Error: " + errorMessage.getErrorMessage());
+                            log.error("Database Creation Error: " + errorMessage.getErrorMessage());
 
                             performMessage.errorMessage(
                                     errorMessage.getErrorTitle(),
@@ -333,12 +346,11 @@ public class ARControlPanel extends Application {
                     //                                    performDataBase.updateTableAccess(dbUrl, dbFile);
                     //                                    performDataBase.updateDatabaseSchema(dbUrl, dbFile);
 
-                    ARLogger.getInstance(ARMainPane.class)
-                            .info(String.format("Database '%s' already exists!", dbFile.getName()));
+                    log.info(String.format("Database '%s' already exists!", dbFile.getName()));
                 }
 
             } catch (Exception error) {
-                ARLogger.getInstance(ARMainPane.class).severe("Database Creation Error: " + error.getMessage());
+                log.error("Database Creation Error: " + error.getMessage());
 
                 performMessage.errorMessage(
                         "Configuration Needed", // Using configurationFileName as the title
@@ -353,10 +365,10 @@ public class ARControlPanel extends Application {
             try {
                 Connection conn = performDataBase.getConnection();
                 if (conn != null) {
-                    ARLogger.getInstance(ARMainPane.class).severe("Access Database connected!");
+                    log.error("Access Database connected!");
                 }
             } catch (Exception error) {
-                ARLogger.getInstance(ARMainPane.class).severe("Error Access: " + error.getMessage());
+                log.error("Error Access: " + error.getMessage());
             }
 
         } else if (performDataBase.SQLITE_DB) {
@@ -377,8 +389,7 @@ public class ARControlPanel extends Application {
                     //                                    performDataBase.updateTableAccess(dbUrl, dbFile);
                     //                                    performDataBase.updateDatabaseSchema(dbUrl, dbFile);
 
-                    ARLogger.getInstance(ARMainPane.class)
-                            .info(String.format("Database '%s' already exists!", dbFile.getName()));
+                    log.info(String.format("Database '%s' already exists!", dbFile.getName()));
                 }
 
             } catch (Exception error) {
@@ -395,10 +406,10 @@ public class ARControlPanel extends Application {
             try {
                 Connection conn = performDataBase.getConnection();
                 if (conn != null) {
-                    ARLogger.getInstance(ARMainPane.class).severe("SQLite Database connected!");
+                    log.error("SQLite Database connected!");
                 }
             } catch (Exception error) {
-                ARLogger.getInstance(ARMainPane.class).severe("Error SQLite: " + error.getMessage());
+                log.error("Error SQLite: " + error.getMessage());
             }
         }
     }
@@ -408,7 +419,7 @@ public class ARControlPanel extends Application {
     //        try {
     //            arWebSocketServerIP = ARWebSocketServerIP.getInstance();
     //        } catch (Exception error) {
-    //            ARLogger.getInstance(ARMainScene.class).severe("ARWebSocketServerIP with IP failed " +
+    //            log.error("ARWebSocketServerIP with IP failed " +
     // error.getMessage());
     //
     //            throw new RuntimeException(error);
@@ -416,7 +427,7 @@ public class ARControlPanel extends Application {
     //        try {
     //            arWebSocketServer = ARWebSocketServer.getInstance();
     //        } catch (Exception error) {
-    //            ARLogger.getInstance(ARMainScene.class).severe("ARWebSocketServer NO IP failed " +
+    //            log.error("ARWebSocketServer NO IP failed " +
     // error.getMessage());
     //            throw new RuntimeException(error);
     //        }

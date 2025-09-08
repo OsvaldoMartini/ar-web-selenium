@@ -4,10 +4,12 @@ import java.util.Arrays;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+
 public class ElementDTO {
     private Integer id;
     private String typeElement;

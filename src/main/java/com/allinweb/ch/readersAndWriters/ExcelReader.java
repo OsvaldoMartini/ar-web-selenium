@@ -13,7 +13,7 @@ import java.util.Set;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-public class ExcelReader {
+import lombok.extern.slf4j.Slf4j;  @Slf4j public class ExcelReader {
 
     private static final ARPropertyManager arPropertyManager;
 

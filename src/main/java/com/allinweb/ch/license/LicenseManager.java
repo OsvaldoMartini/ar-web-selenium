@@ -22,7 +22,7 @@ import java.util.Base64;
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
 
-public class LicenseManager {
+import lombok.extern.slf4j.Slf4j;  @Slf4j public class LicenseManager {
     private static final String KEY = "0123456789abcdef"; // 16-byte key for AES-128
     private static final PerformMessage performMessage;
     private static final ARPropertyManager arPropertyManager;
