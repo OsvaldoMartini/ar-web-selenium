@@ -11,12 +11,7 @@ import com.google.gson.FieldAttributes;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.HierarchyEvent;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseMotionAdapter;
+import java.awt.event.*;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -28,9 +23,8 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
-import lombok.extern.slf4j.Slf4j;
-
 import javax.swing.*;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * PerformMessage.
@@ -41,8 +35,13 @@ import javax.swing.*;
 @Slf4j
 public class PerformMessage {
 
+    private static final ARPropertyManager arPropertyManager;
     // Static final variable to hold the singleton instance
     protected static volatile PerformMessage instance;
+
+    static {
+        arPropertyManager = ARPropertyManager.getInstance();
+    }
 
     // Private constructor to prevent instantiation
     private PerformMessage() {}
@@ -59,10 +58,89 @@ public class PerformMessage {
         return instance;
     }
 
-    private static final ARPropertyManager arPropertyManager;
+    // Helper method to create styled buttons
+    private static JButton createStyledButton(String text) {
+        return new JButton(text) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                if (isOpaque()) {
+                    Graphics2D g2 = (Graphics2D) g;
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    GradientPaint gradient =
+                            new GradientPaint(0, 0, Color.LIGHT_GRAY, getWidth(), getHeight(), Color.WHITE);
+                    g2.setPaint(gradient);
+                    g2.fillRect(0, 0, getWidth(), getHeight());
+                }
+                super.paintComponent(g);
+            }
+        };
+    }
 
-    static {
-        arPropertyManager = ARPropertyManager.getInstance();
+    /**
+     * Creates a styled button with Windows 11 theme
+     */
+    private static JButton createStyledButtonWin11(String text) {
+        JButton button = new JButton(text);
+
+        // Windows 11 Theme Styling
+        button.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        button.setForeground(Color.WHITE);
+        button.setBackground(new Color(0, 120, 212)); // Windows 11 blue
+        button.setFocusPainted(false);
+        button.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12)); // Adjust padding
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        // Ensure UI updates properly
+        button.setOpaque(true);
+        button.setContentAreaFilled(true);
+        button.setBorderPainted(false);
+        button.putClientProperty("JComponent.outline", null); // Prevents UI interference
+
+        // Hover Effect
+        button.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                button.setBackground(new Color(0, 102, 180)); // Darker blue on hover
+            }
+
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                button.setBackground(new Color(0, 120, 212)); // Reset color
+            }
+        });
+
+        // Ensure color is reset each time it's used
+        button.addHierarchyListener(e -> {
+            if ((e.getChangeFlags() & HierarchyEvent.SHOWING_CHANGED) != 0 && button.isShowing()) {
+                button.setBackground(new Color(0, 120, 212)); // Restore original color
+            }
+        });
+
+        // Force UI update
+        button.revalidate();
+        button.repaint();
+
+        return button;
+    }
+
+    // Method to add drag-and-drop support
+    private static void addDragSupport(JDialog dialog, JPanel panel) {
+        final Point mouseDownCompCoords = new Point();
+
+        panel.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                mouseDownCompCoords.setLocation(e.getPoint());
+            }
+        });
+
+        panel.addMouseMotionListener(new MouseMotionAdapter() {
+            @Override
+            public void mouseDragged(MouseEvent e) {
+                Point currCoords = e.getLocationOnScreen();
+                dialog.setLocation(currCoords.x - mouseDownCompCoords.x, currCoords.y - mouseDownCompCoords.y);
+            }
+        });
     }
 
     public void initializePerformMessages() {}
@@ -738,91 +816,6 @@ public class PerformMessage {
         dialog.setVisible(true); // This blocks other input until the dialog is closed
 
         return status[0];
-    }
-
-    // Helper method to create styled buttons
-    private static JButton createStyledButton(String text) {
-        return new JButton(text) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                if (isOpaque()) {
-                    Graphics2D g2 = (Graphics2D) g;
-                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                    GradientPaint gradient =
-                            new GradientPaint(0, 0, Color.LIGHT_GRAY, getWidth(), getHeight(), Color.WHITE);
-                    g2.setPaint(gradient);
-                    g2.fillRect(0, 0, getWidth(), getHeight());
-                }
-                super.paintComponent(g);
-            }
-        };
-    }
-
-    /**
-     * Creates a styled button with Windows 11 theme
-     */
-    private static JButton createStyledButtonWin11(String text) {
-        JButton button = new JButton(text);
-
-        // Windows 11 Theme Styling
-        button.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        button.setForeground(Color.WHITE);
-        button.setBackground(new Color(0, 120, 212)); // Windows 11 blue
-        button.setFocusPainted(false);
-        button.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12)); // Adjust padding
-        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-        // Ensure UI updates properly
-        button.setOpaque(true);
-        button.setContentAreaFilled(true);
-        button.setBorderPainted(false);
-        button.putClientProperty("JComponent.outline", null); // Prevents UI interference
-
-        // Hover Effect
-        button.addMouseListener(new java.awt.event.MouseAdapter() {
-            @Override
-            public void mouseEntered(java.awt.event.MouseEvent evt) {
-                button.setBackground(new Color(0, 102, 180)); // Darker blue on hover
-            }
-
-            @Override
-            public void mouseExited(java.awt.event.MouseEvent evt) {
-                button.setBackground(new Color(0, 120, 212)); // Reset color
-            }
-        });
-
-        // Ensure color is reset each time it's used
-        button.addHierarchyListener(e -> {
-            if ((e.getChangeFlags() & HierarchyEvent.SHOWING_CHANGED) != 0 && button.isShowing()) {
-                button.setBackground(new Color(0, 120, 212)); // Restore original color
-            }
-        });
-
-        // Force UI update
-        button.revalidate();
-        button.repaint();
-
-        return button;
-    }
-
-    // Method to add drag-and-drop support
-    private static void addDragSupport(JDialog dialog, JPanel panel) {
-        final Point mouseDownCompCoords = new Point();
-
-        panel.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mousePressed(MouseEvent e) {
-                mouseDownCompCoords.setLocation(e.getPoint());
-            }
-        });
-
-        panel.addMouseMotionListener(new MouseMotionAdapter() {
-            @Override
-            public void mouseDragged(MouseEvent e) {
-                Point currCoords = e.getLocationOnScreen();
-                dialog.setLocation(currCoords.x - mouseDownCompCoords.x, currCoords.y - mouseDownCompCoords.y);
-            }
-        });
     }
 
     public String renderInstructionActions(InstructionLoad instruction) {

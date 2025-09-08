@@ -3,17 +3,22 @@ package com.allinweb.ch;
 import com.allinweb.ch.component.scene.ARConfigurationScene;
 import com.allinweb.ch.component.scene.ARLicenseScene;
 import com.allinweb.ch.component.scene.ARMainScene;
-import com.allinweb.ch.facade.*;
+import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformInitializer;
+import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.license.LicenceVal;
 import com.allinweb.ch.license.LicenseManager;
 import com.allinweb.ch.socket.ARWebSocketServer;
 import com.allinweb.ch.socket.ARWebSocketServerIP;
 import com.allinweb.ch.socket.WebSocketSessionManager;
-import com.allinweb.ch.util.*;
+import com.allinweb.ch.util.ARConstants;
+import com.allinweb.ch.util.ARPropertyEnum;
+import com.allinweb.ch.util.ARPropertyManager;
+import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
 import java.io.File;
 import java.io.FileInputStream;
-import java.sql.*;
+import java.sql.Connection;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
@@ -24,23 +29,21 @@ import javafx.application.Platform;
 import javafx.stage.Stage;
 import lombok.extern.slf4j.Slf4j;
 
-
 @Slf4j
 public class ARControlPanel extends Application {
-
-    private static WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
-    private static ARWebSocketServerIP arWebSocketServerIP = ARWebSocketServerIP.getInstance();
-    private static ARWebSocketServer arWebSocketServer = ARWebSocketServer.getInstance(); // Static block to initialize
 
     private static final PerformMessage performMessage;
     private static final ARPropertyManager arPropertyManager;
     private static final PerformDataBase performDataBase;
-
     private static final PerformInitializer performInitializer;
     private static final ARLicenseScene arLicenseScene;
-    private static String defaultConfigurationFileName = ARConstants.USER_PATH + ARConstants.FILE_NAME_CONFIGURATION;
     private static final ARConfigurationScene arConfigurationScene;
     private static final ARMainScene arMainScene;
+    private static WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
+    private static ARWebSocketServerIP arWebSocketServerIP = ARWebSocketServerIP.getInstance();
+    private static ARWebSocketServer arWebSocketServer = ARWebSocketServer.getInstance(); // Static block to initialize
+    private static String defaultConfigurationFileName = ARConstants.USER_PATH + ARConstants.FILE_NAME_CONFIGURATION;
+    private static boolean isEnabledLicence = true;
 
     static {
         performDataBase = PerformDataBase.getInstance();
@@ -50,14 +53,6 @@ public class ARControlPanel extends Application {
         arLicenseScene = ARLicenseScene.getInstance();
         arConfigurationScene = ARConfigurationScene.getInstance();
         arMainScene = ARMainScene.getInstance();
-    }
-
-    private static boolean isEnabledLicence = true;
-
-    @Override
-    public void start(Stage stage) throws Exception {
-        //        ARMainScene primaryStage = new ARMainScene();
-        //        primaryStage.show();
     }
 
     public static void main(String[] args) {
@@ -412,6 +407,12 @@ public class ARControlPanel extends Application {
                 log.error("Error SQLite: " + error.getMessage());
             }
         }
+    }
+
+    @Override
+    public void start(Stage stage) throws Exception {
+        //        ARMainScene primaryStage = new ARMainScene();
+        //        primaryStage.show();
     }
 
     //    private static void webSocketControl() {

@@ -5,18 +5,26 @@ import com.allinweb.ch.component.pane.ARNewHomeBankingPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.facade.PerformLists;
-
 import java.util.List;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import lombok.extern.slf4j.Slf4j;
 
-import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARNewHomeBankingScene extends ARScene {
+@Slf4j
+public class ARNewHomeBankingScene extends ARScene {
 
+    private static final PerformLists performLists = PerformLists.getInstance();
+    private static final ARNewHomeBankingPane arNewHomeBankingPane = ARNewHomeBankingPane.getInstance();
+    private static final Double SCENE_HEIGHT = 750D;
+    private static final Double SCENE_WIDTH = 1200D;
+    private static final String TITLE = "New Organization";
     protected static volatile ARNewHomeBankingScene instance;
-
+    private static HomeBankingLoadDTO homeBank;
+    private Stage modalStage;
+    private Scene modalScene;
     // Private constructor to prevent instantiation
     private ARNewHomeBankingScene() {
 
@@ -33,17 +41,6 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARNewHomeBankingScene ext
         }
         return instance;
     }
-
-    private Stage modalStage;
-    private Scene modalScene;
-
-    private static final PerformLists performLists = PerformLists.getInstance();
-    private static final ARNewHomeBankingPane arNewHomeBankingPane = ARNewHomeBankingPane.getInstance();
-    private static HomeBankingLoadDTO homeBank;
-
-    private static final Double SCENE_HEIGHT = 750D;
-    private static final Double SCENE_WIDTH = 1200D;
-    private static final String TITLE = "New Organization";
 
     public void initialize(HomeBankingLoadDTO homeBank) {
         this.homeBank = homeBank;

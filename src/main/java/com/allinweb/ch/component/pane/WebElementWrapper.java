@@ -1,9 +1,11 @@
 package com.allinweb.ch.component.pane;
 
 import java.util.Objects;
+import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.WebElement;
 
-import lombok.extern.slf4j.Slf4j;  @Slf4j public class WebElementWrapper {
+@Slf4j
+public class WebElementWrapper {
     private String text;
     private String href;
     private String tagName;

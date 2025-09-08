@@ -4,7 +4,6 @@ import java.util.List;
 import lombok.Data;
 
 @Data
-
 public class BlockOrderDTO {
     private String type;
     private Integer botJobId;

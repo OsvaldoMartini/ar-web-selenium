@@ -9,7 +9,6 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-
 public class InstructionOperationDTO {
     private Integer id;
     private Integer blockId;

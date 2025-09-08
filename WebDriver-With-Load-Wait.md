@@ -1,11 +1,11 @@
- private void setupWebDriver() {
-        String logFolder = "D:\\Projects\\AllinWeb\\ARWeb\\Logs";
-        String webDriverPath = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
-        // Set the path to the ChromeDriver executable
-        ChromeOptions options = new ChromeOptions();
-        //        options.addArguments("--headless"); // Run in headless mode
-        System.setProperty("webdriver.chrome.verboseLogging", "true");
-        System.setProperty("webdriver.chrome.logfile", logFolder + "\\_chrome_browser.log");
+private void setupWebDriver() {
+String logFolder = "D:\\Projects\\AllinWeb\\ARWeb\\Logs";
+String webDriverPath = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
+// Set the path to the ChromeDriver executable
+ChromeOptions options = new ChromeOptions();
+// options.addArguments("--headless"); // Run in headless mode
+System.setProperty("webdriver.chrome.verboseLogging", "true");
+System.setProperty("webdriver.chrome.logfile", logFolder + "\\_chrome_browser.log");
 
         //                        options.setBinary(ARConstants.USER_PATH + "\\chrome\\chrome.exe");
         options.setBinary(webDriverPath);

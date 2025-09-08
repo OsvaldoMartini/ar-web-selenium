@@ -22,13 +22,44 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.util.Callback;
-
 import lombok.extern.slf4j.Slf4j;
+
 @Slf4j
 public class ARElementValuePane extends ARPane {
 
+    private static final PerformLists performLists = PerformLists.getInstance();
+    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
+    private static final PerformMessage performMessage = PerformMessage.getInstance();
+    private static final ARNewCommandPane arNewCommandPane = ARNewCommandPane.getInstance();
     protected static volatile ARElementValuePane instance;
-
+    private static WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
+    private final Gson gson = new Gson();
+    TextField idField;
+    TextField parentField;
+    TextField nameField;
+    TextField valueField;
+    TextField usedVarsField;
+    CheckBox stringCheckBox;
+    CheckBox numericCheckBox;
+    Label numberFormatLabel;
+    Label delimeterCSVLabel;
+    ComboBox<FormatOption> comboBoxLocalFormat;
+    ComboBox<FormatOption> comboBoxCSVColumns;
+    Button insertButton;
+    Button updateButton;
+    Button deleteButton;
+    // Postgres
+    private Connection conn = null;
+    private TableView<VariableUserDTO> tableView = new TableView<>();
+    private SplitDTO splitDTO;
+    private int varId;
+    private String varValue;
+    private int instructionId;
+    private String instructionName;
+    private String varName;
+    private String instructionType;
+    private Pane mainPane;
+    private PayloadJson payloadEmpty;
     // Private constructor to prevent instantiation
     private ARElementValuePane() {}
 
@@ -42,46 +73,6 @@ public class ARElementValuePane extends ARPane {
         }
         return instance;
     }
-
-    // Postgres
-    private Connection conn = null;
-
-    private TableView<VariableUserDTO> tableView = new TableView<>();
-    private SplitDTO splitDTO;
-    private int varId;
-    private String varValue;
-    private int instructionId;
-
-    private String instructionName;
-    private String varName;
-    private String instructionType;
-
-    private Pane mainPane;
-
-    TextField idField;
-    TextField parentField;
-    TextField nameField;
-    TextField valueField;
-    TextField usedVarsField;
-    CheckBox stringCheckBox;
-    CheckBox numericCheckBox;
-    Label numberFormatLabel;
-    Label delimeterCSVLabel;
-    ComboBox<FormatOption> comboBoxLocalFormat;
-    ComboBox<FormatOption> comboBoxCSVColumns;
-
-    Button insertButton;
-    Button updateButton;
-    Button deleteButton;
-
-    private final Gson gson = new Gson();
-    private PayloadJson payloadEmpty;
-
-    private static WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
-    private static final PerformLists performLists = PerformLists.getInstance();
-    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
-    private static final PerformMessage performMessage = PerformMessage.getInstance();
-    private static final ARNewCommandPane arNewCommandPane = ARNewCommandPane.getInstance();
 
     public void initialize(
             SplitDTO splitDTO,

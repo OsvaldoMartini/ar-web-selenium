@@ -1,18 +1,23 @@
 package com.allinweb.ch.control;
 
-import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.util.ARConstants;
-
 import java.util.Objects;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
-import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.*;
+import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
+import lombok.extern.slf4j.Slf4j;
 
-import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARComponentBuilder {
+@Slf4j
+public class ARComponentBuilder {
 
     // Static final variable to hold the singleton instance
     protected static volatile ARComponentBuilder instance;
@@ -84,8 +89,8 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARComponentBuilder {
             image.setPreserveRatio(true);
             return image;
         } catch (Exception e) {
-            
-                    log.error(String.format("BuildImageView source: %s size %d \n%s", source, size, e.getMessage()));
+
+            log.error(String.format("BuildImageView source: %s size %d \n%s", source, size, e.getMessage()));
         }
         return null;
     }

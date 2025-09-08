@@ -13,20 +13,19 @@ import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
-import javafx.scene.control.*;
-import javafx.scene.layout.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
+import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import org.openqa.selenium.WebDriver;
 
 public class BotJobListCell extends ListCell<BotJobLoadDTO> {
 
-    private ARViewBotJobScene arViewBotJobScene;
-    private ARWebDriver arWebDriver;
-    private ObservableList<BotJobLoadDTO> botJobList;
-    private ObservableList<WebDriver> webDriverList;
-
-    private boolean isEnabledLicence;
     private static final PerformDataBase performDataBase;
     private static final PerformMessage performMessage;
 
@@ -34,6 +33,12 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
         performDataBase = PerformDataBase.getInstance();
         performMessage = PerformMessage.getInstance();
     }
+
+    private ARViewBotJobScene arViewBotJobScene;
+    private ARWebDriver arWebDriver;
+    private ObservableList<BotJobLoadDTO> botJobList;
+    private ObservableList<WebDriver> webDriverList;
+    private boolean isEnabledLicence;
 
     public BotJobListCell(
             ARViewBotJobScene arViewBotJobScene,

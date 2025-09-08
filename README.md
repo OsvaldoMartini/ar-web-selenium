@@ -11,10 +11,10 @@ executed by the AR Web Engine.
 * [Contacts](#contacts)
 * [Technologies](#technologies)
 * [Guide Lines](#guide-lines)
-  * [Premise](#premise)
-  * [Communication](#communication)
-  * [Data Objects](#data-objects)
-  * [UI Structure](#ui-structure)
+    * [Premise](#premise)
+    * [Communication](#communication)
+    * [Data Objects](#data-objects)
+    * [UI Structure](#ui-structure)
 
 ### Setup
 
@@ -49,31 +49,39 @@ executed by the AR Web Engine.
 ### Guide lines
 
 #### Premise
+
 The project tries to make modular components. This is because there
 is a possibility in the future to split the application in multiple
 applications with different responsibility.
 This is because for example: the data fetching from the database is
-copied both on the AR Web Scan and the AR Web Engine having class 
-duplicated. This causes the problem of having to update classes 
+copied both on the AR Web Scan and the AR Web Engine having class
+duplicated. This causes the problem of having to update classes
 modifications on both projects simultaneously.
 To avoid this behaviour we could extract the communication layer into a
-separate application that expose services to be consumed by the two 
+separate application that expose services to be consumed by the two
 projects. Another approach could be to build a jar and import it into
 the projects.
 
 #### Communication
 
-Right now for communication there is the class Repository which has 
+Right now for communication there is the class Repository which has
 various generics methods to read and write to the database:
+
 ```java
-import lombok.extern.slf4j.Slf4j;  @Slf4j public class Repository {
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+public class Repository {
     ...
+
     public <T> void write(T obj)
     ...
+
     public <T> void remove(T obj)
     ...
 }
 ```
+
 _**This class is temporary and should be improved by using something
 else that is less manual as explained above.**_
 
@@ -83,14 +91,18 @@ The data Objects are created using Hibernate. As this is somewhat
 standard even for Spring Boot there is really no need to change the
 technology used.
 As of now the classes have the names explicitly declared. This could
-_(and should)_ be changed in the future as sticking to the standard 
+_(and should)_ be changed in the future as sticking to the standard
 Hibernate behaviour is better in case there are breaking updates
 that would void the explicitly declared functions.
+
 ```java
 
 @Table(name = "bot_job")
 //@SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "botJobSeq", allocationSize = 1)
-import lombok.extern.slf4j.Slf4j;  @Slf4j public class BotJobDTO extends BaseDTO implements Serializable {
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+public class BotJobDTO extends BaseDTO implements Serializable {
 
     @Column(name = "name")
     private String name;
@@ -99,6 +111,7 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class BotJobDTO extends BaseDTO
     private String description;
     ...
 ```
+
 As shown, there is a BaseDTO class as well that is extended from all
 the other DTO objects.
 Even though it seems a good idea in theory, in practice it creates
@@ -118,8 +131,12 @@ Panels on the other hand manage the buttons, inputs, etc... that
 the user sees.
 
 Scene class example:
+
 ```java
-import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARMainScene extends ARScene {
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+public class ARMainScene extends ARScene {
 
     private static final Double SCENE_HEIGHT = 30D;
     private static final Double SCENE_WIDTH = 300D;
@@ -133,8 +150,12 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARMainScene extends ARSce
 ```
 
 Pane class example:
+
 ```java
-import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARMainPane extends ARPane {
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+public class ARMainPane extends ARPane {
 
     private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
 

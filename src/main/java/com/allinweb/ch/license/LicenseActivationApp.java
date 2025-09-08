@@ -11,10 +11,13 @@ import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
-import javafx.scene.layout.*;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import lombok.extern.slf4j.Slf4j;
 
-import lombok.extern.slf4j.Slf4j;  @Slf4j public class LicenseActivationApp extends Application {
+@Slf4j
+public class LicenseActivationApp extends Application {
 
     private static final PerformMessage performMessage;
 
@@ -23,6 +26,46 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class LicenseActivationApp exte
     }
 
     private String fileFolder;
+
+    public static void main(String[] args) throws Exception {
+        String licensePath = System.getProperty("user.dir");
+        if (args.length > 0) {
+            licensePath = args[0];
+        }
+
+        if (!LicenseManager.checkLicenseFile(licensePath).isActive()) {
+            launch(args);
+        } else {
+            System.out.println("AR Web agree licence terms are activate.\n\nPress OK to proceed.");
+            //        Application.launch(LicenceResponseManagerApp.class, args); // Lancia questa
+            // applicazione se la
+            // condizione  falsa
+        }
+    }
+
+    private static String getDesktopDir() throws IOException {
+        PointerByReference ppszPath = new PointerByReference();
+        if (Shell32.INSTANCE
+                        .SHGetKnownFolderPath(KnownFolders.FOLDERID_Desktop, 0, null, ppszPath)
+                        .intValue()
+                != 0) {
+
+            performMessage.errorMessage(
+                    "Error reading/writing to the file!",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please verify that you have the necessary permissions to read and write to the specified directory.</span>",
+                    "<span style='color: #E65100; font-weight: bold;'>Attempted to access the following location:</span> <span style='font-weight: bold;'>Desktop</span>",
+                    "<span style='color: #E65100; font-style: italic; font-weight: bold;'>The request for the License file path was defined at:</span>",
+                    "<span style='color: #1A237E; font-style: italic; font-weight: bold; font-size: 1.05em;'>Desktop Folder</span>",
+                    0);
+            return null;
+            //            throw new IOException("Failed to get desktop directory.");
+        }
+
+        // Convert pointer to string
+        String desktopPath = ppszPath.getValue().getWideString(0);
+        Native.free(Pointer.nativeValue(ppszPath.getValue()));
+        return desktopPath;
+    }
 
     @Override
     public void start(Stage primaryStage) throws Exception {
@@ -206,45 +249,5 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class LicenseActivationApp exte
         primaryStage.setTitle("Activation Software Required");
         primaryStage.setScene(scene);
         primaryStage.show();
-    }
-
-    public static void main(String[] args) throws Exception {
-        String licensePath = System.getProperty("user.dir");
-        if (args.length > 0) {
-            licensePath = args[0];
-        }
-
-        if (!LicenseManager.checkLicenseFile(licensePath).isActive()) {
-            launch(args);
-        } else {
-            System.out.println("AR Web agree licence terms are activate.\n\nPress OK to proceed.");
-            //        Application.launch(LicenceResponseManagerApp.class, args); // Lancia questa
-            // applicazione se la
-            // condizione  falsa
-        }
-    }
-
-    private static String getDesktopDir() throws IOException {
-        PointerByReference ppszPath = new PointerByReference();
-        if (Shell32.INSTANCE
-                        .SHGetKnownFolderPath(KnownFolders.FOLDERID_Desktop, 0, null, ppszPath)
-                        .intValue()
-                != 0) {
-
-            performMessage.errorMessage(
-                    "Error reading/writing to the file!",
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please verify that you have the necessary permissions to read and write to the specified directory.</span>",
-                    "<span style='color: #E65100; font-weight: bold;'>Attempted to access the following location:</span> <span style='font-weight: bold;'>Desktop</span>",
-                    "<span style='color: #E65100; font-style: italic; font-weight: bold;'>The request for the License file path was defined at:</span>",
-                    "<span style='color: #1A237E; font-style: italic; font-weight: bold; font-size: 1.05em;'>Desktop Folder</span>",
-                    0);
-            return null;
-            //            throw new IOException("Failed to get desktop directory.");
-        }
-
-        // Convert pointer to string
-        String desktopPath = ppszPath.getValue().getWideString(0);
-        Native.free(Pointer.nativeValue(ppszPath.getValue()));
-        return desktopPath;
     }
 }

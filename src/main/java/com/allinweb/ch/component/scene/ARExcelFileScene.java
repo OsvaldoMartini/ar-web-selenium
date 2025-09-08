@@ -4,7 +4,6 @@ import com.allinweb.ch.component.model.SplitDTO;
 import com.allinweb.ch.component.pane.ARExcelFilePane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
-
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
@@ -14,8 +13,15 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ARExcelFileScene extends ARScene {
 
+    private static final Double SCENE_HEIGHT = 300D;
+    private static final Double SCENE_WIDTH = 800D;
+    private static final String TITLE = "Create or Delete the Export Excel File";
     protected static volatile ARExcelFileScene instance;
-
+    private static ARExcelFilePane arExcelFilePane = ARExcelFilePane.getInstance();
+    private Stage modalStage;
+    private Scene modalScene;
+    private SplitDTO splitDTO;
+    private String sessionId;
     // Private constructor to prevent instantiation
     private ARExcelFileScene() {
 
@@ -37,17 +43,6 @@ public class ARExcelFileScene extends ARScene {
         this.sessionId = sessionId;
         this.splitDTO = splitDTO;
     }
-
-    private Stage modalStage;
-    private Scene modalScene;
-
-    private static ARExcelFilePane arExcelFilePane = ARExcelFilePane.getInstance();
-
-    private static final Double SCENE_HEIGHT = 300D;
-    private static final Double SCENE_WIDTH = 800D;
-    private static final String TITLE = "Create or Delete the Export Excel File";
-    private SplitDTO splitDTO;
-    private String sessionId;
 
     @Override
     public IARPane buildPane() {

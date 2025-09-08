@@ -5,9 +5,6 @@ import com.allinweb.ch.component.scene.ARLicenseScene;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
@@ -15,10 +12,34 @@ import javafx.scene.control.Label;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
+import lombok.extern.slf4j.Slf4j;
 
-import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARInfoPane extends ARPane {
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 
+@Slf4j
+public class ARInfoPane extends ARPane {
+
+    private static final ARPropertyManager arPropertyManager;
+    private static final ARLicenseScene arLicenseScene;
     protected static volatile ARInfoPane instance;
+
+    static {
+        arPropertyManager = ARPropertyManager.getInstance();
+        arLicenseScene = ARLicenseScene.getInstance();
+    }
+
+    private boolean isEnabledLicence;
+    private Label applicationNameLabel;
+    private Label compileDateLabel;
+    private Label expirationDateLabel;
+    private Label copyrightLabel;
+    private Label rightsReservedLabel;
+
+    private Button btnLicense; // Declare the License button
+
+    private Pane mainPane;
 
     // Private constructor to prevent instantiation
     private ARInfoPane() {
@@ -37,28 +58,8 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARInfoPane extends ARPane
         return instance;
     }
 
-    private boolean isEnabledLicence;
-
     public void initialize(boolean isEnabledLicence) {
         this.isEnabledLicence = isEnabledLicence;
-    }
-
-    private Label applicationNameLabel;
-    private Label compileDateLabel;
-    private Label expirationDateLabel;
-    private Label copyrightLabel;
-    private Label rightsReservedLabel;
-
-    private Button btnLicense; // Declare the License button
-
-    private Pane mainPane;
-
-    private static final ARPropertyManager arPropertyManager;
-    private static final ARLicenseScene arLicenseScene;
-
-    static {
-        arPropertyManager = ARPropertyManager.getInstance();
-        arLicenseScene = ARLicenseScene.getInstance();
     }
 
     @Override
@@ -117,9 +118,7 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARInfoPane extends ARPane
         versionInfoBox.setPadding(new Insets(12));
         versionInfoBox.setAlignment(Pos.CENTER_LEFT);
         versionInfoBox.setStyle("-fx-background-color: #f1f2f6; " + "-fx-border-color: #dcdde1; "
-                + "-fx-border-width: 1; "
-                + "-fx-border-radius: 6; "
-                + "-fx-background-radius: 6;");
+                + "-fx-border-width: 1; " + "-fx-border-radius: 6; " + "-fx-background-radius: 6;");
 
         // Initialize the License button
         btnLicense = new Button("License");

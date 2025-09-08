@@ -4,7 +4,6 @@ import java.util.List;
 import lombok.Data;
 
 @Data
-
 public class BlockDetailsDTO {
     private Integer homeBankingId;
     private Integer blockId;

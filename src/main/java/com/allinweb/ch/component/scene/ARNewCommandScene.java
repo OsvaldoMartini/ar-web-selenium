@@ -1,13 +1,14 @@
 package com.allinweb.ch.component.scene;
 
-import com.allinweb.ch.component.model.*;
+import com.allinweb.ch.component.model.BlockMoveDTO;
+import com.allinweb.ch.component.model.InstructionLoad;
+import com.allinweb.ch.component.model.SplitDTO;
 import com.allinweb.ch.component.pane.ARNewCommandPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
-
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -15,32 +16,42 @@ import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
-import javax.websocket.ClientEndpoint;
-import javax.websocket.ContainerProvider;
-import javax.websocket.OnClose;
-import javax.websocket.OnError;
-import javax.websocket.OnMessage;
-import javax.websocket.OnOpen;
-import javax.websocket.Session;
-import javax.websocket.WebSocketContainer;
+import javax.websocket.*;
 import lombok.Getter;
 import lombok.Setter;
-
-
 import lombok.extern.slf4j.Slf4j;
-@ClientEndpoint @Slf4j public class ARNewCommandScene extends ARScene {
 
+@ClientEndpoint
+@Slf4j
+public class ARNewCommandScene extends ARScene {
+
+    private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    private static final CountDownLatch latch = new CountDownLatch(1);
+    private static final Double SCENE_HEIGHT = 300D;
+    private static final Double SCENE_WIDTH = 800D;
+    private static final String TITLE = "Add/Update Operations";
+    private static final PerformMessage performMessage = PerformMessage.getInstance();
+    private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
+    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
+    private static final ARNewCommandPane arNewCommandPane = ARNewCommandPane.getInstance();
     protected static volatile ARNewCommandScene instance;
+    private final Gson gson = new Gson();
+    public boolean isConnectWebSocket = false;
 
+    @Getter
+    @Setter
+    public SplitDTO splitDTO;
+
+    private String previousBlock = null;
+    private ExecutorService executorWebSocket = Executors.newSingleThreadExecutor();
+    private Session session;
+    private Stage modalStage;
+    private Scene modalScene;
     // Private constructor to prevent instantiation
     private ARNewCommandScene() {
 
@@ -58,15 +69,25 @@ import lombok.extern.slf4j.Slf4j;
         return instance;
     }
 
-    private final Gson gson = new Gson();
-    private String previousBlock = null;
-
-    public boolean isConnectWebSocket = false;
-
-    private ExecutorService executorWebSocket = Executors.newSingleThreadExecutor();
-    private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-    private static final CountDownLatch latch = new CountDownLatch(1);
-    private Session session;
+    private static void sendMessageJson(
+            int homeBankingId, Session session, String sessionId, String body, String operationId) {
+        if (session != null && session.isOpen()) {
+            try {
+                JsonObject jsonMessage = new JsonObject();
+                jsonMessage.addProperty("homeBankingId", homeBankingId);
+                jsonMessage.addProperty("sessionId", sessionId);
+                jsonMessage.addProperty("body", body);
+                if (operationId != null && !operationId.isEmpty()) {
+                    jsonMessage.addProperty("operationId", operationId);
+                }
+                session.getBasicRemote().sendText(jsonMessage.toString());
+            } catch (IOException e) {
+                System.err.println("Error sending message to session " + sessionId + ": " + e.getMessage());
+            }
+        } else {
+            System.err.println("Session " + sessionId + " not found or closed.");
+        }
+    }
 
     private void stopKeepAlivePings() {
         scheduler.shutdownNow();
@@ -302,22 +323,6 @@ import lombok.extern.slf4j.Slf4j;
         });
     }
 
-    private Stage modalStage;
-    private Scene modalScene;
-
-    private static final Double SCENE_HEIGHT = 300D;
-    private static final Double SCENE_WIDTH = 800D;
-    private static final String TITLE = "Add/Update Operations";
-
-    @Getter
-    @Setter
-    public SplitDTO splitDTO;
-
-    private static final PerformMessage performMessage = PerformMessage.getInstance();
-    private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
-    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
-    private static final ARNewCommandPane arNewCommandPane = ARNewCommandPane.getInstance();
-
     public void initialize(SplitDTO splitDTO) {
         this.splitDTO = splitDTO;
     }
@@ -363,8 +368,8 @@ import lombok.extern.slf4j.Slf4j;
                 }
 
             } catch (Exception error) {
-                
-                        log.error("Error reading 'EXCEL GOTO' instructions: " + error.getMessage());
+
+                log.error("Error reading 'EXCEL GOTO' instructions: " + error.getMessage());
                 //                    performMessage.errorMessage(
                 //                            "Excel GOTO Detected",
                 //                            "<span style='font-weight: bold;'>This Bot Job already has an </span><span
@@ -456,25 +461,5 @@ import lombok.extern.slf4j.Slf4j;
                 System.err.println("WebSocket connection failed sessionId: " + sessionId + " error: " + e.getMessage());
             }
         });
-    }
-
-    private static void sendMessageJson(
-            int homeBankingId, Session session, String sessionId, String body, String operationId) {
-        if (session != null && session.isOpen()) {
-            try {
-                JsonObject jsonMessage = new JsonObject();
-                jsonMessage.addProperty("homeBankingId", homeBankingId);
-                jsonMessage.addProperty("sessionId", sessionId);
-                jsonMessage.addProperty("body", body);
-                if (operationId != null && !operationId.isEmpty()) {
-                    jsonMessage.addProperty("operationId", operationId);
-                }
-                session.getBasicRemote().sendText(jsonMessage.toString());
-            } catch (IOException e) {
-                System.err.println("Error sending message to session " + sessionId + ": " + e.getMessage());
-            }
-        } else {
-            System.err.println("Session " + sessionId + " not found or closed.");
-        }
     }
 }

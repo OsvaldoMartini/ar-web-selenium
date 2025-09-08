@@ -5,49 +5,23 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ARConstants {
 
-    public enum ConditionStatus {
-        NONE, // No active condition
-        IF_PASSED, // IF condition was met
-        IF_FAILED, // IF condition failed
-        ELSEIF_PASSED, // ELSEIF condition was met
-        ELSEIF_FAILED, // ELSEIF condition failed
-        ELSE_PASSED,
-        ELSE_FAILED,
-        IF, // ELSE block is active
-        ELSEIF,
-        ELSE, // ELSE block is active
-        ENDIF,
-        BY_PASS
-    }
-
-    public enum DialogModal {
-        NONE,
-        OK,
-        STOP,
-        EXIT
-    }
-
     // Labels & Properties
     public static final String LABELS_FILE_NAME_COMMON = "lang/labels.";
     public static final String PROPERTIES_FILE_EXTENSION = ".properties";
     public static final String CONFIG_FILE_NAME = "config";
-
     // BROWSERS
     public static final String CHROME = "chrome";
     public static final String EDGE = "edge";
     public static final String FIREFOX = "firefox";
     public static final String SAFARI = "safari";
-
     // column names
     public static final String NAME = "name";
     public static final String ID = "id";
-
     // DEFAULT VALUES
     public static final String NAME_ENGINE = "\\AR_Web_Engine.jar";
     public static final String NAME_SCANNER = "\\AR_Web_Scanner.jar";
     public static final String NAME_LAUNCHER = "\\AR_Web_Launcher.jar";
     public static final String NAME_JAVA_EXECUTABLE = "\\java.exe";
-
     public static final String PATH_EXCEL = "\\excel";
     public static final String PATH_LOG = "\\log";
     public static final String DB_URL = "\\java";
@@ -55,10 +29,8 @@ public class ARConstants {
     public static final String PATH_REPORT = "\\report";
     public static final String DB_USER = "XXXXXX";
     public static final String DB_PWD = "XXXXXX";
-
     public static final String VALUE_NO_IDENTIFICATION = "No significant identification found";
     public static final String TO_IGNORE = "TO IGNORE";
-
     public static final String FOLDER_BIN = "\\bin";
     public static final String FOLDER_LIB = "\\lib";
     // DIMENSIONS
@@ -70,18 +42,15 @@ public class ARConstants {
     public static final Double SPACE_L = 30D;
     public static final Double SPACE_XL = 40D;
     public static final Double SPACE_XXS = 2.5D;
-
     // IMPORTANT FILE NAMES
     public static final String FILE_NAME_SCANNER_BASE_LOG = "\\ar_web_scan_base.log";
     public static final String FILE_NAME_SCANNER_LOG = "\\ar_web_scan.log";
     public static final String FILE_NAME_SCANNER_OUTPUT_LOG = "\\ar_web_scan_output.log";
-
     public static final String FILE_NAME_CONFIGURATION = "\\config\\configuration.properties";
     public static final String FILE_NAME_PRIORITIES = "\\priorities.properties";
     public static final String FILE_NAME_ACCESS = "\\database.mdb";
     public static final String FILE_NAME_SQLITE = "\\database.db";
     public static final String USER_PATH = System.getProperty("user.dir");
-
     // ICON FILE NAMES
     public static final String ICON_APPLICATION = "/AR_icon.png";
     public static final String ICON_DIRECTORY = "/directory.png";
@@ -137,7 +106,6 @@ public class ARConstants {
     public static final String ICON_ARROWRIGHT = "/ArrowRight.png";
     public static final String ICON_LEFT = "/left.png";
     public static final String ICON_RIGHT = "/right.png";
-
     public static final String ICON_DOCS = "/docs.png";
     public static final String ICON_CUBES = "/Cubes.png";
     public static final String ICON_SCREEN = "/screen.png";
@@ -146,7 +114,6 @@ public class ARConstants {
     public static final String ICON_GREATER = "/greater.png";
     public static final String ICON_LESS = "/less.png";
     public static final String ICON_DIFFERENT = "/different.png";
-
     // ACTION CODES
     public static final String EXIT = "EXIT";
     public static final String IGNORE = "IGNORE";
@@ -160,7 +127,6 @@ public class ARConstants {
     public static final String CLICK = "C";
     public static final String FOCUS = "FOCUS";
     public static final String SELECT = "SELECT";
-
     // actions codes
     public static final String COORD_VISUALIZA = "COORD_VISUALIZA";
     public static final String COORD_CLICK = "COORD_CLICK";
@@ -195,7 +161,6 @@ public class ARConstants {
     public static final String NEXT_ROW = "NEXT ROW";
     public static final String FIND_ALL_CHILD_ELEMENTS = ".//*";
     public static final String NO_VALUE = "NULL";
-
     // ACTION SYNTAX
     public static final String EXCEL_BLOCK_HEADER = "EXCEL_BLOCK_HEADER";
     public static final String SUBSTITUTE_FIELD_VALUE = "<#value>";
@@ -210,7 +175,6 @@ public class ARConstants {
     public static final String FAIL = "KO";
     public static final String PATH_SEPARATOR = "\\";
     public static final String COMPLEX_INSTRUCTION_SEPARATOR = "\\|\\|";
-
     // actions specifications and various
     public static final String REGULAR_XPATH = "REGULAR_XPATH"; // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
     public static final String CUSTOM_XPATH = "CUSTOM_XPATH"; // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
@@ -222,15 +186,35 @@ public class ARConstants {
     public static final String FILE_FORMAT_EXCEL = ".xlsx";
     public static final String FILE_FORMAT_CSV = ".csv";
     public static final String FILE_FORMAT_LOG = ".log";
-
     // DATABASES
     public static final String POSTGRES = "PostGres";
     public static final String ACCESS = "Access";
     public static final String SQLSERVER = "SQLServer";
     public static final String SQLITE = "SQLite";
-
     public static final String XPATH_SCRIPT = "" + "window.addEventListener('click', onClick);"
             + "const onClick = (event) => {\n"
             + "  return event.srcElement.id;\n"
             + "}";
+
+    public enum ConditionStatus {
+        NONE, // No active condition
+        IF_PASSED, // IF condition was met
+        IF_FAILED, // IF condition failed
+        ELSEIF_PASSED, // ELSEIF condition was met
+        ELSEIF_FAILED, // ELSEIF condition failed
+        ELSE_PASSED,
+        ELSE_FAILED,
+        IF, // ELSE block is active
+        ELSEIF,
+        ELSE, // ELSE block is active
+        ENDIF,
+        BY_PASS
+    }
+
+    public enum DialogModal {
+        NONE,
+        OK,
+        STOP,
+        EXIT
+    }
 }

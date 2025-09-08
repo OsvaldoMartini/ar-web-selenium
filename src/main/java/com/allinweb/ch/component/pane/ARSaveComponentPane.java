@@ -1,6 +1,8 @@
 package com.allinweb.ch.component.pane;
 
-import com.allinweb.ch.component.model.*;
+import com.allinweb.ch.component.model.BlockDetailsDTO;
+import com.allinweb.ch.component.model.BlockLoadDTO;
+import com.allinweb.ch.component.model.InstructionLoad;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.facade.PerformActions;
@@ -9,7 +11,6 @@ import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ARConstants;
-
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -23,28 +24,45 @@ import java.util.concurrent.Executors;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
-import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
-import javafx.scene.layout.AnchorPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Pane;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
-import lombok.extern.slf4j.Slf4j;
-
 import javax.websocket.Session;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class ARSaveComponentPane extends ARPane {
 
+    private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
+    private static final int SECONDS = 3; // Total seconds for the countdown
+    private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
+    private static final PerformMessage performMessage = PerformMessage.getInstance();
+    private static final PerformActions performAction = PerformActions.getInstance();
+    private static final PerformLists performLists = PerformLists.getInstance();
+    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
     protected static volatile ARSaveComponentPane instance;
+    private static Map<String, Session> activeSessions;
+    TextField nameTextField;
+    TextArea descriptionTextField;
+    Text regularText;
+    Text variableText1;
+    Text variableText2;
+    Label warningLabel;
+    Button closeButton;
+    private Gson gson = new GsonBuilder().setPrettyPrinting().create();
+    private BlockDetailsDTO blockDetailsDTO;
+    private int remainingSeconds = SECONDS;
+    private Timeline timeline;
+    private ExecutorService executorService;
+    private Alert alertToShow;
+    private List<BlockLoadDTO> savedBlockLoadList = new ArrayList<>();
+    private Button saveNewComponentButton;
+    private AnchorPane mainPane;
 
     // Private constructor to prevent instantiation
     private ARSaveComponentPane() {
@@ -66,40 +84,6 @@ public class ARSaveComponentPane extends ARPane {
     public void initialize(BlockDetailsDTO blockDetailsDTO) {
         this.blockDetailsDTO = blockDetailsDTO;
     }
-
-    private static Map<String, Session> activeSessions;
-    private Gson gson = new GsonBuilder().setPrettyPrinting().create();
-
-    private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
-    private BlockDetailsDTO blockDetailsDTO;
-
-    private static final int SECONDS = 3; // Total seconds for the countdown
-    private int remainingSeconds = SECONDS;
-    private Timeline timeline;
-    private ExecutorService executorService;
-    private Alert alertToShow;
-
-    private List<BlockLoadDTO> savedBlockLoadList = new ArrayList<>();
-
-    private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
-    private static final PerformMessage performMessage = PerformMessage.getInstance();
-    private static final PerformActions performAction = PerformActions.getInstance();
-    private static final PerformLists performLists = PerformLists.getInstance();
-    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
-
-    TextField nameTextField;
-    TextArea descriptionTextField;
-
-    Text regularText;
-    Text variableText1;
-    Text variableText2;
-
-    Label warningLabel;
-
-    private Button saveNewComponentButton;
-    Button closeButton;
-
-    private AnchorPane mainPane;
 
     @Override
     public Pane getPaneReference() {
@@ -217,7 +201,7 @@ public class ARSaveComponentPane extends ARPane {
                     //                            detailsDTO, componentBlockDTO);
 
                     // Debugging: Ensure originalLoopInstruction has the right data
-                    //                    
+                    //
                     //                            log.info("originalLoopInstruction Size: " +
                     // originalLoopInstruction.size());
 
@@ -243,7 +227,7 @@ public class ARSaveComponentPane extends ARPane {
 
                     // Debugging: Print statements to track data
 
-                            log.info("Saving New Component Block: " + blockDetailsDTO.getBlockName());
+                    log.info("Saving New Component Block: " + blockDetailsDTO.getBlockName());
 
                     try (Connection conn = performDataBase.getConnection()) {
 
@@ -327,8 +311,7 @@ public class ARSaveComponentPane extends ARPane {
                 } catch (Exception error) {
                     // Handle the exception and display a warning message on the JavaFX Application Thread
 
-                    
-                            log.error("Error: Unable to save the block. Please try again.\nError: " + error.getMessage());
+                    log.error("Error: Unable to save the block. Please try again.\nError: " + error.getMessage());
 
                     showAlertTimer(
                             Alert.AlertType.ERROR,

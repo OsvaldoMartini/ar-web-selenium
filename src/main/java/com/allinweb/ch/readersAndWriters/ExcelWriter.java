@@ -1,17 +1,12 @@
 package com.allinweb.ch.readersAndWriters;
 
-import com.allinweb.ch.util.*;
+import com.allinweb.ch.util.ARConstants;
+import com.allinweb.ch.util.ARPropertyEnum;
+import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
-import java.awt.AWTException;
-import java.awt.Rectangle;
-import java.awt.Robot;
-import java.awt.Toolkit;
+import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.nio.file.Files;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -21,7 +16,6 @@ import java.util.List;
 import java.util.Map;
 import javafx.util.Pair;
 import javax.imageio.ImageIO;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 import org.apache.poi.ss.usermodel.*;
@@ -35,22 +29,19 @@ import org.openqa.selenium.WebDriver;
 @Slf4j
 public class ExcelWriter {
     private static final ARPropertyManager arPropertyManager;
+    private static final int INSTRUCTION_FIELDS_ROW_INDEX = 1;
+    private static final int EXECUTION_TIMES_COLUMN_INDEX = 11;
+    private static final DateTimeFormatter FORMAT_DATE_AND_TIME = DateTimeFormatter.ofPattern("dd-MM-yyyy HH.mm.ss");
+    private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
+    private static WebDriver webDriver;
+    private static int CURRENT_ROW_INDEX = 0;
 
     static {
         arPropertyManager = ARPropertyManager.getInstance();
     }
 
-    private static final int INSTRUCTION_FIELDS_ROW_INDEX = 1;
-    private static final int EXECUTION_TIMES_COLUMN_INDEX = 11;
-
-    private static final DateTimeFormatter FORMAT_DATE_AND_TIME = DateTimeFormatter.ofPattern("dd-MM-yyyy HH.mm.ss");
-    private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
-
     private final Map<String, ManagedExcel> managedExcelMap = new HashMap<>();
     private String botJobName;
-    private static WebDriver webDriver;
-
-    private static int CURRENT_ROW_INDEX = 0;
 
     public ExcelWriter(String botJobName, WebDriver webDriver, boolean isFullPath) {
         this.botJobName = botJobName;
@@ -63,8 +54,8 @@ public class ExcelWriter {
             managedExcelMap.put("excel", new ManagedExcel(botJobName, "excel", !exist, isFullPath));
             managedExcelMap.put("report", new ManagedExcel(botJobName + " (" + now + ")", "report", true, isFullPath));
         } catch (Exception ex) {
-            
-                    log.error(String.format("Excel Folder maybe not configured. %s\nError", botJobName, ex.getMessage()));
+
+            log.error(String.format("Excel Folder maybe not configured. %s\nError", botJobName, ex.getMessage()));
         }
     }
 
@@ -73,22 +64,6 @@ public class ExcelWriter {
     }
 
     public record ExcelChain(ManagedExcel managedExcel, String botJobName) {
-
-        public void insertValueFieldName(String fieldName, String value) {
-            try {
-
-                managedExcel
-                        .onSheet(0)
-                        .insertValueAfterLastColumnOfRow(fieldName, INSTRUCTION_FIELDS_ROW_INDEX)
-                        .insertValueAfterLastColumnOfRow(value, INSTRUCTION_FIELDS_ROW_INDEX + 1);
-                managedExcel.save();
-            } catch (Exception ex) {
-                
-                        log.error(String.format(
-                                "Excel Writer insertValueFieldName.Check if the file exist. File: %s\nError",
-                                botJobName, ex.getMessage()));
-            }
-        }
 
         public static void writeMapToCSV(Map<String, String> mapExport, String filePath, String delimiterCSV) {
             try (FileWriter writer = new FileWriter(filePath)) {
@@ -115,6 +90,22 @@ public class ExcelWriter {
             }
         }
 
+        public void insertValueFieldName(String fieldName, String value) {
+            try {
+
+                managedExcel
+                        .onSheet(0)
+                        .insertValueAfterLastColumnOfRow(fieldName, INSTRUCTION_FIELDS_ROW_INDEX)
+                        .insertValueAfterLastColumnOfRow(value, INSTRUCTION_FIELDS_ROW_INDEX + 1);
+                managedExcel.save();
+            } catch (Exception ex) {
+
+                log.error(String.format(
+                        "Excel Writer insertValueFieldName.Check if the file exist. File: %s\nError",
+                        botJobName, ex.getMessage()));
+            }
+        }
+
         public void insertFieldNameAndValueLastColumn(Map<String, String> mapExport, int exportIndex) {
             try {
 
@@ -122,10 +113,10 @@ public class ExcelWriter {
                 //                        .insertColumValueOnLastRow(value);
                 managedExcel.save();
             } catch (Exception ex) {
-                
-                        log.error(String.format(
-                                "Excel Writer insertValueFieldName.Check if the file exist. File: %s\nError",
-                                botJobName, ex.getMessage()));
+
+                log.error(String.format(
+                        "Excel Writer insertValueFieldName.Check if the file exist. File: %s\nError",
+                        botJobName, ex.getMessage()));
             }
         }
 
@@ -136,10 +127,10 @@ public class ExcelWriter {
                 //                        .insertColumValueOnLastRow(value);
                 managedExcel.save();
             } catch (Exception ex) {
-                
-                        log.error(String.format(
-                                "Excel Writer insertValueFieldName.Check if the file exist. File: %s\nError",
-                                botJobName, ex.getMessage()));
+
+                log.error(String.format(
+                        "Excel Writer insertValueFieldName.Check if the file exist. File: %s\nError",
+                        botJobName, ex.getMessage()));
             }
         }
 
@@ -372,9 +363,9 @@ public class ExcelWriter {
                 managedExcel.save();
                 return true;
             } catch (Exception ex) {
-                
-                        log.error(String.format(
-                                "InsertInstructionResult ( %s ) Error: %s ", msgLoop.getKey(), ex.getMessage()));
+
+                log.error(
+                        String.format("InsertInstructionResult ( %s ) Error: %s ", msgLoop.getKey(), ex.getMessage()));
                 return false;
             }
         }
@@ -402,16 +393,6 @@ public class ExcelWriter {
         private final XSSFWorkbook excelWorkbook;
         private final FileManager fileManager;
 
-        public static boolean checkIfExcelExist(String fileName, String purpose, boolean isFullPath) {
-            if (!isFullPath) {
-                String fullPath = System.getProperty("user.dir") + "\\" + purpose + "\\" + fileName
-                        + ARConstants.FILE_FORMAT_EXCEL;
-                return new FileManager(fullPath).getFile().exists();
-            } else {
-                return new FileManager(fileName).getFile().exists();
-            }
-        }
-
         public ManagedExcel(String fileName, String purpose, boolean create, boolean isFullPath) {
             ARPropertyEnum property =
                     switch (purpose) {
@@ -431,6 +412,16 @@ public class ExcelWriter {
             }
             this.fileManager = new FileManager(fullPath);
             this.excelWorkbook = manageExcelFile(create, purpose);
+        }
+
+        public static boolean checkIfExcelExist(String fileName, String purpose, boolean isFullPath) {
+            if (!isFullPath) {
+                String fullPath = System.getProperty("user.dir") + "\\" + purpose + "\\" + fileName
+                        + ARConstants.FILE_FORMAT_EXCEL;
+                return new FileManager(fullPath).getFile().exists();
+            } else {
+                return new FileManager(fileName).getFile().exists();
+            }
         }
 
         private XSSFWorkbook manageExcelFile(boolean newExcel, String purpose) {
@@ -566,9 +557,8 @@ public class ExcelWriter {
                 // Save the Excel after modification
 
             } catch (Exception ex) {
-                
-                        log.error(String.format(
-                                "Excel Writer insertFieldNameAndValueLastColumn: \nError", ex.getMessage()));
+
+                log.error(String.format("Excel Writer insertFieldNameAndValueLastColumn: \nError", ex.getMessage()));
             }
         }
 
@@ -592,8 +582,8 @@ public class ExcelWriter {
                 }
 
             } catch (Exception ex) {
-                
-                        log.error(String.format("Excel Writer insertCSVContentIntoExcel: \nError - %s", ex.getMessage()));
+
+                log.error(String.format("Excel Writer insertCSVContentIntoExcel: \nError - %s", ex.getMessage()));
             }
         }
 

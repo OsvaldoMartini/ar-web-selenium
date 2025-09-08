@@ -1,6 +1,5 @@
 package com.allinweb.ch.facade;
 
-
 import com.allinweb.ch.util.ErrorMessage;
 import java.io.*;
 import java.nio.charset.Charset;
@@ -13,15 +12,8 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * PerformBackup.
- *
- * @author Osvaldo Martini
- * @version 1.0
- */
-import lombok.extern.slf4j.Slf4j;
-
-  @Slf4j public class PerformBackup {
+@Slf4j
+public class PerformBackup {
     protected static volatile PerformBackup instance;
 
     @Getter
@@ -68,11 +60,11 @@ import lombok.extern.slf4j.Slf4j;
     public ErrorMessage backupHomeBanking(Connection conn, String backupFilePath) {
         String query =
                 """
-                SELECT id, url, name, priority, search_config, options_config,
-                       cookies, driver_session, username, password
-                FROM home_banking
-                ORDER BY id ASC
-                """;
+                        SELECT id, url, name, priority, search_config, options_config,
+                               cookies, driver_session, username, password
+                        FROM home_banking
+                        ORDER BY id ASC
+                        """;
 
         File sqlFile = new File(backupFilePath);
 
@@ -112,13 +104,13 @@ import lombok.extern.slf4j.Slf4j;
             }
 
             writer.flush();
-            
-                    log.info("HomeBanking backup completed at: " + sqlFile.getAbsolutePath());
+
+            log.info("HomeBanking backup completed at: " + sqlFile.getAbsolutePath());
             return null;
 
         } catch (Exception error) {
-            
-                    log.error("Error during home_banking backup: " + error.getMessage());
+
+            log.error("Error during home_banking backup: " + error.getMessage());
             return new ErrorMessage("Error in backup process", "Error during home_banking backup", error.getMessage());
         }
     }
@@ -126,10 +118,10 @@ import lombok.extern.slf4j.Slf4j;
     public ErrorMessage backupHomeUrl(Connection conn, String backupFilePath) {
         String query =
                 """
-                SELECT id, url, home_banking_id
-                FROM home_url
-                ORDER BY id ASC
-                """;
+                        SELECT id, url, home_banking_id
+                        FROM home_url
+                        ORDER BY id ASC
+                        """;
 
         File sqlFile = new File(backupFilePath);
         try (PreparedStatement pstmt = conn.prepareStatement(query);
@@ -153,8 +145,8 @@ import lombok.extern.slf4j.Slf4j;
             }
 
             writer.flush();
-            
-                    log.info("Home URL backup completed at: " + sqlFile.getAbsolutePath());
+
+            log.info("Home URL backup completed at: " + sqlFile.getAbsolutePath());
             return null;
 
         } catch (Exception error) {
@@ -166,11 +158,11 @@ import lombok.extern.slf4j.Slf4j;
     public ErrorMessage backupBotJob(Connection conn, String backupFilePath) {
         String query =
                 """
-                SELECT id, name, description, priority,
-                       home_banking_id, home_url_id, active
-                FROM bot_job
-                ORDER BY id ASC
-                """;
+                        SELECT id, name, description, priority,
+                               home_banking_id, home_url_id, active
+                        FROM bot_job
+                        ORDER BY id ASC
+                        """;
 
         File sqlFile = new File(backupFilePath);
         try (PreparedStatement pstmt = conn.prepareStatement(query);
@@ -220,14 +212,14 @@ import lombok.extern.slf4j.Slf4j;
     public ErrorMessage backupInstruction(Connection conn, String backupFilePath) {
         String query =
                 """
-                SELECT id, instruction_order_number, actions, name, xpath, coordinates,
-                       force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root,
-                       css_selector, description, operation, optional, block_marked, default_value,
-                       action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr,
-                       active, block_id, variable_id, parent_block_id, parent_id, bot_job_id
-                FROM instruction
-                ORDER BY id ASC
-                """;
+                        SELECT id, instruction_order_number, actions, name, xpath, coordinates,
+                               force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root,
+                               css_selector, description, operation, optional, block_marked, default_value,
+                               action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr,
+                               active, block_id, variable_id, parent_block_id, parent_id, bot_job_id
+                        FROM instruction
+                        ORDER BY id ASC
+                        """;
 
         File sqlFile = new File(backupFilePath);
         try (PreparedStatement pstmt = conn.prepareStatement(query);
@@ -306,13 +298,13 @@ import lombok.extern.slf4j.Slf4j;
             }
 
             writer.flush();
-            
-                    log.info("Instruction backup completed at: " + sqlFile.getAbsolutePath());
+
+            log.info("Instruction backup completed at: " + sqlFile.getAbsolutePath());
             return null;
 
         } catch (Exception error) {
-            
-                    log.error("Error during instruction backup: " + error.getMessage());
+
+            log.error("Error during instruction backup: " + error.getMessage());
             return new ErrorMessage("Error in backup process", "Error during instruction backup", error.getMessage());
         }
     }
@@ -320,10 +312,10 @@ import lombok.extern.slf4j.Slf4j;
     public ErrorMessage backupVariable(Connection conn, String backupFilePath) {
         String query =
                 """
-                SELECT id, type, name, value, instruction_id, bot_job_id, local_format, delimiter
-                FROM variable
-                ORDER BY id ASC
-                """;
+                        SELECT id, type, name, value, instruction_id, bot_job_id, local_format, delimiter
+                        FROM variable
+                        ORDER BY id ASC
+                        """;
 
         File sqlFile = new File(backupFilePath);
         try (PreparedStatement pstmt = conn.prepareStatement(query);
@@ -359,8 +351,8 @@ import lombok.extern.slf4j.Slf4j;
             }
 
             writer.flush();
-            
-                    log.info("Variable backup completed at: " + sqlFile.getAbsolutePath());
+
+            log.info("Variable backup completed at: " + sqlFile.getAbsolutePath());
             return null;
 
         } catch (Exception error) {
@@ -372,10 +364,10 @@ import lombok.extern.slf4j.Slf4j;
     public ErrorMessage backupReference(Connection conn, String backupFilePath) {
         String query =
                 """
-                SELECT id, reference_type, value, instruction_id, bot_job_id
-                FROM reference
-                ORDER BY id ASC
-                """;
+                        SELECT id, reference_type, value, instruction_id, bot_job_id
+                        FROM reference
+                        ORDER BY id ASC
+                        """;
 
         File sqlFile = new File(backupFilePath);
         try (PreparedStatement pstmt = conn.prepareStatement(query);
@@ -400,8 +392,8 @@ import lombok.extern.slf4j.Slf4j;
             }
 
             writer.flush();
-            
-                    log.info("Reference backup completed at: " + sqlFile.getAbsolutePath());
+
+            log.info("Reference backup completed at: " + sqlFile.getAbsolutePath());
             return null;
 
         } catch (Exception error) {
@@ -413,10 +405,10 @@ import lombok.extern.slf4j.Slf4j;
     public ErrorMessage backupBlock(Connection conn, String backupFilePath) {
         String query =
                 """
-                SELECT id, block_order_number, name, description, type_id, export_file, active, wait, bot_job_id
-                FROM block
-                ORDER BY id ASC
-                """;
+                        SELECT id, block_order_number, name, description, type_id, export_file, active, wait, bot_job_id
+                        FROM block
+                        ORDER BY id ASC
+                        """;
 
         File sqlFile = new File(backupFilePath);
         try (PreparedStatement pstmt = conn.prepareStatement(query);
@@ -473,11 +465,11 @@ import lombok.extern.slf4j.Slf4j;
     public ErrorMessage backupComponentBlock(Connection conn, String backupFilePath) {
         String query =
                 """
-                SELECT id, home_banking_id, block_order_number, name, description, type_id,
-                       export_file, active, wait
-                FROM component_block
-                ORDER BY id ASC
-                """;
+                        SELECT id, home_banking_id, block_order_number, name, description, type_id,
+                               export_file, active, wait
+                        FROM component_block
+                        ORDER BY id ASC
+                        """;
 
         File sqlFile = new File(backupFilePath);
         try (PreparedStatement pstmt = conn.prepareStatement(query);
@@ -524,13 +516,13 @@ import lombok.extern.slf4j.Slf4j;
             }
 
             writer.flush();
-            
-                    log.info("ComponentBlock backup completed at: " + sqlFile.getAbsolutePath());
+
+            log.info("ComponentBlock backup completed at: " + sqlFile.getAbsolutePath());
             return null;
 
         } catch (Exception error) {
-            
-                    log.error("Error during component_block backup: " + error.getMessage());
+
+            log.error("Error during component_block backup: " + error.getMessage());
             return new ErrorMessage(
                     "Error in backup process", "Error during component_block backup", error.getMessage());
         }
@@ -539,15 +531,15 @@ import lombok.extern.slf4j.Slf4j;
     public ErrorMessage backupComponentInstruction(Connection conn, String backupFilePath) {
         String query =
                 """
-                SELECT id, instruction_order_number, actions, name, xpath, coordinates,
-                       force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root,
-                       css_selector, description, operation, optional, block_marked,
-                       default_value, action_custom_max_wait_sec, on_hold_seconds,
-                       codified, export_to_abr, active, block_id, variable_id, parent_block_id, parent_id,
-                       home_banking_id
-                FROM component_instruction
-                ORDER BY id ASC
-                """;
+                        SELECT id, instruction_order_number, actions, name, xpath, coordinates,
+                               force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root,
+                               css_selector, description, operation, optional, block_marked,
+                               default_value, action_custom_max_wait_sec, on_hold_seconds,
+                               codified, export_to_abr, active, block_id, variable_id, parent_block_id, parent_id,
+                               home_banking_id
+                        FROM component_instruction
+                        ORDER BY id ASC
+                        """;
 
         File sqlFile = new File(backupFilePath);
         try (PreparedStatement pstmt = conn.prepareStatement(query);
@@ -651,13 +643,13 @@ import lombok.extern.slf4j.Slf4j;
             }
 
             writer.flush();
-            
-                    log.info("ComponentInstruction backup completed at: " + sqlFile.getAbsolutePath());
+
+            log.info("ComponentInstruction backup completed at: " + sqlFile.getAbsolutePath());
             return null;
 
         } catch (Exception error) {
-            
-                    log.error("Error during component_instruction backup: " + error.getMessage());
+
+            log.error("Error during component_instruction backup: " + error.getMessage());
             return new ErrorMessage(
                     "Error in backup process", "Error during component_instruction backup", error.getMessage());
         }
@@ -666,10 +658,10 @@ import lombok.extern.slf4j.Slf4j;
     public ErrorMessage backupComponentVariable(Connection conn, String backupFilePath) {
         String query =
                 """
-                SELECT id, type, name, value, instruction_id, home_banking_id, local_format, delimiter
-                FROM component_variable
-                ORDER BY id ASC
-                """;
+                        SELECT id, type, name, value, instruction_id, home_banking_id, local_format, delimiter
+                        FROM component_variable
+                        ORDER BY id ASC
+                        """;
 
         File sqlFile = new File(backupFilePath);
         try (PreparedStatement pstmt = conn.prepareStatement(query);
@@ -709,13 +701,13 @@ import lombok.extern.slf4j.Slf4j;
             }
 
             writer.flush();
-            
-                    log.info("ComponentVariable backup completed at: " + sqlFile.getAbsolutePath());
+
+            log.info("ComponentVariable backup completed at: " + sqlFile.getAbsolutePath());
             return null;
 
         } catch (Exception error) {
-            
-                    log.error("Error during component_variable backup: " + error.getMessage());
+
+            log.error("Error during component_variable backup: " + error.getMessage());
             return new ErrorMessage(
                     "Error in backup process", "Error during component_variable backup", error.getMessage());
         }
@@ -724,10 +716,10 @@ import lombok.extern.slf4j.Slf4j;
     public ErrorMessage backupComponentReference(Connection conn, String backupFilePath) {
         String query =
                 """
-                SELECT id, reference_type, value, instruction_id, home_banking_id
-                FROM component_reference
-                ORDER BY id ASC
-                """;
+                        SELECT id, reference_type, value, instruction_id, home_banking_id
+                        FROM component_reference
+                        ORDER BY id ASC
+                        """;
 
         File sqlFile = new File(backupFilePath);
         try (PreparedStatement pstmt = conn.prepareStatement(query);
@@ -755,13 +747,13 @@ import lombok.extern.slf4j.Slf4j;
             }
 
             writer.flush();
-            
-                    log.info("ComponentReference backup completed at: " + sqlFile.getAbsolutePath());
+
+            log.info("ComponentReference backup completed at: " + sqlFile.getAbsolutePath());
             return null;
 
         } catch (Exception error) {
-            
-                    log.error("Error during component_reference backup: " + error.getMessage());
+
+            log.error("Error during component_reference backup: " + error.getMessage());
             return new ErrorMessage(
                     "Error in backup process", "Error during component_reference backup", error.getMessage());
         }
@@ -771,11 +763,11 @@ import lombok.extern.slf4j.Slf4j;
     public ErrorMessage restoreHomeBanking(Connection conn, String sqlFilePath) {
         String insertQuery =
                 """
-        INSERT INTO home_banking (
-            url, name, priority, search_config, options_config,
-            cookies, driver_session, username, password
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
-        """;
+                        INSERT INTO home_banking (
+                            url, name, priority, search_config, options_config,
+                            cookies, driver_session, username, password
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+                        """;
 
         String selectHomeBankingIdsSQL = "SELECT id FROM home_banking ORDER BY id";
 
@@ -926,10 +918,10 @@ import lombok.extern.slf4j.Slf4j;
     public ErrorMessage restoreHomeUrl(Connection conn, String sqlFilePath) {
         String insertQuery =
                 """
-                INSERT INTO home_url (
-                    url, home_banking_id
-                ) VALUES (?, ?);
-                """;
+                        INSERT INTO home_url (
+                            url, home_banking_id
+                        ) VALUES (?, ?);
+                        """;
 
         String selectHomeUrlIdsSQL = "SELECT id FROM home_url ORDER BY id";
 
@@ -1052,11 +1044,11 @@ import lombok.extern.slf4j.Slf4j;
     public ErrorMessage restoreBlock(Connection conn, String sqlFilePath) {
         String insertQuery =
                 """
-                INSERT INTO block (
-                    block_order_number, name, description, type_id,
-                    export_file, active, wait, bot_job_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
-                """;
+                        INSERT INTO block (
+                            block_order_number, name, description, type_id,
+                            export_file, active, wait, bot_job_id
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+                        """;
 
         String selectBlockIdsSQL = "SELECT id FROM block ORDER BY id";
 
@@ -1184,10 +1176,10 @@ import lombok.extern.slf4j.Slf4j;
     public ErrorMessage restoreBotJob(Connection conn, String sqlFilePath) {
         String insertQuery =
                 """
-                INSERT INTO bot_job (
-                    name, description, priority, home_banking_id, home_url_id, active
-                ) VALUES (?, ?, ?, ?, ?, ?);
-                """;
+                        INSERT INTO bot_job (
+                            name, description, priority, home_banking_id, home_url_id, active
+                        ) VALUES (?, ?, ?, ?, ?, ?);
+                        """;
 
         String selectBotJobIdsSQL = "SELECT id FROM bot_job ORDER BY id";
 
@@ -1334,14 +1326,14 @@ import lombok.extern.slf4j.Slf4j;
     public ErrorMessage restoreInstruction(Connection conn, String sqlFilePath) {
         String insertQuery =
                 """
-                INSERT INTO instruction (
-                    instruction_order_number, actions, name, xpath, coordinates,
-                    force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root,
-                    css_selector, description, operation, optional, block_marked,
-                    default_value, action_custom_max_wait_sec, on_hold_seconds, codified,
-                    export_to_abr, active, block_id, variable_id, parent_block_id, parent_id, bot_job_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-                """;
+                        INSERT INTO instruction (
+                            instruction_order_number, actions, name, xpath, coordinates,
+                            force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root,
+                            css_selector, description, operation, optional, block_marked,
+                            default_value, action_custom_max_wait_sec, on_hold_seconds, codified,
+                            export_to_abr, active, block_id, variable_id, parent_block_id, parent_id, bot_job_id
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                        """;
 
         String selectInstructionIdsSQL = "SELECT id FROM instruction ORDER BY id";
 
@@ -1581,10 +1573,10 @@ import lombok.extern.slf4j.Slf4j;
     public ErrorMessage restoreVariable(Connection conn, String sqlFilePath) {
         String insertQuery =
                 """
-                INSERT INTO variable (
-                    type, name, value, instruction_id, bot_job_id, local_format, delimiter
-                ) VALUES (?, ?, ?, ?, ?, ?, ?);
-                """;
+                        INSERT INTO variable (
+                            type, name, value, instruction_id, bot_job_id, local_format, delimiter
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?);
+                        """;
 
         String selectVariableIdsSQL = "SELECT id FROM variable ORDER BY id";
 
@@ -1834,10 +1826,10 @@ import lombok.extern.slf4j.Slf4j;
     public ErrorMessage restoreReference(Connection conn, String sqlFilePath) {
         String insertQuery =
                 """
-                INSERT INTO reference (
-                    reference_type, value, instruction_id, bot_job_id
-                ) VALUES (?, ?, ?, ?);
-                """;
+                        INSERT INTO reference (
+                            reference_type, value, instruction_id, bot_job_id
+                        ) VALUES (?, ?, ?, ?);
+                        """;
 
         String selectReferenceIdsSQL = "SELECT id FROM reference ORDER BY id";
 
@@ -1953,11 +1945,11 @@ import lombok.extern.slf4j.Slf4j;
     public ErrorMessage restoreComponentBlock(Connection conn, String sqlFilePath) {
         String insertQuery =
                 """
-                INSERT INTO component_block (
-                    home_banking_id, block_order_number, name, description,
-                    type_id, export_file, active, wait
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
-                """;
+                        INSERT INTO component_block (
+                            home_banking_id, block_order_number, name, description,
+                            type_id, export_file, active, wait
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+                        """;
 
         String selectCompBlockIdsSQL = "SELECT id FROM component_block ORDER BY id";
 
@@ -2088,14 +2080,14 @@ import lombok.extern.slf4j.Slf4j;
     public ErrorMessage restoreComponentInstruction(Connection conn, String sqlFilePath) {
         String insertQuery =
                 """
-                INSERT INTO component_instruction (
-                    instruction_order_number, actions, name, xpath, coordinates,
-                    force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root,
-                    css_selector, description, operation, optional, block_marked,
-                    default_value, action_custom_max_wait_sec, on_hold_seconds, codified,
-                    export_to_abr, active, block_id, variable_id, parent_block_id, parent_id, home_banking_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-                """;
+                        INSERT INTO component_instruction (
+                            instruction_order_number, actions, name, xpath, coordinates,
+                            force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root,
+                            css_selector, description, operation, optional, block_marked,
+                            default_value, action_custom_max_wait_sec, on_hold_seconds, codified,
+                            export_to_abr, active, block_id, variable_id, parent_block_id, parent_id, home_banking_id
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                        """;
 
         String selectInstructionIdsSQL = "SELECT id FROM component_instruction ORDER BY id";
 
@@ -2334,10 +2326,10 @@ import lombok.extern.slf4j.Slf4j;
     public ErrorMessage restoreComponentVariable(Connection conn, String sqlFilePath) {
         String insertQuery =
                 """
-                INSERT INTO component_variable (
-                    type, name, value, instruction_id, home_banking_id, local_format, delimiter
-                ) VALUES (?, ?, ?, ?, ?, ?, ?);
-                """;
+                        INSERT INTO component_variable (
+                            type, name, value, instruction_id, home_banking_id, local_format, delimiter
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?);
+                        """;
 
         String selectVariableIdsSQL = "SELECT id FROM component_variable ORDER BY id";
 
@@ -2571,8 +2563,8 @@ import lombok.extern.slf4j.Slf4j;
             return null;
 
         } catch (SQLException error) {
-            
-                    log.error("Failed to update component_instruction: " + error.getMessage());
+
+            log.error("Failed to update component_instruction: " + error.getMessage());
             return new ErrorMessage(
                     "Restore Failed", "Failed to update component_instruction data", error.getMessage());
         }
@@ -2581,10 +2573,10 @@ import lombok.extern.slf4j.Slf4j;
     public ErrorMessage restoreComponentReference(Connection conn, String sqlFilePath) {
         String insertQuery =
                 """
-                INSERT INTO component_reference (
-                    reference_type, value, instruction_id, home_banking_id
-                ) VALUES (?, ?, ?, ?);
-                """;
+                        INSERT INTO component_reference (
+                            reference_type, value, instruction_id, home_banking_id
+                        ) VALUES (?, ?, ?, ?);
+                        """;
 
         String selectReferenceIdsSQL = "SELECT id FROM component_reference ORDER BY id";
 

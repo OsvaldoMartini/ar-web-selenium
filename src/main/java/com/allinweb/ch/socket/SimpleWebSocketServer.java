@@ -8,7 +8,6 @@ import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.util.ARConstants;
-
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
@@ -18,23 +17,26 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 import javafx.application.Platform;
-import lombok.extern.slf4j.Slf4j;
-
-import javax.websocket.CloseReason;
-import javax.websocket.OnClose;
-import javax.websocket.OnError;
-import javax.websocket.OnMessage;
-import javax.websocket.OnOpen;
-import javax.websocket.Session;
+import javax.websocket.*;
 import javax.websocket.server.ServerEndpoint;
+import lombok.extern.slf4j.Slf4j;
 
 // Simple WebSocket server endpoint (for demonstration)
 @ServerEndpoint("/websocket")
 @Slf4j
 public class SimpleWebSocketServer {
 
+    private static final PerformLists performLists = PerformLists.getInstance();
+    private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
+    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
+    private static final PerformMessage performMessage = PerformMessage.getInstance();
     protected static volatile SimpleWebSocketServer instance;
-
+    private static WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
+    private static ARExcelFileScene arExcelFileScene = ARExcelFileScene.getInstance();
+    private static ARSaveComponentScene arSaveComponentScene = ARSaveComponentScene.getInstance();
+    private final Gson gson = new Gson();
+    private PayloadJson payloadEmpty;
+    private RowStatus rowStatus = new RowStatus();
     // Private constructor to prevent instantiation
     public SimpleWebSocketServer() {}
 
@@ -48,18 +50,6 @@ public class SimpleWebSocketServer {
         }
         return instance;
     }
-
-    private static WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
-    private static final PerformLists performLists = PerformLists.getInstance();
-    private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
-    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
-    private static final PerformMessage performMessage = PerformMessage.getInstance();
-    private static ARExcelFileScene arExcelFileScene = ARExcelFileScene.getInstance();
-    private static ARSaveComponentScene arSaveComponentScene = ARSaveComponentScene.getInstance();
-
-    private final Gson gson = new Gson();
-    private PayloadJson payloadEmpty;
-    private RowStatus rowStatus = new RowStatus();
 
     @OnOpen
     public void onOpen(Session session) {
@@ -1060,10 +1050,9 @@ public class SimpleWebSocketServer {
 
             } catch (Exception e) {
 
-                
-                        log.error(String.format(
-                                "Cannot Insert \"Instruction\"  \"%s\"\nCannot be saved!\nError: %s",
-                                ARConstants.ELSEIF, e.getMessage()));
+                log.error(String.format(
+                        "Cannot Insert \"Instruction\"  \"%s\"\nCannot be saved!\nError: %s",
+                        ARConstants.ELSEIF, e.getMessage()));
             }
         }
     }
@@ -1264,16 +1253,16 @@ public class SimpleWebSocketServer {
 
     private SplitDTO parseSplitDTO(JsonObject jsonEntry) {
         if (jsonEntry == null || jsonEntry.isEmpty()) {
-            
-                    log.warn("parseSplitDTO called with null or empty JSON object");
+
+            log.warn("parseSplitDTO called with null or empty JSON object");
             return null;
         }
 
         try {
             return gson.fromJson(jsonEntry, SplitDTO.class);
         } catch (Exception error) {
-            
-                    log.error("Cannot parse SplitDTO: " + error.getMessage() + " | JSON: " + jsonEntry);
+
+            log.error("Cannot parse SplitDTO: " + error.getMessage() + " | JSON: " + jsonEntry);
         }
         return null;
     }

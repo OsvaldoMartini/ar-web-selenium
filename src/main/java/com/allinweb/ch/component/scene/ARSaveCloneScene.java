@@ -4,7 +4,6 @@ import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.pane.ARSaveClonePane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
-
 import java.util.List;
 import javafx.application.Platform;
 import javafx.scene.Scene;
@@ -15,7 +14,21 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ARSaveCloneScene extends ARScene {
 
+    private static final ARSaveClonePane arSaveClonePane;
+    private static final Double SCENE_HEIGHT = 450D;
+    private static final Double SCENE_WIDTH = 800D;
+    private static final String TITLE = "Clone Job";
     protected static volatile ARSaveCloneScene instance;
+
+    static {
+        arSaveClonePane = ARSaveClonePane.getInstance();
+    }
+
+    private Stage modalStage;
+    private Scene modalScene;
+    private boolean isEnabledLicence;
+    private BotJobLoadDTO selecBotJobDTO;
+    private List<BotJobLoadDTO> botJobList;
 
     // Private constructor to prevent instantiation
     private ARSaveCloneScene() {
@@ -33,24 +46,6 @@ public class ARSaveCloneScene extends ARScene {
         }
         return instance;
     }
-
-    private Stage modalStage;
-    private Scene modalScene;
-
-    private boolean isEnabledLicence;
-
-    private static final ARSaveClonePane arSaveClonePane;
-
-    static {
-        arSaveClonePane = ARSaveClonePane.getInstance();
-    }
-
-    private static final Double SCENE_HEIGHT = 450D;
-    private static final Double SCENE_WIDTH = 800D;
-    private static final String TITLE = "Clone Job";
-
-    private BotJobLoadDTO selecBotJobDTO;
-    private List<BotJobLoadDTO> botJobList;
 
     public void initialize(BotJobLoadDTO selecBotJobDTO, List<BotJobLoadDTO> botJobList, boolean isEnabledLicence) {
         this.isEnabledLicence = isEnabledLicence;

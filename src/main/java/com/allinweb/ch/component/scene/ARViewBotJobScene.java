@@ -1,7 +1,6 @@
 package com.allinweb.ch.component.scene;
 
 import com.allinweb.ch.component.model.BotJobLoadDTO;
-import com.allinweb.ch.component.pane.ARMainPane;
 import com.allinweb.ch.component.pane.ARViewBotJobPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
@@ -9,31 +8,18 @@ import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
-
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
 import java.io.IOException;
 import java.net.URI;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
-import javax.websocket.ClientEndpoint;
-import javax.websocket.ContainerProvider;
-import javax.websocket.OnClose;
-import javax.websocket.OnError;
-import javax.websocket.OnMessage;
-import javax.websocket.OnOpen;
-import javax.websocket.Session;
-import javax.websocket.WebSocketContainer;
-
+import javax.websocket.*;
 import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.WebDriver;
 
@@ -41,7 +27,27 @@ import org.openqa.selenium.WebDriver;
 @Slf4j
 public class ARViewBotJobScene extends ARScene {
 
+    private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
+    private static final PerformLists performLists = PerformLists.getInstance();
+    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
+    private static final ARViewBotJobPane arViewBotJobPane = ARViewBotJobPane.getInstance();
+    private static final PerformMessage performMessage = PerformMessage.getInstance();
+    private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    private static final CountDownLatch latch = new CountDownLatch(1);
+    private static final Double SCENE_HEIGHT = 600D;
+    private static final Double SCENE_WIDTH = 1100D;
+    private static final String TITLE = "Bot Job Details";
     protected static volatile ARViewBotJobScene instance;
+    private static ARNewCommandScene arNewCommandScene = ARNewCommandScene.getInstance();
+    private Stage modalStage;
+    private Scene modalScene;
+    private boolean isEnabledLicence;
+    private int portSocketInitial = 54525;
+    private boolean isConnectWebSocket = false;
+    private Session session;
+    private ExecutorService executorWebSocket = Executors.newSingleThreadExecutor();
+    private ARWebDriver arWebDriver;
+    private BotJobLoadDTO selectedBotJob;
 
     // Private constructor to prevent instantiation
     private ARViewBotJobScene() {
@@ -59,29 +65,6 @@ public class ARViewBotJobScene extends ARScene {
         }
         return instance;
     }
-
-    private Stage modalStage;
-    private Scene modalScene;
-
-    private boolean isEnabledLicence;
-    private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
-    private static final PerformLists performLists = PerformLists.getInstance();
-    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
-    private static ARNewCommandScene arNewCommandScene = ARNewCommandScene.getInstance();
-    private static final ARViewBotJobPane arViewBotJobPane = ARViewBotJobPane.getInstance();
-    private static final PerformMessage performMessage = PerformMessage.getInstance();
-
-    private int portSocketInitial = 54525;
-    private boolean isConnectWebSocket = false;
-
-    private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-    private static final CountDownLatch latch = new CountDownLatch(1);
-    private Session session;
-    private ExecutorService executorWebSocket = Executors.newSingleThreadExecutor();
-
-    private ARWebDriver arWebDriver;
-
-    private BotJobLoadDTO selectedBotJob;
 
     public void initialize(ARWebDriver arWebDriver, BotJobLoadDTO selectedBotJob, boolean isEnabledLicence) {
         this.isEnabledLicence = isEnabledLicence;
@@ -101,10 +84,6 @@ public class ARViewBotJobScene extends ARScene {
             connectWebSocketClient(portSocketInitial, "bot-job-scene"); // + botJobLoad.getId());
         }
     }
-
-    private static final Double SCENE_HEIGHT = 600D;
-    private static final Double SCENE_WIDTH = 1100D;
-    private static final String TITLE = "Bot Job Details";
 
     @Override
     public void setStageBehaviour(Stage stage) {

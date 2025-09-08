@@ -4,7 +4,6 @@ import com.allinweb.ch.builder.WebElementIcon;
 import com.allinweb.ch.component.model.*;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARElementValueScene;
-import com.allinweb.ch.component.scene.ARNewCommandScene;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
@@ -16,7 +15,10 @@ import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
@@ -40,23 +42,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ARNewCommandPane extends ARPane {
 
-    protected static volatile ARNewCommandPane instance;
-    private Stage stage;
-
-    // Private constructor to prevent instantiation
-    private ARNewCommandPane() {}
-
-    public static ARNewCommandPane getInstance() {
-        if (instance == null) {
-            synchronized (ARNewCommandPane.class) {
-                if (instance == null) {
-                    instance = new ARNewCommandPane();
-                }
-            }
-        }
-        return instance;
-    }
-
     // Lists for tables
     private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static final PerformMessage performMessage = PerformMessage.getInstance();
@@ -64,58 +49,22 @@ public class ARNewCommandPane extends ARPane {
     private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
     private static final ARElementValueScene arElementValueScene = ARElementValueScene.getInstance();
-
-    private List<String> allowedActions = Arrays.asList(
-            WebElementIcon.SET_VALUE.getValue().toUpperCase(),
-            WebElementIcon.GET_VALUE.getValue().toUpperCase(),
-            WebElementIcon.CHECK_VALUE.getValue().toUpperCase(),
-            WebElementIcon.GOTO.getValue().toUpperCase(),
-            WebElementIcon.EXCEL_GOTO.getValue().toUpperCase(),
-            WebElementIcon.EXTRACT_FIELD.getValue().toUpperCase(),
-            WebElementIcon.REFRESH_ONLY.getValue().toUpperCase(),
-            WebElementIcon.LOOP.getValue().toUpperCase(),
-            WebElementIcon.REFRESH_LOOP.getValue().toUpperCase());
-
-    private boolean firstLoad = false;
-    private boolean loadeAllCompleted = false;
-    private final Gson gson = new Gson();
-
     private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
-
-    // Postgres
-    private Connection conn = null;
-
-    private SplitDTO splitDTO;
-    private Pane mainPane;
-
-    private VBox commandBox;
-    private VBox varsBox;
-    private VBox webFieldsBox;
-    private VBox blocksBox;
-    private VBox addNewsBox;
-
-    private HBox comboBoxesRow;
-    private HBox variableButtonRow;
-    private HBox buttonBox;
-    private HBox instructionButtonsRow;
-    private VBox vboxAll;
-
+    protected static volatile ARNewCommandPane instance;
+    private final Gson gson = new Gson();
     Label commandLabel;
     Label botJobVarsLabel;
     Label webPageLabel;
     Label blocksLabel;
     Label addBlocksLabel;
-
     TextFlow operationSelected;
     TextFlow textFlow;
-
     Text currentActionText1;
     Text currentActionText2;
     Text currentActionText3;
     Text currentActionText4;
     Text currentActionText5;
     Text currentActionText6;
-
     Text timesText;
     Text loopText;
     Text regularText1;
@@ -126,12 +75,9 @@ public class ARNewCommandPane extends ARPane {
     Text variableText2;
     Text variableText3;
     Text blankText;
-
     TextField nameField;
-
     TextField gotoField;
     Pattern validInt = Pattern.compile("\\d{0,4}");
-
     UnaryOperator<TextFormatter.Change> filter = change -> {
         String newText = change.getControlNewText();
 
@@ -157,9 +103,42 @@ public class ARNewCommandPane extends ARPane {
 
         return null;
     };
-
+    double buttonWidth = 200;
+    double comboOperatorWidth = 50;
+    double comboTimesWidth = 70;
+    double comboLoopsWidth = 80;
+    boolean variablesDisable = false;
+    boolean blockIdChanged = false;
+    Button addNewInstructionButton;
+    Button cancelButton;
+    private Stage stage;
+    private List<String> allowedActions = Arrays.asList(
+            WebElementIcon.SET_VALUE.getValue().toUpperCase(),
+            WebElementIcon.GET_VALUE.getValue().toUpperCase(),
+            WebElementIcon.CHECK_VALUE.getValue().toUpperCase(),
+            WebElementIcon.GOTO.getValue().toUpperCase(),
+            WebElementIcon.EXCEL_GOTO.getValue().toUpperCase(),
+            WebElementIcon.EXTRACT_FIELD.getValue().toUpperCase(),
+            WebElementIcon.REFRESH_ONLY.getValue().toUpperCase(),
+            WebElementIcon.LOOP.getValue().toUpperCase(),
+            WebElementIcon.REFRESH_LOOP.getValue().toUpperCase());
+    private boolean firstLoad = false;
+    private boolean loadeAllCompleted = false;
+    // Postgres
+    private Connection conn = null;
+    private SplitDTO splitDTO;
+    private Pane mainPane;
+    private VBox commandBox;
+    private VBox varsBox;
+    private VBox webFieldsBox;
+    private VBox blocksBox;
+    private VBox addNewsBox;
+    private HBox comboBoxesRow;
+    private HBox variableButtonRow;
+    private HBox buttonBox;
+    private HBox instructionButtonsRow;
+    private VBox vboxAll;
     private Button variableButton;
-
     private Button addExcelNextRowButton;
     private Button addPauseButton;
     private Button addWaitButton30;
@@ -169,39 +148,52 @@ public class ARNewCommandPane extends ARPane {
     private Button addCloseActionButton;
     private Button addScreenButton;
     private Button refreshWebButton;
-
-    double buttonWidth = 200;
-    double comboOperatorWidth = 50;
-    double comboTimesWidth = 70;
-    double comboLoopsWidth = 80;
-    boolean variablesDisable = false;
-
-    boolean blockIdChanged = false;
-
-    Button addNewInstructionButton;
-    Button cancelButton;
-
     private ComboBox<ComboBoxImage> comboBoxInstruc;
     private ObservableList<ComboBoxImage> itemsInstructions = FXCollections.observableArrayList();
-
     private ComboBox<ComboBoxVars> comboBoxVars;
     private ObservableList<ComboBoxVars> variablesItems = FXCollections.observableArrayList();
-
     private ComboBox<FormatOption> comboBoxTimes;
     private ObservableList<FormatOption> timesItems = FXCollections.observableArrayList();
-
     private ComboBox<FormatOption> comboBoxLoops;
     private ObservableList<FormatOption> loopsItems = FXCollections.observableArrayList();
-
     private HBox webBoxWebFields;
     private ComboBox<ComboBoxImage> comboBoxWebFields;
     private ObservableList<ComboBoxImage> filteredPageItems = FXCollections.observableArrayList();
     private List<BlockOptions> listOptions;
     private ComboBox<BlockOptions> comboBoxAllBlocks;
     private ComboBox<BlockOptions> comboBoxBlocksGoto;
-
     private ComboBox<ComboBoxOperator> comboBoxOperator;
     private ObservableList<ComboBoxOperator> operatorsItems = FXCollections.observableArrayList();
+
+    // Private constructor to prevent instantiation
+    private ARNewCommandPane() {}
+
+    public static ARNewCommandPane getInstance() {
+        if (instance == null) {
+            synchronized (ARNewCommandPane.class) {
+                if (instance == null) {
+                    instance = new ARNewCommandPane();
+                }
+            }
+        }
+        return instance;
+    }
+
+    // Helper method for distinct by text
+    private static Predicate<BlockOptions> distinctByText() {
+        Set<String> seen = new HashSet<>();
+        return b -> seen.add(b.getText());
+    }
+
+    // Helper method for distinct by text AND blockOrderNumber
+    private static Predicate<BlockOptions> distinctByTextAndId() {
+        Set<String> seen = new HashSet<>();
+        return b -> {
+            // Combine text and blockOrderNumber as a unique key
+            String key = b.getText() + "#" + b.getBlockId();
+            return seen.add(key);
+        };
+    }
 
     public void initialize(SplitDTO splitDTO) {
         this.splitDTO = splitDTO;
@@ -275,7 +267,7 @@ public class ARNewCommandPane extends ARPane {
 
         } catch (Exception ex) {
 
-                    log.error("Error creating \"DropBox Instructions\"\nError: " + ex.getMessage());
+            log.error("Error creating \"DropBox Instructions\"\nError: " + ex.getMessage());
         }
 
         try {
@@ -285,8 +277,8 @@ public class ARNewCommandPane extends ARPane {
                     new ComboBoxOperator("Less", new Image(ARConstants.ICON_LESS), "<"),
                     new ComboBoxOperator("!=", new Image(ARConstants.ICON_DIFFERENT), "!="));
         } catch (Exception ex) {
-            
-                    log.error("Error creating \"DropBox Operators\"\nError: " + ex.getMessage());
+
+            log.error("Error creating \"DropBox Operators\"\nError: " + ex.getMessage());
         }
 
         if (itemsInstructions.isEmpty() || itemsInstructions.size() == 0) {
@@ -1306,8 +1298,8 @@ public class ARNewCommandPane extends ARPane {
             }
 
             if (this.splitDTO != null) {
-                
-                        log.info("creating variable for instruction Name " + splitDTO.getInstructionName());
+
+                log.info("creating variable for instruction Name " + splitDTO.getInstructionName());
 
                 String varName = prepareVarName();
 
@@ -1321,9 +1313,9 @@ public class ARNewCommandPane extends ARPane {
                 callInitializeElementValueScene(varName);
                 arElementValueScene.showModal();
             } else {
-                
-                        log.info("creating variable for instruction Name "
-                                + comboBoxWebFields.getValue().getText());
+
+                log.info("creating variable for instruction Name "
+                        + comboBoxWebFields.getValue().getText());
 
                 String varName = prepareVarName();
                 callInitializeElementValueScene(varName);
@@ -2488,22 +2480,6 @@ public class ARNewCommandPane extends ARPane {
         }
     }
 
-    // Helper method for distinct by text
-    private static Predicate<BlockOptions> distinctByText() {
-        Set<String> seen = new HashSet<>();
-        return b -> seen.add(b.getText());
-    }
-
-    // Helper method for distinct by text AND blockOrderNumber
-    private static Predicate<BlockOptions> distinctByTextAndId() {
-        Set<String> seen = new HashSet<>();
-        return b -> {
-            // Combine text and blockOrderNumber as a unique key
-            String key = b.getText() + "#" + b.getBlockId();
-            return seen.add(key);
-        };
-    }
-
     @Override
     public void clearPane(Pane panel) {
         if (conn != null) {
@@ -2564,8 +2540,8 @@ public class ARNewCommandPane extends ARPane {
                     this.splitDTO.setType("INSERT_AFTER");
                 }
             } catch (Exception error) {
-                
-                        log.error("Error reading 'EXCEL GOTO' instructions: " + error.getMessage());
+
+                log.error("Error reading 'EXCEL GOTO' instructions: " + error.getMessage());
             }
 
         } else {

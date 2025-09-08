@@ -17,12 +17,31 @@ import javafx.geometry.HPos;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.layout.*;
+import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.WebDriver;
 
-import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARViewBotJobListPane extends ARPane {
+@Slf4j
+public class ARViewBotJobListPane extends ARPane {
 
+    private static final PerformLists performLists;
+    private static final PerformDataBase performDataBase;
+    private static final PerformActions performActions;
+    private static final PerformMessage performMessage;
     protected static volatile ARViewBotJobListPane instance;
 
+    static {
+        performLists = PerformLists.getInstance();
+        performDataBase = PerformDataBase.getInstance();
+        performActions = PerformActions.getInstance();
+        performMessage = PerformMessage.getInstance();
+    }
+
+    // UI components
+    private final GridPane header = new GridPane();
+    private ListView<BotJobLoadDTO> uiBotJobList;
+    private ARViewBotJobScene arViewBotJobScene;
+    private ARWebDriver arWebDriver;
+    private ObservableList<WebDriver> webDriverList;
     // Private constructor to prevent instantiation
     private ARViewBotJobListPane() {
 
@@ -38,26 +57,6 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARViewBotJobListPane exte
             }
         }
         return instance;
-    }
-
-    // UI components
-    private final GridPane header = new GridPane();
-    private ListView<BotJobLoadDTO> uiBotJobList;
-
-    private ARViewBotJobScene arViewBotJobScene;
-    private ARWebDriver arWebDriver;
-    private ObservableList<WebDriver> webDriverList;
-
-    private static final PerformLists performLists;
-    private static final PerformDataBase performDataBase;
-    private static final PerformActions performActions;
-    private static final PerformMessage performMessage;
-
-    static {
-        performLists = PerformLists.getInstance();
-        performDataBase = PerformDataBase.getInstance();
-        performActions = PerformActions.getInstance();
-        performMessage = PerformMessage.getInstance();
     }
 
     // Constructor for Dependency Injection

@@ -1,20 +1,33 @@
 # Webdriver Options
+
 ```java
         // Set the path to the ChromeDriver executable
-        ChromeOptions options = new ChromeOptions();
-        //        options.addArguments("--headless"); // Run in headless mode
-        options.setBinary(ARConstants.USER_PATH + "\\chrome\\chrome.exe");
-        options.setBinary("C:/Program Files/Google/Chrome/Application/chrome.exe");
-        //        options.setBinary("C:/Program Files (x86)/Google/Chrome/Application/chrome.exe");
+ChromeOptions options = new ChromeOptions();
+//        options.addArguments("--headless"); // Run in headless mode
+        options.
 
-        options.setExperimentalOption("useAutomationExtension", false);
-        options.setExperimentalOption("excludeSwitches", Collections.singletonList("enable-automation"));
+setBinary(ARConstants.USER_PATH +"\\chrome\\chrome.exe");
+        options.
+
+setBinary("C:/Program Files/Google/Chrome/Application/chrome.exe");
+//        options.setBinary("C:/Program Files (x86)/Google/Chrome/Application/chrome.exe");
+
+        options.
+
+setExperimentalOption("useAutomationExtension",false);
+        options.
+
+setExperimentalOption("excludeSwitches",Collections.singletonList("enable-automation"));
         // options.addArguments("--headless"); // Optional: run Chrome in headless mode
-        options.addArguments("start-maximized");
-        WebDriver driver = new ChromeDriver(options);
+        options.
+
+addArguments("start-maximized");
+
+WebDriver driver = new ChromeDriver(options);
 ```
 
 ## With Logs
+
 ```java		
 		
 		
@@ -41,6 +54,7 @@
                 "excludeSwitches", Collections.singletonList("enable-automation"));
         WebDriver driver = new ChromeDriver(options);
 ```
+
 ## Search Result from  "FindElementsWithAttributes.java!
 
 ```text		

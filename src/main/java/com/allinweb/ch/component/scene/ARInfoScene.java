@@ -3,7 +3,6 @@ package com.allinweb.ch.component.scene;
 import com.allinweb.ch.component.pane.ARInfoPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
-
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
@@ -13,8 +12,19 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ARInfoScene extends ARScene {
 
+    private static final Double SCENE_HEIGHT = 300D;
+    private static final Double SCENE_WIDTH = 400D;
+    private static final String TITLE = "About";
     protected static volatile ARInfoScene instance;
+    private static ARInfoPane arInfoPane;
 
+    static {
+        arInfoPane = ARInfoPane.getInstance();
+    }
+
+    private Stage modalStage;
+    private Scene modalScene;
+    private boolean isEnabledLicence;
     // Private constructor to prevent instantiation
     private ARInfoScene() {
 
@@ -31,20 +41,6 @@ public class ARInfoScene extends ARScene {
         }
         return instance;
     }
-
-    private Stage modalStage;
-    private Scene modalScene;
-
-    private static ARInfoPane arInfoPane;
-
-    static {
-        arInfoPane = ARInfoPane.getInstance();
-    }
-
-    private boolean isEnabledLicence;
-    private static final Double SCENE_HEIGHT = 300D;
-    private static final Double SCENE_WIDTH = 400D;
-    private static final String TITLE = "About";
 
     @Override
     public IARPane buildPane() {

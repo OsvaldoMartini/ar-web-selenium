@@ -4,7 +4,6 @@ import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.pane.ARConfigurationPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
-
 import java.time.format.DateTimeFormatter;
 import javafx.application.Platform;
 import javafx.scene.Scene;
@@ -16,8 +15,23 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ARConfigurationScene extends ARScene {
 
+    // Private constructor to prevent instantiation
+    private static final Double SCENE_HEIGHT = 700D;
+    private static final Double SCENE_WIDTH = 800D;
+    private static final String TITLE = "Configuration";
+    // Static final variable to hold the singleton instance
+    private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
     protected static volatile ARConfigurationScene instance;
+    private static ARConfigurationPane arConfigurationPane;
 
+    static {
+        arConfigurationPane = ARConfigurationPane.getInstance();
+    }
+
+    private boolean isEnabledLicence;
+    private Stage modalStage;
+    private Scene modalScene;
+    private ListView<BotJobLoadDTO> viewBotJobListView;
     // Private constructor to prevent instantiation
     private ARConfigurationScene() {
 
@@ -34,25 +48,6 @@ public class ARConfigurationScene extends ARScene {
         }
         return instance;
     }
-
-    private boolean isEnabledLicence;
-    private Stage modalStage;
-    private Scene modalScene;
-
-    private static ARConfigurationPane arConfigurationPane;
-
-    static {
-        arConfigurationPane = ARConfigurationPane.getInstance();
-    }
-
-    // Private constructor to prevent instantiation
-    private static final Double SCENE_HEIGHT = 700D;
-    private static final Double SCENE_WIDTH = 800D;
-    private static final String TITLE = "Configuration";
-    // Static final variable to hold the singleton instance
-    private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
-
-    private ListView<BotJobLoadDTO> viewBotJobListView;
 
     @Override
     public IARPane buildPane() {

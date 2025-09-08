@@ -3,7 +3,6 @@ package com.allinweb.ch.component.model;
 import lombok.Getter;
 
 @Getter
-
 public class BlockOptions {
     private final String text;
     private final String value;

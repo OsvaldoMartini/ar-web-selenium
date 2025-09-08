@@ -1,6 +1,6 @@
 <configuration>
     <!-- Pick up folder from System property -->
-    <property name="LOG_PATH" value="${LOG_PATH:-logs}" />
+    <property name="LOG_PATH" value="${LOG_PATH:-logs}"/>
 
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${LOG_PATH}/application.log</file>
@@ -20,7 +20,7 @@
     </appender>
 
     <root level="INFO">
-        <appender-ref ref="CONSOLE" />
-        <appender-ref ref="FILE" />
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
     </root>
 </configuration>

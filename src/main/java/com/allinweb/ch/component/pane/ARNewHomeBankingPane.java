@@ -10,7 +10,6 @@ import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.util.ARConstants;
-
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
 import java.net.MalformedURLException;
@@ -35,8 +34,47 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ARNewHomeBankingPane extends ARPane {
 
+    private static final PerformMessage performMessage = PerformMessage.getInstance();
+    private static final PerformLists performLists = PerformLists.getInstance();
+    private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
+    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
+    // Regular expression for a basic URL validation (improved)
+    private static final String URL_REGEX =
+            "^((https?|ftp|file)://)?([\\da-z.-]+)\\.([a-z.]{2,6})(:\\d+)?(/\\w .-]*)?/?$";
+    private static final Pattern URL_PATTERN = Pattern.compile(URL_REGEX, Pattern.CASE_INSENSITIVE);
     protected static volatile ARNewHomeBankingPane instance;
-
+    private static HomeBankingLoadDTO homeBank;
+    private Button insertORGButton;
+    private Button updateORGButton;
+    private Button deleteORGButton;
+    private Button templateORGButton;
+    private Button insertURLButton;
+    private Button updateURLButton;
+    private Button deleteURLButton;
+    // Create labels
+    private Label idLabel;
+    private Label nameLabel;
+    private Label urlLabel;
+    private Label priorityLabel;
+    private Label jobsLabel;
+    private Label searchConfigLabel;
+    private Label optionsConfigLabel;
+    private Label organizationsLabel;
+    private Label urlEnviromentLabel;
+    private TextField idField;
+    private TextField nameField;
+    private TextField urlField;
+    private TextArea priorityField;
+    private TextField jobsField;
+    private TextArea scanConfigField;
+    private TextArea optionsConfigField;
+    private TextField homeUrlIdField;
+    private TextField homeUrlValueField;
+    private Connection conn = null;
+    private TableView<HomeBankingLoadDTO> tableViewOrg;
+    private TableView<HomeUrlDTO> tableViewHomeUrl;
+    private List<BankingDTO> dtoList;
+    private Pane mainPane;
     // Private constructor to prevent instantiation
     private ARNewHomeBankingPane() {
 
@@ -54,58 +92,45 @@ public class ARNewHomeBankingPane extends ARPane {
         return instance;
     }
 
-    private static final PerformMessage performMessage = PerformMessage.getInstance();
-    private static final PerformLists performLists = PerformLists.getInstance();
-    private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
-    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
-    private static HomeBankingLoadDTO homeBank;
+    /**
+     * Validates a URL using a regular expression and checks for a valid protocol.
+     *
+     * @param urlStr The URL string to validate.
+     * @return true if the URL is valid, false otherwise.
+     */
+    public static boolean isValidUrl(String urlStr) {
+        if (urlStr == null || urlStr.trim().isEmpty()) {
+            return false;
+        }
+
+        String trimmedUrl = urlStr.trim();
+        // Check for basic syntax using regex
+        Matcher matcher = URL_PATTERN.matcher(trimmedUrl);
+        if (!matcher.matches()) {
+            return false;
+        }
+
+        // Further check using java.net.URL for protocol and general validity
+        try {
+            URL url = new URL(trimmedUrl);
+            // Check if the protocol is valid.
+            String protocol = url.getProtocol();
+            if (protocol == null
+                    || (!protocol.equals("http")
+                            && !protocol.equals("https")
+                            && !protocol.equals("ftp")
+                            && !protocol.equals("file"))) {
+                return false;
+            }
+            return true;
+        } catch (MalformedURLException e) {
+            return false; // Invalid URL
+        }
+    }
 
     public void initialize(HomeBankingLoadDTO homeBank) {
         this.homeBank = homeBank;
     }
-
-    private Button insertORGButton;
-    private Button updateORGButton;
-    private Button deleteORGButton;
-    private Button templateORGButton;
-
-    private Button insertURLButton;
-    private Button updateURLButton;
-    private Button deleteURLButton;
-
-    // Create labels
-    private Label idLabel;
-    private Label nameLabel;
-    private Label urlLabel;
-    private Label priorityLabel;
-    private Label jobsLabel;
-    private Label searchConfigLabel;
-    private Label optionsConfigLabel;
-    private Label organizationsLabel;
-    private Label urlEnviromentLabel;
-
-    private TextField idField;
-    private TextField nameField;
-    private TextField urlField;
-    private TextArea priorityField;
-    private TextField jobsField;
-    private TextArea scanConfigField;
-    private TextArea optionsConfigField;
-    private TextField homeUrlIdField;
-    private TextField homeUrlValueField;
-
-    // Regular expression for a basic URL validation (improved)
-    private static final String URL_REGEX =
-            "^((https?|ftp|file)://)?([\\da-z.-]+)\\.([a-z.]{2,6})(:\\d+)?(/\\w .-]*)?/?$";
-
-    private static final Pattern URL_PATTERN = Pattern.compile(URL_REGEX, Pattern.CASE_INSENSITIVE);
-
-    private Connection conn = null;
-    private TableView<HomeBankingLoadDTO> tableViewOrg;
-    private TableView<HomeUrlDTO> tableViewHomeUrl;
-    private List<BankingDTO> dtoList;
-
-    private Pane mainPane;
 
     @Override
     public Pane getPaneReference() {
@@ -1067,9 +1092,8 @@ public class ARNewHomeBankingPane extends ARPane {
 
                     conn.commit();
 
-
-                            log.info("Deleted " + urlRows + " rows from home_url and " + bankRows
-                                    + " rows from home_banking for ID: " + Id);
+                    log.info("Deleted " + urlRows + " rows from home_url and " + bankRows
+                            + " rows from home_banking for ID: " + Id);
                 } catch (SQLException error) {
                     log.info("Error Deleting: " + error.getMessage());
                 } finally {
@@ -1091,42 +1115,6 @@ public class ARNewHomeBankingPane extends ARPane {
             } catch (SQLException e) {
                 System.out.println(e.getMessage());
             }
-        }
-    }
-
-    /**
-     * Validates a URL using a regular expression and checks for a valid protocol.
-     *
-     * @param urlStr The URL string to validate.
-     * @return true if the URL is valid, false otherwise.
-     */
-    public static boolean isValidUrl(String urlStr) {
-        if (urlStr == null || urlStr.trim().isEmpty()) {
-            return false;
-        }
-
-        String trimmedUrl = urlStr.trim();
-        // Check for basic syntax using regex
-        Matcher matcher = URL_PATTERN.matcher(trimmedUrl);
-        if (!matcher.matches()) {
-            return false;
-        }
-
-        // Further check using java.net.URL for protocol and general validity
-        try {
-            URL url = new URL(trimmedUrl);
-            // Check if the protocol is valid.
-            String protocol = url.getProtocol();
-            if (protocol == null
-                    || (!protocol.equals("http")
-                            && !protocol.equals("https")
-                            && !protocol.equals("ftp")
-                            && !protocol.equals("file"))) {
-                return false;
-            }
-            return true;
-        } catch (MalformedURLException e) {
-            return false; // Invalid URL
         }
     }
 }

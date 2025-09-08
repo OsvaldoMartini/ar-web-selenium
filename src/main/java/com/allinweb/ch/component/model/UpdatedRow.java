@@ -3,7 +3,6 @@ package com.allinweb.ch.component.model;
 import lombok.Data;
 
 @Data
-
 public class UpdatedRow {
     private Integer blockId;
     private Integer blockOrderNumber;

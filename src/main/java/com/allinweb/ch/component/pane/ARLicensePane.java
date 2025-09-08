@@ -6,7 +6,6 @@ import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.license.LicenceVal;
 import com.allinweb.ch.license.LicenseManager;
 import com.allinweb.ch.util.ARConstants;
-
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
@@ -20,18 +19,8 @@ import java.io.IOException;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.control.Button;
-import javafx.scene.control.CheckBox;
-import javafx.scene.control.Label;
-import javafx.scene.control.RadioButton;
-import javafx.scene.control.TextArea;
-import javafx.scene.control.TextField;
-import javafx.scene.control.ToggleGroup;
-import javafx.scene.layout.AnchorPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Pane;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.VBox;
+import javafx.scene.control.*;
+import javafx.scene.layout.*;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
@@ -40,7 +29,28 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ARLicensePane extends ARPane {
 
+    private static final ARPropertyManager arPropertyManager;
+    private static final PerformMessage performMessage;
+    private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
     protected static volatile ARLicensePane instance;
+
+    static {
+        arPropertyManager = ARPropertyManager.getInstance();
+        performMessage = PerformMessage.getInstance();
+    }
+
+    private Button btnLicense; // Declare the License button
+    private Pane mainPane;
+    private CheckBox cbAgree;
+    private Button btnProceed;
+    private Button btnClose;
+    private RadioButton rbRequestLicense;
+    private RadioButton rbActivateLicense;
+    private RadioButton rbUseExistentLicense;
+    private TextField tfLicenseOwner;
+    private Button uploadButton;
+    private TextField filePathField;
+    private String fileFolder;
 
     // Private constructor to prevent instantiation
     private ARLicensePane() {
@@ -64,32 +74,6 @@ public class ARLicensePane extends ARPane {
         defineDesktopFolder();
     }
 
-    private static final ARPropertyManager arPropertyManager;
-    private static final PerformMessage performMessage;
-    private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
-
-    static {
-        arPropertyManager = ARPropertyManager.getInstance();
-        performMessage = PerformMessage.getInstance();
-    }
-
-    private Button btnLicense; // Declare the License button
-
-    private Pane mainPane;
-    private CheckBox cbAgree;
-    private Button btnProceed;
-    private Button btnClose;
-
-    private RadioButton rbRequestLicense;
-    private RadioButton rbActivateLicense;
-    private RadioButton rbUseExistentLicense;
-    private TextField tfLicenseOwner;
-
-    private Button uploadButton;
-    private TextField filePathField;
-
-    private String fileFolder;
-
     @Override
     public Pane getPaneReference() {
         return mainPane;
@@ -106,47 +90,47 @@ public class ARLicensePane extends ARPane {
         // TextArea for the License Agreement
         TextArea taLicenseAgreement = new TextArea(
                 """
-                SOFTWARE LICENSE AGREEMENT
+                        SOFTWARE LICENSE AGREEMENT
 
-                Important - Read Carefully: This License Agreement ("Agreement") is a legal contract between you
-                (an individual or a legal entity) and Allinweb SA. ("Licensor") for the software that accompanies
-                this agreement, which includes associated software and media material, whether printed, electronic, or online ("Software").
+                        Important - Read Carefully: This License Agreement ("Agreement") is a legal contract between you
+                        (an individual or a legal entity) and Allinweb SA. ("Licensor") for the software that accompanies
+                        this agreement, which includes associated software and media material, whether printed, electronic, or online ("Software").
 
-                1. License Grant:
-                   Subject to the terms of this Agreement, the Licensor grants you a non-exclusive,
-                   non-transferable license to use the Software for internal purposes according to the following limitations
-                   and in compliance with the provided documentation.
+                        1. License Grant:
+                           Subject to the terms of this Agreement, the Licensor grants you a non-exclusive,
+                           non-transferable license to use the Software for internal purposes according to the following limitations
+                           and in compliance with the provided documentation.
 
-                2. Restrictions:
-                   You are not authorized to:
-                   - Modify, translate, adapt, or create derivative works from the Software.
-                   - Reverse engineer, decompile, disassemble, or otherwise attempt to discover the Software's source code.
-                   - Resell, rent, sublicense, distribute, or otherwise transfer the Software without prior written consent from the Licensor.
-                   - Remove any copyright notices, trademarks, or other proprietary notices included in the Software.
+                        2. Restrictions:
+                           You are not authorized to:
+                           - Modify, translate, adapt, or create derivative works from the Software.
+                           - Reverse engineer, decompile, disassemble, or otherwise attempt to discover the Software's source code.
+                           - Resell, rent, sublicense, distribute, or otherwise transfer the Software without prior written consent from the Licensor.
+                           - Remove any copyright notices, trademarks, or other proprietary notices included in the Software.
 
-                3. Ownership of the Software:
-                   The Software is protected by copyright laws and international treaties, as well as other intellectual
-                   property laws and treaties. The Software is licensed, not sold.
+                        3. Ownership of the Software:
+                           The Software is protected by copyright laws and international treaties, as well as other intellectual
+                           property laws and treaties. The Software is licensed, not sold.
 
-                4. Limited Warranty:
-                   The Licensor warrants that the Software will operate substantially in accordance with the documentation
-                   for a period of ninety (90) days from the date of your purchase. Any replacement Software will be
-                   warranted for the remainder of the original warranty period or for thirty (30) days, whichever is longer.
+                        4. Limited Warranty:
+                           The Licensor warrants that the Software will operate substantially in accordance with the documentation
+                           for a period of ninety (90) days from the date of your purchase. Any replacement Software will be
+                           warranted for the remainder of the original warranty period or for thirty (30) days, whichever is longer.
 
-                5. Limitation of Liability:
-                   In no event shall the Licensor be liable for special, incidental, indirect, or consequential damages
-                   resulting from the use or inability to use the Software, even if the Licensor has been advised of
-                   the possibility of such damages. In no event shall the Licensor's liability for damages exceed
-                   the amount paid to purchase the Software.
+                        5. Limitation of Liability:
+                           In no event shall the Licensor be liable for special, incidental, indirect, or consequential damages
+                           resulting from the use or inability to use the Software, even if the Licensor has been advised of
+                           the possibility of such damages. In no event shall the Licensor's liability for damages exceed
+                           the amount paid to purchase the Software.
 
-                6. Termination:
-                   This Agreement remains in effect until terminated. This Agreement will automatically terminate without notice
-                   from the Licensor if you fail to comply with any term or condition of this Agreement.
+                        6. Termination:
+                           This Agreement remains in effect until terminated. This Agreement will automatically terminate without notice
+                           from the Licensor if you fail to comply with any term or condition of this Agreement.
 
-                7. Miscellaneous:
-                   This Agreement constitutes the entire agreement between you and the Licensor and supersedes all prior
-                   communications, proposals, or agreements, whether verbal or written, regarding the Software.
-                """);
+                        7. Miscellaneous:
+                           This Agreement constitutes the entire agreement between you and the Licensor and supersedes all prior
+                           communications, proposals, or agreements, whether verbal or written, regarding the Software.
+                        """);
 
         Label headerLabel = new Label("AR Web Activation software required");
         headerLabel.setStyle("-fx-text-fill: white; " + // Keep text color white

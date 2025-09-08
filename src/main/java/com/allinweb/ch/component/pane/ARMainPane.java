@@ -4,11 +4,7 @@ import com.allinweb.ch.component.listCell.ARCellFactory;
 import com.allinweb.ch.component.listCell.BotJobListCell;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
-import com.allinweb.ch.component.scene.ARConfigurationScene;
-import com.allinweb.ch.component.scene.ARInfoScene;
-import com.allinweb.ch.component.scene.ARNewBotJobScene;
-import com.allinweb.ch.component.scene.ARSaveCloneScene;
-import com.allinweb.ch.component.scene.ARViewBotJobScene;
+import com.allinweb.ch.component.scene.*;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformDBEngine;
@@ -17,7 +13,10 @@ import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.license.LicenceVal;
 import com.allinweb.ch.license.LicenseManager;
-import com.allinweb.ch.util.*;
+import com.allinweb.ch.util.ARConstants;
+import com.allinweb.ch.util.ARPropertyEnum;
+import com.allinweb.ch.util.ARPropertyManager;
+import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
 import java.io.File;
 import java.io.IOException;
@@ -33,14 +32,72 @@ import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.layout.*;
-import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.WebDriver;
 
-import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARMainPane extends ARPane {
+@Slf4j
+public class ARMainPane extends ARPane {
 
+    private static final String OPENAI_ENDPOINT = "https://api.openai.com/v1/chat/completions";
+    //    private static final ARSharedResources dbResource;
+    private static final ARInfoScene arInfoScene;
+    private static final ARPropertyManager arPropertyManager;
+    private static final PerformLists performLists;
+    private static final PerformDBEngine performDBEngine;
+    private static final PerformDataBase performDataBase;
+    private static final PerformMessage performMessage;
+    private static final ARConfigurationScene arConfigurationScene;
+    private static final ARViewBotJobScene arViewBotJobScene;
+    private static final ARSaveCloneScene arSaveCloneScene;
+    private static final ARNewBotJobScene arNewBotJobScene;
+    private static final ARWebDriver arWebDriver;
+    private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
     protected static volatile ARMainPane instance;
+
+    // Static block to initialize
+    static {
+        arInfoScene = ARInfoScene.getInstance();
+        //        //        dbResource = PerformDataBase.;
+        arPropertyManager = ARPropertyManager.getInstance();
+        arNewBotJobScene = ARNewBotJobScene.getInstance();
+        performLists = PerformLists.getInstance();
+        performDBEngine = PerformDBEngine.getInstance();
+        performDataBase = PerformDataBase.getInstance();
+        performMessage = PerformMessage.getInstance();
+        arConfigurationScene = ARConfigurationScene.getInstance();
+        arViewBotJobScene = ARViewBotJobScene.getInstance();
+        arSaveCloneScene = ARSaveCloneScene.getInstance();
+        arWebDriver = ARWebDriver.getInstance();
+    }
+
+    public final String CONNECTION_TYPE = "jdbc:ucanaccess://";
+    public final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
+    public final String CONNECTION_TYPE_SQLITE = "jdbc:sqlite:"; // no parameters needed
+    // UI components
+    Button newBotJobButton;
+    Button cloneBotJobButton;
+    // Button viewBotJobButton;
+    Button configureButton;
+    Button infoButton;
+    Button editBotJobButton;
+    Button launchBotJobButton;
+    Button exitButton;
+    Button aiButton;
+    TextArea aiTextArea;
+    HBox buttonPane;
+    VBox panelPane;
+    GridPane header = new GridPane();
+    ListView<BotJobLoadDTO> viewBotJobListView = new ListView<>();
+    private boolean isEnabledLicence;
+    private ObservableList<BotJobLoadDTO> botJobList = FXCollections.observableArrayList();
+
+    @Getter
+    private ObservableList<WebDriver> webDriverList;
+
+    private Properties properties = new Properties();
+    private BotJobLoadDTO selecBotJobDTO;
 
     // Private constructor to prevent instantiation
     private ARMainPane() {
@@ -57,6 +114,17 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARMainPane extends ARPane
             }
         }
         return instance;
+    }
+
+    private static int getMajorJavaVersion(String version) {
+        // For Java 9 and above, the version string starts with the major version (e.g., "17.0.1")
+        // For Java 8 and below, it starts with "1." (e.g., "1.8.0_311")
+        if (version.startsWith("1.")) {
+            return Integer.parseInt(version.substring(2, 3)); // e.g., "1.8" -> 8
+        } else {
+            String[] parts = version.split("\\.");
+            return Integer.parseInt(parts[0]); // e.g., "17.0.1" -> 17
+        }
     }
 
     public void initialize(ObservableList<WebDriver> webDriverList, boolean isEnabledLicence) {
@@ -77,73 +145,6 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARMainPane extends ARPane
         }
         botJobList.addAll(performLists.getQuickBotJobs());
     }
-
-    private boolean isEnabledLicence;
-
-    private static final String OPENAI_ENDPOINT = "https://api.openai.com/v1/chat/completions";
-
-    //    private static final ARSharedResources dbResource;
-    private static final ARInfoScene arInfoScene;
-    private static final ARPropertyManager arPropertyManager;
-    private static final PerformLists performLists;
-    private static final PerformDBEngine performDBEngine;
-    private static final PerformDataBase performDataBase;
-    private static final PerformMessage performMessage;
-    private static final ARConfigurationScene arConfigurationScene;
-    private static final ARViewBotJobScene arViewBotJobScene;
-    private static final ARSaveCloneScene arSaveCloneScene;
-    private static final ARNewBotJobScene arNewBotJobScene;
-    private static final ARWebDriver arWebDriver;
-
-    private ObservableList<BotJobLoadDTO> botJobList = FXCollections.observableArrayList();
-
-    @Getter
-    private ObservableList<WebDriver> webDriverList;
-
-    public final String CONNECTION_TYPE = "jdbc:ucanaccess://";
-    public final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
-    public final String CONNECTION_TYPE_SQLITE = "jdbc:sqlite:"; // no parameters needed
-
-    // Static block to initialize
-    static {
-        arInfoScene = ARInfoScene.getInstance();
-        //        //        dbResource = PerformDataBase.;
-        arPropertyManager = ARPropertyManager.getInstance();
-        arNewBotJobScene = ARNewBotJobScene.getInstance();
-        performLists = PerformLists.getInstance();
-        performDBEngine = PerformDBEngine.getInstance();
-        performDataBase = PerformDataBase.getInstance();
-        performMessage = PerformMessage.getInstance();
-        arConfigurationScene = ARConfigurationScene.getInstance();
-        arViewBotJobScene = ARViewBotJobScene.getInstance();
-        arSaveCloneScene = ARSaveCloneScene.getInstance();
-        arWebDriver = ARWebDriver.getInstance();
-    }
-
-    private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
-    private Properties properties = new Properties();
-
-    // UI components
-    Button newBotJobButton;
-    Button cloneBotJobButton;
-    // Button viewBotJobButton;
-    Button configureButton;
-    Button infoButton;
-    Button editBotJobButton;
-    Button launchBotJobButton;
-    Button exitButton;
-    Button aiButton;
-
-    TextArea aiTextArea;
-
-    HBox buttonPane;
-    VBox panelPane;
-
-    GridPane header = new GridPane();
-
-    ListView<BotJobLoadDTO> viewBotJobListView = new ListView<>();
-
-    private BotJobLoadDTO selecBotJobDTO;
 
     @Override
     public void initUIComponents() {
@@ -332,8 +333,8 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARMainPane extends ARPane
                     log.info(dataBaseType + " Database connected!");
                 }
             } catch (Exception error) {
-                
-                        log.error(dataBaseType + " Database Connection failed : " + error.getMessage());
+
+                log.error(dataBaseType + " Database Connection failed : " + error.getMessage());
             }
 
             if (performDataBase.isConnDBWorks()) {
@@ -577,17 +578,6 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARMainPane extends ARPane
         return new AnchorPane(panelPane);
     }
 
-    private static int getMajorJavaVersion(String version) {
-        // For Java 9 and above, the version string starts with the major version (e.g., "17.0.1")
-        // For Java 8 and below, it starts with "1." (e.g., "1.8.0_311")
-        if (version.startsWith("1.")) {
-            return Integer.parseInt(version.substring(2, 3)); // e.g., "1.8" -> 8
-        } else {
-            String[] parts = version.split("\\.");
-            return Integer.parseInt(parts[0]); // e.g., "17.0.1" -> 17
-        }
-    }
-
     private boolean checkLicense() {
         try {
             String licensePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_LICENSE);
@@ -621,8 +611,8 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARMainPane extends ARPane
             }
             return true;
         } catch (Exception error) {
-            
-                    log.error("Cannot read/validate the License path/file. Error: " + error.getMessage());
+
+            log.error("Cannot read/validate the License path/file. Error: " + error.getMessage());
             return false;
         }
     }
@@ -656,8 +646,8 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARMainPane extends ARPane
                     "block", selecBotJobDTO.getId(), "Default Block", "Default Block", 1, false);
 
             if (errorMessage == null) {
-                
-                        log.info(String.format("A new Block was created for bot job Id %d", selecBotJobDTO.getId()));
+
+                log.info(String.format("A new Block was created for bot job Id %d", selecBotJobDTO.getId()));
             } else {
                 performMessage.errorMessage(
                         errorMessage.getErrorTitle(),

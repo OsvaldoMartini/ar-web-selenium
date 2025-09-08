@@ -4,7 +4,6 @@ import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.pane.ARSaveComponentPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
-
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
@@ -14,8 +13,14 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ARSaveComponentScene extends ARScene {
 
+    private static final Double SCENE_HEIGHT = 250D;
+    private static final Double SCENE_WIDTH = 600D;
     protected static volatile ARSaveComponentScene instance;
-
+    private static ARSaveComponentPane arSaveComponentPane = ARSaveComponentPane.getInstance();
+    private static String TITLE = "Move Block";
+    private Stage modalStage;
+    private Scene modalScene;
+    private BlockDetailsDTO blockDetailsDTO;
     // Private constructor to prevent instantiation
     private ARSaveComponentScene() {
 
@@ -32,17 +37,6 @@ public class ARSaveComponentScene extends ARScene {
         }
         return instance;
     }
-
-    private Stage modalStage;
-    private Scene modalScene;
-
-    private static ARSaveComponentPane arSaveComponentPane = ARSaveComponentPane.getInstance();
-
-    private static final Double SCENE_HEIGHT = 250D;
-    private static final Double SCENE_WIDTH = 600D;
-    private static String TITLE = "Move Block";
-
-    private BlockDetailsDTO blockDetailsDTO;
 
     public void initialize(BlockDetailsDTO blockDetailsDTO) {
         this.blockDetailsDTO = blockDetailsDTO;

@@ -1,10 +1,12 @@
 package com.allinweb.ch.facade;
 
-import com.allinweb.ch.util.*;
-import lombok.extern.slf4j.Slf4j;
-
+import com.allinweb.ch.util.ARConstants;
+import com.allinweb.ch.util.ARPropertyEnum;
+import com.allinweb.ch.util.ARPropertyManager;
+import com.allinweb.ch.util.ErrorMessage;
 import java.io.File;
 import java.sql.*;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * PerformActions.
@@ -14,8 +16,13 @@ import java.sql.*;
  */
 @Slf4j
 public class PerformInitializer {
+    private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
+    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
+    private static final PerformMessage performMessage = PerformMessage.getInstance();
     protected static volatile PerformInitializer instance;
-
+    public final String CONNECTION_TYPE = "jdbc:ucanaccess://";
+    public final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
+    public final String CONNECTION_TYPE_SQLITE = "jdbc:sqlite:"; // no parameters needed
     // Private constructor to prevent instantiation
     private PerformInitializer() {}
 
@@ -29,14 +36,6 @@ public class PerformInitializer {
         }
         return instance;
     }
-
-    public final String CONNECTION_TYPE = "jdbc:ucanaccess://";
-    public final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
-    public final String CONNECTION_TYPE_SQLITE = "jdbc:sqlite:"; // no parameters needed
-
-    private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
-    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
-    private static final PerformMessage performMessage = PerformMessage.getInstance();
 
     public void initialize() {}
 
@@ -786,7 +785,7 @@ public class PerformInitializer {
                     ErrorMessage errorMessage = initializeMainDatabasePostgres();
                     if (errorMessage != null) {
 
-                                log.error("Database Creation Error: " + errorMessage.getErrorMessage());
+                        log.error("Database Creation Error: " + errorMessage.getErrorMessage());
 
                         performMessage.errorMessage(
                                 errorMessage.getErrorTitle(),
@@ -799,8 +798,8 @@ public class PerformInitializer {
                     }
                 }
             } catch (Exception error) {
-                
-                        log.error("Error connection with Postgres: " + error.getMessage());
+
+                log.error("Error connection with Postgres: " + error.getMessage());
             }
         } else if (performDataBase.SQLITE_DB) {
             String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
@@ -812,8 +811,8 @@ public class PerformInitializer {
                         ErrorMessage errorMessage = initializeMainDatabaseSQLite(dbFile);
 
                         if (errorMessage != null) {
-                            
-                                    log.error("Database Creation Error: " + errorMessage.getErrorMessage());
+
+                            log.error("Database Creation Error: " + errorMessage.getErrorMessage());
 
                             performMessage.errorMessage(
                                     errorMessage.getErrorTitle(),
@@ -828,8 +827,8 @@ public class PerformInitializer {
                     }
                 }
             } catch (Exception error) {
-                
-                        log.error("Error connection with SQLite: " + error.getMessage());
+
+                log.error("Error connection with SQLite: " + error.getMessage());
             }
         } else if (performDataBase.ACCESS_DB) {
             String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
@@ -841,8 +840,8 @@ public class PerformInitializer {
                         ErrorMessage errorMessage = initializeMainDatabaseAccess(dbFile);
 
                         if (errorMessage != null) {
-                            
-                                    log.error("Database Creation Error: " + errorMessage.getErrorMessage());
+
+                            log.error("Database Creation Error: " + errorMessage.getErrorMessage());
 
                             performMessage.errorMessage(
                                     errorMessage.getErrorTitle(),
@@ -857,8 +856,8 @@ public class PerformInitializer {
                     }
                 }
             } catch (Exception error) {
-                
-                        log.error("Error connection with Access: " + error.getMessage());
+
+                log.error("Error connection with Access: " + error.getMessage());
             }
         }
     }

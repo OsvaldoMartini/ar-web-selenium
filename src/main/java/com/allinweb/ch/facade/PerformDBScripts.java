@@ -2,18 +2,23 @@ package com.allinweb.ch.facade;
 
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
-import java.sql.*;
+import java.sql.Connection;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
-/**
- * PerformActions.
- *
- * @author Osvaldo Martini
- * @version 1.0
- */
-import lombok.extern.slf4j.Slf4j;  @Slf4j public class PerformDBScripts {
+@Slf4j
+public class PerformDBScripts {
+    private static final ARPropertyManager arPropertyManager;
     protected static volatile PerformDBScripts instance;
+
+    static {
+        arPropertyManager = ARPropertyManager.getInstance();
+    }
+
+    public final String CONNECTION_TYPE = "jdbc:ucanaccess://";
+    public final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
+    public final String CONNECTION_TYPE_SQLITE = "jdbc:sqlite:"; // no parameters needed
 
     @Getter
     @Setter
@@ -31,16 +36,6 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class PerformDBScripts {
             }
         }
         return instance;
-    }
-
-    public final String CONNECTION_TYPE = "jdbc:ucanaccess://";
-    public final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
-    public final String CONNECTION_TYPE_SQLITE = "jdbc:sqlite:"; // no parameters needed
-
-    private static final ARPropertyManager arPropertyManager;
-
-    static {
-        arPropertyManager = ARPropertyManager.getInstance();
     }
 
     public void initialize(Connection conn) {

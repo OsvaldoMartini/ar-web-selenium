@@ -10,25 +10,53 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import org.apache.poi.ss.usermodel.*;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.DataFormatter;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-import lombok.extern.slf4j.Slf4j;  @Slf4j public class ExcelReader {
+@Slf4j
+public class ExcelReader {
 
     private static final ARPropertyManager arPropertyManager;
+    private static final DataFormatter formatter = new DataFormatter();
+    private static final int EXCEL_DATA_COLUMN_INTESTATION_ROW = 1;
+    private static String executed = "EXECUTED";
+    private static String OUTCOME = "outcome";
 
     static {
         arPropertyManager = ARPropertyManager.getInstance();
     }
 
-    private static final DataFormatter formatter = new DataFormatter();
-    private static final int EXCEL_DATA_COLUMN_INTESTATION_ROW = 1;
-
-    private static String executed = "EXECUTED";
-
-    private static String OUTCOME = "outcome";
-
     public ExcelReader() {}
+
+    // Basically, it mirrors exactly what Excel displays, without altering formats.
+    private static String getCellValue(Cell cell) {
+        if (cell == null) return null;
+        return formatter.formatCellValue(cell);
+
+        //        String cellValue = null;
+        //        CellType type = cell.getCellType();
+        //        switch (type) {
+        //            case STRING -> {
+        //                String val = cell.getStringCellValue();
+        //                if (!val.isBlank()) {
+        //                    cellValue = val;
+        //                }
+        //            }
+        //            case NUMERIC -> {
+        //                cellValue = String.valueOf(cell.getNumericCellValue());
+        //                //                if (cellValue.contains(".0")) {
+        //                //                    cellValue = cellValue.substring(0, cellValue.indexOf(".0"));
+        //                //                }
+        //                return cellValue;
+        //            }
+        //            case BOOLEAN, BLANK, FORMULA, ERROR -> {}
+        //        }
+        //        return cellValue;
+    }
 
     public ExtractedData extractData(String paymentsFilePath, List<String> allActions) throws Exception {
         // Initialize the extracted data
@@ -155,27 +183,6 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class ExcelReader {
         return e.getMessage().contains("being used by another process");
     }
 
-    public File createLogFile(String filePath) {
-
-        File paymentsFile = new File(filePath);
-        String paymentsFileName = paymentsFile.getName();
-        int lastPeriodPos = paymentsFileName.lastIndexOf('.');
-        paymentsFileName = paymentsFileName.substring(0, lastPeriodPos);
-        String logDirectory = arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG);
-        String logFilePath = logDirectory + "\\" + paymentsFileName + ARConstants.FILE_FORMAT_LOG;
-
-        File logFile = null;
-        try {
-            logFile = new File(logFilePath);
-            logFile.createNewFile();
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
-            System.exit(0);
-        }
-
-        return logFile;
-    }
-
     /* TODO: To be removed
     public File createPaymentsExcelLogFile(String paymentsFilePath) {
 
@@ -221,29 +228,24 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class ExcelReader {
     }
     */
 
-    // Basically, it mirrors exactly what Excel displays, without altering formats.
-    private static String getCellValue(Cell cell) {
-        if (cell == null) return null;
-        return formatter.formatCellValue(cell);
+    public File createLogFile(String filePath) {
 
-        //        String cellValue = null;
-        //        CellType type = cell.getCellType();
-        //        switch (type) {
-        //            case STRING -> {
-        //                String val = cell.getStringCellValue();
-        //                if (!val.isBlank()) {
-        //                    cellValue = val;
-        //                }
-        //            }
-        //            case NUMERIC -> {
-        //                cellValue = String.valueOf(cell.getNumericCellValue());
-        //                //                if (cellValue.contains(".0")) {
-        //                //                    cellValue = cellValue.substring(0, cellValue.indexOf(".0"));
-        //                //                }
-        //                return cellValue;
-        //            }
-        //            case BOOLEAN, BLANK, FORMULA, ERROR -> {}
-        //        }
-        //        return cellValue;
+        File paymentsFile = new File(filePath);
+        String paymentsFileName = paymentsFile.getName();
+        int lastPeriodPos = paymentsFileName.lastIndexOf('.');
+        paymentsFileName = paymentsFileName.substring(0, lastPeriodPos);
+        String logDirectory = arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG);
+        String logFilePath = logDirectory + "\\" + paymentsFileName + ARConstants.FILE_FORMAT_LOG;
+
+        File logFile = null;
+        try {
+            logFile = new File(logFilePath);
+            logFile.createNewFile();
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+            System.exit(0);
+        }
+
+        return logFile;
     }
 }

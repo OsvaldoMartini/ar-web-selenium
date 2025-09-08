@@ -2,7 +2,6 @@ package com.allinweb.ch.component.model;
 
 import java.util.List;
 
-
 public class BankingDTO {
 
     private Integer id;

@@ -4,18 +4,32 @@ import com.allinweb.ch.component.pane.ARViewBotJobListPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.driver.ARWebDriver;
-
 import javafx.application.Platform;
 import javafx.collections.ObservableList;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.WebDriver;
 
-import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARViewBotJobListScene extends ARScene {
+@Slf4j
+public class ARViewBotJobListScene extends ARScene {
 
+    private static final Double SCENE_HEIGHT = 600D;
+    private static final Double SCENE_WIDTH = 800D;
+    private static final String TITLE = "Bot Job List";
+    private static final ARViewBotJobListPane arViewBotJobListPane;
     protected static volatile ARViewBotJobListScene instance;
 
+    static {
+        arViewBotJobListPane = ARViewBotJobListPane.getInstance();
+    }
+
+    private ARViewBotJobScene arViewBotJobScene;
+    private ARWebDriver arWebDriver;
+    private ObservableList<WebDriver> webDriverList;
+    private Stage modalStage;
+    private Scene modalScene;
     // Private constructor to prevent instantiation
     private ARViewBotJobListScene() {
 
@@ -33,28 +47,11 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARViewBotJobListScene ext
         return instance;
     }
 
-    private static final Double SCENE_HEIGHT = 600D;
-    private static final Double SCENE_WIDTH = 800D;
-    private static final String TITLE = "Bot Job List";
-
-    private ARViewBotJobScene arViewBotJobScene;
-    private ARWebDriver arWebDriver;
-    private ObservableList<WebDriver> webDriverList;
-
     public void initialize(
             ARViewBotJobScene arViewBotJobScene, ARWebDriver arWebDriver, ObservableList<WebDriver> webDriverList) {
         this.arViewBotJobScene = arViewBotJobScene;
         this.arWebDriver = arWebDriver;
         this.webDriverList = webDriverList;
-    }
-
-    private Stage modalStage;
-    private Scene modalScene;
-
-    private static final ARViewBotJobListPane arViewBotJobListPane;
-
-    static {
-        arViewBotJobListPane = ARViewBotJobListPane.getInstance();
     }
 
     @Override

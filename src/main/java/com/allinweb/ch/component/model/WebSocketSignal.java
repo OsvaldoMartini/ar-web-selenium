@@ -5,7 +5,6 @@ import lombok.Data;
 
 @Data
 @Builder
-
 public class WebSocketSignal {
     private String operationId; // e.g. "activate-insert-all"
     private String sessionId; // so the frontend knows if it applies

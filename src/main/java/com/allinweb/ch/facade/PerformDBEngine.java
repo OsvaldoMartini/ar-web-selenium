@@ -1,20 +1,35 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.component.model.*;
-import com.allinweb.ch.util.*;
+import com.allinweb.ch.util.ARConstants;
+import com.allinweb.ch.util.ARPropertyEnum;
+import com.allinweb.ch.util.ARPropertyManager;
+import com.allinweb.ch.util.ErrorMessage;
 import java.sql.*;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
-
 import lombok.extern.slf4j.Slf4j;
 import org.sqlite.SQLiteConfig;
 
 @Slf4j
 public class PerformDBEngine {
 
+    public static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
+    public static final PerformMessage performMessage = PerformMessage.getInstance();
+    public static final PerformLists performLists = PerformLists.getInstance();
     // Static final variable to hold the singleton instance
     protected static volatile PerformDBEngine instance;
-
+    public final String CONNECTION_TYPE = "jdbc:ucanaccess://";
+    public final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
+    public final String CONNECTION_TYPE_SQLITE = "jdbc:sqlite:"; // no parameters needed
+    // Postgres
+    public boolean ACCESS_DB = false;
+    public boolean POSTGRES_DB = false;
+    public boolean SQLITE_DB = false;
+    public boolean connDBWorks = false;
     // Private constructor to prevent instantiation
     private PerformDBEngine() {}
 
@@ -29,20 +44,6 @@ public class PerformDBEngine {
         }
         return instance;
     }
-
-    public static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
-    public static final PerformMessage performMessage = PerformMessage.getInstance();
-    public static final PerformLists performLists = PerformLists.getInstance();
-
-    public final String CONNECTION_TYPE = "jdbc:ucanaccess://";
-    public final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
-    public final String CONNECTION_TYPE_SQLITE = "jdbc:sqlite:"; // no parameters needed
-
-    // Postgres
-    public boolean ACCESS_DB = false;
-    public boolean POSTGRES_DB = false;
-    public boolean SQLITE_DB = false;
-    public boolean connDBWorks = false;
 
     public void initialize(String databaseType) {}
 
@@ -148,8 +149,8 @@ public class PerformDBEngine {
 
             throw error;
         } catch (ClassNotFoundException error) {
-            
-                    log.error("Driver DB Class not Found Error: " + error.getMessage());
+
+            log.error("Driver DB Class not Found Error: " + error.getMessage());
         }
 
         connDBWorks = false;
@@ -398,9 +399,9 @@ public class PerformDBEngine {
                 }
             }
         } catch (SQLException error) {
-            
-                    log.error(String.format(
-                            "Error loadCompleteJobs for Bot Job Id %d. Error: %s", botJobId, error.getMessage()));
+
+            log.error(
+                    String.format("Error loadCompleteJobs for Bot Job Id %d. Error: %s", botJobId, error.getMessage()));
             return new ErrorMessage("Error Loading Complete Job", "Error loading complete Job", error.getMessage());
         }
 
@@ -437,8 +438,8 @@ public class PerformDBEngine {
             performLists.setAllActions(actionsList);
 
         } catch (SQLException error) {
-            
-                    log.error(String.format("Error loading actions for blocks. Error: %s", error.getMessage()));
+
+            log.error(String.format("Error loading actions for blocks. Error: %s", error.getMessage()));
             return new ErrorMessage("Cannot get All Actions", "Error loading actions for blocks", error.getMessage());
         }
         return null;
@@ -501,9 +502,9 @@ public class PerformDBEngine {
             conn.commit();
             return null; // success
         } catch (SQLException e) {
-            
-                    log.error(String.format(
-                            "Error loading variables for %s=%d. Error: %s", whereColumn, whereId, e.getMessage()));
+
+            log.error(String.format(
+                    "Error loading variables for %s=%d. Error: %s", whereColumn, whereId, e.getMessage()));
 
             return new ErrorMessage(
                     "LoadVariables Error",
@@ -574,10 +575,10 @@ public class PerformDBEngine {
                 }
             }
         } catch (SQLException error) {
-            
-                    log.error(String.format(
-                            "Error getting All Excel data GOTO from table %s whereId %d. Error: %s",
-                            tableName, whereId, error.getMessage()));
+
+            log.error(String.format(
+                    "Error getting All Excel data GOTO from table %s whereId %d. Error: %s",
+                    tableName, whereId, error.getMessage()));
         }
 
         return InstructionLoadList;

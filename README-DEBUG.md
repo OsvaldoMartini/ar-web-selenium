@@ -1,4 +1,5 @@
 # PARAMS  DEBUG TEST
+
 ```bash
     // ENGINE Params for Debugging
     cmd.exe /c .\java\bin\java.exe -jar "C:/Program Files/ARWeb\AR_Web_Engine.jar" execute/j 52 31 "C:/ARWeb/Excel/CA-Next-Bank-Test.xlsx" -c C:/ARWeb/ARWeb.config
@@ -11,7 +12,8 @@
     -c "C:/ARWeb/ARWeb.config"
 ```
 
-##  CSS Selectors
+## CSS Selectors
+
 ```text
 Access Does Not Accept *[contains(@idCOMMA 'mat-input')]
 
@@ -64,7 +66,9 @@ Example:
         4,ByTagName,button,label,a
         5,ByTagName,input
 ```
- ## Priorities Example
+
+## Priorities Example
+
 ```text
     #numero priorità, categoria, identificativo
     1,attribute,test-id
@@ -73,6 +77,7 @@ Example:
 ```
 
 ## Search element terms
+
 ```text
    #numero priorità, categoria, identificativo
    1,ByXPath,//a[@href],a[href]
@@ -95,6 +100,7 @@ Example:
 ```
 
 ## Example Proxy Edge
+
 ```bash
      System.setProperty("webdriver.edge.driver", "path/to/msedgedriver.exe");
 

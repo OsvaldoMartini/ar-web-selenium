@@ -3,7 +3,6 @@ package com.allinweb.ch.component.scene;
 import com.allinweb.ch.component.pane.ARMainPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
-
 import com.allinweb.ch.util.ARPropertyManager;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -13,7 +12,6 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import javax.websocket.server.ServerContainer;
-
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jetty.server.Server;
 import org.openqa.selenium.WebDriver;
@@ -21,43 +19,14 @@ import org.openqa.selenium.WebDriver;
 @Slf4j
 public class ARMainScene extends ARScene {
 
-    protected static volatile ARMainScene instance;
-
-    // Private constructor to prevent instantiation
-    private ARMainScene() {
-
-        super();
-    }
-
-    public static ARMainScene getInstance() {
-        if (instance == null) {
-            synchronized (ARMainScene.class) {
-                if (instance == null) {
-                    instance = new ARMainScene();
-                }
-            }
-        }
-        return instance;
-    }
-
-    private boolean isEnabledLicence;
-    private Stage modalStage;
-    private Scene modalScene;
-
     private static final Double SCENE_HEIGHT = 600D;
     private static final Double SCENE_WIDTH = 700D;
     private static final String TITLE = "AR Web Bot Job List";
-
-    private static Server jettyServer;
-    private static ServerContainer wsContainer;
-
-    private ObservableList<WebDriver> webDriverList = FXCollections.observableArrayList();
-
     private static final ARMainPane arMainPane;
     private static final ARPropertyManager arPropertyManager;
-    //    private static final WebSocketSessionManager webSocketSessionManager;
-    //    private static final ARWebSocketServerIP arWebSocketServerIP;
-    //    private static final ARWebSocketServer arWebSocketServer;
+    protected static volatile ARMainScene instance;
+    private static Server jettyServer;
+    private static ServerContainer wsContainer;
 
     static {
         arMainPane = ARMainPane.getInstance();
@@ -78,6 +47,30 @@ public class ARMainScene extends ARScene {
         // error.getMessage());
         //            throw new RuntimeException(error);
         //        }
+    }
+
+    private boolean isEnabledLicence;
+    private Stage modalStage;
+    private Scene modalScene;
+    private ObservableList<WebDriver> webDriverList = FXCollections.observableArrayList();
+    // Private constructor to prevent instantiation
+    private ARMainScene() {
+
+        super();
+    }
+    //    private static final WebSocketSessionManager webSocketSessionManager;
+    //    private static final ARWebSocketServerIP arWebSocketServerIP;
+    //    private static final ARWebSocketServer arWebSocketServer;
+
+    public static ARMainScene getInstance() {
+        if (instance == null) {
+            synchronized (ARMainScene.class) {
+                if (instance == null) {
+                    instance = new ARMainScene();
+                }
+            }
+        }
+        return instance;
     }
 
     public void initialize(boolean isEnabledLicence) {
@@ -213,7 +206,7 @@ public class ARMainScene extends ARScene {
     //                    try {
     //                        startWebSocketServer(finalPort);
     //                    } catch (Exception error) {
-    //                        
+    //
     //                                log.error("Port : " + finalPort + " error : " + error.getMessage());
     //
     //                        //                        performMessage.errorMessage(

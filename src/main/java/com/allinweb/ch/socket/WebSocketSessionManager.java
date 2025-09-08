@@ -6,9 +6,12 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.websocket.Session;
+import lombok.extern.slf4j.Slf4j;
 
-import lombok.extern.slf4j.Slf4j;  @Slf4j public class WebSocketSessionManager {
+@Slf4j
+public class WebSocketSessionManager {
 
+    private static final ConcurrentHashMap<String, Session> activeSessions = new ConcurrentHashMap<>();
     protected static volatile WebSocketSessionManager instance;
 
     // Private constructor to prevent instantiation
@@ -24,8 +27,6 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class WebSocketSessionManager {
         }
         return instance;
     }
-
-    private static final ConcurrentHashMap<String, Session> activeSessions = new ConcurrentHashMap<>();
 
     public static void addSession(String sessionId, Session session) {
         activeSessions.put(sessionId, session);
@@ -50,6 +51,26 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class WebSocketSessionManager {
     public static boolean isSessionOpen(String sessionId) {
         Session session = activeSessions.get(sessionId);
         return session != null && session.isOpen();
+    }
+
+    public static void sendMessageJson(
+            int homeBankingId, Session session, String sessionId, String body, String operationId) {
+        if (session != null && session.isOpen()) {
+            try {
+                JsonObject jsonMessage = new JsonObject();
+                jsonMessage.addProperty("homeBankingId", homeBankingId);
+                jsonMessage.addProperty("sessionId", sessionId);
+                jsonMessage.addProperty("body", body);
+                if (operationId != null && !operationId.isEmpty()) {
+                    jsonMessage.addProperty("operationId", operationId);
+                }
+                session.getBasicRemote().sendText(jsonMessage.toString());
+            } catch (IOException e) {
+                System.err.println("Error sending message to session " + sessionId + ": " + e.getMessage());
+            }
+        } else {
+            System.err.println("Session " + sessionId + " not found or closed.");
+        }
     }
 
     // Method to get the session ID based on the session object
@@ -98,26 +119,6 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class WebSocketSessionManager {
             }
         } else {
             removeSession(sessionId);
-            System.err.println("Session " + sessionId + " not found or closed.");
-        }
-    }
-
-    public static void sendMessageJson(
-            int homeBankingId, Session session, String sessionId, String body, String operationId) {
-        if (session != null && session.isOpen()) {
-            try {
-                JsonObject jsonMessage = new JsonObject();
-                jsonMessage.addProperty("homeBankingId", homeBankingId);
-                jsonMessage.addProperty("sessionId", sessionId);
-                jsonMessage.addProperty("body", body);
-                if (operationId != null && !operationId.isEmpty()) {
-                    jsonMessage.addProperty("operationId", operationId);
-                }
-                session.getBasicRemote().sendText(jsonMessage.toString());
-            } catch (IOException e) {
-                System.err.println("Error sending message to session " + sessionId + ": " + e.getMessage());
-            }
-        } else {
             System.err.println("Session " + sessionId + " not found or closed.");
         }
     }

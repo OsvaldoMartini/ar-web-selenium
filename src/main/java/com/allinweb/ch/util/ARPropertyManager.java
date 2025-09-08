@@ -15,7 +15,22 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class ARPropertyManager {
+    private static final PerformMessage performMessage;
+    private static final String lock = "locked";
     protected static volatile ARPropertyManager instance;
+
+    // Static block to initialize
+    static {
+        performMessage = PerformMessage.getInstance();
+    }
+
+    @Getter
+    @Setter
+    private Properties properties = new Properties();
+
+    @Getter
+    @Setter
+    private String configurationFileName;
 
     // Private constructor to prevent instantiation
     private ARPropertyManager() {}
@@ -31,22 +46,12 @@ public class ARPropertyManager {
         return instance;
     }
 
-    private static final PerformMessage performMessage;
-
-    // Static block to initialize
-    static {
-        performMessage = PerformMessage.getInstance();
+    public static String getTodaysDate(int day) {
+        LocalDate today = LocalDate.now();
+        LocalDate yesterday = today.minusDays(day);
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+        return yesterday.format(formatter);
     }
-
-    private static final String lock = "locked";
-
-    @Getter
-    @Setter
-    private Properties properties = new Properties();
-
-    @Getter
-    @Setter
-    private String configurationFileName;
 
     public void loadProperties(FileInputStream configFile) {
         configurationFileName = System.getProperty("ARWebConfig");
@@ -293,12 +298,5 @@ public class ARPropertyManager {
             return true;
         }
         return false;
-    }
-
-    public static String getTodaysDate(int day) {
-        LocalDate today = LocalDate.now();
-        LocalDate yesterday = today.minusDays(day);
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
-        return yesterday.format(formatter);
     }
 }

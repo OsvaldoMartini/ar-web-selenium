@@ -21,13 +21,19 @@ import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.util.converter.IntegerStringConverter;
+import lombok.extern.slf4j.Slf4j;
 
-import lombok.extern.slf4j.Slf4j;  @Slf4j public class LicenceResponseManagerApp extends Application {
+@Slf4j
+public class LicenceResponseManagerApp extends Application {
 
     private static final PerformMessage performMessage;
 
     static {
         performMessage = PerformMessage.getInstance();
+    }
+
+    public static void main(String[] args) {
+        launch(args);
     }
 
     @Override
@@ -174,9 +180,5 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class LicenceResponseManagerApp
         Scene scene = new Scene(root, 600, 300);
         primaryStage.setScene(scene);
         primaryStage.show();
-    }
-
-    public static void main(String[] args) {
-        launch(args);
     }
 }

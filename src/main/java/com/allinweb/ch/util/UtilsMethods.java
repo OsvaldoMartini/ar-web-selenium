@@ -1,9 +1,11 @@
 package com.allinweb.ch.util;
 
 import java.util.Random;
+import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.WebElement;
 
-import lombok.extern.slf4j.Slf4j;  @Slf4j public class UtilsMethods {
+@Slf4j
+public class UtilsMethods {
 
     public static String generateRandomID(int length) {
         String AB = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";

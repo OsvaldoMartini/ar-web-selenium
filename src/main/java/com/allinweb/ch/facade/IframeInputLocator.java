@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
@@ -11,10 +12,19 @@ import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
-import lombok.extern.slf4j.Slf4j;  @Slf4j public class IframeInputLocator {
+@Slf4j
+public class IframeInputLocator {
 
     // Public method to access the singleton instance
     private static volatile IframeInputLocator instance;
+    private WebDriver driver;
+    private Map<WebElement, List<WebElement>> iframeElementsMap;
+
+    private IframeInputLocator() {}
+
+    public IframeInputLocator(WebDriver driver) {
+        this.driver = driver;
+    }
 
     // Public method to access the singleton instance
     public static IframeInputLocator getInstance() {
@@ -28,18 +38,9 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class IframeInputLocator {
         return instance;
     }
 
-    private IframeInputLocator() {}
-
-    private WebDriver driver;
-    private Map<WebElement, List<WebElement>> iframeElementsMap;
-
     public void initializeIframeInputLocator(Map<WebElement, List<WebElement>> iframeElementsMap, WebDriver drive) {
         this.driver = drive;
         this.iframeElementsMap = iframeElementsMap;
-    }
-
-    public IframeInputLocator(WebDriver driver) {
-        this.driver = driver;
     }
 
     // Method to find an input element inside a specific iframe using the iframeElementsMap

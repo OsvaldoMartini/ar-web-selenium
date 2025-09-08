@@ -2,20 +2,26 @@ package com.allinweb.ch.socket;
 
 // Assuming this class exists
 // Assuming this class exists
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.SocketException;
+import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.websocket.jsr356.server.ServerContainer;
 import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainerInitializer;
 
-import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARWebSocketServerIP {
+@Slf4j
+public class ARWebSocketServerIP {
 
     protected static volatile ARWebSocketServerIP instance;
-
+    private String BIND_IP_ADDRESS = "0.0.0.0";
+    private Server jettyServer;
+    private ServerContainer wsContainer;
+    private int boundPort;
     // Private constructor to prevent instantiation
     private ARWebSocketServerIP() throws Exception {
 
@@ -39,12 +45,6 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARWebSocketServerIP {
         }
         return instance;
     }
-
-    private String BIND_IP_ADDRESS = "0.0.0.0";
-
-    private Server jettyServer;
-    private ServerContainer wsContainer;
-    private int boundPort;
 
     /**
      * Starts the Jetty WebSocket server.
@@ -76,7 +76,8 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARWebSocketServerIP {
                     this.boundPort = fallbackPort;
                     //                    loggerlog.info("Using fallback port: " + this.boundPort);
                 } catch (NumberFormatException e) {
-                    //                    loggerlog.error("Invalid port number in properties: " + fallbackPortStr + " " +
+                    //                    loggerlog.error("Invalid port number in properties: " + fallbackPortStr + " "
+                    // +
                     // e.getMessage());
                     throw new IOException("Invalid port number in properties.");
                 }
@@ -115,7 +116,8 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARWebSocketServerIP {
         jettyServer.start();
         //        loggerlog.info("Jetty WebSocket server started on ws://" + BIND_IP_ADDRESS + ":" + this.boundPort +
         // "/websocket");
-        //        loggerlog.info("Current active WebSocket sessions: " + webSocketSessionManager.getAllSessions().size());
+        //        loggerlog.info("Current active WebSocket sessions: " +
+        // webSocketSessionManager.getAllSessions().size());
     }
 
     /**
@@ -135,6 +137,7 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARWebSocketServerIP {
 
     /**
      * Gets the port the server is currently bound to.
+     *
      * @return The bound port, or -1 if the server hasn't started yet.
      */
     public int getBoundPort() {
@@ -173,6 +176,7 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARWebSocketServerIP {
 
     /**
      * Checks if a given port is currently in use.
+     *
      * @param port The port number to check.
      * @return true if the port is in use, false otherwise.
      */

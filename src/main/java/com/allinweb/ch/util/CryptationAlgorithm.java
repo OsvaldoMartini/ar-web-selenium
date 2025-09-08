@@ -9,8 +9,10 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
+import lombok.extern.slf4j.Slf4j;
 
-import lombok.extern.slf4j.Slf4j;  @Slf4j public class CryptationAlgorithm {
+@Slf4j
+public class CryptationAlgorithm {
 
     private static final String SECRET_KEY = "lultimafrasenonlabbiamodeltuttocapita";
     private static final String SALT = "lasocietadelcocacola";

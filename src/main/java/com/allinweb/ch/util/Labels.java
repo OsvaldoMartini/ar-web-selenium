@@ -1,21 +1,19 @@
 package com.allinweb.ch.util;
 
-import lombok.extern.slf4j.Slf4j;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class Labels {
-    public static Properties labelsValue;
-
     public static final String START = "START";
     public static final String END = "END";
     public static final String OK = "OK";
     public static final String KO = "KO";
+    public static Properties labelsValue;
 
     public static void initializeLabelsInSpecLang(String language) {
         labelsValue = new Properties();

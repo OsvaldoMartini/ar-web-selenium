@@ -3,23 +3,43 @@ package com.allinweb.ch.socket;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
+import lombok.extern.slf4j.Slf4j;
 
-/**
- * Simulates a CSV file with dynamic columns, missing values, and row numbering.
- */
-import lombok.extern.slf4j.Slf4j;  @Slf4j public class CsvSimulatorWithColumnsMap {
+@Slf4j
+public class CsvSimulatorWithColumnsMap {
+    private static final String END_OF_FILE_MARKER = "END OF FILE";
     private List<String> columnsCSV; // Column headers
     private List<List<String>> rowsCSV; // Data rows
-    private static final String END_OF_FILE_MARKER = "END OF FILE";
 
     public CsvSimulatorWithColumnsMap() {
         this.columnsCSV = new ArrayList<>();
         this.rowsCSV = new ArrayList<>();
     }
 
+    public static void main(String[] args) {
+        CsvSimulatorWithColumnsMap csv = new CsvSimulatorWithColumnsMap();
+
+        Map<String, String> row1 = new LinkedHashMap<>();
+        row1.put("Name", "Alice");
+        row1.put("Age", "30");
+        row1.put("Country", "USA");
+        row1.put("Email", "alice@example.com");
+
+        Map<String, String> row2 = new LinkedHashMap<>();
+        row2.put("Name", "Bob");
+        row2.put("Age", "25");
+
+        csv.addRowFromMap(row1);
+        csv.addRowFromMap(row2);
+
+        String csvContent = csv.getBancaStatoCsvContent("|");
+        csv.writeToFile("output.csv", csvContent);
+    }
+
     /**
      * Adds a row with values matching the columns.
      * Missing values are filled with empty strings.
+     *
      * @param values Array of values; may be less than columns.
      */
     public void addRow(String... values) {
@@ -97,26 +117,6 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class CsvSimulatorWithColumnsMa
 
     public void printCsv() {
         System.out.println(getCsvContent());
-    }
-
-    public static void main(String[] args) {
-        CsvSimulatorWithColumnsMap csv = new CsvSimulatorWithColumnsMap();
-
-        Map<String, String> row1 = new LinkedHashMap<>();
-        row1.put("Name", "Alice");
-        row1.put("Age", "30");
-        row1.put("Country", "USA");
-        row1.put("Email", "alice@example.com");
-
-        Map<String, String> row2 = new LinkedHashMap<>();
-        row2.put("Name", "Bob");
-        row2.put("Age", "25");
-
-        csv.addRowFromMap(row1);
-        csv.addRowFromMap(row2);
-
-        String csvContent = csv.getBancaStatoCsvContent("|");
-        csv.writeToFile("output.csv", csvContent);
     }
 
     public void writeToFile(String filename, String content) {

@@ -1,9 +1,7 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.component.model.*;
-import com.allinweb.ch.component.model.DatabaseUserDTO;
 import com.allinweb.ch.socket.WebSocketSessionManager;
-
 import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ComboBoxVars;
 import com.google.common.base.Strings;
@@ -26,39 +24,19 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class PerformLists {
 
-    // Static final variable to hold the singleton instance
-    protected static volatile PerformLists instance;
-
-    // Private constructor to prevent instantiation
-    private PerformLists() {
-
-        initialize();
-    }
-
     // WebSocket needs
     private static final CountDownLatch latch = new CountDownLatch(1);
+    private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    // Lists for tables
+    private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
+    private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
+    // Static final variable to hold the singleton instance
+    protected static volatile PerformLists instance;
+    private final Gson gson = new Gson();
     private Session session;
     private ExecutorService executorWebSocket;
     private int portSocketInitial = 54525;
     private boolean isConnectWebSocket = false;
-    private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-    private final Gson gson = new Gson();
-    // Lists for tables
-    private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
-    private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
-
-    // Public method to access the singleton instance
-    public static PerformLists getInstance() {
-        if (instance == null) {
-            synchronized (PerformLists.class) {
-                if (instance == null) {
-                    instance = new PerformLists();
-                }
-            }
-        }
-        return instance;
-    }
-
     private List<HomeBankingLoadDTO> listHomeBanking = new ArrayList<>();
     private List<HomeUrlDTO> listHomeUrl = new ArrayList<>();
     private List<BotJobLoadDTO> quickBotJobs = new ArrayList<>();
@@ -75,11 +53,27 @@ public class PerformLists {
     private List<String> allActions = new ArrayList<>();
     // Quick Lists
     private List<InstructionOperationDTO> instrucOperList = new ArrayList<>();
-
     private List<DatabaseUserDTO> listDatabaseUsers = new ArrayList<>();
     private List<VariableUserDTO> listVariablesUser = new ArrayList<>();
     private List<ComboBoxVars> listWebPageItems = new ArrayList<>();
     private List<ParentOperations> listParentOperations = new ArrayList<>();
+    // Private constructor to prevent instantiation
+    private PerformLists() {
+
+        initialize();
+    }
+
+    // Public method to access the singleton instance
+    public static PerformLists getInstance() {
+        if (instance == null) {
+            synchronized (PerformLists.class) {
+                if (instance == null) {
+                    instance = new PerformLists();
+                }
+            }
+        }
+        return instance;
+    }
 
     //    private List<BlockOptions> listComboOptions = new ArrayList<>();
 
@@ -483,8 +477,8 @@ public class PerformLists {
                 throw new IllegalArgumentException("Invalid tableName: " + tableName);
             }
         } catch (Exception error) {
-            
-                    log.error("Error: Memory Update failed for 'updateMemoryBlockName': " + error.getMessage());
+
+            log.error("Error: Memory Update failed for 'updateMemoryBlockName': " + error.getMessage());
         }
     }
 
@@ -562,8 +556,8 @@ public class PerformLists {
             }
 
         } catch (Exception error) {
-            
-                    log.error("Error: Memory Update failed for 'updateMemoryInstructionName': " + error.getMessage());
+
+            log.error("Error: Memory Update failed for 'updateMemoryInstructionName': " + error.getMessage());
         }
     }
 
@@ -643,8 +637,8 @@ public class PerformLists {
             }
 
         } catch (Exception error) {
-            
-                    log.error("Error: Memory Update failed for 'updateMemoryStatusUpdate': " + error.getMessage());
+
+            log.error("Error: Memory Update failed for 'updateMemoryStatusUpdate': " + error.getMessage());
         }
     }
 
@@ -713,9 +707,8 @@ public class PerformLists {
             }
 
         } catch (Exception error) {
-            
-                    log.error("Error: Memory Update failed for 'updateMemoryInstructionStatusUpdate': "
-                            + error.getMessage());
+
+            log.error("Error: Memory Update failed for 'updateMemoryInstructionStatusUpdate': " + error.getMessage());
         }
     }
 
@@ -774,8 +767,8 @@ public class PerformLists {
             }
 
         } catch (Exception error) {
-            
-                    log.error("Error: Memory Update failed for 'updateMemoryStatusUpdate': " + error.getMessage());
+
+            log.error("Error: Memory Update failed for 'updateMemoryStatusUpdate': " + error.getMessage());
         }
     }
 
@@ -861,8 +854,8 @@ public class PerformLists {
             }
 
         } catch (Exception error) {
-            
-                    log.error("Error: Memory Update failed for 'updateMemoryParentOpenName': " + error.getMessage());
+
+            log.error("Error: Memory Update failed for 'updateMemoryParentOpenName': " + error.getMessage());
         }
     }
 
@@ -928,8 +921,8 @@ public class PerformLists {
                 throw new IllegalArgumentException("Invalid tableName: " + tableName);
             }
         } catch (Exception error) {
-            
-                    log.error("Error: Memory Update failed for 'updateMemoryBlockOrder': " + error.getMessage());
+
+            log.error("Error: Memory Update failed for 'updateMemoryBlockOrder': " + error.getMessage());
         }
     }
 
@@ -973,8 +966,8 @@ public class PerformLists {
                 }
             }
         } catch (Exception error) {
-            
-                    log.error("Error: Memory Update failed for 'updateMemoryRemoveInstructionId': " + error.getMessage());
+
+            log.error("Error: Memory Update failed for 'updateMemoryRemoveInstructionId': " + error.getMessage());
         }
     }
 
@@ -1029,8 +1022,8 @@ public class PerformLists {
                 throw new IllegalArgumentException("Invalid tableName: " + tableName);
             }
         } catch (Exception error) {
-            
-                    log.error("Error: Memory Update failed for 'updateMemoryRemoveInstructionId': " + error.getMessage());
+
+            log.error("Error: Memory Update failed for 'updateMemoryRemoveInstructionId': " + error.getMessage());
         }
     }
 
@@ -1071,8 +1064,8 @@ public class PerformLists {
                 throw new IllegalArgumentException("Invalid tableName: " + tableName);
             }
         } catch (Exception error) {
-            
-                    log.error("Error: Memory Update failed for 'updateMemoryRemoveBlockIds': " + error.getMessage());
+
+            log.error("Error: Memory Update failed for 'updateMemoryRemoveBlockIds': " + error.getMessage());
         }
     }
 
@@ -1176,8 +1169,8 @@ public class PerformLists {
                 throw new IllegalArgumentException("Invalid tableName: " + tableName);
             }
         } catch (Exception error) {
-            
-                    log.error("Error: Memory Update failed for 'updateMemoryRemoveBlockIds': " + error.getMessage());
+
+            log.error("Error: Memory Update failed for 'updateMemoryRemoveBlockIds': " + error.getMessage());
         }
     }
 
@@ -1205,8 +1198,8 @@ public class PerformLists {
                 throw new IllegalArgumentException("Invalid tableName: " + tableName);
             }
         } catch (Exception error) {
-            
-                    log.error("Error: Memory Update failed for 'updateMemoryRowMove': " + error.getMessage());
+
+            log.error("Error: Memory Update failed for 'updateMemoryRowMove': " + error.getMessage());
         }
     }
 

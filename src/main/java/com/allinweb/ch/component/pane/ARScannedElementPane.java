@@ -22,7 +22,6 @@ import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.util.*;
-import java.util.Date;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -43,7 +42,6 @@ import javafx.geometry.Pos;
 import javafx.geometry.VPos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
-import javafx.scene.control.Alert;
 import javafx.scene.layout.*;
 import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
@@ -53,15 +51,109 @@ import javafx.scene.web.WebView;
 import javafx.stage.Stage;
 import javafx.util.Pair;
 import lombok.extern.slf4j.Slf4j;
-import org.openqa.selenium.*;
+import org.openqa.selenium.By;
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 @Slf4j
 public class ARScannedElementPane extends ARPane {
 
+    private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
+    private static final String END_OF_FILE_MARKER = "END OF FILE";
+    // Very important sequence on initiation
+    private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
+    private static final ARPriorities arPriorities = ARPriorities.getInstance();
+    private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
+    private static final ARScannedElementScene arScannedElementScene = ARScannedElementScene.getInstance();
+    private static final PerformCloneLoad performCloneLoad = PerformCloneLoad.getInstance();
+    private static final PerformLists performLists = PerformLists.getInstance();
+    private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
+    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
+    private static final PerformActions performActions = PerformActions.getInstance();
+    private static final PerformMessage performMessage = PerformMessage.getInstance();
+    private static final PerformPreLoad performPreLoad = PerformPreLoad.getInstance();
+    private static final ARNewHomeBankingScene arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
+    public static TargetElement targetSelected = new TargetElement();
     protected static volatile ARScannedElementPane instance;
+    private static SimpleDateFormat dateFormatter;
+    private static String excelPath = null;
+    private static String currentBotJobName = null;
+    private static File baseLogFile = null;
+    private static JavascriptExecutor jsExecutor;
+    private static String[] lstAllPaths;
+    public final AtomicBoolean isJobRunning = new AtomicBoolean(false);
+    private final Gson gson = new Gson();
+    private final WebView webView = new WebView();
+    public Button launchBotJobButton;
+    public CheckBox checkClickElement;
+    public CheckBox checkInputText;
+    public CheckBox checkOutputText;
+    public TextField defineNameField;
+    public TextField searchAttribValueField;
+    public String xpathTextPrevious;
+    protected BooleanProperty interceptBotJob = new SimpleBooleanProperty(false);
+    double comboWidth = 200;
+    Button refreshBlocksButton;
+    String excelFieldName;
+    String delimiterCSV = null;
     private Stage stage;
-
+    private Set<String> windowHandles;
+    private ExecutorService executorServicePreLaunch;
+    private int portSocketInitial = 54525;
+    private BotJobLoadDTO currentBotJob;
+    private int currentBlockId;
+    private int executeSpecificBlock;
+    private List<BlockLoadDTO> blocksLoaded;
+    private List<InstructionLoad> excelDataGoto = new ArrayList<>();
+    private ComboBox<BlockOptions> comboBoxBlocks;
+    // UI COMPONENTS
+    private HBox topPane;
+    private VBox verticalBox;
+    private AnchorPane mainPane;
+    private WebEngine webEngine;
+    private VBox elements2VBox;
+    private HBox componentBox;
+    private Button cloneElementsButton;
+    private Button configureButton;
+    private Button stopBotJobButton;
+    private Button pageScannerButton;
+    private Button refreshWebPageButton;
+    private Button leftButton;
+    private Button rightButton;
+    private Button cleanListButton;
+    private Button turnOnOffButton;
+    private Button searchButton;
+    private CheckBox checkCloneElement;
+    private Label testActionLabel;
+    private CheckBox checkForceEnterText;
+    private CheckBox checkForceCoordText;
+    private Label searchTermsLabel;
+    private Label defineNameLabel;
+    private Label coordsTextFieldLabel;
+    private Text currentURL;
+    private Text iFrameText;
+    private VBox textFieldVBox;
+    //    private TextFlow textFlowResult;
+    private TextArea countdownTextField;
+    private TextField searchTermsField;
+    private TextField testActionsField;
+    private TextField coordsTextField;
+    private Map<String, String> mapOperators = new HashMap<>();
+    private Map<String, String> mapExportRows = new HashMap<>();
+    private Set<String> headersExport = new LinkedHashSet<>();
+    private List<String> columnsCSV = new ArrayList<>();
+    private List<List<String>> rowsCSV = new ArrayList<>();
+    private List<VariableLoadDTO> variablesLoaded;
+    private String[] defaultSearch;
+    private boolean searchHiddenFields;
+    private String sessionIdFromJava;
+    private String sessionRowStatus;
+    private String jsonStatus;
+    private RowStatus rowStatus = new RowStatus();
+    private PayloadJson payloadEmpty;
+    private ARWebDriver currentARWebDriver;
     // Private constructor to prevent instantiation
     private ARScannedElementPane() {}
 
@@ -74,6 +166,469 @@ public class ARScannedElementPane extends ARPane {
             }
         }
         return instance;
+    }
+
+    public static double jaccardSimilarity(String text1, String text2) {
+        Set<Character> set1 = new HashSet<>();
+        for (char c : text1.toCharArray()) {
+            set1.add(c);
+        }
+
+        Set<Character> set2 = new HashSet<>();
+        for (char c : text2.toCharArray()) {
+            set2.add(c);
+        }
+
+        Set<Character> intersection = new HashSet<>(set1);
+        intersection.retainAll(set2);
+
+        Set<Character> union = new HashSet<>(set1);
+        union.addAll(set2);
+
+        return (double) intersection.size() / union.size();
+    }
+
+    // Method to get XPath of a WebElement
+    public static String getXPath(WebDriver driver, WebElement element) {
+        return (String) ((JavascriptExecutor) driver)
+                .executeScript(
+                        "function getElementXPath(elt) {" + "    var path = '';"
+                                + "    for (; elt && elt.nodeType == 1; elt = elt.parentNode) {"
+                                + "        var idx = getElementIdx(elt);"
+                                + "        var xname = elt.tagName;"
+                                + "        if (idx > 1) xname += '[' + idx + ']';"
+                                + "        path = '/' + xname + path;"
+                                + "    }"
+                                + "    return path;"
+                                + "}"
+                                + "function getElementIdx(elt) {"
+                                + "    var count = 1;"
+                                + "    for (var sib = elt.previousSibling; sib; sib = sib.previousSibling) {"
+                                + "        if (sib.nodeType == 1 && sib.tagName == elt.tagName) count++;"
+                                + "    }"
+                                + "    return count;"
+                                + "}"
+                                + "return getElementXPath(arguments[0]);",
+                        element);
+    }
+
+    // Helper method to get the text of an associated element
+    private static String getElementText(WebElement element) {
+        String tagName = element.getTagName();
+
+        switch (tagName.toLowerCase()) {
+            case "input":
+                return element.getAttribute("value");
+            case "textarea":
+                return element.getText();
+            case "select":
+                List<WebElement> selectedOptions = element.findElements(By.cssSelector("option[selected]"));
+                return selectedOptions.stream()
+                        .map(WebElement::getText)
+                        .reduce((a, b) -> a + ", " + b)
+                        .orElse("");
+            default:
+                return element.getText();
+        }
+    }
+
+    public static String truncate(String someText, int limit) {
+        if (someText == null || someText.isEmpty()) {
+            return someText;
+        }
+
+        if (someText.length() <= limit) {
+            return someText;
+        }
+
+        return someText.substring(0, limit) + "...";
+    }
+
+    private static By[] parseLocators(String input) {
+        // Split the input string by commas to get individual locator strings
+        // DB Access Cannot have "'"
+        input = input.replace("\"", "'");
+
+        String[] locatorStrings = input.split(",");
+
+        // List to hold the By objects
+        List<By> byList = new ArrayList<>();
+
+        // Loop through each locator string
+        for (String locatorString : locatorStrings) {
+            // Split each locator string by colon to separate the type and value
+            String[] parts = locatorString.split(":");
+
+            // Get the type and value
+            String type = parts[0].replace("By.", "").toUpperCase();
+            String value = String.join(",", Arrays.copyOfRange(parts, 1, parts.length));
+
+            value = value.replace("COMMA", ",");
+
+            // Create the By object based on the type
+            switch (LocatorType.valueOf(type)) {
+                case TAGNAME:
+                    byList.add(By.tagName(value));
+                    break;
+                case ID:
+                    byList.add(By.id(value));
+                    break;
+                case CLASSNAME:
+                    byList.add(By.className(value));
+                    break;
+                case CSSSELECTOR:
+                    byList.add(By.cssSelector(value));
+                    break;
+                case XPATH:
+                    byList.add(By.xpath(value));
+                    break;
+                default:
+                    throw new IllegalArgumentException("Unsupported locator type: " + type);
+            }
+        }
+
+        // Convert the list to an array and return
+        return byList.toArray(new By[0]);
+    }
+
+    public static List<InstructionLoad> getUnexecutedInstructions(
+            List<InstructionLoad> instructionsExecuted, List<InstructionLoad> otherList) {
+        // Create a set of instructionOrderNumbers from instructionsExecuted
+        Set<Integer> executedInstructionOrderNumbers = instructionsExecuted.stream()
+                .map(InstructionLoad::getInstructionOrderNumber)
+                .collect(Collectors.toSet());
+
+        // Filter the otherList to get instructions where executed is false and not in executedInstructionOrderNumbers
+        return otherList.stream()
+                //                .filter(instruction -> instruction.getExecuted() != null &&
+                // !instruction.getExecuted())
+                .filter(instruction ->
+                        !executedInstructionOrderNumbers.contains(instruction.getInstructionOrderNumber()))
+                .collect(Collectors.toList());
+    }
+
+    private static void printBaseLog(File logFile, String timeStamp, String msg) {
+        String resultMsg;
+        String log = String.join(ARConstants.FIELDS_SEPARATOR, timeStamp, msg);
+
+        try {
+            FileWriter fileWriter = new FileWriter(logFile, true);
+            fileWriter.write(log + System.lineSeparator());
+            fileWriter.close();
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+        }
+    }
+
+    private static String generateTimestamp() {
+        Date date = new Date();
+        dateFormatter = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
+        return dateFormatter.format(date);
+    }
+    //    private static final PerformCloseBrowser performCloseBrowser;
+
+    private static void printLog(String timeStamp, File logFile, String resultActions, boolean result) {
+        String resultMsg = result ? ARConstants.SUCCESS : ARConstants.FAIL;
+        String log = String.join(ARConstants.FIELDS_SEPARATOR, timeStamp, resultMsg, resultActions);
+
+        try {
+            FileWriter fileWriter = new FileWriter(logFile, true);
+            fileWriter.write(log + System.lineSeparator());
+            fileWriter.close();
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+        }
+    }
+
+    /**
+     * Finds all elements of the specified tag name without "id" or "name" attributes and returns a map with their XPaths as keys.
+     *
+     * @param driver  the WebDriver instance
+     * @param tagName the tag name of the elements to find (e.g., "input", "button")
+     * @return a map where keys are XPaths of elements and values are WebElements
+     */
+    private static Map<String, WebElement> findElementsWithoutIdOrName(WebDriver driver, String tagName) {
+        jsExecutor = (JavascriptExecutor) driver;
+        List<WebElement> elements = (List<WebElement>) jsExecutor.executeScript(
+                "return Array.from(document.querySelectorAll('" + tagName + ":not([id]):not([name])'));");
+        Set<WebElement> uniqueElements = new HashSet<>(elements);
+        Map<String, WebElement> elementMap = new HashMap<>();
+        for (WebElement element : uniqueElements) {
+            String xpath = getElementXPath(driver, element);
+            elementMap.put(xpath, element);
+        }
+        return elementMap;
+    }
+
+    /**
+     * Finds all elements of the specified tag name without "id" or "name" attributes and returns a map with their XPaths as keys.
+     *
+     * @param driver the WebDriver instance
+     * @return a map where keys are XPaths of elements and values are WebElements
+     */
+    private static Map<String, WebElement> findElementsOutputCriteria(WebDriver driver) {
+
+        String allWithText = "// Global array to store XPaths of elements with text\n" + "let elementsWithText = [];\n"
+                + "(function() {\n"
+                + "    function getXPath(element) {\n"
+                + "        if (element.id) {\n"
+                + "            return `//*[@id='${element.id}']`;\n"
+                + "        }\n"
+                + "        if (element === document.body) {\n"
+                + "            return '/html/body';\n"
+                + "        }\n"
+                + "        let index = 1;\n"
+                + "        let siblings = element.parentNode ? element.parentNode.children : [];\n"
+                + "        for (let i = 0; i < siblings.length; i++) {\n"
+                + "            if (siblings[i] === element) {\n"
+                + "                return getXPath(element.parentNode) + '/' + element.tagName.toLowerCase() + `[${index}]`;\n"
+                + "            }\n"
+                + "            if (siblings[i].tagName === element.tagName) {\n"
+                + "                index++;\n"
+                + "            }\n"
+                + "        }\n"
+                + "        return '';\n"
+                + "    }\n"
+                + "\n"
+                + "    function collectElementsWithText() {\n"
+                + "        let elements = document.querySelectorAll('*');\n"
+                + "\n"
+                + "        elements.forEach(element => {\n"
+                + "            let text = element.textContent.trim();\n"
+                + "            if (text.length > 0 && element.offsetWidth > 0 && element.offsetHeight > 0) {\n"
+                + "                let xpath = getXPath(element);\n"
+                + "                if (xpath) {\n"
+                + "                    elementsWithText.push(xpath);\n"
+                + "                }\n"
+                + "            }\n"
+                + "        });\n"
+                + "        window.allWithText = elementsWithText;\n"
+                + "    }\n"
+                + "\n"
+                + "    window.allWithText = [];\n"
+                + "    collectElementsWithText();\n"
+                + "})();\n";
+
+        List<WebElement> elements = new ArrayList<>();
+        Map<String, WebElement> elementMap = new HashMap<>();
+
+        try {
+            jsExecutor = (JavascriptExecutor) driver;
+            jsExecutor.executeScript(allWithText);
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+        }
+
+        try {
+            Thread.sleep(2);
+        } catch (InterruptedException e) {
+        }
+
+        String[] listXPaths = new String[0];
+
+        LinkedHashMap<String, Object> linkedHashMap = (LinkedHashMap<String, Object>)
+                jsExecutor.executeScript("var obj = { allWithText: window.allWithText }; return obj;");
+
+        // Convert the LinkedHashMap to a Java Map (if necessary)
+        Map<String, Object> resultMap = new LinkedHashMap<>(linkedHashMap);
+
+        if (linkedHashMap != null) {
+            //            Platform.runLater(() -> {
+            //                                iFrameXPath = (String) resultMap.get("iFrameXPath");
+
+            Object iframeElementsObject = resultMap.get("allWithText");
+
+            if (iframeElementsObject instanceof List<?> iframeElementsList) {
+                // Convert List to String[]
+                lstAllPaths = iframeElementsList.toArray(new String[0]);
+            } else if (iframeElementsObject instanceof Object[]) {
+                // If it's an array, check if it's an array of Strings
+                lstAllPaths = Arrays.copyOf(
+                        (Object[]) iframeElementsObject, ((Object[]) iframeElementsObject).length, String[].class);
+            } else {
+                System.out.println("The iframeElements data is not a List or an array.");
+            }
+
+            for (String xPath : lstAllPaths) {
+                WebElement element = driver.findElement(By.xpath(xPath));
+                if (element != null) {
+                    elementMap.put(xPath, element);
+                }
+            }
+            //            });
+        }
+
+        //        List<WebElement> elements = driver.findElements(By.xpath("//label[@for]"));
+        //        Set<WebElement> uniqueElements = new HashSet<>(elements);
+        //
+        //        elements = driver.findElements(By.xpath("//label[not(@for)]"));
+        //        uniqueElements.addAll(elements);
+        //
+        //        elements = driver.findElements(By.xpath("//label[normalize-space(text()) != '']"));
+        //        uniqueElements.addAll(elements);
+        //
+        //        elements = driver.findElements(By.xpath("//div[normalize-space(text()) != '']"));
+        //        uniqueElements.addAll(elements);
+        //
+        //        elements = driver.findElements(By.xpath("//span[normalize-space(text()) != '']"));
+        //        uniqueElements.addAll(elements);
+        //
+        //        elements = driver.findElements(By.xpath("//div[@for]"));
+        //        uniqueElements.addAll(elements);
+        //
+        //        elements = driver.findElements(By.xpath("//div[not(@for)]"));
+        //        uniqueElements.addAll(elements);
+        //
+        //        elements = driver.findElements(By.xpath("//span[@for]"));
+        //        uniqueElements.addAll(elements);
+        //
+        //        elements = driver.findElements(By.xpath("//span[not(@for)]"));
+        //        uniqueElements.addAll(elements);
+        //
+        //        elements = driver.findElements(By.xpath("//label[@title != '' or @aria-label != '']"));
+        //        uniqueElements.addAll(elements);
+
+        //        Map<String, WebElement> elementMap = new HashMap<>();
+        //        for (WebElement element : elements) {
+        //            String xpath = getElementXPath(driver, element);
+        //            elementMap.put(xpath, element);
+        //        }
+        return elementMap;
+    }
+
+    /**
+     * Prints out the elements, their specified attribute, and their XPath.
+     *
+     * @param elements  a map where keys are XPaths of elements and values are WebElements
+     * @param attribute the attribute to print
+     */
+    private static void printElementsWithAttributeAndXPath(Map<String, WebElement> elements, String attribute) {
+        for (Map.Entry<String, WebElement> entry : elements.entrySet()) {
+            WebElement element = entry.getValue();
+            String xpath = entry.getKey();
+            String attributeValue = element.getAttribute(attribute);
+            System.out.println(
+                    "Tag: " + element.getTagName() + ", " + attribute + ": " + attributeValue + ", XPath: " + xpath);
+        }
+    }
+
+    /**
+     * Constructs the XPath of a given WebElement.
+     *
+     * @param driver  the WebDriver instance
+     * @param element the WebElement to construct the XPath for
+     * @return the XPath of the element
+     */
+    private static String getElementXPath(WebDriver driver, WebElement element) {
+        return (String) ((JavascriptExecutor) driver)
+                .executeScript(
+                        "function absoluteXPath(element) {" + "    var comp, comps = [];"
+                                + "    var parent = null;"
+                                + "    var xpath = '';"
+                                + "    var getPos = function(element) {"
+                                + "        var position = 1, curNode;"
+                                + "        if (element.nodeType == Node.ATTRIBUTE_NODE) {"
+                                + "            return null;"
+                                + "        }"
+                                + "        for (curNode = element.previousSibling; curNode; curNode = curNode.previousSibling) {"
+                                + "            if (curNode.nodeName == element.nodeName) {"
+                                + "                ++position;"
+                                + "            }"
+                                + "        }"
+                                + "        return position;"
+                                + "    };"
+                                + "    if (element instanceof Document) {"
+                                + "        return '/';"
+                                + "    }"
+                                + "    for (; element && !(element instanceof Document); element = element.nodeType == Node.ATTRIBUTE_NODE ? element.ownerElement : element.parentNode) {"
+                                + "        comp = comps[comps.length] = {};"
+                                + "        switch (element.nodeType) {"
+                                + "            case Node.TEXT_NODE:"
+                                + "                comp.name = 'text()';"
+                                + "                break;"
+                                + "            case Node.ATTRIBUTE_NODE:"
+                                + "                comp.name = '@' + element.nodeName;"
+                                + "                break;"
+                                + "            case Node.PROCESSING_INSTRUCTION_NODE:"
+                                + "                comp.name = 'processing-instruction()';"
+                                + "                break;"
+                                + "            case Node.COMMENT_NODE:"
+                                + "                comp.name = 'comment()';"
+                                + "                break;"
+                                + "            case Node.ELEMENT_NODE:"
+                                + "                comp.name = element.nodeName;"
+                                + "                break;"
+                                + "        }"
+                                + "        comp.position = getPos(element);"
+                                + "    }"
+                                + "    for (var i = comps.length - 1; i >= 0; i--) {"
+                                + "        comp = comps[i];"
+                                + "        xpath += '/' + comp.name.toLowerCase();"
+                                + "        if (comp.position !== null) {"
+                                + "            xpath += '[' + comp.position + ']';"
+                                + "        }"
+                                + "    }"
+                                + "    return xpath;"
+                                + "}"
+                                + "return absoluteXPath(arguments[0]);",
+                        element);
+    }
+
+    private static void showAlertInfo(String title, String header, String content) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(header);
+        alert.setContentText(content);
+        alert.showAndWait();
+    }
+
+    private static String loadScriptFromResource(String resourcePath) throws IOException {
+        // Use ClassLoader to get the resource as an InputStream
+        try (InputStream inputStream =
+                ARScannedElementPane.class.getClassLoader().getResourceAsStream(resourcePath)) {
+            if (inputStream == null) {
+                throw new IOException("Resource not found: " + resourcePath);
+            }
+
+            // Convert InputStream to String
+            return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+        }
+    }
+
+    public static boolean isBrowserClosed(WebDriver webDriver) {
+        try {
+            webDriver.getTitle(); // Try accessing a property
+            return false; // If no exception, browser is open
+        } catch (Exception e) {
+            return true; // If exception occurs, browser is closed
+        }
+    }
+
+    private static int getMajorJavaVersion(String version) {
+        // For Java 9 and above, the version string starts with the major version (e.g., "17.0.1")
+        // For Java 8 and below, it starts with "1." (e.g., "1.8.0_311")
+        if (version.startsWith("1.")) {
+            return Integer.parseInt(version.substring(2, 3)); // e.g., "1.8" -> 8
+        } else {
+            String[] parts = version.split("\\.");
+            return Integer.parseInt(parts[0]); // e.g., "17.0.1" -> 17
+        }
+    }
+
+    // Helper method for distinct by text
+    private static Predicate<BlockOptions> distinctByText() {
+        Set<String> seen = new HashSet<>();
+        return b -> seen.add(b.getText());
+    }
+
+    // Helper method for distinct by text AND blockOrderNumber
+    private static Predicate<BlockOptions> distinctByTextAndId() {
+        Set<String> seen = new HashSet<>();
+        return b -> {
+            // Combine text and blockOrderNumber as a unique key
+            String key = b.getText() + "#" + b.getBlockId();
+            return seen.add(key);
+        };
     }
 
     public void destroy() {
@@ -653,15 +1208,6 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private Set<String> windowHandles;
-
-    private ExecutorService executorServicePreLaunch;
-
-    private int portSocketInitial = 54525;
-
-    public final AtomicBoolean isJobRunning = new AtomicBoolean(false);
-    protected BooleanProperty interceptBotJob = new SimpleBooleanProperty(false);
-
     public BooleanProperty interceptBotJobProperty() {
         return interceptBotJob;
     }
@@ -673,121 +1219,6 @@ public class ARScannedElementPane extends ARPane {
     public void setInterceptBotJob(boolean value) {
         interceptBotJob.set(value);
     }
-
-    public static TargetElement targetSelected = new TargetElement();
-
-    private static SimpleDateFormat dateFormatter;
-
-    private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
-
-    private static String excelPath = null;
-    private static String currentBotJobName = null;
-    private static File baseLogFile = null;
-    private BotJobLoadDTO currentBotJob;
-    private int currentBlockId;
-    private int executeSpecificBlock;
-    private List<BlockLoadDTO> blocksLoaded;
-    private List<InstructionLoad> excelDataGoto = new ArrayList<>();
-
-    double comboWidth = 200;
-
-    private final Gson gson = new Gson();
-
-    private ComboBox<BlockOptions> comboBoxBlocks;
-
-    Button refreshBlocksButton;
-
-    // UI COMPONENTS
-    private HBox topPane;
-    private VBox verticalBox;
-    private AnchorPane mainPane;
-
-    private final WebView webView = new WebView();
-    private WebEngine webEngine;
-    private VBox elements2VBox;
-    private HBox componentBox;
-
-    private Button cloneElementsButton;
-    private Button configureButton;
-    public Button launchBotJobButton;
-    private Button stopBotJobButton;
-    private Button pageScannerButton;
-    private Button refreshWebPageButton;
-    private Button leftButton;
-    private Button rightButton;
-    private Button cleanListButton;
-    private Button turnOnOffButton;
-    private Button searchButton;
-
-    private CheckBox checkCloneElement;
-
-    private Label testActionLabel;
-    public CheckBox checkClickElement;
-    public CheckBox checkInputText;
-    public CheckBox checkOutputText;
-    private CheckBox checkForceEnterText;
-    private CheckBox checkForceCoordText;
-
-    private Label searchTermsLabel;
-    private Label defineNameLabel;
-    private Label coordsTextFieldLabel;
-
-    private Text currentURL;
-    private Text iFrameText;
-
-    private VBox textFieldVBox;
-    //    private TextFlow textFlowResult;
-    private TextArea countdownTextField;
-
-    private TextField searchTermsField;
-    public TextField defineNameField;
-
-    private TextField testActionsField;
-    public TextField searchAttribValueField;
-    private TextField coordsTextField;
-
-    private Map<String, String> mapOperators = new HashMap<>();
-    private Map<String, String> mapExportRows = new HashMap<>();
-    private Set<String> headersExport = new LinkedHashSet<>();
-    private List<String> columnsCSV = new ArrayList<>();
-    private List<List<String>> rowsCSV = new ArrayList<>();
-    private static final String END_OF_FILE_MARKER = "END OF FILE";
-    String excelFieldName;
-    String delimiterCSV = null;
-
-    private List<VariableLoadDTO> variablesLoaded;
-
-    private static JavascriptExecutor jsExecutor;
-
-    private String[] defaultSearch;
-    private boolean searchHiddenFields;
-    public String xpathTextPrevious;
-
-    private String sessionIdFromJava;
-
-    private String sessionRowStatus;
-    private String jsonStatus;
-    private RowStatus rowStatus = new RowStatus();
-    private PayloadJson payloadEmpty;
-
-    private static String[] lstAllPaths;
-
-    // Very important sequence on initiation
-    private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
-    private static final ARPriorities arPriorities = ARPriorities.getInstance();
-
-    private ARWebDriver currentARWebDriver;
-    private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
-    private static final ARScannedElementScene arScannedElementScene = ARScannedElementScene.getInstance();
-    private static final PerformCloneLoad performCloneLoad = PerformCloneLoad.getInstance();
-    private static final PerformLists performLists = PerformLists.getInstance();
-    private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
-    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
-    private static final PerformActions performActions = PerformActions.getInstance();
-    private static final PerformMessage performMessage = PerformMessage.getInstance();
-    private static final PerformPreLoad performPreLoad = PerformPreLoad.getInstance();
-    private static final ARNewHomeBankingScene arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
-    //    private static final PerformCloseBrowser performCloseBrowser;
 
     public void initialize(ARWebDriver currentARWebDriver, BotJobLoadDTO botJobLoad, int portSocketInitial) {
         this.portSocketInitial = portSocketInitial;
@@ -964,6 +1395,18 @@ public class ARScannedElementPane extends ARPane {
         return true;
     }
 
+    //    private static WebElement convertJsoupElementToWebElement(Element jsoupElement, WebDriver driver) {
+    //        // Create a new RemoteWebElement instance and set its properties
+    //        RemoteWebElement webElement = new RemoteWebElement();
+    //        webElement.setParent((RemoteWebElement) driver.findElementByTagName("html")); // Set a dummy parent
+    //        webElement.setId("dummy_id"); // Set a dummy id
+    //        // Simulate the href and text attributes
+    //        webElement.setAttribute("href", jsoupElement.attr("href"));
+    //        webElement.setText(jsoupElement.text());
+    //
+    //        return webElement;
+    //    }
+
     private boolean openWebDriver(boolean firstLoad) {
 
         String webDriverPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
@@ -1039,6 +1482,22 @@ public class ARScannedElementPane extends ARPane {
 
         refreshBlocks(false);
     }
+
+    //    public void saveReferencesToFile(String filePath, List<ARWebElement> elements) {
+    //        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath))) {
+    //            for (ARWebElement element : elements) {
+    //                Map<String, String> savedReferences = element.getSavedReferences();
+    //
+    //                for (Map.Entry<String, String> entry : savedReferences.entrySet()) {
+    //                    writer.write(entry.getKey() + "=" + entry.getValue());
+    //                    writer.newLine();
+    //                }
+    //            }
+    //            System.out.println("References saved to " + filePath);
+    //        } catch (IOException e) {
+    //            System.err.println("Error writing to file: " + e.getMessage());
+    //        }
+    //    }
 
     private void addCompBoxWebView() {
         componentBox = new HBox(this.webView);
@@ -1578,8 +2037,8 @@ public class ARScannedElementPane extends ARPane {
                 baseLogFile = new File(arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG)
                         + ARConstants.FILE_NAME_SCANNER_BASE_LOG);
             } catch (Exception error) {
-                
-                        log.error("Error Defining Excel or BaseLog File: " + error.getMessage());
+
+                log.error("Error Defining Excel or BaseLog File: " + error.getMessage());
             }
 
             executeSpecificBlock = comboBoxBlocks.getValue().getWhereId(); // Start in a specific Block/UseCase
@@ -1611,13 +2070,13 @@ public class ARScannedElementPane extends ARPane {
             }
 
             if (performLists.getListBotJob().isEmpty()) {
-                
-                        log.error("Cannot find Bot Jobs with this Id:" + this.currentBotJob.getId());
+
+                log.error("Cannot find Bot Jobs with this Id:" + this.currentBotJob.getId());
             }
             HomeBankingLoadDTO homeBanking = performLists.getHomeBankingById(this.currentBotJob.getHomeBankingId());
             if (homeBanking == null || StringUtils.isNullOrEmpty(homeBanking.getUrl())) {
-                
-                        log.error("Cannot find Home Banking Environment Id:" + this.currentBotJob.getHomeBankingId());
+
+                log.error("Cannot find Home Banking Environment Id:" + this.currentBotJob.getHomeBankingId());
             }
 
             currentBotJob = performLists.getListBotJob().get(0);
@@ -1968,98 +2427,6 @@ public class ARScannedElementPane extends ARPane {
         performActions.getCurrentDriver().switchTo().defaultContent();
     }
 
-    public static double jaccardSimilarity(String text1, String text2) {
-        Set<Character> set1 = new HashSet<>();
-        for (char c : text1.toCharArray()) {
-            set1.add(c);
-        }
-
-        Set<Character> set2 = new HashSet<>();
-        for (char c : text2.toCharArray()) {
-            set2.add(c);
-        }
-
-        Set<Character> intersection = new HashSet<>(set1);
-        intersection.retainAll(set2);
-
-        Set<Character> union = new HashSet<>(set1);
-        union.addAll(set2);
-
-        return (double) intersection.size() / union.size();
-    }
-
-    //    private static WebElement convertJsoupElementToWebElement(Element jsoupElement, WebDriver driver) {
-    //        // Create a new RemoteWebElement instance and set its properties
-    //        RemoteWebElement webElement = new RemoteWebElement();
-    //        webElement.setParent((RemoteWebElement) driver.findElementByTagName("html")); // Set a dummy parent
-    //        webElement.setId("dummy_id"); // Set a dummy id
-    //        // Simulate the href and text attributes
-    //        webElement.setAttribute("href", jsoupElement.attr("href"));
-    //        webElement.setText(jsoupElement.text());
-    //
-    //        return webElement;
-    //    }
-
-    // Method to get XPath of a WebElement
-    public static String getXPath(WebDriver driver, WebElement element) {
-        return (String) ((JavascriptExecutor) driver)
-                .executeScript(
-                        "function getElementXPath(elt) {" + "    var path = '';"
-                                + "    for (; elt && elt.nodeType == 1; elt = elt.parentNode) {"
-                                + "        var idx = getElementIdx(elt);"
-                                + "        var xname = elt.tagName;"
-                                + "        if (idx > 1) xname += '[' + idx + ']';"
-                                + "        path = '/' + xname + path;"
-                                + "    }"
-                                + "    return path;"
-                                + "}"
-                                + "function getElementIdx(elt) {"
-                                + "    var count = 1;"
-                                + "    for (var sib = elt.previousSibling; sib; sib = sib.previousSibling) {"
-                                + "        if (sib.nodeType == 1 && sib.tagName == elt.tagName) count++;"
-                                + "    }"
-                                + "    return count;"
-                                + "}"
-                                + "return getElementXPath(arguments[0]);",
-                        element);
-    }
-
-    // Helper method to get the text of an associated element
-    private static String getElementText(WebElement element) {
-        String tagName = element.getTagName();
-
-        switch (tagName.toLowerCase()) {
-            case "input":
-                return element.getAttribute("value");
-            case "textarea":
-                return element.getText();
-            case "select":
-                List<WebElement> selectedOptions = element.findElements(By.cssSelector("option[selected]"));
-                return selectedOptions.stream()
-                        .map(WebElement::getText)
-                        .reduce((a, b) -> a + ", " + b)
-                        .orElse("");
-            default:
-                return element.getText();
-        }
-    }
-
-    //    public void saveReferencesToFile(String filePath, List<ARWebElement> elements) {
-    //        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath))) {
-    //            for (ARWebElement element : elements) {
-    //                Map<String, String> savedReferences = element.getSavedReferences();
-    //
-    //                for (Map.Entry<String, String> entry : savedReferences.entrySet()) {
-    //                    writer.write(entry.getKey() + "=" + entry.getValue());
-    //                    writer.newLine();
-    //                }
-    //            }
-    //            System.out.println("References saved to " + filePath);
-    //        } catch (IOException e) {
-    //            System.err.println("Error writing to file: " + e.getMessage());
-    //        }
-    //    }
-
     private void periodicPickOneCloneThread(
             WebDriver driver,
             boolean searchHiddenFields,
@@ -2093,18 +2460,6 @@ public class ARScannedElementPane extends ARPane {
                     null,
                     0);
         }
-    }
-
-    public static String truncate(String someText, int limit) {
-        if (someText == null || someText.isEmpty()) {
-            return someText;
-        }
-
-        if (someText.length() <= limit) {
-            return someText;
-        }
-
-        return someText.substring(0, limit) + "...";
     }
 
     public void periodicSearchThread(
@@ -2195,61 +2550,6 @@ public class ARScannedElementPane extends ARPane {
         return inputElements;
     }
 
-    private static By[] parseLocators(String input) {
-        // Split the input string by commas to get individual locator strings
-        // DB Access Cannot have "'"
-        input = input.replace("\"", "'");
-
-        String[] locatorStrings = input.split(",");
-
-        // List to hold the By objects
-        List<By> byList = new ArrayList<>();
-
-        // Loop through each locator string
-        for (String locatorString : locatorStrings) {
-            // Split each locator string by colon to separate the type and value
-            String[] parts = locatorString.split(":");
-
-            // Get the type and value
-            String type = parts[0].replace("By.", "").toUpperCase();
-            String value = String.join(",", Arrays.copyOfRange(parts, 1, parts.length));
-
-            value = value.replace("COMMA", ",");
-
-            // Create the By object based on the type
-            switch (LocatorType.valueOf(type)) {
-                case TAGNAME:
-                    byList.add(By.tagName(value));
-                    break;
-                case ID:
-                    byList.add(By.id(value));
-                    break;
-                case CLASSNAME:
-                    byList.add(By.className(value));
-                    break;
-                case CSSSELECTOR:
-                    byList.add(By.cssSelector(value));
-                    break;
-                case XPATH:
-                    byList.add(By.xpath(value));
-                    break;
-                default:
-                    throw new IllegalArgumentException("Unsupported locator type: " + type);
-            }
-        }
-
-        // Convert the list to an array and return
-        return byList.toArray(new By[0]);
-    }
-
-    public enum LocatorType {
-        TAGNAME,
-        ID,
-        CLASSNAME,
-        CSSSELECTOR,
-        XPATH
-    }
-
     private void recallJob() {
         if (isJobRunning.compareAndSet(false, true)) { // Try to set to true if currently false
             try {
@@ -2267,15 +2567,15 @@ public class ARScannedElementPane extends ARPane {
                 });
             } catch (Exception ignore) {
                 // Log the error properly instead of ignoring
-                
-                        log.error("Error submitting to executorServicePreLaunch: " + ignore.getMessage());
+
+                log.error("Error submitting to executorServicePreLaunch: " + ignore.getMessage());
                 isJobRunning.set(false); // Ensure flag is reset on submission failure
             }
         } else {
             // Optionally log that a new execution was requested but is already running
             System.out.println("recallJob() requested, but executeJob() is already running.");
-            
-                    log.info("recallJob() requested while executeJob() was running.");
+
+            log.info("recallJob() requested while executeJob() was running.");
         }
 
         if (performActions.getCurrentDriver().getWindowHandles().size() != performActions.windowHandlesList.size()) {
@@ -2376,8 +2676,7 @@ public class ARScannedElementPane extends ARPane {
 
             if (extractedData.getNumberOfDataRows() > 1 && excelDataGoto.isEmpty()) {
 
-                
-                        log.warn("Multiple Excel Rows Detected: each row wll return to first block");
+                log.warn("Multiple Excel Rows Detected: each row wll return to first block");
 
                 respModal = performMessage.showCustomModalDialogDragWin11(
                         "Multiple Excel Rows Detected",
@@ -2578,8 +2877,8 @@ public class ARScannedElementPane extends ARPane {
                                 String.format("Block: \"%s\" Wait %s Seconds: ", blockName, blockWait));
 
                     } catch (Exception ex) {
-                        
-                                log.error(String.format("Error Wait Block for :\"%s\"", blockLoad.getName()));
+
+                        log.error(String.format("Error Wait Block for :\"%s\"", blockLoad.getName()));
                     }
 
                     // Step 1: Get all ParentIds For LOOPs Filter rows where actions = "REFRESH_LOOP" or "LOOP" on
@@ -3135,11 +3434,10 @@ public class ARScannedElementPane extends ARPane {
                                         if (repeat > 0) {
                                             mapLoops.put(parentFieldLoop, repeat);
 
-                                            
-                                                    log.info(String.format(
-                                                            "Loop to Parent :\"%s\" - %d Times",
-                                                            parts[0] + "-(" + parts[1] + ") " + parts[2],
-                                                            mapLoops.get(parentFieldLoop)));
+                                            log.info(String.format(
+                                                    "Loop to Parent :\"%s\" - %d Times",
+                                                    parts[0] + "-(" + parts[1] + ") " + parts[2],
+                                                    mapLoops.get(parentFieldLoop)));
 
                                             if (refreshLoop) {
 
@@ -3234,11 +3532,11 @@ public class ARScannedElementPane extends ARPane {
                                         if (repeat > 0) {
                                             continue instructionLoop;
                                         } else {
-                                            
-                                                    log.info(String.format(
-                                                            "IGNORING Loop to Parent :\"%s\" - %d Times",
-                                                            parts[0] + "-(" + parts[1] + ") " + parts[2],
-                                                            mapLoops.get(parentFieldLoop)));
+
+                                            log.info(String.format(
+                                                    "IGNORING Loop to Parent :\"%s\" - %d Times",
+                                                    parts[0] + "-(" + parts[1] + ") " + parts[2],
+                                                    mapLoops.get(parentFieldLoop)));
                                             continue;
                                         }
 
@@ -3940,8 +4238,8 @@ public class ARScannedElementPane extends ARPane {
         } catch (InterruptedException error) {
             executorService.shutdownNow();
             Thread.currentThread().interrupt();
-            
-                    log.error("ExecutorService did not terminate\n" + error.getMessage());
+
+            log.error("ExecutorService did not terminate\n" + error.getMessage());
         }
     }
 
@@ -3950,54 +4248,6 @@ public class ARScannedElementPane extends ARPane {
         countdownTextField.setText("Pre-Launch status: Ready");
         countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
         mainPane.requestLayout();
-    }
-
-    public static List<InstructionLoad> getUnexecutedInstructions(
-            List<InstructionLoad> instructionsExecuted, List<InstructionLoad> otherList) {
-        // Create a set of instructionOrderNumbers from instructionsExecuted
-        Set<Integer> executedInstructionOrderNumbers = instructionsExecuted.stream()
-                .map(InstructionLoad::getInstructionOrderNumber)
-                .collect(Collectors.toSet());
-
-        // Filter the otherList to get instructions where executed is false and not in executedInstructionOrderNumbers
-        return otherList.stream()
-                //                .filter(instruction -> instruction.getExecuted() != null &&
-                // !instruction.getExecuted())
-                .filter(instruction ->
-                        !executedInstructionOrderNumbers.contains(instruction.getInstructionOrderNumber()))
-                .collect(Collectors.toList());
-    }
-
-    private static void printBaseLog(File logFile, String timeStamp, String msg) {
-        String resultMsg;
-        String log = String.join(ARConstants.FIELDS_SEPARATOR, timeStamp, msg);
-
-        try {
-            FileWriter fileWriter = new FileWriter(logFile, true);
-            fileWriter.write(log + System.lineSeparator());
-            fileWriter.close();
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
-        }
-    }
-
-    private static String generateTimestamp() {
-        Date date = new Date();
-        dateFormatter = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
-        return dateFormatter.format(date);
-    }
-
-    private static void printLog(String timeStamp, File logFile, String resultActions, boolean result) {
-        String resultMsg = result ? ARConstants.SUCCESS : ARConstants.FAIL;
-        String log = String.join(ARConstants.FIELDS_SEPARATOR, timeStamp, resultMsg, resultActions);
-
-        try {
-            FileWriter fileWriter = new FileWriter(logFile, true);
-            fileWriter.write(log + System.lineSeparator());
-            fileWriter.close();
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
-        }
     }
 
     public void quit(int status) {
@@ -4011,7 +4261,7 @@ public class ARScannedElementPane extends ARPane {
     /**
      * Finds all elements with the specified attribute and returns a map with their XPaths as keys.
      *
-     * @param driver the WebDriver instance
+     * @param driver    the WebDriver instance
      * @param attribute the attribute to find elements by (e.g., "id" or "name")
      * @return a map where keys are XPaths of elements and values are WebElements
      */
@@ -4026,240 +4276,6 @@ public class ARScannedElementPane extends ARPane {
             elementMap.put(xpath, element);
         }
         return elementMap;
-    }
-
-    /**
-     * Finds all elements of the specified tag name without "id" or "name" attributes and returns a map with their XPaths as keys.
-     *
-     * @param driver the WebDriver instance
-     * @param tagName the tag name of the elements to find (e.g., "input", "button")
-     * @return a map where keys are XPaths of elements and values are WebElements
-     */
-    private static Map<String, WebElement> findElementsWithoutIdOrName(WebDriver driver, String tagName) {
-        jsExecutor = (JavascriptExecutor) driver;
-        List<WebElement> elements = (List<WebElement>) jsExecutor.executeScript(
-                "return Array.from(document.querySelectorAll('" + tagName + ":not([id]):not([name])'));");
-        Set<WebElement> uniqueElements = new HashSet<>(elements);
-        Map<String, WebElement> elementMap = new HashMap<>();
-        for (WebElement element : uniqueElements) {
-            String xpath = getElementXPath(driver, element);
-            elementMap.put(xpath, element);
-        }
-        return elementMap;
-    }
-
-    /**
-     * Finds all elements of the specified tag name without "id" or "name" attributes and returns a map with their XPaths as keys.
-     *
-     * @param driver the WebDriver instance
-     * @return a map where keys are XPaths of elements and values are WebElements
-     */
-    private static Map<String, WebElement> findElementsOutputCriteria(WebDriver driver) {
-
-        String allWithText = "// Global array to store XPaths of elements with text\n" + "let elementsWithText = [];\n"
-                + "(function() {\n"
-                + "    function getXPath(element) {\n"
-                + "        if (element.id) {\n"
-                + "            return `//*[@id='${element.id}']`;\n"
-                + "        }\n"
-                + "        if (element === document.body) {\n"
-                + "            return '/html/body';\n"
-                + "        }\n"
-                + "        let index = 1;\n"
-                + "        let siblings = element.parentNode ? element.parentNode.children : [];\n"
-                + "        for (let i = 0; i < siblings.length; i++) {\n"
-                + "            if (siblings[i] === element) {\n"
-                + "                return getXPath(element.parentNode) + '/' + element.tagName.toLowerCase() + `[${index}]`;\n"
-                + "            }\n"
-                + "            if (siblings[i].tagName === element.tagName) {\n"
-                + "                index++;\n"
-                + "            }\n"
-                + "        }\n"
-                + "        return '';\n"
-                + "    }\n"
-                + "\n"
-                + "    function collectElementsWithText() {\n"
-                + "        let elements = document.querySelectorAll('*');\n"
-                + "\n"
-                + "        elements.forEach(element => {\n"
-                + "            let text = element.textContent.trim();\n"
-                + "            if (text.length > 0 && element.offsetWidth > 0 && element.offsetHeight > 0) {\n"
-                + "                let xpath = getXPath(element);\n"
-                + "                if (xpath) {\n"
-                + "                    elementsWithText.push(xpath);\n"
-                + "                }\n"
-                + "            }\n"
-                + "        });\n"
-                + "        window.allWithText = elementsWithText;\n"
-                + "    }\n"
-                + "\n"
-                + "    window.allWithText = [];\n"
-                + "    collectElementsWithText();\n"
-                + "})();\n";
-
-        List<WebElement> elements = new ArrayList<>();
-        Map<String, WebElement> elementMap = new HashMap<>();
-
-        try {
-            jsExecutor = (JavascriptExecutor) driver;
-            jsExecutor.executeScript(allWithText);
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
-        }
-
-        try {
-            Thread.sleep(2);
-        } catch (InterruptedException e) {
-        }
-
-        String[] listXPaths = new String[0];
-
-        LinkedHashMap<String, Object> linkedHashMap = (LinkedHashMap<String, Object>)
-                jsExecutor.executeScript("var obj = { allWithText: window.allWithText }; return obj;");
-
-        // Convert the LinkedHashMap to a Java Map (if necessary)
-        Map<String, Object> resultMap = new LinkedHashMap<>(linkedHashMap);
-
-        if (linkedHashMap != null) {
-            //            Platform.runLater(() -> {
-            //                                iFrameXPath = (String) resultMap.get("iFrameXPath");
-
-            Object iframeElementsObject = resultMap.get("allWithText");
-
-            if (iframeElementsObject instanceof List<?> iframeElementsList) {
-                // Convert List to String[]
-                lstAllPaths = iframeElementsList.toArray(new String[0]);
-            } else if (iframeElementsObject instanceof Object[]) {
-                // If it's an array, check if it's an array of Strings
-                lstAllPaths = Arrays.copyOf(
-                        (Object[]) iframeElementsObject, ((Object[]) iframeElementsObject).length, String[].class);
-            } else {
-                System.out.println("The iframeElements data is not a List or an array.");
-            }
-
-            for (String xPath : lstAllPaths) {
-                WebElement element = driver.findElement(By.xpath(xPath));
-                if (element != null) {
-                    elementMap.put(xPath, element);
-                }
-            }
-            //            });
-        }
-
-        //        List<WebElement> elements = driver.findElements(By.xpath("//label[@for]"));
-        //        Set<WebElement> uniqueElements = new HashSet<>(elements);
-        //
-        //        elements = driver.findElements(By.xpath("//label[not(@for)]"));
-        //        uniqueElements.addAll(elements);
-        //
-        //        elements = driver.findElements(By.xpath("//label[normalize-space(text()) != '']"));
-        //        uniqueElements.addAll(elements);
-        //
-        //        elements = driver.findElements(By.xpath("//div[normalize-space(text()) != '']"));
-        //        uniqueElements.addAll(elements);
-        //
-        //        elements = driver.findElements(By.xpath("//span[normalize-space(text()) != '']"));
-        //        uniqueElements.addAll(elements);
-        //
-        //        elements = driver.findElements(By.xpath("//div[@for]"));
-        //        uniqueElements.addAll(elements);
-        //
-        //        elements = driver.findElements(By.xpath("//div[not(@for)]"));
-        //        uniqueElements.addAll(elements);
-        //
-        //        elements = driver.findElements(By.xpath("//span[@for]"));
-        //        uniqueElements.addAll(elements);
-        //
-        //        elements = driver.findElements(By.xpath("//span[not(@for)]"));
-        //        uniqueElements.addAll(elements);
-        //
-        //        elements = driver.findElements(By.xpath("//label[@title != '' or @aria-label != '']"));
-        //        uniqueElements.addAll(elements);
-
-        //        Map<String, WebElement> elementMap = new HashMap<>();
-        //        for (WebElement element : elements) {
-        //            String xpath = getElementXPath(driver, element);
-        //            elementMap.put(xpath, element);
-        //        }
-        return elementMap;
-    }
-
-    /**
-     * Prints out the elements, their specified attribute, and their XPath.
-     *
-     * @param elements a map where keys are XPaths of elements and values are WebElements
-     * @param attribute the attribute to print
-     */
-    private static void printElementsWithAttributeAndXPath(Map<String, WebElement> elements, String attribute) {
-        for (Map.Entry<String, WebElement> entry : elements.entrySet()) {
-            WebElement element = entry.getValue();
-            String xpath = entry.getKey();
-            String attributeValue = element.getAttribute(attribute);
-            System.out.println(
-                    "Tag: " + element.getTagName() + ", " + attribute + ": " + attributeValue + ", XPath: " + xpath);
-        }
-    }
-
-    /**
-     * Constructs the XPath of a given WebElement.
-     *
-     * @param driver the WebDriver instance
-     * @param element the WebElement to construct the XPath for
-     * @return the XPath of the element
-     */
-    private static String getElementXPath(WebDriver driver, WebElement element) {
-        return (String) ((JavascriptExecutor) driver)
-                .executeScript(
-                        "function absoluteXPath(element) {" + "    var comp, comps = [];"
-                                + "    var parent = null;"
-                                + "    var xpath = '';"
-                                + "    var getPos = function(element) {"
-                                + "        var position = 1, curNode;"
-                                + "        if (element.nodeType == Node.ATTRIBUTE_NODE) {"
-                                + "            return null;"
-                                + "        }"
-                                + "        for (curNode = element.previousSibling; curNode; curNode = curNode.previousSibling) {"
-                                + "            if (curNode.nodeName == element.nodeName) {"
-                                + "                ++position;"
-                                + "            }"
-                                + "        }"
-                                + "        return position;"
-                                + "    };"
-                                + "    if (element instanceof Document) {"
-                                + "        return '/';"
-                                + "    }"
-                                + "    for (; element && !(element instanceof Document); element = element.nodeType == Node.ATTRIBUTE_NODE ? element.ownerElement : element.parentNode) {"
-                                + "        comp = comps[comps.length] = {};"
-                                + "        switch (element.nodeType) {"
-                                + "            case Node.TEXT_NODE:"
-                                + "                comp.name = 'text()';"
-                                + "                break;"
-                                + "            case Node.ATTRIBUTE_NODE:"
-                                + "                comp.name = '@' + element.nodeName;"
-                                + "                break;"
-                                + "            case Node.PROCESSING_INSTRUCTION_NODE:"
-                                + "                comp.name = 'processing-instruction()';"
-                                + "                break;"
-                                + "            case Node.COMMENT_NODE:"
-                                + "                comp.name = 'comment()';"
-                                + "                break;"
-                                + "            case Node.ELEMENT_NODE:"
-                                + "                comp.name = element.nodeName;"
-                                + "                break;"
-                                + "        }"
-                                + "        comp.position = getPos(element);"
-                                + "    }"
-                                + "    for (var i = comps.length - 1; i >= 0; i--) {"
-                                + "        comp = comps[i];"
-                                + "        xpath += '/' + comp.name.toLowerCase();"
-                                + "        if (comp.position !== null) {"
-                                + "            xpath += '[' + comp.position + ']';"
-                                + "        }"
-                                + "    }"
-                                + "    return xpath;"
-                                + "}"
-                                + "return absoluteXPath(arguments[0]);",
-                        element);
     }
 
     @Override
@@ -4293,42 +4309,12 @@ public class ARScannedElementPane extends ARPane {
         });
     }
 
-    private static void showAlertInfo(String title, String header, String content) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle(title);
-        alert.setHeaderText(header);
-        alert.setContentText(content);
-        alert.showAndWait();
-    }
-
     private Button createPathButton() {
         Button button = builder.buildButton(
                 "", ARConstants.SPACE_L, ARConstants.ICON_REFRESH, ARConstants.SPACE_M, new Insets(3D));
         button.setMaxWidth(ARConstants.SPACE_L);
         AnchorPane.setRightAnchor(button, 0D);
         return button;
-    }
-
-    private static String loadScriptFromResource(String resourcePath) throws IOException {
-        // Use ClassLoader to get the resource as an InputStream
-        try (InputStream inputStream =
-                ARScannedElementPane.class.getClassLoader().getResourceAsStream(resourcePath)) {
-            if (inputStream == null) {
-                throw new IOException("Resource not found: " + resourcePath);
-            }
-
-            // Convert InputStream to String
-            return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
-        }
-    }
-
-    public static boolean isBrowserClosed(WebDriver webDriver) {
-        try {
-            webDriver.getTitle(); // Try accessing a property
-            return false; // If no exception, browser is open
-        } catch (Exception e) {
-            return true; // If exception occurs, browser is closed
-        }
     }
 
     private void browserNotAttached() {
@@ -4389,17 +4375,6 @@ public class ARScannedElementPane extends ARPane {
         return new Pair<>(updatedKey, msgInstruction.getValue());
     }
 
-    private static int getMajorJavaVersion(String version) {
-        // For Java 9 and above, the version string starts with the major version (e.g., "17.0.1")
-        // For Java 8 and below, it starts with "1." (e.g., "1.8.0_311")
-        if (version.startsWith("1.")) {
-            return Integer.parseInt(version.substring(2, 3)); // e.g., "1.8" -> 8
-        } else {
-            String[] parts = version.split("\\.");
-            return Integer.parseInt(parts[0]); // e.g., "17.0.1" -> 17
-        }
-    }
-
     public void setPayloadEmpty() {
         if (!performLists.getListBotJob().isEmpty()
                 && performLists.getListBlock().isEmpty()) {
@@ -4446,6 +4421,7 @@ public class ARScannedElementPane extends ARPane {
     /**
      * Adds a row with values matching the columns.
      * Missing values are filled with empty strings.
+     *
      * @param values Array of values; may be less than columns.
      */
     public void addRow(String... values) {
@@ -4545,22 +4521,6 @@ public class ARScannedElementPane extends ARPane {
                 }
             });
         }
-    }
-
-    // Helper method for distinct by text
-    private static Predicate<BlockOptions> distinctByText() {
-        Set<String> seen = new HashSet<>();
-        return b -> seen.add(b.getText());
-    }
-
-    // Helper method for distinct by text AND blockOrderNumber
-    private static Predicate<BlockOptions> distinctByTextAndId() {
-        Set<String> seen = new HashSet<>();
-        return b -> {
-            // Combine text and blockOrderNumber as a unique key
-            String key = b.getText() + "#" + b.getBlockId();
-            return seen.add(key);
-        };
     }
 
     public void printCsv() {
@@ -4778,5 +4738,13 @@ public class ARScannedElementPane extends ARPane {
             }
         }
         return -1;
+    }
+
+    public enum LocatorType {
+        TAGNAME,
+        ID,
+        CLASSNAME,
+        CSSSELECTOR,
+        XPATH
     }
 }

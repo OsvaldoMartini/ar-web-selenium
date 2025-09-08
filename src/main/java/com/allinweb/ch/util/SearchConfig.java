@@ -1,8 +1,10 @@
 package com.allinweb.ch.util;
 
 import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 
-import lombok.extern.slf4j.Slf4j;  @Slf4j public class SearchConfig {
+@Slf4j
+public class SearchConfig {
     private List<String> name;
     private String searchType;
     private int searchNumber;

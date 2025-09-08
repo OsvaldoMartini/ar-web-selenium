@@ -3,18 +3,23 @@ package com.allinweb.ch.socket;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.SocketException;
+import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.websocket.jsr356.server.ServerContainer;
 import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainerInitializer;
 
-// Assuming this class exists
-// Assuming this class exists
+@Slf4j
+public class ARWebSocketServer {
 
-import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARWebSocketServer {
-
+    //    private static final ARLogger logger;
+    //    private static final ARPropertyManager arPropertyManager;
+    private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     protected static volatile ARWebSocketServer instance;
-
+    private String BIND_IP_ADDRESS = "192.168.1.24";
+    private Server jettyServer;
+    private ServerContainer wsContainer;
+    private int boundPort;
     // Private constructor to prevent instantiation
     private ARWebSocketServer() throws Exception {
 
@@ -29,7 +34,8 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARWebSocketServer {
                         instance = new ARWebSocketServer();
                     } catch (Exception e) {
                         // Log here instead of the caller
-                        //                        loggerlog.error("Failed to start ARWebSocketServer: " + e.getMessage());
+                        //                        loggerlog.error("Failed to start ARWebSocketServer: " +
+                        // e.getMessage());
                         throw new RuntimeException("ARWebSocketServer initialization failed", e);
                     }
                 }
@@ -37,16 +43,6 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARWebSocketServer {
         }
         return instance;
     }
-
-    private String BIND_IP_ADDRESS = "192.168.1.24";
-
-    private Server jettyServer;
-    private ServerContainer wsContainer;
-    private int boundPort;
-
-    //    private static final ARLogger logger;
-    //    private static final ARPropertyManager arPropertyManager;
-    private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
 
     /**
      * Starts the Jetty WebSocket server.
@@ -80,7 +76,8 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARWebSocketServer {
                     this.boundPort = fallbackPort;
                     //                    loggerlog.info("Using fallback port: " + this.boundPort);
                 } catch (NumberFormatException e) {
-                    //                    loggerlog.error("Invalid port number in properties: " + fallbackPortStr + " " +
+                    //                    loggerlog.error("Invalid port number in properties: " + fallbackPortStr + " "
+                    // +
                     // e.getMessage());
                     throw new IOException("Invalid port number in properties.");
                 }
@@ -109,7 +106,8 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARWebSocketServer {
         jettyServer.start();
         //        loggerlog.info("Jetty WebSocket server started on ws://" + BIND_IP_ADDRESS + ":" + this.boundPort +
         // "/websocket");
-        //        loggerlog.info("Current active WebSocket sessions: " + webSocketSessionManager.getAllSessions().size());
+        //        loggerlog.info("Current active WebSocket sessions: " +
+        // webSocketSessionManager.getAllSessions().size());
     }
 
     /**
@@ -129,6 +127,7 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARWebSocketServer {
 
     /**
      * Gets the port the server is currently bound to.
+     *
      * @return The bound port, or -1 if the server hasn't started yet.
      */
     public int getBoundPort() {
@@ -167,6 +166,7 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARWebSocketServer {
 
     /**
      * Checks if a given port is currently in use.
+     *
      * @param port The port number to check.
      * @return true if the port is in use, false otherwise.
      */

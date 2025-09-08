@@ -7,7 +7,8 @@ import lombok.extern.slf4j.Slf4j;
 
 @Data
 @AllArgsConstructor
-  @Slf4j public class Priority {
+@Slf4j
+public class Priority {
     private List<String> name;
     private String priorityType;
     private int priorityNumber;

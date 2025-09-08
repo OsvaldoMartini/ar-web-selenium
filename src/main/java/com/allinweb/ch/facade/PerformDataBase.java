@@ -1,13 +1,7 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.component.model.*;
-import com.allinweb.ch.component.model.DatabaseUserDTO;
-import com.allinweb.ch.util.ARConstants;
-
-import com.allinweb.ch.util.ARPropertyEnum;
-import com.allinweb.ch.util.ARPropertyManager;
-import com.allinweb.ch.util.ComboBoxVars;
-import com.allinweb.ch.util.ErrorMessage;
+import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import java.io.File;
 import java.sql.*;
@@ -19,46 +13,20 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.sqlite.SQLiteConfig;
 
- @Slf4j public class PerformDataBase {
-
-    // Static final variable to hold the singleton instance
-    protected static volatile PerformDataBase instance;
-
-    // Private constructor to prevent instantiation
-    private PerformDataBase() {}
-
-    // Public method to access the singleton instance
-    public static PerformDataBase getInstance() {
-        if (instance == null) {
-            synchronized (PerformDataBase.class) {
-                if (instance == null) {
-                    instance = new PerformDataBase();
-                }
-            }
-        }
-        return instance;
-    }
+@Slf4j
+public class PerformDataBase {
 
     public static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
     public static final PerformMessage performMessage = PerformMessage.getInstance();
     public static final PerformInitializer performInitializer = PerformInitializer.getInstance();
     public static final PerformLists performLists = PerformLists.getInstance();
-
-    // Open connection counter
-    public int openConnections = 0;
-
+    // Static final variable to hold the singleton instance
+    protected static volatile PerformDataBase instance;
     public final String CONNECTION_TYPE = "jdbc:ucanaccess://";
     public final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
     public final String CONNECTION_TYPE_SQLITE = "jdbc:sqlite:"; // no parameters needed
-
-    private TreeMap<Integer, Integer> homeBankMap = new TreeMap<>();
-    private TreeMap<Integer, Integer> botJobMap = new TreeMap<>();
-    private TreeMap<Integer, Integer> blockMap = new TreeMap<>();
-    private TreeMap<Integer, Integer> instructionMap = new TreeMap<>();
-    private TreeMap<Integer, Integer> instrVariablesMap = new TreeMap<>();
-    private TreeMap<Integer, Integer> instrNewInverted = new TreeMap<>();
-    private TreeMap<Integer, Integer> variableMap = new TreeMap<>();
-    private TreeMap<Integer, Integer> referenceMap = new TreeMap<>();
+    // Open connection counter
+    public int openConnections = 0;
 
     @Getter
     @Setter
@@ -83,12 +51,33 @@ import org.sqlite.SQLiteConfig;
     @Getter
     @Setter
     public List<Integer> idsVariableAfter = new ArrayList<>();
-
     // Postgres
     public boolean ACCESS_DB = false;
     public boolean POSTGRES_DB = false;
     public boolean SQLITE_DB = false;
     public boolean connDBWorks = false;
+    private TreeMap<Integer, Integer> homeBankMap = new TreeMap<>();
+    private TreeMap<Integer, Integer> botJobMap = new TreeMap<>();
+    private TreeMap<Integer, Integer> blockMap = new TreeMap<>();
+    private TreeMap<Integer, Integer> instructionMap = new TreeMap<>();
+    private TreeMap<Integer, Integer> instrVariablesMap = new TreeMap<>();
+    private TreeMap<Integer, Integer> instrNewInverted = new TreeMap<>();
+    private TreeMap<Integer, Integer> variableMap = new TreeMap<>();
+    private TreeMap<Integer, Integer> referenceMap = new TreeMap<>();
+    // Private constructor to prevent instantiation
+    private PerformDataBase() {}
+
+    // Public method to access the singleton instance
+    public static PerformDataBase getInstance() {
+        if (instance == null) {
+            synchronized (PerformDataBase.class) {
+                if (instance == null) {
+                    instance = new PerformDataBase();
+                }
+            }
+        }
+        return instance;
+    }
 
     public void initialize(String databaseType) {}
 
@@ -223,8 +212,8 @@ import org.sqlite.SQLiteConfig;
 
             throw error;
         } catch (ClassNotFoundException error) {
-            
-                    log.error("Driver DB Class not Found Error: " + error.getMessage());
+
+            log.error("Driver DB Class not Found Error: " + error.getMessage());
         }
 
         connDBWorks = false;
@@ -305,10 +294,10 @@ import org.sqlite.SQLiteConfig;
             return null; // success
 
         } catch (SQLException e) {
-            
-                    log.error(String.format(
-                            "Error loading parents for instruction ID %d in %s=%d. Error: %s",
-                            instructionId, whereColumn, whereId, e.getMessage()));
+
+            log.error(String.format(
+                    "Error loading parents for instruction ID %d in %s=%d. Error: %s",
+                    instructionId, whereColumn, whereId, e.getMessage()));
 
             return new ErrorMessage(
                     "LoadParents Error",
@@ -378,15 +367,14 @@ import org.sqlite.SQLiteConfig;
 
             conn.commit();
 
-            
-                    log.info(String.format(
-                            "Batch delete completed for %d variable records in %s", count, tableName.toUpperCase()));
+            log.info(String.format(
+                    "Batch delete completed for %d variable records in %s", count, tableName.toUpperCase()));
 
             return null; // success
 
         } catch (SQLException e) {
-            
-                    log.error("Batch delete error for " + tableName + ": " + e.getMessage());
+
+            log.error("Batch delete error for " + tableName + ": " + e.getMessage());
             return new ErrorMessage(
                     "Delete Variables Error",
                     "Failed batch deletion for variables in table: " + tableName,
@@ -449,15 +437,14 @@ import org.sqlite.SQLiteConfig;
 
             conn.commit();
 
-            
-                    log.info(String.format(
-                            "Batch delete completed for %d instruction records in %s", count, tableName.toUpperCase()));
+            log.info(String.format(
+                    "Batch delete completed for %d instruction records in %s", count, tableName.toUpperCase()));
 
             return null; // success
 
         } catch (SQLException e) {
-            
-                    log.error("Batch delete error for " + tableName + ": " + e.getMessage());
+
+            log.error("Batch delete error for " + tableName + ": " + e.getMessage());
             return new ErrorMessage(
                     "Delete Instructions Error",
                     "Failed batch deletion for instructions in table: " + tableName,
@@ -519,15 +506,14 @@ import org.sqlite.SQLiteConfig;
 
             conn.commit();
 
-            
-                    log.info(String.format(
-                            "Batch delete completed for %d reference records in %s", count, tableName.toUpperCase()));
+            log.info(String.format(
+                    "Batch delete completed for %d reference records in %s", count, tableName.toUpperCase()));
 
             return null; // success
 
         } catch (SQLException e) {
-            
-                    log.error("Batch delete error for " + tableName + ": " + e.getMessage());
+
+            log.error("Batch delete error for " + tableName + ": " + e.getMessage());
             return new ErrorMessage(
                     "Delete References Error",
                     "Failed batch deletion for references in table: " + tableName,
@@ -555,33 +541,32 @@ import org.sqlite.SQLiteConfig;
                 conn.commit();
 
                 if (rowsAffected > 0) {
-                    
-                            log.info(String.format(
-                                    "Deleted %d parents - parent ID %d in %s = %d",
-                                    rowsAffected, parentId, foreignKeyColumn, whereId));
+
+                    log.info(String.format(
+                            "Deleted %d parents - parent ID %d in %s = %d",
+                            rowsAffected, parentId, foreignKeyColumn, whereId));
                 } else {
-                    
-                            log.warn(String.format(
-                                    "No parents found to delete - parent ID %d in %s = %d",
-                                    parentId, foreignKeyColumn, whereId));
+
+                    log.warn(String.format(
+                            "No parents found to delete - parent ID %d in %s = %d",
+                            parentId, foreignKeyColumn, whereId));
                 }
 
                 return null; // success
             } catch (SQLException e) {
 
-                
-                        log.error(String.format(
-                                "Error deleting parent ID %d in %s = %d. Error: %s",
-                                parentId, foreignKeyColumn, whereId, e.getMessage()));
+                log.error(String.format(
+                        "Error deleting parent ID %d in %s = %d. Error: %s",
+                        parentId, foreignKeyColumn, whereId, e.getMessage()));
 
                 return new ErrorMessage(
                         "Delete Parent Error", "Failed to delete parent ID: " + parentId, e.getMessage());
             }
         } catch (SQLException ex) {
-            
-                    log.error(String.format(
-                            "Connection error while deleting parent ID %d in %s = %d. Error: %s",
-                            parentId, foreignKeyColumn, whereId, ex.getMessage()));
+
+            log.error(String.format(
+                    "Connection error while deleting parent ID %d in %s = %d. Error: %s",
+                    parentId, foreignKeyColumn, whereId, ex.getMessage()));
 
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
@@ -633,9 +618,8 @@ import org.sqlite.SQLiteConfig;
                     if (count % BATCH_SIZE == 0) {
                         pstmt.executeBatch();
                         conn.commit();
-                        
-                                log.info("Executed batch of " + BATCH_SIZE + " block order updates for table: "
-                                        + tableName);
+
+                        log.info("Executed batch of " + BATCH_SIZE + " block order updates for table: " + tableName);
                     }
                 }
 
@@ -643,27 +627,25 @@ import org.sqlite.SQLiteConfig;
                 if (count % BATCH_SIZE != 0) {
                     pstmt.executeBatch();
                     conn.commit();
-                    
-                            log.info("Executed final batch of " + (count % BATCH_SIZE) + " block order updates for table: "
-                                    + tableName);
+
+                    log.info("Executed final batch of " + (count % BATCH_SIZE) + " block order updates for table: "
+                            + tableName);
                 }
 
                 //                loadBlocks(whereId, "", tableName);
 
             } catch (SQLException e) {
 
-                
-                        log.error(String.format(
-                                "Error updating block order numbers in table '%s'. Error: %s",
-                                tableName, e.getMessage()));
+                log.error(String.format(
+                        "Error updating block order numbers in table '%s'. Error: %s", tableName, e.getMessage()));
                 return new ErrorMessage(
                         "Update Block Order Error", "Failed to update block order numbers", e.getMessage());
             }
         } catch (SQLException ex) {
-            
-                    log.error(String.format(
-                            "Connection error while updating block order numbers in table '%s'. Error: %s",
-                            tableName, ex.getMessage()));
+
+            log.error(String.format(
+                    "Connection error while updating block order numbers in table '%s'. Error: %s",
+                    tableName, ex.getMessage()));
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
         return null; // Success
@@ -706,9 +688,8 @@ import org.sqlite.SQLiteConfig;
                     if (count % BATCH_SIZE == 0) {
                         pstmt.executeBatch();
                         conn.commit();
-                        
-                                log.info("Executed batch of " + BATCH_SIZE + " block order updates for table: "
-                                        + tableName);
+
+                        log.info("Executed batch of " + BATCH_SIZE + " block order updates for table: " + tableName);
                     }
                 }
 
@@ -716,24 +697,22 @@ import org.sqlite.SQLiteConfig;
                 if (count % BATCH_SIZE != 0) {
                     pstmt.executeBatch();
                     conn.commit();
-                    
-                            log.info("Executed final batch of " + (count % BATCH_SIZE) + " block order updates for table: "
-                                    + tableName);
+
+                    log.info("Executed final batch of " + (count % BATCH_SIZE) + " block order updates for table: "
+                            + tableName);
                 }
             } catch (SQLException e) {
 
-                
-                        log.error(String.format(
-                                "Error updating block order numbers in table '%s'. Error: %s",
-                                tableName, e.getMessage()));
+                log.error(String.format(
+                        "Error updating block order numbers in table '%s'. Error: %s", tableName, e.getMessage()));
                 return new ErrorMessage(
                         "Update Block Order Error", "Failed to update block order numbers", e.getMessage());
             }
         } catch (SQLException ex) {
-            
-                    log.error(String.format(
-                            "Connection error while updating block order numbers in table '%s'. Error: %s",
-                            tableName, ex.getMessage()));
+
+            log.error(String.format(
+                    "Connection error while updating block order numbers in table '%s'. Error: %s",
+                    tableName, ex.getMessage()));
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
         return null; // Success
@@ -765,33 +744,32 @@ import org.sqlite.SQLiteConfig;
                 conn.commit();
 
                 if (rowsAffected > 0) {
-                    
-                            log.info(String.format(
-                                    "Updated block name in table %s - blockId %d, whereId %d, name: %s",
-                                    tableName, blockId, whereId, blockName));
+
+                    log.info(String.format(
+                            "Updated block name in table %s - blockId %d, whereId %d, name: %s",
+                            tableName, blockId, whereId, blockName));
                     return null; // success
                 } else {
-                    
-                            log.warn(String.format(
-                                    "No record found to update in %s - blockId %d, whereId %d",
-                                    tableName, blockId, whereId));
+
+                    log.warn(String.format(
+                            "No record found to update in %s - blockId %d, whereId %d", tableName, blockId, whereId));
                     return new ErrorMessage(
                             "Update Block Name",
                             "No matching record found",
                             String.format("table: %s, blockId: %d, whereId: %d", tableName, blockId, whereId));
                 }
             } catch (SQLException e) {
-                
-                        log.error(String.format(
-                                "Error updating block name in %s - blockId %d, whereId %d. Error: %s",
-                                tableName, blockId, whereId, e.getMessage()));
+
+                log.error(String.format(
+                        "Error updating block name in %s - blockId %d, whereId %d. Error: %s",
+                        tableName, blockId, whereId, e.getMessage()));
                 return new ErrorMessage("Update Block Name", "Failed to update block name", e.getMessage());
             }
         } catch (SQLException ex) {
-            
-                    log.error(String.format(
-                            "Connection error while updating block name in %s - blockId %d, whereId %d. Error: %s",
-                            tableName, blockId, whereId, ex.getMessage()));
+
+            log.error(String.format(
+                    "Connection error while updating block name in %s - blockId %d, whereId %d. Error: %s",
+                    tableName, blockId, whereId, ex.getMessage()));
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
     }
@@ -815,16 +793,14 @@ import org.sqlite.SQLiteConfig;
             pstmt.executeBatch();
             conn.commit();
 
-            
-                    log.info(String.format(
-                            "Block export file updated. Table: %s, BlockId: %d, WhereId: %d",
-                            blockTable, blockId, whereId));
+            log.info(String.format(
+                    "Block export file updated. Table: %s, BlockId: %d, WhereId: %d", blockTable, blockId, whereId));
 
         } catch (SQLException e) {
-            
-                    log.error(String.format(
-                            "Error updating block export file. Table: %s, BlockId: %d, Error: %s",
-                            blockTable, blockId, e.getMessage()));
+
+            log.error(String.format(
+                    "Error updating block export file. Table: %s, BlockId: %d, Error: %s",
+                    blockTable, blockId, e.getMessage()));
 
             return new ErrorMessage(
                     "Update Block Export File Error", "Failed to update block export file", e.getMessage());
@@ -887,19 +863,19 @@ import org.sqlite.SQLiteConfig;
             idsBlockAfter.removeAll(idsBefore);
             if (idsBlockAfter.size() == 1) {
                 int newId = idsBlockAfter.get(0);
-                
-                        log.info(String.format("Block data saved successfully in %s.\nBlockId: %d", tableName, newId));
+
+                log.info(String.format("Block data saved successfully in %s.\nBlockId: %d", tableName, newId));
             } else {
-                
-                        log.warn("Block inserted, but new ID could not be uniquely identified.");
+
+                log.warn("Block inserted, but new ID could not be uniquely identified.");
             }
 
             conn.commit(); // ✅ Commit transaction
             return null;
 
         } catch (SQLException error) {
-            
-                    log.error(String.format("Error Initiate New Block in %s: %s", tableName, error.getMessage()));
+
+            log.error(String.format("Error Initiate New Block in %s: %s", tableName, error.getMessage()));
             return new ErrorMessage("Error Initiate New Block", "Cannot create a new block", error.getMessage());
         }
     }
@@ -950,14 +926,13 @@ import org.sqlite.SQLiteConfig;
             // Step 4: Keep only the new IDs
             idsBotJobAfter.removeAll(idsBefore);
 
-            
-                    log.info(String.format("BotJob inserted successfully. New IDs: %s", idsBotJobAfter));
+            log.info(String.format("BotJob inserted successfully. New IDs: %s", idsBotJobAfter));
 
             return null; // null means no error
 
         } catch (SQLException error) {
-            
-                    log.error(String.format("createNewBotJob - Error: %s", error.getMessage()));
+
+            log.error(String.format("createNewBotJob - Error: %s", error.getMessage()));
 
             return new ErrorMessage("Bot Job Insertion Error", "Error inserting a new bot job.", error.getMessage());
         }
@@ -985,9 +960,9 @@ import org.sqlite.SQLiteConfig;
                     if (count % BATCH_SIZE == 0) {
                         int[] rowsAffected = pstmt.executeBatch();
                         conn.commit();
-                        
-                                log.info("Executed batch of " + BATCH_SIZE + " updates for oldBlockId " + oldBlockId
-                                        + " -> newBlockId " + newBlockId);
+
+                        log.info("Executed batch of " + BATCH_SIZE + " updates for oldBlockId " + oldBlockId
+                                + " -> newBlockId " + newBlockId);
                     }
                 }
 
@@ -995,25 +970,25 @@ import org.sqlite.SQLiteConfig;
                 if (count % BATCH_SIZE != 0) {
                     int[] rowsAffected = pstmt.executeBatch();
                     conn.commit();
-                    
-                            log.info("Executed final batch of " + (count % BATCH_SIZE) + " updates for oldBlockId "
-                                    + oldBlockId + " -> newBlockId " + newBlockId);
+
+                    log.info("Executed final batch of " + (count % BATCH_SIZE) + " updates for oldBlockId " + oldBlockId
+                            + " -> newBlockId " + newBlockId);
                 }
 
                 return null; // Success
             } catch (SQLException e) {
                 // rollback changes on error
-                
-                        log.error(String.format(
-                                "updateInstructionsSplitter - Error updating instructions from blockId %d to %d. Error: %s",
-                                oldBlockId, newBlockId, e.getMessage()));
+
+                log.error(String.format(
+                        "updateInstructionsSplitter - Error updating instructions from blockId %d to %d. Error: %s",
+                        oldBlockId, newBlockId, e.getMessage()));
                 return new ErrorMessage("Update Error", "Failed to update instructions", e.getMessage());
             }
         } catch (SQLException ex) {
-            
-                    log.error(String.format(
-                            "Connection error while updating instructions from blockId %d to %d. Error: %s",
-                            oldBlockId, newBlockId, ex.getMessage()));
+
+            log.error(String.format(
+                    "Connection error while updating instructions from blockId %d to %d. Error: %s",
+                    oldBlockId, newBlockId, ex.getMessage()));
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
     }
@@ -1220,9 +1195,8 @@ import org.sqlite.SQLiteConfig;
                     if (count % BATCH_SIZE == 0) {
                         int[] rowsAffected = pstmt.executeBatch();
                         conn.commit();
-                        
-                                log.info("Executed batch of " + BATCH_SIZE + " updates for blockId "
-                                        + splitDTO.getBlockId());
+
+                        log.info("Executed batch of " + BATCH_SIZE + " updates for blockId " + splitDTO.getBlockId());
                     }
                 }
 
@@ -1230,25 +1204,24 @@ import org.sqlite.SQLiteConfig;
                 if (count % BATCH_SIZE != 0) {
                     int[] rowsAffected = pstmt.executeBatch();
                     conn.commit();
-                    
-                            log.info("Executed final batch of " + (count % BATCH_SIZE) + " updates for blockId "
-                                    + splitDTO.getBlockId());
+
+                    log.info("Executed final batch of " + (count % BATCH_SIZE) + " updates for blockId "
+                            + splitDTO.getBlockId());
                 }
 
                 return null; // Success
             } catch (SQLException e) {
 
-                
-                        log.error(String.format(
-                                "RollBackBlocks - Error updating BlockId %d. Error: %s",
-                                splitDTO.getBlockId(), e.getMessage()));
+                log.error(String.format(
+                        "RollBackBlocks - Error updating BlockId %d. Error: %s",
+                        splitDTO.getBlockId(), e.getMessage()));
                 return new ErrorMessage("RollBack Error", "Failed to roll back instructions", e.getMessage());
             }
         } catch (SQLException ex) {
-            
-                    log.error(String.format(
-                            "Connection error while rolling back BlockId %d. Error: %s",
-                            splitDTO.getBlockId(), ex.getMessage()));
+
+            log.error(String.format(
+                    "Connection error while rolling back BlockId %d. Error: %s",
+                    splitDTO.getBlockId(), ex.getMessage()));
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
     }
@@ -1265,21 +1238,21 @@ import org.sqlite.SQLiteConfig;
 
             int rowsAffected = stmt.executeUpdate(updateSQL);
             if (rowsAffected > 0) {
-                
-                        log.warn(String.format(
-                                "rollBackBlocksOrder - Block Order Reset for blockId: %d - Name: %s",
-                                rollBackBlocksDTO.getBlockId(), rollBackBlocksDTO.getBlockName()));
+
+                log.warn(String.format(
+                        "rollBackBlocksOrder - Block Order Reset for blockId: %d - Name: %s",
+                        rollBackBlocksDTO.getBlockId(), rollBackBlocksDTO.getBlockName()));
             } else {
-                
-                        log.warn(String.format(
-                                "RollBackBlocks - No matching record found to update for blockId: %d - Name: %s",
-                                rollBackBlocksDTO.getBlockId(), rollBackBlocksDTO.getBlockName()));
+
+                log.warn(String.format(
+                        "RollBackBlocks - No matching record found to update for blockId: %d - Name: %s",
+                        rollBackBlocksDTO.getBlockId(), rollBackBlocksDTO.getBlockName()));
             }
         } catch (SQLException e) {
-            
-                    log.error(String.format(
-                            "This BlockId '%d' - Name: %s \n cannot be updated.\nError: %s",
-                            rollBackBlocksDTO.getBlockId(), rollBackBlocksDTO.getBlockName(), e.getMessage()));
+
+            log.error(String.format(
+                    "This BlockId '%d' - Name: %s \n cannot be updated.\nError: %s",
+                    rollBackBlocksDTO.getBlockId(), rollBackBlocksDTO.getBlockName(), e.getMessage()));
             return;
         }
     }
@@ -1314,8 +1287,8 @@ import org.sqlite.SQLiteConfig;
             }
 
             if (errorMessage != null) {
-                
-                        log.error("Error: " + errorMessage.getErrorTitle() + "-" + errorMessage.getErrorMessage());
+
+                log.error("Error: " + errorMessage.getErrorTitle() + "-" + errorMessage.getErrorMessage());
             }
         }
 
@@ -1332,31 +1305,29 @@ import org.sqlite.SQLiteConfig;
                 conn.commit();
 
                 if (rowsAffected > 0) {
-                    
-                            log.info(String.format(
-                                    "The Block id %d has been successfully deleted from %s = %d.",
-                                    blockId, whereColumn, whereId));
+
+                    log.info(String.format(
+                            "The Block id %d has been successfully deleted from %s = %d.",
+                            blockId, whereColumn, whereId));
                 } else {
-                    
-                            log.warn(String.format(
-                                    "No matching record found for blockId %d in %s = %d.",
-                                    blockId, whereColumn, whereId));
+
+                    log.warn(String.format(
+                            "No matching record found for blockId %d in %s = %d.", blockId, whereColumn, whereId));
                 }
 
                 return null; // success
             } catch (SQLException e) {
 
-                
-                        log.error(String.format(
-                                "Error deleting blockId %d from %s = %d. Error: %s",
-                                blockId, whereColumn, whereId, e.getMessage()));
+                log.error(String.format(
+                        "Error deleting blockId %d from %s = %d. Error: %s",
+                        blockId, whereColumn, whereId, e.getMessage()));
                 return new ErrorMessage("Delete Block Error", "Failed to delete block", e.getMessage());
             }
         } catch (SQLException ex) {
-            
-                    log.error(String.format(
-                            "Connection error while deleting blockId %d from %s = %d. Error: %s",
-                            blockId, whereColumn, whereId, ex.getMessage()));
+
+            log.error(String.format(
+                    "Connection error while deleting blockId %d from %s = %d. Error: %s",
+                    blockId, whereColumn, whereId, ex.getMessage()));
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
     }
@@ -1503,10 +1474,9 @@ import org.sqlite.SQLiteConfig;
                 }
             }
         } catch (SQLException error) {
-            
-                    log.error(String.format(
-                            "Error loadComponentsComplete for Home Bank %d. Error: %s",
-                            homeBankingId, error.getMessage()));
+
+            log.error(String.format(
+                    "Error loadComponentsComplete for Home Bank %d. Error: %s", homeBankingId, error.getMessage()));
             return new ErrorMessage(
                     "Error Loading Components Complete Job",
                     "Error loading component complete Job",
@@ -1538,8 +1508,8 @@ import org.sqlite.SQLiteConfig;
                 Integer blockId = instruction.getBlockId();
 
                 if (instrId == null || blockId == null) {
-                    
-                            log.warn("Skipping reorder: instructionId or blockId is null.");
+
+                    log.warn("Skipping reorder: instructionId or blockId is null.");
                     continue;
                 }
 
@@ -1565,8 +1535,8 @@ import org.sqlite.SQLiteConfig;
             return null; // success
 
         } catch (SQLException e) {
-            
-                    log.error("Error batch updating instruction order numbers: " + e.getMessage());
+
+            log.error("Error batch updating instruction order numbers: " + e.getMessage());
             return new ErrorMessage(
                     "Reorder Error", "Failed to reorder instructions in table " + tableName, e.getMessage());
         }
@@ -1602,8 +1572,8 @@ import org.sqlite.SQLiteConfig;
                         Integer blockId = block.getId(); // take blockId from block
 
                         if (instrId == null || blockId == null) {
-                            
-                                    log.warn("Skipping reorder: instructionId or blockId is null.");
+
+                            log.warn("Skipping reorder: instructionId or blockId is null.");
                             continue;
                         }
 
@@ -1632,8 +1602,8 @@ import org.sqlite.SQLiteConfig;
             return null; // success
 
         } catch (SQLException e) {
-            
-                    log.error("Error batch updating instruction order numbers: " + e.getMessage());
+
+            log.error("Error batch updating instruction order numbers: " + e.getMessage());
             return new ErrorMessage(
                     "Reorder Error", "Failed to reorder instructions in table " + tableName, e.getMessage());
         }
@@ -1673,8 +1643,8 @@ import org.sqlite.SQLiteConfig;
 
                 int rowsAffected = pstmt.executeUpdate();
                 if (rowsAffected > 0) {
-                    
-                            log.info(String.format("Bot Job id %d successfully updated!", botJobId));
+
+                    log.info(String.format("Bot Job id %d successfully updated!", botJobId));
                 } else {
                     conn.commit(); // Commit even though nothing changed
                     return new ErrorMessage(
@@ -1686,14 +1656,14 @@ import org.sqlite.SQLiteConfig;
                 conn.commit(); // Commit transaction
                 return null; // Success, no error
             } catch (SQLException e) {
-                
-                        log.error(String.format("Error updating BotJobId %d. Error: %s", botJobId, e.getMessage()));
+
+                log.error(String.format("Error updating BotJobId %d. Error: %s", botJobId, e.getMessage()));
                 return new ErrorMessage("Bot Job Update Error", "Error updating Bot Job", e.getMessage());
             }
         } catch (SQLException ex) {
-            
-                    log.error(String.format(
-                            "Connection error while updating BotJobId %d. Error: %s", botJobId, ex.getMessage()));
+
+            log.error(
+                    String.format("Connection error while updating BotJobId %d. Error: %s", botJobId, ex.getMessage()));
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
     }
@@ -1707,17 +1677,16 @@ import org.sqlite.SQLiteConfig;
             // Execute the update statement and check if any rows were affected
             int rowsAffected = stmt.executeUpdate(updateSQL);
             if (rowsAffected > 0) {
-                
-                        log.info(String.format("The Status Bot Job  id %d has been successfully updated!", botJobId));
+
+                log.info(String.format("The Status Bot Job  id %d has been successfully updated!", botJobId));
             } else {
-                
-                        log.warn(String.format("No matching record found for botJobId %d.", botJobId));
+
+                log.warn(String.format("No matching record found for botJobId %d.", botJobId));
             }
             return true;
         } catch (SQLException e) {
-            
-                    log.error(String.format(
-                            "Error updating Status for BotJobId ID %d. Error: %s", botJobId, e.getMessage()));
+
+            log.error(String.format("Error updating Status for BotJobId ID %d. Error: %s", botJobId, e.getMessage()));
         }
         return false;
     }
@@ -1745,14 +1714,12 @@ import org.sqlite.SQLiteConfig;
                 blockLoadDTO.setBlockOrderNumber(rs.getInt("wait"));
             }
 
-            
-                    log.info(String.format("Fetched Block \"%s\"", blockLoadDTO.getName()));
+            log.info(String.format("Fetched Block \"%s\"", blockLoadDTO.getName()));
 
         } catch (SQLException e) {
-            
-                    log.error(String.format(
-                            "Error fetching Block ID %d with BotJob Id %d. Error: %s: ",
-                            blockId, botJobId, e.getMessage()));
+
+            log.error(String.format(
+                    "Error fetching Block ID %d with BotJob Id %d. Error: %s: ", blockId, botJobId, e.getMessage()));
         }
 
         return blockLoadDTO;
@@ -1781,14 +1748,12 @@ import org.sqlite.SQLiteConfig;
                 blockLoadDTO.setBlockOrderNumber(rs.getInt("wait"));
             }
 
-            
-                    log.info(String.format("Fetched Block \"%s\"", blockLoadDTO.getName()));
+            log.info(String.format("Fetched Block \"%s\"", blockLoadDTO.getName()));
 
         } catch (SQLException e) {
-            
-                    log.error(String.format(
-                            "Error fetching Block ID %d with BotJob Id %d. Error: %s: ",
-                            blockId, botJobId, e.getMessage()));
+
+            log.error(String.format(
+                    "Error fetching Block ID %d with BotJob Id %d. Error: %s: ", blockId, botJobId, e.getMessage()));
         }
 
         return blockLoadDTO;
@@ -1882,8 +1847,8 @@ import org.sqlite.SQLiteConfig;
             }
 
         } catch (SQLException e) {
-            
-                    log.error(String.format("Error loadQuickBotJobs: %s", e.getMessage()));
+
+            log.error(String.format("Error loadQuickBotJobs: %s", e.getMessage()));
 
             return new ErrorMessage("Failed to load Quick Bot Jobs", "Database query error", e.getMessage());
         }
@@ -1945,32 +1910,32 @@ import org.sqlite.SQLiteConfig;
                 int rowsAffected = Arrays.stream(batchResults).sum();
 
                 if (rowsAffected > 0) {
-                    
-                            log.info(String.format(
-                                    "Instruction status updated. Rows affected: %d (InstructionId: %d, BlockId: %d, Actions: %s, WhereId: %d)",
-                                    rowsAffected, instructionId, blockId, actions, whereId));
+
+                    log.info(String.format(
+                            "Instruction status updated. Rows affected: %d (InstructionId: %d, BlockId: %d, Actions: %s, WhereId: %d)",
+                            rowsAffected, instructionId, blockId, actions, whereId));
                 } else {
-                    
-                            log.warn(String.format(
-                                    "No instruction updated (InstructionId: %d, BlockId: %d, Actions: %s, WhereId: %d)",
-                                    instructionId, blockId, actions, whereId));
+
+                    log.warn(String.format(
+                            "No instruction updated (InstructionId: %d, BlockId: %d, Actions: %s, WhereId: %d)",
+                            instructionId, blockId, actions, whereId));
                 }
 
             } catch (SQLException e) {
                 conn.rollback(); // Rollback if failure
-                
-                        log.error(String.format(
-                                "Error updating instruction status. InstructionId: %d, Error: %s",
-                                instructionId, e.getMessage()));
+
+                log.error(String.format(
+                        "Error updating instruction status. InstructionId: %d, Error: %s",
+                        instructionId, e.getMessage()));
                 return new ErrorMessage(
                         "Update Instruction Status Error", "Failed to update instruction status", e.getMessage());
             }
 
         } catch (SQLException ex) {
-            
-                    log.error(String.format(
-                            "Connection error while updating instruction status. InstructionId: %d, Error: %s",
-                            instructionId, ex.getMessage()));
+
+            log.error(String.format(
+                    "Connection error while updating instruction status. InstructionId: %d, Error: %s",
+                    instructionId, ex.getMessage()));
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
 
@@ -2009,30 +1974,30 @@ import org.sqlite.SQLiteConfig;
                 int rowsAffected = Arrays.stream(batchResults).sum();
 
                 if (rowsAffected > 0) {
-                    
-                            log.info(String.format(
-                                    "Block status updated. Table: %s, BlockId: %d, Active: %s",
-                                    tableName, blockId, blockActive));
+
+                    log.info(String.format(
+                            "Block status updated. Table: %s, BlockId: %d, Active: %s",
+                            tableName, blockId, blockActive));
                 } else {
-                    
-                            log.warn(String.format(
-                                    "No block status updated. Table: %s, WhereId: %d, BlockId: %d",
-                                    tableName, whereId, blockId));
+
+                    log.warn(String.format(
+                            "No block status updated. Table: %s, WhereId: %d, BlockId: %d",
+                            tableName, whereId, blockId));
                 }
 
             } catch (SQLException e) {
                 conn.rollback(); // Rollback if failure
-                
-                        log.error(String.format(
-                                "Error updating block status in table '%s'. Error: %s", tableName, e.getMessage()));
+
+                log.error(String.format(
+                        "Error updating block status in table '%s'. Error: %s", tableName, e.getMessage()));
                 return new ErrorMessage("Update Block Status Error", "Failed to update block status", e.getMessage());
             }
 
         } catch (SQLException ex) {
-            
-                    log.error(String.format(
-                            "Connection error while updating block status in table '%s'. Error: %s",
-                            tableName, ex.getMessage()));
+
+            log.error(String.format(
+                    "Connection error while updating block status in table '%s'. Error: %s",
+                    tableName, ex.getMessage()));
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
 
@@ -2073,32 +2038,31 @@ import org.sqlite.SQLiteConfig;
                 int rowsAffected = Arrays.stream(batchResults).sum();
 
                 if (rowsAffected > 0) {
-                    
-                            log.info(String.format(
-                                    "Instruction status updated. Rows affected: %d (Table: %s, BlockId: %d, WhereId: %d)",
-                                    rowsAffected, tableName, blockId, whereId));
+
+                    log.info(String.format(
+                            "Instruction status updated. Rows affected: %d (Table: %s, BlockId: %d, WhereId: %d)",
+                            rowsAffected, tableName, blockId, whereId));
                 } else {
-                    
-                            log.warn(String.format(
-                                    "No instruction statuses were updated (Table: %s, BlockId: %d, WhereId: %d)",
-                                    tableName, blockId, whereId));
+
+                    log.warn(String.format(
+                            "No instruction statuses were updated (Table: %s, BlockId: %d, WhereId: %d)",
+                            tableName, blockId, whereId));
                 }
 
             } catch (SQLException e) {
                 conn.rollback(); // Roll back in case of error
-                
-                        log.error(String.format(
-                                "Error updating instruction status in table '%s'. Error: %s",
-                                tableName, e.getMessage()));
+
+                log.error(String.format(
+                        "Error updating instruction status in table '%s'. Error: %s", tableName, e.getMessage()));
                 return new ErrorMessage(
                         "Update Instruction Status Error", "Failed to update instruction status", e.getMessage());
             }
 
         } catch (SQLException ex) {
-            
-                    log.error(String.format(
-                            "Connection error while updating instruction status in table '%s'. Error: %s",
-                            tableName, ex.getMessage()));
+
+            log.error(String.format(
+                    "Connection error while updating instruction status in table '%s'. Error: %s",
+                    tableName, ex.getMessage()));
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
 
@@ -2193,9 +2157,9 @@ import org.sqlite.SQLiteConfig;
                 }
             }
         } catch (SQLException error) {
-            
-                    log.error(String.format(
-                            "Error loading blocks for %s id %d\nError: %s", tableName, whereId, error.getMessage()));
+
+            log.error(String.format(
+                    "Error loading blocks for %s id %d\nError: %s", tableName, whereId, error.getMessage()));
 
             return new ErrorMessage(
                     "Load Blocks Error", "Failed to load blocks from table: " + tableName, error.getMessage());
@@ -2344,16 +2308,15 @@ import org.sqlite.SQLiteConfig;
 
             idsInstrucAfter.removeAll(idsBefore);
 
-            
-                    log.info(String.format(
-                            "Batch insert completed for %d %s records. New IDs: %s",
-                            count, tableName.toUpperCase(), idsInstrucAfter));
+            log.info(String.format(
+                    "Batch insert completed for %d %s records. New IDs: %s",
+                    count, tableName.toUpperCase(), idsInstrucAfter));
 
             return null;
 
         } catch (SQLException error) {
-            
-                    log.error("Batch insert error for " + tableName + ": " + error.getMessage());
+
+            log.error("Batch insert error for " + tableName + ": " + error.getMessage());
             return new ErrorMessage(
                     "Instruction Insertion Error", "Error inserting batch instructions.", error.getMessage());
         }
@@ -2477,16 +2440,15 @@ import org.sqlite.SQLiteConfig;
             // Step 4: Compute new inserted IDs
             idsInstrucAfter.removeAll(idsBefore);
 
-            
-                    log.info(String.format(
-                            "Batch insert completed for %d %s records. New IDs: %s",
-                            count, tableName.toUpperCase(), idsInstrucAfter));
+            log.info(String.format(
+                    "Batch insert completed for %d %s records. New IDs: %s",
+                    count, tableName.toUpperCase(), idsInstrucAfter));
 
             return null;
 
         } catch (SQLException error) {
-            
-                    log.error("Batch insert error for " + tableName + ": " + error.getMessage());
+
+            log.error("Batch insert error for " + tableName + ": " + error.getMessage());
             return new ErrorMessage("Instruction Insert Error", "Failed during batch insert", error.getMessage());
         }
     }
@@ -2505,8 +2467,8 @@ import org.sqlite.SQLiteConfig;
 
             for (InstructionOperationDTO operation : operations) {
                 if (operation.getId() == null || operation.getParentId() == null) {
-                    
-                            log.warn("Skipping: Instruction ID or Parent ID is null.");
+
+                    log.warn("Skipping: Instruction ID or Parent ID is null.");
                     continue;
                 }
 
@@ -2615,8 +2577,8 @@ import org.sqlite.SQLiteConfig;
                             : null);
 
             if (setClause.isEmpty()) {
-                
-                        log.warn("No fields to update for instruction ID: " + InstructionOperation.getId());
+
+                log.warn("No fields to update for instruction ID: " + InstructionOperation.getId());
                 return new ErrorMessage(
                         "Error Update Instruction",
                         "Error during updating instruction",
@@ -2629,34 +2591,34 @@ import org.sqlite.SQLiteConfig;
 
             int rowsAffected = stmt.executeUpdate(updateSQL);
             if (rowsAffected > 0) {
-                
-                        log.info(String.format(
-                                "%s UPDATED SUCCESSFULLY id: %d Name: %s Actions: %s Operation: %s",
-                                tableName.toUpperCase(),
-                                InstructionOperation.getId(),
-                                InstructionOperation.getName(),
-                                InstructionOperation.getActions(),
-                                InstructionOperation.getOperation()));
+
+                log.info(String.format(
+                        "%s UPDATED SUCCESSFULLY id: %d Name: %s Actions: %s Operation: %s",
+                        tableName.toUpperCase(),
+                        InstructionOperation.getId(),
+                        InstructionOperation.getName(),
+                        InstructionOperation.getActions(),
+                        InstructionOperation.getOperation()));
             } else {
-                
-                        log.warn(String.format(
-                                "%s NOT UPDATED id: %d Name: %s Actions: %s Operations: %s",
-                                tableName.toUpperCase(),
-                                InstructionOperation.getId(),
-                                InstructionOperation.getName(),
-                                InstructionOperation.getActions(),
-                                InstructionOperation.getOperation()));
+
+                log.warn(String.format(
+                        "%s NOT UPDATED id: %d Name: %s Actions: %s Operations: %s",
+                        tableName.toUpperCase(),
+                        InstructionOperation.getId(),
+                        InstructionOperation.getName(),
+                        InstructionOperation.getActions(),
+                        InstructionOperation.getOperation()));
             }
             return null;
         } catch (SQLException error) {
-            
-                    log.warn(String.format(
-                            "%s UPDATE FAILED id: %d Name: %s Actions: %s Operations: %s",
-                            tableName.toUpperCase(),
-                            InstructionOperation.getId(),
-                            InstructionOperation.getName(),
-                            InstructionOperation.getActions(),
-                            InstructionOperation.getOperation()));
+
+            log.warn(String.format(
+                    "%s UPDATE FAILED id: %d Name: %s Actions: %s Operations: %s",
+                    tableName.toUpperCase(),
+                    InstructionOperation.getId(),
+                    InstructionOperation.getName(),
+                    InstructionOperation.getActions(),
+                    InstructionOperation.getOperation()));
             return new ErrorMessage(
                     "Error Update Instruction", "Error during updating instruction", error.getMessage());
         }
@@ -2674,9 +2636,9 @@ import org.sqlite.SQLiteConfig;
                 }
             }
         } catch (SQLException error) {
-            
-                    log.error(String.format(
-                            "Error checking for instruction ID %d. Error: %s", instructionId, error.getMessage()));
+
+            log.error(String.format(
+                    "Error checking for instruction ID %d. Error: %s", instructionId, error.getMessage()));
         }
         return false; // Return false if an error occurs or the ID is not found
     }
@@ -2692,10 +2654,9 @@ import org.sqlite.SQLiteConfig;
                     .anyMatch(instruction -> instruction.getInstructionOrderNumber() == targetOrderNumber);
 
             if (!orderNumberExists) {
-                
-                        log.warn(String.format(
-                                "preInsertStep - Target order number %d does not exist in the row list.",
-                                targetOrderNumber));
+
+                log.warn(String.format(
+                        "preInsertStep - Target order number %d does not exist in the row list.", targetOrderNumber));
             }
 
             for (InstructionLoad instruction : rowList) {
@@ -2959,15 +2920,12 @@ import org.sqlite.SQLiteConfig;
                     reorderInstructionsPerBlock(rowList, instrName, true);
                 }
 
-                
-                        log.info(String.format(
-                                "\"Component\" Instruction: \"%s\" has been added successfully!",
-                                instruction.getName()));
+                log.info(String.format(
+                        "\"Component\" Instruction: \"%s\" has been added successfully!", instruction.getName()));
             } else {
-                
-                        log.error(String.format(
-                                "Error Add New \"Component\" Instruction: \"%s\" Cannot be saved!",
-                                instruction.getName()));
+
+                log.error(String.format(
+                        "Error Add New \"Component\" Instruction: \"%s\" Cannot be saved!", instruction.getName()));
 
                 performMessage.errorMessage(
                         errorMessage.getErrorTitle(),
@@ -3076,14 +3034,14 @@ import org.sqlite.SQLiteConfig;
                 }
             }
         } catch (SQLException error) {
-            
-                    log.error(String.format("loadWebPageFields - SQL Error: %s", error.getMessage()));
+
+            log.error(String.format("loadWebPageFields - SQL Error: %s", error.getMessage()));
             return new ErrorMessage(
                     "Error loading Web Page Fields", "Error loading Web Page Fields", error.getMessage());
 
         } catch (Exception error) {
-            
-                    log.error(String.format("loadWebPageFields - General Error: %s", error.getMessage()));
+
+            log.error(String.format("loadWebPageFields - General Error: %s", error.getMessage()));
             return new ErrorMessage(
                     "Error loading Web Page Fields", "Error loading Web Page Fields", error.getMessage());
         }
@@ -3163,8 +3121,8 @@ import org.sqlite.SQLiteConfig;
             }
 
             if (rowsAffected > 0) {
-                
-                        log.warn(String.format("Migration DB Scripts - RowsUpdated - %s", rowsAffected));
+
+                log.warn(String.format("Migration DB Scripts - RowsUpdated - %s", rowsAffected));
             } else {
                 log.info("Migration DB Scripts - No Rows were updated");
             }
@@ -3239,10 +3197,9 @@ import org.sqlite.SQLiteConfig;
                 }
             }
         } catch (SQLException e) {
-            
-                    log.error(String.format(
-                            "Error loadSavedBlocksForBotJob for Home Banking Id %d\nError: %s",
-                            homeBankingId, e.getMessage()));
+
+            log.error(String.format(
+                    "Error loadSavedBlocksForBotJob for Home Banking Id %d\nError: %s", homeBankingId, e.getMessage()));
         }
 
         return savedlistBlock;
@@ -3292,13 +3249,13 @@ import org.sqlite.SQLiteConfig;
             return null; // No error
 
         } catch (SQLException error) {
-            
-                    log.error("Failed to insert references into database: " + error.getMessage());
+
+            log.error("Failed to insert references into database: " + error.getMessage());
             return new ErrorMessage(
                     "Reference Insertion Error", "An error occurred during reference insertion.", error.getMessage());
         } catch (Exception error) {
-            
-                    log.error("Unexpected error inserting references: " + error.getMessage());
+
+            log.error("Unexpected error inserting references: " + error.getMessage());
             return new ErrorMessage(
                     "Reference Insertion Error",
                     "An unexpected error occurred during reference insertion.",
@@ -3342,13 +3299,13 @@ import org.sqlite.SQLiteConfig;
             log.info("Reference batch insert completed successfully.");
             return null; // No error
         } catch (SQLException error) {
-            
-                    log.error("Failed to insert references into database: " + error.getMessage());
+
+            log.error("Failed to insert references into database: " + error.getMessage());
             return new ErrorMessage(
                     "Reference Insertion Error", "An error occurred during reference insertion.", error.getMessage());
         } catch (Exception error) {
-            
-                    log.error("Failed to insert references into database: " + error.getMessage());
+
+            log.error("Failed to insert references into database: " + error.getMessage());
             return new ErrorMessage(
                     "Reference Insertion Error", "An error occurred during reference insertion.", error.getMessage());
         }
@@ -3380,8 +3337,8 @@ import org.sqlite.SQLiteConfig;
         }
 
         if (errorMessage != null) {
-            
-                    log.error("Error: " + errorMessage.getErrorTitle() + "-" + errorMessage.getErrorMessage());
+
+            log.error("Error: " + errorMessage.getErrorTitle() + "-" + errorMessage.getErrorMessage());
         }
 
         return errorMessage;
@@ -3598,14 +3555,13 @@ import org.sqlite.SQLiteConfig;
             // Step 5: Keep only the new IDs
             idsHomeBankAfter.removeAll(idsBefore);
 
-            
-                    log.info(String.format("HomeBanking inserted successfully. New IDs: %s", idsHomeBankAfter));
+            log.info(String.format("HomeBanking inserted successfully. New IDs: %s", idsHomeBankAfter));
 
             return null; // null means no error
 
         } catch (SQLException error) {
-            
-                    log.error(String.format("saveUserData - Error: %s", error.getMessage()));
+
+            log.error(String.format("saveUserData - Error: %s", error.getMessage()));
 
             return new ErrorMessage(
                     "HomeBanking Insertion Error", "Error inserting a new HomeBanking record.", error.getMessage());
@@ -3656,15 +3612,14 @@ import org.sqlite.SQLiteConfig;
             // Step 4: Keep only the new IDs
             idsHomeUrlAfter.removeAll(idsBefore);
 
-            
-                    log.info(String.format("HomeUrl inserted successfully. New IDs: %s", idsHomeUrlAfter));
+            log.info(String.format("HomeUrl inserted successfully. New IDs: %s", idsHomeUrlAfter));
 
             conn.commit(); // Commit transaction
             return null; // Success
 
         } catch (SQLException error) {
-            
-                    log.error(String.format("createHomeUrlChild - Error: %s", error.getMessage()));
+
+            log.error(String.format("createHomeUrlChild - Error: %s", error.getMessage()));
 
             return new ErrorMessage("Home URL Insertion Error", "Error inserting a new home URL.", error.getMessage());
         }
@@ -3725,15 +3680,14 @@ import org.sqlite.SQLiteConfig;
             // Step 5: Keep only the new IDs
             idsHomeUrlAfter.removeAll(idsBefore);
 
-            
-                    log.info(String.format("HomeUrl inserted successfully. New IDs: %s", idsHomeUrlAfter));
+            log.info(String.format("HomeUrl inserted successfully. New IDs: %s", idsHomeUrlAfter));
 
             conn.commit(); // Commit transaction
             return null; // Success, no error
 
         } catch (SQLException error) {
-            
-                    log.error(String.format("insertNewHomeUrl - Error: %s", error.getMessage()));
+
+            log.error(String.format("insertNewHomeUrl - Error: %s", error.getMessage()));
 
             return new ErrorMessage("Home URL Insertion Error", "Error inserting a new home URL.", error.getMessage());
         }
@@ -3898,8 +3852,8 @@ import org.sqlite.SQLiteConfig;
             }
 
         } catch (SQLException e) {
-            
-                    log.error(String.format("Error loadAllDataUsers: %s", e.getMessage()));
+
+            log.error(String.format("Error loadAllDataUsers: %s", e.getMessage()));
 
             return new ErrorMessage("Failed to load Database Users", "Database query error", e.getMessage());
         }
@@ -4049,16 +4003,16 @@ import org.sqlite.SQLiteConfig;
                 //            rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"variable_id_seq\";");
 
                 if (rowsAffected > 0) {
-                    
-                            log.warn(String.format("Migration DB Scripts - RowsUpdated - %s", rowsAffected));
+
+                    log.warn(String.format("Migration DB Scripts - RowsUpdated - %s", rowsAffected));
                 } else {
                     log.info("Migration DB Scripts - No Rows were updated");
                 }
                 return null;
 
             } catch (SQLException error) {
-                
-                        log.warn("Migration DB Scripts - Error: " + error.getMessage());
+
+                log.warn("Migration DB Scripts - Error: " + error.getMessage());
                 return new ErrorMessage(
                         "Error Drop Tables Migration 2.7f", "Error dropping OLD objects", error.getMessage());
             }
@@ -4362,8 +4316,8 @@ import org.sqlite.SQLiteConfig;
             return null;
 
         } catch (SQLException error) {
-            
-                    log.error("Failed to create saved component_instruction: " + error.getMessage());
+
+            log.error("Failed to create saved component_instruction: " + error.getMessage());
             return new ErrorMessage(
                     "Failed to create saved component_instruction",
                     "component_instruction Insertion Failure",
@@ -6160,13 +6114,13 @@ import org.sqlite.SQLiteConfig;
 
                 String createTableVectorOpenAI =
                         """
-                        CREATE TABLE web_elements_llama2 (
-                          id SERIAL PRIMARY KEY,
-                          element_name TEXT,
-                          element_type TEXT,
-                          embedding VECTOR(4096) -- size of OpenAI embedding vector
-                        );
-                        """;
+                                CREATE TABLE web_elements_llama2 (
+                                  id SERIAL PRIMARY KEY,
+                                  element_name TEXT,
+                                  element_type TEXT,
+                                  embedding VECTOR(4096) -- size of OpenAI embedding vector
+                                );
+                                """;
                 stmt.executeUpdate(createTableVectorOpenAI);
             }
             System.out.println("Database %s has been created!");
@@ -6182,13 +6136,13 @@ import org.sqlite.SQLiteConfig;
 
                 String createTableVectorOpenAI =
                         """
-                        CREATE TABLE web_elements_openai (
-                          id SERIAL PRIMARY KEY,
-                          element_name TEXT,
-                          element_type TEXT,
-                          embedding vector(1536) -- size of OpenAI embedding vector
-                        );
-                        """;
+                                CREATE TABLE web_elements_openai (
+                                  id SERIAL PRIMARY KEY,
+                                  element_name TEXT,
+                                  element_type TEXT,
+                                  embedding vector(1536) -- size of OpenAI embedding vector
+                                );
+                                """;
                 stmt.executeUpdate(createTableVectorOpenAI);
             }
             System.out.println("Database %s has been created!");
@@ -6230,30 +6184,30 @@ import org.sqlite.SQLiteConfig;
             //                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedBlockSeq\";");
             //                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"idgen\";");
             //            }
-            
-                    log.info("All Rows DELETED for:\n"
-                            + "Variables;\n"
-                            + "Instructions References;\n"
-                            + "Instructions;\n"
-                            + "Blocks;\n"
-                            + "Bot Jobs;\n"
-                            + "Saved Components;");
+
+            log.info("All Rows DELETED for:\n"
+                    + "Variables;\n"
+                    + "Instructions References;\n"
+                    + "Instructions;\n"
+                    + "Blocks;\n"
+                    + "Bot Jobs;\n"
+                    + "Saved Components;");
 
             return true;
 
         } catch (SQLException e) {
-            
-                    log.error(dataBaseType + " Problems:\n"
-                            + "Not Possible delete the  Rows was for these tables:\n"
-                            + "ExcelReportDTO;\n"
-                            + "Variables;\n"
-                            + "Instructions References;\n"
-                            + "Instructions;\n"
-                            + "Blocks;\n"
-                            + "Bot Jobs;\n"
-                            + "Saved Components;\n"
-                            + "Sequences Not dropped\n"
-                            + e.getMessage());
+
+            log.error(dataBaseType + " Problems:\n"
+                    + "Not Possible delete the  Rows was for these tables:\n"
+                    + "ExcelReportDTO;\n"
+                    + "Variables;\n"
+                    + "Instructions References;\n"
+                    + "Instructions;\n"
+                    + "Blocks;\n"
+                    + "Bot Jobs;\n"
+                    + "Saved Components;\n"
+                    + "Sequences Not dropped\n"
+                    + e.getMessage());
         }
         return false;
     }
@@ -6270,11 +6224,11 @@ import org.sqlite.SQLiteConfig;
             return true;
 
         } catch (SQLException e) {
-            
-                    log.error(dataBaseType + " Problems:\n"
-                            + "Not Possible delete the  Rows was for these tables:\n"
-                            + "HomeUrl;\n"
-                            + e.getMessage());
+
+            log.error(dataBaseType + " Problems:\n"
+                    + "Not Possible delete the  Rows was for these tables:\n"
+                    + "HomeUrl;\n"
+                    + e.getMessage());
         }
         return false;
     }
@@ -6344,8 +6298,8 @@ import org.sqlite.SQLiteConfig;
                 }
             }
         } catch (SQLException error) {
-            
-                    log.error("loadAllVariablesByCriteria. Error: " + error.getMessage());
+
+            log.error("loadAllVariablesByCriteria. Error: " + error.getMessage());
             return new ErrorMessage("Error loading Variables", "Error loading Variables", error.getMessage());
         }
         return null;
@@ -6395,15 +6349,14 @@ import org.sqlite.SQLiteConfig;
             // Step 4: Keep only the new IDs
             idsVariableAfter.removeAll(idsBefore);
 
-            
-                    log.info(String.format("Variable inserted successfully. New IDs: %s", idsVariableAfter));
+            log.info(String.format("Variable inserted successfully. New IDs: %s", idsVariableAfter));
 
             conn.commit(); // Commit transaction
             return null; // Success
 
         } catch (SQLException error) {
-            
-                    log.error(String.format("createVariable - Error: %s", error.getMessage()));
+
+            log.error(String.format("createVariable - Error: %s", error.getMessage()));
 
             return new ErrorMessage("Variable Insertion Error", "Error inserting a new variable.", error.getMessage());
         }
@@ -6437,23 +6390,23 @@ import org.sqlite.SQLiteConfig;
                 conn.commit();
 
                 if (rowsAffected > 0) {
-                    
-                            log.info(String.format(
-                                    "Updated %d row(s) in %s where id = %d and %s = %d",
-                                    rowsAffected, tableName, user.getId(), foreignKeyColumn, whereId));
+
+                    log.info(String.format(
+                            "Updated %d row(s) in %s where id = %d and %s = %d",
+                            rowsAffected, tableName, user.getId(), foreignKeyColumn, whereId));
                 } else {
-                    
-                            log.warn(String.format(
-                                    "No matching row found in %s where id = %d and %s = %d",
-                                    tableName, user.getId(), foreignKeyColumn, whereId));
+
+                    log.warn(String.format(
+                            "No matching row found in %s where id = %d and %s = %d",
+                            tableName, user.getId(), foreignKeyColumn, whereId));
                 }
 
                 return null; // success
             } catch (SQLException e) {
-                
-                        log.error(String.format(
-                                "Error updating row in %s where id = %d and %s = %d. Error: %s",
-                                tableName, user.getId(), foreignKeyColumn, whereId, e.getMessage()));
+
+                log.error(String.format(
+                        "Error updating row in %s where id = %d and %s = %d. Error: %s",
+                        tableName, user.getId(), foreignKeyColumn, whereId, e.getMessage()));
 
                 return new ErrorMessage(
                         "Update Error",
@@ -6462,10 +6415,10 @@ import org.sqlite.SQLiteConfig;
                         e.getMessage());
             }
         } catch (SQLException ex) {
-            
-                    log.error(String.format(
-                            "Connection error while updating row in %s where id = %d and %s = %d. Error: %s",
-                            tableName, user.getId(), foreignKeyColumn, whereId, ex.getMessage()));
+
+            log.error(String.format(
+                    "Connection error while updating row in %s where id = %d and %s = %d. Error: %s",
+                    tableName, user.getId(), foreignKeyColumn, whereId, ex.getMessage()));
 
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
@@ -6492,23 +6445,23 @@ import org.sqlite.SQLiteConfig;
                 int rowsAffected = rowsAffectedBatch.length > 0 ? rowsAffectedBatch[0] : 0;
 
                 if (rowsAffected > 0) {
-                    
-                            log.info(String.format(
-                                    "Deleted %d row(s) from %s where id = %d and %s = %d",
-                                    rowsAffected, tableName, variableId, foreignKeyColumn, whereId));
+
+                    log.info(String.format(
+                            "Deleted %d row(s) from %s where id = %d and %s = %d",
+                            rowsAffected, tableName, variableId, foreignKeyColumn, whereId));
                 } else {
-                    
-                            log.warn(String.format(
-                                    "No rows found to delete in %s where id = %d and %s = %d",
-                                    tableName, variableId, foreignKeyColumn, whereId));
+
+                    log.warn(String.format(
+                            "No rows found to delete in %s where id = %d and %s = %d",
+                            tableName, variableId, foreignKeyColumn, whereId));
                 }
 
                 return null; // success
             } catch (SQLException e) {
-                
-                        log.error(String.format(
-                                "Error deleting row in %s where id = %d and %s = %d. Error: %s",
-                                tableName, variableId, foreignKeyColumn, whereId, e.getMessage()));
+
+                log.error(String.format(
+                        "Error deleting row in %s where id = %d and %s = %d. Error: %s",
+                        tableName, variableId, foreignKeyColumn, whereId, e.getMessage()));
 
                 return new ErrorMessage(
                         "Delete Error",
@@ -6517,10 +6470,10 @@ import org.sqlite.SQLiteConfig;
                         e.getMessage());
             }
         } catch (SQLException ex) {
-            
-                    log.error(String.format(
-                            "Connection error while deleting row in %s where id = %d and %s = %d. Error: %s",
-                            tableName, variableId, foreignKeyColumn, whereId, ex.getMessage()));
+
+            log.error(String.format(
+                    "Connection error while deleting row in %s where id = %d and %s = %d. Error: %s",
+                    tableName, variableId, foreignKeyColumn, whereId, ex.getMessage()));
 
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
@@ -6687,23 +6640,22 @@ import org.sqlite.SQLiteConfig;
                 instructions.addAll(instructionMap.values());
                 targetList.addAll(instructions);
 
-                
-                        log.info(String.format(
-                                "Fetched %d instructions (with references) from table %s%s%s",
-                                instructions.size(),
-                                tableName,
-                                blockId > 0 ? " for Block ID " + blockId : "",
-                                instrucId > -1 ? " and Instruction ID " + instrucId : ""));
+                log.info(String.format(
+                        "Fetched %d instructions (with references) from table %s%s%s",
+                        instructions.size(),
+                        tableName,
+                        blockId > 0 ? " for Block ID " + blockId : "",
+                        instrucId > -1 ? " and Instruction ID " + instrucId : ""));
             }
             return null;
         } catch (SQLException error) {
-            
-                    log.error(String.format(
-                            "Error fetching instructions from table %s%s%s. Error: %s",
-                            tableName,
-                            blockId > 0 ? " for Block ID " + blockId : "",
-                            instrucId > -1 ? " and Instruction ID " + instrucId : "",
-                            error.getMessage()));
+
+            log.error(String.format(
+                    "Error fetching instructions from table %s%s%s. Error: %s",
+                    tableName,
+                    blockId > 0 ? " for Block ID " + blockId : "",
+                    instrucId > -1 ? " and Instruction ID " + instrucId : "",
+                    error.getMessage()));
 
             return new ErrorMessage(
                     "Load Instructions Error",
@@ -6773,16 +6725,15 @@ import org.sqlite.SQLiteConfig;
                     references.add(reference);
                 }
 
-                
-                        log.info(String.format(
-                                "Fetched %d references from table %s where %s=%d and instrucIds=%s",
-                                references.size(), tableName, whereColumn, whereID, instrucIds));
+                log.info(String.format(
+                        "Fetched %d references from table %s where %s=%d and instrucIds=%s",
+                        references.size(), tableName, whereColumn, whereID, instrucIds));
             }
         } catch (SQLException e) {
-            
-                    log.error(String.format(
-                            "Error fetching references from table %s where %s=%d. Error: %s",
-                            tableName, whereColumn, whereID, e.getMessage()));
+
+            log.error(String.format(
+                    "Error fetching references from table %s where %s=%d. Error: %s",
+                    tableName, whereColumn, whereID, e.getMessage()));
         }
 
         return references;
@@ -6811,14 +6762,16 @@ import org.sqlite.SQLiteConfig;
             return null;
 
         } catch (SQLException e) {
-            
-                    log.error("Error ensuring parent_block_id column: " + e.getMessage());
+
+            log.error("Error ensuring parent_block_id column: " + e.getMessage());
             return new ErrorMessage(
                     "Database Column Error", "Error ensuring parent_block_id column exists in tables", e.getMessage());
         }
     }
 
-    /** Helper method to add column if it does not exist */
+    /**
+     * Helper method to add column if it does not exist
+     */
     private void addColumnIfNotExists(Connection conn, String tableName, String columnName, String columnType)
             throws SQLException {
         boolean columnExists = false;
@@ -6870,9 +6823,9 @@ import org.sqlite.SQLiteConfig;
                 errorMessage = deleteNullBlocks(blockTable, whereId, restToDeleteIds);
             }
             if (errorMessage != null) {
-                
-                        log.error("Error Deleting Nulls Blocks Table:" + blockTable + " Error: "
-                                + errorMessage.getErrorMessage());
+
+                log.error("Error Deleting Nulls Blocks Table:" + blockTable + " Error: "
+                        + errorMessage.getErrorMessage());
             }
         }
     }
@@ -6903,18 +6856,16 @@ import org.sqlite.SQLiteConfig;
 
                 int totalDeleted = Arrays.stream(results).sum();
 
-                
-                        log.info(String.format(
-                                "Deleted %d blocks from table %s where %s = %d (IDs: %s)",
-                                totalDeleted, tableName, foreignKeyColumn, whereId, restIds));
+                log.info(String.format(
+                        "Deleted %d blocks from table %s where %s = %d (IDs: %s)",
+                        totalDeleted, tableName, foreignKeyColumn, whereId, restIds));
 
                 return null; // success
             } catch (SQLException e) {
 
-                
-                        log.error(String.format(
-                                "Error deleting blocks from table %s where %s = %d. IDs: %s. Error: %s",
-                                tableName, foreignKeyColumn, whereId, restIds, e.getMessage()));
+                log.error(String.format(
+                        "Error deleting blocks from table %s where %s = %d. IDs: %s. Error: %s",
+                        tableName, foreignKeyColumn, whereId, restIds, e.getMessage()));
 
                 return new ErrorMessage(
                         "Delete Blocks Error",
@@ -6923,10 +6874,10 @@ import org.sqlite.SQLiteConfig;
                         e.getMessage());
             }
         } catch (SQLException ex) {
-            
-                    log.error(String.format(
-                            "Connection error while deleting blocks from table %s where %s = %d. IDs: %s. Error: %s",
-                            tableName, foreignKeyColumn, whereId, restIds, ex.getMessage()));
+
+            log.error(String.format(
+                    "Connection error while deleting blocks from table %s where %s = %d. IDs: %s. Error: %s",
+                    tableName, foreignKeyColumn, whereId, restIds, ex.getMessage()));
 
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }

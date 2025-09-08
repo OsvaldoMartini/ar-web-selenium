@@ -4,7 +4,6 @@ import com.allinweb.ch.component.model.SplitDTO;
 import com.allinweb.ch.component.pane.ARElementValuePane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
-
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
@@ -16,9 +15,26 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ARElementValueScene extends ARScene {
 
+    private static final Double SCENE_HEIGHT = 600D;
+    private static final Double SCENE_WIDTH = 600D;
+    private static final String TITLE = "New Variables";
     protected static volatile ARElementValueScene instance;
+    private static ARElementValuePane arElementValuePane = ARElementValuePane.getInstance();
     public boolean closeCalled;
 
+    @Getter
+    @Setter
+    public SplitDTO splitDTO;
+
+    private Stage modalStage;
+    private Scene modalScene;
+    private int varId;
+    private String varValue;
+    private int instructionId;
+    private String instructionName;
+    private String varName;
+    private String instructionType;
+    private boolean firstLoad = true;
     // Private constructor to prevent instantiation
     private ARElementValueScene() {
 
@@ -57,27 +73,6 @@ public class ARElementValueScene extends ARScene {
                     splitDTO, varId, varValue, instructionId, instructionName, varName, instructionType);
         }
     }
-
-    private Stage modalStage;
-    private Scene modalScene;
-
-    private static ARElementValuePane arElementValuePane = ARElementValuePane.getInstance();
-
-    private static final Double SCENE_HEIGHT = 600D;
-    private static final Double SCENE_WIDTH = 600D;
-    private static final String TITLE = "New Variables";
-
-    @Getter
-    @Setter
-    public SplitDTO splitDTO;
-
-    private int varId;
-    private String varValue;
-    private int instructionId;
-    private String instructionName;
-    private String varName;
-    private String instructionType;
-    private boolean firstLoad = true;
 
     @Override
     public IARPane buildPane() {

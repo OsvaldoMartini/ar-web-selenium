@@ -9,8 +9,14 @@ import javafx.scene.control.ListView;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import lombok.extern.slf4j.Slf4j;
 
-import lombok.extern.slf4j.Slf4j;  @Slf4j public class WebViewExample extends Application {
+@Slf4j
+public class WebViewExample extends Application {
+
+    public static void main(String[] args) {
+        launch(args);
+    }
 
     @Override
     public void start(Stage primaryStage) {
@@ -71,9 +77,5 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class WebViewExample extends Ap
         AnchorPane.setLeftAnchor(titleLabel, 10.0);
 
         return pane;
-    }
-
-    public static void main(String[] args) {
-        launch(args);
     }
 }

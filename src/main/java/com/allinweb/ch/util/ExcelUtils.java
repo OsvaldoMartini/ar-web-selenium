@@ -11,16 +11,13 @@ import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.readersAndWriters.ExcelReader;
 import com.google.common.base.Strings;
 import java.awt.*;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.util.*;
 import java.util.List;
 import javafx.concurrent.Task;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.Row;
@@ -28,17 +25,142 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-import lombok.extern.slf4j.Slf4j;  @Slf4j public class ExcelUtils {
+@Slf4j
+public class ExcelUtils {
     private static final int FIRST_ROW = 0;
     private static final int SECOND_ROW = 1;
-
-    public ExcelUtils() {}
-
     private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
     private static final PerformMessage performMessage = PerformMessage.getInstance();
     private static final PerformLists performLists = PerformLists.getInstance();
     private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
+
+    public ExcelUtils() {}
+
+    public static void createExcelDataFile(BotJobLoadDTO selectedBotJob, String nameToDuplicate) {
+        if (selectedBotJob == null) {
+            performMessage.errorMessage(
+                    "Not Able to Create an Excel File",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to create an Excel file!</span>",
+                    "<span style='color: #E65100; font-weight: bold;'>No Bot Job Found</span>",
+                    "<span style='font-style: italic;'>Bot-Job List is empty!</span>",
+                    null,
+                    0);
+            return;
+        }
+
+        String excelFolderPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
+        String fileName = String.format(
+                "%s/%s%s", excelFolderPath, selectedBotJob.getName().trim(), ARConstants.FILE_FORMAT_EXCEL);
+
+        File fileCheck = new File(fileName);
+
+        // Load blocks and actions
+        ErrorMessage errorMessage = null;
+        if (performLists.getListBlock().isEmpty()) {
+            errorMessage = performDataBase.loadBlocks(selectedBotJob.getId(), selectedBotJob.getName(), "block");
+        }
+        if (errorMessage == null && performLists.getAllActions().isEmpty()) {
+            errorMessage = performDBEngine.loadAllActionsPerBlock(performLists.getListBlock());
+        }
+
+        if (errorMessage != null) {
+            performMessage.errorMessage(
+                    errorMessage.getErrorTitle(),
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                            + errorMessage.getErrorHeader(),
+                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                    null,
+                    0);
+        }
+
+        // Check if the Excel file already exists
+        ExtractedData extractedData = ExcelUtils.isFileExists(selectedBotJob.getName(), performLists.getAllActions());
+
+        if (!fileCheck.exists() || fileCheck.isDirectory()) {
+            // File does not exist or is a directory → create normally
+            Task<Void> excelTask = new Task<>() {
+                @Override
+                protected Void call() throws Exception {
+                    new ExcelUtils()
+                            .generateExcelFiles(extractedData, selectedBotJob.getName(), nameToDuplicate, false);
+                    return null;
+                }
+            };
+            new Thread(excelTask).start();
+        } else if (fileCheck.exists() && nameToDuplicate != null && !nameToDuplicate.isBlank()) {
+            // File exists, but nameToDuplicate is provided → create new Excel with new name
+            Task<Void> excelTask = new Task<>() {
+                @Override
+                protected Void call() throws Exception {
+                    new ExcelUtils().generateExcelFiles(extractedData, nameToDuplicate, null, false);
+                    return null;
+                }
+            };
+            new Thread(excelTask).start();
+        }
+    }
+
+    public static ExtractedData isFileExists(String botJobName, List<String> allActions) {
+
+        String excelFolderPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
+        String fileName = String.format("%s/%s%s", excelFolderPath, botJobName, ARConstants.FILE_FORMAT_EXCEL);
+
+        // Create a File object
+        File fileCheck = new File(fileName);
+        if (fileCheck.exists() && !fileCheck.isDirectory()) {
+
+            File file = new File(fileName);
+
+            ExcelReader excelReader = new ExcelReader();
+            ExtractedData extractedData = null;
+            try {
+                extractedData = excelReader.extractData(fileName, allActions);
+            } catch (Exception e) {
+                performMessage.errorMessage(
+                        "Excel File Error", "Check All Excel Columns and Values!", null, null, null, 0);
+                return null;
+            }
+
+            return extractedData;
+        } else {
+            // Return false if the directory does not exist
+            return null;
+        }
+    }
+
+    public static void writeCsvFile(String fileName, List<BlockLoadDTO> blockDTOList) {
+        FileWriter fileWriter = null;
+
+        try {
+            fileWriter = new FileWriter(fileName);
+
+            // Write the CSV file header
+            fileWriter.append("name");
+            fileWriter.append("\n");
+
+            // Write a new blockDTO object list to the CSV file
+            for (BlockLoadDTO blockDTO : blockDTOList) {
+                fileWriter.append(blockDTO.getName());
+                fileWriter.append("\n");
+            }
+
+            System.out.println("CSV file was created successfully!");
+
+        } catch (Exception e) {
+            System.out.println("Error in CsvFileWriter!");
+            System.out.println(e.getMessage());
+        } finally {
+            try {
+                fileWriter.flush();
+                fileWriter.close();
+            } catch (IOException e) {
+                System.out.println("Error while flushing/closing fileWriter!");
+                System.out.println(e.getMessage());
+            }
+        }
+    }
 
     public void generateExcelFiles(
             ExtractedData extractedData, String newFileName, String nameToDuplicate, boolean openExcel) {
@@ -315,131 +437,6 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class ExcelUtils {
                     null,
                     null,
                     0);
-        }
-    }
-
-    public static void createExcelDataFile(BotJobLoadDTO selectedBotJob, String nameToDuplicate) {
-        if (selectedBotJob == null) {
-            performMessage.errorMessage(
-                    "Not Able to Create an Excel File",
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to create an Excel file!</span>",
-                    "<span style='color: #E65100; font-weight: bold;'>No Bot Job Found</span>",
-                    "<span style='font-style: italic;'>Bot-Job List is empty!</span>",
-                    null,
-                    0);
-            return;
-        }
-
-        String excelFolderPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
-        String fileName = String.format(
-                "%s/%s%s", excelFolderPath, selectedBotJob.getName().trim(), ARConstants.FILE_FORMAT_EXCEL);
-
-        File fileCheck = new File(fileName);
-
-        // Load blocks and actions
-        ErrorMessage errorMessage = null;
-        if (performLists.getListBlock().isEmpty()) {
-            errorMessage = performDataBase.loadBlocks(selectedBotJob.getId(), selectedBotJob.getName(), "block");
-        }
-        if (errorMessage == null && performLists.getAllActions().isEmpty()) {
-            errorMessage = performDBEngine.loadAllActionsPerBlock(performLists.getListBlock());
-        }
-
-        if (errorMessage != null) {
-            performMessage.errorMessage(
-                    errorMessage.getErrorTitle(),
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                            + errorMessage.getErrorHeader(),
-                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                    null,
-                    0);
-        }
-
-        // Check if the Excel file already exists
-        ExtractedData extractedData = ExcelUtils.isFileExists(selectedBotJob.getName(), performLists.getAllActions());
-
-        if (!fileCheck.exists() || fileCheck.isDirectory()) {
-            // File does not exist or is a directory → create normally
-            Task<Void> excelTask = new Task<>() {
-                @Override
-                protected Void call() throws Exception {
-                    new ExcelUtils()
-                            .generateExcelFiles(extractedData, selectedBotJob.getName(), nameToDuplicate, false);
-                    return null;
-                }
-            };
-            new Thread(excelTask).start();
-        } else if (fileCheck.exists() && nameToDuplicate != null && !nameToDuplicate.isBlank()) {
-            // File exists, but nameToDuplicate is provided → create new Excel with new name
-            Task<Void> excelTask = new Task<>() {
-                @Override
-                protected Void call() throws Exception {
-                    new ExcelUtils().generateExcelFiles(extractedData, nameToDuplicate, null, false);
-                    return null;
-                }
-            };
-            new Thread(excelTask).start();
-        }
-    }
-
-    public static ExtractedData isFileExists(String botJobName, List<String> allActions) {
-
-        String excelFolderPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
-        String fileName = String.format("%s/%s%s", excelFolderPath, botJobName, ARConstants.FILE_FORMAT_EXCEL);
-
-        // Create a File object
-        File fileCheck = new File(fileName);
-        if (fileCheck.exists() && !fileCheck.isDirectory()) {
-
-            File file = new File(fileName);
-
-            ExcelReader excelReader = new ExcelReader();
-            ExtractedData extractedData = null;
-            try {
-                extractedData = excelReader.extractData(fileName, allActions);
-            } catch (Exception e) {
-                performMessage.errorMessage(
-                        "Excel File Error", "Check All Excel Columns and Values!", null, null, null, 0);
-                return null;
-            }
-
-            return extractedData;
-        } else {
-            // Return false if the directory does not exist
-            return null;
-        }
-    }
-
-    public static void writeCsvFile(String fileName, List<BlockLoadDTO> blockDTOList) {
-        FileWriter fileWriter = null;
-
-        try {
-            fileWriter = new FileWriter(fileName);
-
-            // Write the CSV file header
-            fileWriter.append("name");
-            fileWriter.append("\n");
-
-            // Write a new blockDTO object list to the CSV file
-            for (BlockLoadDTO blockDTO : blockDTOList) {
-                fileWriter.append(blockDTO.getName());
-                fileWriter.append("\n");
-            }
-
-            System.out.println("CSV file was created successfully!");
-
-        } catch (Exception e) {
-            System.out.println("Error in CsvFileWriter!");
-            System.out.println(e.getMessage());
-        } finally {
-            try {
-                fileWriter.flush();
-                fileWriter.close();
-            } catch (IOException e) {
-                System.out.println("Error while flushing/closing fileWriter!");
-                System.out.println(e.getMessage());
-            }
         }
     }
 }

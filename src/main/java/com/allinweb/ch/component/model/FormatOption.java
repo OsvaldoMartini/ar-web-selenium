@@ -3,7 +3,6 @@ package com.allinweb.ch.component.model;
 import lombok.Getter;
 
 @Getter
-
 public class FormatOption {
     private final String text;
     private final String value;

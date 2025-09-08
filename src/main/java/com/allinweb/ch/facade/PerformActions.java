@@ -4,12 +4,7 @@ import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
 import com.allinweb.ch.builder.WebElementIcon;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
-import com.allinweb.ch.component.model.BlockLoadDTO;
-import com.allinweb.ch.component.model.ElementDTO;
-import com.allinweb.ch.component.model.InstructionLoad;
-import com.allinweb.ch.component.model.ReferenceLoadDTO;
-import com.allinweb.ch.component.model.TargetElement;
-import com.allinweb.ch.component.model.VariableLoadDTO;
+import com.allinweb.ch.component.model.*;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
@@ -18,17 +13,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -41,15 +26,8 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.openqa.selenium.By;
-import org.openqa.selenium.ElementClickInterceptedException;
-import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.Keys;
+import org.openqa.selenium.*;
 import org.openqa.selenium.NoSuchElementException;
-import org.openqa.selenium.Rectangle;
-import org.openqa.selenium.SearchContext;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebElement;
 import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.ui.ExpectedConditions;
@@ -65,8 +43,46 @@ import org.openqa.selenium.support.ui.WebDriverWait;
  */
 @Slf4j
 public class PerformActions {
+    private static final PerformMessage performMessage;
+    private static final PerformLists performLists;
+    private static final IframeInputLocator iframeInputLocator;
+    private static final ARPropertyManager arPropertyManager;
+    private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    private static final int MIN_LENGTH = 3;
+    private static final int MAX_LENGTH = 30;
+    private static final Random RANDOM = new Random();
+    private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
+    public static Wait<WebDriver> waitForPage;
+    public static Wait<WebDriver> waitForAction;
     // Static final variable to hold the singleton instance
     protected static volatile PerformActions instance;
+    private static JavascriptExecutor jsExecutor;
+
+    static {
+        arPropertyManager = ARPropertyManager.getInstance();
+        performMessage = PerformMessage.getInstance();
+        performLists = PerformLists.getInstance();
+        iframeInputLocator = IframeInputLocator.getInstance();
+    }
+
+    public List<String> windowHandlesList = new ArrayList<>();
+    public int currentTabIndex = 0; // Track the currently active tab index
+
+    @Getter
+    long totalExecutionTime = 0;
+
+    private BooleanProperty interceptBotJob = new SimpleBooleanProperty(false);
+    private ARPriorities arPriorities;
+
+    @Getter
+    @Setter
+    private WebDriver currentDriver;
+
+    private Map<WebElement, List<WebElement>> iframeElementsMap;
+
+    @Getter
+    @Setter
+    private boolean justCalledRefreshPage = false;
 
     // Private constructor to prevent instantiation
     private PerformActions() {}
@@ -83,17 +99,266 @@ public class PerformActions {
         return instance;
     }
 
-    private static final PerformMessage performMessage;
-    private static final PerformLists performLists;
-    private static final IframeInputLocator iframeInputLocator;
-    private static final ARPropertyManager arPropertyManager;
-    private BooleanProperty interceptBotJob = new SimpleBooleanProperty(false);
+    public static String removeTrailingSlash(String xPath) {
+        if (xPath != null && xPath.endsWith("/")) {
+            return xPath.substring(0, xPath.length() - 1);
+        }
+        return xPath;
+    }
 
-    static {
-        arPropertyManager = ARPropertyManager.getInstance();
-        performMessage = PerformMessage.getInstance();
-        performLists = PerformLists.getInstance();
-        iframeInputLocator = IframeInputLocator.getInstance();
+    public static String extractTagName(String xPath) {
+        // Find the position of the last '/'
+        int lastSlashIndex = xPath.lastIndexOf("/");
+
+        // Extract the substring after the last '/'
+        String lastSegment = xPath.substring(lastSlashIndex + 1);
+
+        // If the last segment contains '[', extract the tag name before it
+        int bracketIndex = lastSegment.indexOf("[");
+        if (bracketIndex != -1) {
+            return lastSegment.substring(0, bracketIndex);
+        }
+
+        // Return the last segment as the tag name
+        return lastSegment;
+    }
+
+    public static String convertToCssSelector(String tagName, List<String> priorityToSearch, String attributeValue) {
+
+        for (String priority : priorityToSearch) {
+            priority = priority.trim();
+            String attributeName;
+
+            if (priority.equalsIgnoreCase("attributeID")) {
+                attributeName = "id";
+            } else if (priority.equalsIgnoreCase("attributeName")) {
+                attributeName = "name";
+            } else {
+                attributeName = priority; // Use the priority as the attribute name for other cases
+            }
+
+            // Create the CSS selector string and add it to the list
+            return tagName + "[" + attributeName + "='" + attributeValue.trim() + "']";
+        }
+
+        return null;
+    }
+
+    public static List<By> convertToCriteriaList(String tagName, List<String> priorityToSearch, String someXPath) {
+        // Split the string by commas and trim any leading/trailing whitespace from each element
+        List<By> criteriaList = new ArrayList<>();
+
+        for (String priority : priorityToSearch) {
+            priority = priority.trim();
+
+            if (priority.equalsIgnoreCase("attributeID")) {
+                priority = "id";
+            } else if (priority.equalsIgnoreCase("attributeName")) {
+                priority = "name";
+            }
+            // Create the By.cssSelector object and add it to the list
+            By criteria = By.cssSelector(tagName + "[" + priority + "='" + someXPath + "']");
+            criteriaList.add(criteria);
+        }
+
+        return criteriaList;
+    }
+
+    public static Pair<String, String> insertRandomName(String key) {
+        String randomName = generateRandomName();
+        return new Pair<>(key, randomName);
+    }
+
+    public static String generateRandomName() {
+        int length = RANDOM.nextInt(MAX_LENGTH - MIN_LENGTH + 1) + MIN_LENGTH;
+        StringBuilder nameBuilder = new StringBuilder(length);
+
+        for (int i = 0; i < length; i++) {
+            char randomChar = CHARACTERS.charAt(RANDOM.nextInt(CHARACTERS.length()));
+            nameBuilder.append(randomChar);
+        }
+
+        return nameBuilder.toString();
+    }
+
+    // Function to check if the element is visible
+    private static boolean isElementVisible(WebElement element, WebDriver driver) {
+        // Check if the element is displayed and within the viewport
+        try {
+            return element.isDisplayed() && isInViewport(element, driver);
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+            return false;
+        }
+    }
+
+    // Function to check if the element is within the viewport
+    private static boolean isInViewport(WebElement element, WebDriver driver) {
+        // Use JavaScript to check if the element is in the viewport
+        // Use the WebDriver (which implements JavascriptExecutor) to execute JavaScript
+        JavascriptExecutor js = (JavascriptExecutor) driver;
+
+        // Execute the JavaScript to get the element's position and check if it's in the viewport
+        return (boolean) js.executeScript(
+                "var rect = arguments[0].getBoundingClientRect(); "
+                        + "return (rect.top >= 0 && rect.left >= 0 && rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) && rect.right <= (window.innerWidth || document.documentElement.clientWidth));",
+                element);
+    }
+
+    public static String insertValueIFrameElement(
+            WebDriver driver, String iframeXPath, String inputXPath, String inputValue) {
+        jsExecutor = (JavascriptExecutor) driver;
+
+        String script = "(function(iframeXPath, inputXPath, inputValue) {" + "    let logs = [];"
+                + "    let iframe = document.evaluate(iframeXPath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;"
+                + "    if (iframe) {"
+                + "        let iframeDocument = iframe.contentDocument || iframe.contentWindow.document;"
+                + "        let inputElement = document.evaluate(inputXPath, iframeDocument, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;"
+                + "        if (inputElement) {"
+                + "            inputElement.value = inputValue;"
+                + "            inputElement.dispatchEvent(new Event('input', { bubbles: true }));"
+                + "            logs.push('Text entered successfully.');"
+                + "        } else {"
+                + "            logs.push('Input field not found inside the iframe.');"
+                + "        }"
+                + "    } else {"
+                + "        logs.push('Iframe not found.');"
+                + "    }"
+                + "    return logs.join('\n');"
+                + "})(arguments[0], arguments[1], arguments[2]);";
+
+        return (String) jsExecutor.executeScript(script, iframeXPath, inputXPath, inputValue);
+    }
+
+    public static String insertValueIFrameElement(
+            WebDriver driver,
+            String iframeXPath,
+            String inputXPath,
+            String inputValue,
+            String targetOriginURL,
+            String trustedOriginURL) {
+
+        jsExecutor = (JavascriptExecutor) driver;
+
+        String script = "(function(iframeXPath, inputXPath, inputValue, targetOriginURL, trustedOriginURL) {"
+                + "    let logs = [];"
+                + "    let iframe = document.evaluate(iframeXPath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;"
+                + "    if (iframe) {"
+                + "        let iframeDocument = iframe.contentDocument || iframe.contentWindow.document;"
+                + "        let inputElement = document.evaluate(inputXPath, iframeDocument, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;"
+                + "        if (inputElement) {"
+                + "            inputElement.value = inputValue;"
+                + "            inputElement.dispatchEvent(new Event('input', { bubbles: true }));"
+                + "            logs.push('Text entered successfully.');"
+                + "            "
+                + "            // Send a message to the targetOriginURL (globally, once input is set)"
+                + "            window.postMessage({ type: 'myMessage', data: 'some data' }, targetOriginURL);"
+                + "        } else {"
+                + "            logs.push('Input field not found inside the iframe.');"
+                + "        }"
+                + "    } else {"
+                + "        logs.push('Iframe not found.');"
+                + "    }"
+                + "    return logs.join('\\n');"
+                + "} )(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);"
+                + " // Listen for messages from the trusted origin (this needs to be in the global scope)"
+                + "window.addEventListener('message', function (event) {"
+                + "    if (event.origin !== trustedOriginURL) return;" // Validate message source
+                + "    console.log('Received message:', event.data);"
+                + "});";
+
+        return (String) jsExecutor.executeScript(
+                script, iframeXPath, inputXPath, inputValue, targetOriginURL, trustedOriginURL);
+    }
+
+    public static String truncateAndNormalize(String someText, int limit) {
+        if (someText == null || someText.isEmpty()) {
+            return someText;
+        }
+
+        // Remove extra spaces and trim
+        String normalizedText = someText.trim().replaceAll("\\s+", " ");
+
+        if (normalizedText.length() <= limit) {
+            return normalizedText;
+        }
+
+        return normalizedText.substring(0, limit) + "...";
+    }
+
+    /**
+     * Extracts the file extension from the given string, considering it may be a path.
+     *
+     * @param input The string from which to extract the file extension.
+     * @return The file extension if present and the string is identified as a file, otherwise an empty string.
+     */
+    public static String extractFileExtension(String input) {
+        if (input == null || input.isEmpty()) {
+            return "";
+        }
+
+        // Find the last slash in the string
+        int lastIndexOfSlash = input.lastIndexOf('/');
+
+        // Get the substring after the last slash
+        String lastSegment = lastIndexOfSlash == -1 ? input : input.substring(lastIndexOfSlash + 1);
+
+        // If the last segment contains a period, it is considered a file
+        int lastIndexOfDot = lastSegment.lastIndexOf('.');
+        if (lastIndexOfDot == -1 || lastIndexOfDot == lastSegment.length() - 1) {
+            return "";
+        }
+
+        // Extract the substring after the last period
+        return lastSegment.substring(lastIndexOfDot + 1);
+    }
+
+    public static WebElement findElementByID(WebDriver driver, String elementID) {
+        jsExecutor = (JavascriptExecutor) driver;
+        jsExecutor = (JavascriptExecutor) driver;
+        return (WebElement) jsExecutor.executeScript("return document.getElementById(arguments[0]);", elementID);
+    }
+
+    public static WebElement findElementsByName(WebDriver driver, String elementName) {
+        jsExecutor = (JavascriptExecutor) driver;
+        jsExecutor = (JavascriptExecutor) driver;
+        return (WebElement)
+                jsExecutor.executeScript("return document.getElementsByName(arguments[0])[0];", elementName);
+    }
+
+    public static WebElement findElementByAttributeParams(
+            WebDriver driver, String attributeName, String attributeValue) {
+
+        attributeName = attributeName.trim().replaceAll("^\"|\"$", "");
+        attributeValue = attributeValue.trim().replaceAll("^\"|\"$", "");
+
+        jsExecutor = (JavascriptExecutor) driver;
+        try {
+            // Remove extra quotes around the attribute name and value before passing them to JavaScript
+            return (WebElement) jsExecutor.executeScript(
+                    "return document.querySelector('[\"' + arguments[0] + '\"]' + '=\"' + arguments[1] + '\"]');",
+                    attributeName.trim(),
+                    attributeValue.trim());
+        } catch (Exception ignore) {
+        }
+        return null;
+    }
+
+    public static String extractAttribute(WebElement element, WebElementAttributeEnum attributeEnum) {
+        return element.getAttribute(attributeEnum.getValue());
+    }
+
+    private static String insertGroupingSeparators(String number, String separator) {
+        StringBuilder sb = new StringBuilder();
+        int count = 0;
+        for (int i = number.length() - 1; i >= 0; i--) {
+            sb.insert(0, number.charAt(i));
+            count++;
+            if (count % 3 == 0 && i != 0) {
+                sb.insert(0, separator);
+            }
+        }
+        return sb.toString();
     }
 
     public BooleanProperty interceptBotJobProperty() {
@@ -107,36 +372,6 @@ public class PerformActions {
     public void setInterceptBotJob(boolean value) {
         interceptBotJob.set(value);
     }
-
-    @Getter
-    long totalExecutionTime = 0;
-
-    public List<String> windowHandlesList = new ArrayList<>();
-    public int currentTabIndex = 0; // Track the currently active tab index
-
-    private ARPriorities arPriorities;
-
-    @Getter
-    @Setter
-    private WebDriver currentDriver;
-
-    private Map<WebElement, List<WebElement>> iframeElementsMap;
-
-    public static Wait<WebDriver> waitForPage;
-    public static Wait<WebDriver> waitForAction;
-
-    @Getter
-    @Setter
-    private boolean justCalledRefreshPage = false;
-
-    private static JavascriptExecutor jsExecutor;
-
-    private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-    private static final int MIN_LENGTH = 3;
-    private static final int MAX_LENGTH = 30;
-    private static final Random RANDOM = new Random();
-
-    private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
 
     public void initialize(ARPriorities arPriorities) {
         this.arPriorities = arPriorities;
@@ -400,9 +635,9 @@ public class PerformActions {
             tagName = extractTagName(targetXPath);
         } catch (Exception e) {
 
-                    log.info(String.format(
-                            "Error RemoveTrailingSlash for %s -> xPath  %s -> Cause: %s",
-                            tagName, targetXPath, e.getMessage()));
+            log.info(String.format(
+                    "Error RemoveTrailingSlash for %s -> xPath  %s -> Cause: %s",
+                    tagName, targetXPath, e.getMessage()));
         }
 
         waitPage();
@@ -422,10 +657,10 @@ public class PerformActions {
                         try {
                             waitForPage.until(ExpectedConditions.visibilityOfElementLocated(criteria));
                         } catch (Exception e) {
-                            
-                                    log.info(String.format(
-                                            "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
-                                            targetXPath, criteria, e.getMessage()));
+
+                            log.info(String.format(
+                                    "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
+                                    targetXPath, criteria, e.getMessage()));
 
                             showNotFoundElement(targetXPath, criteria);
 
@@ -440,10 +675,10 @@ public class PerformActions {
                             new WebDriverWait(this.currentDriver, Duration.ofSeconds(actionCustomMaxWaitSec))
                                     .until(ExpectedConditions.presenceOfElementLocated(criteria));
                         } catch (Exception e) {
-                            
-                                    log.info(String.format(
-                                            "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
-                                            targetXPath, criteria, e.getMessage()));
+
+                            log.info(String.format(
+                                    "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
+                                    targetXPath, criteria, e.getMessage()));
                             if (!byPassNotFound) {
                                 performMessage.couldNotFindElement(String.valueOf(criteria));
                             }
@@ -452,10 +687,10 @@ public class PerformActions {
                         try {
                             waitForAction.until(ExpectedConditions.visibilityOfElementLocated(criteria));
                         } catch (Exception e) {
-                            
-                                    log.info(String.format(
-                                            "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
-                                            targetXPath, criteria, e.getMessage()));
+
+                            log.info(String.format(
+                                    "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
+                                    targetXPath, criteria, e.getMessage()));
 
                             if (!byPassNotFound) {
                                 performMessage.couldNotFindElement(String.valueOf(criteria));
@@ -520,17 +755,17 @@ public class PerformActions {
             tagName = removeTrailingSlash(instructionPath);
             tagName = extractTagName(instructionPath);
         } catch (Exception e) {
-            
-                    log.info(String.format(
-                            "Error RemoveTrailingSlash for %s -> xPath  %s -> Cause: %s",
-                            tagName, instructionPath, e.getMessage()));
+
+            log.info(String.format(
+                    "Error RemoveTrailingSlash for %s -> xPath  %s -> Cause: %s",
+                    tagName, instructionPath, e.getMessage()));
         }
         List<ReferenceLoadDTO> instructionReferenceList = currentInstruction.getReferenceLoadDTOList();
 
         if (instructionReferenceList.size() == 0) {
-            
-                    log.warn("####    Not XPath to Be Located!   ####"
-                            + "\n####    Remove and Re-Scan the Failed Field Again   ####");
+
+            log.warn("####    Not XPath to Be Located!   ####"
+                    + "\n####    Remove and Re-Scan the Failed Field Again   ####");
 
             return null;
         }
@@ -594,12 +829,11 @@ public class PerformActions {
                 // Print or process the first matching instruction reference
                 if (instructionReference.isPresent()) {
 
-                    
-                            log.info(String.format(
-                                    "Search for %s   Type:  %s   Value: %s",
-                                    priority.getName(),
-                                    instructionReference.get().getReferenceType(),
-                                    instructionReference.get().getValue()));
+                    log.info(String.format(
+                            "Search for %s   Type:  %s   Value: %s",
+                            priority.getName(),
+                            instructionReference.get().getReferenceType(),
+                            instructionReference.get().getValue()));
                 }
                 if (instructionReference.isPresent()) {
                     List<By> criterias = null;
@@ -678,10 +912,10 @@ public class PerformActions {
                                     try {
                                         waitForPage.until(ExpectedConditions.visibilityOfElementLocated(criteria));
                                     } catch (Exception e) {
-                                        
-                                                log.info(String.format(
-                                                        "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
-                                                        instructionPath, criteria, e.getMessage()));
+
+                                        log.info(String.format(
+                                                "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
+                                                instructionPath, criteria, e.getMessage()));
 
                                         //
                                         // performMessage.couldNotFindElement(String.valueOf(criteria));
@@ -695,10 +929,10 @@ public class PerformActions {
                                                                 currentInstruction.getActionCustomMaxWaitSec()))
                                                 .until(ExpectedConditions.presenceOfElementLocated(criteria));
                                     } catch (Exception e) {
-                                        
-                                                log.info(String.format(
-                                                        "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
-                                                        instructionPath, criteria, e.getMessage()));
+
+                                        log.info(String.format(
+                                                "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
+                                                instructionPath, criteria, e.getMessage()));
 
                                         //
                                         // performMessage.couldNotFindElement(String.valueOf(criteria));
@@ -707,10 +941,10 @@ public class PerformActions {
                                     try {
                                         waitForAction.until(ExpectedConditions.visibilityOfElementLocated(criteria));
                                     } catch (Exception e) {
-                                        
-                                                log.info(String.format(
-                                                        "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
-                                                        instructionPath, criteria, e.getMessage()));
+
+                                        log.info(String.format(
+                                                "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
+                                                instructionPath, criteria, e.getMessage()));
 
                                         //
                                         // performMessage.couldNotFindElement(String.valueOf(criteria));
@@ -766,18 +1000,18 @@ public class PerformActions {
             tagName = removeTrailingSlash(instructionPath);
             tagName = extractTagName(instructionPath);
         } catch (Exception e) {
-            
-                    log.info(String.format(
-                            "Error RemoveTrailingSlash for %s -> xPath  %s -> Cause: %s",
-                            tagName, instructionPath, e.getMessage()));
+
+            log.info(String.format(
+                    "Error RemoveTrailingSlash for %s -> xPath  %s -> Cause: %s",
+                    tagName, instructionPath, e.getMessage()));
         }
 
         List<ReferenceLoadDTO> instructionReferenceList = currentInstruction.getReferenceLoadDTOList();
 
         if (instructionReferenceList.isEmpty()) {
-            
-                    log.warn("####    Not XPath to Be Located!   ####"
-                            + "\n####    Remove and Re-Scan the Failed Field Again   ####");
+
+            log.warn("####    Not XPath to Be Located!   ####"
+                    + "\n####    Remove and Re-Scan the Failed Field Again   ####");
             return null;
         }
 
@@ -866,12 +1100,12 @@ public class PerformActions {
                         .findFirst();
 
                 if (instructionReference.isPresent()) {
-                    
-                            log.info(String.format(
-                                    "Search for %s   Type:  %s   Value: %s",
-                                    priority.getName(),
-                                    instructionReference.get().getReferenceType(),
-                                    instructionReference.get().getValue()));
+
+                    log.info(String.format(
+                            "Search for %s   Type:  %s   Value: %s",
+                            priority.getName(),
+                            instructionReference.get().getReferenceType(),
+                            instructionReference.get().getValue()));
 
                     List<By> criterias = null;
 
@@ -987,7 +1221,7 @@ public class PerformActions {
                                 // waitForPage.until(ExpectedConditions.visibilityOfElementLocated(criteria));
                                 //                                    scrollToElement(currentInstruction.getXpath());
                                 //                                } catch (Exception e) {
-                                //                                    
+                                //
                                 //                                            log.info(String.format(
                                 //                                                    "Could Not Find xPath \"%s\"
                                 // Criteria \"%s\" -> Cause: %s",
@@ -1032,10 +1266,9 @@ public class PerformActions {
                         break;
                     }
                     onHoldInSeconds(5);
-                    
-                            log.info(String.format(
-                                    "Re-try %d Locate Web Element TagName \"%s\"",
-                                    attempts, currentInstruction.getName()));
+
+                    log.info(String.format(
+                            "Re-try %d Locate Web Element TagName \"%s\"", attempts, currentInstruction.getName()));
 
                 } catch (Exception e) {
                 }
@@ -1045,81 +1278,16 @@ public class PerformActions {
         return elementFound;
     }
 
-    public static String removeTrailingSlash(String xPath) {
-        if (xPath != null && xPath.endsWith("/")) {
-            return xPath.substring(0, xPath.length() - 1);
-        }
-        return xPath;
-    }
-
-    public static String extractTagName(String xPath) {
-        // Find the position of the last '/'
-        int lastSlashIndex = xPath.lastIndexOf("/");
-
-        // Extract the substring after the last '/'
-        String lastSegment = xPath.substring(lastSlashIndex + 1);
-
-        // If the last segment contains '[', extract the tag name before it
-        int bracketIndex = lastSegment.indexOf("[");
-        if (bracketIndex != -1) {
-            return lastSegment.substring(0, bracketIndex);
-        }
-
-        // Return the last segment as the tag name
-        return lastSegment;
-    }
-
-    public static String convertToCssSelector(String tagName, List<String> priorityToSearch, String attributeValue) {
-
-        for (String priority : priorityToSearch) {
-            priority = priority.trim();
-            String attributeName;
-
-            if (priority.equalsIgnoreCase("attributeID")) {
-                attributeName = "id";
-            } else if (priority.equalsIgnoreCase("attributeName")) {
-                attributeName = "name";
-            } else {
-                attributeName = priority; // Use the priority as the attribute name for other cases
-            }
-
-            // Create the CSS selector string and add it to the list
-            return tagName + "[" + attributeName + "='" + attributeValue.trim() + "']";
-        }
-
-        return null;
-    }
-
-    public static List<By> convertToCriteriaList(String tagName, List<String> priorityToSearch, String someXPath) {
-        // Split the string by commas and trim any leading/trailing whitespace from each element
-        List<By> criteriaList = new ArrayList<>();
-
-        for (String priority : priorityToSearch) {
-            priority = priority.trim();
-
-            if (priority.equalsIgnoreCase("attributeID")) {
-                priority = "id";
-            } else if (priority.equalsIgnoreCase("attributeName")) {
-                priority = "name";
-            }
-            // Create the By.cssSelector object and add it to the list
-            By criteria = By.cssSelector(tagName + "[" + priority + "='" + someXPath + "']");
-            criteriaList.add(criteria);
-        }
-
-        return criteriaList;
-    }
-
     private String insertTargetElement(
             boolean byPassNotFound, WebElement element, String fieldName, String dataFieldValue) throws Exception {
         UtilsMethods.exceptionIfNullWebElement(element);
         try {
             waitForAction.until(ExpectedConditions.visibilityOf(element));
         } catch (Exception e) {
-            
-                    log.info(String.format(
-                            "Could Not Find Field Name \"%s\" Value \"%s\" -> Cause: %s",
-                            fieldName, dataFieldValue, e.getMessage()));
+
+            log.info(String.format(
+                    "Could Not Find Field Name \"%s\" Value \"%s\" -> Cause: %s",
+                    fieldName, dataFieldValue, e.getMessage()));
 
             if (!byPassNotFound) {
                 performMessage.couldNotFindElement(fieldName);
@@ -1140,9 +1308,8 @@ public class PerformActions {
         try {
             waitForAction.until(ExpectedConditions.visibilityOf(element));
         } catch (Exception e) {
-            
-                    log.info(String.format(
-                            "Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
+
+            log.info(String.format("Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
 
             if (!byPassNotFound) {
                 performMessage.couldNotFindElement(element.getTagName());
@@ -1202,16 +1369,16 @@ public class PerformActions {
                         .executeScript("return document.readyState")
                         .equals("complete"));
             } catch (Exception ex) {
-                
-                        log.warn(String.format(
-                                "WaitForPage.until(d -> ((JavascriptExecutor) driver) error: %s", ex.getMessage()));
+
+                log.warn(String.format(
+                        "WaitForPage.until(d -> ((JavascriptExecutor) driver) error: %s", ex.getMessage()));
 
                 performMessage.couldNotFindElement("WaitForPage.until");
             }
         } else {
             // Handle the case when driver is null (e.g., throw an exception or initialize the driver)
-            
-                    log.warn("WaitForPage.until(d -> ((JavascriptExecutor) driver) is returning nulls");
+
+            log.warn("WaitForPage.until(d -> ((JavascriptExecutor) driver) is returning nulls");
         }
     }
 
@@ -1221,9 +1388,9 @@ public class PerformActions {
             ((JavascriptExecutor) this.currentDriver).executeScript("arguments[0].scrollIntoView(true);", element);
             return true;
         } catch (Exception e) {
-            
-                    log.error(String.format(
-                            "Failed to Scroll to Element \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
+
+            log.error(String.format(
+                    "Failed to Scroll to Element \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
             if (!byPassNotFound) {
                 performMessage.couldNotFindElement("Failed to Scroll to Element " + element.getTagName());
             }
@@ -1240,9 +1407,8 @@ public class PerformActions {
                 return waitForAction.until(ExpectedConditions.elementToBeClickable(element));
             }));
         } catch (Exception e) {
-            
-                    log.info(String.format(
-                            "Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
+
+            log.info(String.format("Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
 
             if (!byPassNotFound) {
                 performMessage.couldNotFindElement(element.getTagName());
@@ -1298,9 +1464,8 @@ public class PerformActions {
                 return true;
             } catch (Exception ex) {
 
-                
-                        log.info(String.format(
-                                "Could Not Click on  \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
+                log.info(
+                        String.format("Could Not Click on  \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
                 return false;
             }
         }
@@ -1339,9 +1504,8 @@ public class PerformActions {
         try {
             waitForAction.until(ExpectedConditions.visibilityOf(element));
         } catch (Exception e) {
-            
-                    log.info(String.format(
-                            "Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
+
+            log.info(String.format("Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
             if (!byPassNotFound) {
                 performMessage.couldNotFindElement(element.getTagName());
             }
@@ -1399,9 +1563,9 @@ public class PerformActions {
                 }
             }
         } catch (Exception e) {
-            
-                    log.error(String.format(
-                            "Could Not Input Value to \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
+
+            log.error(String.format(
+                    "Could Not Input Value to \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
 
             //            performMessage.couldNotFindElement("Could Input Values to Element " + element.getTagName());
             return false;
@@ -1456,10 +1620,10 @@ public class PerformActions {
         try {
             waitForAction.until(ExpectedConditions.visibilityOf(element));
         } catch (Exception e) {
-            
-                    log.info(String.format(
-                            "Could Not Find Select \"%s\" Value  \"%s\" -> Cause: %s",
-                            data.getKey(), data.getValue(), e.getMessage()));
+
+            log.info(String.format(
+                    "Could Not Find Select \"%s\" Value  \"%s\" -> Cause: %s",
+                    data.getKey(), data.getValue(), e.getMessage()));
             if (!byPassNotFound) {
                 performMessage.couldNotFindElement(data.getKey());
             }
@@ -1475,9 +1639,9 @@ public class PerformActions {
             sequenceOfCommands(element, ARConstants.SELECT, coordArray, data, this.currentDriver, pressEnterAfter);
 
         } catch (Exception e) {
-            
-                    log.error(String.format(
-                            "Could Not Input Value to \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
+
+            log.error(String.format(
+                    "Could Not Input Value to \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
 
             performMessage.couldNotFindElement("Could Input Values to Element " + element.getTagName());
 
@@ -1499,9 +1663,8 @@ public class PerformActions {
         try {
             waitForAction.until(ExpectedConditions.visibilityOf(element));
         } catch (Exception ex) {
-            
-                    log.warn(
-                            String.format("Could Not Find Field Name \"%s\" -> Cause: %s", fieldName, ex.getMessage()));
+
+            log.warn(String.format("Could Not Find Field Name \"%s\" -> Cause: %s", fieldName, ex.getMessage()));
 
             if (!byPassNotFound) {
                 performMessage.couldNotFindElement(fieldName);
@@ -1518,9 +1681,9 @@ public class PerformActions {
             JavascriptExecutor js = (JavascriptExecutor) this.currentDriver;
             textByhJS = (String) js.executeScript("return arguments[0].textContent;", element);
         } catch (Exception ex) {
-            
-                    log.warn(String.format(
-                            "By JavascriptExecutor - Not succeeded to get a Text from Label for: %s", fieldName));
+
+            log.warn(
+                    String.format("By JavascriptExecutor - Not succeeded to get a Text from Label for: %s", fieldName));
         }
 
         try {
@@ -1531,27 +1694,26 @@ public class PerformActions {
             }
             finalTextNested = textByNested.toString().trim();
         } catch (Exception ex) {
-            
-                    log.warn(String.format(
-                            "By Text Nested - Not succeeded to get a Text from Label for: %s", fieldName));
+
+            log.warn(String.format("By Text Nested - Not succeeded to get a Text from Label for: %s", fieldName));
         }
 
         try {
             textAttribute = element.getAttribute("value");
         } catch (Exception ex) {
-            
-                    log.warn(String.format(
-                            "By Text Attribute - Not succeeded to get a Text from Label for: %s Operation: %s",
-                            fieldName, action));
+
+            log.warn(String.format(
+                    "By Text Attribute - Not succeeded to get a Text from Label for: %s Operation: %s",
+                    fieldName, action));
         }
 
         try {
             textContext = element.getAttribute("textContent");
         } catch (Exception ex) {
-            
-                    log.warn(String.format(
-                            "By Text Content - Not succeeded to get a Text from Label for: %s Operation: %s",
-                            fieldName, action));
+
+            log.warn(String.format(
+                    "By Text Content - Not succeeded to get a Text from Label for: %s Operation: %s",
+                    fieldName, action));
         }
 
         // Check if the element is clickable
@@ -1560,8 +1722,8 @@ public class PerformActions {
             waitForAction.until(ExpectedConditions.elementToBeClickable(element));
             isClickable = true;
         } catch (Exception e) {
-            
-                    log.warn(String.format("Element is not clickable: \"%s\"", fieldName));
+
+            log.warn(String.format("Element is not clickable: \"%s\"", fieldName));
         }
 
         // Set the final text value by priority and add to mapOperators
@@ -1584,8 +1746,8 @@ public class PerformActions {
             mapOperators.put(fieldName.trim(), finalText.trim());
         } else {
             mapOperators.put(fieldName.trim(), "Failed to Load teh Text");
-            
-                    log.error(String.format("Failed to retrieve text from element for: %s", fieldName));
+
+            log.error(String.format("Failed to retrieve text from element for: %s", fieldName));
         }
 
         return finalText;
@@ -1602,24 +1764,18 @@ public class PerformActions {
 
         if (success) {
 
-            
-                    log.info(String.format(
-                            success
-                                    ? "SUCCESS %s Current Cmd: %s - Duration: %s"
-                                    : "FAILED %s Current Cmd: %s - Duration: %s",
-                            mainMsg,
-                            currentExecution,
-                            LocalTime.ofNanoOfDay(duration).format(FORMAT_TIME)));
+            log.info(String.format(
+                    success ? "SUCCESS %s Current Cmd: %s - Duration: %s" : "FAILED %s Current Cmd: %s - Duration: %s",
+                    mainMsg,
+                    currentExecution,
+                    LocalTime.ofNanoOfDay(duration).format(FORMAT_TIME)));
         } else {
 
-            
-                    log.warn(String.format(
-                            success
-                                    ? "SUCCESS %s Current Cmd: %s - Duration: %s"
-                                    : "FAILED %s Current Cmd: %s - Duration: %s",
-                            mainMsg,
-                            currentExecution,
-                            LocalTime.ofNanoOfDay(duration).format(FORMAT_TIME)));
+            log.warn(String.format(
+                    success ? "SUCCESS %s Current Cmd: %s - Duration: %s" : "FAILED %s Current Cmd: %s - Duration: %s",
+                    mainMsg,
+                    currentExecution,
+                    LocalTime.ofNanoOfDay(duration).format(FORMAT_TIME)));
         }
 
         return (short) (success ? ExcelReportStatusEnum.SUCCESS.ordinal() : ExcelReportStatusEnum.ERROR.ordinal());
@@ -1787,23 +1943,23 @@ public class PerformActions {
                 : elseClause ? "Closing Block { ELSE -> ENDIF }  -> " : "";
 
         if (ifClause || elseClause) {
-            
-                    log.warn(String.format(
-                            "%sParent Id Error Check Parent Id: %d "
-                                    + "For the \"%s\" Does not belong to this block: "
-                                    + blockLoad.getId() + "-" + blockLoad.getName(),
-                            conditionalBlock,
-                            currentInstruction.getParentId(),
-                            currentInstruction.getOperation()));
+
+            log.warn(String.format(
+                    "%sParent Id Error Check Parent Id: %d "
+                            + "For the \"%s\" Does not belong to this block: "
+                            + blockLoad.getId() + "-" + blockLoad.getName(),
+                    conditionalBlock,
+                    currentInstruction.getParentId(),
+                    currentInstruction.getOperation()));
 
         } else {
-            
-                    log.error(String.format(
-                            "Parent Id Error Check Parent Id: %d "
-                                    + "For the \"%s\" Does not belong to this block: "
-                                    + blockLoad.getId() + "-" + blockLoad.getName(),
-                            currentInstruction.getParentId(),
-                            currentInstruction.getOperation()));
+
+            log.error(String.format(
+                    "Parent Id Error Check Parent Id: %d "
+                            + "For the \"%s\" Does not belong to this block: "
+                            + blockLoad.getId() + "-" + blockLoad.getName(),
+                    currentInstruction.getParentId(),
+                    currentInstruction.getOperation()));
         }
 
         return String.format(
@@ -1845,22 +2001,22 @@ public class PerformActions {
                                 : "Parent Id in Wrong Block";
 
         if (!conditionStatus.equals(ARConstants.ConditionStatus.NONE)) {
-            
-                    log.warn(String.format(
-                            "%sParent Id Error Check Parent Id: %d For the \"%s\" Does not belong to this block: %d-%s",
-                            conditionalBlock,
-                            currentInstruction.getParentId(),
-                            currentInstruction.getOperation(),
-                            blockLoad.getId(),
-                            blockLoad.getName()));
+
+            log.warn(String.format(
+                    "%sParent Id Error Check Parent Id: %d For the \"%s\" Does not belong to this block: %d-%s",
+                    conditionalBlock,
+                    currentInstruction.getParentId(),
+                    currentInstruction.getOperation(),
+                    blockLoad.getId(),
+                    blockLoad.getName()));
         } else {
-            
-                    log.error(String.format(
-                            "Parent Id Error Check Parent Id: %d For the \"%s\" Does not belong to this block: %d-%s",
-                            currentInstruction.getParentId(),
-                            currentInstruction.getOperation(),
-                            blockLoad.getId(),
-                            blockLoad.getName()));
+
+            log.error(String.format(
+                    "Parent Id Error Check Parent Id: %d For the \"%s\" Does not belong to this block: %d-%s",
+                    currentInstruction.getParentId(),
+                    currentInstruction.getOperation(),
+                    blockLoad.getId(),
+                    blockLoad.getName()));
         }
 
         if (!conditionStatus.equals(ARConstants.ConditionStatus.NONE)) {
@@ -2006,8 +2162,7 @@ public class PerformActions {
 
         performMessage.errorMessage("Parent Id Error", msg1, msg2, msg3, null, 0);
 
-        
-                log.error("Block GO TO Error: -> Check Correct Block Existence! -> CMD: " + resultActions);
+        log.error("Block GO TO Error: -> Check Correct Block Existence! -> CMD: " + resultActions);
 
         return resultActions;
     }
@@ -2168,23 +2323,6 @@ public class PerformActions {
         }
     }
 
-    public static Pair<String, String> insertRandomName(String key) {
-        String randomName = generateRandomName();
-        return new Pair<>(key, randomName);
-    }
-
-    public static String generateRandomName() {
-        int length = RANDOM.nextInt(MAX_LENGTH - MIN_LENGTH + 1) + MIN_LENGTH;
-        StringBuilder nameBuilder = new StringBuilder(length);
-
-        for (int i = 0; i < length; i++) {
-            char randomChar = CHARACTERS.charAt(RANDOM.nextInt(CHARACTERS.length()));
-            nameBuilder.append(randomChar);
-        }
-
-        return nameBuilder.toString();
-    }
-
     public int[] addElementToArray(int[] refreshLoopArray, int newItem) {
         int[] extendedRefreshArray = new int[refreshLoopArray.length + 1];
         System.arraycopy(refreshLoopArray, 0, extendedRefreshArray, 0, refreshLoopArray.length);
@@ -2272,6 +2410,7 @@ public class PerformActions {
             return null;
         }
     }
+
     // It Must be Greater than CurrentIndex
     // Ir Predicts if is going to have multiple ENSEIFs
     public int searchMapConditional(
@@ -2392,30 +2531,6 @@ public class PerformActions {
             // Close the browser if necessary
             // driver.quit();
         }
-    }
-
-    // Function to check if the element is visible
-    private static boolean isElementVisible(WebElement element, WebDriver driver) {
-        // Check if the element is displayed and within the viewport
-        try {
-            return element.isDisplayed() && isInViewport(element, driver);
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
-            return false;
-        }
-    }
-
-    // Function to check if the element is within the viewport
-    private static boolean isInViewport(WebElement element, WebDriver driver) {
-        // Use JavaScript to check if the element is in the viewport
-        // Use the WebDriver (which implements JavascriptExecutor) to execute JavaScript
-        JavascriptExecutor js = (JavascriptExecutor) driver;
-
-        // Execute the JavaScript to get the element's position and check if it's in the viewport
-        return (boolean) js.executeScript(
-                "var rect = arguments[0].getBoundingClientRect(); "
-                        + "return (rect.top >= 0 && rect.left >= 0 && rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) && rect.right <= (window.innerWidth || document.documentElement.clientWidth));",
-                element);
     }
 
     public boolean executeActionsAtCoordinates(
@@ -2612,16 +2727,16 @@ public class PerformActions {
 
             String script =
                     """
-            var evt = new KeyboardEvent('keydown', {
-                key: 'Enter',
-                code: 'Enter',
-                keyCode: 13,
-                which: 13,
-                bubbles: true,
-                cancelable: true
-            });
-            document.activeElement.dispatchEvent(evt);
-        """;
+                                var evt = new KeyboardEvent('keydown', {
+                                    key: 'Enter',
+                                    code: 'Enter',
+                                    keyCode: 13,
+                                    which: 13,
+                                    bubbles: true,
+                                    cancelable: true
+                                });
+                                document.activeElement.dispatchEvent(evt);
+                            """;
 
             js.executeScript(script);
             return true;
@@ -2767,20 +2882,20 @@ public class PerformActions {
 
             String script =
                     """
-        function getElementAtCoordinates(x, y) {
-          return document.elementFromPoint(x, y);
-        }
+                                function getElementAtCoordinates(x, y) {
+                                  return document.elementFromPoint(x, y);
+                                }
 
-        const elementAtPoint = getElementAtCoordinates(arguments[0], arguments[1]);
+                                const elementAtPoint = getElementAtCoordinates(arguments[0], arguments[1]);
 
-        if (elementAtPoint && (elementAtPoint.tagName === 'INPUT' || elementAtPoint.tagName === 'TEXTAREA')) {
-          elementAtPoint.value = '';
-        } else if (elementAtPoint && elementAtPoint.isContentEditable) {
-          elementAtPoint.textContent = '';
-        } else {
-          console.log("No suitable element (input, textarea, or contenteditable) found at coordinates (" + arguments[0] + ", " + arguments[1] + ")");
-        }
-    """;
+                                if (elementAtPoint && (elementAtPoint.tagName === 'INPUT' || elementAtPoint.tagName === 'TEXTAREA')) {
+                                  elementAtPoint.value = '';
+                                } else if (elementAtPoint && elementAtPoint.isContentEditable) {
+                                  elementAtPoint.textContent = '';
+                                } else {
+                                  console.log("No suitable element (input, textarea, or contenteditable) found at coordinates (" + arguments[0] + ", " + arguments[1] + ")");
+                                }
+                            """;
 
             jsExecutor.executeScript(script, temp1, temp2);
             return true;
@@ -2797,18 +2912,18 @@ public class PerformActions {
             JavascriptExecutor jsExecutor = (JavascriptExecutor) currentDriver;
             String script =
                     """
-        function getElementAtCoordinates(x, y) {
-          return document.elementFromPoint(x, y);
-        }
+                                function getElementAtCoordinates(x, y) {
+                                  return document.elementFromPoint(x, y);
+                                }
 
-        const elementAtPoint = getElementAtCoordinates(arguments[0], arguments[1]);
+                                const elementAtPoint = getElementAtCoordinates(arguments[0], arguments[1]);
 
-        if (elementAtPoint) {
-          elementAtPoint.click();
-        } else {
-          console.log("No element found at coordinates (" + arguments[0] + ", " + arguments[1] + ")");
-        }
-    """;
+                                if (elementAtPoint) {
+                                  elementAtPoint.click();
+                                } else {
+                                  console.log("No element found at coordinates (" + arguments[0] + ", " + arguments[1] + ")");
+                                }
+                            """;
 
             jsExecutor.executeScript(script, temp1, temp2);
             return true;
@@ -3095,72 +3210,6 @@ public class PerformActions {
         return iframeElementsMap;
     }
 
-    public static String insertValueIFrameElement(
-            WebDriver driver, String iframeXPath, String inputXPath, String inputValue) {
-        jsExecutor = (JavascriptExecutor) driver;
-
-        String script = "(function(iframeXPath, inputXPath, inputValue) {" + "    let logs = [];"
-                + "    let iframe = document.evaluate(iframeXPath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;"
-                + "    if (iframe) {"
-                + "        let iframeDocument = iframe.contentDocument || iframe.contentWindow.document;"
-                + "        let inputElement = document.evaluate(inputXPath, iframeDocument, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;"
-                + "        if (inputElement) {"
-                + "            inputElement.value = inputValue;"
-                + "            inputElement.dispatchEvent(new Event('input', { bubbles: true }));"
-                + "            logs.push('Text entered successfully.');"
-                + "        } else {"
-                + "            logs.push('Input field not found inside the iframe.');"
-                + "        }"
-                + "    } else {"
-                + "        logs.push('Iframe not found.');"
-                + "    }"
-                + "    return logs.join('\n');"
-                + "})(arguments[0], arguments[1], arguments[2]);";
-
-        return (String) jsExecutor.executeScript(script, iframeXPath, inputXPath, inputValue);
-    }
-
-    public static String insertValueIFrameElement(
-            WebDriver driver,
-            String iframeXPath,
-            String inputXPath,
-            String inputValue,
-            String targetOriginURL,
-            String trustedOriginURL) {
-
-        jsExecutor = (JavascriptExecutor) driver;
-
-        String script = "(function(iframeXPath, inputXPath, inputValue, targetOriginURL, trustedOriginURL) {"
-                + "    let logs = [];"
-                + "    let iframe = document.evaluate(iframeXPath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;"
-                + "    if (iframe) {"
-                + "        let iframeDocument = iframe.contentDocument || iframe.contentWindow.document;"
-                + "        let inputElement = document.evaluate(inputXPath, iframeDocument, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;"
-                + "        if (inputElement) {"
-                + "            inputElement.value = inputValue;"
-                + "            inputElement.dispatchEvent(new Event('input', { bubbles: true }));"
-                + "            logs.push('Text entered successfully.');"
-                + "            "
-                + "            // Send a message to the targetOriginURL (globally, once input is set)"
-                + "            window.postMessage({ type: 'myMessage', data: 'some data' }, targetOriginURL);"
-                + "        } else {"
-                + "            logs.push('Input field not found inside the iframe.');"
-                + "        }"
-                + "    } else {"
-                + "        logs.push('Iframe not found.');"
-                + "    }"
-                + "    return logs.join('\\n');"
-                + "} )(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);"
-                + " // Listen for messages from the trusted origin (this needs to be in the global scope)"
-                + "window.addEventListener('message', function (event) {"
-                + "    if (event.origin !== trustedOriginURL) return;" // Validate message source
-                + "    console.log('Received message:', event.data);"
-                + "});";
-
-        return (String) jsExecutor.executeScript(
-                script, iframeXPath, inputXPath, inputValue, targetOriginURL, trustedOriginURL);
-    }
-
     public ElementDTO convertTargetToElementDTO(TargetElement targetElement) {
         if (targetElement == null) {
             return null;
@@ -3323,21 +3372,6 @@ public class PerformActions {
         elemenDTO.setCustomXPath(instructionDTO.getXpath());
 
         return elemenDTO;
-    }
-
-    public static String truncateAndNormalize(String someText, int limit) {
-        if (someText == null || someText.isEmpty()) {
-            return someText;
-        }
-
-        // Remove extra spaces and trim
-        String normalizedText = someText.trim().replaceAll("\\s+", " ");
-
-        if (normalizedText.length() <= limit) {
-            return normalizedText;
-        }
-
-        return normalizedText.substring(0, limit) + "...";
     }
 
     // TODO MORE INTELLIGENT  LOGIC
@@ -3541,37 +3575,10 @@ public class PerformActions {
             return targetTagType;
 
         } catch (Exception ex) {
-            
-                    log.error("Could not find any Web Element with XPath/Id/Attributes values.");
+
+            log.error("Could not find any Web Element with XPath/Id/Attributes values.");
         }
         return null;
-    }
-
-    /**
-     * Extracts the file extension from the given string, considering it may be a path.
-     *
-     * @param input The string from which to extract the file extension.
-     * @return The file extension if present and the string is identified as a file, otherwise an empty string.
-     */
-    public static String extractFileExtension(String input) {
-        if (input == null || input.isEmpty()) {
-            return "";
-        }
-
-        // Find the last slash in the string
-        int lastIndexOfSlash = input.lastIndexOf('/');
-
-        // Get the substring after the last slash
-        String lastSegment = lastIndexOfSlash == -1 ? input : input.substring(lastIndexOfSlash + 1);
-
-        // If the last segment contains a period, it is considered a file
-        int lastIndexOfDot = lastSegment.lastIndexOf('.');
-        if (lastIndexOfDot == -1 || lastIndexOfDot == lastSegment.length() - 1) {
-            return "";
-        }
-
-        // Extract the substring after the last period
-        return lastSegment.substring(lastIndexOfDot + 1);
     }
 
     private boolean isValidString(String value) {
@@ -3621,41 +3628,6 @@ public class PerformActions {
         } catch (Exception error) {
 
         }
-    }
-
-    public static WebElement findElementByID(WebDriver driver, String elementID) {
-        jsExecutor = (JavascriptExecutor) driver;
-        jsExecutor = (JavascriptExecutor) driver;
-        return (WebElement) jsExecutor.executeScript("return document.getElementById(arguments[0]);", elementID);
-    }
-
-    public static WebElement findElementsByName(WebDriver driver, String elementName) {
-        jsExecutor = (JavascriptExecutor) driver;
-        jsExecutor = (JavascriptExecutor) driver;
-        return (WebElement)
-                jsExecutor.executeScript("return document.getElementsByName(arguments[0])[0];", elementName);
-    }
-
-    public static WebElement findElementByAttributeParams(
-            WebDriver driver, String attributeName, String attributeValue) {
-
-        attributeName = attributeName.trim().replaceAll("^\"|\"$", "");
-        attributeValue = attributeValue.trim().replaceAll("^\"|\"$", "");
-
-        jsExecutor = (JavascriptExecutor) driver;
-        try {
-            // Remove extra quotes around the attribute name and value before passing them to JavaScript
-            return (WebElement) jsExecutor.executeScript(
-                    "return document.querySelector('[\"' + arguments[0] + '\"]' + '=\"' + arguments[1] + '\"]');",
-                    attributeName.trim(),
-                    attributeValue.trim());
-        } catch (Exception ignore) {
-        }
-        return null;
-    }
-
-    public static String extractAttribute(WebElement element, WebElementAttributeEnum attributeEnum) {
-        return element.getAttribute(attributeEnum.getValue());
     }
 
     public WebElement findShadowElementByCssSelector(String shadowLocator, String cssSelector) {
@@ -3859,11 +3831,11 @@ public class PerformActions {
                     getCurrentDriver().switchTo().frame(iFrame);
                     elementFound = getCurrentDriver().findElement(By.xpath(targetFind.getXPath()));
                 } catch (Exception error) {
-                    
-                            log.info("iFrame Element not Located\niFrameXPath"
-                                    + targetFind.getIFrameXPath()
-                                    + "iFrameChild: "
-                                    + targetFind.getXPath());
+
+                    log.info("iFrame Element not Located\niFrameXPath"
+                            + targetFind.getIFrameXPath()
+                            + "iFrameChild: "
+                            + targetFind.getXPath());
                 }
             } else {
                 elementFound = getCurrentDriver().findElement(By.xpath(targetFind.getXPath()));
@@ -3898,17 +3870,16 @@ public class PerformActions {
             WebElement foundElement = (WebElement) ((JavascriptExecutor) this.currentDriver).executeScript(script);
 
             if (foundElement == null) {
-                
-                        log.info(String.format("Element with CSS Selector \"%s\" not found.", cssSelector));
+
+                log.info(String.format("Element with CSS Selector \"%s\" not found.", cssSelector));
                 return null;
             }
             return foundElement;
 
         } catch (Exception e) {
-            
-                    log.error(String.format(
-                            "Error finding element with CSS Selector \"%s\" -> Cause: %s",
-                            cssSelector, e.getMessage()));
+
+            log.error(String.format(
+                    "Error finding element with CSS Selector \"%s\" -> Cause: %s", cssSelector, e.getMessage()));
             return null;
         }
     }
@@ -3984,19 +3955,6 @@ public class PerformActions {
         }
     }
 
-    private static String insertGroupingSeparators(String number, String separator) {
-        StringBuilder sb = new StringBuilder();
-        int count = 0;
-        for (int i = number.length() - 1; i >= 0; i--) {
-            sb.insert(0, number.charAt(i));
-            count++;
-            if (count % 3 == 0 && i != 0) {
-                sb.insert(0, separator);
-            }
-        }
-        return sb.toString();
-    }
-
     //    private void listOperation(boolean byPassNotFound, InstructionLoad instructionDTO) {
     //
     //        /*
@@ -4022,7 +3980,7 @@ public class PerformActions {
     //
     // waitForPage.until(ExpectedConditions.visibilityOfElementLocated(By.tagName(complexActionParts[2])));
     //            } catch (Exception e) {
-    //                
+    //
     //                        log.info(String.format(
     //                                "Could Not Find TagName \"%s\" Criteria \"%s\" -> Cause: %s",
     //                                complexActionParts[2], By.tagName(complexActionParts[2]), e.getMessage()));
@@ -4047,7 +4005,7 @@ public class PerformActions {
     //                                ExpectedConditions.visibilityOfElementLocated(By.tagName(complexActionParts[2])));
     //                        webElementList = this.currentDriver.findElements(By.tagName(complexActionParts[2]));
     //                    } catch (Exception e) {
-    //                        
+    //
     //                                log.info(String.format(
     //                                        "Could Not Find TagName \"%s\" Criteria \"%s\" -> Cause: %s",
     //                                        complexActionParts[2], By.tagName(complexActionParts[2]),

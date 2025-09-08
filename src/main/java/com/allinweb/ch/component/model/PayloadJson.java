@@ -1,6 +1,5 @@
 package com.allinweb.ch.component.model;
 
-
 public class PayloadJson {
     private Integer id;
     private Integer blockId;

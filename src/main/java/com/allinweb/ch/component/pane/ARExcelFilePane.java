@@ -1,13 +1,19 @@
 package com.allinweb.ch.component.pane;
 
-import com.allinweb.ch.component.model.*;
+import com.allinweb.ch.component.model.BotJobLoadDTO;
+import com.allinweb.ch.component.model.FormatOption;
+import com.allinweb.ch.component.model.InstructionLoad;
+import com.allinweb.ch.component.model.SplitDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.socket.WebSocketSessionManager;
-import com.allinweb.ch.util.*;
+import com.allinweb.ch.util.ARConstants;
+import com.allinweb.ch.util.ARPropertyEnum;
+import com.allinweb.ch.util.ARPropertyManager;
+import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import java.io.File;
@@ -20,13 +26,7 @@ import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
-import javafx.scene.layout.AnchorPane;
-import javafx.scene.layout.ColumnConstraints;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Pane;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
@@ -36,8 +36,41 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ARExcelFilePane extends ARPane {
 
+    private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
+    private static final PerformLists performLists = PerformLists.getInstance();
+    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
+    private static final PerformMessage performMessage = PerformMessage.getInstance();
+    private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
+    private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
     protected static volatile ARExcelFilePane instance;
-
+    private final Gson gson = new Gson();
+    // UI Components
+    Label titleLabel;
+    Label blockNameLabel;
+    Label pathExportLabel;
+    Label fileExportLabel;
+    Label fileTypeLabel;
+    Label delimeterCSVLabel;
+    TextField pathExport;
+    TextField fileExport;
+    ObservableList<String> filetypeList =
+            FXCollections.observableArrayList(ARConstants.FILE_FORMAT_EXCEL, ARConstants.FILE_FORMAT_CSV);
+    ChoiceBox<String> fileTypeChoiceBox = new ChoiceBox<>();
+    ComboBox<FormatOption> comboBoxCSVColumns;
+    Button pathExportButton;
+    Button pathDeleteButton;
+    Button saveButton;
+    Button cancelButton;
+    VBox pathGroup;
+    AnchorPane mainPane;
+    double buttonWidth = 200;
+    String excelPath;
+    String directory;
+    String fileName;
+    String delimiter;
+    private Stage modalStage;
+    private SplitDTO splitDTO;
+    private String sessionId;
     // Private constructor to prevent instantiation
     private ARExcelFilePane() {
 
@@ -54,10 +87,6 @@ public class ARExcelFilePane extends ARPane {
         }
         return instance;
     }
-
-    private Stage modalStage;
-    private SplitDTO splitDTO;
-    private String sessionId;
 
     public void initialize(String sessionId, SplitDTO splitDTO, Stage modalStage) {
         this.sessionId = sessionId;
@@ -86,49 +115,6 @@ public class ARExcelFilePane extends ARPane {
             }
         }
     }
-
-    private final Gson gson = new Gson();
-
-    private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
-    private static final PerformLists performLists = PerformLists.getInstance();
-    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
-    private static final PerformMessage performMessage = PerformMessage.getInstance();
-    private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
-
-    private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
-
-    // UI Components
-    Label titleLabel;
-    Label blockNameLabel;
-    Label pathExportLabel;
-    Label fileExportLabel;
-    Label fileTypeLabel;
-    Label delimeterCSVLabel;
-
-    TextField pathExport;
-    TextField fileExport;
-
-    ObservableList<String> filetypeList =
-            FXCollections.observableArrayList(ARConstants.FILE_FORMAT_EXCEL, ARConstants.FILE_FORMAT_CSV);
-    ChoiceBox<String> fileTypeChoiceBox = new ChoiceBox<>();
-
-    ComboBox<FormatOption> comboBoxCSVColumns;
-
-    Button pathExportButton;
-    Button pathDeleteButton;
-
-    Button saveButton;
-    Button cancelButton;
-
-    VBox pathGroup;
-
-    AnchorPane mainPane;
-
-    double buttonWidth = 200;
-    String excelPath;
-    String directory;
-    String fileName;
-    String delimiter;
 
     @Override
     public Pane getPaneReference() {

@@ -3,7 +3,6 @@ package com.allinweb.ch.component.model;
 import lombok.Data;
 
 @Data
-
 public class ParentOperations {
     private Integer id;
     private String name;

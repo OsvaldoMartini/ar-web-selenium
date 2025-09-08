@@ -3,7 +3,6 @@ package com.allinweb.ch.component.scene;
 import com.allinweb.ch.component.pane.ARLicensePane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
-
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
@@ -13,8 +12,18 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class ARLicenseScene extends ARScene {
+    private static final ARLicensePane arLicensePane;
+    private static final Double SCENE_HEIGHT = 550D;
+    private static final Double SCENE_WIDTH = 800D;
+    private static final String TITLE = "Activation Software Required";
     protected static volatile ARLicenseScene instance;
 
+    static {
+        arLicensePane = ARLicensePane.getInstance();
+    }
+
+    private Stage modalStage;
+    private Scene modalScene;
     // Private constructor to prevent instantiation
     private ARLicenseScene() {
 
@@ -32,19 +41,6 @@ public class ARLicenseScene extends ARScene {
         }
         return instance;
     }
-
-    private Stage modalStage;
-    private Scene modalScene;
-
-    private static final ARLicensePane arLicensePane;
-
-    static {
-        arLicensePane = ARLicensePane.getInstance();
-    }
-
-    private static final Double SCENE_HEIGHT = 550D;
-    private static final Double SCENE_WIDTH = 800D;
-    private static final String TITLE = "Activation Software Required";
 
     @Override
     public IARPane buildPane() {

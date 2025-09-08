@@ -4,7 +4,6 @@ import com.allinweb.ch.component.pane.ARNewBotJobPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.driver.ARWebDriver;
-
 import javafx.application.Platform;
 import javafx.collections.ObservableList;
 import javafx.scene.Scene;
@@ -16,8 +15,23 @@ import org.openqa.selenium.WebDriver;
 @Slf4j
 public class ARNewBotJobScene extends ARScene {
 
+    private static final Double SCENE_HEIGHT = 380D;
+    private static final Double SCENE_WIDTH = 450D;
+    private static final String TITLE = "New Bot Job";
     protected static volatile ARNewBotJobScene instance;
+    private static ARNewBotJobPane arNewBotJobPane;
 
+    static {
+        arNewBotJobPane = ARNewBotJobPane.getInstance();
+    }
+
+    private Stage modalStage;
+    private Scene modalScene;
+    //    ListView<BotJobLoadDTO> viewBotJobListView;
+    private ARViewBotJobScene arViewBotJobScene;
+    private ARWebDriver arWebDriver;
+    private ObservableList<WebDriver> webDriverList;
+    private boolean isEnabledLicence;
     // Private constructor to prevent instantiation
     private ARNewBotJobScene() {
 
@@ -34,24 +48,6 @@ public class ARNewBotJobScene extends ARScene {
         }
         return instance;
     }
-
-    private Stage modalStage;
-    private Scene modalScene;
-
-    private static ARNewBotJobPane arNewBotJobPane;
-
-    static {
-        arNewBotJobPane = ARNewBotJobPane.getInstance();
-    }
-
-    private static final Double SCENE_HEIGHT = 380D;
-    private static final Double SCENE_WIDTH = 450D;
-    private static final String TITLE = "New Bot Job";
-    //    ListView<BotJobLoadDTO> viewBotJobListView;
-    private ARViewBotJobScene arViewBotJobScene;
-    private ARWebDriver arWebDriver;
-    private ObservableList<WebDriver> webDriverList;
-    private boolean isEnabledLicence;
 
     public void initialize(
             ARViewBotJobScene arViewBotJobScene,

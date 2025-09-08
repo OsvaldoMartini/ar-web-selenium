@@ -4,7 +4,6 @@ import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementScriptFactory;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.util.ARConstants;
-
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
@@ -20,14 +19,9 @@ import java.util.UUID;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 import javafx.collections.ObservableList;
-import javax.swing.*;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.openqa.selenium.Capabilities;
-import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.Proxy;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebElement;
+import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.edge.EdgeDriver;
@@ -40,10 +34,28 @@ import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 @Data
-  @Slf4j public class ARWebDriver {
+@Slf4j
+public class ARWebDriver {
 
+    private static final ARPropertyManager arPropertyManager;
+    private static final PerformMessage performMessage;
     // Static final variable to hold the singleton instance
     protected static volatile ARWebDriver instance;
+
+    static {
+        arPropertyManager = ARPropertyManager.getInstance();
+        performMessage = PerformMessage.getInstance();
+    }
+
+    private final WebElementScriptFactory scriptFactory = new WebElementScriptFactory();
+    private List<WebDriver> webDriverList = new ArrayList<>();
+    private WebDriver currentDriver;
+    private String edgeVersion;
+    private String webDriverEdgeVersion;
+    private String webDriverPath;
+    private EdgeOptions optionsEdge;
+    private ChromeOptions optionsChrome;
+    private FirefoxOptions optionsFirefox;
 
     // Private constructor to prevent instantiation
     public ARWebDriver() {}
@@ -60,29 +72,20 @@ import org.openqa.selenium.support.ui.WebDriverWait;
         return instance;
     }
 
-    private List<WebDriver> webDriverList = new ArrayList<>();
-    private WebDriver currentDriver;
-    private String edgeVersion;
-    private String webDriverEdgeVersion;
-    private String webDriverPath;
-
-    private EdgeOptions optionsEdge;
-    private ChromeOptions optionsChrome;
-    private FirefoxOptions optionsFirefox;
-
-    private static final ARPropertyManager arPropertyManager;
-    private static final PerformMessage performMessage;
-
-    static {
-        arPropertyManager = ARPropertyManager.getInstance();
-        performMessage = PerformMessage.getInstance();
+    public static String identifyLineSeparator(String text) {
+        if (text.contains("\r\n")) {
+            return "\r\n"; // Windows style
+        } else if (text.contains("\n")) {
+            return "\n"; // Unix/Linux style
+        } else if (text.contains("\r")) {
+            return "\r"; // Old Mac style
+        }
+        return System.lineSeparator(); // Default line separator if none found
     }
 
     public void initialize(ObservableList<WebDriver> webDriverList) {
         this.webDriverList = webDriverList;
     }
-
-    private final WebElementScriptFactory scriptFactory = new WebElementScriptFactory();
 
     // Method to add WebDriver instances
     public void addWebDriver(WebDriver driver) {
@@ -170,17 +173,6 @@ import org.openqa.selenium.support.ui.WebDriverWait;
             }
         }
         return currentDriver;
-    }
-
-    public static String identifyLineSeparator(String text) {
-        if (text.contains("\r\n")) {
-            return "\r\n"; // Windows style
-        } else if (text.contains("\n")) {
-            return "\n"; // Unix/Linux style
-        } else if (text.contains("\r")) {
-            return "\r"; // Old Mac style
-        }
-        return System.lineSeparator(); // Default line separator if none found
     }
 
     public WebDriver openDriver(
@@ -331,8 +323,8 @@ import org.openqa.selenium.support.ui.WebDriverWait;
         } catch (Exception error) {
 
             String errorMessage = error.getMessage();
-            
-                    log.info("An error has occurred during driver.get(url) Load " + errorMessage);
+
+            log.info("An error has occurred during driver.get(url) Load " + errorMessage);
 
             // Split the message into chunks of 100 characters
             int maxLength = 100;

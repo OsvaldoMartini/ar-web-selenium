@@ -1,7 +1,5 @@
 package com.allinweb.ch.component.pane.base;
 
-import com.allinweb.ch.driver.ARWebDriver;
-
 import javafx.application.Application;
 import javafx.scene.Node;
 import javafx.scene.Scene;

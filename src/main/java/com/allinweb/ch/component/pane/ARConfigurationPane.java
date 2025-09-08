@@ -5,13 +5,7 @@ import com.allinweb.ch.component.listCell.HomeBankingListCell;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.HomeBankingLoadDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
-import com.allinweb.ch.component.scene.ARAlertScene;
-import com.allinweb.ch.component.scene.ARElementValueScene;
-import com.allinweb.ch.component.scene.ARNewBotJobScene;
-import com.allinweb.ch.component.scene.ARNewCommandScene;
-import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
-import com.allinweb.ch.component.scene.ARScannedElementScene;
-import com.allinweb.ch.component.scene.ARViewBotJobScene;
+import com.allinweb.ch.component.scene.*;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.*;
@@ -50,47 +44,8 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ARConfigurationPane extends ARPane {
 
-    protected static volatile ARConfigurationPane instance;
-
-    // Private constructor to prevent instantiation
-    private ARConfigurationPane() {
-
-        super();
-    }
-
-    public static ARConfigurationPane getInstance() {
-        if (instance == null) {
-            synchronized (ARConfigurationPane.class) {
-                if (instance == null) {
-                    instance = new ARConfigurationPane();
-                }
-            }
-        }
-        return instance;
-    }
-
-    private ListView<BotJobLoadDTO> viewBotJobListView;
-    private Stage modalStage;
-
-    private boolean isEnabledLicence;
-
-    private String previousDB;
-    private String previousDBUrl;
-
-    public void initialize(Stage modalStage, ListView<BotJobLoadDTO> viewBotJobListView, boolean isEnabledLicence) {
-        this.isEnabledLicence = isEnabledLicence;
-        this.modalStage = modalStage;
-        this.viewBotJobListView = viewBotJobListView;
-    }
-
     private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
-
     private static final int SECONDS = 3; // Total seconds for the countdown
-    private int remainingSeconds = SECONDS;
-    private Timeline timeline;
-    private ExecutorService executorService;
-    private Alert alertToShow;
-
     private static final ARPropertyManager arPropertyManager;
     private static final ARNewHomeBankingScene arNewHomeBankingScene;
     private static final PerformMessage performMessage;
@@ -99,13 +54,13 @@ public class ARConfigurationPane extends ARPane {
     private static final PerformDataBase performDataBase;
     private static final PerformBackup performBackup;
     private static final PerformInitializer performInitializer;
-
     private static final ARWebDriver arWebDriver = ARWebDriver.getInstance();
     private static final ARScannedElementScene arScannedElementScene;
     private static final ARViewBotJobScene arViewBotJobScene;
     private static final ARNewCommandScene arNewCommandScene;
     private static final ARElementValueScene arElementValueScene;
     private static final ARNewBotJobScene arNewBotJobScene;
+    protected static volatile ARConfigurationPane instance;
 
     // Static block to initialize
     static {
@@ -125,8 +80,6 @@ public class ARConfigurationPane extends ARPane {
         performInitializer = PerformInitializer.getInstance();
     }
 
-    private ListView<HomeBankingLoadDTO> homeBankingListView;
-
     // UI Components
     Label title;
     Label pathExcelLabel;
@@ -136,14 +89,11 @@ public class ARConfigurationPane extends ARPane {
     Label pathLogLabel;
     Label sizeLogLabel;
     Label reduceSearchLabel;
-
     Label dbUrlLabel;
     Label dbUserLabel;
     Label dbPwdLabel;
-
     Label pathAccessDBLabel;
     Label databaseLabel;
-
     Label pathReportLabel;
     Label pathPriorityLabel;
     Label pathEngineLabel;
@@ -154,54 +104,74 @@ public class ARConfigurationPane extends ARPane {
     Label deleteAllDBLabel;
     Label insertSitesLabel;
     Label pathWebDriverLabel;
-
     TextField pathExcel;
     TextField pathLicense;
     TextField pathLog;
     TextField pathAccessDB;
     TextField pathReport;
     TextField pathPriority;
-
     TextField dbUrl;
     TextField dbUser;
     TextField dbPwd;
-
     TextField pathEngine;
     TextField pathWebDriver;
-
     ChoiceBox<String> browserChoiceBox = new ChoiceBox<>();
     ChoiceBox<String> databaseChoiceBox = new ChoiceBox<>();
     ObservableList<String> browserList =
             FXCollections.observableArrayList(ARConstants.CHROME, ARConstants.EDGE, ARConstants.FIREFOX);
-
     ObservableList<String> databaseList =
             FXCollections.observableArrayList(ARConstants.ACCESS, ARConstants.POSTGRES, ARConstants.SQLITE);
-
     Button pathExcelButton;
     Button pathLicenseButton;
     //    Button pathExportButton;
     Button pathLogButton;
-
     Button pathAccessDBButton;
     Button pathReportButton;
     Button pathPriorityButton;
-
     Button pathEngineButton;
     Button pathWebDriverButton;
-
     Button reloadDBButton;
     Button backupDBButton;
     Button restoreDBButton;
     Button deleteAllDBButton;
     Button insertSitesdButton;
-
     HBox backupRestoreGroup;
-
     DatePicker restoreDatePicker;
-
     VBox pathGroup;
-
     AnchorPane mainPane;
+    private ListView<BotJobLoadDTO> viewBotJobListView;
+    private Stage modalStage;
+    private boolean isEnabledLicence;
+    private String previousDB;
+    private String previousDBUrl;
+    private int remainingSeconds = SECONDS;
+    private Timeline timeline;
+    private ExecutorService executorService;
+    private Alert alertToShow;
+    private ListView<HomeBankingLoadDTO> homeBankingListView;
+
+    // Private constructor to prevent instantiation
+    private ARConfigurationPane() {
+
+        super();
+    }
+
+    public static ARConfigurationPane getInstance() {
+        if (instance == null) {
+            synchronized (ARConfigurationPane.class) {
+                if (instance == null) {
+                    instance = new ARConfigurationPane();
+                }
+            }
+        }
+        return instance;
+    }
+
+    public void initialize(Stage modalStage, ListView<BotJobLoadDTO> viewBotJobListView, boolean isEnabledLicence) {
+        this.isEnabledLicence = isEnabledLicence;
+        this.modalStage = modalStage;
+        this.viewBotJobListView = viewBotJobListView;
+    }
 
     @Override
     public Pane getPaneReference() {

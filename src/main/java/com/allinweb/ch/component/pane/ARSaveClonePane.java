@@ -24,11 +24,34 @@ import javafx.scene.layout.*;
 import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
+import lombok.extern.slf4j.Slf4j;
 
-import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARSaveClonePane extends ARPane {
+@Slf4j
+public class ARSaveClonePane extends ARPane {
 
+    private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
+    private static final PerformMessage performMessage = PerformMessage.getInstance();
+    private static final PerformLists performLists = PerformLists.getInstance();
+    private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
+    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
+    private static final ARNewHomeBankingScene arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
+    private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
     protected static volatile ARSaveClonePane instance;
-
+    private boolean isEnabledLicence;
+    private BotJobLoadDTO selectedBotJob;
+    private Label labelBotJobName;
+    private Label descriptionLabel;
+    private Label labelHomeBanking;
+    //    private List<BotJobLoadDTO> botJobList;
+    // UI
+    private TextField botJobName;
+    private TextField botJobDescription;
+    private TextField newUrl;
+    private Button cloneBotJobButton;
+    private Button refreshEnvsButton;
+    private Button insertSitesdButton;
+    private ChoiceBox<HomeUrlDTO> homeURLChoiceBox;
+    private Pane mainPane;
     // Private constructor to prevent instantiation
     private ARSaveClonePane() {
 
@@ -63,35 +86,6 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARSaveClonePane extends A
             performDBEngine.loadHomeUrls(null);
         }
     }
-
-    private boolean isEnabledLicence;
-    private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
-    private static final PerformMessage performMessage = PerformMessage.getInstance();
-    private static final PerformLists performLists = PerformLists.getInstance();
-    private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
-    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
-    private static final ARNewHomeBankingScene arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
-    private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
-
-    private BotJobLoadDTO selectedBotJob;
-    //    private List<BotJobLoadDTO> botJobList;
-    // UI
-
-    private Label labelBotJobName;
-    private Label descriptionLabel;
-    private Label labelHomeBanking;
-
-    private TextField botJobName;
-    private TextField botJobDescription;
-    private TextField newUrl;
-
-    private Button cloneBotJobButton;
-    private Button refreshEnvsButton;
-    private Button insertSitesdButton;
-
-    private ChoiceBox<HomeUrlDTO> homeURLChoiceBox;
-
-    private Pane mainPane;
 
     @Override
     public Pane getPaneReference() {
@@ -536,8 +530,8 @@ import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARSaveClonePane extends A
             }
             return true;
         } catch (Exception error) {
-            
-                    log.error("Cannot read/validate the License path/file. Error: " + error.getMessage());
+
+            log.error("Cannot read/validate the License path/file. Error: " + error.getMessage());
             return false;
         }
     }

@@ -1,16 +1,16 @@
 package com.allinweb.ch.component.scene;
 
-import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.util.ARCallback;
 import com.allinweb.ch.util.ARConstants;
-
 import java.util.Objects;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
+import lombok.extern.slf4j.Slf4j;
 
-import lombok.extern.slf4j.Slf4j;  @Slf4j public class ARAlertScene {
+@Slf4j
+public class ARAlertScene {
 
     public ARAlertScene(Alert.AlertType alertType, String title, String message, ButtonType... buttons) {
         try {

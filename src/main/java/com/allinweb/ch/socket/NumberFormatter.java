@@ -1,6 +1,9 @@
 package com.allinweb.ch.socket;
 
-import lombok.extern.slf4j.Slf4j;  @Slf4j public class NumberFormatter {
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+public class NumberFormatter {
 
     public static String formatNumber(String numberString, String localFormat) {
         try {

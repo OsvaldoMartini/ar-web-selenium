@@ -2,7 +2,6 @@ package com.allinweb.ch.component.scene.base;
 
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.util.ARConstants;
-
 import java.util.ArrayList;
 import java.util.List;
 import javafx.application.Platform;
@@ -16,22 +15,23 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public abstract class ARScene implements IARScene, IconLoader {
 
+    protected final List<Thread> threadList = new ArrayList<>();
+
     @Setter
     protected Image icon;
 
     protected Stage stage; // Make stage protected to allow access in subclass
-    private Scene scene; // Keep a reference to the scene
-    protected final List<Thread> threadList = new ArrayList<>();
     // Flag to track if the close request handler has been set
     protected boolean isCloseHandlerSet = false;
-
-    public void loadIcon() {
-        loadAndSetIcon(ARConstants.ICON_APPLICATION); // e.g. "/images/ABR_icon.png"
-    }
+    private Scene scene; // Keep a reference to the scene
 
     public ARScene() {
         setupStage(); // Initialize the stage and set its behavior
         loadIcon();
+    }
+
+    public void loadIcon() {
+        loadAndSetIcon(ARConstants.ICON_APPLICATION); // e.g. "/images/ABR_icon.png"
     }
 
     public abstract IARPane buildPane();

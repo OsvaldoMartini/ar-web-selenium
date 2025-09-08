@@ -5,7 +5,6 @@ import lombok.Data;
 
 @Data
 @AllArgsConstructor
-
 public class VariableLoadDTO {
     private Integer id;
     private Integer homeBankingId;

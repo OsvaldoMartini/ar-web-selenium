@@ -1,7 +1,6 @@
 package com.allinweb.ch.component.scene;
 
 import com.allinweb.ch.component.model.*;
-import com.allinweb.ch.component.model.TargetElement;
 import com.allinweb.ch.component.pane.ARNewCommandPane;
 import com.allinweb.ch.component.pane.ARScannedElementPane;
 import com.allinweb.ch.component.pane.base.IARPane;
@@ -9,7 +8,10 @@ import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.*;
 import com.allinweb.ch.socket.WebSocketSessionManager;
-import com.allinweb.ch.util.*;
+import com.allinweb.ch.util.ARConstants;
+import com.allinweb.ch.util.ARPropertyEnum;
+import com.allinweb.ch.util.ARPropertyManager;
+import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -28,17 +30,50 @@ import javafx.stage.WindowEvent;
 import javafx.util.Pair;
 import javax.websocket.*;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 
+@ClientEndpoint
+@Slf4j
+public class ARScannedElementScene extends ARScene {
 
-import lombok.extern.slf4j.Slf4j;
-
-@ClientEndpoint @Slf4j public class ARScannedElementScene extends ARScene {
-
+    private static final Double SCENE_HEIGHT = 650D;
+    private static final Double SCENE_WIDTH = 1100D;
+    private static final String TITLE = "AR Web Factory";
+    private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
+    private static final CountDownLatch latch = new CountDownLatch(1);
+    private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
+    private static final PerformLists performLists = PerformLists.getInstance();
+    private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
+    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
+    private static final ARScannedElementPane arScannedElementPane = ARScannedElementPane.getInstance();
+    private static final ARWebDriver arWebDriver = ARWebDriver.getInstance();
+    private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
+    private static final PerformMessage performMessage = PerformMessage.getInstance();
+    private static final ARNewCommandPane arNewCommandPane = ARNewCommandPane.getInstance();
+    private static final PerformActions performActions = PerformActions.getInstance();
+    private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     protected static volatile ARScannedElementScene instance;
+    private final Gson gson = new Gson();
+    private HomeBankingLoadDTO homeBankingLoadDTO;
 
+    @Getter
+    private BotJobLoadDTO currentBotJob;
+
+    private int currentBlockId;
+    private BlockLoadDTO blockLoadDTO;
+    private Session session;
+    private int portSocketInitial = 54525;
+    private boolean isConnectWebSocket = false;
+    private ExecutorService executorWebSocket;
+    private ExecutorService executorServicePreLaunch;
+    private Stage modalStage;
+    private Scene modalScene;
+    private String previousBlock = null;
+    private PayloadJson payloadEmpty;
+    private List<InstructionLoad> instructionList = new ArrayList<>();
     // Private constructor to prevent instantiation
     private ARScannedElementScene() {
 
@@ -55,43 +90,6 @@ import lombok.extern.slf4j.Slf4j;
         }
         return instance;
     }
-
-    private static final Double SCENE_HEIGHT = 650D;
-    private static final Double SCENE_WIDTH = 1100D;
-    private static final String TITLE = "AR Web Factory";
-
-    private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
-
-    private HomeBankingLoadDTO homeBankingLoadDTO;
-
-    @Getter
-    private BotJobLoadDTO currentBotJob;
-
-    private int currentBlockId;
-
-    private BlockLoadDTO blockLoadDTO;
-
-    private static final CountDownLatch latch = new CountDownLatch(1);
-    private Session session;
-    private int portSocketInitial = 54525;
-    private boolean isConnectWebSocket = false;
-
-    private ExecutorService executorWebSocket;
-    private ExecutorService executorServicePreLaunch;
-
-    private Stage modalStage;
-    private Scene modalScene;
-
-    private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
-    private static final PerformLists performLists = PerformLists.getInstance();
-    private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
-    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
-    private static final ARScannedElementPane arScannedElementPane = ARScannedElementPane.getInstance();
-    private static final ARWebDriver arWebDriver = ARWebDriver.getInstance();
-    private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
-    private static final PerformMessage performMessage = PerformMessage.getInstance();
-    private static final ARNewCommandPane arNewCommandPane = ARNewCommandPane.getInstance();
-    private static final PerformActions performActions = PerformActions.getInstance();
 
     public void initialize(
             HomeBankingLoadDTO homeBankingLoadDTO, BotJobLoadDTO botJobLoadDTO, BlockLoadDTO blockLoadDTO) {
@@ -110,14 +108,6 @@ import lombok.extern.slf4j.Slf4j;
             connectWebSocketClient(portSocketInitial, "scanner-element-pane");
         }
     }
-
-    private final Gson gson = new Gson();
-    private String previousBlock = null;
-    private PayloadJson payloadEmpty;
-
-    private List<InstructionLoad> instructionList = new ArrayList<>();
-
-    private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     //    private static final ScheduledExecutorService pingScheduler = Executors.newScheduledThreadPool(1);
 
     private void stopKeepAlivePings() {
@@ -589,8 +579,8 @@ import lombok.extern.slf4j.Slf4j;
                             "<span style='font-style: italic;'>Refer to your browser's documentation or the WebDriver's release notes for compatibility information.</span>",
                             0);
                 } else {
-                    
-                            log.error("Scanner Pane showModal error:" + error.getMessage());
+
+                    log.error("Scanner Pane showModal error:" + error.getMessage());
                 }
             }
         });
@@ -790,9 +780,8 @@ import lombok.extern.slf4j.Slf4j;
                     }
 
                 } catch (Exception e) {
-                    
-                            log.warn(String.format(
-                                    "Cannot locate a Web Element with Name: \n%s", target.getAttribName()));
+
+                    log.warn(String.format("Cannot locate a Web Element with Name: \n%s", target.getAttribName()));
                 }
             } else if (elementValid == null) {
                 try {
@@ -803,9 +792,9 @@ import lombok.extern.slf4j.Slf4j;
                                 ARConstants.REGULAR_XPATH); // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
                     }
                 } catch (Exception e) {
-                    
-                            log.warn(String.format(
-                                    "Cannot locate a Web Element with Regular XPath\n%s", target.getCurrentXPath()));
+
+                    log.warn(String.format(
+                            "Cannot locate a Web Element with Regular XPath\n%s", target.getCurrentXPath()));
                 }
             } else if (elementValid == null) {
                 try {
@@ -816,9 +805,9 @@ import lombok.extern.slf4j.Slf4j;
                                 ARConstants.CUSTOM_XPATH); // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
                     }
                 } catch (Exception e) {
-                    
-                            log.warn(String.format(
-                                    "Cannot locate a Web Element with Absolut XPath\n%s", target.getAttributeData()));
+
+                    log.warn(String.format(
+                            "Cannot locate a Web Element with Absolut XPath\n%s", target.getAttributeData()));
                 }
             } else {
                 if (elementValid == null) {
@@ -833,9 +822,8 @@ import lombok.extern.slf4j.Slf4j;
                                 target.setAttributeValue(target.getAttribId());
                             }
                         } catch (Exception e) {
-                            
-                                    log.warn(String.format(
-                                            "Cannot locate a Web Element with ID: \n%s", target.getAttribId()));
+
+                            log.warn(String.format("Cannot locate a Web Element with ID: \n%s", target.getAttribId()));
                         }
                     }
                 } else if (elementValid == null) {
@@ -850,9 +838,9 @@ import lombok.extern.slf4j.Slf4j;
                                 target.setXPathWorkedFirst(ARConstants.ATTRIBUTE_NAME);
                             }
                         } catch (Exception e) {
-                            
-                                    log.warn(String.format(
-                                            "Cannot locate a Web Element with Name: \n%s", target.getAttribName()));
+
+                            log.warn(String.format(
+                                    "Cannot locate a Web Element with Name: \n%s", target.getAttribName()));
                         }
                     }
                 }

@@ -14,7 +14,10 @@ import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.license.LicenceVal;
 import com.allinweb.ch.license.LicenseManager;
-import com.allinweb.ch.util.*;
+import com.allinweb.ch.util.ARConstants;
+import com.allinweb.ch.util.ARPropertyEnum;
+import com.allinweb.ch.util.ARPropertyManager;
+import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
@@ -22,7 +25,6 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
-import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
 import lombok.extern.slf4j.Slf4j;
@@ -30,7 +32,27 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ARNewBotJobPane extends ARPane {
 
+    private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
+    private static final PerformLists performLists = PerformLists.getInstance();
+    private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
+    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
+    private static final PerformMessage performMessage = PerformMessage.getInstance();
+    private static final ARNewHomeBankingScene arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
+    private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
     protected static volatile ARNewBotJobPane instance;
+    private Label labelBotJobName;
+    private Label descriptionLabel;
+    private Label labelHomeBanking;
+    private TextField botJobName;
+    private TextField botJobDescription;
+    private Button createBotJobButton;
+    private Button refreshEnvsButton;
+    private Button insertSitesdButton;
+    private ChoiceBox<HomeUrlDTO> homeURLChoiceBox;
+    private Pane mainPane;
+    private boolean isEnabledLicence;
+    private ARViewBotJobScene arViewBotJobScene;
+    private ARWebDriver arWebDriver;
 
     private ARNewBotJobPane() {
         super();
@@ -46,33 +68,6 @@ public class ARNewBotJobPane extends ARPane {
         }
         return instance;
     }
-
-    private Label labelBotJobName;
-    private Label descriptionLabel;
-    private Label labelHomeBanking;
-
-    private TextField botJobName;
-    private TextField botJobDescription;
-
-    private Button createBotJobButton;
-    private Button refreshEnvsButton;
-    private Button insertSitesdButton;
-
-    private ChoiceBox<HomeUrlDTO> homeURLChoiceBox;
-
-    private Pane mainPane;
-
-    private boolean isEnabledLicence;
-    private ARViewBotJobScene arViewBotJobScene;
-    private ARWebDriver arWebDriver;
-
-    private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
-    private static final PerformLists performLists = PerformLists.getInstance();
-    private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
-    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
-    private static final PerformMessage performMessage = PerformMessage.getInstance();
-    private static final ARNewHomeBankingScene arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
-    private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
 
     // You mentioned this is the button creator, adapted here
     private Button createPathButton() {
@@ -362,8 +357,8 @@ public class ARNewBotJobPane extends ARPane {
                     }
                 });
             } else {
-                
-                        log.error("Error creating BotJobDTO. Check the Block Creation!");
+
+                log.error("Error creating BotJobDTO. Check the Block Creation!");
                 performMessage.errorMessage(
                         "Create New Bot Job Failed ❌",
                         "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>"
@@ -409,7 +404,7 @@ public class ARNewBotJobPane extends ARPane {
             }
             return true;
         } catch (Exception error) {
-                    log.error("Cannot read/validate the License path/file. Error: " + error.getMessage());
+            log.error("Cannot read/validate the License path/file. Error: " + error.getMessage());
             return false;
         }
     }

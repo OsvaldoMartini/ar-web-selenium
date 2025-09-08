@@ -5,7 +5,8 @@ import lombok.extern.slf4j.Slf4j;
 
 // Helper class to hold text and varID
 @Getter
-  @Slf4j public class ComboBoxVars {
+@Slf4j
+public class ComboBoxVars {
     private final String text;
     private final String value;
     private final Integer instructionId;
