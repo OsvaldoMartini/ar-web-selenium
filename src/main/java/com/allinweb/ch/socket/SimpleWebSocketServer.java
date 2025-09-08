@@ -455,7 +455,7 @@ public class SimpleWebSocketServer {
                         }
                     }
 
-                    // UPDATE MEMORY LIST FOR PARENTS INSTRUCION NAME
+                    // UPDATE MEMORY LIST FOR PARENTS INSTRUCTION NAME
                     if (errorMessage == null) {
                         performLists.updateMemoryInstructionName(
                                 instrTable, whereId, Collections.singletonList(instructionLoad));
@@ -633,8 +633,7 @@ public class SimpleWebSocketServer {
                                     performDataBase.deleteRowParents(instrTable, whereId, splitDTO.getInstructionId());
                             if (errorMessage == null) {
                                 for (ParentOperations parent : performLists.getListParentOperations()) {
-                                    performLists.updateMemoryRemoveInstructionId(
-                                            instrTable, whereId, parent.getInstructionId());
+                                    performLists.updateMemoryRemoveInstructionId(instrTable, whereId, parent.getId());
                                 }
                             }
                         }

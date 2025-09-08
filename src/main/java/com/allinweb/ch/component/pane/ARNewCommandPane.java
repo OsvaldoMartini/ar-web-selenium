@@ -1316,14 +1316,15 @@ public class ARNewCommandPane extends ARPane {
                     recallMessages(comboBoxInstruc.getValue().getValue());
                 }
 
-                callElementValueScene(varName);
+                callInitializeElementValueScene(varName);
+                arElementValueScene.showModal();
             } else {
                 ARLogger.getInstance(ARNewCommandPane.class)
                         .info("creating variable for instruction Name "
                                 + comboBoxWebFields.getValue().getText());
 
                 String varName = prepareVarName();
-                callElementValueScene(varName);
+                callInitializeElementValueScene(varName);
             }
             reloadComboVars(varTable, whereId, comboBoxWebFields.getValue().getInstructionId(), false, -1);
             // Set ComboBox to first item
@@ -1388,7 +1389,7 @@ public class ARNewCommandPane extends ARPane {
                                 comboBoxVars.getValue().getVarId());
                     } else {
                         String varName = prepareVarName();
-                        callElementValueScene(varName);
+                        callInitializeElementValueScene(varName);
                     }
                 }
             }
@@ -1402,14 +1403,16 @@ public class ARNewCommandPane extends ARPane {
                     if (comboBoxVars.getValue() != null
                             && comboBoxVars.getValue().getVarId() > -1) {
 
-                        String varName = prepareVarName();
-                        callElementValueScene(varName);
+                        if (!arElementValueScene.closeCalled) {
+                            String varName = prepareVarName();
+                            callInitializeElementValueScene(varName);
+                        }
 
                         arElementValueScene.setTableRowById(
                                 comboBoxVars.getValue().getVarId());
                     } else {
                         String varName = prepareVarName();
-                        callElementValueScene(varName);
+                        callInitializeElementValueScene(varName);
                     }
                 }
             }
@@ -1490,7 +1493,7 @@ public class ARNewCommandPane extends ARPane {
         });
     }
 
-    private void callElementValueScene(String varName) {
+    private void callInitializeElementValueScene(String varName) {
         arElementValueScene.initialize(
                 splitDTO,
                 comboBoxVars.getValue().getVarId(),
@@ -1499,7 +1502,7 @@ public class ARNewCommandPane extends ARPane {
                 comboBoxWebFields.getValue().getInstructionId(),
                 comboBoxWebFields.getValue().getText(),
                 comboBoxInstruc.getValue().getValue());
-        arElementValueScene.showModal();
+        //        arElementValueScene.showModal();
     }
 
     private String prepareVarName() {

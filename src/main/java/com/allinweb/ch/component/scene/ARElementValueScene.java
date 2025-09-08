@@ -15,6 +15,7 @@ import lombok.Setter;
 public class ARElementValueScene extends ARScene {
 
     protected static volatile ARElementValueScene instance;
+    public boolean closeCalled;
 
     // Private constructor to prevent instantiation
     private ARElementValueScene() {
@@ -147,8 +148,9 @@ public class ARElementValueScene extends ARScene {
                 modalStage.close();
             }
             modalStage = null;
+            closeCalled = true;
         } catch (Exception error) {
-
+            closeCalled = true;
         }
     }
 
