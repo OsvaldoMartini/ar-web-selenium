@@ -114,7 +114,7 @@ public class ARNewHomeBankingPane extends ARPane {
     public void initUIComponents() {
         // Load initial data
 
-        Platform.runLater(() -> performDataBase.loadAllDataUsers());
+        ErrorMessage errorMessage = performDataBase.loadAllDataUsers();
 
         // Assuming getDatabaseList() and getHomeUrlList() are populated by loadAllHomeBankingBotJob()
         // If not, you might need to call updateHomeBankList(someLoadedList) here.
@@ -483,10 +483,9 @@ public class ARNewHomeBankingPane extends ARPane {
                         "<span style='font-style: italic;'>" + errorMessage.getErrorMessage() + "</span>",
                         0);
             }
-            Platform.runLater(() -> {
-                performDataBase.loadAllDataUsers();
-                performDBEngine.loadHomeBanking(null);
-            });
+            performDataBase.loadAllDataUsers();
+            performDBEngine.loadHomeBanking(null);
+            tableViewOrg.setItems(FXCollections.observableArrayList(performLists.getListHomeBanking()));
         });
 
         updateORGButton.setOnAction(event -> {
@@ -514,10 +513,9 @@ public class ARNewHomeBankingPane extends ARPane {
                     scanConfigField.getText(),
                     optionsConfigField.getText());
             updateUserData(id, user);
-            Platform.runLater(() -> {
-                performDataBase.loadAllDataUsers();
-                performDBEngine.loadHomeBanking(null);
-            });
+            performDataBase.loadAllDataUsers();
+            performDBEngine.loadHomeBanking(null);
+            tableViewOrg.setItems(FXCollections.observableArrayList(performLists.getListHomeBanking()));
         });
         deleteORGButton.setOnAction(event -> {
             String id = idField.getText();
@@ -546,10 +544,9 @@ public class ARNewHomeBankingPane extends ARPane {
 
             if (respModal.equals(ARConstants.DialogModal.OK)) {
                 deleteUserData(id);
-                Platform.runLater(() -> {
-                    performDataBase.loadAllDataUsers();
-                    performDBEngine.loadHomeBanking(null);
-                });
+                performDataBase.loadAllDataUsers();
+                performDBEngine.loadHomeBanking(null);
+                tableViewOrg.setItems(FXCollections.observableArrayList(performLists.getListHomeBanking()));
             }
         });
         templateORGButton.setOnAction(event -> {

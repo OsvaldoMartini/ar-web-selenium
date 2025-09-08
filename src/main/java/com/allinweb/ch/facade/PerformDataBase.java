@@ -1796,25 +1796,22 @@ public class PerformDataBase {
     public ErrorMessage loadQuickBotJobs() {
         performLists.getQuickBotJobs().clear();
 
-        String query =
-                """
-                SELECT bot.id AS bot_job_id, bot.name AS bot_job_name,
-                       bot.description AS bot_job_description, bot.priority AS bot_job_priority,
-                       bot.home_banking_id, bot.home_url_id,
-                       hu.url AS home_banking_url,
-                       hb.name AS home_banking_name,
-                       hb.priority AS home_banking_priority, hb.search_config,
-                       hb.options_config, hb.cookies, hb.driver_session,
-                       hb.username, hb.password,
-                       bot.active,
-                       b.id AS block_id, b.block_order_number, b.name AS block_name,
-                       b.description AS block_description, b.type_id, b.active AS block_active, b.wait
-                FROM bot_job bot
-                LEFT JOIN home_banking hb ON bot.home_banking_id = hb.id
-                LEFT JOIN home_url hu ON bot.home_url_id = hu.id AND hu.home_banking_id = hb.id
-                LEFT JOIN block b ON b.bot_job_id = bot.id
-                ORDER BY bot.id ASC, b.block_order_number ASC;
-                """;
+        String query = "SELECT bot.id AS bot_job_id, bot.name AS bot_job_name, "
+                + "       bot.description AS bot_job_description, bot.priority AS bot_job_priority, "
+                + "       bot.home_banking_id, bot.home_url_id, "
+                + "       hu.url AS home_banking_url, "
+                + "       hb.name AS home_banking_name, "
+                + "       hb.priority AS home_banking_priority, hb.search_config, "
+                + "       hb.options_config, hb.cookies, hb.driver_session, "
+                + "       hb.username, hb.password, "
+                + "       bot.active, "
+                + "       b.id AS block_id, b.block_order_number, b.name AS block_name, "
+                + "       b.description AS block_description, b.type_id, b.active AS block_active, b.wait "
+                + "FROM bot_job bot "
+                + "LEFT JOIN home_banking hb ON bot.home_banking_id = hb.id "
+                + "LEFT JOIN home_url hu ON bot.home_url_id = hu.id AND hu.home_banking_id = hb.id "
+                + "LEFT JOIN block b ON b.bot_job_id = bot.id "
+                + "ORDER BY bot.id ASC, b.block_order_number ASC;";
 
         Map<Integer, BotJobLoadDTO> botJobMap = new HashMap<>();
         Map<Integer, BlockLoadDTO> blockMap = new HashMap<>();
@@ -1889,6 +1886,7 @@ public class PerformDataBase {
 
             return new ErrorMessage("Failed to load Quick Bot Jobs", "Database query error", e.getMessage());
         }
+
         return null;
     }
 
@@ -3845,37 +3843,29 @@ public class PerformDataBase {
         return 0; // Return 0 if query fails or no result
     }
 
-    public void loadAllDataUsers() {
+    public ErrorMessage loadAllDataUsers() {
         performLists.getListDatabaseUsers().clear();
-        String selectSQL =
-                """
-SELECT
-  bank.ID,
-  bank.Name,
-  hu.url,
-  bank.priority,
-  COUNT(bot.ID) AS Jobs,
-  bank.search_config AS searchConfig,
-  bank.options_config AS optionsConfig,
-  bank.username,
-  bank.password
-FROM home_banking bank
-LEFT JOIN bot_job bot ON bot.home_banking_id = bank.id
-LEFT JOIN home_url hu ON hu.home_banking_id = bank.id
-GROUP BY
-  bank.ID,
-  bank.Name,
-  hu.url,
-  bank.priority,
-  bank.search_config,
-  bank.options_config,
-  bank.username,
-  bank.password
-  order by bank.ID;
-                        """;
 
-        try (Statement stmt = getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
+        String selectSQL = "SELECT " + "  bank.ID, "
+                + "  bank.Name, "
+                + "  hu.url, "
+                + "  bank.priority, "
+                + "  COUNT(bot.ID) AS Jobs, "
+                + "  bank.search_config AS searchConfig, "
+                + "  bank.options_config AS optionsConfig, "
+                + "  bank.username, "
+                + "  bank.password "
+                + "FROM home_banking bank "
+                + "LEFT JOIN bot_job bot ON bot.home_banking_id = bank.id "
+                + "LEFT JOIN home_url hu ON hu.home_banking_id = bank.id "
+                + "GROUP BY "
+                + "  bank.ID, bank.Name, hu.url, bank.priority, "
+                + "  bank.search_config, bank.options_config, bank.username, bank.password "
+                + "ORDER BY bank.ID;";
+
+        try (PreparedStatement pstmt = getConnection().prepareStatement(selectSQL);
+                ResultSet rs = pstmt.executeQuery()) {
+
             while (rs.next()) {
                 String id = rs.getString("ID");
                 String jobs = rs.getString("Jobs");
@@ -3887,27 +3877,10 @@ GROUP BY
                 String username = rs.getString("username");
                 String password = rs.getString("password");
 
-                // Create StringBuilder and split using "£"
-                StringBuilder prioritySb = new StringBuilder();
-                StringBuilder searchConfigSb = new StringBuilder();
-                StringBuilder optionsConfigSb = new StringBuilder();
-
-                for (String part : priority.split("£")) {
-                    prioritySb.append(part).append("\n"); // Replacing "£" back with newline
-                }
-
-                for (String part : searchConfig.split("£")) {
-                    searchConfigSb.append(part).append("\n");
-                }
-
-                for (String part : optionsConfig.split("£")) {
-                    optionsConfigSb.append(part).append("\n");
-                }
-
-                // Remove the last extra newline if needed
-                if (prioritySb.length() > 0) prioritySb.setLength(prioritySb.length() - 1);
-                if (searchConfigSb.length() > 0) searchConfigSb.setLength(searchConfigSb.length() - 1);
-                if (optionsConfigSb.length() > 0) optionsConfigSb.setLength(optionsConfigSb.length() - 1);
+                // Convert "£" delimiters back to newlines
+                String priorityStr = convertDelimitedString(priority);
+                String searchConfigStr = convertDelimitedString(searchConfig);
+                String optionsConfigStr = convertDelimitedString(optionsConfig);
 
                 performLists
                         .getListDatabaseUsers()
@@ -3916,15 +3889,36 @@ GROUP BY
                                 jobs,
                                 name,
                                 url,
-                                prioritySb.toString(),
-                                searchConfigSb.toString(),
-                                optionsConfigSb.toString(),
+                                priorityStr,
+                                searchConfigStr,
+                                optionsConfigStr,
                                 username,
                                 password));
             }
+
         } catch (SQLException e) {
-            System.out.println(e.getMessage());
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format("Error loadAllDataUsers: %s", e.getMessage()));
+
+            return new ErrorMessage("Failed to load Database Users", "Database query error", e.getMessage());
         }
+
+        return null;
+    }
+
+    /**
+     * Helper to replace '£' delimiters with newlines and trim the trailing newline.
+     */
+    private String convertDelimitedString(String input) {
+        if (input == null) return "";
+        StringBuilder sb = new StringBuilder();
+        for (String part : input.split("£")) {
+            sb.append(part).append("\n");
+        }
+        if (sb.length() > 0) {
+            sb.setLength(sb.length() - 1); // remove last newline
+        }
+        return sb.toString();
     }
 
     public void selectHomeBankinOneRow() {
