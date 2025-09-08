@@ -63,7 +63,7 @@ public class SplitDTO {
         instruction.setOperation(split.getOperationId());
         instruction.setInstructionOrderNumber(split.getInstructionOrderNumber());
         instruction.setBlockOrderNumber(split.getBlockOrderNumber());
-        instruction.setInstructionName(split.getInstructionName());
+        instruction.setName(split.getInstructionName());
         instruction.setBlockName(split.getBlockName() != null ? split.getBlockName() : split.getBotJobName());
 
         // Optional element details mapping (if needed)

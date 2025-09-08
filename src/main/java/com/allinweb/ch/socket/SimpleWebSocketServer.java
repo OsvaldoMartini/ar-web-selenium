@@ -262,7 +262,10 @@ public class SimpleWebSocketServer {
         int whereId = -1;
 
         if (sessionIdToSend != null) {
-            if (sessionIdToSend.matches(".*botJobTasks.*")) {
+            if (sessionIdToSend.matches(".*botJobTasks.*")
+                    || sessionIdToSend.matches(".*scannerTool.*")
+                    || sessionIdToSend.matches(".*scannerGrid.*")
+                    || sessionIdToSend.matches(".*scanner-element-pane.*")) {
                 instrTable = "instruction";
                 blockTable = "block";
                 variableTable = "variable";
@@ -465,6 +468,11 @@ public class SimpleWebSocketServer {
                 case "ROW_MOVE":
                     errorMessage = performDataBase.updateMoveRowsOrder(blockTable, whereId, splitDTO.getUpdatedRows());
 
+                    // It needs to Reload this List
+                    if (errorMessage == null) {
+                        errorMessage = performDataBase.loadInstructions(whereId, -1, -1, instrTable);
+                    }
+
                     List<InstructionLoad> rowsList = instrTable.equals("instruction")
                             ? performLists.getListInstruction()
                             : performLists.getListInstructionComp();
@@ -624,8 +632,10 @@ public class SimpleWebSocketServer {
                             errorMessage =
                                     performDataBase.deleteRowParents(instrTable, whereId, splitDTO.getInstructionId());
                             if (errorMessage == null) {
-                                performLists.updateMemoryRemoveInstructionId(
-                                        instrTable, whereId, splitDTO.getInstructionId());
+                                for (ParentOperations parent : performLists.getListParentOperations()) {
+                                    performLists.updateMemoryRemoveInstructionId(
+                                            instrTable, whereId, parent.getInstructionId());
+                                }
                             }
                         }
                     } else {

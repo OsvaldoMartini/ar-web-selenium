@@ -343,16 +343,16 @@ public class PerformLists {
                 .orElse(null); // returns null if not found
     }
 
-    public String getParentName(InstructionLoad instructionLoad) {
-        if (instructionLoad == null
-                || instructionLoad.getActions() == null
-                || instructionLoad.getActions().isEmpty()) {
-            return "Parent Name";
-        }
-
-        String[] parts = instructionLoad.getActions().split(":");
-        return parts.length > 0 ? parts[parts.length - 1].trim() : "Parent Name";
-    }
+    //    public String getParentName(InstructionLoad instructionLoad) {
+    //        if (instructionLoad == null
+    //                || instructionLoad.getActions() == null
+    //                || instructionLoad.getActions().isEmpty()) {
+    //            return "Parent Name";
+    //        }
+    //
+    //        String[] parts = instructionLoad.getActions().split(":");
+    //        return parts.length > 0 ? parts[parts.length - 1].trim() : "Parent Name";
+    //    }
 
     // Get BlockLoadDTO by homeBankingId and id
     public BlockLoadDTO getBlockLoadByBankId(String blockTable, Integer whereId, Integer blockId) {
@@ -498,7 +498,7 @@ public class PerformLists {
                 for (InstructionLoad updateInstr : listToUpdate) {
                     for (InstructionLoad instr : getListInstruction()) {
                         if (instr.getId().equals(updateInstr.getId())) {
-                            instr.setName(updateInstr.getInstructionName());
+                            instr.setName(updateInstr.getName());
                             break;
                         }
                     }
@@ -513,7 +513,7 @@ public class PerformLists {
                                     for (InstructionLoad updateInstr : listToUpdate) {
                                         for (InstructionLoad instr : block.getInstructionLoad()) {
                                             if (instr.getId().equals(updateInstr.getId())) {
-                                                instr.setName(updateInstr.getInstructionName());
+                                                instr.setName(updateInstr.getName());
                                                 break;
                                             }
                                         }
@@ -529,7 +529,7 @@ public class PerformLists {
                 for (InstructionLoad updateInstr : listToUpdate) {
                     for (InstructionLoad instr : getListInstructionComp()) {
                         if (instr.getId().equals(updateInstr.getId())) {
-                            instr.setName(updateInstr.getInstructionName());
+                            instr.setName(updateInstr.getName());
                             break;
                         }
                     }
@@ -544,7 +544,7 @@ public class PerformLists {
                                     for (InstructionLoad updateInstr : listToUpdate) {
                                         for (InstructionLoad instr : block.getInstructionLoad()) {
                                             if (instr.getId().equals(updateInstr.getId())) {
-                                                instr.setName(updateInstr.getInstructionName());
+                                                instr.setName(updateInstr.getName());
                                                 break;
                                             }
                                         }

@@ -107,7 +107,7 @@ public class ARElementValuePane extends ARPane {
 
         if (instructionLoad != null) {
             ErrorMessage errorMessage = performDataBase.loadAllVariablesByCriteria(
-                    varTable, whereId, instructionLoad.getId(), performLists.getParentName(instructionLoad));
+                    varTable, whereId, instructionLoad.getId(), instructionLoad.getName());
             if (errorMessage != null) {
                 performMessage.errorMessage(
                         errorMessage.getErrorTitle(),
@@ -131,9 +131,9 @@ public class ARElementValuePane extends ARPane {
             parentField.setText(instructionName);
             nameField.setText(varName);
 
-            if (this.varId > -1) {
-                selectRowById(varId);
-            }
+            //            if (this.varId > -1) {
+            //                selectRowById(varId);
+            //            }
         }
 
         if (valueField != null) {
@@ -751,7 +751,7 @@ public class ARElementValuePane extends ARPane {
 
                 if (instructionLoad != null) {
                     ErrorMessage errorMessage = performDataBase.loadAllVariablesByCriteria(
-                            varTable, whereId, instructionLoad.getId(), performLists.getParentName(instructionLoad));
+                            varTable, whereId, instructionLoad.getId(), instructionLoad.getName());
                     if (errorMessage != null) {
                         performMessage.errorMessage(
                                 errorMessage.getErrorTitle(),

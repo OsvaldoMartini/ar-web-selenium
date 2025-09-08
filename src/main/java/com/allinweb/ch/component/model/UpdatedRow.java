@@ -9,4 +9,5 @@ public class UpdatedRow {
     private Integer instructionId;
     private Integer instructionOrderNumber;
     private Integer parentBlockId;
+    private Integer parentId;
 }

@@ -1188,6 +1188,8 @@ public class ARScannedElementPane extends ARPane {
 
                 var processDTO = new SplitDTO();
                 processDTO.setHomeBankingId(this.currentBotJob.getHomeBankingId());
+                processDTO.setBotJobId(this.currentBotJob.getId());
+                processDTO.setBotJobName(this.currentBotJob.getName());
                 processDTO.setSessionId("scannerGrid"); // + this.currentBotJob.getHomeBankingId());
                 processDTO.setOperationId("searchTerms");
                 processDTO.setElementDetails(new ElementDTO[0]);
@@ -1675,6 +1677,7 @@ public class ARScannedElementPane extends ARPane {
                         destinationId,
                         "addPickOne",
                         this.currentBotJob.getHomeBankingId(),
+                        this.currentBotJob.getId(),
                         performActions.getCurrentDriver().getCurrentUrl()));
             }
 
@@ -1765,6 +1768,8 @@ public class ARScannedElementPane extends ARPane {
 
             var processDTO = new SplitDTO();
             processDTO.setHomeBankingId(this.currentBotJob.getHomeBankingId());
+            processDTO.setBotJobId(this.currentBotJob.getBotJobId());
+            processDTO.setBotJobName(this.currentBotJob.getName());
             processDTO.setSessionId("scannerGrid");
             processDTO.setOperationId("clonedElement");
 
@@ -2061,10 +2066,19 @@ public class ARScannedElementPane extends ARPane {
             String destination,
             String operationId,
             int homeBankingId,
+            int botJobId,
             String currentUrl) {
 
         ErrorMessage errorMessage = performCloneLoad.dynamicPickOneCloneElementsDTO(
-                driver, searchHiddenFields, port, sessionId, destination, operationId, homeBankingId, currentUrl);
+                driver,
+                searchHiddenFields,
+                port,
+                sessionId,
+                destination,
+                operationId,
+                homeBankingId,
+                botJobId,
+                currentUrl);
 
         if (errorMessage != null) {
             String[] lines = errorMessage.getErrorMessage().split("\n");
@@ -2098,10 +2112,19 @@ public class ARScannedElementPane extends ARPane {
             String sessionId,
             String destinationId,
             String operationId,
-            int homeBankingId) {
+            int homeBankingId,
+            int botJobId) {
         // "scannerTool", "scannerGrid", "searchTerms"
         ErrorMessage errorMessage = performPreLoad.dynamicLoadElementsDTO(
-                driver, dataArray, searchHiddenFields, port, sessionId, destinationId, operationId, homeBankingId);
+                driver,
+                dataArray,
+                searchHiddenFields,
+                port,
+                sessionId,
+                destinationId,
+                operationId,
+                homeBankingId,
+                botJobId);
 
         if (errorMessage != null) {
             String[] lines = errorMessage.getErrorMessage().split("\n");
@@ -4609,7 +4632,8 @@ public class ARScannedElementPane extends ARPane {
                 socketSessionId,
                 destinationId,
                 "searchTerms",
-                this.currentBotJob.getHomeBankingId());
+                this.currentBotJob.getHomeBankingId(),
+                this.currentBotJob.getId());
 
         //        Platform.runLater(() -> periodicSearchThread(
         //                performActions.getCurrentDriver(),

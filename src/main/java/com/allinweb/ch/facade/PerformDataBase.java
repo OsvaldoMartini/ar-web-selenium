@@ -1130,7 +1130,7 @@ public class PerformDataBase {
             conn.setAutoCommit(false);
 
             for (InstructionLoad instruction : instructions) {
-                pstmt.setString(1, instruction.getInstructionName());
+                pstmt.setString(1, instruction.getName());
                 pstmt.setString(2, instruction.getActions());
                 pstmt.setInt(3, instruction.getId());
                 pstmt.setInt(4, instruction.getBlockId());
@@ -6571,7 +6571,7 @@ GROUP BY
         // Build SQL with JOIN
         StringBuilder querySQL = new StringBuilder()
                 .append("SELECT i.id AS instruction_id, ")
-                .append("i.block_id, i.instruction_order_number, i.actions, i.name AS instruction_name, ")
+                .append("i.block_id, i.instruction_order_number, i.actions, i.name, i.operation, ")
                 .append("i.xpath, i.coordinates, i.force_coordinates, i.iframe_xpath, ")
                 .append("i.tag_name, i.shadow_host, i.shadow_root, i.css_selector, ")
                 .append("i.description AS instruction_description, i.optional, i.action_custom_max_wait_sec, ")
@@ -6643,10 +6643,12 @@ GROUP BY
                             instruction.setBotJobId(rs.getInt("instr_where_id"));
                         }
 
+                        instruction.setName(rs.getString("name"));
+                        instruction.setActions(rs.getString("actions"));
+                        instruction.setOperation(rs.getString("operation"));
+
                         instruction.setBlockId(rs.getInt("block_id"));
                         instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
-                        instruction.setActions(rs.getString("actions"));
-                        instruction.setInstructionName(rs.getString("instruction_name"));
                         instruction.setXpath(rs.getString("xpath"));
                         instruction.setCoordinates(rs.getString("coordinates"));
                         instruction.setForceCoordinates(rs.getBoolean("force_coordinates"));
@@ -6838,41 +6840,45 @@ GROUP BY
     }
 
     public void preDeleteNullBlocks(String blockTable, int whereId, String instTable) {
-        loadBlocks(whereId, "", blockTable);
-        loadInstructions(whereId, -1, -1, instTable);
+        ErrorMessage errorMessage = loadBlocks(whereId, "", blockTable);
 
-        // Snapshot of previous IDs
-        List<Integer> previousIds = (blockTable.equals("block")
-                        ? performLists.getListBlock()
-                        : performLists.getListBlockComp())
-                .stream().map(BlockLoadDTO::getId).filter(Objects::nonNull).toList();
-
-        // Snapshot of previous IDs
-        List<Integer> currentIds = (instTable.equals("instruction")
-                        ? performLists.getListInstruction()
-                        : performLists.getListInstructionComp())
-                .stream()
-                        .map(InstructionLoad::getBlockId)
-                        .filter(Objects::nonNull)
-                        .toList();
-
-        List<Integer> restToDeleteIds =
-                previousIds.stream().filter(id -> !currentIds.contains(id)).collect(Collectors.toList());
-
-        System.out.println("Blocks To Delete: " + restToDeleteIds.size());
-        // Keep at least One for BLOCK TABLE
-        List<BlockLoadDTO> listBlocks =
-                instTable.equals("instruction") ? performLists.getListBlock() : performLists.getListBlockComp();
-        ErrorMessage errorMessage = null;
-        if (!restToDeleteIds.isEmpty() && (blockTable.equals("block") && listBlocks.size() > 1)) {
-            errorMessage = deleteNullBlocks(blockTable, whereId, restToDeleteIds);
-        } else if (errorMessage == null && !restToDeleteIds.isEmpty() && (blockTable.equals("component_block"))) {
-            errorMessage = deleteNullBlocks(blockTable, whereId, restToDeleteIds);
+        if (errorMessage == null) {
+            errorMessage = loadInstructions(whereId, -1, -1, instTable);
         }
-        if (errorMessage != null) {
-            ARLogger.getInstance(PerformDataBase.class)
-                    .severe("Error Deleting Nulls Blocks Table:" + blockTable + " Error: "
-                            + errorMessage.getErrorMessage());
+        if (errorMessage == null) {
+            // Snapshot of previous IDs
+            List<Integer> previousIds = (blockTable.equals("block")
+                            ? performLists.getListBlock()
+                            : performLists.getListBlockComp())
+                    .stream().map(BlockLoadDTO::getId).filter(Objects::nonNull).toList();
+
+            // Snapshot of previous IDs
+            List<Integer> currentIds = (instTable.equals("instruction")
+                            ? performLists.getListInstruction()
+                            : performLists.getListInstructionComp())
+                    .stream()
+                            .map(InstructionLoad::getBlockId)
+                            .filter(Objects::nonNull)
+                            .toList();
+
+            List<Integer> restToDeleteIds =
+                    previousIds.stream().filter(id -> !currentIds.contains(id)).collect(Collectors.toList());
+
+            System.out.println("Blocks To Delete: " + restToDeleteIds.size());
+            // Keep at least One for BLOCK TABLE
+            List<BlockLoadDTO> listBlocks =
+                    instTable.equals("instruction") ? performLists.getListBlock() : performLists.getListBlockComp();
+            errorMessage = null;
+            if (!restToDeleteIds.isEmpty() && (blockTable.equals("block") && listBlocks.size() > 1)) {
+                errorMessage = deleteNullBlocks(blockTable, whereId, restToDeleteIds);
+            } else if (errorMessage == null && !restToDeleteIds.isEmpty() && (blockTable.equals("component_block"))) {
+                errorMessage = deleteNullBlocks(blockTable, whereId, restToDeleteIds);
+            }
+            if (errorMessage != null) {
+                ARLogger.getInstance(PerformDataBase.class)
+                        .severe("Error Deleting Nulls Blocks Table:" + blockTable + " Error: "
+                                + errorMessage.getErrorMessage());
+            }
         }
     }
 

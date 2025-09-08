@@ -41,7 +41,8 @@ public class PerformPreLoad {
             String sessionId,
             String destination,
             String operationId,
-            int homeBankingId) {
+            int homeBankingId,
+            int botJobId) {
 
         List<String> dataList = Arrays.asList(dataArray);
         try {
@@ -55,7 +56,8 @@ public class PerformPreLoad {
                     sessionId,
                     destination,
                     operationId,
-                    homeBankingId);
+                    homeBankingId,
+                    botJobId);
             return null;
         } catch (Exception error) {
             return new ErrorMessage("Error running Scanner", "Dynamic Load ElementsDTO error", error.getMessage());
@@ -72,7 +74,8 @@ public class PerformPreLoad {
   sessionId,
   destination,
   operationId,
-  homeBankingId
+  homeBankingId,
+  botJobId
 ) {
   let pingIntervalId = null;
   let attempts = 0;
@@ -92,6 +95,7 @@ public class PerformPreLoad {
   window.destination = destination;
   window.operationId = operationId;
   window.homeBankingId = homeBankingId;
+  window.botJobId = botJobId;
   window.sessionId = `${sessionId}`; // -${homeBankingId}`;
   // var elementInfoSubmit = new Map();
 
@@ -772,7 +776,8 @@ public class PerformPreLoad {
         sessionId: window.destination,
         operationId: window.operationId,
         homeBankingId: window.homeBankingId,
-        details: window.allElementInfo, // Send allElementInfo
+        botJobId: window.botJobId,
+        elementDetails: window.allElementInfo, // Send allElementInfo
       };
 
       // Convert the JSON message to a buffer
@@ -1585,7 +1590,7 @@ public class PerformPreLoad {
     //console.log("limitMapSize");
     let currentId = 1;
     sortedList.forEach((item) => {
-      if (window.allElementInfo.length < 35) {
+      if (window.allElementInfo.length < 150) {
         window.allElementInfo.push({ ...item, id: currentId++ });
       }
     });
@@ -1798,7 +1803,8 @@ public class PerformPreLoad {
   //       sessionId: `scanner-element-pane`, //-${window.homeBankingId}`,
   //       operationId: "closeBrowser",
   //       homeBankingId: window.homeBankingId,
-  //       details: window.allElementInfo, // Send allElementInfo
+  //       botJobId: window.botJobId,
+  //       elementDetails: window.allElementInfo, // Send allElementInfo
   //     };
 
   //     // Convert the JSON message to a buffer
@@ -1825,17 +1831,18 @@ public class PerformPreLoad {
   arguments[3],
   arguments[4],
   arguments[5],
-  arguments[6]
+  arguments[6],
+  arguments[7]
 );
 // })(
 //   ["button", "input", "label", "a", "select"],
 //   false,
-//   51069,
+//   62087,
 //   "scannerTool",
 //   "scannerGrid",
 //   "searchTerms",
-//   2
+//   2,
+//   66
 // );
-
-            """;
+""";
 }

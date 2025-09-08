@@ -541,7 +541,7 @@ public class PerformDBEngine {
                     InstructionLoad.setDescription(rs.getString("description"));
                     InstructionLoad.setExportToABR(rs.getBoolean("export_to_abr"));
                     InstructionLoad.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
-                    InstructionLoad.setInstructionName(rs.getString("name"));
+                    InstructionLoad.setName(rs.getString("name"));
                     InstructionLoad.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
                     InstructionLoad.setOperation(rs.getString("operation"));
                     InstructionLoad.setOptional(rs.getBoolean("optional"));
