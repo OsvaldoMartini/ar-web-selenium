@@ -2694,6 +2694,7 @@ public class ARScannedElementPane extends ARPane {
             currentBlockOrder = (executeSpecificBlock > -1) ? executeSpecificBlock : 0;
             int blockInitial = currentBlockOrder;
 
+            // BLOCK DEFINED BY "DEFAULT" OR "EXCEL GOTO"
             if (!excelDataGoto.isEmpty() && !blocksLoaded.isEmpty()) {
                 Integer parentBlockId =
                         excelDataGoto.get(excelDataGoto.size() - 1).getParentBlockId();
@@ -3960,11 +3961,45 @@ public class ARScannedElementPane extends ARPane {
                             }
 
                             // It decides Here if ByPass as per Loop or Per IF-ELSEIF-ELSE-ENDIF blocks
+                            // Does not block other executions if it fails for any reason and jumps to the beginning or
+                            // Excel GOTO position block
                             if (!success
                                     && !byPassFlagLoop
                                     && currentCondition.equals(ARConstants.ConditionStatus.NONE)) {
-                                stopAll = true;
-                                break;
+                                //                                stopAll = true;
+                                xExcelCurrentRow++;
+
+                                String bodyMsg = "Excel Data Calling Next Row: " + xExcelCurrentRow + 1;
+
+                                if (xExcelCurrentRow >= xExcelDataSize - 1) {
+                                    xExcelCurrentRow = xExcelDataSize - 1;
+                                    msgInstruction = new Pair<>(
+                                            "Excel Data (limit reached) keeping last row",
+                                            String.valueOf(xExcelCurrentRow + 1));
+                                    bodyMsg = "Excel Data (limit reached) keeping last row: " + xExcelCurrentRow + 1;
+                                } else {
+                                    msgInstruction =
+                                            new Pair<>("Excel Data next row", String.valueOf(xExcelCurrentRow + 1));
+                                }
+
+                                // Excel Report and Log
+                                performActions.logAndReport(
+                                        currentCondition,
+                                        true,
+                                        true,
+                                        blockStartTime,
+                                        blockReportName,
+                                        success,
+                                        new String[] {ARConstants.NEXT_ROW},
+                                        msgInstruction,
+                                        dataExcel,
+                                        writerReport,
+                                        "Excel Data Calling Next Row",
+                                        bodyMsg);
+
+                                //                                currentIndex++;
+                                currentBlockOrder = blockInitial; // BLOCK DEFINED BY "DEFAULT" OR "EXCEL GOTO"
+                                continue blockLoop;
                             }
 
                             // It decides Here if ByPass as per Loop or Per IF-ELSEIF-ELSE-ENDIF blocks
@@ -4062,7 +4097,7 @@ public class ARScannedElementPane extends ARPane {
                     currentBlockOrder++;
                 }
 
-                currentBlockOrder = blockInitial;
+                currentBlockOrder = blockInitial; // BLOCK DEFINED BY "DEFAULT" OR "EXCEL GOTO"
                 xExcelCurrentRow++;
                 addRowFromMap(mapExportRows);
                 if (excelFieldName != null && excelFieldName.toLowerCase().endsWith(".csv")) {
@@ -4175,13 +4210,26 @@ public class ARScannedElementPane extends ARPane {
                 webSocketSessionManager.sendMessageJson(
                         this.currentBotJob.getHomeBankingId(), sessionRowStatus, jsonStatus, "rowStatus");
 
-                performMessage.errorMessage(
-                        "Failed finding element (5 attempts).",
-                        "Use \"Force Coordinates\" in some cases.",
-                        !Strings.isNullOrEmpty(failedMessage) ? failedMessage : "Failed:",
+                //                performMessage.errorMessage(
+                //                        "Failed finding element (5 attempts).",
+                //                        "Use \"Force Coordinates\" in some cases.",
+                //                        !Strings.isNullOrEmpty(failedMessage) ? failedMessage : "Failed:",
+                //                        "Last Execution:",
+                //                        resultActions,
+                //                        350);
+
+                respModal = performMessage.showCustomModalDialogDragWin11Timer(
+                        "Bot-Job Finished - successfully",
+                        currentBotJobName,
                         "Last Execution:",
                         resultActions,
-                        350);
+                        null,
+                        false,
+                        "OK",
+                        "Close Browser",
+                        300,
+                        5);
+
             } else {
 
                 rowStatus.setColor("red"); // #FF3131 deep carmine red
@@ -4189,13 +4237,25 @@ public class ARScannedElementPane extends ARPane {
                 webSocketSessionManager.sendMessageJson(
                         this.currentBotJob.getHomeBankingId(), sessionRowStatus, jsonStatus, "rowStatus");
 
-                performMessage.errorMessage(
-                        "Process Execution Terminated",
-                        !Strings.isNullOrEmpty(failedMessage) ? failedMessage : "Failed:",
+                //                performMessage.errorMessage(
+                //                        "Process Execution Terminated",
+                //                        !Strings.isNullOrEmpty(failedMessage) ? failedMessage : "Failed:",
+                //                        "Last Execution:",
+                //                        resultActions,
+                //                        null,
+                //                        350);
+
+                respModal = performMessage.showCustomModalDialogDragWin11Timer(
+                        "Bot-Job Finished - successfully",
+                        currentBotJobName,
                         "Last Execution:",
                         resultActions,
                         null,
-                        350);
+                        false,
+                        "OK",
+                        "Close Browser",
+                        300,
+                        5);
             }
         }
         log.info(baseLogString);
