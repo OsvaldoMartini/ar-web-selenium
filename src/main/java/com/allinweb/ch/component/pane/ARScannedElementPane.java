@@ -2022,7 +2022,6 @@ public class ARScannedElementPane extends ARPane {
             try {
                 excelPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
             } catch (Exception error) {
-
                 log.error("Error Defining Excel or BaseLog File: " + error.getMessage());
             }
 
@@ -2060,7 +2059,6 @@ public class ARScannedElementPane extends ARPane {
             }
             HomeBankingLoadDTO homeBanking = performLists.getHomeBankingById(this.currentBotJob.getHomeBankingId());
             if (homeBanking == null || StringUtils.isNullOrEmpty(homeBanking.getUrl())) {
-
                 log.error("Cannot find Home Banking Environment Id:" + this.currentBotJob.getHomeBankingId());
             }
 
@@ -3330,8 +3328,6 @@ public class ARScannedElementPane extends ARPane {
                                     variableField = "Not Variable defined";
                                 }
                             }
-
-                            File logFileForSingleExcel = excelReader.createLogFile(excelPath);
 
                             try {
                                 if (jumpGoto) {
