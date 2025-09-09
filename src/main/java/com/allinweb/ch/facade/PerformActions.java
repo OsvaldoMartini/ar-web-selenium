@@ -1443,13 +1443,17 @@ public class PerformActions {
 
         String pointerEvents = element.getCssValue("pointer-events");
         if ("none".equals(pointerEvents)) {
-            performMessage.errorMessage(
-                    "BOT JOB STOP - Web Field is is not Clickable",
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Verify the rules and behavior of your web page.</span>",
-                    "<span style='color: #D32F2F; font-weight: bold;'>Some fields may be conditionally enabled based on other inputs.</span>",
-                    "<span style='color: #E65100; font-weight: bold; font-size: 1.1em;'>It is visually present but cannot be clicked.</span>",
-                    "<span style='color: #D32F2F; font-style: italic;'>Example: Invalid IBAN may block branch autofill.</span>",
-                    0);
+            //            performMessage.errorMessage(
+            //                    "BOT JOB STOP - Web Field is is not Clickable",
+            //                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Verify the rules
+            // and behavior of your web page.</span>",
+            //                    "<span style='color: #D32F2F; font-weight: bold;'>Some fields may be conditionally
+            // enabled based on other inputs.</span>",
+            //                    "<span style='color: #E65100; font-weight: bold; font-size: 1.1em;'>It is visually
+            // present but cannot be clicked.</span>",
+            //                    "<span style='color: #D32F2F; font-style: italic;'>Example: Invalid IBAN may block
+            // branch autofill.</span>",
+            //                    0);
 
             return false;
         }

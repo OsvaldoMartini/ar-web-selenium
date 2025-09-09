@@ -2045,6 +2045,7 @@ public class ARScannedElementPane extends ARPane {
 
             if (errorMessage == null) {
                 blocksLoaded = performLists.getListBotJob().get(0).getBlockLoadDTOList();
+                updateHasAnyInput();
                 errorMessage = performDBEngine.loadAllActionsPerBlock(blocksLoaded);
             }
 
@@ -3967,38 +3968,44 @@ public class ARScannedElementPane extends ARPane {
                                     && !byPassFlagLoop
                                     && currentCondition.equals(ARConstants.ConditionStatus.NONE)) {
                                 //                                stopAll = true;
-                                xExcelCurrentRow++;
 
-                                String bodyMsg = "Excel Data Calling Next Row: " + xExcelCurrentRow + 1;
+                                if (blocksLoaded.get(currentBlockOrder).isHasAnyInput()) {
 
-                                if (xExcelCurrentRow >= xExcelDataSize - 1) {
-                                    xExcelCurrentRow = xExcelDataSize - 1;
-                                    msgInstruction = new Pair<>(
-                                            "Excel Data (limit reached) keeping last row",
-                                            String.valueOf(xExcelCurrentRow + 1));
-                                    bodyMsg = "Excel Data (limit reached) keeping last row: " + xExcelCurrentRow + 1;
-                                } else {
-                                    msgInstruction =
-                                            new Pair<>("Excel Data next row", String.valueOf(xExcelCurrentRow + 1));
+                                    xExcelCurrentRow++;
+
+                                    String bodyMsg = "Excel Data Calling Next Row: " + xExcelCurrentRow + 1;
+
+                                    if (xExcelCurrentRow >= xExcelDataSize - 1) {
+                                        xExcelCurrentRow = xExcelDataSize - 1;
+                                        msgInstruction = new Pair<>(
+                                                "Excel Data (limit reached) keeping last row",
+                                                String.valueOf(xExcelCurrentRow + 1));
+                                        bodyMsg =
+                                                "Excel Data (limit reached) keeping last row: " + xExcelCurrentRow + 1;
+                                    } else {
+                                        msgInstruction =
+                                                new Pair<>("Excel Data next row", String.valueOf(xExcelCurrentRow + 1));
+                                    }
+
+                                    // Excel Report and Log
+                                    performActions.logAndReport(
+                                            currentCondition,
+                                            true,
+                                            true,
+                                            blockStartTime,
+                                            blockReportName,
+                                            success,
+                                            new String[] {ARConstants.NEXT_ROW},
+                                            msgInstruction,
+                                            dataExcel,
+                                            writerReport,
+                                            "Excel Data Calling Next Row",
+                                            bodyMsg);
                                 }
-
-                                // Excel Report and Log
-                                performActions.logAndReport(
-                                        currentCondition,
-                                        true,
-                                        true,
-                                        blockStartTime,
-                                        blockReportName,
-                                        success,
-                                        new String[] {ARConstants.NEXT_ROW},
-                                        msgInstruction,
-                                        dataExcel,
-                                        writerReport,
-                                        "Excel Data Calling Next Row",
-                                        bodyMsg);
 
                                 //                                currentIndex++;
                                 currentBlockOrder = blockInitial; // BLOCK DEFINED BY "DEFAULT" OR "EXCEL GOTO"
+                                currentIndex = 0; // INITIAL INDEX FOR ANY BLOCK LOADED"
                                 continue blockLoop;
                             }
 
@@ -4791,5 +4798,18 @@ public class ARScannedElementPane extends ARPane {
         CLASSNAME,
         CSSSELECTOR,
         XPATH
+    }
+
+    public void updateHasAnyInput() {
+        if (blocksLoaded == null) return;
+
+        blocksLoaded.forEach(block -> {
+            boolean hasInput = block.getInstructionLoad() != null
+                    && block.getInstructionLoad().stream()
+                            .anyMatch(instr -> instr.getActions() != null
+                                    && instr.getActions().startsWith("I:"));
+
+            block.setHasAnyInput(hasInput);
+        });
     }
 }
