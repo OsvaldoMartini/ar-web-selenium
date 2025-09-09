@@ -725,7 +725,7 @@ public class ARElementValuePane extends ARPane {
             try {
                 conn.close();
             } catch (SQLException e) {
-                System.out.println(e.getMessage());
+                log.info(e.getMessage());
             }
         }
     }
@@ -765,7 +765,7 @@ public class ARElementValuePane extends ARPane {
 
             ObservableList<VariableUserDTO> items = tableView.getItems();
             if (items == null || items.isEmpty()) {
-                System.out.println("TableView is empty.");
+                log.info("TableView is empty.");
                 return;
             }
 
@@ -787,7 +787,7 @@ public class ARElementValuePane extends ARPane {
         }
 
         // If the loop completes without finding the ID
-        System.out.println("Variable with ID " + idToFind + " not found in the TableView.");
+        log.info("Variable with ID " + idToFind + " not found in the TableView.");
     }
 
     private void fillFields(VariableUserDTO userDTO) {

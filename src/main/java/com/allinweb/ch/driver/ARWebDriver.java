@@ -367,7 +367,7 @@ public class ARWebDriver {
 
             // Example: print or log the chunks if needed
             //            for (String chunk : messageChunks) {
-            //                System.out.println("Browser response : " + chunk);
+            //                log.info("Browser response : " + chunk);
             //            }
             return null;
         }

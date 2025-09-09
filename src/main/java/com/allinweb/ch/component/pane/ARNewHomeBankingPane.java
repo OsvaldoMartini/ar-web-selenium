@@ -1064,7 +1064,7 @@ public class ARNewHomeBankingPane extends ARPane {
                 }
             }
         } catch (SQLException ex) {
-            System.out.println(ex.getMessage());
+            log.info(ex.getMessage());
 
             performMessage.errorMessage("Error", "MAX CHARACTERS LIMIT FOR ACCESS", null, null, null, 0);
             //            showAlert(Alert.AlertType.ERROR, "Error", "MAX CHARACTERS LIMIT FOR ACCESS", null);
@@ -1113,7 +1113,7 @@ public class ARNewHomeBankingPane extends ARPane {
             try {
                 conn.close();
             } catch (SQLException e) {
-                System.out.println(e.getMessage());
+                log.info(e.getMessage());
             }
         }
     }

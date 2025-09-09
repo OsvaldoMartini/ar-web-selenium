@@ -117,6 +117,6 @@ public class SystemDetails {
 
     public static void main(String[] args) {
         String details = getSystemDetails();
-        System.out.println("System Details: " + details);
+        log.info("System Details: " + details);
     }
 }

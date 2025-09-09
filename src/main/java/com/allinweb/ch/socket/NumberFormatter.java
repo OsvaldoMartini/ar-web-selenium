@@ -79,7 +79,7 @@ public class NumberFormatter {
         for (String number : numbers) {
             for (String format : formats) {
                 String formattedNumber = formatNumber(number, format);
-                System.out.println("Number: " + number + ", Format: " + format + " -> Formatted: " + formattedNumber);
+                log.info("Number: " + number + ", Format: " + format + " -> Formatted: " + formattedNumber);
             }
         }
     }

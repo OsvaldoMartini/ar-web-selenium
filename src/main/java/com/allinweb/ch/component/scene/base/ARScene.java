@@ -111,13 +111,13 @@ public abstract class ARScene implements IARScene, IconLoader {
 
     protected void handleCloseThreads() {
         if (!isCloseHandlerSet) {
-            System.out.println("Setting close handler for the first time");
+            log.info("Setting close handler for the first time");
             this.stage.setOnCloseRequest(event -> {
                 threadList.forEach(this::interruptThread);
             });
             isCloseHandlerSet = true; // Mark the flag as true after setting
         } else {
-            System.out.println("Close handler already set, skipping...");
+            log.info("Close handler already set, skipping...");
         }
     }
 

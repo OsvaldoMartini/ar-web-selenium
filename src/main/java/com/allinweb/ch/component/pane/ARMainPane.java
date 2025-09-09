@@ -414,11 +414,11 @@ public class ARMainPane extends ARPane {
                 }
 
                 String version = System.getProperty("java.version");
-                System.out.println("Detected Java Version: " + version);
+                log.info("Detected Java Version: " + version);
 
                 int majorVersion = getMajorJavaVersion(version);
                 if (majorVersion >= 17) {
-                    System.out.println("✅ Java 17 or higher is installed.");
+                    log.info("✅ Java 17 or higher is installed.");
                 } else {
                     performMessage.errorMessage(
                             "Compatibility Issue: Incompatible Java Version",

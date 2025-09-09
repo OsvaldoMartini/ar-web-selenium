@@ -88,7 +88,7 @@ public class PerformDataBase {
     //                conn = null; // Reset the connection to null after closing
     //                decrementOpenConnections();
     //            } catch (SQLException e) {
-    //                System.out.println(e.getMessage()); // Handle the exception, log it or rethrow it as needed
+    //                log.info(e.getMessage()); // Handle the exception, log it or rethrow it as needed
     //            }
     //        }
     //    }
@@ -96,13 +96,13 @@ public class PerformDataBase {
     // Increment open connections counter
     public synchronized void incrementOpenConnections() {
         openConnections++;
-        System.out.println("Open connections: " + openConnections);
+        log.info("Open connections: " + openConnections);
     }
 
     // Decrement open connections counter
     public synchronized void decrementOpenConnections() {
         openConnections--;
-        System.out.println("Open connections: " + openConnections);
+        log.info("Open connections: " + openConnections);
     }
 
     // Get the current open connections count
@@ -3373,7 +3373,7 @@ public class PerformDataBase {
                             fkExists = true;
                             // Optional: You can print the FK_NAME if you want to know what Access called it
                             // String fkName = rsFK.getString("FK_NAME");
-                            // System.out.println(String.format("Foreign key '%s' (home_url_id -> home_url.id) already
+                            // log.info(String.format("Foreign key '%s' (home_url_id -> home_url.id) already
                             // exists.", fkName));
                             break;
                         }
@@ -3390,17 +3390,16 @@ public class PerformDataBase {
 
                 // 2. Add the foreign key constraint only if it doesn't exist
                 if (!fkExists) {
-                    System.out.println(String.format(
+                    log.info(String.format(
                             "Foreign key 'FK_NewHomeURL' (home_url_id -> home_url.id) not found. Adding it..."));
                     String addHomrURLForeignKeySQL = "ALTER TABLE bot_job "
                             + "ADD CONSTRAINT FK_NewHomeURL FOREIGN KEY (home_url_id) "
                             + "REFERENCES home_url(id) ";
                     stmt.executeUpdate(addHomrURLForeignKeySQL);
-                    System.out.println(String.format("Foreign key 'FK_NewHomeURL' added to 'bot_job' table."));
-                    System.out.println(
-                            String.format("Database %s has been updated with the foreign key!", dbFile.getName()));
+                    log.info(String.format("Foreign key 'FK_NewHomeURL' added to 'bot_job' table."));
+                    log.info(String.format("Database %s has been updated with the foreign key!", dbFile.getName()));
                 } else {
-                    System.out.println(String.format(
+                    log.info(String.format(
                             "Database %s no need for foreign key 'FK_NewHomeURL' updates (constraint exists).",
                             dbFile.getName()));
                 }
@@ -3415,7 +3414,7 @@ public class PerformDataBase {
                 }
             }
         } catch (SQLException error) {
-            System.out.println("initializeDatabase\nError: " + error.getMessage());
+            log.info("initializeDatabase\nError: " + error.getMessage());
         }
     }
 
@@ -3436,7 +3435,7 @@ public class PerformDataBase {
 
                     if (fkName != null && !fkName.trim().isEmpty()) {
                         String dropSQL = String.format("ALTER TABLE [%s] DROP CONSTRAINT [%s]", tableName, fkName);
-                        System.out.println("Dropping FK: " + dropSQL);
+                        log.info("Dropping FK: " + dropSQL);
                         try {
                             stmt.executeUpdate(dropSQL);
                         } catch (SQLException ex) {
@@ -3449,7 +3448,7 @@ public class PerformDataBase {
 
             tables.close();
             stmt.close();
-            System.out.println("All foreign key constraints removed.");
+            log.info("All foreign key constraints removed.");
 
         } catch (SQLException e) {
             log.error("Error disable Foreign Key Constraints");
@@ -3472,7 +3471,7 @@ public class PerformDataBase {
             }
 
         } catch (SQLException ex) {
-            System.out.println(ex.getMessage());
+            log.info(ex.getMessage());
         }
     }
 
@@ -3497,7 +3496,7 @@ public class PerformDataBase {
             }
             return null;
         } catch (SQLException error) {
-            System.out.println(error.getMessage());
+            log.info(error.getMessage());
             return new ErrorMessage("Error Duplicating Blocks", "Block Insertion Failure", error.getMessage());
         }
     }
@@ -3732,7 +3731,7 @@ public class PerformDataBase {
             }
 
         } catch (SQLException error) {
-            System.out.println(error.getMessage());
+            log.info(error.getMessage());
             return new ErrorMessage("Error updating URL", "Org URL Update Failure", error.getMessage());
         }
     }
@@ -3792,7 +3791,7 @@ public class PerformDataBase {
             }
 
         } catch (SQLException e) {
-            System.out.println("Error counting usage of Home URL ID " + homeUrlId + ": " + e.getMessage());
+            log.info("Error counting usage of Home URL ID " + homeUrlId + ": " + e.getMessage());
         }
 
         return 0; // Return 0 if query fails or no result
@@ -3944,10 +3943,10 @@ public class PerformDataBase {
                         if (count % BATCH_SIZE == 0) {
                             insertStmt.executeBatch();
                             accessConn.commit();
-                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                            log.info("Inserted batch of " + BATCH_SIZE);
                         }
                     } else {
-                        System.out.println("Skipped (exists): " + url);
+                        log.info("Skipped (exists): " + url);
                     }
                 }
 
@@ -3955,11 +3954,11 @@ public class PerformDataBase {
                 if (count % BATCH_SIZE != 0) {
                     insertStmt.executeBatch();
                     accessConn.commit();
-                    System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                    log.info("Inserted final batch of " + (count % BATCH_SIZE));
                 }
             }
 
-            System.out.println("Sync completed.");
+            log.info("Sync completed.");
         } catch (SQLException error) {
             log.error("Error export HomeBanking");
         }
@@ -4087,7 +4086,7 @@ public class PerformDataBase {
 
                         Integer newHomeBankId = blockDetailsDTO.getHomeBankingId();
                         if (newHomeBankId == null) {
-                            System.out.println("Skipped component_block with unknown home_banking_id");
+                            log.info("Skipped component_block with unknown home_banking_id");
                             continue;
                         }
 
@@ -4116,7 +4115,7 @@ public class PerformDataBase {
                         if (count % BATCH_SIZE == 0) {
                             insertStmt.executeBatch();
                             conn.commit();
-                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                            log.info("Inserted batch of " + BATCH_SIZE);
                         }
                     }
 
@@ -4124,7 +4123,7 @@ public class PerformDataBase {
                     if (count % BATCH_SIZE != 0) {
                         insertStmt.executeBatch();
                         conn.commit();
-                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                        log.info("Inserted final batch of " + (count % BATCH_SIZE));
                     }
                 }
             }
@@ -4142,7 +4141,7 @@ public class PerformDataBase {
             newComponentIds.removeAll(blockIdsBefore);
 
             // You can now use `newComponentIds` as needed
-            System.out.println("Newly inserted component_block IDs: " + newComponentIds);
+            log.info("Newly inserted component_block IDs: " + newComponentIds);
 
             // Step 5: update blockMap with new IDs
             List<Integer> keys = new ArrayList<>(blockMap.keySet());
@@ -4211,14 +4210,14 @@ public class PerformDataBase {
                         int id = rsInstruction.getInt("id");
                         Integer newHomeBankId = blockDetailsDTO.getHomeBankingId();
                         if (newHomeBankId == null) {
-                            System.out.println("Skipped component_instruction with unknown home_banking_id");
+                            log.info("Skipped component_instruction with unknown home_banking_id");
                             continue;
                         }
 
                         int oldBlockId = rsInstruction.getInt("block_id");
                         Integer newBlockId = blockMap.get(oldBlockId);
                         if (newBlockId == null) {
-                            System.out.println("Skipped component_instruction with unknown block_id: " + oldBlockId);
+                            log.info("Skipped component_instruction with unknown block_id: " + oldBlockId);
                             continue;
                         }
 
@@ -4270,7 +4269,7 @@ public class PerformDataBase {
                         if (count % BATCH_SIZE == 0) {
                             insertStmt.executeBatch();
                             conn.commit();
-                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                            log.info("Inserted batch of " + BATCH_SIZE);
                         }
                     }
 
@@ -4278,7 +4277,7 @@ public class PerformDataBase {
                     if (count % BATCH_SIZE != 0) {
                         insertStmt.executeBatch();
                         conn.commit();
-                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                        log.info("Inserted final batch of " + (count % BATCH_SIZE));
                     }
                 }
             }
@@ -4296,7 +4295,7 @@ public class PerformDataBase {
             newComponentIds.removeAll(blockIdsBefore);
 
             // You can now use `newComponentIds` as needed
-            System.out.println("Newly inserted component_instruction IDs: " + newComponentIds);
+            log.info("Newly inserted component_instruction IDs: " + newComponentIds);
 
             // Step 5: update blockMap with new IDs
             List<Integer> keys = new ArrayList<>(instructionMap.keySet());
@@ -4371,7 +4370,7 @@ public class PerformDataBase {
 
                         Integer newHomeBankId = blockDetailsDTO.getHomeBankingId();
                         if (newHomeBankId == null) {
-                            System.out.println("Skipped component_variable with unknown home_banking_id");
+                            log.info("Skipped component_variable with unknown home_banking_id");
                             continue;
                         }
 
@@ -4384,8 +4383,7 @@ public class PerformDataBase {
                         if (instructionId != null) {
                             newInstructionId = instructionMap.get(instructionId);
                             if (newInstructionId == null) {
-                                System.out.println(
-                                        "Skipped component_variable with unknown instruction_id: " + instructionId);
+                                log.info("Skipped component_variable with unknown instruction_id: " + instructionId);
                                 continue;
                             }
                         }
@@ -4412,7 +4410,7 @@ public class PerformDataBase {
                         if (count % BATCH_SIZE == 0) {
                             insertStmt.executeBatch();
                             conn.commit();
-                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                            log.info("Inserted batch of " + BATCH_SIZE);
                         }
                     }
 
@@ -4420,7 +4418,7 @@ public class PerformDataBase {
                     if (count % BATCH_SIZE != 0) {
                         insertStmt.executeBatch();
                         conn.commit();
-                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                        log.info("Inserted final batch of " + (count % BATCH_SIZE));
                     }
                 }
             }
@@ -4438,7 +4436,7 @@ public class PerformDataBase {
             newComponentIds.removeAll(blockIdsBefore);
 
             // You can now use `newComponentIds` as needed
-            System.out.println("Newly inserted component_variable IDs: " + newComponentIds);
+            log.info("Newly inserted component_variable IDs: " + newComponentIds);
 
             // Step 5: update blockMap with new IDs
             List<Integer> keys = new ArrayList<>(variableMap.keySet());
@@ -4516,7 +4514,7 @@ public class PerformDataBase {
                         }
 
                         if (newVariableId == null) {
-                            System.out.println("Skipped variable_id column with unknown variable_id: " + newVariableId);
+                            log.info("Skipped variable_id column with unknown variable_id: " + newVariableId);
                             updateStmt.setNull(1, Types.INTEGER);
                         } else {
                             updateStmt.setInt(1, newVariableId);
@@ -4549,14 +4547,14 @@ public class PerformDataBase {
                         if (count % BATCH_SIZE == 0) {
                             updateStmt.executeBatch();
                             conn.commit();
-                            System.out.println("Updated batch of " + BATCH_SIZE);
+                            log.info("Updated batch of " + BATCH_SIZE);
                         }
                     }
 
                     if (count % BATCH_SIZE != 0) {
                         updateStmt.executeBatch();
                         conn.commit();
-                        System.out.println("Updated final batch of " + (count % BATCH_SIZE));
+                        log.info("Updated final batch of " + (count % BATCH_SIZE));
                     }
 
                     log.info("Updated component_instruction records: " + count);
@@ -4622,15 +4620,13 @@ public class PerformDataBase {
                         int oldInstructionId = rsReference.getInt("instruction_id");
                         Integer newInstructionId = instructionMap.get(oldInstructionId);
                         if (newInstructionId == null) {
-                            System.out.println(
-                                    "Skipped component_reference with unknown instruction_id: " + oldInstructionId);
+                            log.info("Skipped component_reference with unknown instruction_id: " + oldInstructionId);
                             continue;
                         }
 
                         Integer newHomeBankId = blockDetailsDTO.getHomeBankingId();
                         if (newHomeBankId == null) {
-                            System.out.println(
-                                    "Skipped component_reference with unknown home_banking_id: " + newHomeBankId);
+                            log.info("Skipped component_reference with unknown home_banking_id: " + newHomeBankId);
                             continue;
                         }
 
@@ -4652,7 +4648,7 @@ public class PerformDataBase {
                         if (count % BATCH_SIZE == 0) {
                             insertStmt.executeBatch();
                             conn.commit();
-                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                            log.info("Inserted batch of " + BATCH_SIZE);
                         }
                     }
 
@@ -4660,7 +4656,7 @@ public class PerformDataBase {
                     if (count % BATCH_SIZE != 0) {
                         insertStmt.executeBatch();
                         conn.commit();
-                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                        log.info("Inserted final batch of " + (count % BATCH_SIZE));
                     }
                 }
             }
@@ -4678,7 +4674,7 @@ public class PerformDataBase {
             newComponentIds.removeAll(blockIdsBefore);
 
             // You can now use `newComponentIds` as needed
-            System.out.println("Newly inserted component_reference IDs: " + newComponentIds);
+            log.info("Newly inserted component_reference IDs: " + newComponentIds);
 
             // Step 5: update blockMap with new IDs
             List<Integer> keys = new ArrayList<>(referenceMap.keySet());
@@ -4756,7 +4752,7 @@ public class PerformDataBase {
 
                         Integer newBotJobId = blockDetailsDTO.getBotJobId();
                         if (newBotJobId == null) {
-                            System.out.println("Skipped block with unknown bot_job_id");
+                            log.info("Skipped block with unknown bot_job_id");
                             continue;
                         }
 
@@ -4785,7 +4781,7 @@ public class PerformDataBase {
                         if (count % BATCH_SIZE == 0) {
                             insertStmt.executeBatch();
                             conn.commit();
-                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                            log.info("Inserted batch of " + BATCH_SIZE);
                         }
                     }
 
@@ -4793,7 +4789,7 @@ public class PerformDataBase {
                     if (count % BATCH_SIZE != 0) {
                         insertStmt.executeBatch();
                         conn.commit();
-                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                        log.info("Inserted final batch of " + (count % BATCH_SIZE));
                     }
                 }
             }
@@ -4811,7 +4807,7 @@ public class PerformDataBase {
             newComponentIds.removeAll(blockIdsBefore);
 
             // You can now use `newComponentIds` as needed
-            System.out.println("Newly inserted block IDs: " + newComponentIds);
+            log.info("Newly inserted block IDs: " + newComponentIds);
 
             // Step 5: update blockMap with new IDs
             List<Integer> keys = new ArrayList<>(blockMap.keySet());
@@ -4880,14 +4876,14 @@ public class PerformDataBase {
                         int id = rsInstruction.getInt("id");
                         Integer newBotJobId = blockDetailsDTO.getBotJobId();
                         if (newBotJobId == null) {
-                            System.out.println("Skipped instruction with unknown bot_job_id");
+                            log.info("Skipped instruction with unknown bot_job_id");
                             continue;
                         }
 
                         int oldBlockId = rsInstruction.getInt("block_id");
                         Integer newBlockId = blockMap.get(oldBlockId);
                         if (newBlockId == null) {
-                            System.out.println("Skipped instruction with unknown block_id: " + oldBlockId);
+                            log.info("Skipped instruction with unknown block_id: " + oldBlockId);
                             continue;
                         }
 
@@ -4940,7 +4936,7 @@ public class PerformDataBase {
                         if (count % BATCH_SIZE == 0) {
                             insertStmt.executeBatch();
                             conn.commit();
-                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                            log.info("Inserted batch of " + BATCH_SIZE);
                         }
                     }
 
@@ -4948,7 +4944,7 @@ public class PerformDataBase {
                     if (count % BATCH_SIZE != 0) {
                         insertStmt.executeBatch();
                         conn.commit();
-                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                        log.info("Inserted final batch of " + (count % BATCH_SIZE));
                     }
                 }
             }
@@ -4966,7 +4962,7 @@ public class PerformDataBase {
             newComponentIds.removeAll(blockIdsBefore);
 
             // You can now use `newComponentIds` as needed
-            System.out.println("Newly inserted instruction IDs: " + newComponentIds);
+            log.info("Newly inserted instruction IDs: " + newComponentIds);
 
             // Step 5: update blockMap with new IDs
             List<Integer> keys = new ArrayList<>(instructionMap.keySet());
@@ -5038,7 +5034,7 @@ public class PerformDataBase {
 
                         Integer newBotJobId = blockDetailsDTO.getBotJobId();
                         if (newBotJobId == null) {
-                            System.out.println("Skipped variable with unknown bot_job_id");
+                            log.info("Skipped variable with unknown bot_job_id");
                             continue;
                         }
 
@@ -5051,7 +5047,7 @@ public class PerformDataBase {
                         if (instructionId != null) {
                             newInstructionId = instructionMap.get(instructionId);
                             if (newInstructionId == null) {
-                                System.out.println("Skipped variable with unknown instruction_id: " + instructionId);
+                                log.info("Skipped variable with unknown instruction_id: " + instructionId);
                                 continue;
                             }
                         }
@@ -5078,7 +5074,7 @@ public class PerformDataBase {
                         if (count % BATCH_SIZE == 0) {
                             insertStmt.executeBatch();
                             conn.commit();
-                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                            log.info("Inserted batch of " + BATCH_SIZE);
                         }
                     }
 
@@ -5086,7 +5082,7 @@ public class PerformDataBase {
                     if (count % BATCH_SIZE != 0) {
                         insertStmt.executeBatch();
                         conn.commit();
-                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                        log.info("Inserted final batch of " + (count % BATCH_SIZE));
                     }
                 }
             }
@@ -5104,7 +5100,7 @@ public class PerformDataBase {
             newComponentIds.removeAll(blockIdsBefore);
 
             // You can now use `newComponentIds` as needed
-            System.out.println("Newly inserted variable IDs: " + newComponentIds);
+            log.info("Newly inserted variable IDs: " + newComponentIds);
 
             // Step 5: update blockMap with new IDs
             List<Integer> keys = new ArrayList<>(variableMap.keySet());
@@ -5179,7 +5175,7 @@ public class PerformDataBase {
                         }
 
                         if (newVariableId == null) {
-                            System.out.println("Skipped variable_id column with unknown variable_id: " + newVariableId);
+                            log.info("Skipped variable_id column with unknown variable_id: " + newVariableId);
                             updateStmt.setNull(1, Types.INTEGER);
                         } else {
                             updateStmt.setInt(1, newVariableId);
@@ -5212,14 +5208,14 @@ public class PerformDataBase {
                         if (count % BATCH_SIZE == 0) {
                             updateStmt.executeBatch();
                             conn.commit();
-                            System.out.println("Updated batch of " + BATCH_SIZE);
+                            log.info("Updated batch of " + BATCH_SIZE);
                         }
                     }
 
                     if (count % BATCH_SIZE != 0) {
                         updateStmt.executeBatch();
                         conn.commit();
-                        System.out.println("Updated final batch of " + (count % BATCH_SIZE));
+                        log.info("Updated final batch of " + (count % BATCH_SIZE));
                     }
 
                     log.info("Updated instruction records: " + count);
@@ -5282,13 +5278,13 @@ public class PerformDataBase {
                         int oldInstructionId = rsReference.getInt("instruction_id");
                         Integer newInstructionId = instructionMap.get(oldInstructionId);
                         if (newInstructionId == null) {
-                            System.out.println("Skipped reference with unknown instruction_id: " + oldInstructionId);
+                            log.info("Skipped reference with unknown instruction_id: " + oldInstructionId);
                             continue;
                         }
 
                         Integer newBotJobId = blockDetailsDTO.getBotJobId();
                         if (newBotJobId == null) {
-                            System.out.println("Skipped reference with unknown bot_job_id: " + newBotJobId);
+                            log.info("Skipped reference with unknown bot_job_id: " + newBotJobId);
                             continue;
                         }
 
@@ -5310,7 +5306,7 @@ public class PerformDataBase {
                         if (count % BATCH_SIZE == 0) {
                             insertStmt.executeBatch();
                             conn.commit();
-                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                            log.info("Inserted batch of " + BATCH_SIZE);
                         }
                     }
 
@@ -5318,7 +5314,7 @@ public class PerformDataBase {
                     if (count % BATCH_SIZE != 0) {
                         insertStmt.executeBatch();
                         conn.commit();
-                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                        log.info("Inserted final batch of " + (count % BATCH_SIZE));
                     }
                 }
             }
@@ -5336,7 +5332,7 @@ public class PerformDataBase {
             newComponentIds.removeAll(blockIdsBefore);
 
             // You can now use `newComponentIds` as needed
-            System.out.println("Newly inserted reference IDs: " + newComponentIds);
+            log.info("Newly inserted reference IDs: " + newComponentIds);
 
             // Step 5: update blockMap with new IDs
             List<Integer> keys = new ArrayList<>(referenceMap.keySet());
@@ -5419,7 +5415,7 @@ public class PerformDataBase {
             newComponentIds.removeAll(blockIdsBefore);
 
             // You can now use `newComponentIds` as needed
-            System.out.println("Newly inserted bot_job IDs: " + newComponentIds);
+            log.info("Newly inserted bot_job IDs: " + newComponentIds);
 
             // Step 5: update blockMap with new IDs
             List<Integer> keys = new ArrayList<>(botJobMap.keySet());
@@ -5495,7 +5491,7 @@ public class PerformDataBase {
                         // Map old bot_job_id to new
                         Integer newBotJobId = botJobMap.get(oldBotJobId);
                         if (newBotJobId == null) {
-                            System.out.println("Skipped block with unknown bot_job_id: " + newBotJobId);
+                            log.info("Skipped block with unknown bot_job_id: " + newBotJobId);
                             continue;
                         }
 
@@ -5524,7 +5520,7 @@ public class PerformDataBase {
                         if (count % BATCH_SIZE == 0) {
                             insertStmt.executeBatch();
                             conn.commit();
-                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                            log.info("Inserted batch of " + BATCH_SIZE);
                         }
                     }
 
@@ -5532,7 +5528,7 @@ public class PerformDataBase {
                     if (count % BATCH_SIZE != 0) {
                         insertStmt.executeBatch();
                         conn.commit();
-                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                        log.info("Inserted final batch of " + (count % BATCH_SIZE));
                     }
                 }
             }
@@ -5550,7 +5546,7 @@ public class PerformDataBase {
             newComponentIds.removeAll(blockIdsBefore);
 
             // You can now use `newComponentIds` as needed
-            System.out.println("Newly inserted block IDs: " + newComponentIds);
+            log.info("Newly inserted block IDs: " + newComponentIds);
 
             // Step 5: update blockMap with new IDs
             List<Integer> keys = new ArrayList<>(blockMap.keySet());
@@ -5618,14 +5614,14 @@ public class PerformDataBase {
                         int oldBlockId = rsInstruction.getInt("block_id");
                         Integer newBlockId = blockMap.get(oldBlockId);
                         if (newBlockId == null) {
-                            System.out.println("Skipped instruction with unknown block_id: " + oldBlockId);
+                            log.info("Skipped instruction with unknown block_id: " + oldBlockId);
                             continue;
                         }
 
                         int oldBotJobId = rsInstruction.getInt("bot_job_id");
                         Integer newBotJobId = botJobMap.get(oldBotJobId);
                         if (newBotJobId == null) {
-                            System.out.println("Skipped instruction with unknown bot_job_id: " + newBotJobId);
+                            log.info("Skipped instruction with unknown bot_job_id: " + newBotJobId);
                             continue;
                         }
 
@@ -5678,7 +5674,7 @@ public class PerformDataBase {
                         if (count % BATCH_SIZE == 0) {
                             insertStmt.executeBatch();
                             conn.commit();
-                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                            log.info("Inserted batch of " + BATCH_SIZE);
                         }
                     }
 
@@ -5686,7 +5682,7 @@ public class PerformDataBase {
                     if (count % BATCH_SIZE != 0) {
                         insertStmt.executeBatch();
                         conn.commit();
-                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                        log.info("Inserted final batch of " + (count % BATCH_SIZE));
                     }
                 }
             }
@@ -5704,7 +5700,7 @@ public class PerformDataBase {
             newComponentIds.removeAll(blockIdsBefore);
 
             // You can now use `newComponentIds` as needed
-            System.out.println("Newly inserted instruction IDs: " + newComponentIds);
+            log.info("Newly inserted instruction IDs: " + newComponentIds);
 
             // Step 5: update blockMap with new IDs
             List<Integer> keys = new ArrayList<>(instructionMap.keySet());
@@ -5771,7 +5767,7 @@ public class PerformDataBase {
                         int oldBotJobId = rsVariable.getInt("bot_job_id");
                         Integer newBotJobId = botJobMap.get(oldBotJobId);
                         if (newBotJobId == null) {
-                            System.out.println("Skipped variable with unknown bot_job_id: " + newBotJobId);
+                            log.info("Skipped variable with unknown bot_job_id: " + newBotJobId);
                             continue;
                         }
 
@@ -5784,7 +5780,7 @@ public class PerformDataBase {
                         if (instructionId != null) {
                             newInstructionId = instructionMap.get(instructionId);
                             if (newInstructionId == null) {
-                                System.out.println("Skipped variable with unknown instruction_id: " + instructionId);
+                                log.info("Skipped variable with unknown instruction_id: " + instructionId);
                                 continue;
                             }
                         }
@@ -5811,7 +5807,7 @@ public class PerformDataBase {
                         if (count % BATCH_SIZE == 0) {
                             insertStmt.executeBatch();
                             conn.commit();
-                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                            log.info("Inserted batch of " + BATCH_SIZE);
                         }
                     }
 
@@ -5819,7 +5815,7 @@ public class PerformDataBase {
                     if (count % BATCH_SIZE != 0) {
                         insertStmt.executeBatch();
                         conn.commit();
-                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                        log.info("Inserted final batch of " + (count % BATCH_SIZE));
                     }
                 }
             }
@@ -5837,7 +5833,7 @@ public class PerformDataBase {
             newComponentIds.removeAll(blockIdsBefore);
 
             // You can now use `newComponentIds` as needed
-            System.out.println("Newly inserted variable IDs: " + newComponentIds);
+            log.info("Newly inserted variable IDs: " + newComponentIds);
 
             // Step 5: update blockMap with new IDs
             List<Integer> keys = new ArrayList<>(variableMap.keySet());
@@ -5913,7 +5909,7 @@ public class PerformDataBase {
                         }
 
                         if (newVariableId == null) {
-                            System.out.println("Skipped variable_id column with unknown variable_id: " + newVariableId);
+                            log.info("Skipped variable_id column with unknown variable_id: " + newVariableId);
                             updateStmt.setNull(1, Types.INTEGER);
                         } else {
                             updateStmt.setInt(1, newVariableId);
@@ -5946,14 +5942,14 @@ public class PerformDataBase {
                         if (count % BATCH_SIZE == 0) {
                             updateStmt.executeBatch();
                             conn.commit();
-                            System.out.println("Updated batch of " + BATCH_SIZE);
+                            log.info("Updated batch of " + BATCH_SIZE);
                         }
                     }
 
                     if (count % BATCH_SIZE != 0) {
                         updateStmt.executeBatch();
                         conn.commit();
-                        System.out.println("Updated final batch of " + (count % BATCH_SIZE));
+                        log.info("Updated final batch of " + (count % BATCH_SIZE));
                     }
 
                     log.info("Updated instruction records: " + count);
@@ -6016,14 +6012,14 @@ public class PerformDataBase {
                         int oldInstructionId = rsReference.getInt("instruction_id");
                         Integer newInstructionId = instructionMap.get(oldInstructionId);
                         if (newInstructionId == null) {
-                            System.out.println("Skipped reference with unknown instruction_id: " + oldInstructionId);
+                            log.info("Skipped reference with unknown instruction_id: " + oldInstructionId);
                             continue;
                         }
 
                         int oldBotJobId = rsReference.getInt("bot_job_id");
                         Integer newBotJobId = botJobMap.get(oldBotJobId);
                         if (newBotJobId == null) {
-                            System.out.println("Skipped reference with unknown bot_job_id: " + newBotJobId);
+                            log.info("Skipped reference with unknown bot_job_id: " + newBotJobId);
                             continue;
                         }
 
@@ -6045,7 +6041,7 @@ public class PerformDataBase {
                         if (count % BATCH_SIZE == 0) {
                             insertStmt.executeBatch();
                             conn.commit();
-                            System.out.println("Inserted batch of " + BATCH_SIZE);
+                            log.info("Inserted batch of " + BATCH_SIZE);
                         }
                     }
 
@@ -6053,7 +6049,7 @@ public class PerformDataBase {
                     if (count % BATCH_SIZE != 0) {
                         insertStmt.executeBatch();
                         conn.commit();
-                        System.out.println("Inserted final batch of " + (count % BATCH_SIZE));
+                        log.info("Inserted final batch of " + (count % BATCH_SIZE));
                     }
                 }
             }
@@ -6071,7 +6067,7 @@ public class PerformDataBase {
             newComponentIds.removeAll(blockIdsBefore);
 
             // You can now use `newComponentIds` as needed
-            System.out.println("Newly inserted reference IDs: " + newComponentIds);
+            log.info("Newly inserted reference IDs: " + newComponentIds);
 
             // Step 5: update blockMap with new IDs
             List<Integer> keys = new ArrayList<>(referenceMap.keySet());
@@ -6110,9 +6106,9 @@ public class PerformDataBase {
                                 """;
                 stmt.executeUpdate(createTableVectorOpenAI);
             }
-            System.out.println("Database %s has been created!");
+            log.info("Database %s has been created!");
         } catch (SQLException error) {
-            System.out.println("initializeDatabase\nError: " + error.getMessage());
+            log.info("initializeDatabase\nError: " + error.getMessage());
         }
     }
 
@@ -6132,9 +6128,9 @@ public class PerformDataBase {
                                 """;
                 stmt.executeUpdate(createTableVectorOpenAI);
             }
-            System.out.println("Database %s has been created!");
+            log.info("Database %s has been created!");
         } catch (SQLException error) {
-            System.out.println("initializeDatabase\nError: " + error.getMessage());
+            log.info("initializeDatabase\nError: " + error.getMessage());
         }
     }
 
@@ -6799,7 +6795,7 @@ public class PerformDataBase {
             List<Integer> restToDeleteIds =
                     previousIds.stream().filter(id -> !currentIds.contains(id)).collect(Collectors.toList());
 
-            System.out.println("Blocks To Delete: " + restToDeleteIds.size());
+            log.info("Blocks To Delete: " + restToDeleteIds.size());
             // Keep at least One for BLOCK TABLE
             List<BlockLoadDTO> listBlocks =
                     instTable.equals("instruction") ? performLists.getListBlock() : performLists.getListBlockComp();
@@ -6883,7 +6879,7 @@ public class PerformDataBase {
         Set<Integer> seenNumbers = new HashSet<>();
         for (BlockLoadDTO block : listBlock) {
             if (!seenNumbers.add(block.getBlockOrderNumber())) {
-                System.out.println("Duplicate blockOrderNumber found: " + block.getBlockOrderNumber() + " (Block ID: "
+                log.info("Duplicate blockOrderNumber found: " + block.getBlockOrderNumber() + " (Block ID: "
                         + block.getId() + ")");
                 // updateBlockOrderNumber  ALREADY UPDATE MEMORY LIST
                 if (errorMessage == null) {
@@ -6905,7 +6901,7 @@ public class PerformDataBase {
             int expected = orderNumbers.get(i - 1) + 1;
             int actual = orderNumbers.get(i);
             if (actual != expected) {
-                System.out.println("Gap found: expected " + expected + " but found " + actual);
+                log.info("Gap found: expected " + expected + " but found " + actual);
                 if (errorMessage == null) {
                     errorMessage = updateBlockOrderNumber(blockTable, whereId, true);
                     mustReload = true;
@@ -6918,5 +6914,9 @@ public class PerformDataBase {
             errorMessage = loadBlocks(whereId, botJobName, blockTable);
         }
         return errorMessage;
+    }
+
+    public void callScketLists() {
+        performLists.initialize();
     }
 }

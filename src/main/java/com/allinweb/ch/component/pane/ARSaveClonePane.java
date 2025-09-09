@@ -328,13 +328,13 @@ public class ARSaveClonePane extends ARPane {
                     if (matchHomeUrl.isPresent()) {
                         HomeUrlDTO matchedHomeUrl = matchHomeUrl.get();
                         // Do something with matchedHomeUrl
-                        System.out.println("Found matching HomeUrlDTO: id=" + matchedHomeUrl.getId() + ", url="
+                        log.info("Found matching HomeUrlDTO: id=" + matchedHomeUrl.getId() + ", url="
                                 + matchedHomeUrl.getUrl());
 
                         cloneBotJobSteps(matchedHomeUrl, newBotJobName, newDescription, stage);
 
                     } else {
-                        System.out.println("No matching HomeUrlDTO found.");
+                        log.info("No matching HomeUrlDTO found.");
 
                         ErrorMessage errorMessage = performDataBase.createNewHomeUrl(
                                 selectedBotJob.getHomeBankingId(),
@@ -380,7 +380,7 @@ public class ARSaveClonePane extends ARPane {
                     if (matchHomeUrl.isPresent()) {
                         HomeUrlDTO matchedHomeUrl = matchHomeUrl.get();
                         // Do something with matchedHomeUrl
-                        System.out.println("Found matching HomeUrlDTO: id=" + matchedHomeUrl.getId() + ", url="
+                        log.info("Found matching HomeUrlDTO: id=" + matchedHomeUrl.getId() + ", url="
                                 + matchedHomeUrl.getUrl());
 
                         cloneBotJobSteps(matchedHomeUrl, newBotJobName, newDescription, stage);

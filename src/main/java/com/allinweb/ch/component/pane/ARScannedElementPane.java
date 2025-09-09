@@ -485,7 +485,7 @@ public class ARScannedElementPane extends ARPane {
             }
 
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            log.info(e.getMessage());
         }
     }
 
@@ -713,9 +713,9 @@ public class ARScannedElementPane extends ARPane {
                         WebElement iframe = driverTestActions.findElement(By.xpath(targetTest.getIFrameXPath()));
                         driverTestActions.switchTo().frame(iframe);
 
-                        System.out.println("Found iFrame XPath: " + targetTest.getIFrameXPath());
+                        log.info("Found iFrame XPath: " + targetTest.getIFrameXPath());
                     } catch (Exception e) {
-                        System.out.println("iFrame Not Found with XPath: " + targetTest.getIFrameXPath());
+                        log.info("iFrame Not Found with XPath: " + targetTest.getIFrameXPath());
                         //                performMessage.generalErrorIFrame(currentInstruction.getName());
                         //                        return null;
                     }
@@ -723,7 +723,7 @@ public class ARScannedElementPane extends ARPane {
 
                 String result = performActions.sequenceOfCommands(
                         targetTest.getElement(), ARConstants.SELECT, coordinates, fieldData, driverTestActions, false);
-                System.out.println(result);
+                log.info(result);
                 actionsTested.append(result + System.lineSeparator());
                 actionText2 = new Text(result);
                 if (result.contains("Failed")) {
@@ -740,7 +740,7 @@ public class ARScannedElementPane extends ARPane {
                             fieldData,
                             driverTestActions,
                             false);
-                    System.out.println(result);
+                    log.info(result);
                     actionsTested.append(result + System.lineSeparator());
                     actionText3 = new Text(result);
                     if (result.contains("Failed")) {
@@ -756,7 +756,7 @@ public class ARScannedElementPane extends ARPane {
                 //                        fieldData,
                 //                        driverTestActions,
                 //                        false);
-                //                System.out.println(result);
+                //                log.info(result);
                 //                actionsTested.append(result + System.lineSeparator());
                 //                actionText4 = new Text(result);
                 //                if (result.contains("Failed")) {
@@ -773,7 +773,7 @@ public class ARScannedElementPane extends ARPane {
                             fieldData,
                             driverTestActions,
                             false);
-                    System.out.println(result);
+                    log.info(result);
                     actionsTested.append(result + System.lineSeparator());
                     actionText3 = new Text(result);
                     if (result.contains("Failed")) {
@@ -790,7 +790,7 @@ public class ARScannedElementPane extends ARPane {
                             fieldData,
                             driverTestActions,
                             false);
-                    System.out.println(result);
+                    log.info(result);
                     actionsTested.append(result + System.lineSeparator());
                     actionText5 = new Text(result);
                     if (result.contains("Failed")) {
@@ -806,7 +806,7 @@ public class ARScannedElementPane extends ARPane {
                             fieldData,
                             driverTestActions,
                             false);
-                    System.out.println(result);
+                    log.info(result);
                     actionsTested.append(result + System.lineSeparator());
                     actionText6 = new Text(result);
                     if (result.contains("Failed")) {
@@ -823,7 +823,7 @@ public class ARScannedElementPane extends ARPane {
                             fieldData,
                             driverTestActions,
                             false);
-                    System.out.println(result);
+                    log.info(result);
                     actionsTested.append(result + System.lineSeparator());
                     actionText5 = new Text(result);
                     if (result.contains("Failed")) {
@@ -839,7 +839,7 @@ public class ARScannedElementPane extends ARPane {
                             fieldData,
                             driverTestActions,
                             false);
-                    System.out.println(result);
+                    log.info(result);
                     actionsTested.append(result + System.lineSeparator());
                     actionText5 = new Text(result);
                     if (result.contains("Failed")) {
@@ -855,7 +855,7 @@ public class ARScannedElementPane extends ARPane {
                             fieldData,
                             driverTestActions,
                             false);
-                    System.out.println(result);
+                    log.info(result);
                     actionsTested.append(result + System.lineSeparator());
                     actionText5 = new Text(result);
                     if (result.contains("Failed")) {
@@ -873,7 +873,7 @@ public class ARScannedElementPane extends ARPane {
                             fieldData,
                             driverTestActions,
                             false);
-                    System.out.println(result);
+                    log.info(result);
                     actionsTested.append(result + System.lineSeparator());
                     actionText5 = new Text(result);
                     if (result.contains("Failed")) {
@@ -886,7 +886,7 @@ public class ARScannedElementPane extends ARPane {
                 //                result = performActions.sequenceOfCommands(
                 //                        targetTest.getElement(), ARConstants.FOCUS, coordinates, fieldData,
                 // driverTestActions, false);
-                //                System.out.println(result);
+                //                log.info(result);
                 //
                 //                actionsTested.append(result + System.lineSeparator());
                 //
@@ -900,7 +900,7 @@ public class ARScannedElementPane extends ARPane {
                 //                result = performActions.sequenceOfCommands(
                 //                        targetTest.getElement(), ARConstants.TAB, coordinates, fieldData,
                 // driverTestActions, false);
-                //                System.out.println(result);
+                //                log.info(result);
                 //
                 //                actionsTested.append(result + System.lineSeparator());
                 //
@@ -918,7 +918,7 @@ public class ARScannedElementPane extends ARPane {
                 //                        fieldData,
                 //                        driverTestActions,
                 //                        false);
-                //                System.out.println(result);
+                //                log.info(result);
                 //                actionsTested.append(result + System.lineSeparator());
                 //                actionText9 = new Text(result);
                 //                if (result.contains("Failed")) {
@@ -934,7 +934,7 @@ public class ARScannedElementPane extends ARPane {
                 //                        fieldData,
                 //                        driverTestActions,
                 //                        false);
-                //                System.out.println(result);
+                //                log.info(result);
                 //
                 //                actionsTested.append(result + System.lineSeparator());
                 //
@@ -952,7 +952,7 @@ public class ARScannedElementPane extends ARPane {
                 //                        fieldData,
                 //                        driverTestActions,
                 //                        false);
-                //                System.out.println(result);
+                //                log.info(result);
                 //                actionsTested.append(result + System.lineSeparator());
                 //                actionText11 = new Text(result);
                 //                if (result.contains("Failed")) {
@@ -968,7 +968,7 @@ public class ARScannedElementPane extends ARPane {
                 //                        fieldData,
                 //                        driverTestActions,
                 //                        true);
-                //                System.out.println(result);
+                //                log.info(result);
                 //                actionsTested.append(result + System.lineSeparator());
                 //                actionText12 = new Text(result);
                 //                if (result.contains("Failed")) {
@@ -984,7 +984,7 @@ public class ARScannedElementPane extends ARPane {
                 //                        fieldData,
                 //                        driverTestActions,
                 //                        true);
-                //                System.out.println(result);
+                //                log.info(result);
                 //                actionsTested.append(result + System.lineSeparator());
                 //                actionText13 = new Text(result);
                 //                if (result.contains("Failed")) {
@@ -993,7 +993,7 @@ public class ARScannedElementPane extends ARPane {
                 //                    actionText13.setStyle("-fx-font-size: 12px; -fx-fill: green;");
                 //                }
                 //
-                //                System.out.println(actionsTested);
+                //                log.info(actionsTested);
 
                 //                VBox vertical = new VBox();
                 //                vertical.getChildren()
@@ -1186,11 +1186,11 @@ public class ARScannedElementPane extends ARPane {
         }
 
         String version = System.getProperty("java.version");
-        System.out.println("Detected Java Version: " + version);
+        log.info("Detected Java Version: " + version);
 
         int majorVersion = getMajorJavaVersion(version);
         if (majorVersion >= 17) {
-            System.out.println("✅ Java 17 or higher is installed.");
+            log.info("✅ Java 17 or higher is installed.");
         } else {
             performMessage.errorMessage(
                     "Compatibility Issue: Incompatible Java Version",
@@ -1333,7 +1333,7 @@ public class ARScannedElementPane extends ARPane {
     //                    writer.newLine();
     //                }
     //            }
-    //            System.out.println("References saved to " + filePath);
+    //            log.info("References saved to " + filePath);
     //        } catch (IOException e) {
     //            log.error("Error writing to file: " + e.getMessage());
     //        }
@@ -1858,7 +1858,7 @@ public class ARScannedElementPane extends ARPane {
     @Override
     public void initUIBehaviour() {
         interceptBotJobProperty().addListener((obs, oldVal, newVal) -> {
-            System.out.println("interceptBotJob changed from " + oldVal + " to " + newVal);
+            log.info("interceptBotJob changed from " + oldVal + " to " + newVal);
         });
 
         configureButton.setOnMouseClicked(e -> arNewHomeBankingScene.show());
@@ -2408,7 +2408,7 @@ public class ARScannedElementPane extends ARPane {
             }
         } else {
             // Optionally log that a new execution was requested but is already running
-            System.out.println("recallJob() requested, but executeJob() is already running.");
+            log.info("recallJob() requested, but executeJob() is already running.");
 
             log.info("recallJob() requested while executeJob() was running.");
         }
@@ -4408,7 +4408,7 @@ public class ARScannedElementPane extends ARPane {
         try (Writer writer =
                 new BufferedWriter(new OutputStreamWriter(new FileOutputStream(filename), StandardCharsets.UTF_8))) {
             writer.write(content);
-            System.out.println("CSV written to file: " + filename);
+            log.info("CSV written to file: " + filename);
         } catch (IOException e) {
             log.error("Error writing file: " + e.getMessage());
         }
@@ -4429,7 +4429,7 @@ public class ARScannedElementPane extends ARPane {
     }
 
     public void printCsv() {
-        System.out.println(getCsvContent());
+        log.info(getCsvContent());
     }
 
     // Allow the stage to be set from outside when pane is shown
@@ -4538,7 +4538,7 @@ public class ARScannedElementPane extends ARPane {
                 while (matcher.find()) {
                     String tag = matcher.group(1);
                     if (tag.equals("a") || tag.equals("button")) {
-                        System.out.println("Found clickable tag: <" + tag + ">");
+                        log.info("Found clickable tag: <" + tag + ">");
                         tagClickable = true;
                         break;
                     }

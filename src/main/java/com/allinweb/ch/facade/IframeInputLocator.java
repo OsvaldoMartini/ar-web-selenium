@@ -58,7 +58,7 @@ public class IframeInputLocator {
                 try {
                     // Print the XPath of each element
                     //                    String elementXPath = getElementXPath(element, driver);
-                    //                    System.out.println("Element XPath: " + elementXPath);
+                    //                    log.info("Element XPath: " + elementXPath);
 
                     // Ensure the element is an input field
                     if (element.getTagName().equalsIgnoreCase("input")
@@ -74,10 +74,10 @@ public class IframeInputLocator {
 
                         // Validate if the input was correctly received
                         if (inputText.equals(retrievedValue)) {
-                            System.out.println("SUCCESS: Sent '" + inputText + "' and received '" + retrievedValue
+                            log.info("SUCCESS: Sent '" + inputText + "' and received '" + retrievedValue
                                     + "' in IFrame.");
                         } else {
-                            System.out.println(
+                            log.info(
                                     "ERROR: Sent '" + inputText + "' but received '" + retrievedValue + "' in IFrame.");
                         }
 
@@ -86,7 +86,7 @@ public class IframeInputLocator {
 
                     }
                 } catch (Exception e) {
-                    System.out.println("Element interaction failed in IFrame. Error: " + e.getMessage());
+                    log.info("Element interaction failed in IFrame. Error: " + e.getMessage());
                 }
             }
 
@@ -263,7 +263,7 @@ public class IframeInputLocator {
         // Iterate through all elements and print their XPath
         for (WebElement element : allElements) {
             String elementXPath = getElementXPathAll(element, driver);
-            System.out.println("Element XPath: " + elementXPath);
+            log.info("Element XPath: " + elementXPath);
             allXPaths.add(elementXPath);
         }
 

@@ -44,7 +44,7 @@ public class LicenseManager {
         // Write the encrypted data to the file
         try (FileWriter writer = new FileWriter(newFile)) {
             writer.write(encryptedRequest);
-            System.out.println("File saved to: " + newFile.getAbsolutePath());
+            log.info("File saved to: " + newFile.getAbsolutePath());
         } catch (IOException error) {
             log.error("Error writing to file: " + error.getMessage());
 
@@ -149,7 +149,7 @@ public class LicenseManager {
         String[] parts = decryptedContent.split("\\|");
         if (parts.length != 4) return LicenceVal.MISSING; // Invalid data format
 
-        //        System.out.println("License:" + parts);
+        //        log.info("License:" + parts);
 
         String pcID = parts[0];
         String domainName = parts[1];
@@ -158,7 +158,7 @@ public class LicenseManager {
         String formatted = expiryDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
         arPropertyManager.setProperty(ARPropertyEnum.EXPIRATION.getValue(), formatted);
 
-        // System.out.println(" expiryDate is " + expiryDate);
+        // log.info(" expiryDate is " + expiryDate);
         // Check if the PC ID matches and the current date is before the expiry date
         if (LocalDate.now().isAfter(expiryDate)) return LicenceVal.EXPIRED; // date has expired
 
@@ -202,7 +202,7 @@ public class LicenseManager {
             // Write the encrypted data to the file
             try (FileWriter writer = new FileWriter(newFile)) {
                 writer.write(encryptedResponse);
-                System.out.println("File saved to: " + newFile.getAbsolutePath());
+                log.info("File saved to: " + newFile.getAbsolutePath());
                 return "File creation success";
             } catch (IOException e) {
                 log.error("Error writing to file: " + e.getMessage());

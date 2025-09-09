@@ -113,11 +113,11 @@ public class ARNewCommandScene extends ARScene {
 
     @OnMessage
     public void onMessage(String message, Session session) {
-        System.out.println("Received: " + message);
+        log.info("Received: " + message);
         if (message == null || message.contains("CONNECT") || message.contains("ping")) {
             // Ignore null, CONNECT, or ping messages
             message = message.replaceAll("ping-", "");
-            // System.out.println("Active : " + message);
+            // log.info("Active : " + message);
             return;
         }
 
@@ -163,13 +163,12 @@ public class ARNewCommandScene extends ARScene {
                     jsonObjMSG.has("sessionId") ? jsonObjMSG.get("sessionId").getAsString() : null;
 
             // Debug print (optional)
-            System.out.printf(
-                    "homeBankingId=%d, sessionId=%s, type=%s, body=%s%n", homeBankingId, sessionId, type, body);
+            log.info("homeBankingId=%d, sessionId=%s, type=%s, body=%s%n", homeBankingId, sessionId, type, body);
             // After Decoding
             if (type == null || type.trim().isEmpty() || type.contains("CONNECT") || type.contains("ping")) {
                 // Ignore null or empty messages
                 type = type.replaceAll("ping-", "");
-                // System.out.println("Active : " + type);
+                // log.info("Active : " + type);
                 return;
             }
 
@@ -293,20 +292,20 @@ public class ARNewCommandScene extends ARScene {
     public void onOpen(Session session) {
         this.session = session;
         latch.countDown(); // Release the latch after connection is established
-        System.out.println("Connected to WebSocket server at: " + session.getRequestURI());
+        log.info("Connected to WebSocket server at: " + session.getRequestURI());
         // Sending an initial message
         sendMessage("Hello from JavaFX ARNewCommandScene WebSocket client!");
     }
 
     @OnClose
     public void onClose(Session session) {
-        System.out.println("Connection closed.");
+        log.info("Connection closed.");
         stopKeepAlivePings();
     }
 
     @OnError
     public void onError(Session session, Throwable throwable) {
-        System.out.println("Error: " + throwable.getMessage());
+        log.info("Error: " + throwable.getMessage());
         stopKeepAlivePings();
     }
 

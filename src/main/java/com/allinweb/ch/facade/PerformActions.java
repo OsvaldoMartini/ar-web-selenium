@@ -187,7 +187,7 @@ public class PerformActions {
         try {
             return element.isDisplayed() && isInViewport(element, driver);
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            log.info(e.getMessage());
             return false;
         }
     }
@@ -810,11 +810,11 @@ public class PerformActions {
                     priorityTypeEnum = PriorityTypeEnum.getPriorityType(
                             priority.getPriorityType().toString());
                 } catch (Exception e) {
-                    System.out.println(String.format("The ENUM: was not defined!"));
+                    log.info(String.format("The ENUM: was not defined!"));
                     continue;
                 }
                 if (priorityTypeEnum == null) {
-                    System.out.println("Define priorities!");
+                    log.info("Define priorities!");
                     return null;
                 }
 
@@ -856,23 +856,23 @@ public class PerformActions {
                             //                                executeActionsAtInstructionCoordinates(currentInstruction,
                             // filedData);
                             //                            } catch (Exception e) {
-                            //                                System.out.println(e.getMessage());
+                            //                                log.info(e.getMessage());
                             //
-                        } // System.out.println("coordinates case");
-                        case ById -> {} // System.out.println("ById case");
-                        case ByClassName -> {} // System.out.println("Default case");
-                        case ByName -> {} // System.out.println("Default case");
-                        case ByTagName -> {} // System.out.println("Default case");
-                        case ByLinkText -> {} // System.out.println("Default case");
-                        case ByPartialLinkText -> {} // System.out.println("Default case");
-                        case ByCssSelector -> {} // System.out.println("Default case"); //      ".nav-menu li";
-                        case ExecuteScript -> {} // System.out.println("Default case"); //      "return
+                        } // log.info("coordinates case");
+                        case ById -> {} // log.info("ById case");
+                        case ByClassName -> {} // log.info("Default case");
+                        case ByName -> {} // log.info("Default case");
+                        case ByTagName -> {} // log.info("Default case");
+                        case ByLinkText -> {} // log.info("Default case");
+                        case ByPartialLinkText -> {} // log.info("Default case");
+                        case ByCssSelector -> {} // log.info("Default case"); //      ".nav-menu li";
+                        case ExecuteScript -> {} // log.info("Default case"); //      "return
                             // document.getElementById('search-top')");
-                        case createXPath -> {} // System.out.println("Default case"); //         Generates XPath
+                        case createXPath -> {} // log.info("Default case"); //         Generates XPath
                             // Recursive tom the Elements Found
-                        case dynamic -> {} // System.out.println("Default case"); //         Generates Dynamic Action ->
+                        case dynamic -> {} // log.info("Default case"); //         Generates Dynamic Action ->
                             // Click, Hover, Etc.
-                        case jsoup -> {} // System.out.println("Default case");
+                        case jsoup -> {} // log.info("Default case");
                     }
 
                     if (this.currentDriver == null) {
@@ -902,7 +902,7 @@ public class PerformActions {
                             //                            try {
                             //                                elementFound = scroolUntilFindElement(criteria);
                             //                            } catch (Exception e) {
-                            //                                System.out.println(e.getMessage());
+                            //                                log.info(e.getMessage());
                             //                            }
                             //                            if (elementFound != null) {
                             //                                break;
@@ -1056,9 +1056,9 @@ public class PerformActions {
                 WebElement iframe = this.currentDriver.findElement(By.xpath(currentInstruction.getIFrameXPath()));
                 this.currentDriver.switchTo().frame(iframe);
 
-                System.out.println("Found iFrame XPath: " + currentInstruction.getIFrameXPath());
+                log.info("Found iFrame XPath: " + currentInstruction.getIFrameXPath());
             } catch (Exception e) {
-                System.out.println("iFrame Not Found with XPath: " + currentInstruction.getIFrameXPath());
+                log.info("iFrame Not Found with XPath: " + currentInstruction.getIFrameXPath());
                 //                performMessage.generalErrorIFrame(currentInstruction.getName());
                 return null;
             }
@@ -1090,7 +1090,7 @@ public class PerformActions {
                 }
 
                 if (priorityTypeEnum == null) {
-                    System.out.println("Define priorities!");
+                    log.info("Define priorities!");
                     return null;
                 }
 
@@ -1154,7 +1154,7 @@ public class PerformActions {
                         }
                         case coordinates, js_coordinates, cp_coordinates, allAttributes -> {
                             // These cases are placeholders and do not need additional handling
-                            //                            System.out.println(
+                            //                            log.info(
                             //                                    String.format("Locate by \"coordinates,
                             // js_coordinates, cp_coordinates\" "));
                         }
@@ -1492,7 +1492,7 @@ public class PerformActions {
 
         //        for (String handle : this.currentDriver.getWindowHandles()) {
         //            this.currentDriver.switchTo().window(handle);
-        //            System.out.println("Window title: " + this.currentDriver.getTitle());
+        //            log.info("Window title: " + this.currentDriver.getTitle());
         //        }
     }
 
@@ -2233,7 +2233,7 @@ public class PerformActions {
         try {
             Thread.sleep(5000); // 10 minutes in milliseconds
         } catch (InterruptedException e) {
-            System.out.println(e.getMessage());
+            log.info(e.getMessage());
         }
 
         // Accept (close) the alert
@@ -2531,7 +2531,7 @@ public class PerformActions {
                     .map(s -> "\"" + s.replace("\"", "\\\"") + "\"") // Escape double quotes
                     .collect(Collectors.joining(", ", "[", "]"))); // Format as JSON array
         } catch (IOException e) {
-            System.out.println("Error writing to file: " + e.getMessage());
+            log.info("Error writing to file: " + e.getMessage());
         } finally {
             // Close the browser if necessary
             // driver.quit();
@@ -3145,7 +3145,7 @@ public class PerformActions {
                     .collect(Collectors.joining(":")); // Join with ':'
 
             // Print the key and value
-            System.out.println("Key: " + key + ", Value: " + valuesAsString);
+            log.info("Key: " + key + ", Value: " + valuesAsString);
         }
 
         return mapRefreshLoops;
@@ -3233,7 +3233,7 @@ public class PerformActions {
         if (this.currentDriver != null) {
             // Get all iframe elements on the page
             List<WebElement> iframeList = this.currentDriver.findElements(By.tagName("iframe"));
-            System.out.println("Number of iframes found: " + iframeList.size());
+            log.info("Number of iframes found: " + iframeList.size());
 
             for (WebElement iframe : iframeList) {
                 try {
@@ -3244,9 +3244,9 @@ public class PerformActions {
                     List<WebElement> elementsInsideIframe = this.currentDriver.findElements(By.xpath("//*"));
                     iframeElementsMap.put(iframe, elementsInsideIframe);
 
-                    System.out.println("Iframe contains " + elementsInsideIframe.size() + " elements");
+                    log.info("Iframe contains " + elementsInsideIframe.size() + " elements");
                 } catch (Exception e) {
-                    System.out.println("Could not access iframe: " + e.getMessage());
+                    log.info("Could not access iframe: " + e.getMessage());
                 } finally {
                     // Switch back to the main page
                     this.currentDriver.switchTo().defaultContent();
@@ -3581,14 +3581,14 @@ public class PerformActions {
     public TargetElement defineTagType(TargetElement targetTagType) {
 
         try {
-            System.out.println("Defined Name: " + targetTagType.getDefinedName());
-            System.out.println("Tag Name: " + targetTagType.getTagName());
-            System.out.println("Id: " + targetTagType.getAttribId());
-            System.out.println("Name: " + targetTagType.getAttribName());
-            System.out.println("xPath: " + targetTagType.getCurrentXPath());
-            System.out.println("Absolut xPath: " + targetTagType.getAttributeData());
-            System.out.println("Custom xPath: " + targetTagType.getCustomXPath());
-            System.out.println("iFrame xPath: " + targetTagType.getIFrameXPath());
+            log.info("Defined Name: " + targetTagType.getDefinedName());
+            log.info("Tag Name: " + targetTagType.getTagName());
+            log.info("Id: " + targetTagType.getAttribId());
+            log.info("Name: " + targetTagType.getAttribName());
+            log.info("xPath: " + targetTagType.getCurrentXPath());
+            log.info("Absolut xPath: " + targetTagType.getAttributeData());
+            log.info("Custom xPath: " + targetTagType.getCustomXPath());
+            log.info("iFrame xPath: " + targetTagType.getIFrameXPath());
 
             if (targetTagType.getCoordinates() != null) {
                 String[] coords = targetTagType.getCoordinates().split(",");
@@ -3596,8 +3596,8 @@ public class PerformActions {
                     String coordLeft = coords[0].trim();
                     String coordRight = coords[1].trim();
                     // Print or use the extracted values
-                    System.out.println("CoordLeft: " + coordLeft);
-                    System.out.println("CoordRight: " + coordRight);
+                    log.info("CoordLeft: " + coordLeft);
+                    log.info("CoordRight: " + coordRight);
                 }
             }
 
@@ -4101,7 +4101,7 @@ public class PerformActions {
     //
     // ".//avq-breadcrumb[@test-id='web-banking-portal.pages.payments-overview.breadcrumb']")));
     //                } catch (Exception e) {
-    //                    System.out.println("Impossible execute operation on this element: " + element.toString());
+    //                    log.info("Impossible execute operation on this element: " + element.toString());
     //                }
     //            }
     //

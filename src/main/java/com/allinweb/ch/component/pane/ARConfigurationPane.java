@@ -359,7 +359,7 @@ public class ARConfigurationPane extends ARPane {
 
         browserChoiceBox.setItems(browserList);
         databaseChoiceBox.setItems(databaseList);
-        databaseChoiceBox.setDisable(false);
+        databaseChoiceBox.setDisable(true);
 
         HBox buttonRow = new HBox(10); // spacing between columns
         buttonRow.setAlignment(Pos.CENTER);
@@ -548,7 +548,7 @@ public class ARConfigurationPane extends ARPane {
                     }
                 }
             } catch (SQLException ignore) {
-                System.out.println("Check if It Was Migrated! - Not Migrate Columns found!");
+                log.info("Check if It Was Migrated! - Not Migrate Columns found!");
             }
         }
 
@@ -638,13 +638,13 @@ public class ARConfigurationPane extends ARPane {
                                 dbFile.toPath(),
                                 backupFile.toPath(),
                                 java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                        System.out.println("Backup created: " + backupFile.getAbsolutePath());
+                        log.info("Backup created: " + backupFile.getAbsolutePath());
                     } catch (java.io.IOException e) {
                         e.printStackTrace();
                     }
                 }
             } catch (Exception ex) {
-                System.out.println(ex.getMessage());
+                log.info(ex.getMessage());
             }
         }
 
@@ -745,7 +745,7 @@ public class ARConfigurationPane extends ARPane {
                 }
 
             } catch (SQLException ex) {
-                System.out.println(ex.getMessage());
+                log.info(ex.getMessage());
             }
         }
     }
@@ -757,7 +757,7 @@ public class ARConfigurationPane extends ARPane {
         String formattedDate;
         if (selectedDate != null) {
             formattedDate = selectedDate.format(DateTimeFormatter.ofPattern("yyyy_MM_dd"));
-            System.out.println("Selected backup date: " + formattedDate);
+            log.info("Selected backup date: " + formattedDate);
         } else {
             Label dateSelection = new Label(
                     "Please select a date to restore from.\n" + "Check the database directory for available backups.");

@@ -650,7 +650,7 @@ public class ARViewBotJobPane extends ARPane {
                             + jsonData + "), " + finalPort + ", '" + sessionIdFromJava + "', " + homeBanking + ", "
                             + botJobId + ", '" + botJobName + "' ) }, 1000)");
                 } catch (Exception e) {
-                    log.error("buildWebView  \nError: " + e.getMessage());
+                    log.error("buildWebView  Error: " + e.getMessage());
                 }
             }
         });
@@ -915,11 +915,11 @@ public class ARViewBotJobPane extends ARPane {
             }
 
             String version = System.getProperty("java.version");
-            System.out.println("Detected Java Version: " + version);
+            log.info("Detected Java Version: " + version);
 
             int majorVersion = getMajorJavaVersion(version);
             if (majorVersion >= 17) {
-                System.out.println("✅ Java 17 or higher is installed.");
+                log.info("✅ Java 17 or higher is installed.");
             } else {
                 performMessage.errorMessage(
                         "Compatibility Issue: Incompatible Java Version",
@@ -1090,7 +1090,7 @@ public class ARViewBotJobPane extends ARPane {
                     null,
                     0);
 
-            System.out.println("BAT file created at: " + batFilePath);
+            log.info("BAT file created at: " + batFilePath);
         } catch (IOException error) {
             log.error("Error creating BAT file: " + error.getMessage());
             performMessage.errorMessage(
@@ -1128,7 +1128,7 @@ public class ARViewBotJobPane extends ARPane {
             executeScannerTask();
             Platform.runLater(() -> {
                 // Update UI here, if needed
-                System.out.println("Scanner task completed for " + threadName);
+                log.info("Scanner task completed for " + threadName);
             });
         });
     }
@@ -1286,7 +1286,7 @@ public class ARViewBotJobPane extends ARPane {
         //        Platform.runLater(() -> {
         //            JOptionPane.showMessageDialog(
         //                    null,
-        //                    "An error has occurred Calling SCAN: \nCause: " + ex.getMessage(),
+        //                    "An error has occurred Calling SCAN: Cause: " + ex.getMessage(),
         //                    "Error calling in SCAN",
         //                    JOptionPane.ERROR_MESSAGE);
         //        });
@@ -1320,7 +1320,7 @@ public class ARViewBotJobPane extends ARPane {
         searchTextField.textProperty().addListener((observable, oldValue, newValue) -> {
             //            ObservableList<ComponentBlockDTO> componentBlockDTOS;
             if (!newValue.equals("")) {
-                System.out.println(newValue + " Text");
+                log.info(newValue + " Text");
             } else {
             }
         });

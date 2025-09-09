@@ -232,7 +232,7 @@ public class ExcelReader {
     		logExcelWorkbook.close();
 
     	} catch (Exception e) {
-    		System.out.println(e.getMessage());
+    		log.info(e.getMessage());
     		System.exit(0);
     	}
     	return new File(logExcelFilePath);

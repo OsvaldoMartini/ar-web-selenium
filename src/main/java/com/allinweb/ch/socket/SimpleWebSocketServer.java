@@ -72,9 +72,9 @@ public class SimpleWebSocketServer {
 
         if (sessionId != null) {
             webSocketSessionManager.addSession(sessionId, session); // Store the session with the custom ID
-            System.out.println("New connection: Session ID = " + sessionId);
+            log.info("New connection: Session ID = " + sessionId);
         } else {
-            System.out.println("No session ID provided by client");
+            log.info("No session ID provided by client");
         }
     }
 
@@ -83,7 +83,7 @@ public class SimpleWebSocketServer {
         if (message == null || message.contains("CONNECT") || message.contains("ping")) {
             // Ignore null or empty messages
             message = message.replaceAll("ping-", "");
-            // System.out.println("Active : " + message);
+            // log.info("Active : " + message);
             return;
         }
 
@@ -92,7 +92,7 @@ public class SimpleWebSocketServer {
             byte[] decodedBytes = Base64.getDecoder().decode(message);
             message = new String(decodedBytes, "UTF-8");
 
-            //            System.out.println("Decoded Received Data: " + message);
+            //            log.info("Decoded Received Data: " + message);
 
             // Process the message as needed...
         } catch (IllegalArgumentException e) {
@@ -118,7 +118,7 @@ public class SimpleWebSocketServer {
             if (type == null || type.trim().isEmpty() || type.contains("CONNECT") || type.contains("ping")) {
                 // Ignore null or empty messages
                 type = type.replaceAll("ping-", "");
-                // System.out.println("Active : " + type);
+                // log.info("Active : " + type);
                 return;
             }
 
@@ -919,13 +919,13 @@ public class SimpleWebSocketServer {
         // Clean up session when it closes
         String sessionId = webSocketSessionManager.getSessionIdBySession(session);
         if (sessionId != null) {
-            System.out.println("Connection closed: Session ID = " + sessionId + ", Reason: "
+            log.info("Connection closed: Session ID = " + sessionId + ", Reason: "
                     + closeReason.getReasonPhrase() + " (Code: "
                     + closeReason.getCloseCode() + ")");
             webSocketSessionManager.removeSession(sessionId);
         } else {
-            System.out.println("Connection closed for unknown session, Reason: " + closeReason.getReasonPhrase()
-                    + " (Code: " + closeReason.getCloseCode() + ")");
+            log.info("Connection closed for unknown session, Reason: " + closeReason.getReasonPhrase() + " (Code: "
+                    + closeReason.getCloseCode() + ")");
         }
     }
 
@@ -934,9 +934,9 @@ public class SimpleWebSocketServer {
         BlockDetailsDTO originalBlock = blockSplitDTO.getDetails().getOriginalBlock();
         BlockDetailsDTO newBlock = blockSplitDTO.getDetails().getNewBlock();
         List<BlockOrderDetailDTO> updatedBlock = blockSplitDTO.getDetails().getUpdatedBlocks();
-        System.out.println("Original Block ID: " + originalBlock.getBlockId());
-        System.out.println("New Block Name: " + newBlock.getBlockName());
-        System.out.println("Updated Block: " + updatedBlock.size());
+        log.info("Original Block ID: " + originalBlock.getBlockId());
+        log.info("New Block Name: " + newBlock.getBlockName());
+        log.info("Updated Block: " + updatedBlock.size());
         newBlock.setForceOrder(true);
 
         int homeBankId = blockSplitDTO.getHomeBankingId();

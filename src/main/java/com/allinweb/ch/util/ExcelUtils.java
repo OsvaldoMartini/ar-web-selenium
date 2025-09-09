@@ -146,18 +146,18 @@ public class ExcelUtils {
                 fileWriter.append("\n");
             }
 
-            System.out.println("CSV file was created successfully!");
+            log.info("CSV file was created successfully!");
 
         } catch (Exception e) {
-            System.out.println("Error in CsvFileWriter!");
-            System.out.println(e.getMessage());
+            log.info("Error in CsvFileWriter!");
+            log.info(e.getMessage());
         } finally {
             try {
                 fileWriter.flush();
                 fileWriter.close();
             } catch (IOException e) {
-                System.out.println("Error while flushing/closing fileWriter!");
-                System.out.println(e.getMessage());
+                log.info("Error while flushing/closing fileWriter!");
+                log.info(e.getMessage());
             }
         }
     }
@@ -251,8 +251,8 @@ public class ExcelUtils {
             }
 
         } catch (Exception e) {
-            System.out.println("Error in CsvFileWriter!");
-            System.out.println(e.getMessage());
+            log.info("Error in CsvFileWriter!");
+            log.info(e.getMessage());
         } finally {
             try {
                 if (bufferedWriter != null) {
@@ -260,8 +260,8 @@ public class ExcelUtils {
                     bufferedWriter.close();
                 }
             } catch (IOException e) {
-                System.out.println("Error while flushing/closing bufferedWriter!");
-                System.out.println(e.getMessage());
+                log.info("Error while flushing/closing bufferedWriter!");
+                log.info(e.getMessage());
             }
         }
 
@@ -284,7 +284,7 @@ public class ExcelUtils {
         try {
             file.createNewFile();
         } catch (IOException e) {
-            System.out.println(e.getMessage());
+            log.info(e.getMessage());
         }
 
         boolean duplicate = false;
@@ -300,7 +300,7 @@ public class ExcelUtils {
             try {
                 fileDuplica.createNewFile();
             } catch (IOException e) {
-                System.out.println(e.getMessage());
+                log.info(e.getMessage());
             }
         }
 

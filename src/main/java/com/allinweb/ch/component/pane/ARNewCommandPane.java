@@ -1573,7 +1573,7 @@ public class ARNewCommandPane extends ARPane {
                 mainPane.requestLayout();
 
             } catch (Exception ex) {
-                System.out.println(ex.getMessage());
+                log.info(ex.getMessage());
             }
 
         } else if (ARConstants.GOTO.equalsIgnoreCase(valueEdit)) {
@@ -1627,7 +1627,7 @@ public class ARNewCommandPane extends ARPane {
                 mainPane.requestLayout();
 
             } catch (Exception ex) {
-                System.out.println(ex.getMessage());
+                log.info(ex.getMessage());
             }
 
         } else if (ARConstants.EXCEL_GOTO.equalsIgnoreCase(valueEdit)) {
@@ -1682,7 +1682,7 @@ public class ARNewCommandPane extends ARPane {
                 mainPane.requestLayout();
 
             } catch (Exception ex) {
-                System.out.println(ex.getMessage());
+                log.info(ex.getMessage());
             }
 
         } else if (ARConstants.REFRESH_ONLY.equalsIgnoreCase(valueEdit)) {
@@ -1733,7 +1733,7 @@ public class ARNewCommandPane extends ARPane {
                 mainPane.requestLayout();
 
             } catch (Exception ex) {
-                System.out.println(ex.getMessage());
+                log.info(ex.getMessage());
             }
 
         } else if (ARConstants.LOOP.equalsIgnoreCase(valueEdit)) {
@@ -1789,7 +1789,7 @@ public class ARNewCommandPane extends ARPane {
                 mainPane.requestLayout();
 
             } catch (Exception ex) {
-                System.out.println(ex.getMessage());
+                log.info(ex.getMessage());
             }
 
         } else if (ARConstants.REFRESH_LOOP.equalsIgnoreCase(valueEdit)) {
@@ -1845,7 +1845,7 @@ public class ARNewCommandPane extends ARPane {
                 mainPane.requestLayout();
 
             } catch (Exception ex) {
-                System.out.println(ex.getMessage());
+                log.info(ex.getMessage());
             }
 
         } else if (ARConstants.IF.equalsIgnoreCase(valueEdit)) {
@@ -1895,7 +1895,7 @@ public class ARNewCommandPane extends ARPane {
                 mainPane.requestLayout();
 
             } catch (Exception ex) {
-                System.out.println(ex.getMessage());
+                log.info(ex.getMessage());
             }
 
         } else {
@@ -1949,7 +1949,7 @@ public class ARNewCommandPane extends ARPane {
                 mainPane.requestLayout();
 
             } catch (Exception ex) {
-                System.out.println(ex.getMessage());
+                log.info(ex.getMessage());
             }
         }
     }
@@ -2486,7 +2486,7 @@ public class ARNewCommandPane extends ARPane {
             try {
                 conn.close();
             } catch (SQLException e) {
-                System.out.println(e.getMessage());
+                log.info(e.getMessage());
             }
         }
     }

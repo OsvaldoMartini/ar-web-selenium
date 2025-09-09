@@ -413,7 +413,7 @@ public class PerformMessage {
             stopButton.addActionListener(new ActionListener() {
                 @Override
                 public void actionPerformed(ActionEvent e) {
-                    System.out.println("Stop button clicked!");
+                    log.info("Stop button clicked!");
                     dialog.dispose();
                     status[0] = ARConstants.DialogModal.STOP;
                 }
@@ -556,7 +556,7 @@ public class PerformMessage {
             JButton stopButton = createStyledButton(secondButton);
             stopButton.setPreferredSize(buttonSize);
             stopButton.addActionListener(e -> {
-                System.out.println("Stop button clicked!");
+                log.info("Stop button clicked!");
                 dialog.dispose();
                 status[0] = ARConstants.DialogModal.STOP;
             });
@@ -701,17 +701,17 @@ public class PerformMessage {
         panel.setLayout(new BorderLayout());
 
         //                    Type	Emoji/Icon	Example Code
-        //                    Success	✅	System.out.println("✅ Java version is valid.");
-        //                    Info	ℹ️	System.out.println("ℹ️ Running version check...");
-        //                    Warning	⚠️	System.out.println("⚠️ Java version might be outdated.");
-        //                    Error	❌	System.out.println("❌ Java version is too old.");
-        //                    Stop	🛑	System.out.println("🛑 Application cannot continue.");
-        //                    Bug/Debug	🐛	System.out.println("🐛 Debug mode enabled.");
-        //                    Time	⏱️	System.out.println("⏱️ Checking environment...");
-        //                    Rocket/Start	🚀	System.out.println("🚀 Starting process...");
-        //                    Lock	🔒	System.out.println("🔒 Secure mode enabled.");
-        //                    Folder	📂	System.out.println("📂 Loading files...");
-        //                    Checkmark	✔️	System.out.println("✔️ All checks passed.");
+        //                    Success	✅	log.info("✅ Java version is valid.");
+        //                    Info	ℹ️	log.info("ℹ️ Running version check...");
+        //                    Warning	⚠️	log.info("⚠️ Java version might be outdated.");
+        //                    Error	❌	log.info("❌ Java version is too old.");
+        //                    Stop	🛑	log.info("🛑 Application cannot continue.");
+        //                    Bug/Debug	🐛	log.info("🐛 Debug mode enabled.");
+        //                    Time	⏱️	log.info("⏱️ Checking environment...");
+        //                    Rocket/Start	🚀	log.info("🚀 Starting process...");
+        //                    Lock	🔒	log.info("🔒 Secure mode enabled.");
+        //                    Folder	📂	log.info("📂 Loading files...");
+        //                    Checkmark	✔️	log.info("✔️ All checks passed.");
 
         // Build the message
         String titleMessage = "<html><br><span style='color: blue;'>"
@@ -780,7 +780,7 @@ public class PerformMessage {
             JButton stopButton = createStyledButtonWin11(secondButton);
             stopButton.setPreferredSize(buttonSize);
             stopButton.addActionListener(e -> {
-                System.out.println("Stop button clicked!");
+                log.info("Stop button clicked!");
                 dialog.dispose();
                 status[0] = ARConstants.DialogModal.STOP;
             });
@@ -980,7 +980,7 @@ public class PerformMessage {
         // Write the JSON data to the file
         try (FileWriter writer = new FileWriter(outputFilePath)) {
             writer.write(jsonData);
-            System.out.println("JSON file saved to: " + outputFilePath);
+            log.info("JSON file saved to: " + outputFilePath);
         } catch (IOException e) {
             log.error("Error writing JSON to file: " + e.getMessage());
         }
@@ -1017,7 +1017,7 @@ public class PerformMessage {
         // Write the JSON data to the file
         try (FileWriter writer = new FileWriter(outputFilePath)) {
             writer.write(jsonData);
-            System.out.println("JSON file saved to: " + outputFilePath);
+            log.info("JSON file saved to: " + outputFilePath);
         } catch (IOException e) {
             log.error("Error writing JSON to file: " + e.getMessage());
         }

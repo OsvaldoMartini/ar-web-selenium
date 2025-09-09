@@ -6,7 +6,6 @@ import ch.qos.logback.core.joran.spi.JoranException;
 import java.io.InputStream;
 import org.slf4j.LoggerFactory;
 
-
 public class LogbackInitializer {
 
     public static void loadLogbackFromResources() {

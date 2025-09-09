@@ -14,7 +14,6 @@ public class ARWebSocketServer {
 
     //    private static final ARLogger logger;
     //    private static final ARPropertyManager arPropertyManager;
-    private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     protected static volatile ARWebSocketServer instance;
     private String BIND_IP_ADDRESS = "192.168.1.24";
     private Server jettyServer;

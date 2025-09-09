@@ -302,7 +302,7 @@ public class ARSaveComponentPane extends ARPane {
                             stage.close();
                         });
                     } catch (SQLException error) {
-                        System.out.println(error.getMessage());
+                        log.info(error.getMessage());
                     }
 
                     // Ensure closing is done on the JavaFX Application Thread

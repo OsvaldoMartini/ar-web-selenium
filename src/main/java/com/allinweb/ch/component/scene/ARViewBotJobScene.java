@@ -97,7 +97,7 @@ public class ARViewBotJobScene extends ARScene {
     }
 
     private void handleCloseRequest(WindowEvent event) {
-        System.out.println("Handle Close: Exiting Threads and Quitting WebDriver");
+        log.info("Handle Close: Exiting Threads and Quitting WebDriver");
 
         // Interrupt running threads
         threadList.forEach(this::interruptThread);
@@ -220,11 +220,11 @@ public class ARViewBotJobScene extends ARScene {
 
     @OnMessage
     public void onMessage(String message) {
-        System.out.println("Received: " + message);
+        log.info("Received: " + message);
         if (message == null || message.trim().isEmpty() || message.contains("CONNECT") || message.contains("ping")) {
             // Ignore null or empty messages
             message = message.replaceAll("ping-", "");
-            // System.out.println("Active : " + message);
+            // log.info("Active : " + message);
             return;
         }
     }
@@ -233,20 +233,20 @@ public class ARViewBotJobScene extends ARScene {
     public void onOpen(Session session) {
         this.session = session;
         latch.countDown(); // Release the latch after connection is established
-        System.out.println("Connected to WebSocket server at: " + session.getRequestURI());
+        log.info("Connected to WebSocket server at: " + session.getRequestURI());
         // Sending an initial message
         sendMessage("Hello from JavaFX WebSocket client!");
     }
 
     @OnClose
     public void onClose(Session session) {
-        System.out.println("Connection closed.");
+        log.info("Connection closed.");
         stopKeepAlivePings();
     }
 
     @OnError
     public void onError(Session session, Throwable throwable) {
-        System.out.println("Error: " + throwable.getMessage());
+        log.info("Error: " + throwable.getMessage());
         stopKeepAlivePings();
     }
 

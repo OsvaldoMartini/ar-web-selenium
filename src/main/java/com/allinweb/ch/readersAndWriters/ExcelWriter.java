@@ -83,7 +83,7 @@ public class ExcelWriter {
                 }
                 writer.write(valuesBuilder.toString() + "\n");
 
-                System.out.println("CSV file created successfully at: " + filePath);
+                log.info("CSV file created successfully at: " + filePath);
 
             } catch (IOException e) {
                 log.error("Error writing to CSV file: " + e.getMessage());
@@ -620,7 +620,7 @@ public class ExcelWriter {
                 getOrCreateColumnCell(row, columnIndex);
                 row.setHeightInPoints(300);
             } catch (IOException | AWTException e) {
-                System.out.println(e.getMessage());
+                log.info(e.getMessage());
             }
             return this;
         }
@@ -653,7 +653,7 @@ public class ExcelWriter {
                 getOrCreateColumnCell(row, columnIndex);
                 row.setHeightInPoints(300);
             } catch (IOException e) {
-                System.out.println(e.getMessage());
+                log.info(e.getMessage());
             }
             return this;
         }

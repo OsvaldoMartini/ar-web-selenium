@@ -36,7 +36,7 @@ public class LicenseActivationApp extends Application {
         if (!LicenseManager.checkLicenseFile(licensePath).isActive()) {
             launch(args);
         } else {
-            System.out.println("AR Web agree licence terms are activate.\n\nPress OK to proceed.");
+            log.info("AR Web agree licence terms are activate.\n\nPress OK to proceed.");
             //        Application.launch(LicenceResponseManagerApp.class, args); // Lancia questa
             // applicazione se la
             // condizione  falsa
