@@ -459,8 +459,9 @@ public class PerformActions {
                         if (!passed) {
                             // Try by coordinates
                             Pair<String, String> filedData = new Pair("&EMPTY", "&EMPTY");
-                            passed = executeActionsAtCoordinates(
-                                    savedCoordinates, filedData, ARConstants.CLICK, pressEnterAfter);
+                            //                            passed = executeActionsAtCoordinates(
+                            //                                    savedCoordinates, filedData, ARConstants.CLICK,
+                            // pressEnterAfter);
                         }
                         return passed;
                     case ARConstants.INSERT:
@@ -1070,7 +1071,7 @@ public class PerformActions {
         }
 
         int attempts = 0;
-        int maxAttempts = forceCoordinates || byPassFlagLoop ? 5 : 15; // x 5 Hold seconds
+        int maxAttempts = forceCoordinates || byPassFlagLoop ? 2 : 5; // x 5 Hold seconds
 
         while (elementFound == null && attempts < maxAttempts) {
 
@@ -1084,8 +1085,7 @@ public class PerformActions {
                     priorityTypeEnum = PriorityTypeEnum.getPriorityType(
                             priority.getPriorityType().toString());
                 } catch (Exception e) {
-                    System.out.println(
-                            "The ENUM: \"" + priority.getPriorityType().toString() + "\" was not defined!");
+                    log.warn("The ENUM: \"" + priority.getPriorityType().toString() + "\" was not defined!");
                     continue;
                 }
 
@@ -1154,8 +1154,9 @@ public class PerformActions {
                         }
                         case coordinates, js_coordinates, cp_coordinates, allAttributes -> {
                             // These cases are placeholders and do not need additional handling
-                            System.out.println(
-                                    String.format("Locate by \"coordinates, js_coordinates, cp_coordinates\" "));
+                            //                            System.out.println(
+                            //                                    String.format("Locate by \"coordinates,
+                            // js_coordinates, cp_coordinates\" "));
                         }
 
                         case ExecuteScript, createXPath, dynamic, jsoup -> {
@@ -2535,6 +2536,49 @@ public class PerformActions {
             // Close the browser if necessary
             // driver.quit();
         }
+    }
+
+    /**
+     * Find elements by splitting a CSS locator into tag, ID, and classes.
+     * Returns a combined list of unique WebElements.
+     */
+    public List<WebElement> findBySmartLocator(String locator) {
+        Set<WebElement> uniqueElements = new HashSet<>();
+
+        // Extract tag
+        String tag = locator.split("#")[0]; // e.g., "input"
+
+        // Extract ID (if present)
+        String idPart = locator.contains("#") ? locator.split("#")[1].split("\\.")[0] : null;
+
+        // Extract classes (if present)
+        String[] classes = new String[0];
+        if (locator.contains(".")) {
+            String classesPart = locator.substring(locator.indexOf('.') + 1);
+            classes = classesPart.split("\\.");
+        }
+
+        // Try locating by full CSS
+        uniqueElements.addAll(this.currentDriver.findElements(By.cssSelector(locator)));
+
+        // Try locating by tag
+        if (tag != null && !tag.isEmpty()) {
+            uniqueElements.addAll(this.currentDriver.findElements(By.tagName(tag)));
+        }
+
+        // Try locating by ID
+        if (idPart != null && !idPart.isEmpty()) {
+            uniqueElements.addAll(this.currentDriver.findElements(By.id(idPart)));
+        }
+
+        // Try locating by each class
+        for (String cls : classes) {
+            if (!cls.isEmpty()) {
+                uniqueElements.addAll(this.currentDriver.findElements(By.className(cls)));
+            }
+        }
+
+        return new ArrayList<>(uniqueElements);
     }
 
     public boolean executeActionsAtCoordinates(

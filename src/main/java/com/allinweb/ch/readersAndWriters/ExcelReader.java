@@ -6,9 +6,7 @@ import com.allinweb.ch.util.ExtractedData;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.DataFormatter;
@@ -115,13 +113,27 @@ public class ExcelReader {
                     continue;
                 }
 
+                boolean rowHasData = false;
+                Map<String, String> rowValues = new HashMap<>();
+
                 for (int currentCellIndex = currentRow.getFirstCellNum();
                         currentCellIndex < currentRow.getLastCellNum();
                         currentCellIndex++) {
                     String fieldName = getCellValue(fieldNamesRow.getCell(currentCellIndex));
                     String value = getCellValue(currentRow.getCell(currentCellIndex));
-                    extractedDataWithMissingFields.addFieldValue(
-                            fieldName, value, currentRowIndex - EXCEL_DATA_COLUMN_INTESTATION_ROW - 1);
+
+                    if (value != null && !value.trim().isEmpty()) {
+                        rowHasData = true; // at least one non-empty value
+                    }
+                    rowValues.put(fieldName, value);
+
+                    // Only add the row if it has some data
+                    if (rowHasData) {
+                        int rowPosition = currentRowIndex - EXCEL_DATA_COLUMN_INTESTATION_ROW - 1;
+                        for (Map.Entry<String, String> entry : rowValues.entrySet()) {
+                            extractedDataWithMissingFields.addFieldValue(entry.getKey(), entry.getValue(), rowPosition);
+                        }
+                    }
                 }
             }
 

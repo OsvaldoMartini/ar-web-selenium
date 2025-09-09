@@ -2635,6 +2635,7 @@ public class ARScannedElementPane extends ARPane {
         boolean byPassFlagLoop = false;
         boolean success = true;
         boolean stopAll = false;
+        boolean lastRecall = false;
         long botJobStartTime = System.nanoTime();
         long totalExecutionTime = 0;
         String resultActions = "No instruction executed yet";
@@ -3600,11 +3601,16 @@ public class ARScannedElementPane extends ARPane {
                                         if (actions[0].equalsIgnoreCase(ARConstants.VISUALIZE)
                                                 || actions[0].equalsIgnoreCase(ARConstants.CLICK)
                                                 || actions[0].equalsIgnoreCase(ARConstants.INSERT)) {
-                                            success = performActions.executeActionsAtCoordinates(
-                                                    mapSavedLocators.get("coordinates"),
-                                                    fieldData,
-                                                    actions[0],
-                                                    pressEnterAfter);
+
+                                            List<WebElement> smartSearch = performActions.findBySmartLocator(
+                                                    currentInstruction.getCssSelector());
+                                            if (!smartSearch.isEmpty()) {
+                                                success = performActions.executeActionsAtCoordinates(
+                                                        mapSavedLocators.get("coordinates"),
+                                                        fieldData,
+                                                        actions[0],
+                                                        pressEnterAfter);
+                                            }
                                         }
                                     }
 
@@ -3967,46 +3973,51 @@ public class ARScannedElementPane extends ARPane {
                             if (!success
                                     && !byPassFlagLoop
                                     && currentCondition.equals(ARConstants.ConditionStatus.NONE)) {
-                                //                                stopAll = true;
+                                if (lastRecall) {
+                                    stopAll = true;
+                                } else {
 
-                                if (blocksLoaded.get(currentBlockOrder).isHasAnyInput()) {
+                                    if (blocksLoaded.get(currentBlockOrder).isHasAnyInput()) {
 
-                                    xExcelCurrentRow++;
+                                        xExcelCurrentRow++;
 
-                                    String bodyMsg = "Excel Data Calling Next Row: " + xExcelCurrentRow + 1;
+                                        String bodyMsg = "Excel Data Calling Next Row: " + xExcelCurrentRow + 1;
 
-                                    if (xExcelCurrentRow >= xExcelDataSize - 1) {
-                                        xExcelCurrentRow = xExcelDataSize - 1;
-                                        msgInstruction = new Pair<>(
-                                                "Excel Data (limit reached) keeping last row",
-                                                String.valueOf(xExcelCurrentRow + 1));
-                                        bodyMsg =
-                                                "Excel Data (limit reached) keeping last row: " + xExcelCurrentRow + 1;
-                                    } else {
-                                        msgInstruction =
-                                                new Pair<>("Excel Data next row", String.valueOf(xExcelCurrentRow + 1));
+                                        if (xExcelCurrentRow >= xExcelDataSize - 1) {
+                                            xExcelCurrentRow = xExcelDataSize - 1;
+                                            msgInstruction = new Pair<>(
+                                                    "Excel Data (limit reached) keeping last row",
+                                                    String.valueOf(xExcelCurrentRow + 1));
+                                            bodyMsg = "Excel Data (limit reached) keeping last row: " + xExcelCurrentRow
+                                                    + 1;
+                                            lastRecall = true;
+                                        } else {
+                                            msgInstruction = new Pair<>(
+                                                    "Excel Data next row", String.valueOf(xExcelCurrentRow + 1));
+                                        }
+
+                                        // Excel Report and Log
+                                        performActions.logAndReport(
+                                                currentCondition,
+                                                true,
+                                                true,
+                                                blockStartTime,
+                                                blockReportName,
+                                                success,
+                                                new String[] {ARConstants.NEXT_ROW},
+                                                msgInstruction,
+                                                dataExcel,
+                                                writerReport,
+                                                "Excel Data Calling Next Row",
+                                                bodyMsg);
                                     }
 
-                                    // Excel Report and Log
-                                    performActions.logAndReport(
-                                            currentCondition,
-                                            true,
-                                            true,
-                                            blockStartTime,
-                                            blockReportName,
-                                            success,
-                                            new String[] {ARConstants.NEXT_ROW},
-                                            msgInstruction,
-                                            dataExcel,
-                                            writerReport,
-                                            "Excel Data Calling Next Row",
-                                            bodyMsg);
+                                    //                                currentIndex++;
+                                    currentBlockOrder = blockInitial; // BLOCK DEFINED BY "DEFAULT" OR "EXCEL GOTO"
+                                    currentIndex = 0; // INITIAL INDEX FOR ANY BLOCK LOADED
+                                    success = true; // TO ALLOW OTHER FUNCTIONS TO BE EXECUTED
+                                    continue blockLoop;
                                 }
-
-                                //                                currentIndex++;
-                                currentBlockOrder = blockInitial; // BLOCK DEFINED BY "DEFAULT" OR "EXCEL GOTO"
-                                currentIndex = 0; // INITIAL INDEX FOR ANY BLOCK LOADED"
-                                continue blockLoop;
                             }
 
                             // It decides Here if ByPass as per Loop or Per IF-ELSEIF-ELSE-ENDIF blocks
