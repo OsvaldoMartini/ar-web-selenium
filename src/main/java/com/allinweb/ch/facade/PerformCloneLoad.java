@@ -255,7 +255,7 @@ public class PerformCloneLoad {
                     operationId: window.operationId,
                     homeBankingId: window.homeBankingId,
                     botJobId: window.botJobId,
-                    details: window.allElementInfo, // Send allElementInfo
+                    elementDetails: window.allElementInfo, // Send allElementInfo
                     };
 
                     // Convert the JSON message to a buffer
@@ -1125,7 +1125,7 @@ public class PerformCloneLoad {
                     //       operationId: "closeBrowser",
                     //       homeBankingId: window.homeBankingId,
                     //       botJobId: window.botJobId,
-                    //       details: window.allElementInfo, // Send allElementInfo
+                    //       elementDetails: window.allElementInfo, // Send allElementInfo
                     //     };
 
                     //     // Convert the JSON message to a buffer

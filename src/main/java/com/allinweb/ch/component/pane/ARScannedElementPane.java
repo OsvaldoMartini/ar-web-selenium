@@ -678,7 +678,7 @@ public class ARScannedElementPane extends ARPane {
             if (currentBlockId < 0) {
                 String insertOne = isMany ? "Insert ALL" : "Insert one Element";
                 performMessage.errorMessage(
-                        "Operation \"" + insertOne + "\" failed",
+                        "Operation \"" + insertOne + "\" No Block Selected",
                         "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>No Block Selected ❌</span>",
                         "<span style='color: #E65100; font-weight: bold;'>You must select a Block from the dropdown list</span> before adding a new command.",
                         "<span style='font-style: italic;'>Context:</span> Bot Job: <b>" + currentBotJob.getName()
@@ -2045,7 +2045,7 @@ public class ARScannedElementPane extends ARPane {
                 log.error("Error Defining Excel or BaseLog File: " + error.getMessage());
             }
 
-            executeSpecificBlock = comboBoxBlocks.getValue().getWhereId(); // Start in a specific Block/UseCase
+            executeSpecificBlock = comboBoxBlocks.getValue().getBlockId(); // Start in a specific Block/UseCase
 
             ErrorMessage errorMessage = performDBEngine.loadHomeBanking(null);
             if (errorMessage == null)

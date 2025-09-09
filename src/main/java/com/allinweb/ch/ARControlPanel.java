@@ -364,7 +364,7 @@ public class ARControlPanel extends Application {
             try {
                 Connection conn = performDataBase.getConnection();
                 if (conn != null) {
-                    log.error("Access Database connected!");
+                    log.info("Access Database connected!");
                 }
             } catch (Exception error) {
                 log.error("Error Access: " + error.getMessage());
@@ -405,7 +405,7 @@ public class ARControlPanel extends Application {
             try {
                 Connection conn = performDataBase.getConnection();
                 if (conn != null) {
-                    log.error("SQLite Database connected!");
+                    log.info("SQLite Database connected!");
                 }
             } catch (Exception error) {
                 log.error("Error SQLite: " + error.getMessage());
