@@ -1,8 +1,5 @@
 package com.allinweb.ch;
 
-import ch.qos.logback.classic.LoggerContext;
-import ch.qos.logback.classic.joran.JoranConfigurator;
-import ch.qos.logback.core.joran.spi.JoranException;
 import com.allinweb.ch.component.scene.ARConfigurationScene;
 import com.allinweb.ch.component.scene.ARLicenseScene;
 import com.allinweb.ch.component.scene.ARMainScene;
@@ -14,18 +11,11 @@ import com.allinweb.ch.license.LicenseManager;
 import com.allinweb.ch.socket.ARWebSocketServer;
 import com.allinweb.ch.socket.ARWebSocketServerIP;
 import com.allinweb.ch.socket.WebSocketSessionManager;
-import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARPropertyEnum;
-import com.allinweb.ch.util.ARPropertyManager;
-import com.allinweb.ch.util.ErrorMessage;
+import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
-import javafx.application.Application;
-import javafx.application.Platform;
-import javafx.stage.Stage;
-import lombok.extern.slf4j.Slf4j;
-import org.slf4j.LoggerFactory;
-
-import java.io.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.net.ServerSocket;
 import java.sql.Connection;
 import java.time.LocalDate;
@@ -33,6 +23,10 @@ import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
+import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.stage.Stage;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class ARControlPanel extends Application {
@@ -61,6 +55,7 @@ public class ARControlPanel extends Application {
     }
 
     public static void main(String[] args) {
+        System.setProperty("org.eclipse.jetty.LEVEL", "OFF");
         List<String> arguments = Arrays.asList(args);
         int chosenPort = getInitialPort();
         int chosenPortIP = getInitialPort();
@@ -147,27 +142,11 @@ public class ARControlPanel extends Application {
         }
         System.setProperty("LOG_PATH", logDir.getAbsolutePath());
 
-        LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
-        try {
-            JoranConfigurator configurator = new JoranConfigurator();
-            configurator.setContext(context);
-            context.reset();
-
-            // Load logback.xml from resources
-            InputStream configStream = ARControlPanel.class.getClassLoader().getResourceAsStream("logback.xml");
-            if (configStream == null) {
-                throw new FileNotFoundException("logback.xml not found in classpath");
-            }
-            configurator.doConfigure(configStream);
-
-        } catch (JoranException | IOException je) {
-            log.error("Logback configuration failed: {}", je.getMessage(), je);
-        }
-
-
+        // After main logic, initialize logging
+        LogbackInitializer.loadLogbackFromResources();
+        System.setProperty("org.eclipse.jetty.LEVEL", "ON");
         // Now logback initializes with correct LOG_PATH
         log.info("Using log path: {}", logDir.getAbsolutePath());
-
     }
 
     private static void licenseControl() {

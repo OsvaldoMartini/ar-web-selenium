@@ -15,14 +15,12 @@
 
     <!-- Rolling File Appender -->
     <appender name="ROLLING_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <!-- Main log file -->
         <file>${LOG_PATH}/ar_web_scan_base.log</file>
         <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
             <pattern>%d{ISO8601} %-5p %C{1} [%t] %m%n%throwable</pattern>
         </encoder>
 
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <!-- rollover daily and when the file reaches 10MB -->
             <fileNamePattern>${LOG_PATH}/archived/ar_web_scan_base-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
             <timeBasedFileNamingAndTriggeringPolicy
                     class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
@@ -31,18 +29,6 @@
             <maxHistory>30</maxHistory>
         </rollingPolicy>
     </appender>
-
-    <!-- Root Logger -->
-    <root level="INFO">
-        <appender-ref ref="CONSOLE"/>
-        <appender-ref ref="ROLLING_FILE"/>
-    </root>
-
-    <!-- Example: Trace logging for a specific package -->
-    <logger name="com.allinweb.ch.component.pane" level="TRACE" additivity="false">
-        <appender-ref ref="CONSOLE"/>
-        <appender-ref ref="ROLLING_FILE"/>
-    </logger>
 
     <!-- Special Rolling File Appender -->
     <appender name="SPECIAL_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
@@ -61,9 +47,27 @@
         </rollingPolicy>
     </appender>
 
+    <!-- Suppress Jetty logs completely -->
+    <logger name="org.eclipse.jetty" level="OFF" additivity="false"/>
+    <logger name="org.eclipse.jetty.util.log" level="OFF" additivity="false"/>
+    <logger name="org.eclipse.jetty.server" level="OFF" additivity="false"/>
+    <logger name="org.eclipse.jetty.websocket" level="OFF" additivity="false"/>
+
+    <!-- Example: Trace logging for a specific package -->
+    <logger name="com.allinweb.ch.component.pane" level="TRACE" additivity="false">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="ROLLING_FILE"/>
+    </logger>
+
     <!-- Logger for special usage -->
     <logger name="com.allinweb.special" level="DEBUG" additivity="false">
         <appender-ref ref="SPECIAL_FILE"/>
     </logger>
+
+    <!-- Root Logger -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="ROLLING_FILE"/>
+    </root>
 
 </configuration>

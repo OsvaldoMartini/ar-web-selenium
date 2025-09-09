@@ -3,8 +3,6 @@ package com.allinweb.ch.facade;
 import com.allinweb.ch.component.model.ElementDTO;
 import com.allinweb.ch.component.model.InstructionLoad;
 import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARPropertyEnum;
-import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
 import com.google.gson.ExclusionStrategy;
 import com.google.gson.FieldAttributes;
@@ -35,13 +33,8 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class PerformMessage {
 
-    private static final ARPropertyManager arPropertyManager;
     // Static final variable to hold the singleton instance
     protected static volatile PerformMessage instance;
-
-    static {
-        arPropertyManager = ARPropertyManager.getInstance();
-    }
 
     // Private constructor to prevent instantiation
     private PerformMessage() {}
@@ -898,10 +891,8 @@ public class PerformMessage {
         }
     }
 
-    public void outputJson(List<InstructionLoad> blockLoopInstructions, String fileName, boolean genTestData) {
-        // Get the directory path from ARPropertyManager
-        String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-
+    public void outputJson(
+            List<InstructionLoad> blockLoopInstructions, String fileName, String jsonPath, boolean genTestData) {
         List<InstructionLoad> updatedList = new ArrayList<>(); // Create a new list for updated instructions
 
         for (InstructionLoad instruction : blockLoopInstructions) {
@@ -995,10 +986,8 @@ public class PerformMessage {
         }
     }
 
-    public void outputJsonElementDTO(ElementDTO[] elementDTO, List<String> fieldsToExclude, String fileName) {
-        // Get the directory path from ARPropertyManager
-        String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG);
-
+    public void outputJsonElementDTO(
+            ElementDTO[] elementDTO, List<String> fieldsToExclude, String fileName, String jsonPath) {
         // Define Gson ExclusionStrategy to ignore specific fields
         ExclusionStrategy strategy = new ExclusionStrategy() {
             @Override

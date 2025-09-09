@@ -8,6 +8,8 @@ import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.util.ARConstants;
+import com.allinweb.ch.util.ARPropertyEnum;
+import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
@@ -26,6 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 @ServerEndpoint("/websocket")
 public class SimpleWebSocketServer {
 
+    private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
     private static final PerformLists performLists = PerformLists.getInstance();
     private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
@@ -323,7 +326,9 @@ public class SimpleWebSocketServer {
                         webSocketSessionManager.sendMessageJson(homeBankingId, sessionIdToSend, jsonData, "addPickOne");
 
                         List<String> excludeList = List.of("optional", "blockMarked", "editMode");
-                        performMessage.outputJsonElementDTO(splitDTO.getElementDetails(), excludeList, "elementDTO");
+                        String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+                        performMessage.outputJsonElementDTO(
+                                splitDTO.getElementDetails(), excludeList, "elementDTO", jsonPath);
                         excludeList = List.of(
                                 "optional",
                                 "blockMarked",
@@ -337,7 +342,8 @@ public class SimpleWebSocketServer {
                                 "searchAttributeValue",
                                 "attributeType",
                                 "attributeValue");
-                        performMessage.outputJsonElementDTO(splitDTO.getElementDetails(), excludeList, "AI-ElementDTO");
+                        performMessage.outputJsonElementDTO(
+                                splitDTO.getElementDetails(), excludeList, "AI-ElementDTO", jsonPath);
                     }
                     alreadySentMgsSocket = true;
                     break;

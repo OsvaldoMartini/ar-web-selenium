@@ -306,7 +306,8 @@ public class ARViewBotJobPane extends ARPane {
         if (!performLists.getListBotJob().isEmpty()) {
             List<InstructionLoad> instructions = performLists.buildJsonViewData(performLists.getListBotJob());
             if (!instructions.isEmpty()) {
-                performMessage.outputJson(instructions, "botJobTasks-" + selectedBotJob.getId(), false);
+                String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+                performMessage.outputJson(instructions, "botJobTasks-" + selectedBotJob.getId(), jsonPath, false);
                 jsonData = gson.toJson(instructions);
             }
         }
@@ -348,7 +349,8 @@ public class ARViewBotJobPane extends ARPane {
         if (!performLists.getListBotJobComp().isEmpty()) {
             List<InstructionLoad> instructions = performLists.buildJsonViewData(performLists.getListBotJobComp());
             if (!instructions.isEmpty()) {
-                performMessage.outputJson(instructions, "componentTasks-" + selectedBotJob.getId(), false);
+                String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+                performMessage.outputJson(instructions, "componentTasks-" + selectedBotJob.getId(), jsonPath, false);
                 jsonData = gson.toJson(instructions);
             }
         }
