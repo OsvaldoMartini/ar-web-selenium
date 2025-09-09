@@ -346,158 +346,6 @@ public class ARScannedElementPane extends ARPane {
     }
 
     /**
-     * Finds all elements of the specified tag name without "id" or "name" attributes and returns a map with their XPaths as keys.
-     *
-     * @param driver the WebDriver instance
-     * @return a map where keys are XPaths of elements and values are WebElements
-     */
-    private static Map<String, WebElement> findElementsOutputCriteria(WebDriver driver) {
-
-        String allWithText = "// Global array to store XPaths of elements with text\n" + "let elementsWithText = [];\n"
-                + "(function() {\n"
-                + "    function getXPath(element) {\n"
-                + "        if (element.id) {\n"
-                + "            return `//*[@id='${element.id}']`;\n"
-                + "        }\n"
-                + "        if (element === document.body) {\n"
-                + "            return '/html/body';\n"
-                + "        }\n"
-                + "        let index = 1;\n"
-                + "        let siblings = element.parentNode ? element.parentNode.children : [];\n"
-                + "        for (let i = 0; i < siblings.length; i++) {\n"
-                + "            if (siblings[i] === element) {\n"
-                + "                return getXPath(element.parentNode) + '/' + element.tagName.toLowerCase() + `[${index}]`;\n"
-                + "            }\n"
-                + "            if (siblings[i].tagName === element.tagName) {\n"
-                + "                index++;\n"
-                + "            }\n"
-                + "        }\n"
-                + "        return '';\n"
-                + "    }\n"
-                + "\n"
-                + "    function collectElementsWithText() {\n"
-                + "        let elements = document.querySelectorAll('*');\n"
-                + "\n"
-                + "        elements.forEach(element => {\n"
-                + "            let text = element.textContent.trim();\n"
-                + "            if (text.length > 0 && element.offsetWidth > 0 && element.offsetHeight > 0) {\n"
-                + "                let xpath = getXPath(element);\n"
-                + "                if (xpath) {\n"
-                + "                    elementsWithText.push(xpath);\n"
-                + "                }\n"
-                + "            }\n"
-                + "        });\n"
-                + "        window.allWithText = elementsWithText;\n"
-                + "    }\n"
-                + "\n"
-                + "    window.allWithText = [];\n"
-                + "    collectElementsWithText();\n"
-                + "})();\n";
-
-        List<WebElement> elements = new ArrayList<>();
-        Map<String, WebElement> elementMap = new HashMap<>();
-
-        try {
-            jsExecutor = (JavascriptExecutor) driver;
-            jsExecutor.executeScript(allWithText);
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
-        }
-
-        try {
-            Thread.sleep(2);
-        } catch (InterruptedException e) {
-        }
-
-        String[] listXPaths = new String[0];
-
-        LinkedHashMap<String, Object> linkedHashMap = (LinkedHashMap<String, Object>)
-                jsExecutor.executeScript("var obj = { allWithText: window.allWithText }; return obj;");
-
-        // Convert the LinkedHashMap to a Java Map (if necessary)
-        Map<String, Object> resultMap = new LinkedHashMap<>(linkedHashMap);
-
-        if (linkedHashMap != null) {
-            //            Platform.runLater(() -> {
-            //                                iFrameXPath = (String) resultMap.get("iFrameXPath");
-
-            Object iframeElementsObject = resultMap.get("allWithText");
-
-            if (iframeElementsObject instanceof List<?> iframeElementsList) {
-                // Convert List to String[]
-                lstAllPaths = iframeElementsList.toArray(new String[0]);
-            } else if (iframeElementsObject instanceof Object[]) {
-                // If it's an array, check if it's an array of Strings
-                lstAllPaths = Arrays.copyOf(
-                        (Object[]) iframeElementsObject, ((Object[]) iframeElementsObject).length, String[].class);
-            } else {
-                System.out.println("The iframeElements data is not a List or an array.");
-            }
-
-            for (String xPath : lstAllPaths) {
-                WebElement element = driver.findElement(By.xpath(xPath));
-                if (element != null) {
-                    elementMap.put(xPath, element);
-                }
-            }
-            //            });
-        }
-
-        //        List<WebElement> elements = driver.findElements(By.xpath("//label[@for]"));
-        //        Set<WebElement> uniqueElements = new HashSet<>(elements);
-        //
-        //        elements = driver.findElements(By.xpath("//label[not(@for)]"));
-        //        uniqueElements.addAll(elements);
-        //
-        //        elements = driver.findElements(By.xpath("//label[normalize-space(text()) != '']"));
-        //        uniqueElements.addAll(elements);
-        //
-        //        elements = driver.findElements(By.xpath("//div[normalize-space(text()) != '']"));
-        //        uniqueElements.addAll(elements);
-        //
-        //        elements = driver.findElements(By.xpath("//span[normalize-space(text()) != '']"));
-        //        uniqueElements.addAll(elements);
-        //
-        //        elements = driver.findElements(By.xpath("//div[@for]"));
-        //        uniqueElements.addAll(elements);
-        //
-        //        elements = driver.findElements(By.xpath("//div[not(@for)]"));
-        //        uniqueElements.addAll(elements);
-        //
-        //        elements = driver.findElements(By.xpath("//span[@for]"));
-        //        uniqueElements.addAll(elements);
-        //
-        //        elements = driver.findElements(By.xpath("//span[not(@for)]"));
-        //        uniqueElements.addAll(elements);
-        //
-        //        elements = driver.findElements(By.xpath("//label[@title != '' or @aria-label != '']"));
-        //        uniqueElements.addAll(elements);
-
-        //        Map<String, WebElement> elementMap = new HashMap<>();
-        //        for (WebElement element : elements) {
-        //            String xpath = getElementXPath(driver, element);
-        //            elementMap.put(xpath, element);
-        //        }
-        return elementMap;
-    }
-
-    /**
-     * Prints out the elements, their specified attribute, and their XPath.
-     *
-     * @param elements  a map where keys are XPaths of elements and values are WebElements
-     * @param attribute the attribute to print
-     */
-    private static void printElementsWithAttributeAndXPath(Map<String, WebElement> elements, String attribute) {
-        for (Map.Entry<String, WebElement> entry : elements.entrySet()) {
-            WebElement element = entry.getValue();
-            String xpath = entry.getKey();
-            String attributeValue = element.getAttribute(attribute);
-            System.out.println(
-                    "Tag: " + element.getTagName() + ", " + attribute + ": " + attributeValue + ", XPath: " + xpath);
-        }
-    }
-
-    /**
      * Constructs the XPath of a given WebElement.
      *
      * @param driver  the WebDriver instance
@@ -1487,7 +1335,7 @@ public class ARScannedElementPane extends ARPane {
     //            }
     //            System.out.println("References saved to " + filePath);
     //        } catch (IOException e) {
-    //            System.err.println("Error writing to file: " + e.getMessage());
+    //            log.error("Error writing to file: " + e.getMessage());
     //        }
     //    }
 
@@ -1516,7 +1364,7 @@ public class ARScannedElementPane extends ARPane {
                             + jsonData + "), " + finalPort + ", '" + sessionIdFromJava + "', " + homeBanking + ", "
                             + botJobId + ", '" + botJobName + "' ) }, 1000)");
                 } catch (Exception e) {
-                    log.error("buildWebView  \nError: " + e.getMessage());
+                    log.error("buildWebView  Error: " + e.getMessage());
                 }
             }
         });
@@ -1882,7 +1730,7 @@ public class ARScannedElementPane extends ARPane {
             AnchorPane.setRightAnchor(topPane, 0.0);
 
         } catch (Exception ex) {
-            log.info("Error using Separator line\n" + ex);
+            log.info("Error using Separator line: " + ex);
         }
     }
 
@@ -2362,10 +2210,6 @@ public class ARScannedElementPane extends ARPane {
                     Platform.runLater(() -> defineNameField.setText(finalSomeText));
                 }
             }
-
-            //                sb.append(this.targetElement.getOriginalTagName() + "-" +
-            // this.targetElement.getSomeText())
-            //                        .append("\n");
 
             sb.append("TagType: " + targetSelected.getTagType()).append("\n");
             sb.append("ID: " + targetSelected.getAttribId()).append("\n");
@@ -4294,15 +4138,13 @@ public class ARScannedElementPane extends ARPane {
             if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
                 executorService.shutdownNow();
                 if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
-                    System.err.println("ExecutorService did not terminate");
                     log.error("ExecutorService did not terminate");
                 }
             }
         } catch (InterruptedException error) {
             executorService.shutdownNow();
             Thread.currentThread().interrupt();
-
-            log.error("ExecutorService did not terminate\n" + error.getMessage());
+            log.error("ExecutorService did not terminate: " + error.getMessage());
         }
     }
 
@@ -4354,7 +4196,7 @@ public class ARScannedElementPane extends ARPane {
             if (!executorServicePreLaunch.awaitTermination(5, TimeUnit.SECONDS)) {
                 executorServicePreLaunch.shutdownNow();
                 if (!executorServicePreLaunch.awaitTermination(5, TimeUnit.SECONDS)) {
-                    System.err.println("ExecutorService did not terminate");
+                    log.error("ExecutorService did not terminate");
                     log.error("ExecutorService did not terminate");
                 }
             }
@@ -4568,7 +4410,7 @@ public class ARScannedElementPane extends ARPane {
             writer.write(content);
             System.out.println("CSV written to file: " + filename);
         } catch (IOException e) {
-            System.err.println("Error writing file: " + e.getMessage());
+            log.error("Error writing file: " + e.getMessage());
         }
     }
 

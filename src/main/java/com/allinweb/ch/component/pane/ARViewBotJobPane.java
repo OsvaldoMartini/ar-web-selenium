@@ -1092,7 +1092,7 @@ public class ARViewBotJobPane extends ARPane {
 
             System.out.println("BAT file created at: " + batFilePath);
         } catch (IOException error) {
-            System.err.println("Error creating BAT file: " + error.getMessage());
+            log.error("Error creating BAT file: " + error.getMessage());
             performMessage.errorMessage(
                     "BAT File Creation Error",
                     "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to create file:</span>",

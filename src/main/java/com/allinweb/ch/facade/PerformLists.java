@@ -108,7 +108,7 @@ public class PerformLists {
                                     .sendText("ping-perform-list-data"); // Or a specific keep-alive message
                         }
                     } catch (IOException e) {
-                        System.err.println("Error sending ping: " + e.getMessage());
+                        log.error("Error sending ping: " + e.getMessage());
                         // Handle potential disconnection
                     }
                 },
@@ -162,7 +162,7 @@ public class PerformLists {
                 isConnectWebSocket = true;
             } catch (Exception e) {
                 isConnectWebSocket = false;
-                System.err.println("WebSocket connection failed sessionId: " + sessionId + " error: " + e.getMessage());
+                log.error("WebSocket connection failed sessionId: " + sessionId + " error: " + e.getMessage());
             }
         });
     }
@@ -282,7 +282,7 @@ public class PerformLists {
                 //                        0);
             }
 
-            System.err.println("Closed processing message: " + error.getMessage());
+            log.error("Closed processing message: " + error.getMessage());
         }
     }
 
@@ -1357,7 +1357,7 @@ public class PerformLists {
 
                 return blockLoopInstructions;
             } catch (Exception error) {
-                System.err.println("No BotJob Loaded for buildJsonViewData");
+                log.error("No BotJob Loaded for buildJsonViewData");
             }
         }
 

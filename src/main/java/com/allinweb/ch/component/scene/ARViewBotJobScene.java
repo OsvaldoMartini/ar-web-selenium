@@ -209,7 +209,7 @@ public class ARViewBotJobScene extends ARScene {
                             session.getBasicRemote().sendText("ping-bot-job-scene"); // Or a specific keep-alive message
                         }
                     } catch (IOException e) {
-                        System.err.println("Error sending ping: " + e.getMessage());
+                        log.error("Error sending ping: " + e.getMessage());
                         // Handle potential disconnection
                     }
                 },
@@ -274,7 +274,7 @@ public class ARViewBotJobScene extends ARScene {
                 isConnectWebSocket = true;
             } catch (Exception e) {
                 isConnectWebSocket = false;
-                System.err.println("WebSocket connection failed sessionId: " + sessionId + " error: " + e.getMessage());
+                log.error("WebSocket connection failed sessionId: " + sessionId + " error: " + e.getMessage());
             }
         });
     }

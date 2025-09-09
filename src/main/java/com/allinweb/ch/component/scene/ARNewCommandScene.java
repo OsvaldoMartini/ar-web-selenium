@@ -82,10 +82,10 @@ public class ARNewCommandScene extends ARScene {
                 }
                 session.getBasicRemote().sendText(jsonMessage.toString());
             } catch (IOException e) {
-                System.err.println("Error sending message to session " + sessionId + ": " + e.getMessage());
+                log.error("Error sending message to session " + sessionId + ": " + e.getMessage());
             }
         } else {
-            System.err.println("Session " + sessionId + " not found or closed.");
+            log.error("Session " + sessionId + " not found or closed.");
         }
     }
 
@@ -102,7 +102,7 @@ public class ARNewCommandScene extends ARScene {
                                     .sendText("ping-new-command-scene"); // Or a specific keep-alive message
                         }
                     } catch (IOException e) {
-                        System.err.println("Error sending ping: " + e.getMessage());
+                        log.error("Error sending ping: " + e.getMessage());
                         // Handle potential disconnection
                     }
                 },
@@ -280,7 +280,7 @@ public class ARNewCommandScene extends ARScene {
             }
 
         } catch (Exception error) {
-            System.err.println("Closed processing message: " + error.getMessage());
+            log.error("Closed processing message: " + error.getMessage());
             if (type != null) {
                 sendMessageJson(homeBankingId, session, type, "Action type : \"" + type + "\"", "cannot be processed");
             } else {
@@ -458,7 +458,7 @@ public class ARNewCommandScene extends ARScene {
                 isConnectWebSocket = true;
             } catch (Exception e) {
                 isConnectWebSocket = false;
-                System.err.println("WebSocket connection failed sessionId: " + sessionId + " error: " + e.getMessage());
+                log.error("WebSocket connection failed sessionId: " + sessionId + " error: " + e.getMessage());
             }
         });
     }

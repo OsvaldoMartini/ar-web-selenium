@@ -982,7 +982,7 @@ public class PerformMessage {
             writer.write(jsonData);
             System.out.println("JSON file saved to: " + outputFilePath);
         } catch (IOException e) {
-            System.err.println("Error writing JSON to file: " + e.getMessage());
+            log.error("Error writing JSON to file: " + e.getMessage());
         }
     }
 
@@ -1019,7 +1019,7 @@ public class PerformMessage {
             writer.write(jsonData);
             System.out.println("JSON file saved to: " + outputFilePath);
         } catch (IOException e) {
-            System.err.println("Error writing JSON to file: " + e.getMessage());
+            log.error("Error writing JSON to file: " + e.getMessage());
         }
     }
 

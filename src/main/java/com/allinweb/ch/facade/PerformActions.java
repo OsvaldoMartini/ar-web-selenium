@@ -3656,7 +3656,7 @@ public class PerformActions {
                 }
             } catch (Exception e) {
                 // Log or handle the exception if needed
-                System.err.println("Error locating element with XPath: " + xpath + ". Exception: " + e.getMessage());
+                log.error("Error locating element with XPath: " + xpath + ". Exception: " + e.getMessage());
             }
         }
         return null;
@@ -3826,7 +3826,7 @@ public class PerformActions {
             savedReferences.put("coordinates", newCoordinates);
             targetRefs.setCoordinates(newCoordinates);
         } catch (Exception coords) {
-            System.err.println("Invalid coordinates from WebDriver Selenium");
+            log.error("Invalid coordinates from WebDriver Selenium");
         }
 
         String[] parts = targetRefs.getCoordinates().split(",");
@@ -3849,7 +3849,7 @@ public class PerformActions {
             // Computed
             savedReferences.put("cp_coordinates", newCoordinates);
         } catch (NumberFormatException e) {
-            System.err.println("Invalid coordinates from Javascript code: " + targetRefs.getCoordinates());
+            log.error("Invalid coordinates from Javascript code: " + targetRefs.getCoordinates());
         }
     }
 
@@ -3998,7 +3998,7 @@ public class PerformActions {
             return decimalPart.isEmpty() ? groupedInteger : groupedInteger + decimalSeparator + decimalPart;
 
         } catch (Exception e) {
-            System.err.println("Error formatting number: " + numberString + " - " + e.getMessage());
+            log.error("Error formatting number: " + numberString + " - " + e.getMessage());
             return numberString;
         }
     }

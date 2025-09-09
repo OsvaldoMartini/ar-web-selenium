@@ -86,7 +86,7 @@ public class ExcelWriter {
                 System.out.println("CSV file created successfully at: " + filePath);
 
             } catch (IOException e) {
-                System.err.println("Error writing to CSV file: " + e.getMessage());
+                log.error("Error writing to CSV file: " + e.getMessage());
             }
         }
 

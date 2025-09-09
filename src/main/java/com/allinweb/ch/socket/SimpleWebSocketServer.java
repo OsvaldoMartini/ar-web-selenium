@@ -96,7 +96,7 @@ public class SimpleWebSocketServer {
 
             // Process the message as needed...
         } catch (IllegalArgumentException e) {
-            //            System.err.println("Invalid Base64 message received: " + message);
+            //            log.error("Invalid Base64 message received: " + message);
         } catch (Exception e) {
             //            e.printStackTrace();
         }
@@ -180,7 +180,7 @@ public class SimpleWebSocketServer {
                     break;
             }
         } catch (Exception error) {
-            System.err.println("Closed processing message: " + error.getMessage());
+            log.error("Closed processing message: " + error.getMessage());
             if (type != null) {
                 webSocketSessionManager.sendMessageJson(
                         homeBankingId, session, type, "Action type : \"" + type + "\"", "cannot be processed");
@@ -193,13 +193,13 @@ public class SimpleWebSocketServer {
 
     @OnError
     public void onError(Session session, Throwable throwable) {
-        System.err.println("Error in session " + session.getId() + ": " + throwable.getMessage());
+        log.error("Error in session " + session.getId() + ": " + throwable.getMessage());
         try {
             if (session.isOpen()) {
                 session.close();
             }
         } catch (IOException e) {
-            System.err.println("Error closing session: " + e.getMessage());
+            log.error("Error closing session: " + e.getMessage());
         }
     }
 

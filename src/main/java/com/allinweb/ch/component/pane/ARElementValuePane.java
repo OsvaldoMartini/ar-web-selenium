@@ -759,7 +759,7 @@ public class ARElementValuePane extends ARPane {
             }
 
             if (tableView == null) {
-                System.err.println("TableView not initialized.");
+                log.error("TableView not initialized.");
                 return;
             }
 

@@ -835,7 +835,7 @@ public class PerformBackup {
                             case 7 -> setSafeParam(pstmt, 7, val, Types.VARCHAR); // driver_session
                             case 8 -> setSafeParam(pstmt, 8, val, Types.VARCHAR); // username
                             case 9 -> setSafeParam(pstmt, 9, val, Types.VARCHAR); // password
-                            default -> System.err.println("Unexpected value index: " + i);
+                            default -> log.error("Unexpected value index: " + i);
                         }
                     }
 
@@ -873,8 +873,7 @@ public class PerformBackup {
             newIds.removeAll(idsBefore);
 
             if (insertedOldIds.size() != newIds.size()) {
-                System.err.println(
-                        "Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
+                log.error("Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
             }
 
             for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
@@ -1024,8 +1023,7 @@ public class PerformBackup {
             newIds.removeAll(idsBefore);
 
             if (insertedOldIds.size() != newIds.size()) {
-                System.err.println(
-                        "Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
+                log.error("Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
             }
 
             for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
@@ -1156,8 +1154,7 @@ public class PerformBackup {
             newIds.removeAll(idsBefore);
 
             if (insertedOldIds.size() != newIds.size()) {
-                System.err.println(
-                        "Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
+                log.error("Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
             }
 
             for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
@@ -1306,8 +1303,7 @@ public class PerformBackup {
             newIds.removeAll(idsBefore);
 
             if (insertedOldIds.size() != newIds.size()) {
-                System.err.println(
-                        "Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
+                log.error("Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
             }
 
             for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
@@ -1554,8 +1550,7 @@ public class PerformBackup {
             newIds.removeAll(idsBefore);
 
             if (insertedOldIds.size() != newIds.size()) {
-                System.err.println(
-                        "Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
+                log.error("Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
             }
 
             for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
@@ -1697,8 +1692,7 @@ public class PerformBackup {
             newIds.removeAll(idsBefore);
 
             if (insertedOldIds.size() != newIds.size()) {
-                System.err.println(
-                        "Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
+                log.error("Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
             }
 
             for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
@@ -1925,8 +1919,7 @@ public class PerformBackup {
             newIds.removeAll(idsBefore);
 
             if (insertedOldIds.size() != newIds.size()) {
-                System.err.println(
-                        "Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
+                log.error("Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
             }
 
             for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
@@ -2060,8 +2053,7 @@ public class PerformBackup {
             newIds.removeAll(idsBefore);
 
             if (insertedOldIds.size() != newIds.size()) {
-                System.err.println(
-                        "Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
+                log.error("Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
             }
 
             for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
@@ -2307,8 +2299,7 @@ public class PerformBackup {
             newIds.removeAll(idsBefore);
 
             if (insertedOldIds.size() != newIds.size()) {
-                System.err.println(
-                        "Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
+                log.error("Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
             }
 
             for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
@@ -2443,8 +2434,7 @@ public class PerformBackup {
             newIds.removeAll(idsBefore);
 
             if (insertedOldIds.size() != newIds.size()) {
-                System.err.println(
-                        "Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
+                log.error("Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
             }
 
             for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
@@ -2673,8 +2663,7 @@ public class PerformBackup {
             newIds.removeAll(idsBefore);
 
             if (insertedOldIds.size() != newIds.size()) {
-                System.err.println(
-                        "Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
+                log.error("Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
             }
 
             for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {

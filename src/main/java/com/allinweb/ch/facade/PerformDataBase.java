@@ -3383,7 +3383,7 @@ public class PerformDataBase {
                         try {
                             rsFK.close();
                         } catch (SQLException e) {
-                            System.err.println("Error closing ResultSet for FK check: " + e.getMessage());
+                            log.error("Error closing ResultSet for FK check: " + e.getMessage());
                         }
                     }
                 }
@@ -3410,7 +3410,7 @@ public class PerformDataBase {
                     try {
                         stmt.close();
                     } catch (SQLException e) {
-                        System.err.println("Error closing Statement: " + e.getMessage());
+                        log.error("Error closing Statement: " + e.getMessage());
                     }
                 }
             }
@@ -3440,7 +3440,7 @@ public class PerformDataBase {
                         try {
                             stmt.executeUpdate(dropSQL);
                         } catch (SQLException ex) {
-                            System.err.println("Failed to drop constraint " + fkName + ": " + ex.getMessage());
+                            log.error("Failed to drop constraint " + fkName + ": " + ex.getMessage());
                         }
                     }
                 }
@@ -4148,8 +4148,7 @@ public class PerformDataBase {
             List<Integer> keys = new ArrayList<>(blockMap.keySet());
 
             if (keys.size() != newComponentIds.size()) {
-                System.err.println(
-                        "Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
+                log.error("Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
             } else {
                 for (int i = 0; i < keys.size(); i++) {
                     Integer oldId = keys.get(i);
@@ -4303,8 +4302,7 @@ public class PerformDataBase {
             List<Integer> keys = new ArrayList<>(instructionMap.keySet());
 
             if (keys.size() != newComponentIds.size()) {
-                System.err.println(
-                        "Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
+                log.error("Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
             } else {
                 for (int i = 0; i < keys.size(); i++) {
                     Integer oldId = keys.get(i);
@@ -4446,8 +4444,7 @@ public class PerformDataBase {
             List<Integer> keys = new ArrayList<>(variableMap.keySet());
 
             if (keys.size() != newComponentIds.size()) {
-                System.err.println(
-                        "Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
+                log.error("Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
             } else {
                 for (int i = 0; i < keys.size(); i++) {
                     Integer oldId = keys.get(i);
@@ -4687,8 +4684,7 @@ public class PerformDataBase {
             List<Integer> keys = new ArrayList<>(referenceMap.keySet());
 
             if (keys.size() != newComponentIds.size()) {
-                System.err.println(
-                        "Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
+                log.error("Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
             } else {
                 for (int i = 0; i < keys.size(); i++) {
                     Integer oldId = keys.get(i);
@@ -4821,8 +4817,7 @@ public class PerformDataBase {
             List<Integer> keys = new ArrayList<>(blockMap.keySet());
 
             if (keys.size() != newComponentIds.size()) {
-                System.err.println(
-                        "Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
+                log.error("Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
             } else {
                 for (int i = 0; i < keys.size(); i++) {
                     Integer oldId = keys.get(i);
@@ -4977,8 +4972,7 @@ public class PerformDataBase {
             List<Integer> keys = new ArrayList<>(instructionMap.keySet());
 
             if (keys.size() != newComponentIds.size()) {
-                System.err.println(
-                        "Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
+                log.error("Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
             } else {
                 for (int i = 0; i < keys.size(); i++) {
                     Integer oldId = keys.get(i);
@@ -5116,8 +5110,7 @@ public class PerformDataBase {
             List<Integer> keys = new ArrayList<>(variableMap.keySet());
 
             if (keys.size() != newComponentIds.size()) {
-                System.err.println(
-                        "Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
+                log.error("Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
             } else {
                 for (int i = 0; i < keys.size(); i++) {
                     Integer oldId = keys.get(i);
@@ -5349,8 +5342,7 @@ public class PerformDataBase {
             List<Integer> keys = new ArrayList<>(referenceMap.keySet());
 
             if (keys.size() != newComponentIds.size()) {
-                System.err.println(
-                        "Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
+                log.error("Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
             } else {
                 for (int i = 0; i < keys.size(); i++) {
                     Integer oldId = keys.get(i);
@@ -5433,8 +5425,7 @@ public class PerformDataBase {
             List<Integer> keys = new ArrayList<>(botJobMap.keySet());
 
             if (keys.size() != newComponentIds.size()) {
-                System.err.println(
-                        "Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
+                log.error("Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
             } else {
                 for (int i = 0; i < keys.size(); i++) {
                     Integer oldId = keys.get(i);
@@ -5565,8 +5556,7 @@ public class PerformDataBase {
             List<Integer> keys = new ArrayList<>(blockMap.keySet());
 
             if (keys.size() != newComponentIds.size()) {
-                System.err.println(
-                        "Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
+                log.error("Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
             } else {
                 for (int i = 0; i < keys.size(); i++) {
                     Integer oldId = keys.get(i);
@@ -5720,8 +5710,7 @@ public class PerformDataBase {
             List<Integer> keys = new ArrayList<>(instructionMap.keySet());
 
             if (keys.size() != newComponentIds.size()) {
-                System.err.println(
-                        "Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
+                log.error("Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
             } else {
                 for (int i = 0; i < keys.size(); i++) {
                     Integer oldId = keys.get(i);
@@ -5854,8 +5843,7 @@ public class PerformDataBase {
             List<Integer> keys = new ArrayList<>(variableMap.keySet());
 
             if (keys.size() != newComponentIds.size()) {
-                System.err.println(
-                        "Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
+                log.error("Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
             } else {
                 for (int i = 0; i < keys.size(); i++) {
                     Integer oldId = keys.get(i);
@@ -6089,8 +6077,7 @@ public class PerformDataBase {
             List<Integer> keys = new ArrayList<>(referenceMap.keySet());
 
             if (keys.size() != newComponentIds.size()) {
-                System.err.println(
-                        "Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
+                log.error("Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
             } else {
                 for (int i = 0; i < keys.size(); i++) {
                     Integer oldId = keys.get(i);

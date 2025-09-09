@@ -123,7 +123,7 @@ public class ARScannedElementScene extends ARScene {
                                     .sendText("ping-scanner-element-pane"); // Or a specific keep-alive message
                         }
                     } catch (IOException e) {
-                        System.err.println("Error sending ping: " + e.getMessage());
+                        log.error("Error sending ping: " + e.getMessage());
                         // Handle potential disconnection
                     }
                 },
@@ -177,7 +177,7 @@ public class ARScannedElementScene extends ARScene {
                 isConnectWebSocket = true;
             } catch (Exception e) {
                 isConnectWebSocket = false;
-                System.err.println("WebSocket connection failed sessionId: " + sessionId + " error: " + e.getMessage());
+                log.error("WebSocket connection failed sessionId: " + sessionId + " error: " + e.getMessage());
             }
         });
     }
@@ -407,7 +407,7 @@ public class ARScannedElementScene extends ARScene {
                         0);
             }
 
-            System.err.println("Closed processing message: " + error.getMessage());
+            log.error("Closed processing message: " + error.getMessage());
         }
     }
 
@@ -454,7 +454,7 @@ public class ARScannedElementScene extends ARScene {
 
                 System.out.println("WebDriver quit successfully.");
             } catch (Exception e) {
-                System.err.println("Error closing WebDriver: " + e.getMessage());
+                log.error("Error closing WebDriver: " + e.getMessage());
             }
         }
     }
@@ -500,14 +500,14 @@ public class ARScannedElementScene extends ARScene {
             if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
                 executorService.shutdownNow();
                 if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
-                    System.err.println("ExecutorService did not terminate");
+                    log.error("ExecutorService did not terminate");
                     log.error("ExecutorService did not terminate");
                 }
             }
         } catch (InterruptedException e) {
             executorService.shutdownNow();
             Thread.currentThread().interrupt();
-            log.error("ExecutorService did not terminate\n" + e.getMessage());
+            log.error("ExecutorService did not terminate" + e.getMessage());
         }
     }
 
@@ -593,7 +593,7 @@ public class ARScannedElementScene extends ARScene {
             }
             modalStage = null;
         } catch (Exception error) {
-            System.err.println("Browser Closed Before Web Scanner. Error: " + error.getMessage());
+            log.error("Browser Closed Before Web Scanner. Error: " + error.getMessage());
         }
     }
 
@@ -781,7 +781,7 @@ public class ARScannedElementScene extends ARScene {
 
                 } catch (Exception e) {
 
-                    log.warn(String.format("Cannot locate a Web Element with Name: \n%s", target.getAttribName()));
+                    log.warn(String.format("Cannot locate a Web Element with Name: %s", target.getAttribName()));
                 }
             } else if (elementValid == null) {
                 try {
@@ -794,7 +794,7 @@ public class ARScannedElementScene extends ARScene {
                 } catch (Exception e) {
 
                     log.warn(String.format(
-                            "Cannot locate a Web Element with Regular XPath\n%s", target.getCurrentXPath()));
+                            "Cannot locate a Web Element with Regular XPath: %s", target.getCurrentXPath()));
                 }
             } else if (elementValid == null) {
                 try {
@@ -807,7 +807,7 @@ public class ARScannedElementScene extends ARScene {
                 } catch (Exception e) {
 
                     log.warn(String.format(
-                            "Cannot locate a Web Element with Absolut XPath\n%s", target.getAttributeData()));
+                            "Cannot locate a Web Element with Absolut XPath: %s", target.getAttributeData()));
                 }
             } else {
                 if (elementValid == null) {
@@ -823,7 +823,7 @@ public class ARScannedElementScene extends ARScene {
                             }
                         } catch (Exception e) {
 
-                            log.warn(String.format("Cannot locate a Web Element with ID: \n%s", target.getAttribId()));
+                            log.warn(String.format("Cannot locate a Web Element with ID: %s", target.getAttribId()));
                         }
                     }
                 } else if (elementValid == null) {
@@ -839,8 +839,8 @@ public class ARScannedElementScene extends ARScene {
                             }
                         } catch (Exception e) {
 
-                            log.warn(String.format(
-                                    "Cannot locate a Web Element with Name: \n%s", target.getAttribName()));
+                            log.warn(
+                                    String.format("Cannot locate a Web Element with Name: %s", target.getAttribName()));
                         }
                     }
                 }

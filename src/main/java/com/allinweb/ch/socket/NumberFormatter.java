@@ -42,7 +42,7 @@ public class NumberFormatter {
             return decimalPart.isEmpty() ? groupedInteger : groupedInteger + decimalSeparator + decimalPart;
 
         } catch (Exception e) {
-            System.err.println("Error formatting number: " + numberString + " - " + e.getMessage());
+            log.error("Error formatting number: " + numberString + " - " + e.getMessage());
             return numberString;
         }
     }

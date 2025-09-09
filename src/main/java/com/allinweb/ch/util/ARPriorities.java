@@ -79,7 +79,7 @@ public class ARPriorities {
                 priorities.add(new Priority(priorityNumber, priorityType, name));
             } else {
                 // Handle invalid lines
-                System.err.println("Invalid line: " + line);
+                log.error("Invalid line: " + line);
             }
         }
         priorityList = priorities;
@@ -114,7 +114,7 @@ public class ARPriorities {
                 searchConfigs.add(new SearchConfig(searchNumber, searchType, name));
             } else {
                 // Handle invalid lines
-                System.err.println("Invalid line: " + line);
+                log.error("Invalid line: " + line);
             }
         }
         searchList = searchConfigs;

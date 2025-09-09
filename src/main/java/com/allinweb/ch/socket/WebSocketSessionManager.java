@@ -2,11 +2,14 @@ package com.allinweb.ch.socket;
 
 import com.google.common.base.Strings;
 import com.google.gson.JsonObject;
+import lombok.extern.slf4j.Slf4j;
+
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.websocket.Session;
 
+@Slf4j
 public class WebSocketSessionManager {
 
     private static final ConcurrentHashMap<String, Session> activeSessions = new ConcurrentHashMap<>();
@@ -64,10 +67,10 @@ public class WebSocketSessionManager {
                 }
                 session.getBasicRemote().sendText(jsonMessage.toString());
             } catch (IOException e) {
-                System.err.println("Error sending message to session " + sessionId + ": " + e.getMessage());
+                log.error("Error sending message to session " + sessionId + ": " + e.getMessage());
             }
         } else {
-            System.err.println("Session " + sessionId + " not found or closed.");
+            log.error("Session " + sessionId + " not found or closed.");
         }
     }
 
@@ -98,7 +101,7 @@ public class WebSocketSessionManager {
                 try {
                     sendMessageJson(homeBankingId, session, entry.getKey(), body, operationId);
                 } catch (Exception e) {
-                    System.err.println("Failed to send message to session: " + sessionKey);
+                    log.error("Failed to send message to session: " + sessionKey);
                     e.printStackTrace();
                 }
             }
@@ -113,11 +116,11 @@ public class WebSocketSessionManager {
             try {
                 session.getBasicRemote().sendText(message);
             } catch (IOException e) {
-                System.err.println("Error sending message to session " + sessionId + ": " + e.getMessage());
+                log.error("Error sending message to session " + sessionId + ": " + e.getMessage());
             }
         } else {
             removeSession(sessionId);
-            System.err.println("Session " + sessionId + " not found or closed.");
+            log.error("Session " + sessionId + " not found or closed.");
         }
     }
 
@@ -136,10 +139,10 @@ public class WebSocketSessionManager {
                 }
                 session.getBasicRemote().sendText(jsonMessage.toString());
             } catch (IOException e) {
-                System.err.println("Error sending message to session " + sessionId + ": " + e.getMessage());
+                log.error("Error sending message to session " + sessionId + ": " + e.getMessage());
             }
         } else {
-            System.err.println("Session " + sessionId + " not found or closed.");
+            log.error("Session " + sessionId + " not found or closed.");
         }
     }
 
@@ -157,10 +160,10 @@ public class WebSocketSessionManager {
     //                }
     //                session.getBasicRemote().sendText(jsonMessage.toString());
     //            } catch (IOException e) {
-    //                System.err.println("Error sending message to session " + sessionId + ": " + e.getMessage());
+    //                log.error("Error sending message to session " + sessionId + ": " + e.getMessage());
     //            }
     //        } else {
-    //            System.err.println("Session " + sessionId + " not found or closed.");
+    //            log.error("Session " + sessionId + " not found or closed.");
     //        }
     //    }
 
@@ -179,7 +182,7 @@ public class WebSocketSessionManager {
                 // Send the JSON string over WebSocket
                 session.getBasicRemote().sendText(jsonString);
             } catch (IOException e) {
-                System.err.println("Error sending message to session " + session.getId() + ": " + e.getMessage());
+                log.error("Error sending message to session " + session.getId() + ": " + e.getMessage());
             }
         }
     }
