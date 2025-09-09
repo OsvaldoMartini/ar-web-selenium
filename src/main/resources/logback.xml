@@ -16,6 +16,7 @@
     <!-- Rolling File Appender -->
     <appender name="ROLLING_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${LOG_PATH}/ar_web_scan_base.log</file>
+        <prudent>true</prudent>
         <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
             <pattern>%d{ISO8601} %-5p %C{1} [%t] %m%n%throwable</pattern>
         </encoder>
@@ -33,6 +34,7 @@
     <!-- Special Rolling File Appender -->
     <appender name="SPECIAL_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${LOG_PATH}/ar_web_scan_special.log</file>
+        <prudent>true</prudent>
         <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
             <pattern>%d{ISO8601} %m%n%throwable</pattern>
         </encoder>
