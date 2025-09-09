@@ -43,9 +43,6 @@ public class ARConstants {
     public static final Double SPACE_XL = 40D;
     public static final Double SPACE_XXS = 2.5D;
     // IMPORTANT FILE NAMES
-    public static final String FILE_NAME_SCANNER_BASE_LOG = "\\ar_web_scan_base.log";
-    public static final String FILE_NAME_SCANNER_LOG = "\\ar_web_scan.log";
-    public static final String FILE_NAME_SCANNER_OUTPUT_LOG = "\\ar_web_scan_output.log";
     public static final String FILE_NAME_CONFIGURATION = "\\config\\configuration.properties";
     public static final String FILE_NAME_PRIORITIES = "\\priorities.properties";
     public static final String FILE_NAME_ACCESS = "\\database.mdb";

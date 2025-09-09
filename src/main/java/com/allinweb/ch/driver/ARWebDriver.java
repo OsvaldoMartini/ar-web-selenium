@@ -7,17 +7,6 @@ import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.UUID;
-import java.util.logging.Level;
-import java.util.stream.Collectors;
 import javafx.collections.ObservableList;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +21,18 @@ import org.openqa.selenium.logging.LogType;
 import org.openqa.selenium.logging.LoggingPreferences;
 import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.ui.WebDriverWait;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.UUID;
+import java.util.logging.Level;
+import java.util.stream.Collectors;
 
 @Data
 @Slf4j
@@ -206,10 +207,10 @@ public class ARWebDriver {
                 optionsConfigLines = optionsConfigLines[0].split("£");
             }
         } catch (Exception ex) {
-            log.error("Error WebDriver config Options : \n" + ex.getMessage());
+            log.error("Error WebDriver config Options : " + ex.getMessage());
         }
 
-        log.info("Going to call WebDriver for \n" + url);
+        log.info("Going to call WebDriver for " + url);
 
         if (Strings.isNullOrEmpty(webDriverPath)) {
             log.info("URL IS EMPTY");
@@ -222,7 +223,7 @@ public class ARWebDriver {
                 case ARConstants.CHROME -> {
                     //                        String driverPath = webDriverPath + "\\chrome.exe";
                     if (!(new File(webDriverPath)).exists()) {
-                        log.info("Web Driver NOT EXIST \n" + webDriverPath);
+                        log.info("Web Driver NOT EXIST " + webDriverPath);
                     }
 
                     // "\\_chrome_browser.log");
@@ -243,7 +244,7 @@ public class ARWebDriver {
                 case ARConstants.EDGE -> {
                     //                        String driverPath = webDriverPath + "\\msedgedriver.exe";
                     if (!(new File(webDriverPath)).exists()) {
-                        log.info("Web Driver NOT EXIST \n" + webDriverPath);
+                        log.info("Web Driver NOT EXIST " + webDriverPath);
                     }
                     // Set path to Edge WebDriver executable
                     System.setProperty("webdriver.edge.driver", webDriverPath);
@@ -281,7 +282,7 @@ public class ARWebDriver {
                 case ARConstants.FIREFOX -> {
                     //                        String driverPath = webDriverPath + "\\geckodriver.exe";
                     if (!(new File(webDriverPath)).exists()) {
-                        log.info("Web Driver NOT EXIST \n" + webDriverPath);
+                        log.info("Web Driver NOT EXIST " + webDriverPath);
                     }
                     System.setProperty("webdriver.gecko.driver", webDriverPath);
                     if (optionsFirefox == null) {
@@ -391,7 +392,7 @@ public class ARWebDriver {
                 continue;
             }
 
-            log.info("WebDriver config: \n" + line);
+            log.info("WebDriver config: " + line);
             String[] config = line.split(":");
             if (config.length > 1) {
                 if (config[0].equalsIgnoreCase("proxy")) {
@@ -454,7 +455,7 @@ public class ARWebDriver {
                 continue;
             }
 
-            log.info("WebDriver config: \n" + line);
+            log.info("WebDriver config: " + line);
             String[] config = line.split(":");
             if (config.length > 1) {
                 if (config[0].equalsIgnoreCase("proxy")) {

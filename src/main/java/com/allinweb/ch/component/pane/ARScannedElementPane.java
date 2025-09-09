@@ -17,19 +17,6 @@ import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import io.opentelemetry.api.internal.StringUtils;
-import java.io.*;
-import java.nio.charset.StandardCharsets;
-import java.text.SimpleDateFormat;
-import java.time.Duration;
-import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Predicate;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -56,9 +43,27 @@ import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.WebDriverWait;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
+import java.time.Duration;
+import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Predicate;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Slf4j
 public class ARScannedElementPane extends ARPane {
+
+    private static final Logger specialLog = LoggerFactory.getLogger("com.allinweb.special");
 
     private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
     private static final String END_OF_FILE_MARKER = "END OF FILE";
@@ -80,7 +85,6 @@ public class ARScannedElementPane extends ARPane {
     private static SimpleDateFormat dateFormatter;
     private static String excelPath = null;
     private static String currentBotJobName = null;
-    private static File baseLogFile = null;
     private static JavascriptExecutor jsExecutor;
     private static String[] lstAllPaths;
     public final AtomicBoolean isJobRunning = new AtomicBoolean(false);
@@ -308,19 +312,6 @@ public class ARScannedElementPane extends ARPane {
                 .collect(Collectors.toList());
     }
 
-    private static void printBaseLog(File logFile, String timeStamp, String msg) {
-        String resultMsg;
-        String log = String.join(ARConstants.FIELDS_SEPARATOR, timeStamp, msg);
-
-        try {
-            FileWriter fileWriter = new FileWriter(logFile, true);
-            fileWriter.write(log + System.lineSeparator());
-            fileWriter.close();
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
-        }
-    }
-
     private static String generateTimestamp() {
         Date date = new Date();
         dateFormatter = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
@@ -328,17 +319,10 @@ public class ARScannedElementPane extends ARPane {
     }
     //    private static final PerformCloseBrowser performCloseBrowser;
 
-    private static void printLog(String timeStamp, File logFile, String resultActions, boolean result) {
+    private static void printLog(String resultActions, boolean result) {
         String resultMsg = result ? ARConstants.SUCCESS : ARConstants.FAIL;
-        String log = String.join(ARConstants.FIELDS_SEPARATOR, timeStamp, resultMsg, resultActions);
-
-        try {
-            FileWriter fileWriter = new FileWriter(logFile, true);
-            fileWriter.write(log + System.lineSeparator());
-            fileWriter.close();
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
-        }
+        String log = String.join(ARConstants.FIELDS_SEPARATOR, resultMsg, resultActions);
+        specialLog.info(log);
     }
 
     /**
@@ -2038,8 +2022,6 @@ public class ARScannedElementPane extends ARPane {
 
             try {
                 excelPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
-                baseLogFile = new File(arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG)
-                        + ARConstants.FILE_NAME_SCANNER_BASE_LOG);
             } catch (Exception error) {
 
                 log.error("Error Defining Excel or BaseLog File: " + error.getMessage());
@@ -2629,7 +2611,7 @@ public class ARScannedElementPane extends ARPane {
 
         String baseLogString = currentBotJobName + ARConstants.FIELDS_SEPARATOR + labelsValue.getProperty(Labels.START);
 
-        printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
+        log.info(baseLogString);
 
         ExcelWriter.ExcelChain writerReport =
                 new ExcelWriter(currentBotJobName, performActions.getCurrentDriver(), false).withPurpose("report");
@@ -3915,11 +3897,7 @@ public class ARScannedElementPane extends ARPane {
                                 //                            throw new RuntimeException(t);
                             }
 
-                            printLog(
-                                    generateTimestamp(),
-                                    logFileForSingleExcel,
-                                    finalLogMessage(failedMessage, resultActions),
-                                    success);
+                            printLog(finalLogMessage(failedMessage, resultActions), success);
 
                             // Here mark the Status of a progress Condition Fail or Success at the end of each Kind
                             // of Execution
@@ -4217,7 +4195,7 @@ public class ARScannedElementPane extends ARPane {
                         350);
             }
         }
-        printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
+        log.info(baseLogString);
 
         shutDownExecutorService(executorServicePreLaunch);
         performActions.setInterceptBotJob(true);
