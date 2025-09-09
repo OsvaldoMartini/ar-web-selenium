@@ -1,14 +1,13 @@
 package com.allinweb.ch.socket;
 
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.SocketException;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.websocket.jsr356.server.ServerContainer;
 import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainerInitializer;
-
-import java.io.IOException;
-import java.net.ServerSocket;
-import java.net.SocketException;
 
 @Slf4j
 public class ARWebSocketServer {

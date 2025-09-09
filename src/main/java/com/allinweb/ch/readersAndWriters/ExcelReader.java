@@ -1,7 +1,6 @@
 package com.allinweb.ch.readersAndWriters;
 
 import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ExtractedData;
 import java.io.File;
@@ -227,25 +226,4 @@ public class ExcelReader {
     	return new File(logExcelFilePath);
     }
     */
-
-    public File createLogFile(String filePath) {
-
-        File paymentsFile = new File(filePath);
-        String paymentsFileName = paymentsFile.getName();
-        int lastPeriodPos = paymentsFileName.lastIndexOf('.');
-        paymentsFileName = paymentsFileName.substring(0, lastPeriodPos);
-        String logDirectory = arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG);
-        String logFilePath = logDirectory + "\\" + paymentsFileName + ARConstants.FILE_FORMAT_LOG;
-
-        File logFile = null;
-        try {
-            logFile = new File(logFilePath);
-            logFile.createNewFile();
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
-            System.exit(0);
-        }
-
-        return logFile;
-    }
 }
