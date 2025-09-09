@@ -107,6 +107,7 @@ public class ARScannedElementPane extends ARPane {
     private int portSocketInitial = 54525;
     private BotJobLoadDTO currentBotJob;
     private int currentBlockId;
+    private int currentBlockOrder;
     private int executeSpecificBlock;
     private List<BlockLoadDTO> blocksLoaded;
     private List<InstructionLoad> excelDataGoto = new ArrayList<>();
@@ -654,8 +655,12 @@ public class ARScannedElementPane extends ARPane {
         } else {
             try {
                 currentBlockId = comboBoxBlocks.getValue().getBlockId();
+                executeSpecificBlock = comboBoxBlocks.getValue().getBlockOrderNumber() < 0
+                        ? 0
+                        : comboBoxBlocks.getValue().getBlockOrderNumber() - 1;
             } catch (Exception error) {
                 currentBlockId = -1;
+                executeSpecificBlock = 0;
             }
 
             if (currentBlockId < 0) {
@@ -2025,7 +2030,9 @@ public class ARScannedElementPane extends ARPane {
                 log.error("Error Defining Excel or BaseLog File: " + error.getMessage());
             }
 
-            executeSpecificBlock = comboBoxBlocks.getValue().getBlockId(); // Start in a specific Block/UseCase
+            executeSpecificBlock = comboBoxBlocks.getValue().getBlockOrderNumber() < 0
+                    ? 0
+                    : comboBoxBlocks.getValue().getBlockOrderNumber() - 1; // Start in a specific Block/UseCase
 
             ErrorMessage errorMessage = performDBEngine.loadHomeBanking(null);
             if (errorMessage == null)
@@ -2684,8 +2691,8 @@ public class ARScannedElementPane extends ARPane {
             }
 
             // Execute All Blocks starting from executeSpecificBlock if Defined
-            currentBlockId = (executeSpecificBlock > -1) ? executeSpecificBlock - 1 : 0;
-            int blockInitial = currentBlockId;
+            currentBlockOrder = (executeSpecificBlock > -1) ? executeSpecificBlock : 0;
+            int blockInitial = currentBlockOrder;
 
             if (!excelDataGoto.isEmpty() && !blocksLoaded.isEmpty()) {
                 Integer parentBlockId =
@@ -2706,7 +2713,7 @@ public class ARScannedElementPane extends ARPane {
                 mapRefresh.clear();
 
                 blockLoop:
-                while (currentBlockId <= blocksLoaded.size() - 1 && !blocksLoaded.isEmpty() && !stopAll) {
+                while (currentBlockOrder <= blocksLoaded.size() - 1 && !blocksLoaded.isEmpty() && !stopAll) {
                     long blockStartTime = System.nanoTime();
                     failedMessage = "";
 
@@ -2718,17 +2725,17 @@ public class ARScannedElementPane extends ARPane {
 
                     int parentBlockCondition = -1;
 
-                    BlockLoadDTO blockLoad = blocksLoaded.get(currentBlockId);
+                    BlockLoadDTO blockLoad = blocksLoaded.get(currentBlockOrder);
 
-                    String blockName = blocksLoaded.get(currentBlockId).getName();
-                    int blockOrder = blocksLoaded.get(currentBlockId).getBlockOrderNumber();
+                    String blockName = blocksLoaded.get(currentBlockOrder).getName();
+                    int blockOrder = blocksLoaded.get(currentBlockOrder).getBlockOrderNumber();
                     String blockReportName = "#" + blockOrder + " " + blockName;
 
-                    int blockWait = blocksLoaded.get(currentBlockId).getWait() > 0
-                            ? blocksLoaded.get(currentBlockId).getWait()
+                    int blockWait = blocksLoaded.get(currentBlockOrder).getWait() > 0
+                            ? blocksLoaded.get(currentBlockOrder).getWait()
                             : 2;
 
-                    boolean blockActive = blocksLoaded.get(currentBlockId).getActive();
+                    boolean blockActive = blocksLoaded.get(currentBlockOrder).getActive();
 
                     if (blockActive) {
                         excelFieldName = blockLoad.getExportFile();
@@ -2796,7 +2803,7 @@ public class ARScannedElementPane extends ARPane {
                     }
 
                     if (!blockActive) {
-                        currentBlockId++;
+                        currentBlockOrder++;
 
                         Pair<String, String> msgBlock =
                                 new Pair(String.format("Ignore: \"%s\"", blockLoad.getName()), ARConstants.IGNORE);
@@ -2868,7 +2875,7 @@ public class ARScannedElementPane extends ARPane {
                     // current
                     // Block
                     parentIdsForLoop = performActions.getParentIdsForLoop(
-                            blocksLoaded.get(currentBlockId).getInstructionLoad());
+                            blocksLoaded.get(currentBlockOrder).getInstructionLoad());
 
                     // Step 2: Get all Conditional By parentId for Index Locator on current Block Relocate "IF",
                     // "ELSEIF",
@@ -2883,7 +2890,7 @@ public class ARScannedElementPane extends ARPane {
                     // Step 2: Filter rows where actions = "REFRESH_LOOP" or "LOOP" and collect into the map
 
                     //                mapLoops = performActions.getLoopAndRefreshLoops(
-                    //                        blocksLoaded.get(currentBlockId).getBlockLoopInstructionLoadS());
+                    //                        blocksLoaded.get(currentBlockOrder).getBlockLoopInstructionLoadS());
 
                     //                executionTimes++;
                     boolean jumpGoto = false;
@@ -3103,8 +3110,9 @@ public class ARScannedElementPane extends ARPane {
                                 if (xExcelCurrentRow >= xExcelDataSize - 1) {
                                     xExcelCurrentRow = xExcelDataSize - 1;
                                     msgInstruction = new Pair<>(
-                                            "Excel Data limit reached keeping", String.valueOf(xExcelCurrentRow + 1));
-                                    bodyMsg = "Excel Data limit reached keeping: " + xExcelCurrentRow + 1;
+                                            "Excel Data (limit reached) keeping last row",
+                                            String.valueOf(xExcelCurrentRow + 1));
+                                    bodyMsg = "Excel Data (limit reached) keeping last row: " + xExcelCurrentRow + 1;
                                 } else {
                                     msgInstruction =
                                             new Pair<>("Excel Data next row", String.valueOf(xExcelCurrentRow + 1));
@@ -3153,7 +3161,7 @@ public class ARScannedElementPane extends ARPane {
                             } else if (actions[0].equalsIgnoreCase(ARConstants.LOOP)) {
                                 // <currentId:parentId:parentName>
                                 msgInstruction = performActions.getInstructionDetailsById(
-                                        blocksLoaded.get(currentBlockId).getInstructionLoad(), currentInstruction);
+                                        blocksLoaded.get(currentBlockOrder).getInstructionLoad(), currentInstruction);
 
                                 if (msgInstruction == null) {
                                     msgInstruction = new Pair("Jump To Parent \"Unknown\"", "Unknown");
@@ -3171,7 +3179,7 @@ public class ARScannedElementPane extends ARPane {
                                 }
                             } else if (actions[0].equalsIgnoreCase(ARConstants.REFRESH_LOOP)) {
                                 msgInstruction = performActions.getInstructionDetailsById(
-                                        blocksLoaded.get(currentBlockId).getInstructionLoad(), currentInstruction);
+                                        blocksLoaded.get(currentBlockOrder).getInstructionLoad(), currentInstruction);
                                 if (msgInstruction == null) {
                                     msgInstruction = new Pair("Jump To Parent \"Unknown\"", "Unknown");
                                     success = false;
@@ -3352,7 +3360,7 @@ public class ARScannedElementPane extends ARPane {
                                                         msgInstruction.getKey().split(":");
                                                 int blockOrderNumber = Integer.parseInt(parts[2]);
 
-                                                currentBlockId = blockOrderNumber - 1;
+                                                currentBlockOrder = blockOrderNumber - 1;
                                                 currentInstruction.setExecuted(true);
 
                                                 failedMessage = "";
@@ -4051,10 +4059,10 @@ public class ARScannedElementPane extends ARPane {
                         // Way Out from the Current Excel Data Row to another Block keeping the Same Excel Data Row
                         break;
                     }
-                    currentBlockId++;
+                    currentBlockOrder++;
                 }
 
-                currentBlockId = blockInitial;
+                currentBlockOrder = blockInitial;
                 xExcelCurrentRow++;
                 addRowFromMap(mapExportRows);
                 if (excelFieldName != null && excelFieldName.toLowerCase().endsWith(".csv")) {
