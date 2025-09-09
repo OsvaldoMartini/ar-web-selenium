@@ -154,6 +154,7 @@ public class ARScannedElementPane extends ARPane {
     private RowStatus rowStatus = new RowStatus();
     private PayloadJson payloadEmpty;
     private ARWebDriver currentARWebDriver;
+
     // Private constructor to prevent instantiation
     private ARScannedElementPane() {}
 
@@ -659,7 +660,10 @@ public class ARScannedElementPane extends ARPane {
     public int validateBlockDB(String blockTable, int whereId, boolean isMany) {
         int newBlockID = createBlockIfNone(blockTable, whereId);
         if (newBlockID > 0) {
-            refreshBlocks(true);
+            ErrorMessage errorMessage = performDataBase.loadBlocks(whereId, "", blockTable);
+            if (errorMessage == null) {
+                refreshBlocks(true);
+            }
         }
 
         if (newBlockID > 0) {

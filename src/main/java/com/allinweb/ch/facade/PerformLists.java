@@ -57,6 +57,7 @@ public class PerformLists {
     private List<VariableUserDTO> listVariablesUser = new ArrayList<>();
     private List<ComboBoxVars> listWebPageItems = new ArrayList<>();
     private List<ParentOperations> listParentOperations = new ArrayList<>();
+
     // Private constructor to prevent instantiation
     private PerformLists() {
 
@@ -351,19 +352,19 @@ public class PerformLists {
     //    }
 
     // Get BlockLoadDTO by homeBankingId and id
+    // Get BlockLoadDTO by homeBankingId and id
     public BlockLoadDTO getBlockLoadByBankId(String blockTable, Integer whereId, Integer blockId) {
         if ("block".equalsIgnoreCase(blockTable)) {
-            // Search in block list by bot_job_id + blockId
             return getListBlock().stream()
-                    .filter(block ->
-                            Objects.equals(block.getBotJobId(), whereId) && Objects.equals(block.getId(), blockId))
+                    .filter(block -> Objects.equals(block.getBotJobId(), whereId))
+                    .filter(block -> blockId == null || Objects.equals(block.getId(), blockId))
                     .findFirst()
                     .orElse(null);
+
         } else if ("component_block".equalsIgnoreCase(blockTable)) {
-            // Search in component block list by home_banking_id + blockId
             return getListBlockComp().stream()
-                    .filter(block ->
-                            Objects.equals(block.getHomeBankingId(), whereId) && Objects.equals(block.getId(), blockId))
+                    .filter(block -> Objects.equals(block.getHomeBankingId(), whereId))
+                    .filter(block -> blockId == null || Objects.equals(block.getId(), blockId))
                     .findFirst()
                     .orElse(null);
         }
@@ -388,7 +389,7 @@ public class PerformLists {
                 if (newList.size() > 1) {
                     newList.add(0, new BlockOptions("Execute All Blocks", "", -1, -1, -1));
                 } else if (newList.isEmpty()) {
-                    newList.add(new BlockOptions("#1 Default Block", "Default Block", 1, 1, 1));
+                    newList.add(new BlockOptions("#1 Default Block", "Default Block", -1, -1, -1));
                 }
 
             } else if ("NewCommandPane".equalsIgnoreCase(paneName)) {

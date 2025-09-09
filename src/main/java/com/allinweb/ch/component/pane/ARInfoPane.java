@@ -5,6 +5,9 @@ import com.allinweb.ch.component.scene.ARLicenseScene;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
@@ -13,10 +16,6 @@ import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import lombok.extern.slf4j.Slf4j;
-
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
 
 @Slf4j
 public class ARInfoPane extends ARPane {

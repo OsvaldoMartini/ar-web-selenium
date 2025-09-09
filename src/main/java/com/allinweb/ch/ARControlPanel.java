@@ -84,6 +84,9 @@ public class ARControlPanel extends Application {
             try (FileInputStream conf = new FileInputStream(configurationFile)) {
                 arPropertyManager.loadProperties(conf);
                 String porSocketInUse = System.getProperty("ARWebChosenPort");
+                // Make path available to Logback via System property
+                System.setProperty("LOG_PATH", arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG));
+
                 arPropertyManager.setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), porSocketInUse);
                 licenseControl();
             } catch (Exception error) {
@@ -253,6 +256,7 @@ public class ARControlPanel extends Application {
                 "OK",
                 null,
                 0);
+        System.exit(0);
     }
 
     public static String getTodaysDate(int day) {
@@ -301,7 +305,7 @@ public class ARControlPanel extends Application {
 
                 Connection conn = performDataBase.getConnection();
                 if (conn != null) {
-                    log.error("Postgres Database connected!");
+                    log.info("Postgres Database connected!");
                 }
             } catch (Exception error) {
                 log.error("Error Export to Postgres: " + error.getMessage());
