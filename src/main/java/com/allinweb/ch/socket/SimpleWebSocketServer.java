@@ -22,8 +22,8 @@ import javax.websocket.server.ServerEndpoint;
 import lombok.extern.slf4j.Slf4j;
 
 // Simple WebSocket server endpoint (for demonstration)
-@ServerEndpoint("/websocket")
 @Slf4j
+@ServerEndpoint("/websocket")
 public class SimpleWebSocketServer {
 
     private static final PerformLists performLists = PerformLists.getInstance();

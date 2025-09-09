@@ -6,9 +6,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.websocket.Session;
-import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
 public class WebSocketSessionManager {
 
     private static final ConcurrentHashMap<String, Session> activeSessions = new ConcurrentHashMap<>();

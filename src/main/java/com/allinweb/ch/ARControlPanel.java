@@ -1,5 +1,8 @@
 package com.allinweb.ch;
 
+import ch.qos.logback.classic.LoggerContext;
+import ch.qos.logback.classic.joran.JoranConfigurator;
+import ch.qos.logback.core.joran.spi.JoranException;
 import com.allinweb.ch.component.scene.ARConfigurationScene;
 import com.allinweb.ch.component.scene.ARLicenseScene;
 import com.allinweb.ch.component.scene.ARMainScene;
@@ -16,18 +19,20 @@ import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
-import java.io.File;
-import java.io.FileInputStream;
+import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.stage.Stage;
+import lombok.extern.slf4j.Slf4j;
+import org.slf4j.LoggerFactory;
+
+import java.io.*;
+import java.net.ServerSocket;
 import java.sql.Connection;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
-import javafx.application.Application;
-import javafx.application.Platform;
-import javafx.stage.Stage;
-import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class ARControlPanel extends Application {
@@ -40,8 +45,8 @@ public class ARControlPanel extends Application {
     private static final ARConfigurationScene arConfigurationScene;
     private static final ARMainScene arMainScene;
     private static WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
-    private static ARWebSocketServerIP arWebSocketServerIP = ARWebSocketServerIP.getInstance();
-    private static ARWebSocketServer arWebSocketServer = ARWebSocketServer.getInstance(); // Static block to initialize
+    private static ARWebSocketServerIP arWebSocketServerIP;
+    private static ARWebSocketServer arWebSocketServer; // Static block to initialize
     private static String defaultConfigurationFileName = ARConstants.USER_PATH + ARConstants.FILE_NAME_CONFIGURATION;
     private static boolean isEnabledLicence = true;
 
@@ -56,19 +61,12 @@ public class ARControlPanel extends Application {
     }
 
     public static void main(String[] args) {
-        // Define log directory from config/env
-        String logPath = System.getProperty("app.log.dir", "logs/");
-
-        File logDir = new File(logPath);
-        if (!logDir.exists() && !logDir.mkdirs()) {
-            System.err.println("❌ Failed to create log directory: " + logDir.getAbsolutePath());
-            System.exit(1);
-        }
-
-        // Make path available to Logback via System property
-        System.setProperty("LOG_PATH", logDir.getAbsolutePath());
-
         List<String> arguments = Arrays.asList(args);
+        int chosenPort = getInitialPort();
+        int chosenPortIP = getInitialPort();
+        System.setProperty("ARWebChosenPort", String.valueOf(chosenPort));
+        System.setProperty("ARWebChosenPortIP", String.valueOf(chosenPortIP));
+
         if (arguments.contains("-c")) {
             int configurationValueIndex = arguments.indexOf("-c") + 1;
             String configurationValue = arguments.get(configurationValueIndex);
@@ -84,11 +82,11 @@ public class ARControlPanel extends Application {
             try (FileInputStream conf = new FileInputStream(configurationFile)) {
                 arPropertyManager.loadProperties(conf);
                 String porSocketInUse = System.getProperty("ARWebChosenPort");
-                // Make path available to Logback via System property
-                System.setProperty("LOG_PATH", arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG));
-
                 arPropertyManager.setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), porSocketInUse);
+                // Make path available to Logback via System property
+                setLogPath();
                 licenseControl();
+                initialeServers();
             } catch (Exception error) {
                 if (!configurationFile.exists()) {
                     arPropertyManager.createDefaultProperties(configurationFile);
@@ -113,7 +111,10 @@ public class ARControlPanel extends Application {
                 arPropertyManager.loadProperties(conf);
                 String porSocketInUse = System.getProperty("ARWebChosenPort");
                 arPropertyManager.setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), porSocketInUse);
+                // Make path available to Logback via System property
+                setLogPath();
                 licenseControl();
+                initialeServers();
             } catch (Exception error) {
                 if (!configurationFile.exists()) {
                     arPropertyManager.createDefaultProperties(configurationFile);
@@ -129,6 +130,44 @@ public class ARControlPanel extends Application {
 
         arPropertyManager.setProperty(ARPropertyEnum.VERSION.getValue(), "AR Web v4.2f Beta Test");
         arPropertyManager.setProperty(ARPropertyEnum.BUILD.getValue(), "Build: 18/08/2025"); //
+    }
+
+    private static void initialeServers() {
+        arWebSocketServerIP = ARWebSocketServerIP.getInstance();
+        arWebSocketServer = ARWebSocketServer.getInstance();
+    }
+
+    private static void setLogPath() {
+        // Set log path system property BEFORE logback init
+        String logPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG);
+        File logDir = new File(logPath);
+        if (!logDir.exists() && !logDir.mkdirs()) {
+            System.err.println("❌ Failed to create log directory: " + logDir.getAbsolutePath());
+            System.exit(1);
+        }
+        System.setProperty("LOG_PATH", logDir.getAbsolutePath());
+
+        LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
+        try {
+            JoranConfigurator configurator = new JoranConfigurator();
+            configurator.setContext(context);
+            context.reset();
+
+            // Load logback.xml from resources
+            InputStream configStream = ARControlPanel.class.getClassLoader().getResourceAsStream("logback.xml");
+            if (configStream == null) {
+                throw new FileNotFoundException("logback.xml not found in classpath");
+            }
+            configurator.doConfigure(configStream);
+
+        } catch (JoranException | IOException je) {
+            log.error("Logback configuration failed: {}", je.getMessage(), je);
+        }
+
+
+        // Now logback initializes with correct LOG_PATH
+        log.info("Using log path: {}", logDir.getAbsolutePath());
+
     }
 
     private static void licenseControl() {
@@ -419,22 +458,27 @@ public class ARControlPanel extends Application {
         //        primaryStage.show();
     }
 
-    //    private static void webSocketControl() {
-    //        webSocketSessionManager = WebSocketSessionManager.getInstance();
-    //        try {
-    //            arWebSocketServerIP = ARWebSocketServerIP.getInstance();
-    //        } catch (Exception error) {
-    //            log.error("ARWebSocketServerIP with IP failed " +
-    // error.getMessage());
-    //
-    //            throw new RuntimeException(error);
-    //        }
-    //        try {
-    //            arWebSocketServer = ARWebSocketServer.getInstance();
-    //        } catch (Exception error) {
-    //            log.error("ARWebSocketServer NO IP failed " +
-    // error.getMessage());
-    //            throw new RuntimeException(error);
-    //        }
-    //    }
+    private static int getInitialPort() {
+        int defaultFixedPort = 54525; // A known default port if no ephemeral or previous setting works
+        int chosenPort;
+
+        try (ServerSocket tempSocket = new ServerSocket(0)) {
+            tempSocket.setReuseAddress(true); // Allow immediate reuse of the address
+            chosenPort = tempSocket.getLocalPort();
+            //            loggerlog.info("Found available ephemeral port: " + chosenPort);
+        } catch (IOException e) {
+            // If finding an ephemeral port fails, log the warning and fall back to the fixed default
+            //            loggerlog.warn("Could not find an ephemeral port. Falling back to default fixed port: " +
+            // defaultFixedPort + ". Error: " + e.getMessage());
+            chosenPort = defaultFixedPort;
+        }
+
+        // 2. Persist the chosen port to properties
+        System.setProperty("ARWebChosenPort", String.valueOf(chosenPort));
+        //        arPropertyManager.setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), String.valueOf(chosenPort));
+        //        loggerlog.info("Set " + ARPropertyEnum.PORT_SOCKET.getValue() + " to: " + chosenPort + " in
+        // properties.");
+
+        return chosenPort;
+    }
 }

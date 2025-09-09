@@ -1,13 +1,14 @@
 package com.allinweb.ch.socket;
 
-import java.io.IOException;
-import java.net.ServerSocket;
-import java.net.SocketException;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.websocket.jsr356.server.ServerContainer;
 import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainerInitializer;
+
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.SocketException;
 
 @Slf4j
 public class ARWebSocketServer {
@@ -20,6 +21,9 @@ public class ARWebSocketServer {
     private Server jettyServer;
     private ServerContainer wsContainer;
     private int boundPort;
+
+    private int fallBackPort = 54525; //
+
     // Private constructor to prevent instantiation
     private ARWebSocketServer() throws Exception {
 
@@ -33,9 +37,7 @@ public class ARWebSocketServer {
                     try {
                         instance = new ARWebSocketServer();
                     } catch (Exception e) {
-                        // Log here instead of the caller
-                        //                        loggerlog.error("Failed to start ARWebSocketServer: " +
-                        // e.getMessage());
+                        log.error("Failed to initialize ARWebSocketServer.", e);
                         throw new RuntimeException("ARWebSocketServer initialization failed", e);
                     }
                 }
@@ -51,48 +53,41 @@ public class ARWebSocketServer {
      * @throws Exception if the server cannot be started (e.g., port in use).
      */
     public void startServer() throws Exception {
-        // 1. Determine the port to use
-        int initialPort = getInitialPort();
-        this.boundPort = initialPort; // Tentatively set the port
+        String portStr = System.getProperty("ARWebChosenPort");
+        if (portStr == null) {
+            log.error("No port defined in system properties (ARWebChosenPort).");
+            throw new IOException("No port defined in system properties (ARWebChosenPort).");
+        }
 
-        // 2. Check if the determined port is already in use
+        int initialPort;
+        try {
+            initialPort = Integer.parseInt(portStr);
+        } catch (NumberFormatException e) {
+            log.error("Invalid port number: {}", portStr, e);
+            throw new IOException("Invalid port number: " + portStr, e);
+        }
+
+        this.boundPort = initialPort;
+
         if (isPortInUse(this.boundPort)) {
-            //            loggerlog.warn("Initial port " + this.boundPort + " is already in use. Checking for fallback
-            // port from properties.");
-
-            // Try to get a fallback fixed port from properties if the initial one is busy
-            //            String fallbackPortStr = arPropertyManager.getProperty(ARPropertyEnum.PORT_SOCKET);
-            String fallbackPortStr = System.getProperty("ARWebChosenPort");
-            //        arPropertyManager.setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), String.valueOf(chosenPort));
-
-            if (fallbackPortStr != null) {
-                try {
-                    int fallbackPort = Integer.parseInt(fallbackPortStr);
-                    if (isPortInUse(fallbackPort)) {
-                        //                        loggerlog.error("Fallback port " + fallbackPort + " is also in use.
-                        // Cannot start server.");
-                        throw new IOException("Cannot start server: Both initial and fallback ports are in use.");
-                    }
-                    this.boundPort = fallbackPort;
-                    //                    loggerlog.info("Using fallback port: " + this.boundPort);
-                } catch (NumberFormatException e) {
-                    //                    loggerlog.error("Invalid port number in properties: " + fallbackPortStr + " "
-                    // +
-                    // e.getMessage());
-                    throw new IOException("Invalid port number in properties.");
-                }
+            if (!isPortInUse(fallBackPort)) {
+                this.boundPort = fallBackPort;
+                log.warn("Initial port {} in use, using fallback port {}", initialPort, this.boundPort);
             } else {
-                //                loggerlog.error("No fallback port defined in properties. Cannot start server.");
-                throw new IOException(
-                        "Cannot start server: Initial port " + initialPort + " is in use and no fallback defined.");
+                log.error(
+                        "Cannot start server: Both initial port {} and fallback port {} are in use.",
+                        initialPort,
+                        fallBackPort);
+                throw new IOException("Cannot start server: Both initial port " + initialPort + " and fallback port "
+                        + fallBackPort + " are in use.");
             }
         }
 
-        // 3. Determine the IP address to bind to
+        // Determine the IP address to bind to
         // You can add a property like ARPropertyEnum.BIND_IP_ADDRESS for flexibility
         // Default to "0.0.0.0" to listen on all interfaces.
 
-        // 4. Initialize Jetty Server with specific binding
+        // Initialize Jetty Server with specific binding
         jettyServer = new Server(boundPort);
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath("/");
@@ -102,7 +97,7 @@ public class ARWebSocketServer {
         wsContainer.setDefaultMaxSessionIdleTimeout(0);
         wsContainer.addEndpoint(SimpleWebSocketServer.class); // Register your WebSocket endpoint
 
-        // 7. Start the Jetty Server
+        // Start the Jetty Server
         jettyServer.start();
         //        loggerlog.info("Jetty WebSocket server started on ws://" + BIND_IP_ADDRESS + ":" + this.boundPort +
         // "/websocket");
@@ -120,6 +115,7 @@ public class ARWebSocketServer {
                 jettyServer.destroy(); // Release resources
                 //                loggerlog.info("WebSocket server stopped.");
             } catch (Exception e) {
+                log.error("Error stopping WebSocket server.", e);
                 //                loggerlog.error("Error stopping WebSocket server: " + e.getMessage());
             }
         }
@@ -134,35 +130,37 @@ public class ARWebSocketServer {
         return boundPort;
     }
 
-    /**
-     * Determines the initial port for the server.
-     * First tries to get any available ephemeral port and persists it to properties.
-     * If finding an ephemeral port fails, it falls back to a default fixed port.
-     * The chosen port is always persisted to properties for consistency across runs.
-     */
-    private int getInitialPort() {
-        int defaultFixedPort = 54525; // A known default port if no ephemeral or previous setting works
-        int chosenPort;
-
-        try (ServerSocket tempSocket = new ServerSocket(0)) {
-            tempSocket.setReuseAddress(true); // Allow immediate reuse of the address
-            chosenPort = tempSocket.getLocalPort();
-            //            loggerlog.info("Found available ephemeral port: " + chosenPort);
-        } catch (IOException e) {
-            // If finding an ephemeral port fails, log the warning and fall back to the fixed default
-            //            loggerlog.warn("Could not find an ephemeral port. Falling back to default fixed port: " +
-            // defaultFixedPort + ". Error: " + e.getMessage());
-            chosenPort = defaultFixedPort;
-        }
-
-        // 2. Persist the chosen port to properties
-        System.setProperty("ARWebChosenPort", String.valueOf(chosenPort));
-        //        arPropertyManager.setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), String.valueOf(chosenPort));
-        //        loggerlog.info("Set " + ARPropertyEnum.PORT_SOCKET.getValue() + " to: " + chosenPort + " in
-        // properties.");
-
-        return chosenPort;
-    }
+    //    /**
+    //     * Determines the initial port for the server.
+    //     * First tries to get any available ephemeral port and persists it to properties.
+    //     * If finding an ephemeral port fails, it falls back to a default fixed port.
+    //     * The chosen port is always persisted to properties for consistency across runs.
+    //     */
+    //    private int getInitialPort() {
+    //        int defaultFixedPort = 54525; // A known default port if no ephemeral or previous setting works
+    //        int chosenPort;
+    //
+    //        try (ServerSocket tempSocket = new ServerSocket(0)) {
+    //            tempSocket.setReuseAddress(true); // Allow immediate reuse of the address
+    //            chosenPort = tempSocket.getLocalPort();
+    //            //            loggerlog.info("Found available ephemeral port: " + chosenPort);
+    //        } catch (IOException e) {
+    //            // If finding an ephemeral port fails, log the warning and fall back to the fixed default
+    //            //            loggerlog.warn("Could not find an ephemeral port. Falling back to default fixed port: "
+    // +
+    //            // defaultFixedPort + ". Error: " + e.getMessage());
+    //            chosenPort = defaultFixedPort;
+    //        }
+    //
+    //        // 2. Persist the chosen port to properties
+    //        System.setProperty("ARWebChosenPort", String.valueOf(chosenPort));
+    //        //        arPropertyManager.setProperty(ARPropertyEnum.PORT_SOCKET.getValue(),
+    // String.valueOf(chosenPort));
+    //        //        loggerlog.info("Set " + ARPropertyEnum.PORT_SOCKET.getValue() + " to: " + chosenPort + " in
+    //        // properties.");
+    //
+    //        return chosenPort;
+    //    }
 
     /**
      * Checks if a given port is currently in use.
