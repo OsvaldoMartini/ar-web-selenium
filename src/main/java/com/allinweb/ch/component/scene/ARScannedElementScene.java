@@ -27,7 +27,6 @@ import javafx.scene.Scene;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
-import javafx.util.Pair;
 import javax.websocket.*;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -766,7 +765,7 @@ public class ARScannedElementScene extends ARScene {
             if (target.getForceCoordinates() != null && target.getForceCoordinates()) {
                 // Try by coordinates
                 try {
-                    Pair<String, String> filedData = new Pair("&EMPTY", "&EMPTY");
+                    FieldData filedData = new FieldData("&EMPTY", "&EMPTY");
                     boolean passed = performActions.executeActionsAtCoordinates(
                             target.getCoordinates(), filedData, ARConstants.VISUALIZE, false);
                     if (passed) {

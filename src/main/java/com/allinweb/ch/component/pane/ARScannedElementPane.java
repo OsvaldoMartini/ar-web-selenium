@@ -49,7 +49,6 @@ import javafx.scene.text.Text;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import javafx.stage.Stage;
-import javafx.util.Pair;
 import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
@@ -474,7 +473,7 @@ public class ARScannedElementPane extends ARPane {
 
     private void preTestCoordinates(TargetElement targetPreTest) {
 
-        Pair<String, String> filedData = new Pair<>("martini", "Martini");
+        FieldData filedData = new FieldData("martini", "Martini");
         try {
             if (checkCloneElement.isSelected()) {
 
@@ -619,7 +618,7 @@ public class ARScannedElementPane extends ARPane {
                 //                                elementXPath.click();
                 //                            }
 
-                Pair<String, String> fieldData = new Pair<>("Test", testActionsField.getText());
+                FieldData fieldData = new FieldData("Test", testActionsField.getText());
 
                 String mainCoordenates = targetTest.getCoordinates();
                 String savedCoordenates = targetTest.getSavedReferences().get("coordinates");
@@ -2619,10 +2618,10 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private Pair<String, String> updateMSGInstruction(Pair<String, String> msgInstruction, String failedMessage) {
+    private FieldData updateMSGInstruction(FieldData msgInstruction, String failedMessage) {
         String currentKey = msgInstruction.getKey();
         String updatedKey = failedMessage + " - " + currentKey;
-        return new Pair<>(updatedKey, msgInstruction.getValue());
+        return new FieldData(updatedKey, msgInstruction.getValue());
     }
 
     public void setPayloadEmpty() {
@@ -3150,7 +3149,7 @@ public class ARScannedElementPane extends ARPane {
                                     stopAll = true;
                                     int limit = loopBlockLimits.get(blocLoopKey);
 
-                                    Pair<String, String> msgBlock = new Pair(blocLoopKey, "0");
+                                    FieldData msgBlock = new FieldData(blocLoopKey, "0");
 
                                     // Excel Report and Log
                                     performActions.logAndReport(
@@ -3167,7 +3166,7 @@ public class ARScannedElementPane extends ARPane {
                                             "GOTO Limit Reached",
                                             blocLoopKey + " Reached: 0");
 
-                                    msgBlock = new Pair(
+                                    msgBlock = new FieldData(
                                             String.format("Exit at Block Name: \"%s\"", blockLoad.getName()),
                                             ARConstants.EXIT);
 
@@ -3198,8 +3197,8 @@ public class ARScannedElementPane extends ARPane {
                     if (!blockActive) {
                         currentBlockOrder++;
 
-                        Pair<String, String> msgBlock =
-                                new Pair(String.format("Ignore: \"%s\"", blockLoad.getName()), ARConstants.IGNORE);
+                        FieldData msgBlock =
+                                new FieldData(String.format("Ignore: \"%s\"", blockLoad.getName()), ARConstants.IGNORE);
 
                         // Excel Report and Log
                         performActions.logAndReport(
@@ -3221,7 +3220,7 @@ public class ARScannedElementPane extends ARPane {
 
                     try {
 
-                        Pair<String, String> msgBlock = new Pair(blockLoad.getName(), ARConstants.EXCEL_BLOCK_HEADER);
+                        FieldData msgBlock = new FieldData(blockLoad.getName(), ARConstants.EXCEL_BLOCK_HEADER);
 
                         // Block Header Format
                         performActions.logAndReport(
@@ -3240,7 +3239,7 @@ public class ARScannedElementPane extends ARPane {
 
                         performActions.onHoldInSeconds(blockWait);
 
-                        msgBlock = new Pair(
+                        msgBlock = new FieldData(
                                 String.format("Default Wait: \"%s\" ->  %d Seconds", blockLoad.getName(), blockWait),
                                 ARConstants.HOLD);
 
@@ -3329,8 +3328,8 @@ public class ARScannedElementPane extends ARPane {
 
                                 String nameInstruc =
                                         "(" + currentInstruction.getId() + ") " + currentInstruction.getName();
-                                Pair<String, String> msgBlock =
-                                        new Pair(String.format("Ignore: \"%s\"", nameInstruc), ARConstants.IGNORE);
+                                FieldData msgBlock =
+                                        new FieldData(String.format("Ignore: \"%s\"", nameInstruc), ARConstants.IGNORE);
 
                                 // Excel Report and Log
                                 performActions.logAndReport(
@@ -3488,7 +3487,7 @@ public class ARScannedElementPane extends ARPane {
                                 valueInsert = dataExcel.get(reference);
                             }
 
-                            Pair<String, String> msgInstruction = null;
+                            FieldData msgInstruction = null;
                             if (actions[0].equalsIgnoreCase(ARConstants.EXCEL_GOTO)) {
 
                                 //                                currentIndex++;
@@ -3502,13 +3501,13 @@ public class ARScannedElementPane extends ARPane {
 
                                 if (xExcelCurrentRow >= xExcelDataSize - 1) {
                                     xExcelCurrentRow = xExcelDataSize - 1;
-                                    msgInstruction = new Pair<>(
+                                    msgInstruction = new FieldData(
                                             "Excel Data (limit reached) keeping last row",
                                             String.valueOf(xExcelCurrentRow + 1));
                                     bodyMsg = "Excel Data (limit reached) keeping last row: " + xExcelCurrentRow + 1;
                                 } else {
                                     msgInstruction =
-                                            new Pair<>("Excel Data next row", String.valueOf(xExcelCurrentRow + 1));
+                                            new FieldData("Excel Data next row", String.valueOf(xExcelCurrentRow + 1));
                                 }
 
                                 // Excel Report and Log
@@ -3533,7 +3532,7 @@ public class ARScannedElementPane extends ARPane {
                                 // <currentId:blockId:blockOrderNumber:bockName>
                                 msgInstruction = performActions.getBlockDetailsById(blocksLoaded, currentInstruction);
                                 if (msgInstruction == null) {
-                                    msgInstruction = new Pair("GO TO Block \"Unknown\"", "Unknown");
+                                    msgInstruction = new FieldData("GO TO Block \"Unknown\"", "Unknown");
                                     success = false;
                                     jumpGotoError = true;
                                     jumpGoto = true;
@@ -3546,7 +3545,7 @@ public class ARScannedElementPane extends ARPane {
                                 } else if (mapLoops.containsKey(msgInstruction.getKey())) {
                                     // Updates the msgInstruction
                                     jumpGoto = true;
-                                    msgInstruction = new Pair<>(
+                                    msgInstruction = new FieldData(
                                             msgInstruction.getKey(),
                                             String.valueOf(mapLoops.get(msgInstruction.getKey())));
                                 }
@@ -3557,7 +3556,7 @@ public class ARScannedElementPane extends ARPane {
                                         blocksLoaded.get(currentBlockOrder).getInstructionLoad(), currentInstruction);
 
                                 if (msgInstruction == null) {
-                                    msgInstruction = new Pair("Jump To Parent \"Unknown\"", "Unknown");
+                                    msgInstruction = new FieldData("Jump To Parent \"Unknown\"", "Unknown");
                                     success = false;
                                 } else if (!mapLoops.containsKey(msgInstruction.getKey())) {
                                     jumpLoopError = false;
@@ -3566,7 +3565,7 @@ public class ARScannedElementPane extends ARPane {
                                     mapRefresh.put(msgInstruction.getKey(), Integer.valueOf(parts[0])); // Wait Time
                                 } else if (mapLoops.containsKey(msgInstruction.getKey())) {
                                     // Updates the msgInstruction
-                                    msgInstruction = new Pair<>(
+                                    msgInstruction = new FieldData(
                                             msgInstruction.getKey(),
                                             String.valueOf(mapLoops.get(msgInstruction.getKey())));
                                 }
@@ -3574,7 +3573,7 @@ public class ARScannedElementPane extends ARPane {
                                 msgInstruction = performActions.getInstructionDetailsById(
                                         blocksLoaded.get(currentBlockOrder).getInstructionLoad(), currentInstruction);
                                 if (msgInstruction == null) {
-                                    msgInstruction = new Pair("Jump To Parent \"Unknown\"", "Unknown");
+                                    msgInstruction = new FieldData("Jump To Parent \"Unknown\"", "Unknown");
                                     success = false;
                                 } else if (!mapLoops.containsKey(msgInstruction.getKey())) {
                                     jumpLoopError = false;
@@ -3586,11 +3585,11 @@ public class ARScannedElementPane extends ARPane {
                                     // Refresh Loop  <5:5> <WAIT:LOOP>
                                     String updMsg = mapRefresh.get(msgInstruction.getKey()) + ":"
                                             + mapLoops.get(msgInstruction.getKey());
-                                    msgInstruction = new Pair<>(msgInstruction.getKey(), updMsg);
+                                    msgInstruction = new FieldData(msgInstruction.getKey(), updMsg);
                                 }
                             } else if (actions[0].equalsIgnoreCase(ARConstants.SET_VALUE)
                                     || (actions[0].equalsIgnoreCase(ARConstants.GET_VALUE))) {
-                                msgInstruction = new Pair(
+                                msgInstruction = new FieldData(
                                         currentInstruction.getName(),
                                         (currentInstruction.getOperation() != null
                                                 ? "(" + parentId + ")-" + operations[0] + ":" + operations[1]
@@ -3598,7 +3597,7 @@ public class ARScannedElementPane extends ARPane {
                                                         ? valueInsert
                                                         : ""));
                             } else {
-                                msgInstruction = new Pair(
+                                msgInstruction = new FieldData(
                                         "(" + currentInstruction.getId() + ")-" + currentInstruction.getName(),
                                         (currentInstruction.getOperation() != null
                                                 ? currentInstruction.getOperation()
@@ -3768,7 +3767,7 @@ public class ARScannedElementPane extends ARPane {
                                                 resultActions = performActions.blockGotoFailed(resultActions);
                                             }
 
-                                            Pair<String, String> currentPair = new Pair(
+                                            FieldData currentPair = new FieldData(
                                                     msgInstruction.getKey(),
                                                     String.valueOf(mapLoops.get(msgInstruction.getKey())));
 
@@ -3885,7 +3884,7 @@ public class ARScannedElementPane extends ARPane {
                                             }
 
                                             // Get Correct Updated Pair for REFRESH_LOOP ACTION
-                                            Pair<String, String> currentPair = new Pair(
+                                            FieldData currentPair = new FieldData(
                                                     msgInstruction.getKey(),
                                                     String.valueOf(mapLoops.get(msgInstruction.getKey())));
 
@@ -3962,7 +3961,7 @@ public class ARScannedElementPane extends ARPane {
                                     webElementWork = true;
 
                                     // Extract dataFieldName and dataFieldValue using a separate method
-                                    Pair<String, String> fieldData = performActions.extractFieldData(
+                                    FieldData fieldData = performActions.extractFieldData(
                                             dataExcel,
                                             actions,
                                             currentInstruction.getDefaultValue(),
@@ -4020,9 +4019,9 @@ public class ARScannedElementPane extends ARPane {
 
                                         if (execOutPut) {
                                             if (mapOperators.containsKey(fieldName)) {
-                                                msgInstruction = new Pair(fieldName, mapOperators.get(fieldName));
+                                                msgInstruction = new FieldData(fieldName, mapOperators.get(fieldName));
                                             } else {
-                                                msgInstruction = new Pair(fieldName, "TEXT OUTPUT NOT FOUND");
+                                                msgInstruction = new FieldData(fieldName, "TEXT OUTPUT NOT FOUND");
                                             }
                                         }
                                     }
@@ -4335,7 +4334,7 @@ public class ARScannedElementPane extends ARPane {
 
                                 resultActions = String.format("STOP ALL PROCESSES: \"%s\"", nameInstruc);
 
-                                Pair<String, String> msgBlock = new Pair(resultActions, ARConstants.PAUSE);
+                                FieldData msgBlock = new FieldData(resultActions, ARConstants.PAUSE);
 
                                 // Excel Report and Log
                                 performActions.logAndReport(
@@ -4376,15 +4375,15 @@ public class ARScannedElementPane extends ARPane {
 
                                     if (xExcelCurrentRow >= xExcelDataSize - 1) {
                                         xExcelCurrentRow = xExcelDataSize - 1;
-                                        msgInstruction = new Pair<>(
+                                        msgInstruction = new FieldData(
                                                 "Excel Data (limit reached) keeping last row",
                                                 String.valueOf(xExcelCurrentRow + 1));
                                         bodyMsg =
                                                 "Excel Data (limit reached) keeping last row: " + xExcelCurrentRow + 1;
                                         lastRecall = true;
                                     } else {
-                                        msgInstruction =
-                                                new Pair<>("Excel Data next row", String.valueOf(xExcelCurrentRow + 1));
+                                        msgInstruction = new FieldData(
+                                                "Excel Data next row", String.valueOf(xExcelCurrentRow + 1));
                                     }
 
                                     // Excel Report and Log
@@ -4560,7 +4559,7 @@ public class ARScannedElementPane extends ARPane {
                         300);
             } else {
                 updateRowStatusAndNotify("green"); // #1d9c06 deep carmine green
-                respModal = performMessage.showCustomModalDialogDragWin11Timer(
+                respModal = performMessage.showCustomModalDialogDragWin11(
                         "Bot-Job Finished - successfully",
                         currentBotJobName,
                         "Last Execution:",
@@ -4569,8 +4568,7 @@ public class ARScannedElementPane extends ARPane {
                         false,
                         "OK",
                         "Close Browser",
-                        300,
-                        5);
+                        300);
             }
 
             performActions.setInterceptBotJob(false);
@@ -4604,7 +4602,7 @@ public class ARScannedElementPane extends ARPane {
             } else {
                 updateRowStatusAndNotify("red"); // #FF3131 deep carmine red
                 if (webElementWork) {
-                    respModal = performMessage.showCustomModalDialogDragWin11Timer(
+                    respModal = performMessage.showCustomModalDialogDragWin11(
                             "Bot-Job Finished - successfully",
                             currentBotJobName,
                             "Last Execution:",
@@ -4613,10 +4611,9 @@ public class ARScannedElementPane extends ARPane {
                             false,
                             "OK",
                             "Close Browser",
-                            300,
-                            5);
+                            300);
                 } else {
-                    respModal = performMessage.showCustomModalDialogDragWin11Timer(
+                    respModal = performMessage.showCustomModalDialogDragWin11(
                             "Process Execution Terminated",
                             !Strings.isNullOrEmpty(failedMessage) ? failedMessage : "Failed:",
                             "Last Execution:",
@@ -4625,8 +4622,7 @@ public class ARScannedElementPane extends ARPane {
                             true,
                             "OK",
                             "Close Browser",
-                            350,
-                            5);
+                            350);
                 }
             }
         }

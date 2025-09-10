@@ -31,6 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ARControlPanel extends Application {
 
+    private static final SuppressHsqldbLogs suppressHsqldbLogs = SuppressHsqldbLogs.getInstance();
     private static final LogControl logControl = LogControl.getInstance();
     private static final PerformMessage performMessage;
     private static final ARPropertyManager arPropertyManager;
@@ -56,7 +57,6 @@ public class ARControlPanel extends Application {
     }
 
     public static void main(String[] args) {
-        System.setProperty("org.eclipse.jetty.LEVEL", "OFF");
         List<String> arguments = Arrays.asList(args);
         int chosenPort = getInitialPort();
         int chosenPortIP = getInitialPort();
