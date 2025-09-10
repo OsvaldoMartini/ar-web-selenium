@@ -951,6 +951,7 @@ public class ARViewBotJobPane extends ARPane {
                 "execute/j",
                 String.valueOf(selectedBotJob.getHomeBankingLoadDTO().getId()),
                 String.valueOf(selectedBotJob.getId()),
+                String.valueOf(1), // block execution
                 "\"" + excelPath + "\"",
                 "-c",
                 arPropertyManager.getConfigurationFileName()

@@ -450,6 +450,7 @@ public class ARMainPane extends ARPane {
                     "execute/j",
                     String.valueOf(selecBotJobDTO.getHomeBankingLoadDTO().getId()),
                     String.valueOf(selecBotJobDTO.getId()),
+                    String.valueOf(1), // block execution
                     "\"" + excelPath + "\"",
                     "-c",
                     arPropertyManager.getConfigurationFileName()
