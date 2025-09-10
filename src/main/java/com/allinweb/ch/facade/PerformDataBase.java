@@ -6917,6 +6917,6 @@ public class PerformDataBase {
     }
 
     public void callSocketLists() {
-        performLists.initialize();
+        performLists.initialize("perform-list-data");
     }
 }
