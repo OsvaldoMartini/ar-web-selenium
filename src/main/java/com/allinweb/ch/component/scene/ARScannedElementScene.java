@@ -500,14 +500,13 @@ public class ARScannedElementScene extends ARScene {
             if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
                 executorService.shutdownNow();
                 if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
-                    log.error("ExecutorService did not terminate");
-                    log.error("ExecutorService did not terminate");
+                    log.warn("ExecutorService did not terminate");
                 }
             }
         } catch (InterruptedException e) {
             executorService.shutdownNow();
             Thread.currentThread().interrupt();
-            log.error("ExecutorService did not terminate" + e.getMessage());
+            log.warn("ExecutorService did not terminate" + e.getMessage());
         }
     }
 

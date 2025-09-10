@@ -859,7 +859,7 @@ public class ARViewBotJobPane extends ARPane {
                     // Prepare the combined text container for the dialog
                     // You can add more content to the combinedTextContainer if needed
 
-                    ARConstants.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
+                    ARExecution.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
                             "Warning: Excel File Already Exists",
                             "<span style='color: #000080; font-weight: bold; font-size: 14px;'>An Excel file with this name already exists. Do you want to overwrite it?</span>",
                             "<span style='color: #000080; font-weight: bold;'>" + excelFile + "</span>",
@@ -870,7 +870,7 @@ public class ARViewBotJobPane extends ARPane {
                             "Cancel",
                             0);
 
-                    if (!respModal.equals(ARConstants.DialogModal.STOP)) {
+                    if (!respModal.equals(ARExecution.DialogModal.STOP)) {
 
                         new Thread(excelTask).start();
 

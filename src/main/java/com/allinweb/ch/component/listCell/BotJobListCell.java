@@ -7,6 +7,7 @@ import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.util.ARConstants;
+import com.allinweb.ch.util.ARExecution;
 import com.allinweb.ch.util.ErrorMessage;
 import javafx.application.Platform;
 import javafx.collections.ObservableList;
@@ -201,7 +202,7 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
         //            Platform.runLater(() -> getListView().getItems().remove(item));
         //        }
 
-        ARConstants.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
+        ARExecution.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
                 "Bot Job Deletion",
                 "<span style='color: #000080; font-weight: bold; font-size: 14px;'>Are you sure you want to delete the bot job selected?</span>",
                 "<span style='color: #000080; font-weight: bold;'>"
@@ -213,7 +214,7 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
                 "Cancel",
                 0);
 
-        if (!respModal.equals(ARConstants.DialogModal.STOP)) {
+        if (!respModal.equals(ARExecution.DialogModal.STOP)) {
             deleteBotJob(item);
             Platform.runLater(() -> getListView().getItems().remove(item));
         }

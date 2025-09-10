@@ -31,6 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ARControlPanel extends Application {
 
+    private static final LogControl logControl = LogControl.getInstance();
     private static final PerformMessage performMessage;
     private static final ARPropertyManager arPropertyManager;
     private static final PerformDataBase performDataBase;
@@ -80,8 +81,9 @@ public class ARControlPanel extends Application {
                 arPropertyManager.setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), porSocketInUse);
                 // Make path available to Logback via System property
                 setLogPath();
+                logControl.enableLogging();
                 licenseControl();
-                initialeServers();
+                initializeServers();
             } catch (Exception error) {
                 if (!configurationFile.exists()) {
                     arPropertyManager.createDefaultProperties(configurationFile);
@@ -108,8 +110,9 @@ public class ARControlPanel extends Application {
                 arPropertyManager.setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), porSocketInUse);
                 // Make path available to Logback via System property
                 setLogPath();
+                logControl.enableLogging();
                 licenseControl();
-                initialeServers();
+                initializeServers();
             } catch (Exception error) {
                 if (!configurationFile.exists()) {
                     arPropertyManager.createDefaultProperties(configurationFile);
@@ -127,10 +130,10 @@ public class ARControlPanel extends Application {
         arPropertyManager.setProperty(ARPropertyEnum.BUILD.getValue(), "Build: 18/08/2025"); //
     }
 
-    private static void initialeServers() {
+    private static void initializeServers() {
         arWebSocketServerIP = ARWebSocketServerIP.getInstance();
         arWebSocketServer = ARWebSocketServer.getInstance();
-        performDataBase.callScketLists();
+        performDataBase.callSocketLists();
     }
 
     private static void setLogPath() {

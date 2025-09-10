@@ -1835,11 +1835,11 @@ public class PerformActions {
             String action,
             InstructionLoad currentInstruction,
             String lastInstructionExecuted,
-            ARConstants.ConditionStatus conditionStatus,
+            ARExecution.ConditionStatus conditionStatus,
             String parentField,
             String variableField) {
 
-        if (conditionStatus.equals(ARConstants.ConditionStatus.NONE)) {
+        if (conditionStatus.equals(ARExecution.ConditionStatus.NONE)) {
             String msg1, msg2, msg3, msg4 = null;
 
             if (action.equals(ARConstants.EXTRACT_FIELD) || action.equals(ARConstants.CHECK_VALUE)) {
@@ -1865,15 +1865,15 @@ public class PerformActions {
                     "Missing Variable for \"" + currentInstruction.getName() + "\"", msg1, msg2, msg3, msg4, 0);
         }
 
-        String conditionalBlock = conditionStatus.equals(ARConstants.ConditionStatus.IF_PASSED)
+        String conditionalBlock = conditionStatus.equals(ARExecution.ConditionStatus.IF_PASSED)
                 ? "Closing Block { IF -> ELSE }  -> "
-                : conditionStatus.equals(ARConstants.ConditionStatus.ELSEIF_PASSED)
+                : conditionStatus.equals(ARExecution.ConditionStatus.ELSEIF_PASSED)
                         ? "Closing Block { ELSEIF -> ELSE }  -> "
-                        : conditionStatus.equals(ARConstants.ConditionStatus.ELSE_PASSED)
+                        : conditionStatus.equals(ARExecution.ConditionStatus.ELSE_PASSED)
                                 ? "Closing Block { ELSE -> ENDIF }  -> "
                                 : "Get Value Is Not Defined";
 
-        if (!conditionStatus.equals(ARConstants.ConditionStatus.NONE)) {
+        if (!conditionStatus.equals(ARExecution.ConditionStatus.NONE)) {
             return conditionalBlock + " -> " + lastInstructionExecuted;
 
         } else {
@@ -1976,9 +1976,9 @@ public class PerformActions {
             InstructionLoad currentInstruction,
             BlockLoadDTO blockLoad,
             String lastInstructionExecuted,
-            ARConstants.ConditionStatus conditionStatus) {
+            ARExecution.ConditionStatus conditionStatus) {
 
-        if (conditionStatus.equals(ARConstants.ConditionStatus.NONE)) {
+        if (conditionStatus.equals(ARExecution.ConditionStatus.NONE)) {
             String operation = currentInstruction.getOperation();
             int colonIndex = operation.indexOf(":");
             String parentOperationPart = colonIndex != -1 ? operation.substring(0, colonIndex) : "Unknown Operation";
@@ -1997,15 +1997,15 @@ public class PerformActions {
             performMessage.errorMessage("Parent Id Error", msg1, msg2, msg3, msg4, 0);
         }
 
-        String conditionalBlock = conditionStatus.equals(ARConstants.ConditionStatus.IF_PASSED)
+        String conditionalBlock = conditionStatus.equals(ARExecution.ConditionStatus.IF_PASSED)
                 ? "Closing Block { IF -> ELSE }  -> "
-                : conditionStatus.equals(ARConstants.ConditionStatus.ELSEIF_PASSED)
+                : conditionStatus.equals(ARExecution.ConditionStatus.ELSEIF_PASSED)
                         ? "Closing Block { ELSEIF -> ELSE }  -> "
-                        : conditionStatus.equals(ARConstants.ConditionStatus.ELSE_PASSED)
+                        : conditionStatus.equals(ARExecution.ConditionStatus.ELSE_PASSED)
                                 ? "Closing Block { ELSE -> ENDIF }  -> "
                                 : "Parent Id in Wrong Block";
 
-        if (!conditionStatus.equals(ARConstants.ConditionStatus.NONE)) {
+        if (!conditionStatus.equals(ARExecution.ConditionStatus.NONE)) {
 
             log.warn(String.format(
                     "%sParent Id Error Check Parent Id: %d For the \"%s\" Does not belong to this block: %d-%s",
@@ -2024,7 +2024,7 @@ public class PerformActions {
                     blockLoad.getName()));
         }
 
-        if (!conditionStatus.equals(ARConstants.ConditionStatus.NONE)) {
+        if (!conditionStatus.equals(ARExecution.ConditionStatus.NONE)) {
             return conditionalBlock + " -> " + lastInstructionExecuted;
         } else {
             return lastInstructionExecuted;
@@ -2071,10 +2071,10 @@ public class PerformActions {
             String expected,
             String lastInstructionExecuted,
             String[] operations,
-            ARConstants.ConditionStatus conditionStatus,
+            ARExecution.ConditionStatus conditionStatus,
             boolean byPassFlagLoop) {
 
-        if (conditionStatus.equals(ARConstants.ConditionStatus.NONE) && !byPassFlagLoop) {
+        if (conditionStatus.equals(ARExecution.ConditionStatus.NONE) && !byPassFlagLoop) {
 
             String msg1;
             if (operations[1].equals(">")) {
@@ -2122,15 +2122,15 @@ public class PerformActions {
             performMessage.errorMessage(invalidValues, msg1, msg2, msg3, msg4, 0);
         }
 
-        String conditionalBlock = conditionStatus.equals(ARConstants.ConditionStatus.IF_PASSED)
+        String conditionalBlock = conditionStatus.equals(ARExecution.ConditionStatus.IF_PASSED)
                 ? "Closing Block { IF -> ELSE }  -> "
-                : conditionStatus.equals(ARConstants.ConditionStatus.ELSEIF_PASSED)
+                : conditionStatus.equals(ARExecution.ConditionStatus.ELSEIF_PASSED)
                         ? "Closing Block { ELSEIF -> ELSE }  -> "
-                        : conditionStatus.equals(ARConstants.ConditionStatus.ELSE_PASSED)
+                        : conditionStatus.equals(ARExecution.ConditionStatus.ELSE_PASSED)
                                 ? "Closing Block { ELSE -> ENDIF }  -> "
                                 : "";
 
-        if (!conditionStatus.equals(ARConstants.ConditionStatus.NONE)) {
+        if (!conditionStatus.equals(ARExecution.ConditionStatus.NONE)) {
             return conditionalBlock + " -> " + lastInstructionExecuted;
 
         } else {
@@ -2139,7 +2139,7 @@ public class PerformActions {
     }
 
     public boolean excelReportWrite(
-            ARConstants.ConditionStatus currentCondition,
+            ARExecution.ConditionStatus currentCondition,
             String blockName,
             boolean success,
             String[] actions,
@@ -2421,7 +2421,7 @@ public class PerformActions {
     public int searchMapConditional(
             Map<String, List<Integer>> mapConditional,
             int parentBlockCondition,
-            ARConstants.ConditionStatus condition,
+            ARExecution.ConditionStatus condition,
             int currentIndex,
             boolean showMessage) {
 
@@ -3160,7 +3160,7 @@ public class PerformActions {
     }
 
     public void logAndReport(
-            ARConstants.ConditionStatus currentCondition,
+            ARExecution.ConditionStatus currentCondition,
             boolean excelReport,
             boolean logOperation,
             long blockStartTime,
@@ -3187,42 +3187,42 @@ public class PerformActions {
         totalExecutionTime += duration;
     }
 
-    public ARConstants.ConditionStatus updateProgressSuccess(
-            boolean success, ARConstants.ConditionStatus currentCondition) {
+    public ARExecution.ConditionStatus updateProgressSuccess(
+            boolean success, ARExecution.ConditionStatus currentCondition) {
         // It Gets last Progress Status
         // Machine State
-        if (currentCondition.equals(ARConstants.ConditionStatus.IF)) {
-            return success ? ARConstants.ConditionStatus.IF_PASSED : ARConstants.ConditionStatus.IF_FAILED;
-        } else if (currentCondition.equals(ARConstants.ConditionStatus.ELSEIF)) {
-            return success ? ARConstants.ConditionStatus.ELSEIF_PASSED : ARConstants.ConditionStatus.ELSEIF_FAILED;
-        } else if (currentCondition.equals(ARConstants.ConditionStatus.ELSE)) {
-            return success ? ARConstants.ConditionStatus.ELSE_PASSED : ARConstants.ConditionStatus.ELSE_FAILED;
-        } else if (currentCondition.equals(ARConstants.ConditionStatus.ENDIF)) {
-            return ARConstants.ConditionStatus.NONE;
+        if (currentCondition.equals(ARExecution.ConditionStatus.IF)) {
+            return success ? ARExecution.ConditionStatus.IF_PASSED : ARExecution.ConditionStatus.IF_FAILED;
+        } else if (currentCondition.equals(ARExecution.ConditionStatus.ELSEIF)) {
+            return success ? ARExecution.ConditionStatus.ELSEIF_PASSED : ARExecution.ConditionStatus.ELSEIF_FAILED;
+        } else if (currentCondition.equals(ARExecution.ConditionStatus.ELSE)) {
+            return success ? ARExecution.ConditionStatus.ELSE_PASSED : ARExecution.ConditionStatus.ELSE_FAILED;
+        } else if (currentCondition.equals(ARExecution.ConditionStatus.ENDIF)) {
+            return ARExecution.ConditionStatus.NONE;
         }
-        return ARConstants.ConditionStatus.NONE;
+        return ARExecution.ConditionStatus.NONE;
     }
 
     public int checkActionToJump(
             String action,
-            ARConstants.ConditionStatus progressCondition,
+            ARExecution.ConditionStatus progressCondition,
             Map<String, List<Integer>> mapConditional,
             int parentBlockCondition,
             int currentIndex) {
         if (action.equalsIgnoreCase(ARConstants.ELSEIF)) {
             // Goes to the ENDIF (ENDIF index + 1);
             return searchMapConditional(
-                    mapConditional, parentBlockCondition, ARConstants.ConditionStatus.ENDIF, currentIndex, true);
+                    mapConditional, parentBlockCondition, ARExecution.ConditionStatus.ENDIF, currentIndex, true);
 
         } else if (action.equalsIgnoreCase(ARConstants.ELSE)) {
             // Goes to the ENDIF (ENDIF index + 1);
             return searchMapConditional(
-                    mapConditional, parentBlockCondition, ARConstants.ConditionStatus.ENDIF, currentIndex, true);
+                    mapConditional, parentBlockCondition, ARExecution.ConditionStatus.ENDIF, currentIndex, true);
 
         } else if (action.equalsIgnoreCase(ARConstants.ELSE)) {
             // Goes to the ENDIF (ENDIF index + 1);
             return searchMapConditional(
-                    mapConditional, parentBlockCondition, ARConstants.ConditionStatus.ENDIF, currentIndex, true);
+                    mapConditional, parentBlockCondition, ARExecution.ConditionStatus.ENDIF, currentIndex, true);
         }
         return 0;
     }

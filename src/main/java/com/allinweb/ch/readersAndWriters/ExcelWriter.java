@@ -1,6 +1,7 @@
 package com.allinweb.ch.readersAndWriters;
 
 import com.allinweb.ch.util.ARConstants;
+import com.allinweb.ch.util.ARExecution;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
@@ -162,7 +163,7 @@ public class ExcelWriter {
         }
 
         public boolean insertInstructionResult(
-                ARConstants.ConditionStatus currentCondition,
+                ARExecution.ConditionStatus currentCondition,
                 String blockName,
                 String[] actions,
                 Pair<String, String> msgLoop,
@@ -295,16 +296,16 @@ public class ExcelWriter {
                     value = operations[1] + " " + operations[2];
                 }
 
-                boolean byPassError = currentCondition.equals(ARConstants.ConditionStatus.IF_FAILED)
-                        || currentCondition.equals(ARConstants.ConditionStatus.ELSEIF_FAILED)
-                        || currentCondition.equals(ARConstants.ConditionStatus.ELSE_FAILED)
-                        || currentCondition.equals(ARConstants.ConditionStatus.BY_PASS);
+                boolean byPassError = currentCondition.equals(ARExecution.ConditionStatus.IF_FAILED)
+                        || currentCondition.equals(ARExecution.ConditionStatus.ELSEIF_FAILED)
+                        || currentCondition.equals(ARExecution.ConditionStatus.ELSE_FAILED)
+                        || currentCondition.equals(ARExecution.ConditionStatus.BY_PASS);
 
-                String blockCondition = currentCondition.equals(ARConstants.ConditionStatus.IF_FAILED)
+                String blockCondition = currentCondition.equals(ARExecution.ConditionStatus.IF_FAILED)
                         ? "{IF}"
-                        : currentCondition.equals(ARConstants.ConditionStatus.ELSEIF_FAILED)
+                        : currentCondition.equals(ARExecution.ConditionStatus.ELSEIF_FAILED)
                                 ? "{ELSEIF}"
-                                : currentCondition.equals(ARConstants.ConditionStatus.ELSE_FAILED) ? "{ELSE}" : "";
+                                : currentCondition.equals(ARExecution.ConditionStatus.ELSE_FAILED) ? "{ELSE}" : "";
 
                 if (action.equals("EXCEL_BLOCK_HEADER")) {
                     ManagedExcelAction act = managedExcel

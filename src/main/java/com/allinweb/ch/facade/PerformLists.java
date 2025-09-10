@@ -81,7 +81,11 @@ public class PerformLists {
         String port =
                 System.getProperty("ARWebChosenPort"); // arPropertyManager.getProperty(ARPropertyEnum.PORT_SOCKET);
         if (!Strings.isNullOrEmpty(port)) {
-            portSocketInitial = Integer.parseInt(port);
+            try {
+                portSocketInitial = Integer.parseInt(port);
+            } catch (Exception error) {
+                log.error("Pot Socket wrong Format: {}", port);
+            }
         }
 
         if (!isConnectWebSocket) {

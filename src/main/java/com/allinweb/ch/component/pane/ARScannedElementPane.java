@@ -83,7 +83,6 @@ public class ARScannedElementPane extends ARPane {
     protected static volatile ARScannedElementPane instance;
     private static SimpleDateFormat dateFormatter;
     private static String excelPath = null;
-    private static String currentBotJobName = null;
     private static JavascriptExecutor jsExecutor;
     private static String[] lstAllPaths;
     public final AtomicBoolean isJobRunning = new AtomicBoolean(false);
@@ -106,6 +105,7 @@ public class ARScannedElementPane extends ARPane {
     private ExecutorService executorServicePreLaunch;
     private int portSocketInitial = 54525;
     private BotJobLoadDTO currentBotJob;
+    private static String currentBotJobName = null;
     private int currentBlockId;
     private int currentBlockOrder;
     private int executeSpecificBlock;
@@ -1882,6 +1882,8 @@ public class ARScannedElementPane extends ARPane {
                     ? 0
                     : comboBoxBlocks.getValue().getBlockOrderNumber() - 1; // Start in a specific Block/UseCase
 
+            clearFields();
+
             ErrorMessage errorMessage = performDBEngine.loadHomeBanking(null);
             if (errorMessage == null)
                 errorMessage = performDBEngine.loadHomeUrls(this.currentBotJob.getHomeBankingId());
@@ -2486,8 +2488,6 @@ public class ARScannedElementPane extends ARPane {
         String failedMessage = "";
         Map<String, String> dataExcel = null;
 
-        clearFields();
-
         sessionRowStatus = "botJobTasks"; // + botJobId;
 
         variablesLoaded = performLists.getListVariable();
@@ -2500,10 +2500,10 @@ public class ARScannedElementPane extends ARPane {
         Set<String> loopBlockActive = new HashSet<>();
         Map<String, Integer> loopBlockLimits = new HashMap<>();
 
-        ARConstants.ConditionStatus currentCondition = ARConstants.ConditionStatus.NONE;
-        ARConstants.ConditionStatus previousCondition;
-        ARConstants.ConditionStatus progressCondition;
-        ARConstants.DialogModal respModal;
+        ARExecution.ConditionStatus currentCondition = ARExecution.ConditionStatus.NONE;
+        ARExecution.ConditionStatus previousCondition;
+        ARExecution.ConditionStatus progressCondition;
+        ARExecution.DialogModal respModal;
 
         int exportIndex = 1;
         boolean webElementWork = false;
@@ -2525,7 +2525,7 @@ public class ARScannedElementPane extends ARPane {
                         "Stop All",
                         0);
 
-                if (respModal.equals(ARConstants.DialogModal.STOP)) {
+                if (respModal.equals(ARExecution.DialogModal.STOP)) {
                     performActions.setInterceptBotJob(true);
                     setInterceptBotJob(true);
                     isJobRunning.set(false);
@@ -2564,11 +2564,11 @@ public class ARScannedElementPane extends ARPane {
                     long blockStartTime = System.nanoTime();
                     failedMessage = "";
 
-                    currentCondition = ARConstants.ConditionStatus.NONE;
-                    previousCondition = ARConstants.ConditionStatus.NONE;
-                    progressCondition = ARConstants.ConditionStatus.NONE;
+                    currentCondition = ARExecution.ConditionStatus.NONE;
+                    previousCondition = ARExecution.ConditionStatus.NONE;
+                    progressCondition = ARExecution.ConditionStatus.NONE;
 
-                    respModal = ARConstants.DialogModal.NONE;
+                    respModal = ARExecution.DialogModal.NONE;
 
                     int parentBlockCondition = -1;
 
@@ -2891,8 +2891,8 @@ public class ARScannedElementPane extends ARPane {
                                     || actions[0].equalsIgnoreCase(ARConstants.ELSEIF)
                                     || actions[0].equalsIgnoreCase(ARConstants.ELSE)
                                     || actions[0].equalsIgnoreCase(ARConstants.ENDIF)) {
-                                currentCondition = ARConstants.ConditionStatus.valueOf(actions[0]);
-                                if (previousCondition.equals(ARConstants.ConditionStatus.NONE)) {
+                                currentCondition = ARExecution.ConditionStatus.valueOf(actions[0]);
+                                if (previousCondition.equals(ARExecution.ConditionStatus.NONE)) {
                                     previousCondition = currentCondition;
                                     parentBlockCondition = parentId;
                                 } else if (!previousCondition.equals(
@@ -2901,8 +2901,8 @@ public class ARScannedElementPane extends ARPane {
                                 }
 
                                 // Conditions When Pass to any of then
-                                if (progressCondition.equals(ARConstants.ConditionStatus.IF_PASSED)
-                                        || progressCondition.equals(ARConstants.ConditionStatus.ELSEIF_PASSED)) {
+                                if (progressCondition.equals(ARExecution.ConditionStatus.IF_PASSED)
+                                        || progressCondition.equals(ARExecution.ConditionStatus.ELSEIF_PASSED)) {
                                     int jumpPassed = performActions.checkActionToJump(
                                             actions[0],
                                             progressCondition,
@@ -2919,14 +2919,14 @@ public class ARScannedElementPane extends ARPane {
                                     if (jumpPassed > 0) {
                                         currentIndex = jumpPassed;
                                         // reset all Conditional
-                                        currentCondition = ARConstants.ConditionStatus.NONE;
-                                        progressCondition = ARConstants.ConditionStatus.NONE;
+                                        currentCondition = ARExecution.ConditionStatus.NONE;
+                                        progressCondition = ARExecution.ConditionStatus.NONE;
                                         continue instructionLoop;
                                     }
-                                } else if (currentCondition.equals(ARConstants.ConditionStatus.ENDIF)) {
-                                    currentCondition = ARConstants.ConditionStatus.NONE;
-                                    previousCondition = ARConstants.ConditionStatus.NONE;
-                                    progressCondition = ARConstants.ConditionStatus.NONE;
+                                } else if (currentCondition.equals(ARExecution.ConditionStatus.ENDIF)) {
+                                    currentCondition = ARExecution.ConditionStatus.NONE;
+                                    previousCondition = ARExecution.ConditionStatus.NONE;
+                                    progressCondition = ARExecution.ConditionStatus.NONE;
                                     parentBlockCondition = -1;
                                 }
                                 continue;
@@ -3459,7 +3459,7 @@ public class ARScannedElementPane extends ARPane {
                                     }
 
                                     byPassNotFound = byPassFlagLoop
-                                            || !currentCondition.equals(ARConstants.ConditionStatus.NONE);
+                                            || !currentCondition.equals(ARExecution.ConditionStatus.NONE);
 
                                     if (webElementFound != null && success) {
 
@@ -3550,7 +3550,7 @@ public class ARScannedElementPane extends ARPane {
                                                 actions[0],
                                                 currentInstruction,
                                                 resultActions,
-                                                ARConstants.ConditionStatus
+                                                ARExecution.ConditionStatus
                                                         .NONE, // NOT  currentCondition to Force Message,
                                                 parentField,
                                                 variableField);
@@ -3642,7 +3642,7 @@ public class ARScannedElementPane extends ARPane {
                                                 actions[0],
                                                 currentInstruction,
                                                 resultActions,
-                                                ARConstants.ConditionStatus
+                                                ARExecution.ConditionStatus
                                                         .NONE, // NOT  currentCondition to Force Message,
                                                 parentField,
                                                 variableField);
@@ -3758,16 +3758,16 @@ public class ARScannedElementPane extends ARPane {
                             // of Execution
                             if (!jumpGotoError
                                     && !jumpLoopError
-                                    && !currentCondition.equals(ARConstants.ConditionStatus.NONE)) {
+                                    && !currentCondition.equals(ARExecution.ConditionStatus.NONE)) {
                                 progressCondition = performActions.updateProgressSuccess(success, currentCondition);
                                 //                                continue instructionLoop;
                             } else {
-                                progressCondition = ARConstants.ConditionStatus.NONE;
+                                progressCondition = ARExecution.ConditionStatus.NONE;
                             }
 
                             // Excel Report and Log
                             performActions.logAndReport(
-                                    !byPassFlagLoop ? progressCondition : ARConstants.ConditionStatus.BY_PASS,
+                                    !byPassFlagLoop ? progressCondition : ARExecution.ConditionStatus.BY_PASS,
                                     true,
                                     true,
                                     currentInstructionStartTime,
@@ -3782,7 +3782,7 @@ public class ARScannedElementPane extends ARPane {
 
                             failedMessage = "";
 
-                            if (pauseOperation && respModal.equals(ARConstants.DialogModal.STOP)) {
+                            if (pauseOperation && respModal.equals(ARExecution.DialogModal.STOP)) {
 
                                 String nameInstruc =
                                         "(" + currentInstruction.getId() + ") " + currentInstruction.getName();
@@ -3806,7 +3806,7 @@ public class ARScannedElementPane extends ARPane {
                                         "PAUSE -> STOP",
                                         String.format("STOP ALL CALLED AT: \"%s\" : ", nameInstruc));
 
-                                respModal = ARConstants.DialogModal.NONE;
+                                respModal = ARExecution.DialogModal.NONE;
                                 stopAll = true;
                                 break;
                             }
@@ -3816,45 +3816,46 @@ public class ARScannedElementPane extends ARPane {
                             // Excel GOTO position block
                             if (!success
                                     && !byPassFlagLoop
-                                    && currentCondition.equals(ARConstants.ConditionStatus.NONE)) {
+                                    && currentCondition.equals(ARExecution.ConditionStatus.NONE)) {
                                 if (lastRecall) {
                                     stopAll = true;
                                 } else {
 
-                                    if (blocksLoaded.get(currentBlockOrder).isHasAnyInput()) {
+                                    //                                    if
+                                    // (blocksLoaded.get(currentBlockOrder).isHasAnyInput()) {
 
-                                        xExcelCurrentRow++;
+                                    xExcelCurrentRow++;
 
-                                        String bodyMsg = "Excel Data Calling Next Row: " + xExcelCurrentRow + 1;
+                                    String bodyMsg = "Excel Data Calling Next Row: " + xExcelCurrentRow + 1;
 
-                                        if (xExcelCurrentRow >= xExcelDataSize - 1) {
-                                            xExcelCurrentRow = xExcelDataSize - 1;
-                                            msgInstruction = new Pair<>(
-                                                    "Excel Data (limit reached) keeping last row",
-                                                    String.valueOf(xExcelCurrentRow + 1));
-                                            bodyMsg = "Excel Data (limit reached) keeping last row: " + xExcelCurrentRow
-                                                    + 1;
-                                            lastRecall = true;
-                                        } else {
-                                            msgInstruction = new Pair<>(
-                                                    "Excel Data next row", String.valueOf(xExcelCurrentRow + 1));
-                                        }
-
-                                        // Excel Report and Log
-                                        performActions.logAndReport(
-                                                currentCondition,
-                                                true,
-                                                true,
-                                                blockStartTime,
-                                                blockReportName,
-                                                success,
-                                                new String[] {ARConstants.NEXT_ROW},
-                                                msgInstruction,
-                                                dataExcel,
-                                                writerReport,
-                                                "Excel Data Calling Next Row",
-                                                bodyMsg);
+                                    if (xExcelCurrentRow >= xExcelDataSize - 1) {
+                                        xExcelCurrentRow = xExcelDataSize - 1;
+                                        msgInstruction = new Pair<>(
+                                                "Excel Data (limit reached) keeping last row",
+                                                String.valueOf(xExcelCurrentRow + 1));
+                                        bodyMsg =
+                                                "Excel Data (limit reached) keeping last row: " + xExcelCurrentRow + 1;
+                                        lastRecall = true;
+                                    } else {
+                                        msgInstruction =
+                                                new Pair<>("Excel Data next row", String.valueOf(xExcelCurrentRow + 1));
                                     }
+
+                                    // Excel Report and Log
+                                    performActions.logAndReport(
+                                            currentCondition,
+                                            true,
+                                            true,
+                                            blockStartTime,
+                                            blockReportName,
+                                            success,
+                                            new String[] {ARConstants.NEXT_ROW},
+                                            msgInstruction,
+                                            dataExcel,
+                                            writerReport,
+                                            "Excel Data Calling Next Row",
+                                            bodyMsg);
+                                    //                                    }
 
                                     //                                currentIndex++;
                                     currentBlockOrder = blockInitial; // BLOCK DEFINED BY "DEFAULT" OR "EXCEL GOTO"
@@ -3878,8 +3879,8 @@ public class ARScannedElementPane extends ARPane {
 
                             // Here it Call the next block of IF, ELSIF, ELSE OR ENDIF as Per the Machine State
                             // Conditions When Pass to any of then
-                            if (progressCondition.equals(ARConstants.ConditionStatus.IF_PASSED)
-                                    || progressCondition.equals(ARConstants.ConditionStatus.ELSEIF_PASSED)) {
+                            if (progressCondition.equals(ARExecution.ConditionStatus.IF_PASSED)
+                                    || progressCondition.equals(ARExecution.ConditionStatus.ELSEIF_PASSED)) {
                                 int jumpPassed = performActions.checkActionToJump(
                                         actions[0],
                                         progressCondition,
@@ -3896,21 +3897,21 @@ public class ARScannedElementPane extends ARPane {
                                 if (jumpPassed > 0) {
                                     currentIndex = jumpPassed;
                                     // reset all Conditional
-                                    currentCondition = ARConstants.ConditionStatus.NONE;
-                                    progressCondition = ARConstants.ConditionStatus.NONE;
+                                    currentCondition = ARExecution.ConditionStatus.NONE;
+                                    progressCondition = ARExecution.ConditionStatus.NONE;
                                     continue instructionLoop;
                                 }
                             }
 
                             // Conditions When Fails to any of then and Look for the next Correct Block
-                            if (progressCondition.equals(ARConstants.ConditionStatus.IF_FAILED)
-                                    || progressCondition.equals(ARConstants.ConditionStatus.ELSEIF_FAILED)) {
+                            if (progressCondition.equals(ARExecution.ConditionStatus.IF_FAILED)
+                                    || progressCondition.equals(ARExecution.ConditionStatus.ELSEIF_FAILED)) {
 
                                 // Goes to the next ELSEIF IF EXIST (ELSEIF index + 1);
                                 int index = performActions.searchMapConditional(
                                         mapConditional,
                                         parentBlockCondition,
-                                        ARConstants.ConditionStatus.ELSEIF,
+                                        ARExecution.ConditionStatus.ELSEIF,
                                         currentIndex,
                                         false);
 
@@ -3919,7 +3920,7 @@ public class ARScannedElementPane extends ARPane {
                                     index = performActions.searchMapConditional(
                                             mapConditional,
                                             parentBlockCondition,
-                                            ARConstants.ConditionStatus.ELSE,
+                                            ARExecution.ConditionStatus.ELSE,
                                             currentIndex,
                                             true);
                                 }
@@ -3928,16 +3929,16 @@ public class ARScannedElementPane extends ARPane {
                                     continue blockLoop;
                                 }
                                 currentIndex = index;
-                                currentCondition = ARConstants.ConditionStatus.NONE;
-                                progressCondition = ARConstants.ConditionStatus.NONE;
+                                currentCondition = ARExecution.ConditionStatus.NONE;
+                                progressCondition = ARExecution.ConditionStatus.NONE;
                                 continue instructionLoop;
 
-                            } else if (progressCondition.equals(ARConstants.ConditionStatus.ELSE_FAILED)) {
+                            } else if (progressCondition.equals(ARExecution.ConditionStatus.ELSE_FAILED)) {
                                 // Goes to the ENDIF (ENDIF index + 1);
                                 int index = performActions.searchMapConditional(
                                         mapConditional,
                                         parentBlockCondition,
-                                        ARConstants.ConditionStatus.ENDIF,
+                                        ARExecution.ConditionStatus.ENDIF,
                                         currentIndex,
                                         true);
 
@@ -3946,8 +3947,8 @@ public class ARScannedElementPane extends ARPane {
                                     continue blockLoop;
                                 }
                                 currentIndex = index;
-                                currentCondition = ARConstants.ConditionStatus.NONE;
-                                progressCondition = ARConstants.ConditionStatus.NONE;
+                                currentCondition = ARExecution.ConditionStatus.NONE;
+                                progressCondition = ARExecution.ConditionStatus.NONE;
                                 continue instructionLoop;
                             }
                         }
@@ -4138,13 +4139,13 @@ public class ARScannedElementPane extends ARPane {
             if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
                 executorService.shutdownNow();
                 if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
-                    log.error("ExecutorService did not terminate");
+                    log.warn("ExecutorService did not terminate");
                 }
             }
         } catch (InterruptedException error) {
             executorService.shutdownNow();
             Thread.currentThread().interrupt();
-            log.error("ExecutorService did not terminate: " + error.getMessage());
+            log.warn("ExecutorService did not terminate: " + error.getMessage());
         }
     }
 
@@ -4196,8 +4197,7 @@ public class ARScannedElementPane extends ARPane {
             if (!executorServicePreLaunch.awaitTermination(5, TimeUnit.SECONDS)) {
                 executorServicePreLaunch.shutdownNow();
                 if (!executorServicePreLaunch.awaitTermination(5, TimeUnit.SECONDS)) {
-                    log.error("ExecutorService did not terminate");
-                    log.error("ExecutorService did not terminate");
+                    log.warn("ExecutorService did not terminate");
                 }
             }
         } catch (InterruptedException e) {

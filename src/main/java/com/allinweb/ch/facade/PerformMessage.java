@@ -2,7 +2,7 @@ package com.allinweb.ch.facade;
 
 import com.allinweb.ch.component.model.ElementDTO;
 import com.allinweb.ch.component.model.InstructionLoad;
-import com.allinweb.ch.util.ARConstants;
+import com.allinweb.ch.util.ARExecution;
 import com.google.common.base.Strings;
 import com.google.gson.ExclusionStrategy;
 import com.google.gson.FieldAttributes;
@@ -281,7 +281,7 @@ public class PerformMessage {
         dialog.setVisible(true); // This will block other input until the dialog is closed
     }
 
-    public ARConstants.DialogModal showCustomModalDialog(
+    public ARExecution.DialogModal showCustomModalDialog(
             String title,
             String message,
             String message2,
@@ -349,7 +349,7 @@ public class PerformMessage {
         messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
         panel.add(messageLabel, BorderLayout.CENTER);
 
-        final ARConstants.DialogModal[] status = {ARConstants.DialogModal.NONE};
+        final ARExecution.DialogModal[] status = {ARExecution.DialogModal.NONE};
 
         if (!Strings.isNullOrEmpty(secondButton)) {
 
@@ -405,7 +405,7 @@ public class PerformMessage {
                 @Override
                 public void actionPerformed(ActionEvent e) {
                     dialog.dispose();
-                    status[0] = ARConstants.DialogModal.OK;
+                    status[0] = ARExecution.DialogModal.OK;
                 }
             });
 
@@ -415,7 +415,7 @@ public class PerformMessage {
                 public void actionPerformed(ActionEvent e) {
                     log.info("Stop button clicked!");
                     dialog.dispose();
-                    status[0] = ARConstants.DialogModal.STOP;
+                    status[0] = ARExecution.DialogModal.STOP;
                 }
             });
 
@@ -447,7 +447,7 @@ public class PerformMessage {
                 @Override
                 public void actionPerformed(ActionEvent e) {
                     dialog.dispose();
-                    status[0] = ARConstants.DialogModal.OK;
+                    status[0] = ARExecution.DialogModal.OK;
                 }
             });
 
@@ -462,7 +462,7 @@ public class PerformMessage {
         return status[0];
     }
 
-    public ARConstants.DialogModal showCustomModalDialogDrag(
+    public ARExecution.DialogModal showCustomModalDialogDrag(
             String title,
             String message,
             String message2,
@@ -533,7 +533,7 @@ public class PerformMessage {
         messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
         panel.add(messageLabel, BorderLayout.CENTER);
 
-        final ARConstants.DialogModal[] status = {ARConstants.DialogModal.NONE};
+        final ARExecution.DialogModal[] status = {ARExecution.DialogModal.NONE};
 
         // Create button panel if second button exists
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 0));
@@ -547,7 +547,7 @@ public class PerformMessage {
         okButton.setPreferredSize(buttonSize);
         okButton.addActionListener(e -> {
             dialog.dispose();
-            status[0] = ARConstants.DialogModal.OK;
+            status[0] = ARExecution.DialogModal.OK;
         });
         buttonPanel.add(okButton);
 
@@ -558,7 +558,7 @@ public class PerformMessage {
             stopButton.addActionListener(e -> {
                 log.info("Stop button clicked!");
                 dialog.dispose();
-                status[0] = ARConstants.DialogModal.STOP;
+                status[0] = ARExecution.DialogModal.STOP;
             });
             buttonPanel.add(stopButton);
         }
@@ -643,7 +643,7 @@ public class PerformMessage {
     /**
      * Creates a styled button with Windows 11 theme
      */
-    public ARConstants.DialogModal showCustomModalDialogDragWin11(
+    public ARExecution.DialogModal showCustomModalDialogDragWin11(
             String title,
             String message1,
             String message2,
@@ -661,7 +661,7 @@ public class PerformMessage {
     /**
      * Creates a styled button with Windows 11 theme
      */
-    public ARConstants.DialogModal showCustomModalDialogDragWin11Timer(
+    public ARExecution.DialogModal showCustomModalDialogDragWin11Timer(
             String title,
             String message1,
             String message2,
@@ -757,7 +757,7 @@ public class PerformMessage {
         messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
         panel.add(messageLabel, BorderLayout.CENTER);
 
-        final ARConstants.DialogModal[] status = {ARConstants.DialogModal.NONE};
+        final ARExecution.DialogModal[] status = {ARExecution.DialogModal.NONE};
 
         // Create button panel if second button exists
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 0));
@@ -771,7 +771,7 @@ public class PerformMessage {
         okButton.setPreferredSize(buttonSize);
         okButton.addActionListener(e -> {
             dialog.dispose();
-            status[0] = ARConstants.DialogModal.OK;
+            status[0] = ARExecution.DialogModal.OK;
         });
         buttonPanel.add(okButton);
 
@@ -782,7 +782,7 @@ public class PerformMessage {
             stopButton.addActionListener(e -> {
                 log.info("Stop button clicked!");
                 dialog.dispose();
-                status[0] = ARConstants.DialogModal.STOP;
+                status[0] = ARExecution.DialogModal.STOP;
             });
             buttonPanel.add(stopButton);
 

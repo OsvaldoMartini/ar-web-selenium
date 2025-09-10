@@ -6916,7 +6916,7 @@ public class PerformDataBase {
         return errorMessage;
     }
 
-    public void callScketLists() {
+    public void callSocketLists() {
         performLists.initialize();
     }
 }

@@ -7,10 +7,7 @@ import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARPropertyEnum;
-import com.allinweb.ch.util.ARPropertyManager;
-import com.allinweb.ch.util.ErrorMessage;
+import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -590,7 +587,7 @@ public class SimpleWebSocketServer {
                     alreadySentMgsSocket = false;
                     break;
                 case "DELETE_INSTRUCTION":
-                    ARConstants.DialogModal respModal = ARConstants.DialogModal.NONE;
+                    ARExecution.DialogModal respModal = ARExecution.DialogModal.NONE;
 
                     errorMessage = performDataBase.loadAllParents(instrTable, whereId, instructionId);
 
@@ -623,7 +620,7 @@ public class SimpleWebSocketServer {
                                     "Cancel",
                                     0);
 
-                            continueDelete = respModal.equals(ARConstants.DialogModal.OK);
+                            continueDelete = respModal.equals(ARExecution.DialogModal.OK);
                             deleteParents = continueDelete;
                         }
 

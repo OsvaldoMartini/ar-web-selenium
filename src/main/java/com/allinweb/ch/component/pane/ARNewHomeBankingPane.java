@@ -9,7 +9,7 @@ import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.util.ARConstants;
+import com.allinweb.ch.util.ARExecution;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
 import java.net.MalformedURLException;
@@ -558,7 +558,7 @@ public class ARNewHomeBankingPane extends ARPane {
                 return;
             }
 
-            ARConstants.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
+            ARExecution.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
                     "Delete Confirmation",
                     "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Are you sure you want to delete this organization?</span>",
                     "<span style='font-weight: bold;'>" + nameField.getText() + "</span>",
@@ -569,7 +569,7 @@ public class ARNewHomeBankingPane extends ARPane {
                     "Cancel",
                     0);
 
-            if (respModal.equals(ARConstants.DialogModal.OK)) {
+            if (respModal.equals(ARExecution.DialogModal.OK)) {
                 deleteUserData(id);
                 performDataBase.loadAllDataUsers();
                 performDBEngine.loadHomeBanking(null);
@@ -802,7 +802,7 @@ public class ARNewHomeBankingPane extends ARPane {
             }
 
             // Show confirmation modal
-            ARConstants.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
+            ARExecution.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
                     "Delete Confirmation",
                     "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Are you sure you want to delete this URL?</span>",
                     "<span style='font-weight: bold;'>" + homeUrl + "</span>",
@@ -813,7 +813,7 @@ public class ARNewHomeBankingPane extends ARPane {
                     "Cancel",
                     0);
 
-            if (!respModal.equals(ARConstants.DialogModal.OK)) {
+            if (!respModal.equals(ARExecution.DialogModal.OK)) {
                 return;
             }
 

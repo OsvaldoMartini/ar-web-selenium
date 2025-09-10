@@ -11,10 +11,7 @@ import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.*;
 import com.allinweb.ch.license.LicenceVal;
 import com.allinweb.ch.license.LicenseManager;
-import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARPropertyEnum;
-import com.allinweb.ch.util.ARPropertyManager;
-import com.allinweb.ch.util.ErrorMessage;
+import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import java.io.File;
 import java.sql.Connection;
@@ -33,6 +30,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
+import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.stage.DirectoryChooser;
@@ -806,7 +804,7 @@ public class ARConfigurationPane extends ARPane {
         alert.setHeaderText("Are you sure you want to EXECUTE RESTORE DB (\"" + dataBaseType + "\")?");
         alert.getDialogPane().setContent(newInstruction);
 
-        ARConstants.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
+        ARExecution.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
                 "Restore Database Confirmation",
                 "<span style='font-weight: bold; color: #D32F2F;'>Are you sure you want to execute a database restore?</span>",
                 "The database type selected is: <span style='color: #1565C0; font-weight: bold;'>" + dataBaseType
@@ -818,7 +816,7 @@ public class ARConfigurationPane extends ARPane {
                 "Cancel",
                 0);
 
-        if (!respModal.equals(ARConstants.DialogModal.STOP)) {
+        if (!respModal.equals(ARExecution.DialogModal.STOP)) {
             try (Connection conn = performDataBase.getConnection()) {
 
                 performBackup.initialize(conn);

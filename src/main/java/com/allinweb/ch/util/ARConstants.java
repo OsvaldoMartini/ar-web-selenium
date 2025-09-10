@@ -8,31 +8,15 @@ public class ARConstants {
     // Labels & Properties
     public static final String LABELS_FILE_NAME_COMMON = "lang/labels.";
     public static final String PROPERTIES_FILE_EXTENSION = ".properties";
-    public static final String CONFIG_FILE_NAME = "config";
     // BROWSERS
     public static final String CHROME = "chrome";
     public static final String EDGE = "edge";
     public static final String FIREFOX = "firefox";
-    public static final String SAFARI = "safari";
     // column names
     public static final String NAME = "name";
     public static final String ID = "id";
     // DEFAULT VALUES
-    public static final String NAME_ENGINE = "\\AR_Web_Engine.jar";
-    public static final String NAME_SCANNER = "\\AR_Web_Scanner.jar";
-    public static final String NAME_LAUNCHER = "\\AR_Web_Launcher.jar";
-    public static final String NAME_JAVA_EXECUTABLE = "\\java.exe";
-    public static final String PATH_EXCEL = "\\excel";
-    public static final String PATH_LOG = "\\log";
-    public static final String DB_URL = "\\java";
-    public static final String PATH_DB = "\\db";
-    public static final String PATH_REPORT = "\\report";
-    public static final String DB_USER = "XXXXXX";
-    public static final String DB_PWD = "XXXXXX";
     public static final String VALUE_NO_IDENTIFICATION = "No significant identification found";
-    public static final String TO_IGNORE = "TO IGNORE";
-    public static final String FOLDER_BIN = "\\bin";
-    public static final String FOLDER_LIB = "\\lib";
     // DIMENSIONS
     public static final Double SPACE_ZERO = 0D;
     public static final Double SPACE_XS = 5D;
@@ -192,26 +176,4 @@ public class ARConstants {
             + "const onClick = (event) => {\n"
             + "  return event.srcElement.id;\n"
             + "}";
-
-    public enum ConditionStatus {
-        NONE, // No active condition
-        IF_PASSED, // IF condition was met
-        IF_FAILED, // IF condition failed
-        ELSEIF_PASSED, // ELSEIF condition was met
-        ELSEIF_FAILED, // ELSEIF condition failed
-        ELSE_PASSED,
-        ELSE_FAILED,
-        IF, // ELSE block is active
-        ELSEIF,
-        ELSE, // ELSE block is active
-        ENDIF,
-        BY_PASS
-    }
-
-    public enum DialogModal {
-        NONE,
-        OK,
-        STOP,
-        EXIT
-    }
 }
