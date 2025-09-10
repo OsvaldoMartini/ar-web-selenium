@@ -30,6 +30,10 @@ public class PerformDataBase {
 
     @Getter
     @Setter
+    private static ErrorMessage errorMessage = new ErrorMessage();
+
+    @Getter
+    @Setter
     public List<Integer> idsBlockAfter = new ArrayList<>();
 
     @Getter
@@ -56,6 +60,7 @@ public class PerformDataBase {
     public boolean POSTGRES_DB = false;
     public boolean SQLITE_DB = false;
     public boolean connDBWorks = false;
+    public boolean dbFailed = false;
     private TreeMap<Integer, Integer> homeBankMap = new TreeMap<>();
     private TreeMap<Integer, Integer> botJobMap = new TreeMap<>();
     private TreeMap<Integer, Integer> blockMap = new TreeMap<>();
@@ -122,7 +127,7 @@ public class PerformDataBase {
         if (dataBaseType != null) {
             if (dataBaseType.equalsIgnoreCase("POSTGRES")) {
                 POSTGRES_DB = true;
-            } else if (dataBaseType.equalsIgnoreCase("SQLITE")) {
+            } else if (dataBaseType.equalsIgnoreCase("TEXT")) {
                 SQLITE_DB = true;
             } else
                 // else default to Access
@@ -200,23 +205,19 @@ public class PerformDataBase {
         } catch (SQLException error) {
             log.error("getConnection Error: " + error.getMessage());
 
-            String database = POSTGRES_DB ? "Postgres" : (SQLITE_DB ? "SQLite" : "Access");
+            String database = POSTGRES_DB ? "Postgres" : (SQLITE_DB ? "TEXT" : "Access");
+            errorMessage.setErrorHeader(database);
+            errorMessage.setErrorTitle("Connection Failed");
+            errorMessage.setErrorMessage(error.getMessage());
             connDBWorks = false;
-            performMessage.errorMessage(
-                    "Database connection Failed",
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>An error occurred during the Database connection.</span>",
-                    "<span style='font-weight: bold;'>" + database + "</span>.",
-                    "<span style='color: #E65100; font-weight: bold;'>Please ensure the Database connections are correct.</span>",
-                    "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
-                    0);
-
+            dbFailed = true;
             throw error;
         } catch (ClassNotFoundException error) {
-
             log.error("Driver DB Class not Found Error: " + error.getMessage());
         }
 
         connDBWorks = false;
+        dbFailed = false;
         return null;
     }
 
@@ -235,7 +236,7 @@ public class PerformDataBase {
             if ("Postgres".equalsIgnoreCase(dataBaseType)) {
                 // Postgres-specific logic
                 POSTGRES_DB = true;
-            } else if ("SQLite".equalsIgnoreCase(dataBaseType)) {
+            } else if ("TEXT".equalsIgnoreCase(dataBaseType)) {
                 // SQLite-specific logic
                 SQLITE_DB = true;
             } else if ("Access".equalsIgnoreCase(dataBaseType)) {
@@ -1847,9 +1848,7 @@ public class PerformDataBase {
             }
 
         } catch (SQLException e) {
-
             log.error(String.format("Error loadQuickBotJobs: %s", e.getMessage()));
-
             return new ErrorMessage("Failed to load Quick Bot Jobs", "Database query error", e.getMessage());
         }
 
@@ -2733,17 +2732,16 @@ public class PerformDataBase {
             errorMessage = checkGapsBlockOrder(listBlocks, blockTable, whereId, splitDTO.getBotJobName());
         }
 
-        if (!updateRow && errorMessage == null) {
-            rowList = instrName.equals("instruction")
-                    ? performLists.getListInstruction()
-                    : performLists.getListInstructionComp();
+        rowList = instrName.equals("instruction")
+                ? performLists.getListInstruction()
+                : performLists.getListInstructionComp();
 
-            String operType = splitDTO.getType();
-            int targetOrderNumber = splitDTO.getInstructionOrderNumber();
+        Set<String> excluded = Set.of("GOTO", "EXCEL GOTO", "LOOP", "REFRESH_LOOP");
+        boolean orderToFinal = excluded.contains(actions);
+        String operType = splitDTO.getType();
+        int targetOrderNumber = splitDTO.getInstructionOrderNumber();
 
-            Set<String> excluded = Set.of("GOTO", "EXCEL GOTO", "LOOP", "REFRESH_LOOP");
-            boolean orderToFinal = excluded.contains(actions);
-
+        if (errorMessage == null) {
             if (!orderToFinal && !blockIdChanged) {
                 if (isIF) {
                     rowList = preInsertStep(operType, targetOrderNumber, rowList, 3);
@@ -2841,7 +2839,7 @@ public class PerformDataBase {
         errorMessage = null;
 
         try {
-            int targetOrderNumber = splitDTO.getInstructionOrderNumber();
+            targetOrderNumber = splitDTO.getInstructionOrderNumber();
 
             Integer currentBlockId = splitDTO.getBlockId();
 

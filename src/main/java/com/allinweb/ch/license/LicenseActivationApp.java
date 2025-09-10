@@ -49,14 +49,18 @@ public class LicenseActivationApp extends Application {
                         .SHGetKnownFolderPath(KnownFolders.FOLDERID_Desktop, 0, null, ppszPath)
                         .intValue()
                 != 0) {
-
-            performMessage.errorMessage(
-                    "Error reading/writing to the file!",
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please verify that you have the necessary permissions to read and write to the specified directory.</span>",
-                    "<span style='color: #E65100; font-weight: bold;'>Attempted to access the following location:</span> <span style='font-weight: bold;'>Desktop</span>",
-                    "<span style='color: #E65100; font-style: italic; font-weight: bold;'>The request for the License file path was defined at:</span>",
-                    "<span style='color: #1A237E; font-style: italic; font-weight: bold; font-size: 1.05em;'>Desktop Folder</span>",
-                    0);
+            log.warn("Error reading/writing to the file! -> Desktop Folder");
+            //            performMessage.errorMessage(
+            //                    "Error reading/writing to the file!",
+            //                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please verify that
+            // you have the necessary permissions to read and write to the specified directory.</span>",
+            //                    "<span style='color: #E65100; font-weight: bold;'>Attempted to access the following
+            // location:</span> <span style='font-weight: bold;'>Desktop</span>",
+            //                    "<span style='color: #E65100; font-style: italic; font-weight: bold;'>The request for
+            // the License file path was defined at:</span>",
+            //                    "<span style='color: #1A237E; font-style: italic; font-weight: bold; font-size:
+            // 1.05em;'>Desktop Folder</span>",
+            //                    0);
             return null;
             //            throw new IOException("Failed to get desktop directory.");
         }

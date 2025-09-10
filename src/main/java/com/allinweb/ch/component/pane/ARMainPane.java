@@ -133,7 +133,7 @@ public class ARMainPane extends ARPane {
 
         botJobList.clear();
         ErrorMessage errorMessage = performDataBase.loadQuickBotJobs();
-        if (errorMessage != null) {
+        if (!performDataBase.dbFailed && errorMessage != null) {
             performMessage.errorMessage(
                     errorMessage.getErrorTitle(),
                     "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
@@ -333,7 +333,6 @@ public class ARMainPane extends ARPane {
                     log.info(dataBaseType + " Database connected!");
                 }
             } catch (Exception error) {
-
                 log.error(dataBaseType + " Database Connection failed : " + error.getMessage());
             }
 

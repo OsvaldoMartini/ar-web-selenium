@@ -1902,6 +1902,41 @@ public class ARScannedElementPane extends ARPane {
                         + " Environment ID: " + this.currentBotJob.getId());
             }
 
+            if (errorMessage != null) {
+                log.error("Error: " + errorMessage.getErrorMessage());
+                performMessage.errorMessage(
+                        errorMessage.getErrorTitle(),
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                + errorMessage.getErrorHeader(),
+                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                        null,
+                        0);
+            }
+
+            if (performLists.getListBotJob().isEmpty()) {
+                log.error("Cannot find Bot Jobs with this Id:" + this.currentBotJob.getId());
+                return;
+            }
+            HomeBankingLoadDTO homeBanking = performLists.getHomeBankingById(this.currentBotJob.getHomeBankingId());
+            if (homeBanking == null || StringUtils.isNullOrEmpty(homeBanking.getUrl())) {
+                log.error("Cannot find Home Banking Environment Id:" + this.currentBotJob.getHomeBankingId());
+                return;
+            }
+
+            currentBotJob = performLists.getListBotJob().get(0);
+            currentBotJob.setHomeBankingLoadDTO(homeBanking);
+            HomeUrlDTO homeUrlDTO =
+                    performLists.getHomeUrlByBankId(currentBotJob.getHomeBankingId(), currentBotJob.getHomeUrlId());
+
+            if (homeUrlDTO != null) {
+                currentBotJob.setHomeUrlId(homeUrlDTO.getId());
+                homeBanking.setUrl(homeUrlDTO.getUrl());
+            }
+
+            currentBotJobName = currentBotJob.getName();
+            excelPath = excelPath + "\\" + currentBotJobName + ".xlsx";
+
             ExcelReader excelReader = new ExcelReader();
             try {
                 extractedData = excelReader.extractData(excelPath, performLists.getAllActions());
@@ -1951,40 +1986,6 @@ public class ARScannedElementPane extends ARPane {
                     }
                 }
             }
-
-            if (errorMessage != null) {
-                log.error("Error: " + errorMessage.getErrorMessage());
-                performMessage.errorMessage(
-                        errorMessage.getErrorTitle(),
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                + errorMessage.getErrorHeader(),
-                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                        null,
-                        0);
-            }
-
-            if (performLists.getListBotJob().isEmpty()) {
-
-                log.error("Cannot find Bot Jobs with this Id:" + this.currentBotJob.getId());
-            }
-            HomeBankingLoadDTO homeBanking = performLists.getHomeBankingById(this.currentBotJob.getHomeBankingId());
-            if (homeBanking == null || StringUtils.isNullOrEmpty(homeBanking.getUrl())) {
-                log.error("Cannot find Home Banking Environment Id:" + this.currentBotJob.getHomeBankingId());
-            }
-
-            currentBotJob = performLists.getListBotJob().get(0);
-            currentBotJob.setHomeBankingLoadDTO(homeBanking);
-            HomeUrlDTO homeUrlDTO =
-                    performLists.getHomeUrlByBankId(currentBotJob.getHomeBankingId(), currentBotJob.getHomeUrlId());
-
-            if (homeUrlDTO != null) {
-                currentBotJob.setHomeUrlId(homeUrlDTO.getId());
-                homeBanking.setUrl(homeUrlDTO.getUrl());
-            }
-
-            currentBotJobName = currentBotJob.getName();
-            excelPath = excelPath + "\\" + currentBotJobName + ".xlsx";
 
             // Set all instructions' executed field to false
             if (!performLists.getListBotJob().isEmpty()) {

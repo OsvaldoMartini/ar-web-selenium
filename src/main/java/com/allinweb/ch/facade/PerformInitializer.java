@@ -745,7 +745,7 @@ public class PerformInitializer {
                 log.info("SQLServer URL: " + dbUrl);
                 Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
                 conn = DriverManager.getConnection(dbUrl, userDB, userPwd);
-            } else if ("SQLite".equalsIgnoreCase(dataBaseType)) {
+            } else if ("TEXT".equalsIgnoreCase(dataBaseType)) {
                 // SQLite
                 String dbSQLiteUrl = CONNECTION_TYPE_SQLITE + dbUrlPath + ARConstants.FILE_NAME_SQLITE;
                 log.info("SQLite connection URL: " + dbSQLiteUrl);

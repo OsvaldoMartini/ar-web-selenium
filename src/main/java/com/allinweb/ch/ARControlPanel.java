@@ -168,14 +168,19 @@ public class ARControlPanel extends Application {
             try {
                 license.set(LicenseManager.checkLicenseFile(licensePath));
             } catch (Exception error) {
-                performMessage.errorMessage(
-                        "Error reading/writing to the file!",
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please verify that you have permission to read/write.!</span>",
-                        "<span style='color: #E65100; font-weight: bold;'>Attempted to read/write:</span> <span style='font-weight: bold;'>"
-                                + licensePath + "</span>",
-                        "<span style='font-style: italic;'>Please ensure the application has the necessary write permissions for the specified directory</span>",
-                        "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
-                        0);
+                log.warn("Error reading/writing to the file: " + licensePath);
+                //                performMessage.errorMessage(
+                //                        "Error reading/writing to the file!",
+                //                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please
+                // verify that you have permission to read/write.!</span>",
+                //                        "<span style='color: #E65100; font-weight: bold;'>Attempted to
+                // read/write:</span> <span style='font-weight: bold;'>"
+                //                                + licensePath + "</span>",
+                //                        "<span style='font-style: italic;'>Please ensure the application has the
+                // necessary write permissions for the specified directory</span>",
+                //                        "<span style='font-style: italic;'>Details: " + error.getMessage() +
+                // "</span>",
+                //                        0);
             }
             try {
                 if (license.get().isMissing()) {
@@ -197,14 +202,19 @@ public class ARControlPanel extends Application {
                                 licenseMessages(license.get());
                             }
                         } catch (Exception error) {
-                            performMessage.errorMessage(
-                                    "Error reading/writing to the file!",
-                                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please verify that you have permission to read/write.!</span>",
-                                    "<span style='color: #E65100; font-weight: bold;'>Attempted to read/write:</span> <span style='font-weight: bold;'>"
-                                            + finalLicensePath + "</span>",
-                                    "<span style='font-style: italic;'>Please ensure the application has the necessary write permissions for the specified directory</span>",
-                                    "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
-                                    0);
+                            log.warn("Error reading/writing to the file: " + finalLicensePath);
+                            //                            performMessage.errorMessage(
+                            //                                    "Error reading/writing to the file!",
+                            //                                    "<span style='color: #D32F2F; font-weight: bold;
+                            // font-size: 1.1em;'>Please verify that you have permission to read/write.!</span>",
+                            //                                    "<span style='color: #E65100; font-weight:
+                            // bold;'>Attempted to read/write:</span> <span style='font-weight: bold;'>"
+                            //                                            + finalLicensePath + "</span>",
+                            //                                    "<span style='font-style: italic;'>Please ensure the
+                            // application has the necessary write permissions for the specified directory</span>",
+                            //                                    "<span style='font-style: italic;'>Details: " +
+                            // error.getMessage() + "</span>",
+                            //                                    0);
                         }
                     });
 
@@ -224,14 +234,19 @@ public class ARControlPanel extends Application {
                     }
                 }
             } catch (Exception error) {
-                performMessage.errorMessage(
-                        "Error reading/writing to the file!",
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please verify that you have permission to read/write.!</span>",
-                        "<span style='color: #E65100; font-weight: bold;'>Attempted to read/write:</span> <span style='font-weight: bold;'>"
-                                + licensePath + "</span>",
-                        "<span style='font-style: italic;'>Please ensure the application has the necessary write permissions for the specified directory</span>",
-                        "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
-                        0);
+                log.warn("Error reading/writing to the file: " + licensePath);
+                //                performMessage.errorMessage(
+                //                        "Error reading/writing to the file!",
+                //                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please
+                // verify that you have permission to read/write.!</span>",
+                //                        "<span style='color: #E65100; font-weight: bold;'>Attempted to
+                // read/write:</span> <span style='font-weight: bold;'>"
+                //                                + licensePath + "</span>",
+                //                        "<span style='font-style: italic;'>Please ensure the application has the
+                // necessary write permissions for the specified directory</span>",
+                //                        "<span style='font-style: italic;'>Details: " + error.getMessage() +
+                // "</span>",
+                //                        0);
 
                 log.info(error.getMessage());
             }
@@ -300,7 +315,7 @@ public class ARControlPanel extends Application {
         if ("Postgres".equalsIgnoreCase(dataBaseType)) {
             // Postgres-specific logic
             performDataBase.POSTGRES_DB = true;
-        } else if ("SQLite".equalsIgnoreCase(dataBaseType)) {
+        } else if ("TEXT".equalsIgnoreCase(dataBaseType)) {
             // SQLite-specific logic
             performDataBase.SQLITE_DB = true;
         } else if ("Access".equalsIgnoreCase(dataBaseType)) {
@@ -330,7 +345,6 @@ public class ARControlPanel extends Application {
                     log.info("Postgres Database connected!");
                 }
             } catch (Exception error) {
-                log.error("Error Export to Postgres: " + error.getMessage());
             }
 
         } else if (performDataBase.ACCESS_DB) {
@@ -432,6 +446,19 @@ public class ARControlPanel extends Application {
             } catch (Exception error) {
                 log.error("Error SQLite: " + error.getMessage());
             }
+        }
+
+        if (performDataBase.dbFailed) {
+
+            performMessage.errorMessage(
+                    "Database connection Failed",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>An error occurred during the Database connection.</span>",
+                    "<span style='font-weight: bold;'>"
+                            + performDataBase.getErrorMessage().getErrorHeader() + "</span>.",
+                    "<span style='color: #E65100; font-weight: bold;'>Please ensure the Database connections are correct.</span>",
+                    "<span style='font-style: italic;'>Details: "
+                            + performDataBase.getErrorMessage().getErrorMessage() + "</span>",
+                    0);
         }
     }
 

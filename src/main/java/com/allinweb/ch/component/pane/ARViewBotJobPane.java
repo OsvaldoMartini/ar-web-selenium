@@ -1072,7 +1072,8 @@ public class ARViewBotJobPane extends ARPane {
         String batFilePath = basePath + File.separator + batFileName; // Corrected path
 
         String javaCommand = "java.exe -jar \"" + enginePath + "\" execute/j "
-                + selectedBotJob.getHomeBankingId() + " " + selectedBotJob.getId() + " \"" + excelFilePath + "\" -c \""
+                + selectedBotJob.getHomeBankingId() + " " + selectedBotJob.getId() + " " + 1 + " \"" + excelFilePath
+                + "\" -c \""
                 + configPath + "\"";
 
         try (FileWriter writer = new FileWriter(batFilePath)) {

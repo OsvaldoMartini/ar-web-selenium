@@ -367,8 +367,7 @@ public class ARNewCommandScene extends ARScene {
                 }
 
             } catch (Exception error) {
-
-                log.error("Error reading 'EXCEL GOTO' instructions: " + error.getMessage());
+                log.warn("Error reading 'EXCEL GOTO' instructions: " + error.getMessage());
                 //                    performMessage.errorMessage(
                 //                            "Excel GOTO Detected",
                 //                            "<span style='font-weight: bold;'>This Bot Job already has an </span><span

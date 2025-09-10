@@ -171,7 +171,7 @@ public class ARConstants {
     public static final String POSTGRES = "PostGres";
     public static final String ACCESS = "Access";
     public static final String SQLSERVER = "SQLServer";
-    public static final String SQLITE = "SQLite";
+    public static final String SQLITE = "TEXT";
     public static final String XPATH_SCRIPT = "" + "window.addEventListener('click', onClick);"
             + "const onClick = (event) => {\n"
             + "  return event.srcElement.id;\n"

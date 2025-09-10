@@ -426,24 +426,24 @@ public class PerformActions {
             }
 
             Boolean pressEnterAfter = false;
-            if (actions[0].equals(ARConstants.INSERT) && actions[1].equals(ARConstants.ENTER)) {
+            if (actions[0].equals(ARConstantsEngine.INSERT) && actions[1].equals(ARConstantsEngine.ENTER)) {
                 pressEnterAfter = true;
             }
 
             if (instructionElement != null) {
                 boolean passed = true;
                 switch (actions[0]) {
-                    case ARConstants.VISUALIZE:
+                    case ARConstantsEngine.VISUALIZE:
                         passed = scrollToElement(byPassNotFound, instructionElement);
 
                         if (!passed) {
                             // Try by coordinates
                             Pair<String, String> filedData = new Pair("&EMPTY", "&EMPTY");
                             passed = executeActionsAtCoordinates(
-                                    savedCoordinates, filedData, ARConstants.VISUALIZE, pressEnterAfter);
+                                    savedCoordinates, filedData, ARConstantsEngine.VISUALIZE, pressEnterAfter);
                         }
                         return passed;
-                    case ARConstants.OUTPUT:
+                    case ARConstantsEngine.OUTPUT:
                         String fieldName = currentInstruction.getId() + "-" + currentInstruction.getName();
                         String valueElem = getOutPutElement(
                                 byPassNotFound,
@@ -453,8 +453,8 @@ public class PerformActions {
                                 mapOperators);
 
                         return !Strings.isNullOrEmpty(valueElem);
-                    case ARConstants.CLICK:
-                    case ARConstants.OTHER:
+                    case ARConstantsEngine.CLICK:
+                    case ARConstantsEngine.OTHER:
                         passed = clickElement(byPassNotFound, instructionElement);
                         if (!passed) {
                             // Try by coordinates
@@ -464,7 +464,7 @@ public class PerformActions {
                             // pressEnterAfter);
                         }
                         return passed;
-                    case ARConstants.INSERT:
+                    case ARConstantsEngine.INSERT:
                         if ("select".equalsIgnoreCase(instructionElement.getTagName())) {
                             passed = insertDataInSelectElement(
                                     byPassNotFound, instructionElement, savedCoordinates, data, pressEnterAfter);
@@ -472,7 +472,7 @@ public class PerformActions {
                             if (!passed) {
                                 // Try by coordinates
                                 passed = executeActionsAtCoordinates(
-                                        savedCoordinates, data, ARConstants.SELECT, pressEnterAfter);
+                                        savedCoordinates, data, ARConstantsEngine.SELECT, pressEnterAfter);
                             }
                             return passed;
                         } else {
@@ -492,7 +492,7 @@ public class PerformActions {
                             if (!passed) {
                                 // Try by coordinates
                                 passed = executeActionsAtCoordinates(
-                                        savedCoordinates, data, ARConstants.INSERT, pressEnterAfter);
+                                        savedCoordinates, data, ARConstantsEngine.INSERT, pressEnterAfter);
                             }
                             return passed;
                         }
@@ -514,19 +514,19 @@ public class PerformActions {
             throws Exception {
 
         switch (actions[0]) {
-            case ARConstants.LIST_OPERATION:
+            case ARConstantsEngine.LIST_OPERATION:
                 //                listOperation(byPassNotFound, instruction);
                 break;
-            case ARConstants.HOLD:
-            case ARConstants.REFRESH_HOLD:
+            case ARConstantsEngine.HOLD:
+            case ARConstantsEngine.REFRESH_HOLD:
                 //                        executeAlert(instruction);
                 onHoldForSeconds(instruction);
                 break;
-            case ARConstants.REFRESH_ONLY:
-            case ARConstants.REFRESH_LOOP:
+            case ARConstantsEngine.REFRESH_ONLY:
+            case ARConstantsEngine.REFRESH_LOOP:
                 refreshPage();
                 break;
-            case ARConstants.QUIT:
+            case ARConstantsEngine.QUIT:
                 Alert alert = new Alert(
                         Alert.AlertType.CONFIRMATION, "Do you want to continue?", ButtonType.YES, ButtonType.NO);
                 alert.setTitle("Confirmation");
@@ -546,7 +546,7 @@ public class PerformActions {
                 //                                + insertValueFieldNameInExcel(instructionElement, instruction,
                 // action, blockJobName);
                 //                        break;
-            case ARConstants.SCREEN:
+            case ARConstantsEngine.SCREEN:
                 break;
         }
 
@@ -589,7 +589,7 @@ public class PerformActions {
                     case "GET":
                         String valueElem;
                         msgReturn = "GET_VALUE from (Parent: " + parentField + ") Var" + variableField;
-                        if (parentOperations[0].equals(ARConstants.OUTPUT)) {
+                        if (parentOperations[0].equals(ARConstantsEngine.OUTPUT)) {
                             valueElem = getOutPutElement(
                                     byPassNotFound,
                                     instructionElement,
@@ -1589,15 +1589,17 @@ public class PerformActions {
         String dataFieldValue = "";
 
         if (data != null) {
-            if (actions.length >= 3 && actions[0].equals(ARConstants.INSERT) && actions[1].equals(ARConstants.ENTER)) {
-                dataFieldName = actions[2].split(ARConstants.PATH_FIELD_SUBSTITUTION)[0];
+            if (actions.length >= 3
+                    && actions[0].equals(ARConstantsEngine.INSERT)
+                    && actions[1].equals(ARConstantsEngine.ENTER)) {
+                dataFieldName = actions[2].split(ARConstantsEngine.PATH_FIELD_SUBSTITUTION)[0];
                 dataFieldValue = data.get(dataFieldName);
 
                 if (isEncrypted && dataFieldValue != null) {
                     dataFieldValue = CryptationAlgorithm.decrypt(dataFieldValue);
                 }
-            } else if (actions.length == 2 && actions[0].equals(ARConstants.INSERT)) {
-                dataFieldName = actions[1].split(ARConstants.PATH_FIELD_SUBSTITUTION)[0];
+            } else if (actions.length == 2 && actions[0].equals(ARConstantsEngine.INSERT)) {
+                dataFieldName = actions[1].split(ARConstantsEngine.PATH_FIELD_SUBSTITUTION)[0];
                 dataFieldValue = data.get(dataFieldName);
 
                 if (isEncrypted && dataFieldValue != null) {
@@ -1641,7 +1643,8 @@ public class PerformActions {
             //            selectCountry.selectByVisibleText(data.getValue());
 
             String[] coordArray = new String[] {coordinates, "coordinates"};
-            sequenceOfCommands(element, ARConstants.SELECT, coordArray, data, this.currentDriver, pressEnterAfter);
+            sequenceOfCommands(
+                    element, ARConstantsEngine.SELECT, coordArray, data, this.currentDriver, pressEnterAfter);
 
         } catch (Exception e) {
 
@@ -1842,7 +1845,7 @@ public class PerformActions {
         if (conditionStatus.equals(ARExecution.ConditionStatus.NONE)) {
             String msg1, msg2, msg3, msg4 = null;
 
-            if (action.equals(ARConstants.EXTRACT_FIELD) || action.equals(ARConstants.CHECK_VALUE)) {
+            if (action.equals(ARConstantsEngine.EXTRACT_FIELD) || action.equals(ARConstantsEngine.CHECK_VALUE)) {
                 msg1 = "The variable \"" + variableField + "\" has not been assigned.";
                 msg2 = "Please add a <span style='color: #000080; font-weight: bold;'>GET</span> step for \""
                         + currentInstruction.getName() + "\" to assign this variable.";
@@ -1987,7 +1990,7 @@ public class PerformActions {
             String msg2 = "Does not belong to the block: \"" + blockLoad.getBlockOrderNumber() + "-"
                     + blockLoad.getName() + "\"";
             String msg3 = "Attempted Operation : \""
-                    + (currentInstruction.getActions().equals(ARConstants.EXTRACT_FIELD)
+                    + (currentInstruction.getActions().equals(ARConstantsEngine.EXTRACT_FIELD)
                             ? "Extract "
                             : currentInstruction.getActions())
                     + "\" -> \""
@@ -2243,28 +2246,28 @@ public class PerformActions {
     public String actionResultMessage(String blockJobName, String actions[], Pair<String, String> msgInstruction) {
 
         switch (actions[0]) {
-            case ARConstants.VISUALIZE:
+            case ARConstantsEngine.VISUALIZE:
                 return "Visualize " + msgInstruction.getKey();
-            case ARConstants.OTHER:
+            case ARConstantsEngine.OTHER:
                 return "Other Element --> " + msgInstruction.getKey();
-            case ARConstants.OUTPUT:
+            case ARConstantsEngine.OUTPUT:
                 return "Output Element --> " + msgInstruction.getKey();
-            case ARConstants.CLICK:
+            case ARConstantsEngine.CLICK:
                 return "Click Element --> " + msgInstruction.getKey();
-            case ARConstants.INSERT:
-                if (actions[0].equals(ARConstants.INSERT) && actions[1].equals(ARConstants.ENTER)) {
+            case ARConstantsEngine.INSERT:
+                if (actions[0].equals(ARConstantsEngine.INSERT) && actions[1].equals(ARConstantsEngine.ENTER)) {
                     return "Insert/<Enter> action for  -> " + msgInstruction.getKey() + " = "
                             + msgInstruction.getValue();
                 } else {
                     return "Insert action for  -> " + msgInstruction.getKey() + " = " + msgInstruction.getValue();
                 }
-            case ARConstants.LIST_OPERATION:
+            case ARConstantsEngine.LIST_OPERATION:
                 return "List Operation " + msgInstruction.getKey();
-            case ARConstants.HOLD:
+            case ARConstantsEngine.HOLD:
                 return "Hold executed " + msgInstruction.getKey();
-            case ARConstants.PAUSE:
+            case ARConstantsEngine.PAUSE:
                 return "Pause action triggered";
-            case ARConstants.GOTO:
+            case ARConstantsEngine.GOTO:
                 if (msgInstruction.getValue().equals("Unknown")) {
                     return msgInstruction.getKey();
                 } else {
@@ -2273,15 +2276,15 @@ public class PerformActions {
                             "GO TO Block \"%s\" Limit %s times",
                             "(" + parts[0] + ")-#" + parts[2] + " " + parts[3], msgInstruction.getValue());
                 }
-            case ARConstants.REFRESH_ONLY:
+            case ARConstantsEngine.REFRESH_ONLY:
                 return " Refresh Web Page";
-            case ARConstants.REFRESH_HOLD:
+            case ARConstantsEngine.REFRESH_HOLD:
                 String[] msgParent = msgInstruction.getKey().split(":");
                 String[] msgValue = msgInstruction.getValue().split(":");
                 return String.format(
                         "Wait for Parent \"%s\" Limit %s seconds",
                         "(" + msgParent[1] + ") " + msgParent[2], msgValue[0]);
-            case ARConstants.LOOP:
+            case ARConstantsEngine.LOOP:
                 if (msgInstruction.getValue().equals("Unknown")) {
                     return msgInstruction.getKey();
                 } else {
@@ -2290,7 +2293,7 @@ public class PerformActions {
                             "Jump To Parent \"%s\" Limit %s times",
                             msgParent[0] + "-(" + msgParent[1] + ") " + msgParent[2], msgInstruction.getValue());
                 }
-            case ARConstants.REFRESH_LOOP:
+            case ARConstantsEngine.REFRESH_LOOP:
                 if (msgInstruction.getValue().equals("Unknown")) {
                     return msgInstruction.getKey();
                 } else {
@@ -2300,27 +2303,27 @@ public class PerformActions {
                             "Refresh in %s seconds Loop %s times Jump To Parent \"%s\" ",
                             msgValue[0], msgValue[1], msgParent[0] + "-(" + msgParent[1] + ") " + msgParent[2]);
                 }
-            case ARConstants.QUIT:
+            case ARConstantsEngine.QUIT:
                 return "Quit action processed";
-            case ARConstants.SCREEN:
+            case ARConstantsEngine.SCREEN:
                 return "Screen action executed for " + msgInstruction.getKey() + " --> " + blockJobName;
-            case ARConstants.GET_VALUE:
-            case ARConstants.SET_VALUE:
+            case ARConstantsEngine.GET_VALUE:
+            case ARConstantsEngine.SET_VALUE:
                 return actions[0]
-                        + ARConstants.BLANK_STRING
+                        + ARConstantsEngine.BLANK_STRING
                         + msgInstruction.getKey()
-                        + ARConstants.BLANK_STRING
+                        + ARConstantsEngine.BLANK_STRING
                         + msgInstruction.getValue();
-            case ARConstants.CHECK_VALUE:
+            case ARConstantsEngine.CHECK_VALUE:
                 return actions[0]
-                        + ARConstants.BLANK_STRING
+                        + ARConstantsEngine.BLANK_STRING
                         + msgInstruction.getValue()
-                        + ARConstants.BLANK_STRING
+                        + ARConstantsEngine.BLANK_STRING
                         + msgInstruction.getKey();
-            case ARConstants.EXTRACT_FIELD:
-                return ARConstants.BLANK_STRING
+            case ARConstantsEngine.EXTRACT_FIELD:
+                return ARConstantsEngine.BLANK_STRING
                         + msgInstruction.getKey() + " Extract "
-                        + ARConstants.BLANK_STRING
+                        + ARConstantsEngine.BLANK_STRING
                         + msgInstruction.getValue();
 
             default:
@@ -2591,7 +2594,7 @@ public class PerformActions {
         int xCoord = 0;
         int yCoord = 0;
         try {
-            String[] coordinates = savedCoordinates.split(ARConstants.FIELDS_SEPARATOR);
+            String[] coordinates = savedCoordinates.split(ARConstantsEngine.FIELDS_SEPARATOR);
             double temp1 = Double.parseDouble(coordinates[0]);
             double temp2 = Double.parseDouble(coordinates[1]);
             x = (int) temp1;
@@ -2603,14 +2606,14 @@ public class PerformActions {
             xCoord = x > maxWidth ? x - offsetX : x;
             yCoord = y > maxHeight ? y - offsetY : y;
 
-            if (ARConstants.VISUALIZE.equals(action)) {
+            if (ARConstantsEngine.VISUALIZE.equals(action)) {
                 scrollToCoordinates(x, y);
-            } else if (ARConstants.CLICK.equals(action)) {
+            } else if (ARConstantsEngine.CLICK.equals(action)) {
                 scrollToCoordinates(x, y);
                 //                circleAtCoordinates(x, y, this.currentDriver);
                 onHoldForSeconds(null);
                 clickAtCoordinates(xCoord, yCoord);
-            } else if (ARConstants.INSERT.equals(action)) {
+            } else if (ARConstantsEngine.INSERT.equals(action)) {
                 scrollToCoordinates(x, y);
                 //                sendInputJS(x, y, data.getValue(),this.currentDriver);
                 //                circleAtCoordinates(x, y, this.currentDriver);
@@ -2624,7 +2627,7 @@ public class PerformActions {
                         sendEnterWithJS();
                     }
                 }
-            } else if (ARConstants.INSERT.equals(action) && forceCLick) {
+            } else if (ARConstantsEngine.INSERT.equals(action) && forceCLick) {
                 scrollToCoordinates(x, y);
                 //                sendInputJS(x, y, data.getValue(),this.currentDriver);
                 //                circleAtCoordinates(x, y, this.currentDriver);
@@ -2700,7 +2703,7 @@ public class PerformActions {
         int xCoord = 0;
         int yCoord = 0;
         try {
-            String[] coordinates = savedCoordinates.split(ARConstants.FIELDS_SEPARATOR);
+            String[] coordinates = savedCoordinates.split(ARConstantsEngine.FIELDS_SEPARATOR);
             double temp1 = Double.parseDouble(coordinates[0]);
             double temp2 = Double.parseDouble(coordinates[1]);
             x = (int) temp1;
@@ -2803,12 +2806,12 @@ public class PerformActions {
 
         String message = "Nothing to execute";
         try {
-            if (typeCommand.equals(ARConstants.SELECT)) {
+            if (typeCommand.equals(ARConstantsEngine.SELECT)) {
                 // Create a Select instance to interact with the dropdown
                 message = "Select(element)";
                 Select selectCountry = new Select(element);
                 selectCountry.selectByVisibleText(fieldData.getValue());
-            } else if (typeCommand.equals(ARConstants.CLEAR)) {
+            } else if (typeCommand.equals(ARConstantsEngine.CLEAR)) {
                 message = "clear()";
                 element.clear();
                 //                clearElement(element);
@@ -2818,34 +2821,34 @@ public class PerformActions {
                     clearValueAtCoordinates(coords);
                 }
 
-            } else if (typeCommand.equals(ARConstants.CLICK)) {
+            } else if (typeCommand.equals(ARConstantsEngine.CLICK)) {
                 message = "click()";
                 element.click();
-            } else if (typeCommand.equals(ARConstants.INSERT)) {
+            } else if (typeCommand.equals(ARConstantsEngine.INSERT)) {
                 message = "sendKeys(\"" + fieldData.getValue() + "\")";
                 element.sendKeys(fieldData.getValue());
-            } else if (typeCommand.equals(ARConstants.TAB)) {
+            } else if (typeCommand.equals(ARConstantsEngine.TAB)) {
                 message = "(Keys.TAB)";
                 element.sendKeys(Keys.TAB);
-            } else if (typeCommand.equals(ARConstants.GET_VALUE)) {
+            } else if (typeCommand.equals(ARConstantsEngine.GET_VALUE)) {
                 message = "getText()";
                 element.getText();
-            } else if (typeCommand.equals(ARConstants.FOCUS)) {
+            } else if (typeCommand.equals(ARConstantsEngine.FOCUS)) {
                 message = "focusElement(element, driver)";
                 focusElement(element, driver);
-            } else if (typeCommand.equals(ARConstants.COORD_VISUALIZA)) {
+            } else if (typeCommand.equals(ARConstantsEngine.COORD_VISUALIZA)) {
                 message = "Coordinates Visualiza";
                 for (String coords : coordinates) {
-                    executeActionsAtCoordinates(coords, fieldData, ARConstants.VISUALIZE, pressEnterAfter);
+                    executeActionsAtCoordinates(coords, fieldData, ARConstantsEngine.VISUALIZE, pressEnterAfter);
                 }
-            } else if (typeCommand.equals(ARConstants.COORD_CLICK)) {
+            } else if (typeCommand.equals(ARConstantsEngine.COORD_CLICK)) {
                 message = "Coordinates Click";
                 for (String coords : coordinates) {
                     //                    executeActionsAtCoordinates(coords, fieldData, ARConstants.CLICK,
                     // pressEnterAfter);
                     clickElementAtCoordinates(coords);
                 }
-            } else if (typeCommand.equals(ARConstants.COORD_INSERT)) {
+            } else if (typeCommand.equals(ARConstantsEngine.COORD_INSERT)) {
                 message = "Coordinates Insert";
                 if (pressEnterAfter) {
                     message = "Coordinates Insert with <ENTER>";
@@ -2856,7 +2859,7 @@ public class PerformActions {
                     setValueAtCoordinates(coords, fieldData.getValue());
                 }
                 //                insertElement(element, fieldData.getValue());
-            } else if (typeCommand.equals(ARConstants.COORD_MOVE_CLICK_RED)) {
+            } else if (typeCommand.equals(ARConstantsEngine.COORD_MOVE_CLICK_RED)) {
                 message = "Coordinates Move Insert Red Circle";
                 for (String coords : coordinates) {
                     moveAndClickAtCoordinates(coords, pressEnterAfter);
@@ -2895,7 +2898,7 @@ public class PerformActions {
     public boolean setValueAtCoordinates(String savedCoords, String textToSet) {
 
         try {
-            String[] coordinates = savedCoords.split(ARConstants.FIELDS_SEPARATOR);
+            String[] coordinates = savedCoords.split(ARConstantsEngine.FIELDS_SEPARATOR);
             double temp1 = Double.parseDouble(coordinates[0]);
             double temp2 = Double.parseDouble(coordinates[1]);
 
@@ -2923,7 +2926,7 @@ public class PerformActions {
     public boolean clearValueAtCoordinates(String savedCoords) {
 
         try {
-            String[] coordinates = savedCoords.split(ARConstants.FIELDS_SEPARATOR);
+            String[] coordinates = savedCoords.split(ARConstantsEngine.FIELDS_SEPARATOR);
             double temp1 = Double.parseDouble(coordinates[0]);
             double temp2 = Double.parseDouble(coordinates[1]);
             JavascriptExecutor jsExecutor = (JavascriptExecutor) currentDriver;
@@ -2954,7 +2957,7 @@ public class PerformActions {
 
     public boolean clickElementAtCoordinates(String savedCoords) {
         try {
-            String[] coordinates = savedCoords.split(ARConstants.FIELDS_SEPARATOR);
+            String[] coordinates = savedCoords.split(ARConstantsEngine.FIELDS_SEPARATOR);
             double temp1 = Double.parseDouble(coordinates[0]);
             double temp2 = Double.parseDouble(coordinates[1]);
             JavascriptExecutor jsExecutor = (JavascriptExecutor) currentDriver;
@@ -3006,7 +3009,7 @@ public class PerformActions {
     }
 
     public String moveAndClickAtCoordinates(String savedCoordinates, boolean pressEnterAfter) {
-        String[] coordinates = savedCoordinates.split(ARConstants.FIELDS_SEPARATOR);
+        String[] coordinates = savedCoordinates.split(ARConstantsEngine.FIELDS_SEPARATOR);
         double temp1 = Double.parseDouble(coordinates[0]);
         double temp2 = Double.parseDouble(coordinates[1]);
         int xCoord = (int) temp1;
@@ -3209,17 +3212,17 @@ public class PerformActions {
             Map<String, List<Integer>> mapConditional,
             int parentBlockCondition,
             int currentIndex) {
-        if (action.equalsIgnoreCase(ARConstants.ELSEIF)) {
+        if (action.equalsIgnoreCase(ARConstantsEngine.ELSEIF)) {
             // Goes to the ENDIF (ENDIF index + 1);
             return searchMapConditional(
                     mapConditional, parentBlockCondition, ARExecution.ConditionStatus.ENDIF, currentIndex, true);
 
-        } else if (action.equalsIgnoreCase(ARConstants.ELSE)) {
+        } else if (action.equalsIgnoreCase(ARConstantsEngine.ELSE)) {
             // Goes to the ENDIF (ENDIF index + 1);
             return searchMapConditional(
                     mapConditional, parentBlockCondition, ARExecution.ConditionStatus.ENDIF, currentIndex, true);
 
-        } else if (action.equalsIgnoreCase(ARConstants.ELSE)) {
+        } else if (action.equalsIgnoreCase(ARConstantsEngine.ELSE)) {
             // Goes to the ENDIF (ENDIF index + 1);
             return searchMapConditional(
                     mapConditional, parentBlockCondition, ARExecution.ConditionStatus.ENDIF, currentIndex, true);
@@ -3365,7 +3368,7 @@ public class PerformActions {
             }
             targetDefine.setIFrameElements(null);
 
-            targetDefine.setXPathWorkedFirst(ARConstants.REGULAR_XPATH);
+            targetDefine.setXPathWorkedFirst(ARConstantsEngine.REGULAR_XPATH);
 
             // W3C 6 Headers
             String[] validHeaders = {"h1", "h2", "h3", "h4", "h5", "h6"};
@@ -3547,7 +3550,7 @@ public class PerformActions {
                 //                } else  if (tagNameDefined.equalsIgnoreCase("input")) {
                 //                    target.setTagType(WebElementTagNameEnum.OUTPUT);
                 //                }
-                target = setElementText(target, target.getTagName(), ARConstants.VALUE_NO_IDENTIFICATION);
+                target = setElementText(target, target.getTagName(), ARConstantsEngine.VALUE_NO_IDENTIFICATION);
             }
 
         } catch (Exception e) {
@@ -3733,21 +3736,25 @@ public class PerformActions {
     private String handleIdentityHover(
             String actionReq, WebElementTagNameEnum forceTag, String nameLabel, Boolean clickElement) {
         return switch (actionReq.toUpperCase()) {
-            case ARConstants.INSERT -> buildInsertAction(forceTag, nameLabel);
-            case ARConstants.OUTPUT -> ARConstants.OUTPUT + ARConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel;
-            case ARConstants.OTHER -> ARConstants.OTHER + ARConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel;
-            case ARConstants.CLICK -> ARConstants.CLICK;
+            case ARConstantsEngine.INSERT -> buildInsertAction(forceTag, nameLabel);
+            case ARConstantsEngine.OUTPUT -> ARConstantsEngine.OUTPUT
+                    + ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER
+                    + nameLabel;
+            case ARConstantsEngine.OTHER -> ARConstantsEngine.OTHER
+                    + ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER
+                    + nameLabel;
+            case ARConstantsEngine.CLICK -> ARConstantsEngine.CLICK;
             default -> clickElement
-                    ? ARConstants.CLICK
-                    : ARConstants.INSERT + ARConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel;
+                    ? ARConstantsEngine.CLICK
+                    : ARConstantsEngine.INSERT + ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER + nameLabel;
         };
     }
 
     private String buildInsertAction(WebElementTagNameEnum forceTag, String nameLabel) {
         if (forceTag.equals(WebElementTagNameEnum.INPUT_ENTER)) {
-            return ARConstants.INSERT_ENTER + ARConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel;
+            return ARConstantsEngine.INSERT_ENTER + ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER + nameLabel;
         } else {
-            return ARConstants.INSERT + ARConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel;
+            return ARConstantsEngine.INSERT + ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER + nameLabel;
         }
     }
 
@@ -3755,19 +3762,19 @@ public class PerformActions {
             WebElementTagNameEnum forceTag, TargetElement targetBuild, String nameLabel, boolean clickElement) {
         if (targetBuild.getTagType() == null) {
             return clickElement
-                    ? ARConstants.CLICK
-                    : ARConstants.INSERT + ARConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel;
+                    ? ARConstantsEngine.CLICK
+                    : ARConstantsEngine.INSERT + ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER + nameLabel;
         }
 
         return switch (targetBuild.getTagType()) {
             case INPUT -> buildInsertAction(forceTag, nameLabel);
-            case HIDDEN -> ARConstants.INSERT
-                    + ARConstants.ACTION_SPECIFICATIONS_SPLITTER
+            case HIDDEN -> ARConstantsEngine.INSERT
+                    + ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER
                     + nameLabel
-                    + ARConstants.ACTION_SPECIFICATIONS_SPLITTER
-                    + ARConstants.HIDDEN;
-            case BUTTON -> ARConstants.CLICK;
-            default -> ARConstants.OUTPUT + ARConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel;
+                    + ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER
+                    + ARConstantsEngine.HIDDEN;
+            case BUTTON -> ARConstantsEngine.CLICK;
+            default -> ARConstantsEngine.OUTPUT + ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER + nameLabel;
         };
     }
 

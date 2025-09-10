@@ -2540,8 +2540,7 @@ public class ARNewCommandPane extends ARPane {
                     this.splitDTO.setType("INSERT_AFTER");
                 }
             } catch (Exception error) {
-
-                log.error("Error reading 'EXCEL GOTO' instructions: " + error.getMessage());
+                log.warn("Error reading 'EXCEL GOTO' instructions: " + error.getMessage());
             }
 
         } else {
@@ -2776,7 +2775,7 @@ public class ARNewCommandPane extends ARPane {
             if (instrValue.equals("GOTO")) {
                 for (int i = 0; i < listOptions.size(); i++) {
                     if (listOptions.get(i).getBlockId().equals(splitDTO.getParentBlockId())) {
-                        comboBoxBlocksGoto.getSelectionModel().select(i - 1);
+                        comboBoxBlocksGoto.getSelectionModel().select(i);
                         indexGeneric = i - 1;
                         break;
                     }
@@ -2814,7 +2813,7 @@ public class ARNewCommandPane extends ARPane {
             if (instrValue.equals("EXCEL GOTO")) {
                 for (int i = 0; i < listOptions.size(); i++) {
                     if (listOptions.get(i).getBlockId().equals(splitDTO.getParentBlockId())) {
-                        comboBoxBlocksGoto.getSelectionModel().select(i - 1);
+                        comboBoxBlocksGoto.getSelectionModel().select(i);
                         indexGeneric = i - 1;
                         break;
                     }

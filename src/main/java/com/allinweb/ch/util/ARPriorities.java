@@ -132,13 +132,13 @@ public class ARPriorities {
             JOptionPane.showMessageDialog(
                     null,
                     "Priority configuration folder is not set. Please set the folder of priority configuration file "
-                            + ARConstants.FILE_NAME_PRIORITIES,
+                            + ARConstantsEngine.FILE_NAME_PRIORITIES,
                     "Priority configuration folder not set",
                     JOptionPane.WARNING_MESSAGE);
             log.warn("Priority configuration folder not set");
             throw new RuntimeException("Priority configuration not set");
         }
-        String prioritiesFileName = priorityPath + ARConstants.FILE_NAME_PRIORITIES;
+        String prioritiesFileName = priorityPath + ARConstantsEngine.FILE_NAME_PRIORITIES;
         priorityList = new ArrayList<>();
         File prioritiesFile = new File(prioritiesFileName);
         if (!prioritiesFile.exists()) {
@@ -159,7 +159,7 @@ public class ARPriorities {
                 log.warn("The file " + prioritiesFileName + "is empty");
             }
             properties.keySet().forEach(keyObj -> {
-                String[] params = String.valueOf(keyObj).split(ARConstants.FIELDS_SEPARATOR);
+                String[] params = String.valueOf(keyObj).split(ARConstantsEngine.FIELDS_SEPARATOR);
                 Priority priority = new Priority(
                         Integer.parseInt(params[0]),
                         params[1],

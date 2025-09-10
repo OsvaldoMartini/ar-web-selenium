@@ -175,13 +175,16 @@ public class ARPropertyManager {
                             + e.getMessage() + "</span>",
                     0);
         } catch (IOException error) {
-            performMessage.errorMessage(
-                    "Error Reading File",
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to read file:</span>",
-                    "<span style='font-weight: bold;'>" + configurationFileName + "</span>.",
-                    "<span style='color: #E65100; font-weight: bold;'>Please ensure the application has the necessary read permissions for the file and that the file exists.</span>",
-                    "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
-                    0);
+            log.warn("Error reading/writing to the file: " + configurationFileName);
+            //            performMessage.errorMessage(
+            //                    "Error Reading File",
+            //                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to read
+            // file:</span>",
+            //                    "<span style='font-weight: bold;'>" + configurationFileName + "</span>.",
+            //                    "<span style='color: #E65100; font-weight: bold;'>Please ensure the application has
+            // the necessary read permissions for the file and that the file exists.</span>",
+            //                    "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
+            //                    0);
         }
     }
 
@@ -199,7 +202,7 @@ public class ARPropertyManager {
         configurationFile.delete();
         try {
             configurationFile.createNewFile();
-            setProperty(ARPropertyEnum.PATH_LICENSE.getValue(), ARConstants.USER_PATH);
+            setProperty(ARPropertyEnum.PATH_LICENSE.getValue(), ARConstantsEngine.USER_PATH);
 
             setProperty(ARPropertyEnum.PATH_EXCEL.getValue(), "C:\\ARWeb\\ARWeb\\Excel");
             setProperty(ARPropertyEnum.PATH_LOG.getValue(), "C:\\ARWeb\\ARWeb\\Logs");
@@ -215,10 +218,10 @@ public class ARPropertyManager {
             setProperty(ARPropertyEnum.DATABASE_TYPE.getValue(), "Access");
 
             setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), "54525");
-            setProperty(ARPropertyEnum.PATH_ENGINE.getValue(), ARConstants.USER_PATH);
-            setProperty(ARPropertyEnum.PATH_WEBDRIVER.getValue(), ARConstants.USER_PATH + "\\driver");
+            setProperty(ARPropertyEnum.PATH_ENGINE.getValue(), ARConstantsEngine.USER_PATH);
+            setProperty(ARPropertyEnum.PATH_WEBDRIVER.getValue(), ARConstantsEngine.USER_PATH + "\\driver");
             setProperty(ARPropertyEnum.LOG_LEVEL.getValue(), Level.INFO.getName());
-            setProperty(ARPropertyEnum.BROWSER.getValue(), ARConstants.EDGE);
+            setProperty(ARPropertyEnum.BROWSER.getValue(), ARConstantsEngine.EDGE);
             setProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC.getValue(), "60");
             setProperty(ARPropertyEnum.WEBDRIVER_INTERACTION_TIMEOUT_SEC.getValue(), "60");
             setProperty(ARPropertyEnum.INSTRUCTION_STOP_SECONDS.getValue(), "15");

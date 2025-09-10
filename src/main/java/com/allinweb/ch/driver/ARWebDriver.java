@@ -3,7 +3,7 @@ package com.allinweb.ch.driver;
 import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementScriptFactory;
 import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.util.ARConstants;
+import com.allinweb.ch.util.ARConstantsEngine;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
@@ -219,7 +219,7 @@ public class ARWebDriver {
         String logFolder = arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG);
         try {
             switch (browserType) {
-                case ARConstants.CHROME -> {
+                case ARConstantsEngine.CHROME -> {
                     //                        String driverPath = webDriverPath + "\\chrome.exe";
                     if (!(new File(webDriverPath)).exists()) {
                         log.info("Web Driver NOT EXIST " + webDriverPath);
@@ -240,7 +240,7 @@ public class ARWebDriver {
                         this.currentDriver.get("about:blank");
                     }
                 }
-                case ARConstants.EDGE -> {
+                case ARConstantsEngine.EDGE -> {
                     //                        String driverPath = webDriverPath + "\\msedgedriver.exe";
                     if (!(new File(webDriverPath)).exists()) {
                         log.info("Web Driver NOT EXIST " + webDriverPath);
@@ -278,7 +278,7 @@ public class ARWebDriver {
                         this.currentDriver.get("about:blank");
                     }
                 }
-                case ARConstants.FIREFOX -> {
+                case ARConstantsEngine.FIREFOX -> {
                     //                        String driverPath = webDriverPath + "\\geckodriver.exe";
                     if (!(new File(webDriverPath)).exists()) {
                         log.info("Web Driver NOT EXIST " + webDriverPath);

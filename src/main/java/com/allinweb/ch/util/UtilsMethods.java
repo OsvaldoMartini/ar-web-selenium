@@ -24,7 +24,7 @@ public class UtilsMethods {
     }
 
     public static boolean testFixedCheck(String valueToCheck) {
-        String[] splittedValue = valueToCheck.split(ARConstants.RND_ID_SEPARATOR);
+        String[] splittedValue = valueToCheck.split(ARConstantsEngine.RND_ID_SEPARATOR);
         if (splittedValue.length != 2) {
             return false;
         }

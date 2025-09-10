@@ -1,6 +1,6 @@
 package com.allinweb.ch.readersAndWriters;
 
-import com.allinweb.ch.util.ARConstants;
+import com.allinweb.ch.util.ARConstantsEngine;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ExtractedData;
 import java.io.File;
@@ -84,15 +84,15 @@ public class ExcelReader {
             // Iterate over each action in allActions
             for (String action : allActions) {
                 // Check if action contains ARConstants.INSERT and ARConstants.ACTION_SPECIFICATIONS_SPLITTER
-                if (action.contains(ARConstants.INSERT)
-                        && action.contains(ARConstants.ACTION_SPECIFICATIONS_SPLITTER)) {
+                if (action.contains(ARConstantsEngine.INSERT)
+                        && action.contains(ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER)) {
 
-                    String[] parts = action.split(ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
+                    String[] parts = action.split(ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER);
                     if (parts.length == 3
-                            && parts[0].equals(ARConstants.INSERT)
-                            && parts[1].equals(ARConstants.ENTER)) {
+                            && parts[0].equals(ARConstantsEngine.INSERT)
+                            && parts[1].equals(ARConstantsEngine.ENTER)) {
                         blockFields.add(parts[2]);
-                    } else if (parts.length == 2 && parts[0].equals(ARConstants.INSERT)) {
+                    } else if (parts.length == 2 && parts[0].equals(ARConstantsEngine.INSERT)) {
                         blockFields.add(parts[1]);
                     }
                 }

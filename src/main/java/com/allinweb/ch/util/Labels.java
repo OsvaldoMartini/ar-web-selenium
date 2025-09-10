@@ -17,7 +17,8 @@ public class Labels {
 
     public static void initializeLabelsInSpecLang(String language) {
         labelsValue = new Properties();
-        String labelsFileName = ARConstants.LABELS_FILE_NAME_COMMON + language + ARConstants.PROPERTIES_FILE_EXTENSION;
+        String labelsFileName =
+                ARConstantsEngine.LABELS_FILE_NAME_COMMON + language + ARConstantsEngine.PROPERTIES_FILE_EXTENSION;
 
         // Read in the LCO Probe properties file
         try (InputStream inputStream =
