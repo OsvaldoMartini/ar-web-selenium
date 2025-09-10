@@ -167,6 +167,7 @@ public class ARMainScene extends ARScene {
         threadList.forEach(this::interruptThread);
         // Add any other cleanup logic here (e.g., WebDriver quit)
         stage.close();
+        closeWebDrivers();
     }
 
     private void handleCloseRequest(WindowEvent event) {
