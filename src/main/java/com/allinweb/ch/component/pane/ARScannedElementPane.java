@@ -4548,7 +4548,7 @@ public class ARScannedElementPane extends ARPane {
 
             if (isInterceptBotJob()) {
                 updateRowStatusAndNotify("yellow"); // #fcba03 deep carmine yellow
-                performMessage.showCustomModalDialogDragWin11Timer(
+                performMessage.showCustomModalDialogDragWin11(
                         "Bot-Job Interrupted successfully",
                         currentBotJobName,
                         "Last Execution:",
@@ -4557,8 +4557,7 @@ public class ARScannedElementPane extends ARPane {
                         false,
                         "OK",
                         null,
-                        300,
-                        5);
+                        300);
             } else {
                 updateRowStatusAndNotify("green"); // #1d9c06 deep carmine green
                 respModal = performMessage.showCustomModalDialogDragWin11Timer(
@@ -4591,7 +4590,7 @@ public class ARScannedElementPane extends ARPane {
 
             if (isInterceptBotJob()) {
                 updateRowStatusAndNotify("yellow"); // #fcba03 deep carmine yellow
-                performMessage.showCustomModalDialogDragWin11Timer(
+                performMessage.showCustomModalDialogDragWin11(
                         "Bot-Job Interrupted successfully",
                         currentBotJobName,
                         "Last Execution:",
@@ -4600,8 +4599,7 @@ public class ARScannedElementPane extends ARPane {
                         false,
                         "OK",
                         null,
-                        300,
-                        5);
+                        300);
 
             } else {
                 updateRowStatusAndNotify("red"); // #FF3131 deep carmine red
