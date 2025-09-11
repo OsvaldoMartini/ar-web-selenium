@@ -3483,18 +3483,18 @@ public class ARScannedElementPane extends ARPane {
                             if (actions[0].equals(ARConstants.INSERT) && actions[1].equals(ARConstants.ENTER)) {
                                 String reference = actions[2];
                                 valueInsert = dataExcel.get(reference);
-                            } else if (actions[0].equals(ARConstants.INSERT)) {
+                            } else if (actions[0].equals(ARConstantsEngine.INSERT)) {
                                 String reference = actions[1];
                                 valueInsert = dataExcel.get(reference);
                             }
 
                             FieldData msgInstruction = null;
-                            if (actions[0].equalsIgnoreCase(ARConstants.EXCEL_GOTO)) {
+                            if (actions[0].equalsIgnoreCase(ARConstantsEngine.EXCEL_GOTO)) {
 
                                 //                                currentIndex++;
                                 continue instructionLoop;
 
-                            } else if (actions[0].equalsIgnoreCase(ARConstants.NEXT_ROW)) {
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.NEXT_ROW)) {
                                 // <currentId:blockId:blockOrderNumber:bockName>
                                 xExcelCurrentRow++;
 
@@ -3519,7 +3519,7 @@ public class ARScannedElementPane extends ARPane {
                                         blockStartTime,
                                         blockReportName,
                                         success,
-                                        new String[] {ARConstants.NEXT_ROW},
+                                        new String[] {ARConstantsEngine.NEXT_ROW},
                                         msgInstruction,
                                         dataExcel,
                                         writerReport,
@@ -3529,7 +3529,7 @@ public class ARScannedElementPane extends ARPane {
                                 //                                currentIndex++;
                                 continue instructionLoop;
 
-                            } else if (actions[0].equalsIgnoreCase(ARConstants.GOTO)) {
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.GOTO)) {
                                 // <currentId:blockId:blockOrderNumber:bockName>
                                 msgInstruction = performActions.getBlockDetailsById(blocksLoaded, currentInstruction);
                                 if (msgInstruction == null) {
@@ -3551,7 +3551,7 @@ public class ARScannedElementPane extends ARPane {
                                             String.valueOf(mapLoops.get(msgInstruction.getKey())));
                                 }
 
-                            } else if (actions[0].equalsIgnoreCase(ARConstants.LOOP)) {
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.LOOP)) {
                                 // <currentId:parentId:parentName>
                                 msgInstruction = performActions.getInstructionDetailsById(
                                         blocksLoaded.get(currentBlockOrder).getInstructionLoad(), currentInstruction);
@@ -3570,7 +3570,7 @@ public class ARScannedElementPane extends ARPane {
                                             msgInstruction.getKey(),
                                             String.valueOf(mapLoops.get(msgInstruction.getKey())));
                                 }
-                            } else if (actions[0].equalsIgnoreCase(ARConstants.REFRESH_LOOP)) {
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.REFRESH_LOOP)) {
                                 msgInstruction = performActions.getInstructionDetailsById(
                                         blocksLoaded.get(currentBlockOrder).getInstructionLoad(), currentInstruction);
                                 if (msgInstruction == null) {
@@ -3588,13 +3588,13 @@ public class ARScannedElementPane extends ARPane {
                                             + mapLoops.get(msgInstruction.getKey());
                                     msgInstruction = new FieldData(msgInstruction.getKey(), updMsg);
                                 }
-                            } else if (actions[0].equalsIgnoreCase(ARConstants.SET_VALUE)
-                                    || (actions[0].equalsIgnoreCase(ARConstants.GET_VALUE))) {
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.SET_VALUE)
+                                    || (actions[0].equalsIgnoreCase(ARConstantsEngine.GET_VALUE))) {
                                 msgInstruction = new FieldData(
                                         currentInstruction.getName(),
                                         (currentInstruction.getOperation() != null
                                                 ? "(" + parentId + ")-" + operations[0] + ":" + operations[1]
-                                                : (actions[0].equalsIgnoreCase(ARConstants.INSERT))
+                                                : (actions[0].equalsIgnoreCase(ARConstantsEngine.INSERT))
                                                         ? valueInsert
                                                         : ""));
                             } else {
@@ -3602,14 +3602,14 @@ public class ARScannedElementPane extends ARPane {
                                         "(" + currentInstruction.getId() + ")-" + currentInstruction.getName(),
                                         (currentInstruction.getOperation() != null
                                                 ? currentInstruction.getOperation()
-                                                : (actions[0].equalsIgnoreCase(ARConstants.INSERT))
+                                                : (actions[0].equalsIgnoreCase(ARConstantsEngine.INSERT))
                                                         ? valueInsert
                                                         : ""));
                             }
 
                             resultActions = performActions.actionResultMessage(blockName, actions, msgInstruction);
 
-                            if (actions[0].equalsIgnoreCase(ARConstants.PAUSE)) {
+                            if (actions[0].equalsIgnoreCase(ARConstantsEngine.PAUSE)) {
                                 pauseOperation = true;
 
                                 respModal = performMessage.showCustomModalDialogDragWin11(
@@ -3624,7 +3624,7 @@ public class ARScannedElementPane extends ARPane {
                                         0);
                             }
 
-                            if (actions[0].equalsIgnoreCase(ARConstants.LOOP)) {
+                            if (actions[0].equalsIgnoreCase(ARConstantsEngine.LOOP)) {
                                 parentFieldLoop =
                                         performActions.getInstructionParentField(currentInstruction, blockLoad);
                                 if (parentField == null && parentFieldLoop == null) {
@@ -3653,9 +3653,9 @@ public class ARScannedElementPane extends ARPane {
                                     jumpLoopError = true;
                                 }
 
-                            } else if (actions[0].equalsIgnoreCase(ARConstants.REFRESH_ONLY)) {
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.REFRESH_ONLY)) {
                                 refreshOnly = true;
-                            } else if (actions[0].equalsIgnoreCase(ARConstants.REFRESH_LOOP)) {
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.REFRESH_LOOP)) {
                                 parentFieldLoop =
                                         performActions.getInstructionParentField(currentInstruction, blockLoad);
                                 if (parentField == null && parentFieldLoop == null) {
@@ -3683,8 +3683,8 @@ public class ARScannedElementPane extends ARPane {
                                 } else {
                                     jumpLoopError = true;
                                 }
-                            } else if (actions[0].equalsIgnoreCase(ARConstants.GET_VALUE)
-                                    || actions[0].equalsIgnoreCase(ARConstants.SET_VALUE)) {
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.GET_VALUE)
+                                    || actions[0].equalsIgnoreCase(ARConstantsEngine.SET_VALUE)) {
 
                                 execGetOrSet = true;
 
@@ -3692,7 +3692,7 @@ public class ARScannedElementPane extends ARPane {
                                 String actionsParent =
                                         performActions.getInstructionParentActions(currentInstruction, blockLoad);
                                 parentActions = actionsParent != null
-                                        ? actionsParent.split(ARConstants.ACTION_SPECIFICATIONS_SPLITTER)
+                                        ? actionsParent.split(ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER)
                                         : null;
 
                                 parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
@@ -3704,10 +3704,10 @@ public class ARScannedElementPane extends ARPane {
                                     variableField = "Not Variable defined";
                                 }
 
-                            } else if (actions[0].equalsIgnoreCase(ARConstants.OUTPUT)) {
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.OUTPUT)) {
                                 execOutPut = true;
                                 fieldName = currentInstruction.getId() + "-" + currentInstruction.getName();
-                            } else if (actions[0].equalsIgnoreCase(ARConstants.CHECK_VALUE)) {
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.CHECK_VALUE)) {
                                 execCheckValue = true;
                                 parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
                                 variableField =
@@ -3715,7 +3715,7 @@ public class ARScannedElementPane extends ARPane {
                                 if (variableField == null) {
                                     variableField = "Not Variable defined";
                                 }
-                            } else if (actions[0].equalsIgnoreCase(ARConstants.EXTRACT_FIELD)) {
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.EXTRACT_FIELD)) {
                                 excelWriteOperation = true;
                                 parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
                                 variableField =
@@ -3825,13 +3825,13 @@ public class ARScannedElementPane extends ARPane {
 
                                                 String extraLog = performActions.actionResultMessage(
                                                         blockName,
-                                                        new String[] {ARConstants.REFRESH_HOLD},
+                                                        new String[] {ARConstantsEngine.REFRESH_HOLD},
                                                         msgInstruction);
 
                                                 performActions.performOtherActions(
                                                         byPassNotFound,
                                                         currentInstruction,
-                                                        new String[] {ARConstants.REFRESH_HOLD});
+                                                        new String[] {ARConstantsEngine.REFRESH_HOLD});
 
                                                 // Excel Report and Log
                                                 performActions.logAndReport(
@@ -3841,7 +3841,7 @@ public class ARScannedElementPane extends ARPane {
                                                         currentInstructionStartTime,
                                                         blockReportName,
                                                         success,
-                                                        new String[] {ARConstants.REFRESH_HOLD},
+                                                        new String[] {ARConstantsEngine.REFRESH_HOLD},
                                                         msgInstruction,
                                                         dataExcel,
                                                         writerReport,
@@ -3851,13 +3851,13 @@ public class ARScannedElementPane extends ARPane {
                                                 // Refresh For REFRESH_LOOP
                                                 extraLog = performActions.actionResultMessage(
                                                         blockName,
-                                                        new String[] {ARConstants.REFRESH_ONLY},
+                                                        new String[] {ARConstantsEngine.REFRESH_ONLY},
                                                         msgInstruction);
 
                                                 performActions.performOtherActions(
                                                         byPassNotFound,
                                                         currentInstruction,
-                                                        new String[] {ARConstants.REFRESH_ONLY});
+                                                        new String[] {ARConstantsEngine.REFRESH_ONLY});
 
                                                 // Excel Report and Log
                                                 performActions.logAndReport(
@@ -3867,7 +3867,7 @@ public class ARScannedElementPane extends ARPane {
                                                         currentInstructionStartTime,
                                                         blockReportName,
                                                         success,
-                                                        new String[] {ARConstants.REFRESH_ONLY},
+                                                        new String[] {ARConstantsEngine.REFRESH_ONLY},
                                                         msgInstruction,
                                                         dataExcel,
                                                         writerReport,
@@ -3940,14 +3940,14 @@ public class ARScannedElementPane extends ARPane {
 
                                     refreshOnly = false;
 
-                                } else if (actions[0].equals(ARConstants.HOLD)
-                                        || actions[0].equals(ARConstants.QUIT)
-                                        || actions[0].equals(ARConstants.SCREEN)
-                                        || actions[0].equals(ARConstants.REFRESH_ONLY)) {
+                                } else if (actions[0].equals(ARConstantsEngine.HOLD)
+                                        || actions[0].equals(ARConstantsEngine.QUIT)
+                                        || actions[0].equals(ARConstantsEngine.SCREEN)
+                                        || actions[0].equals(ARConstantsEngine.REFRESH_ONLY)) {
 
                                     performActions.performOtherActions(byPassNotFound, currentInstruction, actions);
 
-                                    if (actions[0].equals(ARConstants.QUIT)) {
+                                    if (actions[0].equals(ARConstantsEngine.QUIT)) {
                                         stopAll = true;
                                         success = true;
                                     }
@@ -3984,13 +3984,13 @@ public class ARScannedElementPane extends ARPane {
                                     if (webElementFound == null && forceCoordinates) {
 
                                         Boolean pressEnterAfter = false;
-                                        if (actions[0].equals(ARConstants.INSERT)
-                                                && actions[1].equals(ARConstants.ENTER)) {
+                                        if (actions[0].equals(ARConstantsEngine.INSERT)
+                                                && actions[1].equals(ARConstantsEngine.ENTER)) {
                                             pressEnterAfter = true;
                                         }
-                                        if (actions[0].equalsIgnoreCase(ARConstants.VISUALIZE)
-                                                || actions[0].equalsIgnoreCase(ARConstants.CLICK)
-                                                || actions[0].equalsIgnoreCase(ARConstants.INSERT)) {
+                                        if (actions[0].equalsIgnoreCase(ARConstantsEngine.VISUALIZE)
+                                                || actions[0].equalsIgnoreCase(ARConstantsEngine.CLICK)
+                                                || actions[0].equalsIgnoreCase(ARConstantsEngine.INSERT)) {
 
                                             List<WebElement> smartSearch = performActions.findBySmartLocator(
                                                     currentInstruction.getCssSelector());
@@ -4045,7 +4045,8 @@ public class ARScannedElementPane extends ARPane {
                                         parentField = parentId + "-" + parentField;
                                     }
                                     // Mandatory for GET_VALUE
-                                    if (xPathOperation == null && actions[0].equalsIgnoreCase(ARConstants.GET_VALUE)) {
+                                    if (xPathOperation == null
+                                            && actions[0].equalsIgnoreCase(ARConstantsEngine.GET_VALUE)) {
                                         failedMessage = "Parent Id in Wrong Block ";
                                         msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                         resultActions = performActions.parentIdWrongBlock(
@@ -4336,7 +4337,7 @@ public class ARScannedElementPane extends ARPane {
 
                                 resultActions = String.format("STOP ALL PROCESSES: \"%s\"", nameInstruc);
 
-                                FieldData msgBlock = new FieldData(resultActions, ARConstants.PAUSE);
+                                FieldData msgBlock = new FieldData(resultActions, ARConstantsEngine.PAUSE);
 
                                 // Excel Report and Log
                                 performActions.logAndReport(
@@ -4346,7 +4347,7 @@ public class ARScannedElementPane extends ARPane {
                                         blockStartTime,
                                         blockReportName,
                                         success,
-                                        new String[] {ARConstants.PAUSE},
+                                        new String[] {ARConstantsEngine.PAUSE},
                                         msgBlock,
                                         dataExcel,
                                         writerReport,
@@ -4396,7 +4397,7 @@ public class ARScannedElementPane extends ARPane {
                                             blockStartTime,
                                             blockReportName,
                                             success,
-                                            new String[] {ARConstants.NEXT_ROW},
+                                            new String[] {ARConstantsEngine.NEXT_ROW},
                                             msgInstruction,
                                             dataExcel,
                                             writerReport,
@@ -4542,9 +4543,9 @@ public class ARScannedElementPane extends ARPane {
         // PRINT END BASE LOG//
         if (success) {
             baseLogString = blocksLoaded.get(0).getName()
-                    + ARConstants.FIELDS_SEPARATOR
+                    + ARConstantsEngine.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.END)
-                    + ARConstants.FIELDS_SEPARATOR
+                    + ARConstantsEngine.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.OK);
 
             if (isInterceptBotJob()) {
@@ -4581,11 +4582,11 @@ public class ARScannedElementPane extends ARPane {
             countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: red;");
             countdownTextField.setText(resultActions);
             baseLogString = blocksLoaded.get(0).getName()
-                    + ARConstants.FIELDS_SEPARATOR
+                    + ARConstantsEngine.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.END)
-                    + ARConstants.FIELDS_SEPARATOR
+                    + ARConstantsEngine.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.KO)
-                    + ARConstants.FIELDS_SEPARATOR
+                    + ARConstantsEngine.FIELDS_SEPARATOR
                     + resultActions;
 
             if (isInterceptBotJob()) {
