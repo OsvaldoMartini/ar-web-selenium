@@ -61,7 +61,7 @@ import org.slf4j.LoggerFactory;
 @Slf4j
 public class ARScannedElementPane extends ARPane {
 
-    private static final Logger launchLog = LoggerFactory.getLogger("com.allinweb.scanner.launch");
+    private static final Logger launchLog = LoggerFactory.getLogger("com.allinweb.launch");
     private static final Logger logOperations = LoggerFactory.getLogger("com.allinweb.operations");
 
     private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();

@@ -18,7 +18,7 @@ import org.sqlite.SQLiteConfig;
 @Slf4j
 public class PerformDataBase {
 
-    private static final Logger logDB = LoggerFactory.getLogger("com.allinweb.scanner.database");
+    private static final Logger logDB = LoggerFactory.getLogger("com.allinweb.database");
 
     public static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
     public static final PerformMessage performMessage = PerformMessage.getInstance();

@@ -16,7 +16,7 @@
 
     <!-- Rolling File Appender (main logs) -->
     <appender name="ROLLING_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${LOG_PATH}/ar_web_scan_base.log</file>
+        <file>${LOG_PATH}/ar_web_scanner_base.log</file>
         <prudent>true</prudent>
         <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
 <!--            <pattern>%d{ISO8601} %-5p %C{1} [%t] %m%n%throwable</pattern>-->
@@ -24,7 +24,7 @@
         </encoder>
 
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>${LOG_PATH}/ar_web_scan_base-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <fileNamePattern>${LOG_PATH}/ar_web_scanner_base-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
             <maxFileSize>10MB</maxFileSize>
             <maxHistory>30</maxHistory>
             <totalSizeCap>500MB</totalSizeCap>
@@ -32,15 +32,15 @@
     </appender>
 
     <!-- Special Rolling File Appender -->
-    <appender name="SPECIAL_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${LOG_PATH}/ar_web_scan_pre_launch.log</file>
+    <appender name="LAUNCH_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/ar_web_scan_scanner_execution.log</file>
         <prudent>true</prudent>
         <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
             <pattern>%d{ISO8601} %m%n%throwable</pattern>
         </encoder>
 
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>${LOG_PATH}/ar_web_scan_pre_launch-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <fileNamePattern>${LOG_PATH}/ar_web_scanner_execution-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
             <maxFileSize>10MB</maxFileSize>
             <maxHistory>30</maxHistory>
             <totalSizeCap>200MB</totalSizeCap>
@@ -49,14 +49,14 @@
 
     <!-- Database Rolling File Appender -->
     <appender name="DATABASE_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${LOG_PATH}/ar_web_scan_database.log</file>
+        <file>${LOG_PATH}/ar_web_scanner_database.log</file>
         <prudent>true</prudent>
         <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
             <pattern>%d{ISO8601} %m%n%throwable</pattern>
         </encoder>
 
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>${LOG_PATH}/ar_web_scan_database-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <fileNamePattern>${LOG_PATH}/ar_web_scanner_database-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
             <maxFileSize>10MB</maxFileSize>
             <maxHistory>30</maxHistory>
             <totalSizeCap>200MB</totalSizeCap>
@@ -65,14 +65,14 @@
 
     <!-- Web Operations Rolling File Appender -->
     <appender name="WEB_OPERATIONS_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${LOG_PATH}/ar_web_scan_operations.log</file>
+        <file>${LOG_PATH}/ar_web_scanner_operations.log</file>
         <prudent>true</prudent>
         <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
             <pattern>%d{ISO8601} %m%n%throwable</pattern>
         </encoder>
 
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>${LOG_PATH}/ar_web_scan_operations-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <fileNamePattern>${LOG_PATH}/ar_web_scanner_operations-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
             <maxFileSize>10MB</maxFileSize>
             <maxHistory>30</maxHistory>
             <totalSizeCap>200MB</totalSizeCap>
@@ -95,12 +95,12 @@
     </logger>
 
     <!-- Logger for special usage -->
-    <logger name="com.allinweb.scanner.launch" level="DEBUG" additivity="false">
-        <appender-ref ref="SPECIAL_FILE"/>
+    <logger name="com.allinweb.launch" level="DEBUG" additivity="false">
+        <appender-ref ref="LAUNCH_FILE"/>
     </logger>
 
     <!-- Logger for DATABASE-specific classes -->
-    <logger name="com.allinweb.scanner.database" level="DEBUG" additivity="false">
+    <logger name="com.allinweb.database" level="DEBUG" additivity="false">
         <appender-ref ref="DATABASE_FILE"/>
     </logger>
 
