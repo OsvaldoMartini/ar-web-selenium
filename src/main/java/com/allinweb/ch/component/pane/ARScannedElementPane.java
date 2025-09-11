@@ -61,7 +61,7 @@ import org.slf4j.LoggerFactory;
 @Slf4j
 public class ARScannedElementPane extends ARPane {
 
-    private static final Logger launchLog = LoggerFactory.getLogger("com.allinweb.launch");
+    private static final Logger logLaunch = LoggerFactory.getLogger("com.allinweb.launch");
     private static final Logger logOperations = LoggerFactory.getLogger("com.allinweb.operations");
 
     private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
@@ -323,7 +323,7 @@ public class ARScannedElementPane extends ARPane {
     private static void printLog(String resultActions, boolean result) {
         String resultMsg = result ? ARConstants.SUCCESS : ARConstants.FAIL;
         String log = String.join(ARConstants.FIELDS_SEPARATOR, resultMsg, resultActions);
-        launchLog.info(log);
+        logLaunch.info(log);
     }
 
     /**
@@ -486,7 +486,7 @@ public class ARScannedElementPane extends ARPane {
             }
 
         } catch (Exception e) {
-            log.info(e.getMessage());
+            logOperations.info(e.getMessage());
         }
     }
 
@@ -714,9 +714,9 @@ public class ARScannedElementPane extends ARPane {
                         WebElement iframe = driverTestActions.findElement(By.xpath(targetTest.getIFrameXPath()));
                         driverTestActions.switchTo().frame(iframe);
 
-                        log.info("Found iFrame XPath: " + targetTest.getIFrameXPath());
+                        logOperations.info("Found iFrame XPath: " + targetTest.getIFrameXPath());
                     } catch (Exception e) {
-                        log.info("iFrame Not Found with XPath: " + targetTest.getIFrameXPath());
+                        logOperations.info("iFrame Not Found with XPath: " + targetTest.getIFrameXPath());
                         //                performMessage.generalErrorIFrame(currentInstruction.getName());
                         //                        return null;
                     }
@@ -724,7 +724,7 @@ public class ARScannedElementPane extends ARPane {
 
                 String result = performActions.sequenceOfCommands(
                         targetTest.getElement(), ARConstants.SELECT, coordinates, fieldData, driverTestActions, false);
-                log.info(result);
+                logOperations.info(result);
                 actionsTested.append(result + System.lineSeparator());
                 actionText2 = new Text(result);
                 if (result.contains("Failed")) {
@@ -741,7 +741,7 @@ public class ARScannedElementPane extends ARPane {
                             fieldData,
                             driverTestActions,
                             false);
-                    log.info(result);
+                    logOperations.info(result);
                     actionsTested.append(result + System.lineSeparator());
                     actionText3 = new Text(result);
                     if (result.contains("Failed")) {
@@ -757,7 +757,7 @@ public class ARScannedElementPane extends ARPane {
                 //                        fieldData,
                 //                        driverTestActions,
                 //                        false);
-                //                log.info(result);
+                //                logOperations.info(result);
                 //                actionsTested.append(result + System.lineSeparator());
                 //                actionText4 = new Text(result);
                 //                if (result.contains("Failed")) {
@@ -774,7 +774,7 @@ public class ARScannedElementPane extends ARPane {
                             fieldData,
                             driverTestActions,
                             false);
-                    log.info(result);
+                    logOperations.info(result);
                     actionsTested.append(result + System.lineSeparator());
                     actionText3 = new Text(result);
                     if (result.contains("Failed")) {
@@ -791,7 +791,7 @@ public class ARScannedElementPane extends ARPane {
                             fieldData,
                             driverTestActions,
                             false);
-                    log.info(result);
+                    logOperations.info(result);
                     actionsTested.append(result + System.lineSeparator());
                     actionText5 = new Text(result);
                     if (result.contains("Failed")) {
@@ -807,7 +807,7 @@ public class ARScannedElementPane extends ARPane {
                             fieldData,
                             driverTestActions,
                             false);
-                    log.info(result);
+                    logOperations.info(result);
                     actionsTested.append(result + System.lineSeparator());
                     actionText6 = new Text(result);
                     if (result.contains("Failed")) {
@@ -824,7 +824,7 @@ public class ARScannedElementPane extends ARPane {
                             fieldData,
                             driverTestActions,
                             false);
-                    log.info(result);
+                    logOperations.info(result);
                     actionsTested.append(result + System.lineSeparator());
                     actionText5 = new Text(result);
                     if (result.contains("Failed")) {
@@ -840,7 +840,7 @@ public class ARScannedElementPane extends ARPane {
                             fieldData,
                             driverTestActions,
                             false);
-                    log.info(result);
+                    logOperations.info(result);
                     actionsTested.append(result + System.lineSeparator());
                     actionText5 = new Text(result);
                     if (result.contains("Failed")) {
@@ -856,7 +856,7 @@ public class ARScannedElementPane extends ARPane {
                             fieldData,
                             driverTestActions,
                             false);
-                    log.info(result);
+                    logOperations.info(result);
                     actionsTested.append(result + System.lineSeparator());
                     actionText5 = new Text(result);
                     if (result.contains("Failed")) {
@@ -874,7 +874,7 @@ public class ARScannedElementPane extends ARPane {
                             fieldData,
                             driverTestActions,
                             false);
-                    log.info(result);
+                    logOperations.info(result);
                     actionsTested.append(result + System.lineSeparator());
                     actionText5 = new Text(result);
                     if (result.contains("Failed")) {
@@ -887,7 +887,7 @@ public class ARScannedElementPane extends ARPane {
                 //                result = performActions.sequenceOfCommands(
                 //                        targetTest.getElement(), ARConstants.FOCUS, coordinates, fieldData,
                 // driverTestActions, false);
-                //                log.info(result);
+                //                logOperations.info(result);
                 //
                 //                actionsTested.append(result + System.lineSeparator());
                 //
@@ -901,7 +901,7 @@ public class ARScannedElementPane extends ARPane {
                 //                result = performActions.sequenceOfCommands(
                 //                        targetTest.getElement(), ARConstants.TAB, coordinates, fieldData,
                 // driverTestActions, false);
-                //                log.info(result);
+                //                logOperations.info(result);
                 //
                 //                actionsTested.append(result + System.lineSeparator());
                 //
@@ -919,7 +919,7 @@ public class ARScannedElementPane extends ARPane {
                 //                        fieldData,
                 //                        driverTestActions,
                 //                        false);
-                //                log.info(result);
+                //                logOperations.info(result);
                 //                actionsTested.append(result + System.lineSeparator());
                 //                actionText9 = new Text(result);
                 //                if (result.contains("Failed")) {
@@ -935,7 +935,7 @@ public class ARScannedElementPane extends ARPane {
                 //                        fieldData,
                 //                        driverTestActions,
                 //                        false);
-                //                log.info(result);
+                //                logOperations.info(result);
                 //
                 //                actionsTested.append(result + System.lineSeparator());
                 //
@@ -953,7 +953,7 @@ public class ARScannedElementPane extends ARPane {
                 //                        fieldData,
                 //                        driverTestActions,
                 //                        false);
-                //                log.info(result);
+                //                logOperations.info(result);
                 //                actionsTested.append(result + System.lineSeparator());
                 //                actionText11 = new Text(result);
                 //                if (result.contains("Failed")) {
@@ -969,7 +969,7 @@ public class ARScannedElementPane extends ARPane {
                 //                        fieldData,
                 //                        driverTestActions,
                 //                        true);
-                //                log.info(result);
+                //                logOperations.info(result);
                 //                actionsTested.append(result + System.lineSeparator());
                 //                actionText12 = new Text(result);
                 //                if (result.contains("Failed")) {
@@ -985,7 +985,7 @@ public class ARScannedElementPane extends ARPane {
                 //                        fieldData,
                 //                        driverTestActions,
                 //                        true);
-                //                log.info(result);
+                //                logOperations.info(result);
                 //                actionsTested.append(result + System.lineSeparator());
                 //                actionText13 = new Text(result);
                 //                if (result.contains("Failed")) {
@@ -994,7 +994,7 @@ public class ARScannedElementPane extends ARPane {
                 //                    actionText13.setStyle("-fx-font-size: 12px; -fx-fill: green;");
                 //                }
                 //
-                //                log.info(actionsTested);
+                //                logOperations.info(actionsTested);
 
                 //                VBox vertical = new VBox();
                 //                vertical.getChildren()
@@ -1253,7 +1253,7 @@ public class ARScannedElementPane extends ARPane {
 
         String webDriverPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
         if (!(new File(webDriverPath)).exists()) {
-            log.error("Action Required: Missing WebDriver");
+            logOperations.error("Action Required: Missing WebDriver");
             performMessage.errorMessage(
                     "Action Required: Missing WebDriver",
                     "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: The WebDriver file is missing!</span>",
@@ -1336,9 +1336,9 @@ public class ARScannedElementPane extends ARPane {
     //                    writer.newLine();
     //                }
     //            }
-    //            log.info("References saved to " + filePath);
+    //            logOperations.info("References saved to " + filePath);
     //        } catch (IOException e) {
-    //            log.error("Error writing to file: " + e.getMessage());
+    //            logOperations.error("Error writing to file: " + e.getMessage());
     //        }
     //    }
 
@@ -2339,7 +2339,7 @@ public class ARScannedElementPane extends ARPane {
         if (errorMessage != null) {
             String[] lines = errorMessage.getErrorMessage().split("\n");
 
-            log.error(
+            logOperations.error(
                     "Error: Dynamic Pick One Clone ElementsDTO - {} - {} - {}",
                     errorMessage.getErrorTitle(),
                     errorMessage.getErrorHeader(),
@@ -2378,7 +2378,7 @@ public class ARScannedElementPane extends ARPane {
         if (errorMessage != null) {
             String[] lines = errorMessage.getErrorMessage().split("\n");
 
-            log.error(
+            logOperations.error(
                     "Error: Dynamic Pick One Clone ElementsDTO - {} - {} - {}",
                     errorMessage.getErrorTitle(),
                     errorMessage.getErrorHeader(),
@@ -2443,7 +2443,7 @@ public class ARScannedElementPane extends ARPane {
         List<WebElement> inputElements = (List<WebElement>) ((JavascriptExecutor) driver).executeScript(script);
 
         // Print the number of input elements found
-        log.info("Number of input elements: " + inputElements.size());
+        logOperations.info("Number of input elements: " + inputElements.size());
         return inputElements;
     }
 
@@ -2760,9 +2760,9 @@ public class ARScannedElementPane extends ARPane {
         try (Writer writer =
                 new BufferedWriter(new OutputStreamWriter(new FileOutputStream(filename), StandardCharsets.UTF_8))) {
             writer.write(content);
-            log.info("CSV written to file: " + filename);
+            logOperations.info("CSV written to file: " + filename);
         } catch (IOException e) {
-            log.error("Error writing file: " + e.getMessage());
+            logOperations.error("Error writing file: " + e.getMessage());
         }
     }
 
@@ -2781,7 +2781,7 @@ public class ARScannedElementPane extends ARPane {
     }
 
     public void printCsv() {
-        log.info(getCsvContent());
+        logOperations.info(getCsvContent());
     }
 
     // Allow the stage to be set from outside when pane is shown
@@ -2890,7 +2890,7 @@ public class ARScannedElementPane extends ARPane {
                 while (matcher.find()) {
                     String tag = matcher.group(1);
                     if (tag.equals("a") || tag.equals("button")) {
-                        log.info("Found clickable tag: <" + tag + ">");
+                        logOperations.info("Found clickable tag: <" + tag + ">");
                         tagClickable = true;
                         break;
                     }
@@ -3031,9 +3031,10 @@ public class ARScannedElementPane extends ARPane {
         Labels.initializeLabelsInSpecLang("en");
         Properties labelsValue = Labels.labelsValue;
 
-        String baseLogString = currentBotJobName + ARConstants.FIELDS_SEPARATOR + labelsValue.getProperty(Labels.START);
+        String baseLogString =
+                currentBotJobName + ARConstantsEngine.FIELDS_SEPARATOR + labelsValue.getProperty(Labels.START);
 
-        logOperations.info(baseLogString);
+        logLaunch.info(baseLogString);
 
         ExcelWriter.ExcelChain writerReport =
                 new ExcelWriter(currentBotJobName, performActions.getCurrentDriver(), false).withPurpose("report");
@@ -3160,7 +3161,7 @@ public class ARScannedElementPane extends ARPane {
                                             blockStartTime,
                                             blockReportName,
                                             success,
-                                            new String[] {ARConstants.GOTO},
+                                            new String[] {ARConstantsEngine.GOTO},
                                             msgBlock,
                                             dataExcel,
                                             writerReport,
@@ -3169,7 +3170,7 @@ public class ARScannedElementPane extends ARPane {
 
                                     msgBlock = new FieldData(
                                             String.format("Exit at Block Name: \"%s\"", blockLoad.getName()),
-                                            ARConstants.EXIT);
+                                            ARConstantsEngine.EXIT);
 
                                     // Excel Report and Log
                                     performActions.logAndReport(
@@ -3179,15 +3180,14 @@ public class ARScannedElementPane extends ARPane {
                                             blockStartTime,
                                             blockReportName,
                                             success,
-                                            new String[] {ARConstants.EXIT},
+                                            new String[] {ARConstantsEngine.EXIT},
                                             msgBlock,
                                             dataExcel,
                                             writerReport,
                                             "Stopping App",
                                             String.format("Exit at Block Name: \"%s\"", blockName));
 
-                                    //                                    performActions.gotoLimitExecution(limit,
-                                    // resultActions);
+                                    // performActions.gotoLimitExecution(limit, resultActions);
 
                                     continue blockLoop;
                                 }
@@ -3198,8 +3198,8 @@ public class ARScannedElementPane extends ARPane {
                     if (!blockActive) {
                         currentBlockOrder++;
 
-                        FieldData msgBlock =
-                                new FieldData(String.format("Ignore: \"%s\"", blockLoad.getName()), ARConstants.IGNORE);
+                        FieldData msgBlock = new FieldData(
+                                String.format("Ignore: \"%s\"", blockLoad.getName()), ARConstantsEngine.IGNORE);
 
                         // Excel Report and Log
                         performActions.logAndReport(
@@ -3209,7 +3209,7 @@ public class ARScannedElementPane extends ARPane {
                                 blockStartTime,
                                 blockReportName,
                                 success,
-                                new String[] {ARConstants.IGNORE},
+                                new String[] {ARConstantsEngine.IGNORE},
                                 msgBlock,
                                 dataExcel,
                                 writerReport,
@@ -3221,7 +3221,7 @@ public class ARScannedElementPane extends ARPane {
 
                     try {
 
-                        FieldData msgBlock = new FieldData(blockLoad.getName(), ARConstants.EXCEL_BLOCK_HEADER);
+                        FieldData msgBlock = new FieldData(blockLoad.getName(), ARConstantsEngine.EXCEL_BLOCK_HEADER);
 
                         // Block Header Format
                         performActions.logAndReport(
@@ -3231,7 +3231,7 @@ public class ARScannedElementPane extends ARPane {
                                 blockStartTime,
                                 blockReportName,
                                 success,
-                                new String[] {ARConstants.EXCEL_BLOCK_HEADER},
+                                new String[] {ARConstantsEngine.EXCEL_BLOCK_HEADER},
                                 msgBlock,
                                 null,
                                 writerReport,
@@ -3242,7 +3242,7 @@ public class ARScannedElementPane extends ARPane {
 
                         msgBlock = new FieldData(
                                 String.format("Default Wait: \"%s\" ->  %d Seconds", blockLoad.getName(), blockWait),
-                                ARConstants.HOLD);
+                                ARConstantsEngine.HOLD);
 
                         // Excel Report and Log
                         performActions.logAndReport(
@@ -3252,7 +3252,7 @@ public class ARScannedElementPane extends ARPane {
                                 blockStartTime,
                                 blockReportName,
                                 success,
-                                new String[] {ARConstants.HOLD},
+                                new String[] {ARConstantsEngine.HOLD},
                                 msgBlock,
                                 dataExcel,
                                 writerReport,
@@ -3329,8 +3329,8 @@ public class ARScannedElementPane extends ARPane {
 
                                 String nameInstruc =
                                         "(" + currentInstruction.getId() + ") " + currentInstruction.getName();
-                                FieldData msgBlock =
-                                        new FieldData(String.format("Ignore: \"%s\"", nameInstruc), ARConstants.IGNORE);
+                                FieldData msgBlock = new FieldData(
+                                        String.format("Ignore: \"%s\"", nameInstruc), ARConstantsEngine.IGNORE);
 
                                 // Excel Report and Log
                                 performActions.logAndReport(
@@ -3340,7 +3340,7 @@ public class ARScannedElementPane extends ARPane {
                                         blockStartTime,
                                         blockReportName,
                                         success,
-                                        new String[] {ARConstants.IGNORE},
+                                        new String[] {ARConstantsEngine.IGNORE},
                                         msgBlock,
                                         dataExcel,
                                         writerReport,
@@ -3425,18 +3425,19 @@ public class ARScannedElementPane extends ARPane {
                             //                        String[] operation =
                             // UtilsMethods.splitIfContains(instruction.getOperation(),
                             // ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
-                            String[] actions =
-                                    currentInstruction.getActions().split(ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
+                            String[] actions = currentInstruction
+                                    .getActions()
+                                    .split(ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER);
                             String[] operations = currentInstruction.getOperation() != null
                                     ? currentInstruction
                                             .getOperation()
-                                            .split(ARConstants.ACTION_SPECIFICATIONS_SPLITTER)
+                                            .split(ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER)
                                     : null;
 
-                            if (actions[0].equalsIgnoreCase(ARConstants.IF)
-                                    || actions[0].equalsIgnoreCase(ARConstants.ELSEIF)
-                                    || actions[0].equalsIgnoreCase(ARConstants.ELSE)
-                                    || actions[0].equalsIgnoreCase(ARConstants.ENDIF)) {
+                            if (actions[0].equalsIgnoreCase(ARConstantsEngine.IF)
+                                    || actions[0].equalsIgnoreCase(ARConstantsEngine.ELSEIF)
+                                    || actions[0].equalsIgnoreCase(ARConstantsEngine.ELSE)
+                                    || actions[0].equalsIgnoreCase(ARConstantsEngine.ENDIF)) {
                                 currentCondition = ARExecution.ConditionStatus.valueOf(actions[0]);
                                 if (previousCondition.equals(ARExecution.ConditionStatus.NONE)) {
                                     previousCondition = currentCondition;
@@ -3480,7 +3481,8 @@ public class ARScannedElementPane extends ARPane {
 
                             // Case for Inputs
                             String valueInsert = "CHANGE ME";
-                            if (actions[0].equals(ARConstants.INSERT) && actions[1].equals(ARConstants.ENTER)) {
+                            if (actions[0].equals(ARConstantsEngine.INSERT)
+                                    && actions[1].equals(ARConstantsEngine.ENTER)) {
                                 String reference = actions[2];
                                 valueInsert = dataExcel.get(reference);
                             } else if (actions[0].equals(ARConstantsEngine.INSERT)) {
@@ -4630,12 +4632,11 @@ public class ARScannedElementPane extends ARPane {
             }
         }
 
-        logOperations.info(baseLogString);
+        logLaunch.info(baseLogString);
 
         if (resultActions.equalsIgnoreCase("Close Browser") || respModal.equals(ARExecution.DialogModal.STOP)) {
             currentARWebDriver.getCurrentDriver().quit();
         }
-        logOperations.info(baseLogString);
 
         shutDownExecutorService(executorServicePreLaunch);
         performActions.setInterceptBotJob(true);
