@@ -39,6 +39,7 @@ public class ExcelUtils {
 
     public static void createExcelDataFile(BotJobLoadDTO selectedBotJob, String nameToDuplicate) {
         if (selectedBotJob == null) {
+            log.error("Not Able to Create an Excel File.The selected Bot Job s null");
             performMessage.errorMessage(
                     "Not Able to Create an Excel File",
                     "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to create an Excel file!</span>",
@@ -65,14 +66,7 @@ public class ExcelUtils {
         }
 
         if (errorMessage != null) {
-            performMessage.errorMessage(
-                    errorMessage.getErrorTitle(),
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                            + errorMessage.getErrorHeader(),
-                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                    null,
-                    0);
+            performMessage.errorMessageOperationFailed(errorMessage);
         }
 
         // Check if the Excel file already exists
@@ -118,6 +112,7 @@ public class ExcelUtils {
             try {
                 extractedData = excelReader.extractData(fileName, allActions);
             } catch (Exception e) {
+                log.error("Excel File Error. Check All Excel Columns and Values!");
                 performMessage.errorMessage(
                         "Excel File Error", "Check All Excel Columns and Values!", null, null, null, 0);
                 return null;
@@ -175,20 +170,21 @@ public class ExcelUtils {
         if (openExcel) {
             try {
                 Desktop.getDesktop().open(file);
-            } catch (IOException e) {
+            } catch (IOException error) {
                 //                new ARAlertScene(
                 //                        Alert.AlertType.ERROR,
                 //                        "Couldn't open the file",
                 //                        "The file could not be opened. Reason: " + e,
                 //                        ButtonType.OK);
+                log.error("Error: Excel File: {} - {}", file.getAbsolutePath(), error.getMessage());
 
                 performMessage.errorMessage(
-                        "Excel File Opening Error",
+                        "Excel File Error",
                         "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Couldn't open the file!</span>",
                         "<span style='color: #E65100; font-weight: bold;'>File:</span> <span style='font-weight: bold;'>"
                                 + file.getAbsolutePath() + "</span>",
                         "<span style='font-style: italic;'>The application was unable to access or read the file. It might be in use or you lack permissions.</span>",
-                        "<span style='font-style: italic;'>Details: " + e.getMessage() + "</span>",
+                        "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
                         0);
             }
         }
@@ -429,11 +425,12 @@ public class ExcelUtils {
             FileOutputStream fileOutputStream = new FileOutputStream(file);
             workbook.write(fileOutputStream);
             fileOutputStream.close();
-        } catch (IOException e) {
+        } catch (IOException error) {
+            log.error("Excel file generation failed. Error: {}", error.getMessage());
             performMessage.errorMessage(
                     "Excel file generation failed",
                     "There was a problem with the excel file generation.",
-                    "Reason: " + e.getMessage(),
+                    "Reason: " + error.getMessage(),
                     null,
                     null,
                     0);

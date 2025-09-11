@@ -423,6 +423,7 @@ public class ARLicensePane extends ARPane {
                         }
                     }
                 } catch (Exception error) {
+                    log.error("License Activation Error: {} ->  {}", fileFolder, error.getMessage());
                     performMessage.errorMessage(
                             "License Activation Error",
                             "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>An error occurred during the license activation or verification process.</span>",

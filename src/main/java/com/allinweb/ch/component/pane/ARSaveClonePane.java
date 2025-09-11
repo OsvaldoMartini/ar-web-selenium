@@ -79,11 +79,16 @@ public class ARSaveClonePane extends ARPane {
             newUrl.setText(selecBotJobDTO.getHomeBankingLoadDTO().getUrl());
         }
 
+        ErrorMessage errorMessage = null;
         if (performLists.getListHomeBanking().isEmpty()) {
-            performDBEngine.loadHomeBanking(null);
+            errorMessage = performDBEngine.loadHomeBanking(null);
         }
-        if (performLists.getListHomeUrl().isEmpty()) {
-            performDBEngine.loadHomeUrls(null);
+        if (errorMessage == null && performLists.getListHomeUrl().isEmpty()) {
+            errorMessage = performDBEngine.loadHomeUrls(null);
+        }
+
+        if (errorMessage != null) {
+            performMessage.errorMessageOperationFailed(errorMessage);
         }
     }
 
@@ -221,11 +226,16 @@ public class ARSaveClonePane extends ARPane {
             if (isEnabledLicence && !checkLicense()) {
                 return;
             }
+            ErrorMessage errorMessage = null;
             if (performLists.getListHomeBanking().isEmpty()) {
-                performDBEngine.loadHomeBanking(null);
+                errorMessage = performDBEngine.loadHomeBanking(null);
             }
-            if (performLists.getListHomeUrl().isEmpty()) {
-                performDBEngine.loadHomeUrls(null);
+            if (errorMessage == null && performLists.getListHomeUrl().isEmpty()) {
+                errorMessage = performDBEngine.loadHomeUrls(null);
+            }
+
+            if (errorMessage != null) {
+                performMessage.errorMessageOperationFailed(errorMessage);
             }
 
             HomeBankingLoadDTO homeBank = performLists.getFirstHomeBanking();
@@ -444,17 +454,7 @@ public class ARSaveClonePane extends ARPane {
             if (newBotJobId != null) {
                 performDataBase.deleteBotJobData(newBotJobId);
             }
-
-            String errorType = "Database error";
-            String errorDetail = "Verify  [INSERT] or [UPDATE] or [SELECT]";
-
-            performMessage.errorMessage(
-                    "Error Encountered",
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> " + errorType,
-                    "<span style='font-style: italic;'>Detail:</span> " + errorDetail,
-                    null,
-                    0);
+            performMessage.errorMessageOperationFailed(errorMessage);
         }
 
         log.info("ARSaveClonePane Close()");

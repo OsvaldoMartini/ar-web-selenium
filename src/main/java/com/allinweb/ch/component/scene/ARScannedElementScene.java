@@ -348,7 +348,11 @@ public class ARScannedElementScene extends ARScene {
                                         && performLists.getListInstruction().isEmpty()
                                 || (tableName.equals("component_instruction")
                                         && performLists.getListInstructionComp().isEmpty())) {
-                            performDataBase.loadInstructions(whereId, -1, -1, tableName);
+
+                            ErrorMessage errorMessage = performDataBase.loadInstructions(whereId, -1, -1, tableName);
+                            if (errorMessage != null) {
+                                performMessage.errorMessageOperationFailed(errorMessage);
+                            }
                         }
 
                         InstructionLoad instruction = performLists.getInstructionById(
@@ -397,6 +401,7 @@ public class ARScannedElementScene extends ARScene {
             }
         } catch (Exception error) {
             if (error.getMessage().contains("invalid session id")) {
+                log.warn("Browser is Closed");
                 performMessage.errorMessage(
                         "Browser is Closed",
                         "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>To perform this action, please</span> ✅",
@@ -561,21 +566,24 @@ public class ARScannedElementScene extends ARScene {
                             webDriverPath.substring(0, lastSlashIndex + 1); // includes the last backslash
                     String fileName = webDriverPath.substring(lastSlashIndex + 1);
 
+                    log.error("Invalid URL or Navigation Error: {} - {} - {}", browser, directoryPath, fileName);
                     performMessage.errorMessage(
-                            "WebDriver Version Incompatibility",
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>WebDriver version might be incompatible.</span>",
+                            "Invalid URL or Navigation Error",
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>The provided URL is invalid or cannot be reached.</span>",
                             "<span style='font-weight: bold;'>Please verify the following:</span>",
                             "<ul>"
-                                    + "   <li>The installed browser version: <span style='color: #008b8b ; font-weight: bold;'>"
+                                    + "   <li>The entered URL is valid and accessible.</li>"
+                                    + "   <li>The installed browser version: <span style='color: #008b8b; font-weight: bold;'>"
                                     + browser + "</span></li>"
-                                    + "   <li>The WebDriver path:<br><span style='color: #008b8b ; font-weight: bold;'>"
+                                    + "   <li>The WebDriver path:<br><span style='color: #008b8b; font-weight: bold;'>"
                                     + directoryPath + "</span></li>"
-                                    + "<li>The WebDriver file:<br><span style='color: #008b8b ; font-weight: bold;'>"
+                                    + "   <li>The WebDriver file:<br><span style='color: #008b8b; font-weight: bold;'>"
                                     + fileName + "</span></li>"
-                                    + "   <li>Ensure the WebDriver version is the correct one for your browser version.</li>"
+                                    + "   <li>Ensure the WebDriver and browser are compatible and correctly configured.</li>"
                                     + "</ul>",
-                            "<span style='font-style: italic;'>Refer to your browser's documentation or the WebDriver's release notes for compatibility information.</span>",
+                            "<span style='font-style: italic;'>Check the URL format (e.g., including https://) and review browser/WebDriver logs for more details.</span>",
                             0);
+
                 } else {
 
                     log.error("Scanner Pane showModal error:" + error.getMessage());
@@ -653,6 +661,10 @@ public class ARScannedElementScene extends ARScene {
 
                 if (instructionList.size()
                         != performDataBase.getIdsInstrucAfter().size()) {
+                    log.error(
+                            "Error Inserting ALL Elements - Expected (from list):{} - Actual (inserted): {}",
+                            instructionList.size(),
+                            performDataBase.getIdsInstrucAfter().size());
                     performMessage.errorMessage(
                             "Error Inserting ALL Elements",
                             "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Batch Insertion Failed ❌</span>",
@@ -682,14 +694,7 @@ public class ARScannedElementScene extends ARScene {
                 sendStatusButton();
 
                 if (errorMessage != null) {
-                    performMessage.errorMessage(
-                            errorMessage.getErrorTitle(),
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                    + errorMessage.getErrorTitle(),
-                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                            null,
-                            0);
+                    performMessage.errorMessageOperationFailed(errorMessage);
                 }
             }
         } else {
@@ -733,7 +738,8 @@ public class ARScannedElementScene extends ARScene {
             TargetElement targetValidated = checkValidateSearchPriorities(targetLocal);
 
             if (targetValidated.getElement() == null) {
-
+                log.error(
+                        "I Cannot define this element. Try to get it again -> \"HOVER PICK  ELEMENT\" or \"PICK ONE \"");
                 performMessage.errorMessage(
                         "I Cannot define this element",
                         "I will use the Locator \"COORDINATES\"",
@@ -857,14 +863,7 @@ public class ARScannedElementScene extends ARScene {
     public void updateBotJobTasks(int currentBotJobId) {
         ErrorMessage errorMessage = performDBEngine.loadCompleteJobs(currentBotJobId);
         if (errorMessage != null) {
-            performMessage.errorMessage(
-                    errorMessage.getErrorTitle(),
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                            + errorMessage.getErrorHeader(),
-                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                    null,
-                    0);
+            performMessage.errorMessageOperationFailed(errorMessage);
             return;
         }
 

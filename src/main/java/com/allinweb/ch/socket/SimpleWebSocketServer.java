@@ -282,7 +282,12 @@ public class SimpleWebSocketServer {
                         : performLists.getListBlockComp())
                 .stream().map(BlockLoadDTO::getId).filter(Objects::nonNull).toList();
 
-        performDataBase.loadInstructions(whereId, -1, -1, instrTable);
+        if (errorMessage == null) {
+            errorMessage = performDataBase.loadInstructions(whereId, -1, -1, instrTable);
+        }
+        if (errorMessage != null) {
+            performMessage.errorMessageOperationFailed(errorMessage);
+        }
 
         try {
             List<BotJobLoadDTO> listBotJob =
@@ -758,28 +763,14 @@ public class SimpleWebSocketServer {
         }
 
         if (errorMessage != null) {
-            performMessage.errorMessage(
-                    errorMessage.getErrorTitle(),
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                            + errorMessage.getErrorHeader(),
-                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                    null,
-                    0);
+            performMessage.errorMessageOperationFailed(errorMessage);
         }
 
         if (!alreadySentMgsSocket && (sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
             if (performLists.getListBotJob().isEmpty()) {
                 errorMessage = performDBEngine.loadCompleteJobs(botJobIdTask);
                 if (errorMessage != null) {
-                    performMessage.errorMessage(
-                            errorMessage.getErrorTitle(),
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                    + errorMessage.getErrorHeader(),
-                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                            null,
-                            0);
+                    performMessage.errorMessageOperationFailed(errorMessage);
                 }
             }
         } else if (!alreadySentMgsSocket
@@ -787,14 +778,7 @@ public class SimpleWebSocketServer {
             if (performLists.getListBotJobComp().isEmpty()) {
                 errorMessage = performDataBase.loadComponentsComplete(homeBankingId, botJobIdTask, botJobNameTask);
                 if (errorMessage != null) {
-                    performMessage.errorMessage(
-                            errorMessage.getErrorTitle(),
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                    + errorMessage.getErrorHeader(),
-                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                            null,
-                            0);
+                    performMessage.errorMessageOperationFailed(errorMessage);
                 }
             }
         }
@@ -984,25 +968,11 @@ public class SimpleWebSocketServer {
                 }
 
                 if (errorMessage != null) {
-                    performMessage.errorMessage(
-                            errorMessage.getErrorTitle(),
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                    + errorMessage.getErrorHeader(),
-                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                            null,
-                            0);
+                    performMessage.errorMessageOperationFailed(errorMessage);
                 }
             }
         } else {
-            performMessage.errorMessage(
-                    errorMessage.getErrorTitle(),
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                            + errorMessage.getErrorHeader(),
-                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                    null,
-                    0);
+            performMessage.errorMessageOperationFailed(errorMessage);
         }
 
         //        performDataBase.loadBlocks(blockSplitDTO.getBotJobId(), "", "block");
@@ -1030,14 +1000,7 @@ public class SimpleWebSocketServer {
         }
 
         if (errorMessage != null) {
-            performMessage.errorMessage(
-                    errorMessage.getErrorTitle(),
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                            + errorMessage.getErrorHeader(),
-                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                    null,
-                    0);
+            performMessage.errorMessageOperationFailed(errorMessage);
         }
 
         if (!splitDTO.getType().equals("INSERT_BEFORE_ELSEIF")
@@ -1144,14 +1107,7 @@ public class SimpleWebSocketServer {
 
             errorMessage = performDBEngine.loadCompleteJobs(blockDetailsDTO.getBotJobId());
             if (errorMessage != null) {
-                performMessage.errorMessage(
-                        errorMessage.getErrorTitle(),
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                + errorMessage.getErrorHeader(),
-                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                        null,
-                        0);
+                performMessage.errorMessageOperationFailed(errorMessage);
             }
 
             String jsonData = "[]";

@@ -184,14 +184,7 @@ public class ARNewCommandScene extends ARScene {
                     }
                     ErrorMessage errorMessage = arNewCommandPane.reloadDBBlocks(blockMoveDTO.getBotJobId(), "block");
                     if (errorMessage != null) {
-                        performMessage.errorMessage(
-                                errorMessage.getErrorTitle(),
-                                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                                "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                        + errorMessage.getErrorHeader(),
-                                "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                                null,
-                                0);
+                        performMessage.errorMessageOperationFailed(errorMessage);
                     }
                     break;
                 case "UPDATE_BLOCKS_COMP":
@@ -206,14 +199,7 @@ public class ARNewCommandScene extends ARScene {
 
                     errorMessage = arNewCommandPane.reloadDBBlocks(blockMoveDTO.getHomeBankingId(), "component_block");
                     if (errorMessage != null) {
-                        performMessage.errorMessage(
-                                errorMessage.getErrorTitle(),
-                                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                                "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                        + errorMessage.getErrorHeader(),
-                                "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                                null,
-                                0);
+                        performMessage.errorMessageOperationFailed(errorMessage);
                     }
 
                     break;
@@ -252,20 +238,12 @@ public class ARNewCommandScene extends ARScene {
                             previousBlock = blockUpdate;
                         }
 
-                        performDataBase.preDeleteNullBlocks(blockTable, whereId, instTable);
-
-                        errorMessage = arNewCommandPane.reloadDBBlocks(whereId, blockTable);
-
+                        errorMessage = performDataBase.preDeleteNullBlocks(blockTable, whereId, instTable);
+                        if (errorMessage == null) {
+                            errorMessage = arNewCommandPane.reloadDBBlocks(whereId, blockTable);
+                        }
                         if (errorMessage != null) {
-                            performMessage.errorMessage(
-                                    errorMessage.getErrorTitle(),
-                                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                            + errorMessage.getErrorHeader(),
-                                    "<span style='font-style: italic;'>Detail:</span> "
-                                            + errorMessage.getErrorMessage(),
-                                    null,
-                                    0);
+                            performMessage.errorMessageOperationFailed(errorMessage);
                         }
 
                         initialize(splitDTO);

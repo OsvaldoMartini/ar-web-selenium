@@ -233,7 +233,7 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
             performMessage.showCustomModalDialogDragWin11(
                     "Action Delete Bot-Job",
                     "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>Operation Successful!</span> ✅",
-                    "<span style='color: #388E3C; font-weight: bold;'>Success:</span> Bot Job Deletion",
+                    "<span style='color: #388E3C; font-weight: bold;'>Success:</span> Bot Job Deleted",
                     "<span style='color: #2E7D32; font-weight: bold;'>" + botJob.getName() + "</span>",
                     "<span style='font-style: italic;'>Detail:</span> The Bot Job \"" + botJob.getName()
                             + "\" was deleted successfully!",
@@ -242,13 +242,7 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
                     null,
                     0);
         } else {
-            performMessage.errorMessage(
-                    errorMessage.getErrorTitle(),
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> Bot Job Deletion Error",
-                    "<span style='color: #2E7D32; font-weight: bold;'>" + errorMessage.getErrorHeader() + "</span>",
-                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                    0);
+            performMessage.errorMessageOperationFailed(errorMessage);
             //            performDataBase.updateStatusBotJob(botJob.getId(), 0);
         }
     }

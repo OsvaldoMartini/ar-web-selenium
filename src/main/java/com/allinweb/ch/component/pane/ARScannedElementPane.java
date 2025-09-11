@@ -61,7 +61,8 @@ import org.slf4j.LoggerFactory;
 @Slf4j
 public class ARScannedElementPane extends ARPane {
 
-    private static final Logger specialLog = LoggerFactory.getLogger("com.allinweb.special");
+    private static final Logger launchLog = LoggerFactory.getLogger("com.allinweb.scanner.launch");
+    private static final Logger logOperations = LoggerFactory.getLogger("com.allinweb.operations");
 
     private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
     private static final String END_OF_FILE_MARKER = "END OF FILE";
@@ -322,7 +323,7 @@ public class ARScannedElementPane extends ARPane {
     private static void printLog(String resultActions, boolean result) {
         String resultMsg = result ? ARConstants.SUCCESS : ARConstants.FAIL;
         String log = String.join(ARConstants.FIELDS_SEPARATOR, resultMsg, resultActions);
-        specialLog.info(log);
+        launchLog.info(log);
     }
 
     /**
@@ -1192,6 +1193,7 @@ public class ARScannedElementPane extends ARPane {
         if (majorVersion >= 17) {
             log.info("✅ Java 17 or higher is installed.");
         } else {
+            log.error("Compatibility Issue: Incompatible Java Version");
             performMessage.errorMessage(
                     "Compatibility Issue: Incompatible Java Version",
                     "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: Your Java version is lower than the required 17!</span>",
@@ -1251,6 +1253,7 @@ public class ARScannedElementPane extends ARPane {
 
         String webDriverPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
         if (!(new File(webDriverPath)).exists()) {
+            log.error("Action Required: Missing WebDriver");
             performMessage.errorMessage(
                     "Action Required: Missing WebDriver",
                     "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: The WebDriver file is missing!</span>",
@@ -1903,14 +1906,7 @@ public class ARScannedElementPane extends ARPane {
 
             if (errorMessage != null) {
                 log.error("Error: " + errorMessage.getErrorMessage());
-                performMessage.errorMessage(
-                        errorMessage.getErrorTitle(),
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                + errorMessage.getErrorHeader(),
-                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                        null,
-                        0);
+                performMessage.errorMessageOperationFailed(errorMessage);
             }
 
             if (performLists.getListBotJob().isEmpty()) {
@@ -1940,6 +1936,7 @@ public class ARScannedElementPane extends ARPane {
             try {
                 extractedData = excelReader.extractData(excelPath, performLists.getAllActions());
             } catch (Exception error) {
+                log.error("Error Processing Excel File");
                 performMessage.errorMessage(
                         "Error Processing Excel File",
                         "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to Execute Excel File!</span> ⚠️",
@@ -2342,13 +2339,18 @@ public class ARScannedElementPane extends ARPane {
         if (errorMessage != null) {
             String[] lines = errorMessage.getErrorMessage().split("\n");
 
-            performMessage.errorMessage(
+            log.error(
+                    "Error: Dynamic Pick One Clone ElementsDTO - {} - {} - {}",
                     errorMessage.getErrorTitle(),
                     errorMessage.getErrorHeader(),
-                    (!Strings.isNullOrEmpty(lines[0]) ? lines[0] : null),
-                    (!Strings.isNullOrEmpty(lines[0]) ? lines[1] : null),
-                    null,
-                    0);
+                    errorMessage.getErrorMessage());
+            //            performMessage.errorMessage(
+            //                    errorMessage.getErrorTitle(),
+            //                    errorMessage.getErrorHeader(),
+            //                    (!Strings.isNullOrEmpty(lines[0]) ? lines[0] : null),
+            //                    (!Strings.isNullOrEmpty(lines[0]) ? lines[1] : null),
+            //                    null,
+            //                    0);
         }
     }
 
@@ -2376,13 +2378,18 @@ public class ARScannedElementPane extends ARPane {
         if (errorMessage != null) {
             String[] lines = errorMessage.getErrorMessage().split("\n");
 
-            performMessage.errorMessage(
+            log.error(
+                    "Error: Dynamic Pick One Clone ElementsDTO - {} - {} - {}",
                     errorMessage.getErrorTitle(),
                     errorMessage.getErrorHeader(),
-                    (!Strings.isNullOrEmpty(lines[0]) ? lines[0] : null),
-                    (!Strings.isNullOrEmpty(lines[0]) ? lines[1] : null),
-                    null,
-                    0);
+                    errorMessage.getErrorMessage());
+            //            performMessage.errorMessage(
+            //                    errorMessage.getErrorTitle(),
+            //                    errorMessage.getErrorHeader(),
+            //                    (!Strings.isNullOrEmpty(lines[0]) ? lines[0] : null),
+            //                    (!Strings.isNullOrEmpty(lines[0]) ? lines[1] : null),
+            //                    null,
+            //                    0);
         }
     }
 
@@ -2568,6 +2575,7 @@ public class ARScannedElementPane extends ARPane {
 
     private void browserNotAttached() {
         String webDriverPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
+        log.error("Error: The Browser attached with this Web Scanner is Not Active");
         performMessage.errorMessage(
                 "The Browser attached with this Web Scanner is Not Active",
                 "<span style='font-style: italic;'>Session deleted as the browser has closed the connection!</span>",
@@ -2976,14 +2984,7 @@ public class ARScannedElementPane extends ARPane {
                 }
             } else {
 
-                performMessage.errorMessage(
-                        errorMessage.getErrorTitle(),
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                + errorMessage.getErrorTitle(),
-                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                        null,
-                        0);
+                performMessage.errorMessageOperationFailed(errorMessage);
             }
         }
         return -1;
@@ -3032,7 +3033,7 @@ public class ARScannedElementPane extends ARPane {
 
         String baseLogString = currentBotJobName + ARConstants.FIELDS_SEPARATOR + labelsValue.getProperty(Labels.START);
 
-        log.info(baseLogString);
+        logOperations.info(baseLogString);
 
         ExcelWriter.ExcelChain writerReport =
                 new ExcelWriter(currentBotJobName, performActions.getCurrentDriver(), false).withPurpose("report");
@@ -3260,7 +3261,7 @@ public class ARScannedElementPane extends ARPane {
 
                     } catch (Exception ex) {
 
-                        log.error(String.format("Error Wait Block for :\"%s\"", blockLoad.getName()));
+                        logOperations.error(String.format("Error Wait Block for :\"%s\"", blockLoad.getName()));
                     }
 
                     // Step 1: Get all ParentIds For LOOPs Filter rows where actions = "REFRESH_LOOP" or "LOOP" on
@@ -3322,7 +3323,7 @@ public class ARScannedElementPane extends ARPane {
                             byPassFlagLoop = parentIdsForLoop.contains(currentInstruction.getId());
 
                             mainMsg =
-                                    currentInstruction.getOptional() ? "OPTIONAL INSTRUCTION" : "MANDATORY INSTRUCTION";
+                                    currentInstruction.getOptional() ? "optional instruction" : "mandatory instruction";
 
                             if (!currentInstruction.getInstructionActive()) {
 
@@ -3815,7 +3816,7 @@ public class ARScannedElementPane extends ARPane {
                                         if (repeat > 0) {
                                             mapLoops.put(parentFieldLoop, repeat);
 
-                                            log.info(String.format(
+                                            logOperations.info(String.format(
                                                     "Loop to Parent :\"%s\" - %d Times",
                                                     parts[0] + "-(" + parts[1] + ") " + parts[2],
                                                     mapLoops.get(parentFieldLoop)));
@@ -3914,7 +3915,7 @@ public class ARScannedElementPane extends ARPane {
                                             continue instructionLoop;
                                         } else {
 
-                                            log.info(String.format(
+                                            logOperations.info(String.format(
                                                     "IGNORING Loop to Parent :\"%s\" - %d Times",
                                                     parts[0] + "-(" + parts[1] + ") " + parts[2],
                                                     mapLoops.get(parentFieldLoop)));
@@ -4292,8 +4293,9 @@ public class ARScannedElementPane extends ARPane {
                                     failedMessage = "Failed: General Execution ";
                                     msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                 }
-
-                                performMessage.errorMessage(resultActions, msg1, msg2, msg3, null, 260);
+                                logOperations.error("Error: {} - {} - {} - {}", resultActions, msg1, msg2, msg3);
+                                //                                performMessage.errorMessage(resultActions, msg1, msg2,
+                                // msg3, null, 260);
                                 //                            throw new RuntimeException(t);
                             }
 
@@ -4627,12 +4629,12 @@ public class ARScannedElementPane extends ARPane {
             }
         }
 
-        log.info(baseLogString);
+        logOperations.info(baseLogString);
 
         if (resultActions.equalsIgnoreCase("Close Browser") || respModal.equals(ARExecution.DialogModal.STOP)) {
             currentARWebDriver.getCurrentDriver().quit();
         }
-        log.info(baseLogString);
+        logOperations.info(baseLogString);
 
         shutDownExecutorService(executorServicePreLaunch);
         performActions.setInterceptBotJob(true);

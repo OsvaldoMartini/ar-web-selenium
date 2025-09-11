@@ -363,15 +363,7 @@ public class ARControlPanel extends Application {
                         if (errorMessage != null) {
                             log.error("Database Creation Error: " + errorMessage.getErrorMessage());
 
-                            performMessage.errorMessage(
-                                    errorMessage.getErrorTitle(),
-                                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> Database Creation Error",
-                                    "<span style='color: #2E7D32; font-weight: bold;'>" + errorMessage.getErrorHeader()
-                                            + "</span>",
-                                    "<span style='font-style: italic;'>Detail:</span> "
-                                            + errorMessage.getErrorMessage(),
-                                    0);
+                            performMessage.errorMessageOperationFailed(errorMessage);
                         }
                     }
                 } else {
@@ -386,7 +378,6 @@ public class ARControlPanel extends Application {
 
             } catch (Exception error) {
                 log.error("Database Creation Error: " + error.getMessage());
-
                 performMessage.errorMessage(
                         "Configuration Needed", // Using configurationFileName as the title
                         "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: Set the path for the Database!</span>",
@@ -428,6 +419,7 @@ public class ARControlPanel extends Application {
                 }
 
             } catch (Exception error) {
+                log.error("Database Creation Error: " + error.getMessage());
                 performMessage.errorMessage(
                         "Configuration Needed", // Using configurationFileName as the title
                         "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: Set the path for the Database!</span>",
@@ -449,7 +441,10 @@ public class ARControlPanel extends Application {
         }
 
         if (performDataBase.dbFailed) {
-
+            log.error(
+                    "Database connection Failed: {} -> {} ",
+                    performDataBase.getErrorMessage().getErrorHeader(),
+                    performDataBase.getErrorMessage().getErrorMessage());
             performMessage.errorMessage(
                     "Database connection Failed",
                     "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>An error occurred during the Database connection.</span>",

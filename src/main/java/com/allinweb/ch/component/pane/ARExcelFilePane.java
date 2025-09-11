@@ -380,7 +380,6 @@ public class ARExcelFilePane extends ARPane {
 
             if (Strings.isNullOrEmpty(fileName)) {
                 performMessage.errorMessage("File Name  Is Empty!", "Type  the File Name!", null, null, null, 0);
-
                 return;
             }
 
@@ -416,14 +415,7 @@ public class ARExcelFilePane extends ARPane {
                 performDataBase.updateBlockExportFile(blockTable, whereId, splitDTO.getBlockId(), exportFile);
 
         if (errorMessage != null) {
-            performMessage.errorMessage(
-                    errorMessage.getErrorTitle(),
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                            + errorMessage.getErrorHeader(),
-                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                    null,
-                    0);
+            performMessage.errorMessageOperationFailed(errorMessage);
         }
 
         if (errorMessage == null) {

@@ -11,10 +11,14 @@ import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.sqlite.SQLiteConfig;
 
 @Slf4j
 public class PerformDataBase {
+
+    private static final Logger logDB = LoggerFactory.getLogger("com.allinweb.scanner.database");
 
     public static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
     public static final PerformMessage performMessage = PerformMessage.getInstance();
@@ -93,7 +97,7 @@ public class PerformDataBase {
     //                conn = null; // Reset the connection to null after closing
     //                decrementOpenConnections();
     //            } catch (SQLException e) {
-    //                log.info(e.getMessage()); // Handle the exception, log it or rethrow it as needed
+    //                logDB.info(e.getMessage()); // Handle the exception, log it or rethrow it as needed
     //            }
     //        }
     //    }
@@ -101,13 +105,13 @@ public class PerformDataBase {
     // Increment open connections counter
     public synchronized void incrementOpenConnections() {
         openConnections++;
-        log.info("Open connections: " + openConnections);
+        logDB.info("Open connections: " + openConnections);
     }
 
     // Decrement open connections counter
     public synchronized void decrementOpenConnections() {
         openConnections--;
-        log.info("Open connections: " + openConnections);
+        logDB.info("Open connections: " + openConnections);
     }
 
     // Get the current open connections count
@@ -141,8 +145,8 @@ public class PerformDataBase {
                 String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
                 String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
 
-                log.info("POSTGRES connection URL: " + dbUrl);
-                // log.info("User Details: " + userDB + " - [PROTECTED]");
+                logDB.info("POSTGRES connection URL: " + dbUrl);
+                // logDB.info("User Details: " + userDB + " - [PROTECTED]");
 
                 Class.forName("org.postgresql.Driver");
                 Connection conn = DriverManager.getConnection(dbUrl, userDB, userPwd);
@@ -163,7 +167,7 @@ public class PerformDataBase {
                         + dbPath
                         + ARConstants.FILE_NAME_SQLITE; // make sure you have FILE_NAME_SQLITE constant
 
-                log.info("SQLITE connection URL: " + sqliteUrl);
+                logDB.info("SQLITE connection URL: " + sqliteUrl);
 
                 Class.forName("org.sqlite.JDBC");
 
@@ -187,7 +191,7 @@ public class PerformDataBase {
                 String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
                 String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
 
-                log.info("ACCESS connection URL: " + dbUrl);
+                logDB.info("ACCESS connection URL: " + dbUrl);
 
                 Class.forName("net.ucanaccess.jdbc.UcanaccessDriver");
                 Connection conn = DriverManager.getConnection(dbUrl);
@@ -203,7 +207,7 @@ public class PerformDataBase {
             }
 
         } catch (SQLException error) {
-            log.error("getConnection Error: " + error.getMessage());
+            logDB.error("getConnection Error: " + error.getMessage());
 
             String database = POSTGRES_DB ? "Postgres" : (SQLITE_DB ? "TEXT" : "Access");
             errorMessage.setErrorHeader(database);
@@ -213,7 +217,7 @@ public class PerformDataBase {
             dbFailed = true;
             throw error;
         } catch (ClassNotFoundException error) {
-            log.error("Driver DB Class not Found Error: " + error.getMessage());
+            logDB.error("Driver DB Class not Found Error: " + error.getMessage());
         }
 
         connDBWorks = false;
@@ -296,7 +300,7 @@ public class PerformDataBase {
 
         } catch (SQLException e) {
 
-            log.error(String.format(
+            logDB.error(String.format(
                     "Error loading parents for instruction ID %d in %s=%d. Error: %s",
                     instructionId, whereColumn, whereId, e.getMessage()));
 
@@ -368,14 +372,14 @@ public class PerformDataBase {
 
             conn.commit();
 
-            log.info(String.format(
+            logDB.info(String.format(
                     "Batch delete completed for %d variable records in %s", count, tableName.toUpperCase()));
 
             return null; // success
 
         } catch (SQLException e) {
 
-            log.error("Batch delete error for " + tableName + ": " + e.getMessage());
+            logDB.error("Batch delete error for " + tableName + ": " + e.getMessage());
             return new ErrorMessage(
                     "Delete Variables Error",
                     "Failed batch deletion for variables in table: " + tableName,
@@ -438,14 +442,14 @@ public class PerformDataBase {
 
             conn.commit();
 
-            log.info(String.format(
+            logDB.info(String.format(
                     "Batch delete completed for %d instruction records in %s", count, tableName.toUpperCase()));
 
             return null; // success
 
         } catch (SQLException e) {
 
-            log.error("Batch delete error for " + tableName + ": " + e.getMessage());
+            logDB.error("Batch delete error for " + tableName + ": " + e.getMessage());
             return new ErrorMessage(
                     "Delete Instructions Error",
                     "Failed batch deletion for instructions in table: " + tableName,
@@ -507,14 +511,14 @@ public class PerformDataBase {
 
             conn.commit();
 
-            log.info(String.format(
+            logDB.info(String.format(
                     "Batch delete completed for %d reference records in %s", count, tableName.toUpperCase()));
 
             return null; // success
 
         } catch (SQLException e) {
 
-            log.error("Batch delete error for " + tableName + ": " + e.getMessage());
+            logDB.error("Batch delete error for " + tableName + ": " + e.getMessage());
             return new ErrorMessage(
                     "Delete References Error",
                     "Failed batch deletion for references in table: " + tableName,
@@ -543,12 +547,12 @@ public class PerformDataBase {
 
                 if (rowsAffected > 0) {
 
-                    log.info(String.format(
+                    logDB.info(String.format(
                             "Deleted %d parents - parent ID %d in %s = %d",
                             rowsAffected, parentId, foreignKeyColumn, whereId));
                 } else {
 
-                    log.warn(String.format(
+                    logDB.warn(String.format(
                             "No parents found to delete - parent ID %d in %s = %d",
                             parentId, foreignKeyColumn, whereId));
                 }
@@ -556,7 +560,7 @@ public class PerformDataBase {
                 return null; // success
             } catch (SQLException e) {
 
-                log.error(String.format(
+                logDB.error(String.format(
                         "Error deleting parent ID %d in %s = %d. Error: %s",
                         parentId, foreignKeyColumn, whereId, e.getMessage()));
 
@@ -565,7 +569,7 @@ public class PerformDataBase {
             }
         } catch (SQLException ex) {
 
-            log.error(String.format(
+            logDB.error(String.format(
                     "Connection error while deleting parent ID %d in %s = %d. Error: %s",
                     parentId, foreignKeyColumn, whereId, ex.getMessage()));
 
@@ -620,7 +624,7 @@ public class PerformDataBase {
                         pstmt.executeBatch();
                         conn.commit();
 
-                        log.info("Executed batch of " + BATCH_SIZE + " block order updates for table: " + tableName);
+                        logDB.info("Executed batch of " + BATCH_SIZE + " block order updates for table: " + tableName);
                     }
                 }
 
@@ -629,7 +633,7 @@ public class PerformDataBase {
                     pstmt.executeBatch();
                     conn.commit();
 
-                    log.info("Executed final batch of " + (count % BATCH_SIZE) + " block order updates for table: "
+                    logDB.info("Executed final batch of " + (count % BATCH_SIZE) + " block order updates for table: "
                             + tableName);
                 }
 
@@ -637,14 +641,14 @@ public class PerformDataBase {
 
             } catch (SQLException e) {
 
-                log.error(String.format(
+                logDB.error(String.format(
                         "Error updating block order numbers in table '%s'. Error: %s", tableName, e.getMessage()));
                 return new ErrorMessage(
                         "Update Block Order Error", "Failed to update block order numbers", e.getMessage());
             }
         } catch (SQLException ex) {
 
-            log.error(String.format(
+            logDB.error(String.format(
                     "Connection error while updating block order numbers in table '%s'. Error: %s",
                     tableName, ex.getMessage()));
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
@@ -690,7 +694,7 @@ public class PerformDataBase {
                         pstmt.executeBatch();
                         conn.commit();
 
-                        log.info("Executed batch of " + BATCH_SIZE + " block order updates for table: " + tableName);
+                        logDB.info("Executed batch of " + BATCH_SIZE + " block order updates for table: " + tableName);
                     }
                 }
 
@@ -699,19 +703,19 @@ public class PerformDataBase {
                     pstmt.executeBatch();
                     conn.commit();
 
-                    log.info("Executed final batch of " + (count % BATCH_SIZE) + " block order updates for table: "
+                    logDB.info("Executed final batch of " + (count % BATCH_SIZE) + " block order updates for table: "
                             + tableName);
                 }
             } catch (SQLException e) {
 
-                log.error(String.format(
+                logDB.error(String.format(
                         "Error updating block order numbers in table '%s'. Error: %s", tableName, e.getMessage()));
                 return new ErrorMessage(
                         "Update Block Order Error", "Failed to update block order numbers", e.getMessage());
             }
         } catch (SQLException ex) {
 
-            log.error(String.format(
+            logDB.error(String.format(
                     "Connection error while updating block order numbers in table '%s'. Error: %s",
                     tableName, ex.getMessage()));
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
@@ -746,13 +750,13 @@ public class PerformDataBase {
 
                 if (rowsAffected > 0) {
 
-                    log.info(String.format(
+                    logDB.info(String.format(
                             "Updated block name in table %s - blockId %d, whereId %d, name: %s",
                             tableName, blockId, whereId, blockName));
                     return null; // success
                 } else {
 
-                    log.warn(String.format(
+                    logDB.warn(String.format(
                             "No record found to update in %s - blockId %d, whereId %d", tableName, blockId, whereId));
                     return new ErrorMessage(
                             "Update Block Name",
@@ -761,14 +765,14 @@ public class PerformDataBase {
                 }
             } catch (SQLException e) {
 
-                log.error(String.format(
+                logDB.error(String.format(
                         "Error updating block name in %s - blockId %d, whereId %d. Error: %s",
                         tableName, blockId, whereId, e.getMessage()));
                 return new ErrorMessage("Update Block Name", "Failed to update block name", e.getMessage());
             }
         } catch (SQLException ex) {
 
-            log.error(String.format(
+            logDB.error(String.format(
                     "Connection error while updating block name in %s - blockId %d, whereId %d. Error: %s",
                     tableName, blockId, whereId, ex.getMessage()));
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
@@ -794,12 +798,12 @@ public class PerformDataBase {
             pstmt.executeBatch();
             conn.commit();
 
-            log.info(String.format(
+            logDB.info(String.format(
                     "Block export file updated. Table: %s, BlockId: %d, WhereId: %d", blockTable, blockId, whereId));
 
         } catch (SQLException e) {
 
-            log.error(String.format(
+            logDB.error(String.format(
                     "Error updating block export file. Table: %s, BlockId: %d, Error: %s",
                     blockTable, blockId, e.getMessage()));
 
@@ -865,10 +869,10 @@ public class PerformDataBase {
             if (idsBlockAfter.size() == 1) {
                 int newId = idsBlockAfter.get(0);
 
-                log.info(String.format("Block data saved successfully in %s.\nBlockId: %d", tableName, newId));
+                logDB.info(String.format("Block data saved successfully in %s.\nBlockId: %d", tableName, newId));
             } else {
 
-                log.warn("Block inserted, but new ID could not be uniquely identified.");
+                logDB.warn("Block inserted, but new ID could not be uniquely identified.");
             }
 
             conn.commit(); // ✅ Commit transaction
@@ -876,7 +880,7 @@ public class PerformDataBase {
 
         } catch (SQLException error) {
 
-            log.error(String.format("Error Initiate New Block in %s: %s", tableName, error.getMessage()));
+            logDB.error(String.format("Error Initiate New Block in %s: %s", tableName, error.getMessage()));
             return new ErrorMessage("Error Initiate New Block", "Cannot create a new block", error.getMessage());
         }
     }
@@ -927,13 +931,13 @@ public class PerformDataBase {
             // Step 4: Keep only the new IDs
             idsBotJobAfter.removeAll(idsBefore);
 
-            log.info(String.format("BotJob inserted successfully. New IDs: %s", idsBotJobAfter));
+            logDB.info(String.format("BotJob inserted successfully. New IDs: %s", idsBotJobAfter));
 
             return null; // null means no error
 
         } catch (SQLException error) {
 
-            log.error(String.format("createNewBotJob - Error: %s", error.getMessage()));
+            logDB.error(String.format("createNewBotJob - Error: %s", error.getMessage()));
 
             return new ErrorMessage("Bot Job Insertion Error", "Error inserting a new bot job.", error.getMessage());
         }
@@ -962,7 +966,7 @@ public class PerformDataBase {
                         int[] rowsAffected = pstmt.executeBatch();
                         conn.commit();
 
-                        log.info("Executed batch of " + BATCH_SIZE + " updates for oldBlockId " + oldBlockId
+                        logDB.info("Executed batch of " + BATCH_SIZE + " updates for oldBlockId " + oldBlockId
                                 + " -> newBlockId " + newBlockId);
                     }
                 }
@@ -972,22 +976,22 @@ public class PerformDataBase {
                     int[] rowsAffected = pstmt.executeBatch();
                     conn.commit();
 
-                    log.info("Executed final batch of " + (count % BATCH_SIZE) + " updates for oldBlockId " + oldBlockId
-                            + " -> newBlockId " + newBlockId);
+                    logDB.info("Executed final batch of " + (count % BATCH_SIZE) + " updates for oldBlockId "
+                            + oldBlockId + " -> newBlockId " + newBlockId);
                 }
 
                 return null; // Success
             } catch (SQLException e) {
                 // rollback changes on error
 
-                log.error(String.format(
+                logDB.error(String.format(
                         "updateInstructionsSplitter - Error updating instructions from blockId %d to %d. Error: %s",
                         oldBlockId, newBlockId, e.getMessage()));
                 return new ErrorMessage("Update Error", "Failed to update instructions", e.getMessage());
             }
         } catch (SQLException ex) {
 
-            log.error(String.format(
+            logDB.error(String.format(
                     "Connection error while updating instructions from blockId %d to %d. Error: %s",
                     oldBlockId, newBlockId, ex.getMessage()));
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
@@ -1032,7 +1036,7 @@ public class PerformDataBase {
 
             return null; // success
         } catch (SQLException e) {
-            log.error("RowsGetUpdateName Error: " + e.getMessage());
+            logDB.error("RowsGetUpdateName Error: " + e.getMessage());
             return new ErrorMessage("RowsGetUpdateName Error", "Failed to update parent operations", e.getMessage());
         }
     }
@@ -1077,7 +1081,7 @@ public class PerformDataBase {
 
             return null; // success
         } catch (SQLException e) {
-            log.error("RowsGetUpdateName Error: " + e.getMessage());
+            logDB.error("RowsGetUpdateName Error: " + e.getMessage());
             return new ErrorMessage("RowsGetUpdateName Error", "Failed to update parent operations", e.getMessage());
         }
     }
@@ -1120,7 +1124,7 @@ public class PerformDataBase {
 
             return null; // success
         } catch (SQLException e) {
-            log.error("Update Instruction Name Error: " + e.getMessage());
+            logDB.error("Update Instruction Name Error: " + e.getMessage());
             return new ErrorMessage(
                     "Update Instruction Name Error", "Failed to update instruction names", e.getMessage());
         }
@@ -1163,7 +1167,7 @@ public class PerformDataBase {
 
             return null; // success
         } catch (SQLException error) {
-            log.error("Update Move Rows Order Error: " + error.getMessage());
+            logDB.error("Update Move Rows Order Error: " + error.getMessage());
             return new ErrorMessage(
                     "Update Move Rows Order Error", "Failed to update instruction order numbers", error.getMessage());
         }
@@ -1197,7 +1201,7 @@ public class PerformDataBase {
                         int[] rowsAffected = pstmt.executeBatch();
                         conn.commit();
 
-                        log.info("Executed batch of " + BATCH_SIZE + " updates for blockId " + splitDTO.getBlockId());
+                        logDB.info("Executed batch of " + BATCH_SIZE + " updates for blockId " + splitDTO.getBlockId());
                     }
                 }
 
@@ -1206,21 +1210,21 @@ public class PerformDataBase {
                     int[] rowsAffected = pstmt.executeBatch();
                     conn.commit();
 
-                    log.info("Executed final batch of " + (count % BATCH_SIZE) + " updates for blockId "
+                    logDB.info("Executed final batch of " + (count % BATCH_SIZE) + " updates for blockId "
                             + splitDTO.getBlockId());
                 }
 
                 return null; // Success
             } catch (SQLException e) {
 
-                log.error(String.format(
+                logDB.error(String.format(
                         "RollBackBlocks - Error updating BlockId %d. Error: %s",
                         splitDTO.getBlockId(), e.getMessage()));
                 return new ErrorMessage("RollBack Error", "Failed to roll back instructions", e.getMessage());
             }
         } catch (SQLException ex) {
 
-            log.error(String.format(
+            logDB.error(String.format(
                     "Connection error while rolling back BlockId %d. Error: %s",
                     splitDTO.getBlockId(), ex.getMessage()));
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
@@ -1240,18 +1244,18 @@ public class PerformDataBase {
             int rowsAffected = stmt.executeUpdate(updateSQL);
             if (rowsAffected > 0) {
 
-                log.warn(String.format(
+                logDB.warn(String.format(
                         "rollBackBlocksOrder - Block Order Reset for blockId: %d - Name: %s",
                         rollBackBlocksDTO.getBlockId(), rollBackBlocksDTO.getBlockName()));
             } else {
 
-                log.warn(String.format(
+                logDB.warn(String.format(
                         "RollBackBlocks - No matching record found to update for blockId: %d - Name: %s",
                         rollBackBlocksDTO.getBlockId(), rollBackBlocksDTO.getBlockName()));
             }
         } catch (SQLException e) {
 
-            log.error(String.format(
+            logDB.error(String.format(
                     "This BlockId '%d' - Name: %s \n cannot be updated.\nError: %s",
                     rollBackBlocksDTO.getBlockId(), rollBackBlocksDTO.getBlockName(), e.getMessage()));
             return;
@@ -1289,7 +1293,7 @@ public class PerformDataBase {
 
             if (errorMessage != null) {
 
-                log.error("Error: " + errorMessage.getErrorTitle() + "-" + errorMessage.getErrorMessage());
+                logDB.error("Error: " + errorMessage.getErrorTitle() + "-" + errorMessage.getErrorMessage());
             }
         }
 
@@ -1307,26 +1311,26 @@ public class PerformDataBase {
 
                 if (rowsAffected > 0) {
 
-                    log.info(String.format(
+                    logDB.info(String.format(
                             "The Block id %d has been successfully deleted from %s = %d.",
                             blockId, whereColumn, whereId));
                 } else {
 
-                    log.warn(String.format(
+                    logDB.warn(String.format(
                             "No matching record found for blockId %d in %s = %d.", blockId, whereColumn, whereId));
                 }
 
                 return null; // success
             } catch (SQLException e) {
 
-                log.error(String.format(
+                logDB.error(String.format(
                         "Error deleting blockId %d from %s = %d. Error: %s",
                         blockId, whereColumn, whereId, e.getMessage()));
                 return new ErrorMessage("Delete Block Error", "Failed to delete block", e.getMessage());
             }
         } catch (SQLException ex) {
 
-            log.error(String.format(
+            logDB.error(String.format(
                     "Connection error while deleting blockId %d from %s = %d. Error: %s",
                     blockId, whereColumn, whereId, ex.getMessage()));
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
@@ -1476,7 +1480,7 @@ public class PerformDataBase {
             }
         } catch (SQLException error) {
 
-            log.error(String.format(
+            logDB.error(String.format(
                     "Error loadComponentsComplete for Home Bank %d. Error: %s", homeBankingId, error.getMessage()));
             return new ErrorMessage(
                     "Error Loading Components Complete Job",
@@ -1510,7 +1514,7 @@ public class PerformDataBase {
 
                 if (instrId == null || blockId == null) {
 
-                    log.warn("Skipping reorder: instructionId or blockId is null.");
+                    logDB.warn("Skipping reorder: instructionId or blockId is null.");
                     continue;
                 }
 
@@ -1537,7 +1541,7 @@ public class PerformDataBase {
 
         } catch (SQLException e) {
 
-            log.error("Error batch updating instruction order numbers: " + e.getMessage());
+            logDB.error("Error batch updating instruction order numbers: " + e.getMessage());
             return new ErrorMessage(
                     "Reorder Error", "Failed to reorder instructions in table " + tableName, e.getMessage());
         }
@@ -1574,7 +1578,7 @@ public class PerformDataBase {
 
                         if (instrId == null || blockId == null) {
 
-                            log.warn("Skipping reorder: instructionId or blockId is null.");
+                            logDB.warn("Skipping reorder: instructionId or blockId is null.");
                             continue;
                         }
 
@@ -1604,7 +1608,7 @@ public class PerformDataBase {
 
         } catch (SQLException e) {
 
-            log.error("Error batch updating instruction order numbers: " + e.getMessage());
+            logDB.error("Error batch updating instruction order numbers: " + e.getMessage());
             return new ErrorMessage(
                     "Reorder Error", "Failed to reorder instructions in table " + tableName, e.getMessage());
         }
@@ -1645,7 +1649,7 @@ public class PerformDataBase {
                 int rowsAffected = pstmt.executeUpdate();
                 if (rowsAffected > 0) {
 
-                    log.info(String.format("Bot Job id %d successfully updated!", botJobId));
+                    logDB.info(String.format("Bot Job id %d successfully updated!", botJobId));
                 } else {
                     conn.commit(); // Commit even though nothing changed
                     return new ErrorMessage(
@@ -1658,12 +1662,12 @@ public class PerformDataBase {
                 return null; // Success, no error
             } catch (SQLException e) {
 
-                log.error(String.format("Error updating BotJobId %d. Error: %s", botJobId, e.getMessage()));
+                logDB.error(String.format("Error updating BotJobId %d. Error: %s", botJobId, e.getMessage()));
                 return new ErrorMessage("Bot Job Update Error", "Error updating Bot Job", e.getMessage());
             }
         } catch (SQLException ex) {
 
-            log.error(
+            logDB.error(
                     String.format("Connection error while updating BotJobId %d. Error: %s", botJobId, ex.getMessage()));
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
@@ -1679,15 +1683,15 @@ public class PerformDataBase {
             int rowsAffected = stmt.executeUpdate(updateSQL);
             if (rowsAffected > 0) {
 
-                log.info(String.format("The Status Bot Job  id %d has been successfully updated!", botJobId));
+                logDB.info(String.format("The Status Bot Job  id %d has been successfully updated!", botJobId));
             } else {
 
-                log.warn(String.format("No matching record found for botJobId %d.", botJobId));
+                logDB.warn(String.format("No matching record found for botJobId %d.", botJobId));
             }
             return true;
         } catch (SQLException e) {
 
-            log.error(String.format("Error updating Status for BotJobId ID %d. Error: %s", botJobId, e.getMessage()));
+            logDB.error(String.format("Error updating Status for BotJobId ID %d. Error: %s", botJobId, e.getMessage()));
         }
         return false;
     }
@@ -1715,11 +1719,11 @@ public class PerformDataBase {
                 blockLoadDTO.setBlockOrderNumber(rs.getInt("wait"));
             }
 
-            log.info(String.format("Fetched Block \"%s\"", blockLoadDTO.getName()));
+            logDB.info(String.format("Fetched Block \"%s\"", blockLoadDTO.getName()));
 
         } catch (SQLException e) {
 
-            log.error(String.format(
+            logDB.error(String.format(
                     "Error fetching Block ID %d with BotJob Id %d. Error: %s: ", blockId, botJobId, e.getMessage()));
         }
 
@@ -1749,11 +1753,11 @@ public class PerformDataBase {
                 blockLoadDTO.setBlockOrderNumber(rs.getInt("wait"));
             }
 
-            log.info(String.format("Fetched Block \"%s\"", blockLoadDTO.getName()));
+            logDB.info(String.format("Fetched Block \"%s\"", blockLoadDTO.getName()));
 
         } catch (SQLException e) {
 
-            log.error(String.format(
+            logDB.error(String.format(
                     "Error fetching Block ID %d with BotJob Id %d. Error: %s: ", blockId, botJobId, e.getMessage()));
         }
 
@@ -1848,7 +1852,7 @@ public class PerformDataBase {
             }
 
         } catch (SQLException e) {
-            log.error(String.format("Error loadQuickBotJobs: %s", e.getMessage()));
+            logDB.error(String.format("Error loadQuickBotJobs: %s", e.getMessage()));
             return new ErrorMessage("Failed to load Quick Bot Jobs", "Database query error", e.getMessage());
         }
 
@@ -1910,12 +1914,12 @@ public class PerformDataBase {
 
                 if (rowsAffected > 0) {
 
-                    log.info(String.format(
+                    logDB.info(String.format(
                             "Instruction status updated. Rows affected: %d (InstructionId: %d, BlockId: %d, Actions: %s, WhereId: %d)",
                             rowsAffected, instructionId, blockId, actions, whereId));
                 } else {
 
-                    log.warn(String.format(
+                    logDB.warn(String.format(
                             "No instruction updated (InstructionId: %d, BlockId: %d, Actions: %s, WhereId: %d)",
                             instructionId, blockId, actions, whereId));
                 }
@@ -1923,7 +1927,7 @@ public class PerformDataBase {
             } catch (SQLException e) {
                 conn.rollback(); // Rollback if failure
 
-                log.error(String.format(
+                logDB.error(String.format(
                         "Error updating instruction status. InstructionId: %d, Error: %s",
                         instructionId, e.getMessage()));
                 return new ErrorMessage(
@@ -1932,7 +1936,7 @@ public class PerformDataBase {
 
         } catch (SQLException ex) {
 
-            log.error(String.format(
+            logDB.error(String.format(
                     "Connection error while updating instruction status. InstructionId: %d, Error: %s",
                     instructionId, ex.getMessage()));
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
@@ -1974,12 +1978,12 @@ public class PerformDataBase {
 
                 if (rowsAffected > 0) {
 
-                    log.info(String.format(
+                    logDB.info(String.format(
                             "Block status updated. Table: %s, BlockId: %d, Active: %s",
                             tableName, blockId, blockActive));
                 } else {
 
-                    log.warn(String.format(
+                    logDB.warn(String.format(
                             "No block status updated. Table: %s, WhereId: %d, BlockId: %d",
                             tableName, whereId, blockId));
                 }
@@ -1987,14 +1991,14 @@ public class PerformDataBase {
             } catch (SQLException e) {
                 conn.rollback(); // Rollback if failure
 
-                log.error(String.format(
+                logDB.error(String.format(
                         "Error updating block status in table '%s'. Error: %s", tableName, e.getMessage()));
                 return new ErrorMessage("Update Block Status Error", "Failed to update block status", e.getMessage());
             }
 
         } catch (SQLException ex) {
 
-            log.error(String.format(
+            logDB.error(String.format(
                     "Connection error while updating block status in table '%s'. Error: %s",
                     tableName, ex.getMessage()));
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
@@ -2038,12 +2042,12 @@ public class PerformDataBase {
 
                 if (rowsAffected > 0) {
 
-                    log.info(String.format(
+                    logDB.info(String.format(
                             "Instruction status updated. Rows affected: %d (Table: %s, BlockId: %d, WhereId: %d)",
                             rowsAffected, tableName, blockId, whereId));
                 } else {
 
-                    log.warn(String.format(
+                    logDB.warn(String.format(
                             "No instruction statuses were updated (Table: %s, BlockId: %d, WhereId: %d)",
                             tableName, blockId, whereId));
                 }
@@ -2051,7 +2055,7 @@ public class PerformDataBase {
             } catch (SQLException e) {
                 conn.rollback(); // Roll back in case of error
 
-                log.error(String.format(
+                logDB.error(String.format(
                         "Error updating instruction status in table '%s'. Error: %s", tableName, e.getMessage()));
                 return new ErrorMessage(
                         "Update Instruction Status Error", "Failed to update instruction status", e.getMessage());
@@ -2059,7 +2063,7 @@ public class PerformDataBase {
 
         } catch (SQLException ex) {
 
-            log.error(String.format(
+            logDB.error(String.format(
                     "Connection error while updating instruction status in table '%s'. Error: %s",
                     tableName, ex.getMessage()));
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
@@ -2157,7 +2161,7 @@ public class PerformDataBase {
             }
         } catch (SQLException error) {
 
-            log.error(String.format(
+            logDB.error(String.format(
                     "Error loading blocks for %s id %d\nError: %s", tableName, whereId, error.getMessage()));
 
             return new ErrorMessage(
@@ -2307,7 +2311,7 @@ public class PerformDataBase {
 
             idsInstrucAfter.removeAll(idsBefore);
 
-            log.info(String.format(
+            logDB.info(String.format(
                     "Batch insert completed for %d %s records. New IDs: %s",
                     count, tableName.toUpperCase(), idsInstrucAfter));
 
@@ -2315,7 +2319,7 @@ public class PerformDataBase {
 
         } catch (SQLException error) {
 
-            log.error("Batch insert error for " + tableName + ": " + error.getMessage());
+            logDB.error("Batch insert error for " + tableName + ": " + error.getMessage());
             return new ErrorMessage(
                     "Instruction Insertion Error", "Error inserting batch instructions.", error.getMessage());
         }
@@ -2439,7 +2443,7 @@ public class PerformDataBase {
             // Step 4: Compute new inserted IDs
             idsInstrucAfter.removeAll(idsBefore);
 
-            log.info(String.format(
+            logDB.info(String.format(
                     "Batch insert completed for %d %s records. New IDs: %s",
                     count, tableName.toUpperCase(), idsInstrucAfter));
 
@@ -2447,7 +2451,7 @@ public class PerformDataBase {
 
         } catch (SQLException error) {
 
-            log.error("Batch insert error for " + tableName + ": " + error.getMessage());
+            logDB.error("Batch insert error for " + tableName + ": " + error.getMessage());
             return new ErrorMessage("Instruction Insert Error", "Failed during batch insert", error.getMessage());
         }
     }
@@ -2467,7 +2471,7 @@ public class PerformDataBase {
             for (InstructionOperationDTO operation : operations) {
                 if (operation.getId() == null || operation.getParentId() == null) {
 
-                    log.warn("Skipping: Instruction ID or Parent ID is null.");
+                    logDB.warn("Skipping: Instruction ID or Parent ID is null.");
                     continue;
                 }
 
@@ -2480,12 +2484,12 @@ public class PerformDataBase {
             }
 
             stmt.executeBatch();
-            log.info("Parent ID update batch executed:\n" + batchSQL);
+            logDB.info("Parent ID update batch executed:\n" + batchSQL);
 
             return null;
 
         } catch (SQLException e) {
-            log.error("Batch parent_id update failed: " + e.getMessage());
+            logDB.error("Batch parent_id update failed: " + e.getMessage());
 
             return new ErrorMessage("Update Error", "Failed to update parent_id in instructions.", e.getMessage());
         }
@@ -2505,7 +2509,7 @@ public class PerformDataBase {
 
         try (Statement stmt = getConnection().createStatement()) {
             if (InstructionOperation.getId() == null) {
-                log.warn("Instruction ID is null. Update failed.");
+                logDB.warn("Instruction ID is null. Update failed.");
                 return new ErrorMessage(
                         "Error Update Instruction",
                         "Error during updating instruction",
@@ -2577,7 +2581,7 @@ public class PerformDataBase {
 
             if (setClause.isEmpty()) {
 
-                log.warn("No fields to update for instruction ID: " + InstructionOperation.getId());
+                logDB.warn("No fields to update for instruction ID: " + InstructionOperation.getId());
                 return new ErrorMessage(
                         "Error Update Instruction",
                         "Error during updating instruction",
@@ -2591,7 +2595,7 @@ public class PerformDataBase {
             int rowsAffected = stmt.executeUpdate(updateSQL);
             if (rowsAffected > 0) {
 
-                log.info(String.format(
+                logDB.info(String.format(
                         "%s UPDATED SUCCESSFULLY id: %d Name: %s Actions: %s Operation: %s",
                         tableName.toUpperCase(),
                         InstructionOperation.getId(),
@@ -2600,7 +2604,7 @@ public class PerformDataBase {
                         InstructionOperation.getOperation()));
             } else {
 
-                log.warn(String.format(
+                logDB.warn(String.format(
                         "%s NOT UPDATED id: %d Name: %s Actions: %s Operations: %s",
                         tableName.toUpperCase(),
                         InstructionOperation.getId(),
@@ -2610,14 +2614,13 @@ public class PerformDataBase {
             }
             return null;
         } catch (SQLException error) {
-
-            log.warn(String.format(
-                    "%s UPDATE FAILED id: %d Name: %s Actions: %s Operations: %s",
+            logDB.warn(
+                    "{} Update Failed id: {} Name: {} Actions: {} Operations: {}",
                     tableName.toUpperCase(),
                     InstructionOperation.getId(),
                     InstructionOperation.getName(),
                     InstructionOperation.getActions(),
-                    InstructionOperation.getOperation()));
+                    InstructionOperation.getOperation());
             return new ErrorMessage(
                     "Error Update Instruction", "Error during updating instruction", error.getMessage());
         }
@@ -2636,7 +2639,7 @@ public class PerformDataBase {
             }
         } catch (SQLException error) {
 
-            log.error(String.format(
+            logDB.error(String.format(
                     "Error checking for instruction ID %d. Error: %s", instructionId, error.getMessage()));
         }
         return false; // Return false if an error occurs or the ID is not found
@@ -2654,7 +2657,7 @@ public class PerformDataBase {
 
             if (!orderNumberExists) {
 
-                log.warn(String.format(
+                logDB.warn(String.format(
                         "preInsertStep - Target order number %d does not exist in the row list.", targetOrderNumber));
             }
 
@@ -2706,14 +2709,7 @@ public class PerformDataBase {
         }
 
         if (errorMessage != null) {
-            performMessage.errorMessage(
-                    errorMessage.getErrorTitle(),
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                            + errorMessage.getErrorHeader(),
-                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                    null,
-                    0);
+            performMessage.errorMessageOperationFailed(errorMessage);
         }
 
         BlockLoadDTO blockLoadFound = performLists.getBlockLoadByBankId(blockTable, whereId, splitDTO.getBlockId());
@@ -2918,25 +2914,18 @@ public class PerformDataBase {
                     reorderInstructionsPerBlock(rowList, instrName, true);
                 }
 
-                log.info(String.format(
+                logDB.info(String.format(
                         "\"Component\" Instruction: \"%s\" has been added successfully!", instruction.getName()));
             } else {
 
-                log.error(String.format(
+                logDB.error(String.format(
                         "Error Add New \"Component\" Instruction: \"%s\" Cannot be saved!", instruction.getName()));
 
-                performMessage.errorMessage(
-                        errorMessage.getErrorTitle(),
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                + errorMessage.getErrorTitle(),
-                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                        null,
-                        0);
+                performMessage.errorMessageOperationFailed(errorMessage);
             }
 
         } catch (Exception e) {
-            log.error("Cannot Insert Instruction\nError: " + e.getMessage());
+            logDB.error("Cannot Insert Instruction\nError: " + e.getMessage());
         } finally {
             performLists.getInstrucOperList().clear();
         }
@@ -3033,13 +3022,13 @@ public class PerformDataBase {
             }
         } catch (SQLException error) {
 
-            log.error(String.format("loadWebPageFields - SQL Error: %s", error.getMessage()));
+            logDB.error(String.format("loadWebPageFields - SQL Error: %s", error.getMessage()));
             return new ErrorMessage(
                     "Error loading Web Page Fields", "Error loading Web Page Fields", error.getMessage());
 
         } catch (Exception error) {
 
-            log.error(String.format("loadWebPageFields - General Error: %s", error.getMessage()));
+            logDB.error(String.format("loadWebPageFields - General Error: %s", error.getMessage()));
             return new ErrorMessage(
                     "Error loading Web Page Fields", "Error loading Web Page Fields", error.getMessage());
         }
@@ -3120,13 +3109,13 @@ public class PerformDataBase {
 
             if (rowsAffected > 0) {
 
-                log.warn(String.format("Migration DB Scripts - RowsUpdated - %s", rowsAffected));
+                logDB.warn(String.format("Migration DB Scripts - RowsUpdated - %s", rowsAffected));
             } else {
-                log.info("Migration DB Scripts - No Rows were updated");
+                logDB.info("Migration DB Scripts - No Rows were updated");
             }
             return rowsAffected;
         } catch (SQLException e) {
-            log.warn("Migration DB Scripts - Error: " + e.getMessage());
+            logDB.warn("Migration DB Scripts - Error: " + e.getMessage());
         }
         return -1;
     }
@@ -3196,7 +3185,7 @@ public class PerformDataBase {
             }
         } catch (SQLException e) {
 
-            log.error(String.format(
+            logDB.error(String.format(
                     "Error loadSavedBlocksForBotJob for Home Banking Id %d\nError: %s", homeBankingId, e.getMessage()));
         }
 
@@ -3243,17 +3232,17 @@ public class PerformDataBase {
                 pstmt.clearBatch();
             }
 
-            log.info("Reference batch insert completed successfully.");
+            logDB.info("Reference batch insert completed successfully.");
             return null; // No error
 
         } catch (SQLException error) {
 
-            log.error("Failed to insert references into database: " + error.getMessage());
+            logDB.error("Failed to insert references into database: " + error.getMessage());
             return new ErrorMessage(
                     "Reference Insertion Error", "An error occurred during reference insertion.", error.getMessage());
         } catch (Exception error) {
 
-            log.error("Unexpected error inserting references: " + error.getMessage());
+            logDB.error("Unexpected error inserting references: " + error.getMessage());
             return new ErrorMessage(
                     "Reference Insertion Error",
                     "An unexpected error occurred during reference insertion.",
@@ -3294,16 +3283,16 @@ public class PerformDataBase {
                 pstmt.clearBatch();
             }
 
-            log.info("Reference batch insert completed successfully.");
+            logDB.info("Reference batch insert completed successfully.");
             return null; // No error
         } catch (SQLException error) {
 
-            log.error("Failed to insert references into database: " + error.getMessage());
+            logDB.error("Failed to insert references into database: " + error.getMessage());
             return new ErrorMessage(
                     "Reference Insertion Error", "An error occurred during reference insertion.", error.getMessage());
         } catch (Exception error) {
 
-            log.error("Failed to insert references into database: " + error.getMessage());
+            logDB.error("Failed to insert references into database: " + error.getMessage());
             return new ErrorMessage(
                     "Reference Insertion Error", "An error occurred during reference insertion.", error.getMessage());
         }
@@ -3336,7 +3325,7 @@ public class PerformDataBase {
 
         if (errorMessage != null) {
 
-            log.error("Error: " + errorMessage.getErrorTitle() + "-" + errorMessage.getErrorMessage());
+            logDB.error("Error: " + errorMessage.getErrorTitle() + "-" + errorMessage.getErrorMessage());
         }
 
         return errorMessage;
@@ -3371,7 +3360,7 @@ public class PerformDataBase {
                             fkExists = true;
                             // Optional: You can print the FK_NAME if you want to know what Access called it
                             // String fkName = rsFK.getString("FK_NAME");
-                            // log.info(String.format("Foreign key '%s' (home_url_id -> home_url.id) already
+                            // logDB.info(String.format("Foreign key '%s' (home_url_id -> home_url.id) already
                             // exists.", fkName));
                             break;
                         }
@@ -3381,23 +3370,23 @@ public class PerformDataBase {
                         try {
                             rsFK.close();
                         } catch (SQLException e) {
-                            log.error("Error closing ResultSet for FK check: " + e.getMessage());
+                            logDB.error("Error closing ResultSet for FK check: " + e.getMessage());
                         }
                     }
                 }
 
                 // 2. Add the foreign key constraint only if it doesn't exist
                 if (!fkExists) {
-                    log.info(String.format(
+                    logDB.info(String.format(
                             "Foreign key 'FK_NewHomeURL' (home_url_id -> home_url.id) not found. Adding it..."));
                     String addHomrURLForeignKeySQL = "ALTER TABLE bot_job "
                             + "ADD CONSTRAINT FK_NewHomeURL FOREIGN KEY (home_url_id) "
                             + "REFERENCES home_url(id) ";
                     stmt.executeUpdate(addHomrURLForeignKeySQL);
-                    log.info(String.format("Foreign key 'FK_NewHomeURL' added to 'bot_job' table."));
-                    log.info(String.format("Database %s has been updated with the foreign key!", dbFile.getName()));
+                    logDB.info(String.format("Foreign key 'FK_NewHomeURL' added to 'bot_job' table."));
+                    logDB.info(String.format("Database %s has been updated with the foreign key!", dbFile.getName()));
                 } else {
-                    log.info(String.format(
+                    logDB.info(String.format(
                             "Database %s no need for foreign key 'FK_NewHomeURL' updates (constraint exists).",
                             dbFile.getName()));
                 }
@@ -3407,12 +3396,12 @@ public class PerformDataBase {
                     try {
                         stmt.close();
                     } catch (SQLException e) {
-                        log.error("Error closing Statement: " + e.getMessage());
+                        logDB.error("Error closing Statement: " + e.getMessage());
                     }
                 }
             }
         } catch (SQLException error) {
-            log.info("initializeDatabase\nError: " + error.getMessage());
+            logDB.info("initializeDatabase\nError: " + error.getMessage());
         }
     }
 
@@ -3433,11 +3422,11 @@ public class PerformDataBase {
 
                     if (fkName != null && !fkName.trim().isEmpty()) {
                         String dropSQL = String.format("ALTER TABLE [%s] DROP CONSTRAINT [%s]", tableName, fkName);
-                        log.info("Dropping FK: " + dropSQL);
+                        logDB.info("Dropping FK: " + dropSQL);
                         try {
                             stmt.executeUpdate(dropSQL);
                         } catch (SQLException ex) {
-                            log.error("Failed to drop constraint " + fkName + ": " + ex.getMessage());
+                            logDB.error("Failed to drop constraint " + fkName + ": " + ex.getMessage());
                         }
                     }
                 }
@@ -3446,10 +3435,10 @@ public class PerformDataBase {
 
             tables.close();
             stmt.close();
-            log.info("All foreign key constraints removed.");
+            logDB.info("All foreign key constraints removed.");
 
         } catch (SQLException e) {
-            log.error("Error disable Foreign Key Constraints");
+            logDB.error("Error disable Foreign Key Constraints");
         }
     }
 
@@ -3459,17 +3448,11 @@ public class PerformDataBase {
             ErrorMessage errorMessage = updateBotJobHomeUrlIds(conn, listHomeUrl);
 
             if (errorMessage != null) {
-                performMessage.errorMessage(
-                        "Updating Bot Job Home URL IDs Error",
-                        "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>Bot Job Update Home URL IDs error!</span>",
-                        null,
-                        null,
-                        null,
-                        0);
+                performMessage.errorMessageOperationFailed(errorMessage);
             }
 
         } catch (SQLException ex) {
-            log.info(ex.getMessage());
+            logDB.info(ex.getMessage());
         }
     }
 
@@ -3494,7 +3477,7 @@ public class PerformDataBase {
             }
             return null;
         } catch (SQLException error) {
-            log.info(error.getMessage());
+            logDB.info(error.getMessage());
             return new ErrorMessage("Error Duplicating Blocks", "Block Insertion Failure", error.getMessage());
         }
     }
@@ -3552,13 +3535,13 @@ public class PerformDataBase {
             // Step 5: Keep only the new IDs
             idsHomeBankAfter.removeAll(idsBefore);
 
-            log.info(String.format("HomeBanking inserted successfully. New IDs: %s", idsHomeBankAfter));
+            logDB.info(String.format("HomeBanking inserted successfully. New IDs: %s", idsHomeBankAfter));
 
             return null; // null means no error
 
         } catch (SQLException error) {
 
-            log.error(String.format("saveUserData - Error: %s", error.getMessage()));
+            logDB.error(String.format("saveUserData - Error: %s", error.getMessage()));
 
             return new ErrorMessage(
                     "HomeBanking Insertion Error", "Error inserting a new HomeBanking record.", error.getMessage());
@@ -3609,14 +3592,14 @@ public class PerformDataBase {
             // Step 4: Keep only the new IDs
             idsHomeUrlAfter.removeAll(idsBefore);
 
-            log.info(String.format("HomeUrl inserted successfully. New IDs: %s", idsHomeUrlAfter));
+            logDB.info(String.format("HomeUrl inserted successfully. New IDs: %s", idsHomeUrlAfter));
 
             conn.commit(); // Commit transaction
             return null; // Success
 
         } catch (SQLException error) {
 
-            log.error(String.format("createHomeUrlChild - Error: %s", error.getMessage()));
+            logDB.error(String.format("createHomeUrlChild - Error: %s", error.getMessage()));
 
             return new ErrorMessage("Home URL Insertion Error", "Error inserting a new home URL.", error.getMessage());
         }
@@ -3677,14 +3660,14 @@ public class PerformDataBase {
             // Step 5: Keep only the new IDs
             idsHomeUrlAfter.removeAll(idsBefore);
 
-            log.info(String.format("HomeUrl inserted successfully. New IDs: %s", idsHomeUrlAfter));
+            logDB.info(String.format("HomeUrl inserted successfully. New IDs: %s", idsHomeUrlAfter));
 
             conn.commit(); // Commit transaction
             return null; // Success, no error
 
         } catch (SQLException error) {
 
-            log.error(String.format("insertNewHomeUrl - Error: %s", error.getMessage()));
+            logDB.error(String.format("insertNewHomeUrl - Error: %s", error.getMessage()));
 
             return new ErrorMessage("Home URL Insertion Error", "Error inserting a new home URL.", error.getMessage());
         }
@@ -3729,7 +3712,7 @@ public class PerformDataBase {
             }
 
         } catch (SQLException error) {
-            log.info(error.getMessage());
+            logDB.info(error.getMessage());
             return new ErrorMessage("Error updating URL", "Org URL Update Failure", error.getMessage());
         }
     }
@@ -3789,7 +3772,7 @@ public class PerformDataBase {
             }
 
         } catch (SQLException e) {
-            log.info("Error counting usage of Home URL ID " + homeUrlId + ": " + e.getMessage());
+            logDB.info("Error counting usage of Home URL ID " + homeUrlId + ": " + e.getMessage());
         }
 
         return 0; // Return 0 if query fails or no result
@@ -3850,7 +3833,7 @@ public class PerformDataBase {
 
         } catch (SQLException e) {
 
-            log.error(String.format("Error loadAllDataUsers: %s", e.getMessage()));
+            logDB.error(String.format("Error loadAllDataUsers: %s", e.getMessage()));
 
             return new ErrorMessage("Failed to load Database Users", "Database query error", e.getMessage());
         }
@@ -3876,7 +3859,7 @@ public class PerformDataBase {
     public void selectHomeBankinOneRow() {
         String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
         String accessDbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
-        log.info("ACCESS connection URL: " + accessDbUrl);
+        logDB.info("ACCESS connection URL: " + accessDbUrl);
 
         String postgresDbUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
         String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
@@ -3884,8 +3867,8 @@ public class PerformDataBase {
 
         // String userData = userDB + " - " + userPwd;
 
-        log.info("POSTGRES connection URL: " + postgresDbUrl);
-        // log.info("User Details: " + userData);
+        logDB.info("POSTGRES connection URL: " + postgresDbUrl);
+        // logDB.info("User Details: " + userData);
 
         final int BATCH_SIZE = 100;
 
@@ -3941,10 +3924,10 @@ public class PerformDataBase {
                         if (count % BATCH_SIZE == 0) {
                             insertStmt.executeBatch();
                             accessConn.commit();
-                            log.info("Inserted batch of " + BATCH_SIZE);
+                            logDB.info("Inserted batch of " + BATCH_SIZE);
                         }
                     } else {
-                        log.info("Skipped (exists): " + url);
+                        logDB.info("Skipped (exists): " + url);
                     }
                 }
 
@@ -3952,13 +3935,13 @@ public class PerformDataBase {
                 if (count % BATCH_SIZE != 0) {
                     insertStmt.executeBatch();
                     accessConn.commit();
-                    log.info("Inserted final batch of " + (count % BATCH_SIZE));
+                    logDB.info("Inserted final batch of " + (count % BATCH_SIZE));
                 }
             }
 
-            log.info("Sync completed.");
+            logDB.info("Sync completed.");
         } catch (SQLException error) {
-            log.error("Error export HomeBanking");
+            logDB.error("Error export HomeBanking");
         }
     }
 
@@ -4001,21 +3984,21 @@ public class PerformDataBase {
 
                 if (rowsAffected > 0) {
 
-                    log.warn(String.format("Migration DB Scripts - RowsUpdated - %s", rowsAffected));
+                    logDB.warn(String.format("Migration DB Scripts - RowsUpdated - %s", rowsAffected));
                 } else {
-                    log.info("Migration DB Scripts - No Rows were updated");
+                    logDB.info("Migration DB Scripts - No Rows were updated");
                 }
                 return null;
 
             } catch (SQLException error) {
 
-                log.warn("Migration DB Scripts - Error: " + error.getMessage());
+                logDB.warn("Migration DB Scripts - Error: " + error.getMessage());
                 return new ErrorMessage(
                         "Error Drop Tables Migration 2.7f", "Error dropping OLD objects", error.getMessage());
             }
 
         } catch (SQLException error) {
-            log.error("Failed to dropPostGresSequences.");
+            logDB.error("Failed to dropPostGresSequences.");
             return new ErrorMessage("Connection Error", "Could not connect to Postgres DB", error.getMessage());
         }
     }
@@ -4084,7 +4067,7 @@ public class PerformDataBase {
 
                         Integer newHomeBankId = blockDetailsDTO.getHomeBankingId();
                         if (newHomeBankId == null) {
-                            log.info("Skipped component_block with unknown home_banking_id");
+                            logDB.info("Skipped component_block with unknown home_banking_id");
                             continue;
                         }
 
@@ -4113,7 +4096,7 @@ public class PerformDataBase {
                         if (count % BATCH_SIZE == 0) {
                             insertStmt.executeBatch();
                             conn.commit();
-                            log.info("Inserted batch of " + BATCH_SIZE);
+                            logDB.info("Inserted batch of " + BATCH_SIZE);
                         }
                     }
 
@@ -4121,7 +4104,7 @@ public class PerformDataBase {
                     if (count % BATCH_SIZE != 0) {
                         insertStmt.executeBatch();
                         conn.commit();
-                        log.info("Inserted final batch of " + (count % BATCH_SIZE));
+                        logDB.info("Inserted final batch of " + (count % BATCH_SIZE));
                     }
                 }
             }
@@ -4139,13 +4122,14 @@ public class PerformDataBase {
             newComponentIds.removeAll(blockIdsBefore);
 
             // You can now use `newComponentIds` as needed
-            log.info("Newly inserted component_block IDs: " + newComponentIds);
+            logDB.info("Newly inserted component_block IDs: " + newComponentIds);
 
             // Step 5: update blockMap with new IDs
             List<Integer> keys = new ArrayList<>(blockMap.keySet());
 
             if (keys.size() != newComponentIds.size()) {
-                log.error("Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
+                logDB.error(
+                        "Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
             } else {
                 for (int i = 0; i < keys.size(); i++) {
                     Integer oldId = keys.get(i);
@@ -4157,7 +4141,7 @@ public class PerformDataBase {
             return null;
 
         } catch (SQLException error) {
-            log.error("Failed to create saved component_block");
+            logDB.error("Failed to create saved component_block");
             return new ErrorMessage(
                     "Failed to create saved component_block", "component_block Insertion Failure", error.getMessage());
         }
@@ -4208,14 +4192,14 @@ public class PerformDataBase {
                         int id = rsInstruction.getInt("id");
                         Integer newHomeBankId = blockDetailsDTO.getHomeBankingId();
                         if (newHomeBankId == null) {
-                            log.info("Skipped component_instruction with unknown home_banking_id");
+                            logDB.info("Skipped component_instruction with unknown home_banking_id");
                             continue;
                         }
 
                         int oldBlockId = rsInstruction.getInt("block_id");
                         Integer newBlockId = blockMap.get(oldBlockId);
                         if (newBlockId == null) {
-                            log.info("Skipped component_instruction with unknown block_id: " + oldBlockId);
+                            logDB.info("Skipped component_instruction with unknown block_id: " + oldBlockId);
                             continue;
                         }
 
@@ -4267,7 +4251,7 @@ public class PerformDataBase {
                         if (count % BATCH_SIZE == 0) {
                             insertStmt.executeBatch();
                             conn.commit();
-                            log.info("Inserted batch of " + BATCH_SIZE);
+                            logDB.info("Inserted batch of " + BATCH_SIZE);
                         }
                     }
 
@@ -4275,7 +4259,7 @@ public class PerformDataBase {
                     if (count % BATCH_SIZE != 0) {
                         insertStmt.executeBatch();
                         conn.commit();
-                        log.info("Inserted final batch of " + (count % BATCH_SIZE));
+                        logDB.info("Inserted final batch of " + (count % BATCH_SIZE));
                     }
                 }
             }
@@ -4293,13 +4277,14 @@ public class PerformDataBase {
             newComponentIds.removeAll(blockIdsBefore);
 
             // You can now use `newComponentIds` as needed
-            log.info("Newly inserted component_instruction IDs: " + newComponentIds);
+            logDB.info("Newly inserted component_instruction IDs: " + newComponentIds);
 
             // Step 5: update blockMap with new IDs
             List<Integer> keys = new ArrayList<>(instructionMap.keySet());
 
             if (keys.size() != newComponentIds.size()) {
-                log.error("Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
+                logDB.error(
+                        "Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
             } else {
                 for (int i = 0; i < keys.size(); i++) {
                     Integer oldId = keys.get(i);
@@ -4312,7 +4297,7 @@ public class PerformDataBase {
 
         } catch (SQLException error) {
 
-            log.error("Failed to create saved component_instruction: " + error.getMessage());
+            logDB.error("Failed to create saved component_instruction: " + error.getMessage());
             return new ErrorMessage(
                     "Failed to create saved component_instruction",
                     "component_instruction Insertion Failure",
@@ -4368,7 +4353,7 @@ public class PerformDataBase {
 
                         Integer newHomeBankId = blockDetailsDTO.getHomeBankingId();
                         if (newHomeBankId == null) {
-                            log.info("Skipped component_variable with unknown home_banking_id");
+                            logDB.info("Skipped component_variable with unknown home_banking_id");
                             continue;
                         }
 
@@ -4381,7 +4366,7 @@ public class PerformDataBase {
                         if (instructionId != null) {
                             newInstructionId = instructionMap.get(instructionId);
                             if (newInstructionId == null) {
-                                log.info("Skipped component_variable with unknown instruction_id: " + instructionId);
+                                logDB.info("Skipped component_variable with unknown instruction_id: " + instructionId);
                                 continue;
                             }
                         }
@@ -4408,7 +4393,7 @@ public class PerformDataBase {
                         if (count % BATCH_SIZE == 0) {
                             insertStmt.executeBatch();
                             conn.commit();
-                            log.info("Inserted batch of " + BATCH_SIZE);
+                            logDB.info("Inserted batch of " + BATCH_SIZE);
                         }
                     }
 
@@ -4416,7 +4401,7 @@ public class PerformDataBase {
                     if (count % BATCH_SIZE != 0) {
                         insertStmt.executeBatch();
                         conn.commit();
-                        log.info("Inserted final batch of " + (count % BATCH_SIZE));
+                        logDB.info("Inserted final batch of " + (count % BATCH_SIZE));
                     }
                 }
             }
@@ -4434,13 +4419,14 @@ public class PerformDataBase {
             newComponentIds.removeAll(blockIdsBefore);
 
             // You can now use `newComponentIds` as needed
-            log.info("Newly inserted component_variable IDs: " + newComponentIds);
+            logDB.info("Newly inserted component_variable IDs: " + newComponentIds);
 
             // Step 5: update blockMap with new IDs
             List<Integer> keys = new ArrayList<>(variableMap.keySet());
 
             if (keys.size() != newComponentIds.size()) {
-                log.error("Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
+                logDB.error(
+                        "Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
             } else {
                 for (int i = 0; i < keys.size(); i++) {
                     Integer oldId = keys.get(i);
@@ -4452,7 +4438,7 @@ public class PerformDataBase {
             return null;
 
         } catch (SQLException error) {
-            log.error("Failed to create saved component_variable");
+            logDB.error("Failed to create saved component_variable");
             return new ErrorMessage(
                     "Failed to create saved component_variable",
                     "component_variable Insertion Failure",
@@ -4512,7 +4498,7 @@ public class PerformDataBase {
                         }
 
                         if (newVariableId == null) {
-                            log.info("Skipped variable_id column with unknown variable_id: " + newVariableId);
+                            logDB.info("Skipped variable_id column with unknown variable_id: " + newVariableId);
                             updateStmt.setNull(1, Types.INTEGER);
                         } else {
                             updateStmt.setInt(1, newVariableId);
@@ -4545,24 +4531,24 @@ public class PerformDataBase {
                         if (count % BATCH_SIZE == 0) {
                             updateStmt.executeBatch();
                             conn.commit();
-                            log.info("Updated batch of " + BATCH_SIZE);
+                            logDB.info("Updated batch of " + BATCH_SIZE);
                         }
                     }
 
                     if (count % BATCH_SIZE != 0) {
                         updateStmt.executeBatch();
                         conn.commit();
-                        log.info("Updated final batch of " + (count % BATCH_SIZE));
+                        logDB.info("Updated final batch of " + (count % BATCH_SIZE));
                     }
 
-                    log.info("Updated component_instruction records: " + count);
+                    logDB.info("Updated component_instruction records: " + count);
                 }
             }
 
             return null;
 
         } catch (SQLException error) {
-            log.error("Failed to update component_instruction");
+            logDB.error("Failed to update component_instruction");
             return new ErrorMessage(
                     "Failed to update component_instruction",
                     "component_instruction Update Failure",
@@ -4618,13 +4604,13 @@ public class PerformDataBase {
                         int oldInstructionId = rsReference.getInt("instruction_id");
                         Integer newInstructionId = instructionMap.get(oldInstructionId);
                         if (newInstructionId == null) {
-                            log.info("Skipped component_reference with unknown instruction_id: " + oldInstructionId);
+                            logDB.info("Skipped component_reference with unknown instruction_id: " + oldInstructionId);
                             continue;
                         }
 
                         Integer newHomeBankId = blockDetailsDTO.getHomeBankingId();
                         if (newHomeBankId == null) {
-                            log.info("Skipped component_reference with unknown home_banking_id: " + newHomeBankId);
+                            logDB.info("Skipped component_reference with unknown home_banking_id: " + newHomeBankId);
                             continue;
                         }
 
@@ -4646,7 +4632,7 @@ public class PerformDataBase {
                         if (count % BATCH_SIZE == 0) {
                             insertStmt.executeBatch();
                             conn.commit();
-                            log.info("Inserted batch of " + BATCH_SIZE);
+                            logDB.info("Inserted batch of " + BATCH_SIZE);
                         }
                     }
 
@@ -4654,7 +4640,7 @@ public class PerformDataBase {
                     if (count % BATCH_SIZE != 0) {
                         insertStmt.executeBatch();
                         conn.commit();
-                        log.info("Inserted final batch of " + (count % BATCH_SIZE));
+                        logDB.info("Inserted final batch of " + (count % BATCH_SIZE));
                     }
                 }
             }
@@ -4672,13 +4658,14 @@ public class PerformDataBase {
             newComponentIds.removeAll(blockIdsBefore);
 
             // You can now use `newComponentIds` as needed
-            log.info("Newly inserted component_reference IDs: " + newComponentIds);
+            logDB.info("Newly inserted component_reference IDs: " + newComponentIds);
 
             // Step 5: update blockMap with new IDs
             List<Integer> keys = new ArrayList<>(referenceMap.keySet());
 
             if (keys.size() != newComponentIds.size()) {
-                log.error("Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
+                logDB.error(
+                        "Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
             } else {
                 for (int i = 0; i < keys.size(); i++) {
                     Integer oldId = keys.get(i);
@@ -4690,7 +4677,7 @@ public class PerformDataBase {
             return null;
 
         } catch (SQLException error) {
-            log.error("Failed to create saved component_reference");
+            logDB.error("Failed to create saved component_reference");
             return new ErrorMessage(
                     "Failed to create saved component_reference",
                     "component_reference Insertion Failure",
@@ -4750,7 +4737,7 @@ public class PerformDataBase {
 
                         Integer newBotJobId = blockDetailsDTO.getBotJobId();
                         if (newBotJobId == null) {
-                            log.info("Skipped block with unknown bot_job_id");
+                            logDB.info("Skipped block with unknown bot_job_id");
                             continue;
                         }
 
@@ -4779,7 +4766,7 @@ public class PerformDataBase {
                         if (count % BATCH_SIZE == 0) {
                             insertStmt.executeBatch();
                             conn.commit();
-                            log.info("Inserted batch of " + BATCH_SIZE);
+                            logDB.info("Inserted batch of " + BATCH_SIZE);
                         }
                     }
 
@@ -4787,7 +4774,7 @@ public class PerformDataBase {
                     if (count % BATCH_SIZE != 0) {
                         insertStmt.executeBatch();
                         conn.commit();
-                        log.info("Inserted final batch of " + (count % BATCH_SIZE));
+                        logDB.info("Inserted final batch of " + (count % BATCH_SIZE));
                     }
                 }
             }
@@ -4805,13 +4792,14 @@ public class PerformDataBase {
             newComponentIds.removeAll(blockIdsBefore);
 
             // You can now use `newComponentIds` as needed
-            log.info("Newly inserted block IDs: " + newComponentIds);
+            logDB.info("Newly inserted block IDs: " + newComponentIds);
 
             // Step 5: update blockMap with new IDs
             List<Integer> keys = new ArrayList<>(blockMap.keySet());
 
             if (keys.size() != newComponentIds.size()) {
-                log.error("Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
+                logDB.error(
+                        "Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
             } else {
                 for (int i = 0; i < keys.size(); i++) {
                     Integer oldId = keys.get(i);
@@ -4823,7 +4811,7 @@ public class PerformDataBase {
             return null;
 
         } catch (SQLException error) {
-            log.error("Failed to create saved block");
+            logDB.error("Failed to create saved block");
             return new ErrorMessage("Failed to create saved block", "block Insertion Failure", error.getMessage());
         }
     }
@@ -4874,14 +4862,14 @@ public class PerformDataBase {
                         int id = rsInstruction.getInt("id");
                         Integer newBotJobId = blockDetailsDTO.getBotJobId();
                         if (newBotJobId == null) {
-                            log.info("Skipped instruction with unknown bot_job_id");
+                            logDB.info("Skipped instruction with unknown bot_job_id");
                             continue;
                         }
 
                         int oldBlockId = rsInstruction.getInt("block_id");
                         Integer newBlockId = blockMap.get(oldBlockId);
                         if (newBlockId == null) {
-                            log.info("Skipped instruction with unknown block_id: " + oldBlockId);
+                            logDB.info("Skipped instruction with unknown block_id: " + oldBlockId);
                             continue;
                         }
 
@@ -4934,7 +4922,7 @@ public class PerformDataBase {
                         if (count % BATCH_SIZE == 0) {
                             insertStmt.executeBatch();
                             conn.commit();
-                            log.info("Inserted batch of " + BATCH_SIZE);
+                            logDB.info("Inserted batch of " + BATCH_SIZE);
                         }
                     }
 
@@ -4942,7 +4930,7 @@ public class PerformDataBase {
                     if (count % BATCH_SIZE != 0) {
                         insertStmt.executeBatch();
                         conn.commit();
-                        log.info("Inserted final batch of " + (count % BATCH_SIZE));
+                        logDB.info("Inserted final batch of " + (count % BATCH_SIZE));
                     }
                 }
             }
@@ -4960,13 +4948,14 @@ public class PerformDataBase {
             newComponentIds.removeAll(blockIdsBefore);
 
             // You can now use `newComponentIds` as needed
-            log.info("Newly inserted instruction IDs: " + newComponentIds);
+            logDB.info("Newly inserted instruction IDs: " + newComponentIds);
 
             // Step 5: update blockMap with new IDs
             List<Integer> keys = new ArrayList<>(instructionMap.keySet());
 
             if (keys.size() != newComponentIds.size()) {
-                log.error("Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
+                logDB.error(
+                        "Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
             } else {
                 for (int i = 0; i < keys.size(); i++) {
                     Integer oldId = keys.get(i);
@@ -4978,7 +4967,7 @@ public class PerformDataBase {
             return null;
 
         } catch (SQLException error) {
-            log.error("Failed to create saved instruction");
+            logDB.error("Failed to create saved instruction");
             return new ErrorMessage(
                     "Failed to create saved instruction", "instruction Insertion Failure", error.getMessage());
         }
@@ -5032,7 +5021,7 @@ public class PerformDataBase {
 
                         Integer newBotJobId = blockDetailsDTO.getBotJobId();
                         if (newBotJobId == null) {
-                            log.info("Skipped variable with unknown bot_job_id");
+                            logDB.info("Skipped variable with unknown bot_job_id");
                             continue;
                         }
 
@@ -5045,7 +5034,7 @@ public class PerformDataBase {
                         if (instructionId != null) {
                             newInstructionId = instructionMap.get(instructionId);
                             if (newInstructionId == null) {
-                                log.info("Skipped variable with unknown instruction_id: " + instructionId);
+                                logDB.info("Skipped variable with unknown instruction_id: " + instructionId);
                                 continue;
                             }
                         }
@@ -5072,7 +5061,7 @@ public class PerformDataBase {
                         if (count % BATCH_SIZE == 0) {
                             insertStmt.executeBatch();
                             conn.commit();
-                            log.info("Inserted batch of " + BATCH_SIZE);
+                            logDB.info("Inserted batch of " + BATCH_SIZE);
                         }
                     }
 
@@ -5080,7 +5069,7 @@ public class PerformDataBase {
                     if (count % BATCH_SIZE != 0) {
                         insertStmt.executeBatch();
                         conn.commit();
-                        log.info("Inserted final batch of " + (count % BATCH_SIZE));
+                        logDB.info("Inserted final batch of " + (count % BATCH_SIZE));
                     }
                 }
             }
@@ -5098,13 +5087,14 @@ public class PerformDataBase {
             newComponentIds.removeAll(blockIdsBefore);
 
             // You can now use `newComponentIds` as needed
-            log.info("Newly inserted variable IDs: " + newComponentIds);
+            logDB.info("Newly inserted variable IDs: " + newComponentIds);
 
             // Step 5: update blockMap with new IDs
             List<Integer> keys = new ArrayList<>(variableMap.keySet());
 
             if (keys.size() != newComponentIds.size()) {
-                log.error("Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
+                logDB.error(
+                        "Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
             } else {
                 for (int i = 0; i < keys.size(); i++) {
                     Integer oldId = keys.get(i);
@@ -5116,7 +5106,7 @@ public class PerformDataBase {
             return null;
 
         } catch (SQLException error) {
-            log.error("Failed to create saved variable");
+            logDB.error("Failed to create saved variable");
             return new ErrorMessage(
                     "Failed to create saved variable", "variable Insertion Failure", error.getMessage());
         }
@@ -5173,7 +5163,7 @@ public class PerformDataBase {
                         }
 
                         if (newVariableId == null) {
-                            log.info("Skipped variable_id column with unknown variable_id: " + newVariableId);
+                            logDB.info("Skipped variable_id column with unknown variable_id: " + newVariableId);
                             updateStmt.setNull(1, Types.INTEGER);
                         } else {
                             updateStmt.setInt(1, newVariableId);
@@ -5206,24 +5196,24 @@ public class PerformDataBase {
                         if (count % BATCH_SIZE == 0) {
                             updateStmt.executeBatch();
                             conn.commit();
-                            log.info("Updated batch of " + BATCH_SIZE);
+                            logDB.info("Updated batch of " + BATCH_SIZE);
                         }
                     }
 
                     if (count % BATCH_SIZE != 0) {
                         updateStmt.executeBatch();
                         conn.commit();
-                        log.info("Updated final batch of " + (count % BATCH_SIZE));
+                        logDB.info("Updated final batch of " + (count % BATCH_SIZE));
                     }
 
-                    log.info("Updated instruction records: " + count);
+                    logDB.info("Updated instruction records: " + count);
                 }
             }
 
             return null;
 
         } catch (SQLException error) {
-            log.error("Failed to update instruction");
+            logDB.error("Failed to update instruction");
             return new ErrorMessage("Failed to update instruction", "instruction Update Failure", error.getMessage());
         }
     }
@@ -5276,13 +5266,13 @@ public class PerformDataBase {
                         int oldInstructionId = rsReference.getInt("instruction_id");
                         Integer newInstructionId = instructionMap.get(oldInstructionId);
                         if (newInstructionId == null) {
-                            log.info("Skipped reference with unknown instruction_id: " + oldInstructionId);
+                            logDB.info("Skipped reference with unknown instruction_id: " + oldInstructionId);
                             continue;
                         }
 
                         Integer newBotJobId = blockDetailsDTO.getBotJobId();
                         if (newBotJobId == null) {
-                            log.info("Skipped reference with unknown bot_job_id: " + newBotJobId);
+                            logDB.info("Skipped reference with unknown bot_job_id: " + newBotJobId);
                             continue;
                         }
 
@@ -5304,7 +5294,7 @@ public class PerformDataBase {
                         if (count % BATCH_SIZE == 0) {
                             insertStmt.executeBatch();
                             conn.commit();
-                            log.info("Inserted batch of " + BATCH_SIZE);
+                            logDB.info("Inserted batch of " + BATCH_SIZE);
                         }
                     }
 
@@ -5312,7 +5302,7 @@ public class PerformDataBase {
                     if (count % BATCH_SIZE != 0) {
                         insertStmt.executeBatch();
                         conn.commit();
-                        log.info("Inserted final batch of " + (count % BATCH_SIZE));
+                        logDB.info("Inserted final batch of " + (count % BATCH_SIZE));
                     }
                 }
             }
@@ -5330,13 +5320,14 @@ public class PerformDataBase {
             newComponentIds.removeAll(blockIdsBefore);
 
             // You can now use `newComponentIds` as needed
-            log.info("Newly inserted reference IDs: " + newComponentIds);
+            logDB.info("Newly inserted reference IDs: " + newComponentIds);
 
             // Step 5: update blockMap with new IDs
             List<Integer> keys = new ArrayList<>(referenceMap.keySet());
 
             if (keys.size() != newComponentIds.size()) {
-                log.error("Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
+                logDB.error(
+                        "Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
             } else {
                 for (int i = 0; i < keys.size(); i++) {
                     Integer oldId = keys.get(i);
@@ -5348,7 +5339,7 @@ public class PerformDataBase {
             return null;
 
         } catch (SQLException error) {
-            log.error("Failed to create saved reference");
+            logDB.error("Failed to create saved reference");
             return new ErrorMessage(
                     "Failed to create saved reference", "reference Insertion Failure", error.getMessage());
         }
@@ -5397,7 +5388,7 @@ public class PerformDataBase {
                 insertStmt.addBatch();
                 insertStmt.executeBatch();
                 conn.commit();
-                log.info("Inserted bot job record: 1");
+                logDB.info("Inserted bot job record: 1");
             }
 
             // Step 3: get component_block ids after insert
@@ -5413,13 +5404,14 @@ public class PerformDataBase {
             newComponentIds.removeAll(blockIdsBefore);
 
             // You can now use `newComponentIds` as needed
-            log.info("Newly inserted bot_job IDs: " + newComponentIds);
+            logDB.info("Newly inserted bot_job IDs: " + newComponentIds);
 
             // Step 5: update blockMap with new IDs
             List<Integer> keys = new ArrayList<>(botJobMap.keySet());
 
             if (keys.size() != newComponentIds.size()) {
-                log.error("Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
+                logDB.error(
+                        "Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
             } else {
                 for (int i = 0; i < keys.size(); i++) {
                     Integer oldId = keys.get(i);
@@ -5431,7 +5423,7 @@ public class PerformDataBase {
             return null;
 
         } catch (SQLException error) {
-            log.error("Failed to clone bot_job");
+            logDB.error("Failed to clone bot_job");
             return new ErrorMessage("Failed to clone bot_job", "bot_job Insertion Failure", error.getMessage());
         }
     }
@@ -5489,7 +5481,7 @@ public class PerformDataBase {
                         // Map old bot_job_id to new
                         Integer newBotJobId = botJobMap.get(oldBotJobId);
                         if (newBotJobId == null) {
-                            log.info("Skipped block with unknown bot_job_id: " + newBotJobId);
+                            logDB.info("Skipped block with unknown bot_job_id: " + newBotJobId);
                             continue;
                         }
 
@@ -5518,7 +5510,7 @@ public class PerformDataBase {
                         if (count % BATCH_SIZE == 0) {
                             insertStmt.executeBatch();
                             conn.commit();
-                            log.info("Inserted batch of " + BATCH_SIZE);
+                            logDB.info("Inserted batch of " + BATCH_SIZE);
                         }
                     }
 
@@ -5526,7 +5518,7 @@ public class PerformDataBase {
                     if (count % BATCH_SIZE != 0) {
                         insertStmt.executeBatch();
                         conn.commit();
-                        log.info("Inserted final batch of " + (count % BATCH_SIZE));
+                        logDB.info("Inserted final batch of " + (count % BATCH_SIZE));
                     }
                 }
             }
@@ -5544,13 +5536,14 @@ public class PerformDataBase {
             newComponentIds.removeAll(blockIdsBefore);
 
             // You can now use `newComponentIds` as needed
-            log.info("Newly inserted block IDs: " + newComponentIds);
+            logDB.info("Newly inserted block IDs: " + newComponentIds);
 
             // Step 5: update blockMap with new IDs
             List<Integer> keys = new ArrayList<>(blockMap.keySet());
 
             if (keys.size() != newComponentIds.size()) {
-                log.error("Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
+                logDB.error(
+                        "Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
             } else {
                 for (int i = 0; i < keys.size(); i++) {
                     Integer oldId = keys.get(i);
@@ -5562,7 +5555,7 @@ public class PerformDataBase {
             return null;
 
         } catch (SQLException error) {
-            log.error("Failed to clone block");
+            logDB.error("Failed to clone block");
             return new ErrorMessage("Failed to clone block", "block Insertion Failure", error.getMessage());
         }
     }
@@ -5612,14 +5605,14 @@ public class PerformDataBase {
                         int oldBlockId = rsInstruction.getInt("block_id");
                         Integer newBlockId = blockMap.get(oldBlockId);
                         if (newBlockId == null) {
-                            log.info("Skipped instruction with unknown block_id: " + oldBlockId);
+                            logDB.info("Skipped instruction with unknown block_id: " + oldBlockId);
                             continue;
                         }
 
                         int oldBotJobId = rsInstruction.getInt("bot_job_id");
                         Integer newBotJobId = botJobMap.get(oldBotJobId);
                         if (newBotJobId == null) {
-                            log.info("Skipped instruction with unknown bot_job_id: " + newBotJobId);
+                            logDB.info("Skipped instruction with unknown bot_job_id: " + newBotJobId);
                             continue;
                         }
 
@@ -5672,7 +5665,7 @@ public class PerformDataBase {
                         if (count % BATCH_SIZE == 0) {
                             insertStmt.executeBatch();
                             conn.commit();
-                            log.info("Inserted batch of " + BATCH_SIZE);
+                            logDB.info("Inserted batch of " + BATCH_SIZE);
                         }
                     }
 
@@ -5680,7 +5673,7 @@ public class PerformDataBase {
                     if (count % BATCH_SIZE != 0) {
                         insertStmt.executeBatch();
                         conn.commit();
-                        log.info("Inserted final batch of " + (count % BATCH_SIZE));
+                        logDB.info("Inserted final batch of " + (count % BATCH_SIZE));
                     }
                 }
             }
@@ -5698,13 +5691,14 @@ public class PerformDataBase {
             newComponentIds.removeAll(blockIdsBefore);
 
             // You can now use `newComponentIds` as needed
-            log.info("Newly inserted instruction IDs: " + newComponentIds);
+            logDB.info("Newly inserted instruction IDs: " + newComponentIds);
 
             // Step 5: update blockMap with new IDs
             List<Integer> keys = new ArrayList<>(instructionMap.keySet());
 
             if (keys.size() != newComponentIds.size()) {
-                log.error("Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
+                logDB.error(
+                        "Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
             } else {
                 for (int i = 0; i < keys.size(); i++) {
                     Integer oldId = keys.get(i);
@@ -5716,7 +5710,7 @@ public class PerformDataBase {
             return null;
 
         } catch (SQLException error) {
-            log.error("Failed to clono instruction");
+            logDB.error("Failed to clono instruction");
             return new ErrorMessage("Failed to clone instruction", "instruction Insertion Failure", error.getMessage());
         }
     }
@@ -5765,7 +5759,7 @@ public class PerformDataBase {
                         int oldBotJobId = rsVariable.getInt("bot_job_id");
                         Integer newBotJobId = botJobMap.get(oldBotJobId);
                         if (newBotJobId == null) {
-                            log.info("Skipped variable with unknown bot_job_id: " + newBotJobId);
+                            logDB.info("Skipped variable with unknown bot_job_id: " + newBotJobId);
                             continue;
                         }
 
@@ -5778,7 +5772,7 @@ public class PerformDataBase {
                         if (instructionId != null) {
                             newInstructionId = instructionMap.get(instructionId);
                             if (newInstructionId == null) {
-                                log.info("Skipped variable with unknown instruction_id: " + instructionId);
+                                logDB.info("Skipped variable with unknown instruction_id: " + instructionId);
                                 continue;
                             }
                         }
@@ -5805,7 +5799,7 @@ public class PerformDataBase {
                         if (count % BATCH_SIZE == 0) {
                             insertStmt.executeBatch();
                             conn.commit();
-                            log.info("Inserted batch of " + BATCH_SIZE);
+                            logDB.info("Inserted batch of " + BATCH_SIZE);
                         }
                     }
 
@@ -5813,7 +5807,7 @@ public class PerformDataBase {
                     if (count % BATCH_SIZE != 0) {
                         insertStmt.executeBatch();
                         conn.commit();
-                        log.info("Inserted final batch of " + (count % BATCH_SIZE));
+                        logDB.info("Inserted final batch of " + (count % BATCH_SIZE));
                     }
                 }
             }
@@ -5831,13 +5825,14 @@ public class PerformDataBase {
             newComponentIds.removeAll(blockIdsBefore);
 
             // You can now use `newComponentIds` as needed
-            log.info("Newly inserted variable IDs: " + newComponentIds);
+            logDB.info("Newly inserted variable IDs: " + newComponentIds);
 
             // Step 5: update blockMap with new IDs
             List<Integer> keys = new ArrayList<>(variableMap.keySet());
 
             if (keys.size() != newComponentIds.size()) {
-                log.error("Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
+                logDB.error(
+                        "Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
             } else {
                 for (int i = 0; i < keys.size(); i++) {
                     Integer oldId = keys.get(i);
@@ -5849,7 +5844,7 @@ public class PerformDataBase {
             return null;
 
         } catch (SQLException error) {
-            log.error("Failed to clone variable");
+            logDB.error("Failed to clone variable");
             return new ErrorMessage("Failed to clone variable", "variable Insertion Failure", error.getMessage());
         }
     }
@@ -5907,7 +5902,7 @@ public class PerformDataBase {
                         }
 
                         if (newVariableId == null) {
-                            log.info("Skipped variable_id column with unknown variable_id: " + newVariableId);
+                            logDB.info("Skipped variable_id column with unknown variable_id: " + newVariableId);
                             updateStmt.setNull(1, Types.INTEGER);
                         } else {
                             updateStmt.setInt(1, newVariableId);
@@ -5940,24 +5935,24 @@ public class PerformDataBase {
                         if (count % BATCH_SIZE == 0) {
                             updateStmt.executeBatch();
                             conn.commit();
-                            log.info("Updated batch of " + BATCH_SIZE);
+                            logDB.info("Updated batch of " + BATCH_SIZE);
                         }
                     }
 
                     if (count % BATCH_SIZE != 0) {
                         updateStmt.executeBatch();
                         conn.commit();
-                        log.info("Updated final batch of " + (count % BATCH_SIZE));
+                        logDB.info("Updated final batch of " + (count % BATCH_SIZE));
                     }
 
-                    log.info("Updated instruction records: " + count);
+                    logDB.info("Updated instruction records: " + count);
                 }
             }
 
             return null;
 
         } catch (SQLException error) {
-            log.error("Failed to update cloned instruction");
+            logDB.error("Failed to update cloned instruction");
             return new ErrorMessage(
                     "Failed to update cloned instruction", "cloned instruction Update Failure", error.getMessage());
         }
@@ -6010,14 +6005,14 @@ public class PerformDataBase {
                         int oldInstructionId = rsReference.getInt("instruction_id");
                         Integer newInstructionId = instructionMap.get(oldInstructionId);
                         if (newInstructionId == null) {
-                            log.info("Skipped reference with unknown instruction_id: " + oldInstructionId);
+                            logDB.info("Skipped reference with unknown instruction_id: " + oldInstructionId);
                             continue;
                         }
 
                         int oldBotJobId = rsReference.getInt("bot_job_id");
                         Integer newBotJobId = botJobMap.get(oldBotJobId);
                         if (newBotJobId == null) {
-                            log.info("Skipped reference with unknown bot_job_id: " + newBotJobId);
+                            logDB.info("Skipped reference with unknown bot_job_id: " + newBotJobId);
                             continue;
                         }
 
@@ -6039,7 +6034,7 @@ public class PerformDataBase {
                         if (count % BATCH_SIZE == 0) {
                             insertStmt.executeBatch();
                             conn.commit();
-                            log.info("Inserted batch of " + BATCH_SIZE);
+                            logDB.info("Inserted batch of " + BATCH_SIZE);
                         }
                     }
 
@@ -6047,7 +6042,7 @@ public class PerformDataBase {
                     if (count % BATCH_SIZE != 0) {
                         insertStmt.executeBatch();
                         conn.commit();
-                        log.info("Inserted final batch of " + (count % BATCH_SIZE));
+                        logDB.info("Inserted final batch of " + (count % BATCH_SIZE));
                     }
                 }
             }
@@ -6065,13 +6060,14 @@ public class PerformDataBase {
             newComponentIds.removeAll(blockIdsBefore);
 
             // You can now use `newComponentIds` as needed
-            log.info("Newly inserted reference IDs: " + newComponentIds);
+            logDB.info("Newly inserted reference IDs: " + newComponentIds);
 
             // Step 5: update blockMap with new IDs
             List<Integer> keys = new ArrayList<>(referenceMap.keySet());
 
             if (keys.size() != newComponentIds.size()) {
-                log.error("Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
+                logDB.error(
+                        "Mismatch in size: expected " + keys.size() + " new IDs, but got " + newComponentIds.size());
             } else {
                 for (int i = 0; i < keys.size(); i++) {
                     Integer oldId = keys.get(i);
@@ -6083,7 +6079,7 @@ public class PerformDataBase {
             return null;
 
         } catch (SQLException error) {
-            log.error("Failed to clone reference");
+            logDB.error("Failed to clone reference");
             return new ErrorMessage("Failed to clone reference", "reference Insertion Failure", error.getMessage());
         }
     }
@@ -6104,9 +6100,9 @@ public class PerformDataBase {
                                 """;
                 stmt.executeUpdate(createTableVectorOpenAI);
             }
-            log.info("Database %s has been created!");
+            logDB.info("Database %s has been created!");
         } catch (SQLException error) {
-            log.info("initializeDatabase\nError: " + error.getMessage());
+            logDB.info("initializeDatabase\nError: " + error.getMessage());
         }
     }
 
@@ -6126,9 +6122,9 @@ public class PerformDataBase {
                                 """;
                 stmt.executeUpdate(createTableVectorOpenAI);
             }
-            log.info("Database %s has been created!");
+            logDB.info("Database %s has been created!");
         } catch (SQLException error) {
-            log.info("initializeDatabase\nError: " + error.getMessage());
+            logDB.info("initializeDatabase\nError: " + error.getMessage());
         }
     }
 
@@ -6166,7 +6162,7 @@ public class PerformDataBase {
             //                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"idgen\";");
             //            }
 
-            log.info("All Rows DELETED for:\n"
+            logDB.info("All Rows DELETED for:\n"
                     + "Variables;\n"
                     + "Instructions References;\n"
                     + "Instructions;\n"
@@ -6178,7 +6174,7 @@ public class PerformDataBase {
 
         } catch (SQLException e) {
 
-            log.error(dataBaseType + " Problems:\n"
+            logDB.error(dataBaseType + " Problems:\n"
                     + "Not Possible delete the  Rows was for these tables:\n"
                     + "ExcelReportDTO;\n"
                     + "Variables;\n"
@@ -6200,13 +6196,13 @@ public class PerformDataBase {
             // Execute each statement individually
             stmt.executeUpdate("DELETE FROM home_url;");
 
-            log.info("All Rows DELETED for:\n" + "HomeUrl;");
+            logDB.info("All Rows DELETED for:\n" + "HomeUrl;");
 
             return true;
 
         } catch (SQLException e) {
 
-            log.error(dataBaseType + " Problems:\n"
+            logDB.error(dataBaseType + " Problems:\n"
                     + "Not Possible delete the  Rows was for these tables:\n"
                     + "HomeUrl;\n"
                     + e.getMessage());
@@ -6280,7 +6276,7 @@ public class PerformDataBase {
             }
         } catch (SQLException error) {
 
-            log.error("loadAllVariablesByCriteria. Error: " + error.getMessage());
+            logDB.error("loadAllVariablesByCriteria. Error: " + error.getMessage());
             return new ErrorMessage("Error loading Variables", "Error loading Variables", error.getMessage());
         }
         return null;
@@ -6330,16 +6326,84 @@ public class PerformDataBase {
             // Step 4: Keep only the new IDs
             idsVariableAfter.removeAll(idsBefore);
 
-            log.info(String.format("Variable inserted successfully. New IDs: %s", idsVariableAfter));
+            logDB.info(String.format("Variable inserted successfully. New IDs: %s", idsVariableAfter));
 
             conn.commit(); // Commit transaction
             return null; // Success
 
         } catch (SQLException error) {
 
-            log.error(String.format("createVariable - Error: %s", error.getMessage()));
+            logDB.error(String.format("createVariable - Error: %s", error.getMessage()));
 
             return new ErrorMessage("Variable Insertion Error", "Error inserting a new variable.", error.getMessage());
+        }
+    }
+
+    public ErrorMessage updateUserData(String id, DatabaseUserDTO user) {
+        String updateSQL =
+                "UPDATE home_banking SET Name = ?, Url = ?, Priority = ?, search_config = ?, options_config = ? WHERE ID = ?";
+
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false); // start transaction
+
+            try (PreparedStatement stmt = conn.prepareStatement(updateSQL)) {
+                int userId = Integer.parseInt(id);
+
+                // Replace newlines with "£" and handle null values
+                String priority = Strings.isNullOrEmpty(user.getPriority())
+                        ? ""
+                        : user.getPriority().replace("\n", "£");
+                String searchConfig = Strings.isNullOrEmpty(user.getSearchConfig())
+                        ? ""
+                        : user.getSearchConfig().replace("\n", "£");
+                String optionsConfig = Strings.isNullOrEmpty(user.getOptionsConfig())
+                        ? ""
+                        : user.getOptionsConfig().replace("\n", "£");
+
+                // Set parameters
+                stmt.setString(1, user.getName());
+                stmt.setString(2, user.getUrl());
+                stmt.setString(3, priority);
+                stmt.setString(4, searchConfig);
+                stmt.setString(5, optionsConfig);
+                stmt.setInt(6, userId);
+
+                stmt.addBatch();
+                int[] rowsAffectedBatch = stmt.executeBatch();
+                conn.commit();
+
+                int rowsAffected = rowsAffectedBatch.length > 0 ? rowsAffectedBatch[0] : 0;
+
+                if (rowsAffected > 0) {
+                    logDB.info(String.format("Updated %d row(s) in home_banking where ID = %d", rowsAffected, userId));
+                } else {
+                    logDB.warn(
+                            String.format("No matching record found to update in home_banking where ID = %d", userId));
+                    return new ErrorMessage(
+                            "Update Warning",
+                            "Id Not Found",
+                            String.format("No matching record found to update Id: %d", userId));
+                }
+
+                return null; // success
+            } catch (SQLException e) {
+                try {
+                    conn.rollback();
+                } catch (SQLException rbEx) {
+                    logDB.error("Rollback failed: " + rbEx.getMessage());
+                }
+
+                logDB.error(String.format(
+                        "Error updating row in home_banking where ID = %s. Error: %s", id, e.getMessage()));
+                return new ErrorMessage(
+                        "Update Error", "Failed to update home_banking record for ID = " + id, e.getMessage());
+            }
+        } catch (SQLException ex) {
+            logDB.error("Connection error while updating home_banking for ID = {}. Error: {}", id, ex.getMessage());
+            return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
+        } catch (NumberFormatException nfEx) {
+            logDB.error("Invalid ID format: {}", id);
+            return new ErrorMessage("Invalid ID", "Provided ID is not a valid number", nfEx.getMessage());
         }
     }
 
@@ -6372,12 +6436,12 @@ public class PerformDataBase {
 
                 if (rowsAffected > 0) {
 
-                    log.info(String.format(
+                    logDB.info(String.format(
                             "Updated %d row(s) in %s where id = %d and %s = %d",
                             rowsAffected, tableName, user.getId(), foreignKeyColumn, whereId));
                 } else {
 
-                    log.warn(String.format(
+                    logDB.warn(String.format(
                             "No matching row found in %s where id = %d and %s = %d",
                             tableName, user.getId(), foreignKeyColumn, whereId));
                 }
@@ -6385,7 +6449,7 @@ public class PerformDataBase {
                 return null; // success
             } catch (SQLException e) {
 
-                log.error(String.format(
+                logDB.error(String.format(
                         "Error updating row in %s where id = %d and %s = %d. Error: %s",
                         tableName, user.getId(), foreignKeyColumn, whereId, e.getMessage()));
 
@@ -6397,9 +6461,63 @@ public class PerformDataBase {
             }
         } catch (SQLException ex) {
 
-            log.error(String.format(
+            logDB.error(String.format(
                     "Connection error while updating row in %s where id = %d and %s = %d. Error: %s",
                     tableName, user.getId(), foreignKeyColumn, whereId, ex.getMessage()));
+
+            return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
+        }
+    }
+
+    public ErrorMessage deleteUserData(String orgId) {
+        String deleteHomeUrlSQL = "DELETE FROM home_url WHERE home_banking_id = ?";
+        String deleteHomeBankingSQL = "DELETE FROM home_banking WHERE id = ?";
+
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false); // start transaction
+
+            int homeBankId = Integer.parseInt(orgId);
+
+            try (PreparedStatement deleteHomeUrlStmt = conn.prepareStatement(deleteHomeUrlSQL);
+                    PreparedStatement deleteHomeBankingStmt = conn.prepareStatement(deleteHomeBankingSQL)) {
+
+                // batch for home_url
+                deleteHomeUrlStmt.setInt(1, homeBankId);
+                deleteHomeUrlStmt.addBatch();
+
+                // batch for home_banking
+                deleteHomeBankingStmt.setInt(1, homeBankId);
+                deleteHomeBankingStmt.addBatch();
+
+                int[] urlRowsBatch = deleteHomeUrlStmt.executeBatch();
+                int[] bankRowsBatch = deleteHomeBankingStmt.executeBatch();
+
+                conn.commit();
+
+                int urlRows = urlRowsBatch.length > 0 ? urlRowsBatch[0] : 0;
+                int bankRows = bankRowsBatch.length > 0 ? bankRowsBatch[0] : 0;
+
+                if (urlRows > 0 || bankRows > 0) {
+                    logDB.info(String.format(
+                            "Deleted %d row(s) from home_url and %d row(s) from home_banking for orgId = %d",
+                            urlRows, bankRows, homeBankId));
+                } else {
+                    logDB.warn(String.format(
+                            "No rows found to delete in home_url/home_banking for orgId = %d", homeBankId));
+                }
+
+                return null; // success
+            } catch (SQLException e) {
+                logDB.error(String.format("Error deleting rows for orgId = %d. Error: %s", homeBankId, e.getMessage()));
+
+                return new ErrorMessage(
+                        "Delete Error",
+                        "Failed to delete rows from home_url/home_banking for orgId = " + homeBankId,
+                        e.getMessage());
+            }
+        } catch (SQLException ex) {
+            logDB.error(String.format(
+                    "Connection error while deleting rows for orgId = %d. Error: %s", orgId, ex.getMessage()));
 
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
@@ -6427,12 +6545,12 @@ public class PerformDataBase {
 
                 if (rowsAffected > 0) {
 
-                    log.info(String.format(
+                    logDB.info(String.format(
                             "Deleted %d row(s) from %s where id = %d and %s = %d",
                             rowsAffected, tableName, variableId, foreignKeyColumn, whereId));
                 } else {
 
-                    log.warn(String.format(
+                    logDB.warn(String.format(
                             "No rows found to delete in %s where id = %d and %s = %d",
                             tableName, variableId, foreignKeyColumn, whereId));
                 }
@@ -6440,7 +6558,7 @@ public class PerformDataBase {
                 return null; // success
             } catch (SQLException e) {
 
-                log.error(String.format(
+                logDB.error(String.format(
                         "Error deleting row in %s where id = %d and %s = %d. Error: %s",
                         tableName, variableId, foreignKeyColumn, whereId, e.getMessage()));
 
@@ -6452,7 +6570,7 @@ public class PerformDataBase {
             }
         } catch (SQLException ex) {
 
-            log.error(String.format(
+            logDB.error(String.format(
                     "Connection error while deleting row in %s where id = %d and %s = %d. Error: %s",
                     tableName, variableId, foreignKeyColumn, whereId, ex.getMessage()));
 
@@ -6621,7 +6739,7 @@ public class PerformDataBase {
                 instructions.addAll(instructionMap.values());
                 targetList.addAll(instructions);
 
-                log.info(String.format(
+                logDB.info(String.format(
                         "Fetched %d instructions (with references) from table %s%s%s",
                         instructions.size(),
                         tableName,
@@ -6631,7 +6749,7 @@ public class PerformDataBase {
             return null;
         } catch (SQLException error) {
 
-            log.error(String.format(
+            logDB.error(String.format(
                     "Error fetching instructions from table %s%s%s. Error: %s",
                     tableName,
                     blockId > 0 ? " for Block ID " + blockId : "",
@@ -6706,13 +6824,13 @@ public class PerformDataBase {
                     references.add(reference);
                 }
 
-                log.info(String.format(
+                logDB.info(String.format(
                         "Fetched %d references from table %s where %s=%d and instrucIds=%s",
                         references.size(), tableName, whereColumn, whereID, instrucIds));
             }
         } catch (SQLException e) {
 
-            log.error(String.format(
+            logDB.error(String.format(
                     "Error fetching references from table %s where %s=%d. Error: %s",
                     tableName, whereColumn, whereID, e.getMessage()));
         }
@@ -6744,7 +6862,7 @@ public class PerformDataBase {
 
         } catch (SQLException e) {
 
-            log.error("Error ensuring parent_block_id column: " + e.getMessage());
+            logDB.error("Error ensuring parent_block_id column: " + e.getMessage());
             return new ErrorMessage(
                     "Database Column Error", "Error ensuring parent_block_id column exists in tables", e.getMessage());
         }
@@ -6768,7 +6886,7 @@ public class PerformDataBase {
         }
     }
 
-    public void preDeleteNullBlocks(String blockTable, int whereId, String instTable) {
+    public ErrorMessage preDeleteNullBlocks(String blockTable, int whereId, String instTable) {
         ErrorMessage errorMessage = loadBlocks(whereId, "", blockTable);
 
         if (errorMessage == null) {
@@ -6793,7 +6911,7 @@ public class PerformDataBase {
             List<Integer> restToDeleteIds =
                     previousIds.stream().filter(id -> !currentIds.contains(id)).collect(Collectors.toList());
 
-            log.info("Blocks To Delete: " + restToDeleteIds.size());
+            logDB.info("Blocks To Delete: " + restToDeleteIds.size());
             // Keep at least One for BLOCK TABLE
             List<BlockLoadDTO> listBlocks =
                     instTable.equals("instruction") ? performLists.getListBlock() : performLists.getListBlockComp();
@@ -6803,12 +6921,8 @@ public class PerformDataBase {
             } else if (errorMessage == null && !restToDeleteIds.isEmpty() && (blockTable.equals("component_block"))) {
                 errorMessage = deleteNullBlocks(blockTable, whereId, restToDeleteIds);
             }
-            if (errorMessage != null) {
-
-                log.error("Error Deleting Nulls Blocks Table:" + blockTable + " Error: "
-                        + errorMessage.getErrorMessage());
-            }
         }
+        return errorMessage;
     }
 
     public ErrorMessage deleteNullBlocks(String tableName, int whereId, List<Integer> restIds) {
@@ -6837,14 +6951,14 @@ public class PerformDataBase {
 
                 int totalDeleted = Arrays.stream(results).sum();
 
-                log.info(String.format(
+                logDB.info(String.format(
                         "Deleted %d blocks from table %s where %s = %d (IDs: %s)",
                         totalDeleted, tableName, foreignKeyColumn, whereId, restIds));
 
                 return null; // success
             } catch (SQLException e) {
 
-                log.error(String.format(
+                logDB.error(String.format(
                         "Error deleting blocks from table %s where %s = %d. IDs: %s. Error: %s",
                         tableName, foreignKeyColumn, whereId, restIds, e.getMessage()));
 
@@ -6856,7 +6970,7 @@ public class PerformDataBase {
             }
         } catch (SQLException ex) {
 
-            log.error(String.format(
+            logDB.error(String.format(
                     "Connection error while deleting blocks from table %s where %s = %d. IDs: %s. Error: %s",
                     tableName, foreignKeyColumn, whereId, restIds, ex.getMessage()));
 
@@ -6877,7 +6991,7 @@ public class PerformDataBase {
         Set<Integer> seenNumbers = new HashSet<>();
         for (BlockLoadDTO block : listBlock) {
             if (!seenNumbers.add(block.getBlockOrderNumber())) {
-                log.info("Duplicate blockOrderNumber found: " + block.getBlockOrderNumber() + " (Block ID: "
+                logDB.info("Duplicate blockOrderNumber found: " + block.getBlockOrderNumber() + " (Block ID: "
                         + block.getId() + ")");
                 // updateBlockOrderNumber  ALREADY UPDATE MEMORY LIST
                 if (errorMessage == null) {
@@ -6899,7 +7013,7 @@ public class PerformDataBase {
             int expected = orderNumbers.get(i - 1) + 1;
             int actual = orderNumbers.get(i);
             if (actual != expected) {
-                log.info("Gap found: expected " + expected + " but found " + actual);
+                logDB.info("Gap found: expected " + expected + " but found " + actual);
                 if (errorMessage == null) {
                     errorMessage = updateBlockOrderNumber(blockTable, whereId, true);
                     mustReload = true;

@@ -205,14 +205,7 @@ public class ARNewCommandPane extends ARPane {
                 : splitDTO.getBotJobId();
         ErrorMessage errorMessage = performDataBase.loadWebPageFields(whereId, tableName);
         if (errorMessage != null) {
-            performMessage.errorMessage(
-                    errorMessage.getErrorTitle(),
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                            + errorMessage.getErrorHeader(),
-                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                    null,
-                    0);
+            performMessage.errorMessageOperationFailed(errorMessage);
         }
 
         this.filteredPageItems.clear();
@@ -309,14 +302,7 @@ public class ARNewCommandPane extends ARPane {
                 errorMessage = performDataBase.loadAllVariablesByCriteria(
                         varTable, whereId, instructionLoad.getId(), instructionLoad.getName());
                 if (errorMessage != null) {
-                    performMessage.errorMessage(
-                            errorMessage.getErrorTitle(),
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                    + errorMessage.getErrorHeader(),
-                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                            null,
-                            0);
+                    performMessage.errorMessageOperationFailed(errorMessage);
                 }
             }
         }
@@ -2321,14 +2307,7 @@ public class ARNewCommandPane extends ARPane {
             ErrorMessage errorMessage = performDataBase.loadAllVariablesByCriteria(
                     varTable, whereId, instructionLoad.getId(), instructionLoad.getName());
             if (errorMessage != null) {
-                performMessage.errorMessage(
-                        errorMessage.getErrorTitle(),
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                + errorMessage.getErrorHeader(),
-                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                        null,
-                        0);
+                performMessage.errorMessageOperationFailed(errorMessage);
             }
         }
 
@@ -2377,14 +2356,7 @@ public class ARNewCommandPane extends ARPane {
     private void updateFields(String tableName, int whereId) {
         ErrorMessage errorMessage = performDataBase.loadWebPageFields(whereId, tableName);
         if (errorMessage != null) {
-            performMessage.errorMessage(
-                    errorMessage.getErrorTitle(),
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                            + errorMessage.getErrorHeader(),
-                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                    null,
-                    0);
+            performMessage.errorMessageOperationFailed(errorMessage);
         }
 
         this.filteredPageItems.clear();
@@ -2607,28 +2579,14 @@ public class ARNewCommandPane extends ARPane {
                         this.splitDTO.getHomeBankingId(), this.splitDTO.getBotJobId(), this.splitDTO.getBotJobName());
 
                 if (errorMessage != null) {
-                    performMessage.errorMessage(
-                            errorMessage.getErrorTitle(),
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                    + errorMessage.getErrorHeader(),
-                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                            null,
-                            0);
+                    performMessage.errorMessageOperationFailed(errorMessage);
                 }
 
             } else {
                 errorMessage = performDBEngine.loadCompleteJobs(this.splitDTO.getBotJobId());
 
                 if (errorMessage != null) {
-                    performMessage.errorMessage(
-                            errorMessage.getErrorTitle(),
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                    + errorMessage.getErrorHeader(),
-                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                            null,
-                            0);
+                    performMessage.errorMessageOperationFailed(errorMessage);
                 }
             }
 

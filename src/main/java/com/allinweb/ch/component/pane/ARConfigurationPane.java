@@ -228,8 +228,12 @@ public class ARConfigurationPane extends ARPane {
         //                PerformDataBase..getEntityList(HomeBankingDTO.class);
 
         if (performDataBase.isConnDBWorks()) {
-            performDBEngine.loadHomeBanking(null);
+            ErrorMessage errorMessage = performDBEngine.loadHomeBanking(null);
+            if (errorMessage != null) {
+                performMessage.errorMessageOperationFailed(errorMessage);
+            }
         }
+
         homeBankingListView = new ListView<>(FXCollections.observableArrayList(performLists.getListHomeBanking()));
         homeBankingListView.setCellFactory(new ARCellFactory<>(HomeBankingListCell.class)::call);
 
@@ -891,9 +895,18 @@ public class ARConfigurationPane extends ARPane {
 
                     performLists.clearAllLists();
 
-                    performDBEngine.loadHomeBanking(null);
-                    performDBEngine.loadHomeUrls(null);
-                    performDataBase.loadQuickBotJobs();
+                    errorMessage = performDBEngine.loadHomeBanking(null);
+                    if (errorMessage == null) {
+                        errorMessage = performDBEngine.loadHomeUrls(null);
+                    }
+
+                    if (errorMessage == null) {
+                        errorMessage = performDataBase.loadQuickBotJobs();
+                    }
+
+                    if (errorMessage != null) {
+                        performMessage.errorMessageOperationFailed(errorMessage);
+                    }
                     viewBotJobListView.setItems(FXCollections.observableArrayList(performLists.getQuickBotJobs()));
 
                     backupDBButton.setDisable(performLists.getListHomeBanking().isEmpty());
@@ -914,9 +927,7 @@ public class ARConfigurationPane extends ARPane {
                             null,
                             0);
                 } else {
-
                     log.error("Restore Database error: " + errorMessage.getErrorMessage());
-
                     performMessage.errorMessage(
                             "Restore Database error",
                             "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>"
@@ -1064,9 +1075,18 @@ public class ARConfigurationPane extends ARPane {
 
             performLists.clearAllLists();
 
-            performDBEngine.loadHomeBanking(null);
-            performDBEngine.loadHomeUrls(null);
-            performDataBase.loadQuickBotJobs();
+            ErrorMessage errorMessage = performDBEngine.loadHomeBanking(null);
+            if (errorMessage == null) {
+                errorMessage = performDBEngine.loadHomeUrls(null);
+            }
+
+            if (errorMessage == null) {
+                errorMessage = performDataBase.loadQuickBotJobs();
+            }
+
+            if (errorMessage != null) {
+                performMessage.errorMessageOperationFailed(errorMessage);
+            }
             viewBotJobListView.setItems(FXCollections.observableArrayList(performLists.getQuickBotJobs()));
 
             backupDBButton.setDisable(performLists.getListHomeBanking().isEmpty());
@@ -1079,7 +1099,11 @@ public class ARConfigurationPane extends ARPane {
 
                 if (!this.previousDB.equalsIgnoreCase(databaseChoiceBox.getValue())
                         || !this.previousDBUrl.equalsIgnoreCase(dbUrl.getText().trim())) {
-                    performDataBase.loadQuickBotJobs();
+
+                    errorMessage = performDataBase.loadQuickBotJobs();
+                    if (errorMessage != null) {
+                        performMessage.errorMessageOperationFailed(errorMessage);
+                    }
                     this.previousDB = databaseChoiceBox.getValue();
                     this.previousDBUrl = dbUrl.getText().trim();
                 }

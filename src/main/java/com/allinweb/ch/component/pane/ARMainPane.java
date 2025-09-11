@@ -134,14 +134,7 @@ public class ARMainPane extends ARPane {
         botJobList.clear();
         ErrorMessage errorMessage = performDataBase.loadQuickBotJobs();
         if (!performDataBase.dbFailed && errorMessage != null) {
-            performMessage.errorMessage(
-                    errorMessage.getErrorTitle(),
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                            + errorMessage.getErrorHeader(),
-                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                    null,
-                    0);
+            performMessage.errorMessageOperationFailed(errorMessage);
         }
         botJobList.addAll(performLists.getQuickBotJobs());
     }
@@ -628,8 +621,16 @@ public class ARMainPane extends ARPane {
             performDataBase.loadQuickBotJobs();
         }
 
-        performDataBase.loadBlocks(selecBotJobDTO.getId(), selecBotJobDTO.getName(), "block");
-        performDataBase.loadBlocks(selecBotJobDTO.getHomeBankingId(), selecBotJobDTO.getName(), "component_block");
+        ErrorMessage errorMessage =
+                performDataBase.loadBlocks(selecBotJobDTO.getId(), selecBotJobDTO.getName(), "block");
+        if (errorMessage == null) {
+            performDataBase.loadBlocks(selecBotJobDTO.getHomeBankingId(), selecBotJobDTO.getName(), "component_block");
+        }
+
+        if (errorMessage != null) {
+            performMessage.errorMessageOperationFailed(errorMessage);
+        }
+
         //        this.botLoadJobs = performDataBase.loadBotJobWithBlock(this.botJobId);
 
         BotJobLoadDTO botJobLoad = performLists.getQuickBotJobById(selecBotJobDTO.getId());
@@ -642,21 +643,14 @@ public class ARMainPane extends ARPane {
         // It Prevents Start without blocks
         if (performLists.getListBlock().isEmpty()) {
 
-            ErrorMessage errorMessage = performDataBase.initiateNewBlock(
+            errorMessage = performDataBase.initiateNewBlock(
                     "block", selecBotJobDTO.getId(), "Default Block", "Default Block", 1, false);
 
             if (errorMessage == null) {
 
                 log.info(String.format("A new Block was created for bot job Id %d", selecBotJobDTO.getId()));
             } else {
-                performMessage.errorMessage(
-                        errorMessage.getErrorTitle(),
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                + errorMessage.getErrorTitle(),
-                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                        null,
-                        0);
+                performMessage.errorMessageOperationFailed(errorMessage);
             }
         }
     }
