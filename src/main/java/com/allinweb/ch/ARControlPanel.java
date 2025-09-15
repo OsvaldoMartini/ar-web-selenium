@@ -43,7 +43,7 @@ public class ARControlPanel extends Application {
     private static WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static ARWebSocketServerIP arWebSocketServerIP;
     private static ARWebSocketServer arWebSocketServer; // Static block to initialize
-    private static String defaultConfigurationFileName = ARConstants.USER_PATH + ARConstants.FILE_NAME_CONFIGURATION;
+    private static String defaultConfigurationFileName = ARConstants.USER_PATH + ARConstants.FILE_DEFAULT_CONFIG;
     private static boolean isEnabledLicence = true;
 
     static {
@@ -105,7 +105,11 @@ public class ARControlPanel extends Application {
             arPropertyManager.setConfigurationFileName(defaultConfigurationFileName);
             File configurationFile = new File(defaultConfigurationFileName);
             try (FileInputStream conf = new FileInputStream(configurationFile)) {
+                // reads from config.properties
                 arPropertyManager.loadProperties(conf);
+                // changes to ARWeb.config
+                defaultConfigurationFileName = ARConstants.USER_PATH + ARConstants.FILE_AR_WEB_CONFIG;
+                arPropertyManager.setConfigurationFileName(defaultConfigurationFileName);
                 String porSocketInUse = System.getProperty("ARWebChosenPort");
                 arPropertyManager.setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), porSocketInUse);
                 // Make path available to Logback via System property

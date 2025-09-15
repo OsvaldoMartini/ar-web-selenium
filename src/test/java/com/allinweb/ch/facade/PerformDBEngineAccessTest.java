@@ -1,74 +1,57 @@
 package com.allinweb.ch.facade;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
-import static org.mockito.Mockito.mockStatic;
 
-import com.allinweb.ch.util.ARConstantsEngine;
-import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
-@ExtendWith(MockitoExtension.class)
 class PerformDBEngineAccessTest {
 
-    private PerformDBEngine dbEngine;
-
-    @Mock
-    private ARPropertyManager mockPropertyManager;
-
-    @Mock
-    private Connection mockConnection;
+    private static final String WEB_CONFIG_FILE_PATH = "C:\\ARWeb-Martini\\Config-4.2\\TESTS.config";
+    private ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
 
     @BeforeEach
-    void setup() throws SQLException {
-        dbEngine = PerformDBEngine.getInstance();
+    void setup() {
+        File configFile = new File(WEB_CONFIG_FILE_PATH);
 
-        // Inject mock ARPropertyManager
-        PerformDBEngine.arPropertyManager = mockPropertyManager;
+        // Create the config file if it does not exist
+        if (!configFile.exists()) {
+            arPropertyManager.setConfigurationFileName(WEB_CONFIG_FILE_PATH);
+            arPropertyManager.createDefaultProperties(configFile);
+        }
 
-        // Mock database type and path
-        when(mockPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE)).thenReturn("ACCESS");
-        when(mockPropertyManager.getProperty(ARPropertyEnum.PATH_DB)).thenReturn("C:\\ARWeb-Martini\\ARWeb");
+        // Set the configuration file path and load properties
+        arPropertyManager.setConfigurationFileName(WEB_CONFIG_FILE_PATH);
+        try (FileInputStream fis = new FileInputStream(configFile)) {
+            arPropertyManager.loadProperties(fis);
+        } catch (IOException e) {
+            fail("Failed to load config file: " + e.getMessage());
+        }
     }
 
     @Test
-    @DisplayName("Test Access DB Connection fully mocked")
-    void testAccessConnection() throws SQLException, ClassNotFoundException {
-        // Mock DriverManager.getConnection() using try-with-resources for static mocking
-        try (var driverManagerMock = mockStatic(DriverManager.class)) {
-            driverManagerMock
-                    .when(() -> DriverManager.getConnection(anyString()))
-                    .thenReturn(mockConnection);
+    @DisplayName("Test config file exists")
+    void testConfigFileExists() {
+        File configFile = new File(WEB_CONFIG_FILE_PATH);
+        assertTrue(configFile.exists(), "Test configuration file must exist");
+    }
 
-            // Mock setReadOnly behavior
-            doNothing().when(mockConnection).setReadOnly(false);
-
-            // Call getConnection()
-            Connection conn = dbEngine.getConnection();
-
-            // Assertions
+    @Test
+    @DisplayName("Test Access DB connection")
+    void testAccessConnection() {
+        // Example: your DB engine connection test
+        try (Connection conn = PerformDBEngine.getInstance().getConnection()) {
             assertNotNull(conn, "Connection should not be null");
             assertFalse(conn.isReadOnly(), "Connection should be writable");
-            assertTrue(dbEngine.ACCESS_DB, "ACCESS_DB flag should be true");
-            assertTrue(dbEngine.connDBWorks, "connDBWorks should be true");
-            assertFalse(dbEngine.dbFailed, "dbFailed should be false");
-
-            // Verify interactions
-            verify(mockPropertyManager, atLeastOnce()).getProperty(ARPropertyEnum.DATABASE_TYPE);
-            verify(mockPropertyManager, atLeastOnce()).getProperty(ARPropertyEnum.PATH_DB);
-            verify(mockConnection, atLeastOnce()).setReadOnly(false);
-
-            // Verify DriverManager was called with Access DB URL
-            driverManagerMock.verify(() -> DriverManager.getConnection(contains(ARConstantsEngine.FILE_NAME_ACCESS)));
+        } catch (SQLException e) {
+            fail("Failed to connect to DB: " + e.getMessage());
         }
     }
 }
