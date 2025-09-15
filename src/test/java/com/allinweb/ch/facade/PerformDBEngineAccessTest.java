@@ -1,22 +1,21 @@
 package com.allinweb.ch.facade;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mockStatic;
+
 import com.allinweb.ch.util.ARConstantsEngine;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
-import static org.mockito.Mockito.mockStatic;
 
 @ExtendWith(MockitoExtension.class)
 class PerformDBEngineAccessTest {
@@ -46,9 +45,9 @@ class PerformDBEngineAccessTest {
     void testAccessConnection() throws SQLException, ClassNotFoundException {
         // Mock DriverManager.getConnection() using try-with-resources for static mocking
         try (var driverManagerMock = mockStatic(DriverManager.class)) {
-            driverManagerMock.when(() ->
-                    DriverManager.getConnection(anyString())
-            ).thenReturn(mockConnection);
+            driverManagerMock
+                    .when(() -> DriverManager.getConnection(anyString()))
+                    .thenReturn(mockConnection);
 
             // Mock setReadOnly behavior
             doNothing().when(mockConnection).setReadOnly(false);
@@ -69,9 +68,7 @@ class PerformDBEngineAccessTest {
             verify(mockConnection, atLeastOnce()).setReadOnly(false);
 
             // Verify DriverManager was called with Access DB URL
-            driverManagerMock.verify(() -> DriverManager.getConnection(
-                    contains(ARConstantsEngine.FILE_NAME_ACCESS)
-            ));
+            driverManagerMock.verify(() -> DriverManager.getConnection(contains(ARConstantsEngine.FILE_NAME_ACCESS)));
         }
     }
 }
