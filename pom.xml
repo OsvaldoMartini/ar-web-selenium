@@ -207,6 +207,29 @@
             <artifactId>openai-java</artifactId>
             <version>0.30.0</version>
         </dependency>
+        <!-- JUnit 5 API and Engine -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.10.0</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Optional: For running tests in parallel -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
+            <version>5.10.0</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Optional: Mockito for mocking -->
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-junit-jupiter</artifactId>
+            <version>5.5.0</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -221,12 +244,21 @@
             </plugins>
         </pluginManagement>
         <plugins>
+            <!-- Maven Surefire for running tests -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.1.2</version>
+                <configuration>
+                    <useModulePath>false</useModulePath>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.openjfx</groupId>
                 <artifactId>javafx-maven-plugin</artifactId>
                 <version>0.0.8</version>
                 <configuration>
-                    <mainClass>com.allinweb.ch.ARControlPanel</mainClass>
+                    <mainClass>com.allinweb.ch.facade.ARControlPanel</mainClass>
                 </configuration>
             </plugin>
             <plugin>
@@ -243,7 +275,7 @@
                             <transformers>
                                 <transformer
                                         implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>com.allinweb.ch.ARControlPanel</mainClass>
+                                    <mainClass>com.allinweb.ch.facade.ARControlPanel</mainClass>
                                 </transformer>
                             </transformers>
                         </configuration>
@@ -264,7 +296,7 @@
                     <execution>
                         <id>debug</id>
                         <configuration>
-                            <mainClass>com.allinweb.ch.ARControlPanel</mainClass>
+                            <mainClass>com.allinweb.ch.facade.ARControlPanel</mainClass>
                             <options>
                                 <option>-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:8000</option>
                             </options>
