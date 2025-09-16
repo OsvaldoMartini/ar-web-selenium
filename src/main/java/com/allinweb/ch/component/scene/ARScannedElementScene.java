@@ -376,10 +376,6 @@ public class ARScannedElementScene extends ARScene {
                         arScannedElementPane.itPrintsElementDTO();
                         arScannedElementPane.testingActions(arScannedElementPane.targetSelected, processDTO.getType());
                     }
-                    Platform.runLater(() -> {
-                        arScannedElementPane.defineNameField.clear();
-                        arScannedElementPane.searchAttribValueField.clear();
-                    });
                     break;
                 case "DEL_ELEMENT_DTO":
                 case "DETAILS_ELEMENT_DTO":
@@ -620,7 +616,9 @@ public class ARScannedElementScene extends ARScene {
                 TargetElement targetEach = extractPickClone(elementDTO);
 
                 WebElement elementFound = performActions.findWebElement(targetEach);
-                targetEach.setElement(elementFound);
+                if (targetEach.getElement() == null && elementFound != null) {
+                    targetEach.setElement(elementFound);
+                }
                 // 3 Different Coordinates
                 // Original from JavaScript
                 // WebDriver Selenium ElementFound
@@ -729,7 +727,9 @@ public class ARScannedElementScene extends ARScene {
         TargetElement targetLocal = performActions.defineSearchReturn(elementDTO, null);
 
         WebElement elementFound = performActions.findWebElement(targetLocal);
-        targetLocal.setElement(elementFound);
+        if (targetLocal.getElement() == null && elementFound != null) {
+            targetLocal.setElement(elementFound);
+        }
         // 3 Different Coordinates // Original from JavaScript  // WebDriver Selenium ElementFound
         // FallBack React Computed
         performActions.defineSavedReferenced(targetLocal);

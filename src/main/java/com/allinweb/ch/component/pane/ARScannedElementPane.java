@@ -575,6 +575,16 @@ public class ARScannedElementPane extends ARPane {
         instruction.setBotJobId(currentBotJobId);
         instruction.setName(targetInsert.getDefinedName());
 
+        if (instruction.getName() == null && targetInsert.getNameLabel() == null) {
+            if (targetInsert.getSomeText() != null) {
+                instruction.setName(targetInsert.getSomeText());
+            } else {
+                instruction.setName(targetInsert.getTagName());
+            }
+        } else if (instruction.getName() == null && targetInsert.getNameLabel() != null) {
+            instruction.setName(targetInsert.getNameLabel());
+        }
+
         // Fix action string
         String actions = instruction.getActions();
         String[] parts = actions.split(",");
@@ -605,12 +615,14 @@ public class ARScannedElementPane extends ARPane {
         instructionList.add(instruction);
     }
 
-    public void testingActions(TargetElement targetTest, String testType) {
+    public void testingActions(TargetElement originTarget, String testType) {
         WebDriver driverTestActions = performActions.getCurrentDriver();
-        try {
-            if (targetTest.getElement() != null) {
 
-                //                            arWebDriver.dehighlightElement(targetTest.getElement());
+        TargetElement targetDeepCopy = originTarget.deepCopy();
+        try {
+            if (targetDeepCopy.getElement() != null) {
+
+                //                            arWebDriver.dehighlightElement(targetDeepCopy.getElement());
 
                 //                            WebElement elementXPath =
                 //
@@ -621,21 +633,21 @@ public class ARScannedElementPane extends ARPane {
 
                 FieldData fieldData = new FieldData("Test", testActionsField.getText());
 
-                String mainCoordenates = targetTest.getCoordinates();
-                String savedCoordenates = targetTest.getSavedReferences().get("coordinates");
+                String mainCoordenates = targetDeepCopy.getCoordinates();
+                String savedCoordenates = targetDeepCopy.getSavedReferences().get("coordinates");
                 if (Strings.isNullOrEmpty(mainCoordenates)) {
-                    mainCoordenates = targetTest.getCoordinates();
+                    mainCoordenates = targetDeepCopy.getCoordinates();
                 }
 
                 if (Strings.isNullOrEmpty(savedCoordenates)) {
                     savedCoordenates = mainCoordenates;
                 }
 
-                String mainCoordinates = targetTest.getCoordinates();
-                //                String savedCoordinates = targetTest.getSavedReferences().get("coordinates");
+                String mainCoordinates = targetDeepCopy.getCoordinates();
+                //                String savedCoordinates = targetDeepCopy.getSavedReferences().get("coordinates");
 
                 if (Strings.isNullOrEmpty(mainCoordinates)) {
-                    mainCoordinates = targetTest.getCoordinates();
+                    mainCoordinates = targetDeepCopy.getCoordinates();
                 }
 
                 //                if (Strings.isNullOrEmpty(savedCoordinates)) {
@@ -708,22 +720,27 @@ public class ARScannedElementPane extends ARPane {
                 actionText1 = new Text("Actions Tested:");
                 actionText1.setStyle("-fx-font-size: 12px; -fx-fill: blue;");
 
-                if (!Strings.isNullOrEmpty(targetTest.getIFrameXPath())) {
+                if (!Strings.isNullOrEmpty(targetDeepCopy.getIFrameXPath())) {
                     try {
                         // Locate and switch to the iframe first
-                        WebElement iframe = driverTestActions.findElement(By.xpath(targetTest.getIFrameXPath()));
+                        WebElement iframe = driverTestActions.findElement(By.xpath(targetDeepCopy.getIFrameXPath()));
                         driverTestActions.switchTo().frame(iframe);
 
-                        logOperations.info("Found iFrame XPath: " + targetTest.getIFrameXPath());
+                        logOperations.info("Found iFrame XPath: " + targetDeepCopy.getIFrameXPath());
                     } catch (Exception e) {
-                        logOperations.info("iFrame Not Found with XPath: " + targetTest.getIFrameXPath());
+                        logOperations.info("iFrame Not Found with XPath: " + targetDeepCopy.getIFrameXPath());
                         //                performMessage.generalErrorIFrame(currentInstruction.getName());
                         //                        return null;
                     }
                 }
 
                 String result = performActions.sequenceOfCommands(
-                        targetTest.getElement(), ARConstants.SELECT, coordinates, fieldData, driverTestActions, false);
+                        targetDeepCopy.getElement(),
+                        ARConstants.SELECT,
+                        coordinates,
+                        fieldData,
+                        driverTestActions,
+                        false);
                 logOperations.info(result);
                 actionsTested.append(result + System.lineSeparator());
                 actionText2 = new Text(result);
@@ -735,7 +752,7 @@ public class ARScannedElementPane extends ARPane {
 
                 if (testType.equals("TEST_CLICK_DTO")) {
                     result = performActions.sequenceOfCommands(
-                            targetTest.getElement(),
+                            targetDeepCopy.getElement(),
                             ARConstants.CLICK,
                             coordinates,
                             fieldData,
@@ -751,7 +768,7 @@ public class ARScannedElementPane extends ARPane {
                     }
                 }
                 //                result = performActions.sequenceOfCommands(
-                //                        targetTest.getElement(),
+                //                        targetDeepCopy.getElement(),
                 //                        ARConstants.GET_VALUE,
                 //                        coordinates,
                 //                        fieldData,
@@ -768,7 +785,7 @@ public class ARScannedElementPane extends ARPane {
 
                 if (testType.equals("TEST_INPUT_DTO")) {
                     result = performActions.sequenceOfCommands(
-                            targetTest.getElement(),
+                            targetDeepCopy.getElement(),
                             ARConstants.CLICK,
                             coordinates,
                             fieldData,
@@ -785,7 +802,7 @@ public class ARScannedElementPane extends ARPane {
                     performActions.onHoldInSeconds(1);
 
                     result = performActions.sequenceOfCommands(
-                            targetTest.getElement(),
+                            targetDeepCopy.getElement(),
                             ARConstants.CLEAR,
                             coordinates,
                             fieldData,
@@ -801,7 +818,7 @@ public class ARScannedElementPane extends ARPane {
                     }
 
                     result = performActions.sequenceOfCommands(
-                            targetTest.getElement(),
+                            targetDeepCopy.getElement(),
                             ARConstants.INSERT,
                             coordinates,
                             fieldData,
@@ -818,7 +835,7 @@ public class ARScannedElementPane extends ARPane {
 
                     performActions.onHoldInSeconds(1);
                     result = performActions.sequenceOfCommands(
-                            targetTest.getElement(),
+                            targetDeepCopy.getElement(),
                             ARConstants.CLEAR,
                             coordinates,
                             fieldData,
@@ -834,7 +851,7 @@ public class ARScannedElementPane extends ARPane {
                     }
 
                     result = performActions.sequenceOfCommands(
-                            targetTest.getElement(),
+                            targetDeepCopy.getElement(),
                             ARConstants.COORD_CLICK,
                             coordinates,
                             fieldData,
@@ -850,7 +867,7 @@ public class ARScannedElementPane extends ARPane {
                     }
 
                     result = performActions.sequenceOfCommands(
-                            targetTest.getElement(),
+                            targetDeepCopy.getElement(),
                             ARConstants.COORD_INSERT,
                             coordinates,
                             fieldData,
@@ -868,7 +885,7 @@ public class ARScannedElementPane extends ARPane {
                     performActions.onHoldInSeconds(1);
 
                     result = performActions.sequenceOfCommands(
-                            targetTest.getElement(),
+                            targetDeepCopy.getElement(),
                             ARConstants.CLEAR,
                             coordinates,
                             fieldData,
@@ -885,7 +902,7 @@ public class ARScannedElementPane extends ARPane {
                 }
 
                 //                result = performActions.sequenceOfCommands(
-                //                        targetTest.getElement(), ARConstants.FOCUS, coordinates, fieldData,
+                //                        targetDeepCopy.getElement(), ARConstants.FOCUS, coordinates, fieldData,
                 // driverTestActions, false);
                 //                logOperations.info(result);
                 //
@@ -899,7 +916,7 @@ public class ARScannedElementPane extends ARPane {
                 //                }
                 //
                 //                result = performActions.sequenceOfCommands(
-                //                        targetTest.getElement(), ARConstants.TAB, coordinates, fieldData,
+                //                        targetDeepCopy.getElement(), ARConstants.TAB, coordinates, fieldData,
                 // driverTestActions, false);
                 //                logOperations.info(result);
                 //
@@ -913,7 +930,7 @@ public class ARScannedElementPane extends ARPane {
                 //                }
 
                 //                result = performActions.sequenceOfCommands(
-                //                        targetTest.getElement(),
+                //                        targetDeepCopy.getElement(),
                 //                        ARConstants.COORD_VISUALIZA,
                 //                        coordinates,
                 //                        fieldData,
@@ -929,7 +946,7 @@ public class ARScannedElementPane extends ARPane {
                 //                }
 
                 //                result = performActions.sequenceOfCommands(
-                //                        targetTest.getElement(),
+                //                        targetDeepCopy.getElement(),
                 //                        ARConstants.COORD_CLICK,
                 //                        coordinates,
                 //                        fieldData,
@@ -947,7 +964,7 @@ public class ARScannedElementPane extends ARPane {
                 //                }
                 //
                 //                result = performActions.sequenceOfCommands(
-                //                        targetTest.getElement(),
+                //                        targetDeepCopy.getElement(),
                 //                        ARConstants.COORD_INSERT,
                 //                        coordinates,
                 //                        fieldData,
@@ -963,7 +980,7 @@ public class ARScannedElementPane extends ARPane {
                 //                }
 
                 //                result = performActions.sequenceOfCommands(
-                //                        targetTest.getElement(),
+                //                        targetDeepCopy.getElement(),
                 //                        ARConstants.COORD_INSERT,
                 //                        coordinates,
                 //                        fieldData,
@@ -979,7 +996,7 @@ public class ARScannedElementPane extends ARPane {
                 //                }
 
                 //                result = performActions.sequenceOfCommands(
-                //                        targetTest.getElement(),
+                //                        targetDeepCopy.getElement(),
                 //                        ARConstants.COORD_MOVE_CLICK_RED,
                 //                        coordinates,
                 //                        fieldData,
@@ -1046,6 +1063,11 @@ public class ARScannedElementPane extends ARPane {
             if (driverTestActions != null) {
                 driverTestActions.switchTo().defaultContent();
             }
+
+            Platform.runLater(() -> {
+                defineNameField.clear();
+                searchAttribValueField.clear();
+            });
         }
     }
 
