@@ -1474,14 +1474,16 @@ public class ARNewCommandPane extends ARPane {
     }
 
     private void callInitializeElementValueScene(String varName) {
-        arElementValueScene.initialize(
-                splitDTO,
-                comboBoxVars.getValue().getVarId(),
-                varName,
-                comboBoxVars.getValue().getValue(),
-                comboBoxWebFields.getValue().getInstructionId(),
-                comboBoxWebFields.getValue().getText(),
-                comboBoxInstruc.getValue().getValue());
+        if (!comboBoxVars.getItems().isEmpty() && comboBoxVars.getValue() != null) {
+            arElementValueScene.initialize(
+                    splitDTO,
+                    comboBoxVars.getValue().getVarId(),
+                    varName,
+                    comboBoxVars.getValue().getValue(),
+                    comboBoxWebFields.getValue().getInstructionId(),
+                    comboBoxWebFields.getValue().getText(),
+                    comboBoxInstruc.getValue().getValue());
+        }
         //        arElementValueScene.showModal();
     }
 
@@ -2347,6 +2349,9 @@ public class ARNewCommandPane extends ARPane {
 
         } else {
             variablesItems.add(new ComboBoxVars("no variables added", "", -1, -1, -1, -1, null, -1, null));
+            if (comboBoxVars.getItems().isEmpty()) {
+                comboBoxVars.setItems(FXCollections.observableArrayList(variablesItems));
+            }
             if (selectLast) {
                 comboBoxVars.getSelectionModel().selectFirst();
             }
@@ -2734,7 +2739,7 @@ public class ARNewCommandPane extends ARPane {
                 for (int i = 0; i < listOptions.size(); i++) {
                     if (listOptions.get(i).getBlockId().equals(splitDTO.getParentBlockId())) {
                         comboBoxBlocksGoto.getSelectionModel().select(i);
-                        indexGeneric = i - 1;
+                        indexGeneric = i;
                         break;
                     }
                 }
@@ -2772,7 +2777,7 @@ public class ARNewCommandPane extends ARPane {
                 for (int i = 0; i < listOptions.size(); i++) {
                     if (listOptions.get(i).getBlockId().equals(splitDTO.getParentBlockId())) {
                         comboBoxBlocksGoto.getSelectionModel().select(i);
-                        indexGeneric = i - 1;
+                        indexGeneric = i;
                         break;
                     }
                 }

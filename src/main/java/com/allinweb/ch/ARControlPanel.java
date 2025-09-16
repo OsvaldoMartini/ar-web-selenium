@@ -57,6 +57,8 @@ public class ARControlPanel extends Application {
     }
 
     public static void main(String[] args) {
+        log.info("Application started - all console output is now redirected to logback.");
+
         List<String> arguments = Arrays.asList(args);
         int chosenPort = getInitialPort();
         int chosenPortIP = getInitialPort();

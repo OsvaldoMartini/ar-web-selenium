@@ -82,6 +82,10 @@ public class ARPropertyManager {
             String logLevel = this.properties.getProperty(ARPropertyEnum.LOG_LEVEL.getValue());
             System.out.println("LOG_LEVEL = " + logLevel + "   ConfigFile=" + configurationFileName);
 
+            // Redirect System.out and System.err
+            System.setOut(new PrintStream(new LoggingOutputStream(log, false), true));
+            System.setErr(new PrintStream(new LoggingOutputStream(log, true), true));
+
             String logPath = getProperty(ARPropertyEnum.PATH_LOG);
             if (logPath == null || logPath.isBlank()) {
                 log.error("Configuration Warning: Log Path is Missing");

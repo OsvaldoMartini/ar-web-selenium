@@ -1738,13 +1738,14 @@ public class ARScannedElementPane extends ARPane {
     }
 
     public void refreshBlocks(boolean secondItem) {
-        loadAllBlocks();
-
-        if (!secondItem) {
-            comboBoxBlocks.getSelectionModel().selectFirst(); // Select the first item
-        } else {
-            comboBoxBlocks.getSelectionModel().select(1); // Select the second item (index 1)
-        }
+        Platform.runLater(() -> {
+            loadAllBlocks();
+            if (!secondItem) {
+                comboBoxBlocks.getSelectionModel().selectFirst();
+            } else {
+                comboBoxBlocks.getSelectionModel().select(1);
+            }
+        });
     }
 
     // Enable or disable the tab switching buttons based on the number of tabs
@@ -4376,7 +4377,8 @@ public class ARScannedElementPane extends ARPane {
 
                                     xExcelCurrentRow++;
 
-                                    String bodyMsg = "Excel Data Calling Next Row: " + xExcelCurrentRow + 1;
+                                    //                                    String bodyMsg = "Excel Data Calling Next Row:
+                                    // " + xExcelCurrentRow + 1;
 
                                     if (xExcelCurrentRow >= xExcelDataSize - 1) {
                                         xExcelCurrentRow = xExcelDataSize - 1;

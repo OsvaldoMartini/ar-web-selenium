@@ -376,6 +376,10 @@ public class ARScannedElementScene extends ARScene {
                         arScannedElementPane.itPrintsElementDTO();
                         arScannedElementPane.testingActions(arScannedElementPane.targetSelected, processDTO.getType());
                     }
+                    Platform.runLater(() -> {
+                        arScannedElementPane.defineNameField.clear();
+                        arScannedElementPane.searchAttribValueField.clear();
+                    });
                     break;
                 case "DEL_ELEMENT_DTO":
                 case "DETAILS_ELEMENT_DTO":
