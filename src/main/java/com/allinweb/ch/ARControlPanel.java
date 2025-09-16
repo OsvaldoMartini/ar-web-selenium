@@ -133,7 +133,7 @@ public class ARControlPanel extends Application {
         }
 
         arPropertyManager.setProperty(ARPropertyEnum.VERSION.getValue(), "AR Web v4.2f Beta Test");
-        arPropertyManager.setProperty(ARPropertyEnum.BUILD.getValue(), "Build: 12/09/2025"); //
+        arPropertyManager.setProperty(ARPropertyEnum.BUILD.getValue(), "Build: 16/09/2025"); //
     }
 
     private static void initializeServers() {
