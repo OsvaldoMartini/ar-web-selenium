@@ -152,7 +152,7 @@ public class TargetElement {
         copy.tagType = this.tagType;
         copy.iconType = this.iconType;
 
-        // ⚠ WebElement is not safely cloneable — just reference it
+        // WebElement is not safely cloneable - just reference it
         copy.element = this.element;
 
         copy.isElementHidden = this.isElementHidden;
