@@ -147,7 +147,7 @@ public class ARControlPanel extends Application {
         String logPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG);
         File logDir = new File(logPath);
         if (!logDir.exists() && !logDir.mkdirs()) {
-            log.error("❌ Failed to create log directory: " + logDir.getAbsolutePath());
+            log.error("Failed to create log directory: " + logDir.getAbsolutePath());
             System.exit(1);
         }
         System.setProperty("LOG_PATH", logDir.getAbsolutePath());
