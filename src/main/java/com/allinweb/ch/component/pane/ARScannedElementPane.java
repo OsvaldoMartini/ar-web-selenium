@@ -3,49 +3,30 @@ package com.allinweb.ch.component.pane;
 import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
-import com.allinweb.ch.component.model.AttributeData;
-import com.allinweb.ch.component.model.BlockLoadDTO;
-import com.allinweb.ch.component.model.BotJobLoadDTO;
-import com.allinweb.ch.component.model.ElementDTO;
-import com.allinweb.ch.component.model.ElementSplitDTO;
-import com.allinweb.ch.component.model.HomeBankingLoadDTO;
-import com.allinweb.ch.component.model.InstructionLoadDTO;
-import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
-import com.allinweb.ch.component.model.PayloadJson;
-import com.allinweb.ch.component.model.RowStatus;
-import com.allinweb.ch.component.model.VariableLoadDTO;
+import com.allinweb.ch.component.model.*;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
 import com.allinweb.ch.component.scene.ARScannedElementScene;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.*;
-import com.allinweb.ch.persistence.*;
 import com.allinweb.ch.readersAndWriters.ExcelReader;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URI;
+import io.opentelemetry.api.internal.StringUtils;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
-import java.sql.*;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.util.*;
-import java.util.Date;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -54,7 +35,6 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.concurrent.Task;
 import javafx.concurrent.Worker;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
@@ -62,7 +42,6 @@ import javafx.geometry.Pos;
 import javafx.geometry.VPos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
-import javafx.scene.control.Alert;
 import javafx.scene.layout.*;
 import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
@@ -70,27 +49,119 @@ import javafx.scene.text.Text;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import javafx.stage.Stage;
-import javafx.util.Pair;
-import javax.websocket.ClientEndpoint;
-import javax.websocket.ContainerProvider;
-import javax.websocket.OnClose;
-import javax.websocket.OnError;
-import javax.websocket.OnMessage;
-import javax.websocket.OnOpen;
-import javax.websocket.Session;
-import javax.websocket.WebSocketContainer;
-import org.openqa.selenium.*;
+import lombok.extern.slf4j.Slf4j;
+import org.openqa.selenium.By;
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.WebDriverWait;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@ClientEndpoint
+@Slf4j
 public class ARScannedElementPane extends ARPane {
 
+    private static final Logger logLaunch = LoggerFactory.getLogger("com.allinweb.launch");
+    private static final Logger logOperations = LoggerFactory.getLogger("com.allinweb.operations");
+
+    private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
+    private static final String END_OF_FILE_MARKER = "END OF FILE";
+    // Very important sequence on initiation
+    private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
+    private static final ARPriorities arPriorities = ARPriorities.getInstance();
+    private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
+    private static final ARScannedElementScene arScannedElementScene = ARScannedElementScene.getInstance();
+    private static final PerformCloneLoad performCloneLoad = PerformCloneLoad.getInstance();
+    private static final PerformLists performLists = PerformLists.getInstance();
+    private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
+    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
+    private static final PerformActions performActions = PerformActions.getInstance();
+    private static final PerformMessage performMessage = PerformMessage.getInstance();
+    private static final PerformPreLoad performPreLoad = PerformPreLoad.getInstance();
+    private static final ARNewHomeBankingScene arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
+    public static TargetElement targetSelected = new TargetElement();
     protected static volatile ARScannedElementPane instance;
+    private static SimpleDateFormat dateFormatter;
+    private static String excelPath = null;
+    private static JavascriptExecutor jsExecutor;
+    private static String[] lstAllPaths;
+    public final AtomicBoolean isJobRunning = new AtomicBoolean(false);
+    private final Gson gson = new Gson();
+    private final WebView webView = new WebView();
+    public Button launchBotJobButton;
+    public CheckBox checkClickElement;
+    public CheckBox checkInputText;
+    public CheckBox checkOutputText;
+    public TextField defineNameField;
+    public TextField searchAttribValueField;
+    public String xpathTextPrevious;
+    protected BooleanProperty interceptBotJob = new SimpleBooleanProperty(false);
+    double comboWidth = 200;
+    Button refreshBlocksButton;
+    String excelFieldName;
+    String delimiterCSV = null;
+    private Stage stage;
+    private Set<String> windowHandles;
+    private ExecutorService executorServicePreLaunch;
+    private int portSocketInitial = 54525;
+    private BotJobLoadDTO currentBotJob;
+    private static String currentBotJobName = null;
+    private int currentBlockId;
+    private int currentBlockOrder;
+    private int executeSpecificBlock;
+    private ExtractedData extractedData = null;
+    private List<BlockLoadDTO> blocksLoaded;
+    private List<InstructionLoad> excelDataGoto = new ArrayList<>();
+    private ComboBox<BlockOptions> comboBoxBlocks;
+    // UI COMPONENTS
+    private HBox topPane;
+    private VBox verticalBox;
+    private AnchorPane mainPane;
+    private WebEngine webEngine;
+    private VBox elements2VBox;
+    private HBox componentBox;
+    private Button cloneElementsButton;
+    private Button configureButton;
+    private Button stopBotJobButton;
+    private Button pageScannerButton;
+    private Button refreshWebPageButton;
+    private Button leftButton;
+    private Button rightButton;
+    private Button cleanListButton;
+    private Button turnOnOffButton;
+    private Button searchButton;
+    private CheckBox checkCloneElement;
+    private Label testActionLabel;
+    private CheckBox checkForceEnterText;
+    private CheckBox checkForceCoordText;
+    private Label searchTermsLabel;
+    private Label defineNameLabel;
+    private Label coordsTextFieldLabel;
+    private Text currentURL;
+    private Text iFrameText;
+    private VBox textFieldVBox;
+    //    private TextFlow textFlowResult;
+    private TextArea countdownTextField;
+    private TextField searchTermsField;
+    private TextField testActionsField;
+    private TextField coordsTextField;
+    private Map<String, String> mapOperators = new HashMap<>();
+    private Map<String, String> mapExportRows = new HashMap<>();
+    private Set<String> headersExport = new LinkedHashSet<>();
+    private List<String> columnsCSV = new ArrayList<>();
+    private List<List<String>> rowsCSV = new ArrayList<>();
+    private List<VariableLoadDTO> variablesLoaded;
+    private String[] defaultSearch;
+    private boolean searchHiddenFields;
+    private String sessionIdFromJava;
+    private String sessionRowStatus;
+    private String jsonStatus;
+    private RowStatus rowStatus = new RowStatus();
+    private PayloadJson payloadEmpty;
+    private ARWebDriver currentARWebDriver;
 
     // Private constructor to prevent instantiation
-    private ARScannedElementPane() {
-        // Initialize if necessary
-    }
+    private ARScannedElementPane() {}
 
     public static ARScannedElementPane getInstance() {
         if (instance == null) {
@@ -103,222 +174,295 @@ public class ARScannedElementPane extends ARPane {
         return instance;
     }
 
-    private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-    //    private static final ScheduledExecutorService pingScheduler =
-    // Executors.newScheduledThreadPool(1);
-
-    private final Gson gson = new Gson();
-
-    private void stopKeepAlivePings() {
-        scheduler.shutdownNow();
-    }
-
-    private void startKeepAlivePings() {
-        scheduler.scheduleAtFixedRate(
-                () -> {
-                    try {
-                        if (session != null && session.isOpen()) {
-                            session.getBasicRemote()
-                                    .sendText("ping-scanner-element-pane"); // Or a specific keep-alive message
-                        }
-                    } catch (IOException e) {
-                        System.err.println("Error sending ping: " + e.getMessage());
-                        // Handle potential disconnection
-                    }
-                },
-                0,
-                15,
-                TimeUnit.SECONDS); // Adjust interval as needed
-    }
-
-    @OnOpen
-    public void onOpen(Session session) {
-        this.session = session;
-        latch.countDown(); // Release the latch after connection is established
-        System.out.println("Connected to WebSocket server at: " + session.getRequestURI());
-        // Sending an initial message
-        sendMessage("Hello from JavaFX WebSocket client!");
-    }
-
-    @OnClose
-    public void onClose(Session session) {
-        System.out.println("Connection closed.");
-        stopKeepAlivePings();
-    }
-
-    @OnError
-    public void onError(Session session, Throwable throwable) {
-        System.out.println("Error: " + throwable.getMessage());
-        stopKeepAlivePings();
-    }
-
-    // Method to send a message
-    public void sendMessage(String message) {
-        executorWebSocket.submit(() -> {
-            //            if (session != null && session.isOpen()) {
-            //                try {
-            //                    session.getBasicRemote().sendText(message);
-            //                } catch (Exception e) {
-            //                    e.printStackTrace();
-            //                }
-            //            }
-        });
-    }
-
-    public void connectWebSocketClient(int portSocket, String sessionId) {
-        executorWebSocket.submit(() -> {
-            String serverUri = "ws://localhost:" + portSocket + "/websocket?sessionId=" + sessionId;
-            try {
-                WebSocketContainer container = ContainerProvider.getWebSocketContainer();
-                container.connectToServer(this, new URI(serverUri));
-                latch.await();
-                startKeepAlivePings();
-                isConnectWebSocket = true;
-            } catch (Exception e) {
-                isConnectWebSocket = false;
-                System.err.println("WebSocket connection failed sessionId: " + sessionId + " error: " + e.getMessage());
-            }
-        });
-    }
-
-    @OnMessage
-    public void onMessage(String message) {
-        System.out.println("Received: " + message);
-        if (message == null || message.trim().isEmpty() || message.contains("CONNECT") || message.contains("ping")) {
-            // Ignore null or empty messages
-            message = message.replaceAll("ping-", "");
-            System.out.println("Active : " + message);
-            return;
+    public static double jaccardSimilarity(String text1, String text2) {
+        Set<Character> set1 = new HashSet<>();
+        for (char c : text1.toCharArray()) {
+            set1.add(c);
         }
 
-        String type = null;
-        String body = null;
-        //        int homeBankingId = -1;
-        try {
-            // Parse the incoming message (assuming JSON format)
-            JsonObject jsonObjMSG = JsonParser.parseString(message).getAsJsonObject();
-            //            homeBankingId = jsonObjMSG.has("homeBankingId")
-            //                    ? Integer.parseInt(jsonObjMSG.get("homeBankingId").getAsString())
-            //                    : -1;
+        Set<Character> set2 = new HashSet<>();
+        for (char c : text2.toCharArray()) {
+            set2.add(c);
+        }
 
-            body = jsonObjMSG.has("body") ? jsonObjMSG.get("body").getAsString() : "unknown";
-            if (!body.equalsIgnoreCase("unknown")) {
-                JsonObject objSecond = JsonParser.parseString(body).getAsJsonObject();
-                if (objSecond.has("type") && objSecond.get("type").getAsString().equalsIgnoreCase("CLOSE_BROWSER")) {
-                    type = "CLOSE_BROWSER";
-                } else {
-                    type = jsonObjMSG.has("type") ? jsonObjMSG.get("type").getAsString() : "unknown";
-                }
-            } else {
-                type = jsonObjMSG.has("type") ? jsonObjMSG.get("type").getAsString() : "unknown";
-            }
+        Set<Character> intersection = new HashSet<>(set1);
+        intersection.retainAll(set2);
 
-            // After Decoding
-            if (type == null || type.trim().isEmpty() || type.contains("CONNECT") || type.contains("ping")) {
-                // Ignore null or empty messages
-                type = type.replaceAll("ping-", "");
-                System.out.println("Active : " + type);
-                return;
-            }
+        Set<Character> union = new HashSet<>(set1);
+        union.addAll(set2);
 
-            String sessionId =
-                    jsonObjMSG.has("sessionId") ? jsonObjMSG.get("sessionId").getAsString() : "unknown";
+        return (double) intersection.size() / union.size();
+    }
 
-            // Process the message based on its type
-            switch (type) {
-                case "CLOSE_BROWSER":
-                    if (!isJobRunning.get()) {
-                        if (this.launchBotJobButton != null && !performActions.isJustCalledRefreshPage()) {
-                            ARLogger.getInstance(ARScannedElementPane.class).finer("CLOSE_BROWSER");
-                            Platform.runLater(() -> {
-                                Stage stage =
-                                        (Stage) launchBotJobButton.getScene().getWindow();
-                                if (stage != null) {
-                                    stage.close(); // <-- actually closes the Stage
-                                }
+    // Method to get XPath of a WebElement
+    public static String getXPath(WebDriver driver, WebElement element) {
+        return (String) ((JavascriptExecutor) driver)
+                .executeScript(
+                        "function getElementXPath(elt) {" + "    var path = '';"
+                                + "    for (; elt && elt.nodeType == 1; elt = elt.parentNode) {"
+                                + "        var idx = getElementIdx(elt);"
+                                + "        var xname = elt.tagName;"
+                                + "        if (idx > 1) xname += '[' + idx + ']';"
+                                + "        path = '/' + xname + path;"
+                                + "    }"
+                                + "    return path;"
+                                + "}"
+                                + "function getElementIdx(elt) {"
+                                + "    var count = 1;"
+                                + "    for (var sib = elt.previousSibling; sib; sib = sib.previousSibling) {"
+                                + "        if (sib.nodeType == 1 && sib.tagName == elt.tagName) count++;"
+                                + "    }"
+                                + "    return count;"
+                                + "}"
+                                + "return getElementXPath(arguments[0]);",
+                        element);
+    }
 
-                                // Clean ARScannedElementPane singleton instance
-                                ARScannedElementPane.getInstance().destroy();
-                                ARScannedElementScene.getInstance().destroyPanel(); //
-                            });
-                        }
+    // Helper method to get the text of an associated element
+    private static String getElementText(WebElement element) {
+        String tagName = element.getTagName();
 
-                        if (performActions.isJustCalledRefreshPage()) {
-                            performActions.setJustCalledRefreshPage(false);
-                        }
-                    }
+        switch (tagName.toLowerCase()) {
+            case "input":
+                return element.getAttribute("value");
+            case "textarea":
+                return element.getText();
+            case "select":
+                List<WebElement> selectedOptions = element.findElements(By.cssSelector("option[selected]"));
+                return selectedOptions.stream()
+                        .map(WebElement::getText)
+                        .reduce((a, b) -> a + ", " + b)
+                        .orElse("");
+            default:
+                return element.getText();
+        }
+    }
 
+    public static String truncate(String someText, int limit) {
+        if (someText == null || someText.isEmpty()) {
+            return someText;
+        }
+
+        if (someText.length() <= limit) {
+            return someText;
+        }
+
+        return someText.substring(0, limit) + "...";
+    }
+
+    private static By[] parseLocators(String input) {
+        // Split the input string by commas to get individual locator strings
+        // DB Access Cannot have "'"
+        input = input.replace("\"", "'");
+
+        String[] locatorStrings = input.split(",");
+
+        // List to hold the By objects
+        List<By> byList = new ArrayList<>();
+
+        // Loop through each locator string
+        for (String locatorString : locatorStrings) {
+            // Split each locator string by colon to separate the type and value
+            String[] parts = locatorString.split(":");
+
+            // Get the type and value
+            String type = parts[0].replace("By.", "").toUpperCase();
+            String value = String.join(",", Arrays.copyOfRange(parts, 1, parts.length));
+
+            value = value.replace("COMMA", ",");
+
+            // Create the By object based on the type
+            switch (LocatorType.valueOf(type)) {
+                case TAGNAME:
+                    byList.add(By.tagName(value));
                     break;
-                case "NEW_ELEMENT_DTO":
-                    checkRunningProcess();
-                    // Extract the "body" field from the JsonObject
-                    ElementSplitDTO processDTO = gson.fromJson(jsonObjMSG, ElementSplitDTO.class);
-                    targetSelected = extractPickClone(processDTO.getDetails()[0]);
-                    itPrintsElementDTO(targetSelected);
-                    stepsInsertOneDTO(targetSelected);
+                case ID:
+                    byList.add(By.id(value));
                     break;
-                case "SEND_ALL_ELEMENTS_DTO":
-                    sendAll = true;
-                    checkRunningProcess();
-                    // Extract the "body" field from the JsonObject
-                    processDTO = gson.fromJson(jsonObjMSG, ElementSplitDTO.class);
-                    stepsInsertManyDTO(processDTO);
-                    sendAll = false;
+                case CLASSNAME:
+                    byList.add(By.className(value));
                     break;
-                case "TEST_CLICK_DTO":
-                case "TEST_INPUT_DTO":
-                    checkRunningProcess();
-                    // Extract the "body" field from the JsonObject
-                    processDTO = gson.fromJson(jsonObjMSG, ElementSplitDTO.class);
-                    targetSelected = extractPickClone(processDTO.getDetails()[0]);
-                    itPrintsElementDTO(targetSelected);
-                    testingActions(targetSelected, processDTO.getType());
+                case CSSSELECTOR:
+                    byList.add(By.cssSelector(value));
                     break;
-                case "DEL_ELEMENT_DTO":
-                case "DETAILS_ELEMENT_DTO":
-                    // Extract the "body" field from the JsonObject
-                    processDTO = gson.fromJson(jsonObjMSG, ElementSplitDTO.class);
-                    targetSelected = extractPickClone(processDTO.getDetails()[0]);
-                    itPrintsElementDTO(targetSelected);
+                case XPATH:
+                    byList.add(By.xpath(value));
                     break;
                 default:
-                    break;
+                    throw new IllegalArgumentException("Unsupported locator type: " + type);
             }
-        } catch (Exception error) {
-            if (error.getMessage().contains("invalid session id")) {
-                performMessage.errorMessage(
-                        "Browser is Closed",
-                        "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>To perform this action, please</span> ✅",
-                        "<span style='color: #1976D2;'>reopen the browser via the Scanner:</span>",
-                        "<span style='font-weight: bold;'>Click the \"Scanner\" button in the previous window</span>",
-                        null,
-                        0);
+        }
+
+        // Convert the list to an array and return
+        return byList.toArray(new By[0]);
+    }
+
+    public static List<InstructionLoad> getUnexecutedInstructions(
+            List<InstructionLoad> instructionsExecuted, List<InstructionLoad> otherList) {
+        // Create a set of instructionOrderNumbers from instructionsExecuted
+        Set<Integer> executedInstructionOrderNumbers = instructionsExecuted.stream()
+                .map(InstructionLoad::getInstructionOrderNumber)
+                .collect(Collectors.toSet());
+
+        // Filter the otherList to get instructions where executed is false and not in executedInstructionOrderNumbers
+        return otherList.stream()
+                //                .filter(instruction -> instruction.getExecuted() != null &&
+                // !instruction.getExecuted())
+                .filter(instruction ->
+                        !executedInstructionOrderNumbers.contains(instruction.getInstructionOrderNumber()))
+                .collect(Collectors.toList());
+    }
+
+    private static String generateTimestamp() {
+        Date date = new Date();
+        dateFormatter = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
+        return dateFormatter.format(date);
+    }
+    //    private static final PerformCloseBrowser performCloseBrowser;
+
+    private static void printLog(String resultActions, boolean result) {
+        String resultMsg = result ? ARConstants.SUCCESS : ARConstants.FAIL;
+        String log = String.join(ARConstants.FIELDS_SEPARATOR, resultMsg, resultActions);
+        logLaunch.info(log);
+    }
+
+    /**
+     * Finds all elements of the specified tag name without "id" or "name" attributes and returns a map with their XPaths as keys.
+     *
+     * @param driver  the WebDriver instance
+     * @param tagName the tag name of the elements to find (e.g., "input", "button")
+     * @return a map where keys are XPaths of elements and values are WebElements
+     */
+    private static Map<String, WebElement> findElementsWithoutIdOrName(WebDriver driver, String tagName) {
+        jsExecutor = (JavascriptExecutor) driver;
+        List<WebElement> elements = (List<WebElement>) jsExecutor.executeScript(
+                "return Array.from(document.querySelectorAll('" + tagName + ":not([id]):not([name])'));");
+        Set<WebElement> uniqueElements = new HashSet<>(elements);
+        Map<String, WebElement> elementMap = new HashMap<>();
+        for (WebElement element : uniqueElements) {
+            String xpath = getElementXPath(driver, element);
+            elementMap.put(xpath, element);
+        }
+        return elementMap;
+    }
+
+    /**
+     * Constructs the XPath of a given WebElement.
+     *
+     * @param driver  the WebDriver instance
+     * @param element the WebElement to construct the XPath for
+     * @return the XPath of the element
+     */
+    private static String getElementXPath(WebDriver driver, WebElement element) {
+        return (String) ((JavascriptExecutor) driver)
+                .executeScript(
+                        "function absoluteXPath(element) {" + "    var comp, comps = [];"
+                                + "    var parent = null;"
+                                + "    var xpath = '';"
+                                + "    var getPos = function(element) {"
+                                + "        var position = 1, curNode;"
+                                + "        if (element.nodeType == Node.ATTRIBUTE_NODE) {"
+                                + "            return null;"
+                                + "        }"
+                                + "        for (curNode = element.previousSibling; curNode; curNode = curNode.previousSibling) {"
+                                + "            if (curNode.nodeName == element.nodeName) {"
+                                + "                ++position;"
+                                + "            }"
+                                + "        }"
+                                + "        return position;"
+                                + "    };"
+                                + "    if (element instanceof Document) {"
+                                + "        return '/';"
+                                + "    }"
+                                + "    for (; element && !(element instanceof Document); element = element.nodeType == Node.ATTRIBUTE_NODE ? element.ownerElement : element.parentNode) {"
+                                + "        comp = comps[comps.length] = {};"
+                                + "        switch (element.nodeType) {"
+                                + "            case Node.TEXT_NODE:"
+                                + "                comp.name = 'text()';"
+                                + "                break;"
+                                + "            case Node.ATTRIBUTE_NODE:"
+                                + "                comp.name = '@' + element.nodeName;"
+                                + "                break;"
+                                + "            case Node.PROCESSING_INSTRUCTION_NODE:"
+                                + "                comp.name = 'processing-instruction()';"
+                                + "                break;"
+                                + "            case Node.COMMENT_NODE:"
+                                + "                comp.name = 'comment()';"
+                                + "                break;"
+                                + "            case Node.ELEMENT_NODE:"
+                                + "                comp.name = element.nodeName;"
+                                + "                break;"
+                                + "        }"
+                                + "        comp.position = getPos(element);"
+                                + "    }"
+                                + "    for (var i = comps.length - 1; i >= 0; i--) {"
+                                + "        comp = comps[i];"
+                                + "        xpath += '/' + comp.name.toLowerCase();"
+                                + "        if (comp.position !== null) {"
+                                + "            xpath += '[' + comp.position + ']';"
+                                + "        }"
+                                + "    }"
+                                + "    return xpath;"
+                                + "}"
+                                + "return absoluteXPath(arguments[0]);",
+                        element);
+    }
+
+    private static void showAlertInfo(String title, String header, String content) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(header);
+        alert.setContentText(content);
+        alert.showAndWait();
+    }
+
+    private static String loadScriptFromResource(String resourcePath) throws IOException {
+        // Use ClassLoader to get the resource as an InputStream
+        try (InputStream inputStream =
+                ARScannedElementPane.class.getClassLoader().getResourceAsStream(resourcePath)) {
+            if (inputStream == null) {
+                throw new IOException("Resource not found: " + resourcePath);
             }
 
-            System.err.println("Closed processing message: " + error.getMessage());
+            // Convert InputStream to String
+            return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
         }
     }
 
-    private void stepsInsertOneDTO(TargetElement targetInsertOne) {
-        int blockExist = validateBlockDB("Default Block", this.botJobLoad.getId());
-        if (blockExist > 0 && currentBlockId > 0) {
-
-            //            preTestCoordinates(targetInsertOne);
-
-            List<InstructionLoadDTO> listInstr =
-                    performDataBase.getInstructionsByBlockId(botJobLoad.getId(), currentBlockId, "instruction");
-
-            int nextOrder = listInstr.size() + 1;
-
-            if (!Strings.isNullOrEmpty(defineNameField.getText().trim())
-                    && !targetInsertOne
-                            .getDefinedName()
-                            .equalsIgnoreCase(defineNameField.getText().trim())) {
-                targetInsertOne.setDefinedName(defineNameField.getText().trim());
-            }
-
-            insertNewElementDTO(currentBlockId, nextOrder, targetInsertOne);
+    public static boolean isBrowserClosed(WebDriver webDriver) {
+        try {
+            webDriver.getTitle(); // Try accessing a property
+            return false; // If no exception, browser is open
+        } catch (Exception e) {
+            return true; // If exception occurs, browser is closed
         }
+    }
+
+    private static int getMajorJavaVersion(String version) {
+        // For Java 9 and above, the version string starts with the major version (e.g., "17.0.1")
+        // For Java 8 and below, it starts with "1." (e.g., "1.8.0_311")
+        if (version.startsWith("1.")) {
+            return Integer.parseInt(version.substring(2, 3)); // e.g., "1.8" -> 8
+        } else {
+            String[] parts = version.split("\\.");
+            return Integer.parseInt(parts[0]); // e.g., "17.0.1" -> 17
+        }
+    }
+
+    // Helper method for distinct by text
+    private static Predicate<BlockOptions> distinctByText() {
+        Set<String> seen = new HashSet<>();
+        return b -> seen.add(b.getText());
+    }
+
+    // Helper method for distinct by text AND blockOrderNumber
+    private static Predicate<BlockOptions> distinctByTextAndId() {
+        Set<String> seen = new HashSet<>();
+        return b -> {
+            // Combine text and blockOrderNumber as a unique key
+            String key = b.getText() + "#" + b.getBlockId();
+            return seen.add(key);
+        };
     }
 
     public void destroy() {
@@ -328,34 +472,9 @@ public class ARScannedElementPane extends ARPane {
         instance = null;
     }
 
-    private void stepsInsertManyDTO(ElementSplitDTO processDTO) {
-        validateBlockDB("Default Block", this.botJobLoad.getId());
-        if (currentBlockId > 0) {
-            List<InstructionLoadDTO> listInstr =
-                    performDataBase.getInstructionsByBlockId(botJobLoad.getId(), currentBlockId, "instruction");
-
-            int nextOrder = listInstr.size() + 1;
-
-            for (ElementDTO elementDTO : processDTO.getDetails()) {
-                TargetElement targetEach = extractPickClone(elementDTO);
-
-                WebElement elementFound = performActions.findWebElement(targetEach);
-                targetEach.setElement(elementFound);
-                // 3 Different Coordinates
-                // Original from JavaScript
-                // WebDriver Selenium ElementFound
-                // FallBack React Computed
-                performActions.defineSavedReferenced(targetEach);
-
-                insertNewElementDTO(currentBlockId, nextOrder, targetEach);
-                nextOrder++;
-            }
-        }
-    }
-
     private void preTestCoordinates(TargetElement targetPreTest) {
 
-        Pair<String, String> filedData = new Pair<>("martini", "Martini");
+        FieldData filedData = new FieldData("martini", "Martini");
         try {
             if (checkCloneElement.isSelected()) {
 
@@ -367,44 +486,43 @@ public class ARScannedElementPane extends ARPane {
             }
 
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            logOperations.info(e.getMessage());
         }
     }
 
-    private int validateBlockDB(String blockName, int botJobId) {
-
-        int newBlockID = performActions.createBlockIfNone(blockName, botJobId);
+    public int validateBlockDB(String blockTable, int whereId, boolean isMany) {
+        int newBlockID = createBlockIfNone(blockTable, whereId);
         if (newBlockID > 0) {
-            Platform.runLater(() -> {
+            ErrorMessage errorMessage = performDataBase.loadBlocks(whereId, "", blockTable);
+            if (errorMessage == null) {
                 refreshBlocks(true);
-            });
+            }
         }
 
         if (newBlockID > 0) {
             currentBlockId = newBlockID;
-            currentBlockName = blockName;
         } else {
             try {
                 currentBlockId = comboBoxBlocks.getValue().getBlockId();
-                currentBlockName = comboBoxBlocks.getValue().getText();
-
+                executeSpecificBlock = comboBoxBlocks.getValue().getBlockOrderNumber() < 0
+                        ? 0
+                        : comboBoxBlocks.getValue().getBlockOrderNumber() - 1;
             } catch (Exception error) {
                 currentBlockId = -1;
-                currentBlockName = "Default Block";
+                executeSpecificBlock = 0;
             }
 
             if (currentBlockId < 0) {
+                String insertOne = isMany ? "Insert ALL" : "Insert one Element";
+                performMessage.errorMessage(
+                        "Operation \"" + insertOne + "\" No Block Selected",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>No Block Selected ❌</span>",
+                        "<span style='color: #E65100; font-weight: bold;'>You must select a Block from the dropdown list</span> before adding a new command.",
+                        "<span style='font-style: italic;'>Context:</span> Bot Job: <b>" + currentBotJob.getName()
+                                + "</b>",
+                        "<span style='color: #455A64;'>Tip: Use the block selector (ComboBox) above the table to choose the target block.</span>",
+                        0);
 
-                performMessage.showCustomModalDialogDragWin11(
-                        this.botJobLoad.getName(),
-                        "Select the block to Add New Command!",
-                        null,
-                        null,
-                        null,
-                        true,
-                        "OK",
-                        null,
-                        300);
             } else {
                 return currentBlockId;
             }
@@ -412,7 +530,12 @@ public class ARScannedElementPane extends ARPane {
         return newBlockID;
     }
 
-    private void insertNewElementDTO(int currentBlockId, int nextInstOrderNumber, TargetElement targetInsert) {
+    public void prepareToInsertElementDTO(
+            List<InstructionLoad> instructionList,
+            int currentBlockId,
+            int nextInstOrderNumber,
+            TargetElement targetInsert,
+            boolean manyElements) {
 
         if (targetInsert.getXPath() == null) {
             targetInsert.setXPath(targetInsert.getSavedReferences().get("currentXPath"));
@@ -422,172 +545,84 @@ public class ARScannedElementPane extends ARPane {
             targetInsert.setCoordinates(targetInsert.getSavedReferences().get("coordinates"));
         }
 
-        Task<Void> handleEvent = new Task<>() {
-            @Override
-            protected Void call() throws Exception {
-                ARLogger.getInstance(Task.class).finer("THREAD: instruction list size " + nextInstOrderNumber);
-
-                String actionReq = checkClickElement.isSelected()
-                        ? ARConstants.CLICK
-                        : checkInputText.isSelected()
-                                ? ARConstants.INSERT
-                                : checkOutputText.isSelected() ? ARConstants.OUTPUT : ARConstants.OTHER;
-
-                targetInsert.setClickElement(checkClickElement.isSelected());
-
-                WebElementTagNameEnum tagType = targetInsert.getTagType();
-
-                if (checkForceEnterText.isSelected() && tagType.equals(WebElementTagNameEnum.INPUT)) {
-                    tagType = WebElementTagNameEnum.INPUT_ENTER;
-                }
-
-                InstructionLoadDTO instruction = performActions.buildNewInstruction(
-                        tagType, actionReq, false, nextInstOrderNumber, targetInsert);
-
-                instruction.setForceCoordinates(checkForceCoordText.isSelected());
-
-                instruction.setCoordinates(targetInsert.getCoordinates());
-                instruction.setIFrameXPath(targetInsert.getIFrameXPath());
-
-                instruction.setShadowHost(targetInsert.getShadowHost());
-                instruction.setShadowRoot(targetInsert.getShadowRoot());
-                instruction.setCssSelector(targetInsert.getCssSelector());
-
-                instruction.setBlockId(currentBlockId);
-
-                Integer currentBotJobId = botJobLoad.getId();
-
-                // Change the Name on the fly
-                instruction.setName(targetInsert.getDefinedName());
-
-                // Update the action string if it contains "I:"
-                String actions = instruction.getActions();
-                String[] parts = actions.split(",");
-
-                if (actions.startsWith("I:")) {
-                    for (int i = 0; i < parts.length; i++) {
-                        parts[i] = parts[i].trim(); // Ensure no leading/trailing spaces
-                        if (parts[i].startsWith("I:")) {
-                            if (parts[i].contains(":E:")) {
-                                parts[i] = "I:E:" + targetInsert.getDefinedName();
-                            } else {
-                                parts[i] = "I:" + targetInsert.getDefinedName();
-                            }
-                            break;
-                        }
-                    }
-
-                    instruction.setActions(parts[0]);
-                }
-
-                int newId = preFillAddInstruction(
-                        instruction.getName().trim(),
-                        instruction.getDescription().trim(),
-                        instruction.getActions(),
-                        instruction.getOperation(),
-                        instruction.getOnHoldSeconds(),
-                        instruction.getVariableId(),
-                        instruction.getInstructionOrderNumber(),
-                        instruction.getExportToABR(),
-                        instruction.getXpath(),
-                        instruction.getCoordinates(),
-                        instruction.getForceCoordinates(),
-                        instruction.getIFrameXPath(),
-                        instruction.getTagName(),
-                        instruction.getShadowHost(),
-                        instruction.getShadowRoot(),
-                        instruction.getCssSelector(),
-                        currentBotJobId,
-                        currentBlockId,
-                        false);
-
-                if (newId < 0) {
-                    performMessage.errorMessage(
-                            "Error Adding New Component Instruction",
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to insert new Operation!</span> ❌",
-                            "<span style='color: #E65100; font-weight: bold;'>Instruction Name:</span> <span style='font-weight: bold;'>"
-                                    + instruction.getName()
-                                    + "</span>",
-                            "<span style='font-style: italic;'>This operation could not be added. Please review the application state and any related processes.</span>",
-                            null,
-                            0);
-
-                    return null;
-                }
-
-                instruction.setId(newId);
-
-                targetInsert.setInstructionId(instruction.getId());
-                List<InstructionReferenceLoadDTO> queue = new ArrayList<>();
-                for (String key : targetInsert.getSavedReferences().keySet()) {
-                    InstructionReferenceLoadDTO reference = new InstructionReferenceLoadDTO();
-                    reference.setReferenceType(key);
-                    reference.setValue(targetInsert.getSavedReferences().get(key));
-
-                    reference.setBotJobId(currentBotJobId);
-
-                    //
-                    // reference.setBlockLoopInstructionLoadDTO(instruction);
-                    queue.add(reference);
-                }
-                try {
-
-                    //                    Platform.runLater(() -> {
-                    try {
-                        performDataBase.insertReferences(queue, instruction.getId());
-                        if (!sendAll) {
-                            updateBotJobTasks(currentBotJobId);
-                        }
-                    } catch (SQLException error) {
-                        ARLogger.getInstance(PerformDataBase.class)
-                                .severe("Cannot Insert References. Error: " + error.getMessage());
-                        performMessage.errorMessage(
-                                "Web Instruction Analysis",
-                                "<span style='color: #FFA000; font-weight: bold; font-size: 1.1em;'>Potential Issue with Web Instruction</span> ⚠️",
-                                "<span style='color: #E65100;'>Instruction:</span> <span style='font-weight: bold;'>\""
-                                        + instruction.getName()
-                                        + "\"</span>",
-                                "<span style='color: #757575;'>Added with "
-                                        + queue.size()
-                                        + " reference locators.</span>",
-                                "<span style='font-style: italic;'>Warning: The engine might not process this element correctly due to insufficient identifiable attributes. Consider adding more specific locators.</span>",
-                                0);
-                    }
-
-                    //                    });
-                } catch (Exception ex) {
-                    ARLogger.getInstance(Task.class).severe("Error Adding Instruction elements");
-                }
-                //                                        });
-                return null;
-            }
-        };
-        ARLogger.getInstance(ARScannedElementPane.class).fine("Thread created");
-        ARLogger.getInstance(ARScannedElementPane.class).fine("Before thread execution");
-        new Thread(handleEvent).start();
-        ARLogger.getInstance(ARScannedElementPane.class).fine("After thread execution");
-    }
-
-    private void updateBotJobTasks(int currentBotJobId) {
-        botJobLoadList = performDataBase.loadCompleteJobs(currentBotJobId);
-        String jsonData = "[]";
-        if (!botJobLoadList.isEmpty()) {
-            List<InstructionLoadDTO> blockLoopInstructions =
-                    performDataBase.buildJsonViewData(botJobLoadList, "instruction");
-            jsonData = gson.toJson(blockLoopInstructions);
+        String actionReq = targetInsert.getTagName();
+        if (!manyElements) {
+            actionReq = checkClickElement.isSelected()
+                    ? ARConstants.CLICK
+                    : checkInputText.isSelected()
+                            ? ARConstants.INSERT
+                            : checkOutputText.isSelected() ? ARConstants.OUTPUT : ARConstants.OTHER;
         }
-        webSocketSessionManager.sendMessageJson(
-                homeBanking.getId(),
-                "botJobTasks", // + currentBotJobId,
-                jsonData,
-                "updateInstructions");
+
+        targetInsert.setClickElement(checkClickElement.isSelected());
+        WebElementTagNameEnum tagType = targetInsert.getTagType();
+        if (checkForceEnterText.isSelected() && tagType.equals(WebElementTagNameEnum.INPUT)) {
+            tagType = WebElementTagNameEnum.INPUT_ENTER;
+        }
+
+        Integer currentBotJobId = currentBotJob.getId();
+
+        InstructionLoad instruction =
+                performActions.buildNewInstruction(tagType, actionReq, false, nextInstOrderNumber, targetInsert);
+
+        instruction.setForceCoordinates(true); // default
+        instruction.setCoordinates(targetInsert.getCoordinates());
+        instruction.setIFrameXPath(targetInsert.getIFrameXPath());
+        instruction.setShadowHost(targetInsert.getShadowHost());
+        instruction.setShadowRoot(targetInsert.getShadowRoot());
+        instruction.setCssSelector(targetInsert.getCssSelector());
+        instruction.setBlockId(currentBlockId);
+        instruction.setBotJobId(currentBotJobId);
+        instruction.setName(targetInsert.getDefinedName());
+
+        if (instruction.getName() == null && targetInsert.getNameLabel() == null) {
+            if (targetInsert.getSomeText() != null) {
+                instruction.setName(targetInsert.getSomeText());
+            } else {
+                instruction.setName(targetInsert.getTagName());
+            }
+        } else if (instruction.getName() == null && targetInsert.getNameLabel() != null) {
+            instruction.setName(targetInsert.getNameLabel());
+        }
+
+        // Fix action string
+        String actions = instruction.getActions();
+        String[] parts = actions.split(",");
+        if (actions.startsWith("I:")) {
+            for (int i = 0; i < parts.length; i++) {
+                parts[i] = parts[i].trim();
+                if (parts[i].startsWith("I:")) {
+                    parts[i] = parts[i].contains(":E:")
+                            ? "I:E:" + targetInsert.getDefinedName()
+                            : "I:" + targetInsert.getDefinedName();
+                    break;
+                }
+            }
+            instruction.setActions(parts[0]);
+        }
+
+        // Set references
+        List<ReferenceLoadDTO> referenceList = new ArrayList<>();
+        for (Map.Entry<String, String> entry : targetInsert.getSavedReferences().entrySet()) {
+            ReferenceLoadDTO reference = new ReferenceLoadDTO();
+            reference.setReferenceType(entry.getKey());
+            reference.setValue(entry.getValue());
+            reference.setBotJobId(currentBotJobId);
+            referenceList.add(reference);
+        }
+
+        instruction.setReferenceLoadDTOList(referenceList);
+        instructionList.add(instruction);
     }
 
-    private void testingActions(TargetElement targetTest, String testType) {
-        try {
-            if (targetTest.getElement() != null) {
+    public void testingActions(TargetElement originTarget, String testType) {
+        WebDriver driverTestActions = performActions.getCurrentDriver();
 
-                //                            arWebDriver.dehighlightElement(targetTest.getElement());
+        TargetElement targetDeepCopy = originTarget.deepCopy();
+        try {
+            if (targetDeepCopy.getElement() != null) {
+
+                //                            arWebDriver.dehighlightElement(targetDeepCopy.getElement());
 
                 //                            WebElement elementXPath =
                 //
@@ -596,24 +631,23 @@ public class ARScannedElementPane extends ARPane {
                 //                                elementXPath.click();
                 //                            }
 
-                Pair<String, String> fieldData = new Pair<>("Test", testActionsField.getText());
+                FieldData fieldData = new FieldData("Test", testActionsField.getText());
 
-                String mainCoordenates = targetTest.getCoordinates();
-                String savedCoordenates = targetTest.getSavedReferences().get("coordinates");
+                String mainCoordenates = targetDeepCopy.getCoordinates();
+                String savedCoordenates = targetDeepCopy.getSavedReferences().get("coordinates");
                 if (Strings.isNullOrEmpty(mainCoordenates)) {
-                    mainCoordenates = targetTest.getCoordinates();
+                    mainCoordenates = targetDeepCopy.getCoordinates();
                 }
 
                 if (Strings.isNullOrEmpty(savedCoordenates)) {
                     savedCoordenates = mainCoordenates;
                 }
 
-                String mainCoordinates = targetTest.getCoordinates();
-                //                String savedCoordinates =
-                // targetTest.getSavedReferences().get("coordinates");
+                String mainCoordinates = targetDeepCopy.getCoordinates();
+                //                String savedCoordinates = targetDeepCopy.getSavedReferences().get("coordinates");
 
                 if (Strings.isNullOrEmpty(mainCoordinates)) {
-                    mainCoordinates = targetTest.getCoordinates();
+                    mainCoordinates = targetDeepCopy.getCoordinates();
                 }
 
                 //                if (Strings.isNullOrEmpty(savedCoordinates)) {
@@ -686,11 +720,28 @@ public class ARScannedElementPane extends ARPane {
                 actionText1 = new Text("Actions Tested:");
                 actionText1.setStyle("-fx-font-size: 12px; -fx-fill: blue;");
 
-                WebDriver driverTestActions = performActions.getCurrentDriver();
+                if (!Strings.isNullOrEmpty(targetDeepCopy.getIFrameXPath())) {
+                    try {
+                        // Locate and switch to the iframe first
+                        WebElement iframe = driverTestActions.findElement(By.xpath(targetDeepCopy.getIFrameXPath()));
+                        driverTestActions.switchTo().frame(iframe);
+
+                        logOperations.info("Found iFrame XPath: " + targetDeepCopy.getIFrameXPath());
+                    } catch (Exception e) {
+                        logOperations.info("iFrame Not Found with XPath: " + targetDeepCopy.getIFrameXPath());
+                        //                performMessage.generalErrorIFrame(currentInstruction.getName());
+                        //                        return null;
+                    }
+                }
 
                 String result = performActions.sequenceOfCommands(
-                        targetTest.getElement(), ARConstants.SELECT, coordinates, fieldData, driverTestActions, false);
-                System.out.println(result);
+                        targetDeepCopy.getElement(),
+                        ARConstants.SELECT,
+                        coordinates,
+                        fieldData,
+                        driverTestActions,
+                        false);
+                logOperations.info(result);
                 actionsTested.append(result + System.lineSeparator());
                 actionText2 = new Text(result);
                 if (result.contains("Failed")) {
@@ -701,13 +752,13 @@ public class ARScannedElementPane extends ARPane {
 
                 if (testType.equals("TEST_CLICK_DTO")) {
                     result = performActions.sequenceOfCommands(
-                            targetTest.getElement(),
+                            targetDeepCopy.getElement(),
                             ARConstants.CLICK,
                             coordinates,
                             fieldData,
                             driverTestActions,
                             false);
-                    System.out.println(result);
+                    logOperations.info(result);
                     actionsTested.append(result + System.lineSeparator());
                     actionText3 = new Text(result);
                     if (result.contains("Failed")) {
@@ -717,13 +768,13 @@ public class ARScannedElementPane extends ARPane {
                     }
                 }
                 //                result = performActions.sequenceOfCommands(
-                //                        targetTest.getElement(),
+                //                        targetDeepCopy.getElement(),
                 //                        ARConstants.GET_VALUE,
                 //                        coordinates,
                 //                        fieldData,
                 //                        driverTestActions,
                 //                        false);
-                //                System.out.println(result);
+                //                logOperations.info(result);
                 //                actionsTested.append(result + System.lineSeparator());
                 //                actionText4 = new Text(result);
                 //                if (result.contains("Failed")) {
@@ -734,13 +785,13 @@ public class ARScannedElementPane extends ARPane {
 
                 if (testType.equals("TEST_INPUT_DTO")) {
                     result = performActions.sequenceOfCommands(
-                            targetTest.getElement(),
+                            targetDeepCopy.getElement(),
                             ARConstants.CLICK,
                             coordinates,
                             fieldData,
                             driverTestActions,
                             false);
-                    System.out.println(result);
+                    logOperations.info(result);
                     actionsTested.append(result + System.lineSeparator());
                     actionText3 = new Text(result);
                     if (result.contains("Failed")) {
@@ -751,13 +802,13 @@ public class ARScannedElementPane extends ARPane {
                     performActions.onHoldInSeconds(1);
 
                     result = performActions.sequenceOfCommands(
-                            targetTest.getElement(),
+                            targetDeepCopy.getElement(),
                             ARConstants.CLEAR,
                             coordinates,
                             fieldData,
                             driverTestActions,
                             false);
-                    System.out.println(result);
+                    logOperations.info(result);
                     actionsTested.append(result + System.lineSeparator());
                     actionText5 = new Text(result);
                     if (result.contains("Failed")) {
@@ -767,13 +818,13 @@ public class ARScannedElementPane extends ARPane {
                     }
 
                     result = performActions.sequenceOfCommands(
-                            targetTest.getElement(),
+                            targetDeepCopy.getElement(),
                             ARConstants.INSERT,
                             coordinates,
                             fieldData,
                             driverTestActions,
                             false);
-                    System.out.println(result);
+                    logOperations.info(result);
                     actionsTested.append(result + System.lineSeparator());
                     actionText6 = new Text(result);
                     if (result.contains("Failed")) {
@@ -784,13 +835,13 @@ public class ARScannedElementPane extends ARPane {
 
                     performActions.onHoldInSeconds(1);
                     result = performActions.sequenceOfCommands(
-                            targetTest.getElement(),
+                            targetDeepCopy.getElement(),
                             ARConstants.CLEAR,
                             coordinates,
                             fieldData,
                             driverTestActions,
                             false);
-                    System.out.println(result);
+                    logOperations.info(result);
                     actionsTested.append(result + System.lineSeparator());
                     actionText5 = new Text(result);
                     if (result.contains("Failed")) {
@@ -800,13 +851,13 @@ public class ARScannedElementPane extends ARPane {
                     }
 
                     result = performActions.sequenceOfCommands(
-                            targetTest.getElement(),
+                            targetDeepCopy.getElement(),
                             ARConstants.COORD_CLICK,
                             coordinates,
                             fieldData,
                             driverTestActions,
                             false);
-                    System.out.println(result);
+                    logOperations.info(result);
                     actionsTested.append(result + System.lineSeparator());
                     actionText5 = new Text(result);
                     if (result.contains("Failed")) {
@@ -816,13 +867,13 @@ public class ARScannedElementPane extends ARPane {
                     }
 
                     result = performActions.sequenceOfCommands(
-                            targetTest.getElement(),
+                            targetDeepCopy.getElement(),
                             ARConstants.COORD_INSERT,
                             coordinates,
                             fieldData,
                             driverTestActions,
                             false);
-                    System.out.println(result);
+                    logOperations.info(result);
                     actionsTested.append(result + System.lineSeparator());
                     actionText5 = new Text(result);
                     if (result.contains("Failed")) {
@@ -834,13 +885,13 @@ public class ARScannedElementPane extends ARPane {
                     performActions.onHoldInSeconds(1);
 
                     result = performActions.sequenceOfCommands(
-                            targetTest.getElement(),
+                            targetDeepCopy.getElement(),
                             ARConstants.CLEAR,
                             coordinates,
                             fieldData,
                             driverTestActions,
                             false);
-                    System.out.println(result);
+                    logOperations.info(result);
                     actionsTested.append(result + System.lineSeparator());
                     actionText5 = new Text(result);
                     if (result.contains("Failed")) {
@@ -851,10 +902,9 @@ public class ARScannedElementPane extends ARPane {
                 }
 
                 //                result = performActions.sequenceOfCommands(
-                //                        targetTest.getElement(), ARConstants.FOCUS, coordinates,
-                // fieldData,
+                //                        targetDeepCopy.getElement(), ARConstants.FOCUS, coordinates, fieldData,
                 // driverTestActions, false);
-                //                System.out.println(result);
+                //                logOperations.info(result);
                 //
                 //                actionsTested.append(result + System.lineSeparator());
                 //
@@ -866,9 +916,9 @@ public class ARScannedElementPane extends ARPane {
                 //                }
                 //
                 //                result = performActions.sequenceOfCommands(
-                //                        targetTest.getElement(), ARConstants.TAB, coordinates, fieldData,
+                //                        targetDeepCopy.getElement(), ARConstants.TAB, coordinates, fieldData,
                 // driverTestActions, false);
-                //                System.out.println(result);
+                //                logOperations.info(result);
                 //
                 //                actionsTested.append(result + System.lineSeparator());
                 //
@@ -880,13 +930,13 @@ public class ARScannedElementPane extends ARPane {
                 //                }
 
                 //                result = performActions.sequenceOfCommands(
-                //                        targetTest.getElement(),
+                //                        targetDeepCopy.getElement(),
                 //                        ARConstants.COORD_VISUALIZA,
                 //                        coordinates,
                 //                        fieldData,
                 //                        driverTestActions,
                 //                        false);
-                //                System.out.println(result);
+                //                logOperations.info(result);
                 //                actionsTested.append(result + System.lineSeparator());
                 //                actionText9 = new Text(result);
                 //                if (result.contains("Failed")) {
@@ -896,13 +946,13 @@ public class ARScannedElementPane extends ARPane {
                 //                }
 
                 //                result = performActions.sequenceOfCommands(
-                //                        targetTest.getElement(),
+                //                        targetDeepCopy.getElement(),
                 //                        ARConstants.COORD_CLICK,
                 //                        coordinates,
                 //                        fieldData,
                 //                        driverTestActions,
                 //                        false);
-                //                System.out.println(result);
+                //                logOperations.info(result);
                 //
                 //                actionsTested.append(result + System.lineSeparator());
                 //
@@ -914,13 +964,13 @@ public class ARScannedElementPane extends ARPane {
                 //                }
                 //
                 //                result = performActions.sequenceOfCommands(
-                //                        targetTest.getElement(),
+                //                        targetDeepCopy.getElement(),
                 //                        ARConstants.COORD_INSERT,
                 //                        coordinates,
                 //                        fieldData,
                 //                        driverTestActions,
                 //                        false);
-                //                System.out.println(result);
+                //                logOperations.info(result);
                 //                actionsTested.append(result + System.lineSeparator());
                 //                actionText11 = new Text(result);
                 //                if (result.contains("Failed")) {
@@ -930,13 +980,13 @@ public class ARScannedElementPane extends ARPane {
                 //                }
 
                 //                result = performActions.sequenceOfCommands(
-                //                        targetTest.getElement(),
+                //                        targetDeepCopy.getElement(),
                 //                        ARConstants.COORD_INSERT,
                 //                        coordinates,
                 //                        fieldData,
                 //                        driverTestActions,
                 //                        true);
-                //                System.out.println(result);
+                //                logOperations.info(result);
                 //                actionsTested.append(result + System.lineSeparator());
                 //                actionText12 = new Text(result);
                 //                if (result.contains("Failed")) {
@@ -946,13 +996,13 @@ public class ARScannedElementPane extends ARPane {
                 //                }
 
                 //                result = performActions.sequenceOfCommands(
-                //                        targetTest.getElement(),
+                //                        targetDeepCopy.getElement(),
                 //                        ARConstants.COORD_MOVE_CLICK_RED,
                 //                        coordinates,
                 //                        fieldData,
                 //                        driverTestActions,
                 //                        true);
-                //                System.out.println(result);
+                //                logOperations.info(result);
                 //                actionsTested.append(result + System.lineSeparator());
                 //                actionText13 = new Text(result);
                 //                if (result.contains("Failed")) {
@@ -961,7 +1011,7 @@ public class ARScannedElementPane extends ARPane {
                 //                    actionText13.setStyle("-fx-font-size: 12px; -fx-fill: green;");
                 //                }
                 //
-                //                System.out.println(actionsTested);
+                //                logOperations.info(actionsTested);
 
                 //                VBox vertical = new VBox();
                 //                vertical.getChildren()
@@ -988,8 +1038,7 @@ public class ARScannedElementPane extends ARPane {
                 //
                 //                    //                                boxListViews.requestLayout();
                 //                    //                                verticalBox.requestLayout();
-                //                    //                                getChildren().addAll(blockAndUrl,
-                // boxListViews);
+                //                    //                                getChildren().addAll(blockAndUrl, boxListViews);
                 //                    contentPane.requestLayout();
                 //                    VBox vBoxResult = new VBox();
                 //                    vBoxResult.getChildren().addAll(textFlowResult);
@@ -1002,8 +1051,7 @@ public class ARScannedElementPane extends ARPane {
                 //
                 //                    //
                 // countdownTextField.setText(actionsTested.toString());
-                //                    //
-                // countdownTextField.setStyle("-fx-font-size:
+                //                    //                                countdownTextField.setStyle("-fx-font-size:
                 // 12px;
                 //                    // -fx-text-fill: blue;");
                 //                });
@@ -1011,150 +1059,16 @@ public class ARScannedElementPane extends ARPane {
             //                                arWebElement.getElement().click();
         } catch (Exception e) {
             performMessage.couldNotFindElement("No TagName");
+        } finally {
+            if (driverTestActions != null) {
+                driverTestActions.switchTo().defaultContent();
+            }
+
+            Platform.runLater(() -> {
+                defineNameField.clear();
+                searchAttribValueField.clear();
+            });
         }
-    }
-
-    public WebDriver currentDriver;
-    private Set<String> windowHandles;
-
-    private static final CountDownLatch latch = new CountDownLatch(1);
-    private Session session;
-
-    private ExecutorService executorWebSocket;
-    private ExecutorService executorServicePreLaunch;
-    private final AtomicBoolean isJobRunning = new AtomicBoolean(false);
-    private BooleanProperty interceptBotJob = new SimpleBooleanProperty(false);
-
-    private static TargetElement targetSelected = new TargetElement();
-
-    private static File baseLogFile = null;
-    private static SimpleDateFormat dateFormatter;
-
-    private static JavascriptExecutor jsExecutor;
-
-    private final ARComponentBuilder componentBuilder = new ARComponentBuilder();
-
-    private DatabaseUserDTO databaseUserDto;
-
-    private BotJobLoadDTO botJobLoad;
-    private BlockLoadDTO blockLoad;
-
-    private int currentBlockId;
-    private String currentBlockName;
-
-    double comboWidth = 200;
-
-    private List<BotJobLoadDTO> botJobLoadList = new ArrayList<>();
-    private List<BlockLoadDTO> blockLoadList = new ArrayList<>();
-    private HomeBankingLoadDTO homeBanking;
-    private boolean sendAll;
-
-    private ComboBox<ComboBoxVars> comboBoxBlocks;
-    private final ObservableList<ComboBoxVars> blocksItems = FXCollections.observableArrayList();
-
-    Button refreshBlocksButton;
-
-    // UI COMPONENTS
-    private HBox topPane;
-    private VBox verticalBox;
-    private AnchorPane mainPane;
-
-    private final WebView webView = new WebView();
-    private WebEngine webEngine;
-    private VBox elements2VBox;
-    private HBox componentBox;
-
-    private Button cloneElementsButton;
-    private Button configureButton;
-    private Button launchBotJobButton;
-    private Button stopBotJobButton;
-    private Button searchWebElementsButton;
-    private Button refreshWebPageButton;
-    private Button leftButton;
-    private Button rightButton;
-    private Button cleanListButton;
-    private Button turnOnOffButton;
-    private Button searchButton;
-
-    private CheckBox checkCloneElement;
-
-    private Label testActionLabel;
-    private CheckBox checkClickElement;
-    private CheckBox checkInputText;
-    private CheckBox checkOutputText;
-    private CheckBox checkForceEnterText;
-    private CheckBox checkForceCoordText;
-
-    private Label searchTermsLabel;
-    private Label defineNameLabel;
-    private Label coordsTextFieldLabel;
-
-    private Text currentURL;
-    private Text iFrameText;
-
-    private VBox textFieldVBox;
-    //    private TextFlow textFlowResult;
-    private TextArea countdownTextField;
-
-    private TextField searchTermsField;
-    private TextField defineNameField;
-
-    private TextField testActionsField;
-    private TextField searchAttribValueField;
-    private TextField coordsTextField;
-
-    private Map<String, String> mapOperators;
-    private Map<String, String> mapExport;
-    private List<VariableLoadDTO> variablesLoaded;
-
-    private int portSocketInitial = 54525;
-    private boolean isConnectWebSocket = false;
-
-    private String[] defaultSearch;
-    private boolean searchHiddenFields;
-    private String xpathTextPrevious;
-
-    private String jsonData;
-    private String sessionIdFromJava;
-
-    private String sessionRowStatus;
-    private String jsonStatus;
-    private RowStatus rowStatus = new RowStatus();
-    private PayloadJson payloadEmpty;
-
-    private static String[] lstAllPaths;
-
-    // Very important sequence on initiation
-    private static final ARPropertyManager arPropertyManager;
-    private static final ARPriorities arPriorities;
-    private static final WebSocketSessionManager webSocketSessionManager;
-
-    private ARWebDriver currentARWebDriver;
-
-    private static final ARScannedElementScene arScannedElementScene;
-    private static final PerformCloneLoad performCloneLoad;
-    private static final PerformDataBase performDataBase;
-    private static final PerformActions performActions;
-    private static final PerformMessage performMessage;
-    private static final PerformPreLoad performPreLoad;
-    private static final PerformCloseBrowser performCloseBrowser;
-
-    private static final ARNewHomeBankingScene arNewHomeBankingScene;
-
-    // Static block to initialize
-    static {
-        arScannedElementScene = ARScannedElementScene.getInstance();
-        arPropertyManager = ARPropertyManager.getInstance();
-        webSocketSessionManager = WebSocketSessionManager.getInstance();
-        performDataBase = PerformDataBase.getInstance();
-        performActions = PerformActions.getInstance();
-        performMessage = PerformMessage.getInstance();
-        performPreLoad = PerformPreLoad.getInstance();
-        performCloseBrowser = PerformCloseBrowser.getInstance();
-
-        performCloneLoad = PerformCloneLoad.getInstance();
-        arPriorities = ARPriorities.getInstance();
-        arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
     }
 
     public BooleanProperty interceptBotJobProperty() {
@@ -1169,42 +1083,25 @@ public class ARScannedElementPane extends ARPane {
         interceptBotJob.set(value);
     }
 
-    public void initialize(
-            ARWebDriver currentARWebDriver,
-            HomeBankingLoadDTO homeBanking,
-            BotJobLoadDTO botJobLoadDTO,
-            BlockLoadDTO blockLoadDTO,
-            ExecutorService executorWebSocket,
-            ExecutorService executorServicePreLaunch) {
+    public void initialize(ARWebDriver currentARWebDriver, BotJobLoadDTO botJobLoad, int portSocketInitial) {
+        this.portSocketInitial = portSocketInitial;
         this.currentARWebDriver = currentARWebDriver;
-        this.homeBanking = homeBanking;
-
-        this.executorWebSocket = executorWebSocket;
-        this.executorServicePreLaunch = executorServicePreLaunch;
-
-        String port = arPropertyManager.getProperty(ARPropertyEnum.PORT_SOCKET);
-        if (!Strings.isNullOrEmpty(port)) {
-            portSocketInitial = Integer.parseInt(port);
-        }
-
-        if (!isConnectWebSocket) {
-            connectWebSocketClient(portSocketInitial, "scannerReceiver");
-        }
 
         searchHiddenFields = false;
 
         defaultSearch = new String[] {"input", "textarea", "button", "a", "select", "label"};
 
-        ARLogger.getInstance(ARWebDriver.class).fine("Calling ARScannedElementPane");
+        log.info("Calling ARScannedElementPane");
 
         // Ensure botJob and arPriorities are not null before accessing their methods
-        if (this.botJobLoad != null && arPriorities != null) {
+        if (this.currentBotJob != null && arPriorities != null) {
             // Check if we need to update arPriorities
-            if (arPriorities.getJobId() == null || !arPriorities.getJobId().equals(this.botJobLoad.getId())) {
+            if (arPriorities.getJobId() == null || !arPriorities.getJobId().equals(this.currentBotJob.getId())) {
                 // Set Job ID in arPriorities
-                arPriorities.setJobId(this.botJobLoad.getId());
+                arPriorities.setJobId(this.currentBotJob.getId());
 
                 // Check for non-null HomeBanking and Priority
+                HomeBankingLoadDTO homeBanking = performLists.getHomeBankingById(botJobLoad.getHomeBankingId());
                 if (homeBanking != null) {
                     String priorityValue = homeBanking.getPriority();
                     String searchConfig = homeBanking.getSearchConfig();
@@ -1226,27 +1123,41 @@ public class ARScannedElementPane extends ARPane {
         }
 
         // Assign instance variables
-        this.botJobLoad = botJobLoadDTO;
-        this.blockLoad = blockLoadDTO;
+        this.currentBotJob = botJobLoad;
         performActions.initialize(arPriorities);
         performActions.setCurrentDriver(currentARWebDriver.getCurrentDriver());
 
-        updateSceneTitleWithCurrentURL(homeBanking.getUrl());
+        if (!openWebDriver(false)) {
+            arScannedElementScene.closeWebDrivers();
+            arScannedElementScene.closeModal();
+            return;
+        }
+
+        HomeUrlDTO homeUrlDTO = performLists.getHomeUrlByBankId(
+                this.currentBotJob.getHomeBankingId(), this.currentBotJob.getHomeUrlId());
+
+        updateSceneTitleWithCurrentURL(homeUrlDTO.getUrl());
 
         //        if (!initializeWebView()) {
         //            return;
         //        }
 
+        if (comboBoxBlocks != null) {
+            List<BlockOptions> listOptions = performLists.loadComboOptions("block", "ScannerPane");
+            if (listOptions.isEmpty()) {
+                // If list is empty, populate AllBlocks with a default block
+                ObservableList<BlockOptions> defaultAll = FXCollections.observableArrayList(
+                        new BlockOptions("#1 Default Block", "Default Block", -1, -1, -1));
+
+                comboBoxBlocks.setItems(defaultAll);
+                comboBoxBlocks.getSelectionModel().selectFirst();
+            }
+        }
+
         if (componentBox != null) {
-            Platform.runLater(() -> refreshBlocks(false));
+            //            Platform.runLater(() -> refreshBlocks(false));
 
             Platform.runLater(() -> refreshGrids());
-
-            if (!openWebDriver(false)) {
-                arScannedElementScene.closeWebDrivers();
-                arScannedElementScene.closeModal();
-                return;
-            }
 
             componentBox.getChildren().clear();
             componentBox.getChildren().addAll(this.webView);
@@ -1267,7 +1178,7 @@ public class ARScannedElementPane extends ARPane {
     private void refreshGrids() {
         String jsonData = gson.toJson(payloadEmpty);
         webSocketSessionManager.sendMessageJson(
-                this.botJobLoad.getHomeBankingId(), "scannerGrid", jsonData, "searchTerms");
+                this.currentBotJob.getHomeBankingId(), "scannerGrid", jsonData, "searchTerms");
     }
 
     private boolean initializeWebView() {
@@ -1280,15 +1191,15 @@ public class ARScannedElementPane extends ARPane {
 
         // sessionIdFromJava
         // (SENDER: scannerTool) -> scannerGrid /  (SENDER: insertTool) -> botJobTasks /
-        sessionIdFromJava = "scannerGrid"; // + this.homeBanking.getId();
+        sessionIdFromJava = "scannerGrid"; // + this.currentBotJob.getHomeBankingId();
         buildWebView(
                 webEngine,
                 jsonData,
                 portSocketInitial,
                 sessionIdFromJava,
-                homeBanking.getId(),
-                this.botJobLoad.getId(),
-                this.botJobLoad.getName());
+                this.currentBotJob.getHomeBankingId(),
+                this.currentBotJob.getId(),
+                this.currentBotJob.getName());
 
         if (isBrowserClosed(performActions.getCurrentDriver()) && performActions.getCurrentDriver() != null) {
             performActions.getCurrentDriver().quit();
@@ -1298,12 +1209,13 @@ public class ARScannedElementPane extends ARPane {
         }
 
         String version = System.getProperty("java.version");
-        System.out.println("Detected Java Version: " + version);
+        log.info("Detected Java Version: " + version);
 
         int majorVersion = getMajorJavaVersion(version);
         if (majorVersion >= 17) {
-            System.out.println("✅ Java 17 or higher is installed.");
+            log.info("✅ Java 17 or higher is installed.");
         } else {
+            log.error("Compatibility Issue: Incompatible Java Version");
             performMessage.errorMessage(
                     "Compatibility Issue: Incompatible Java Version",
                     "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: Your Java version is lower than the required 17!</span>",
@@ -1329,16 +1241,16 @@ public class ARScannedElementPane extends ARPane {
         //                "scannerGrid",
         //                "searchTerms");
 
-        Platform.runLater(() -> {
-            performCloseBrowser.dynamicCloseBrowser(
-                    performActions.getCurrentDriver(),
-                    portSocketInitial,
-                    "closeBrowser",
-                    "scannerGrid",
-                    "closeBrowser",
-                    homeBanking.getId(),
-                    homeBanking.getUrl());
-        });
+        //        Platform.runLater(() -> {
+        //            performCloseBrowser.dynamicCloseBrowser(
+        //                    performActions.getCurrentDriver(),
+        //                    portSocketInitial,
+        //                    "closeBrowser",
+        //                    "scannerGrid",
+        //                    "closeBrowser",
+        //                    this.currentBotJob.getHomeBankingId(),
+        //                    homeBanking.getUrl());
+        //        });
 
         performActions.getIframeElementsMap();
 
@@ -1347,10 +1259,23 @@ public class ARScannedElementPane extends ARPane {
         return true;
     }
 
+    //    private static WebElement convertJsoupElementToWebElement(Element jsoupElement, WebDriver driver) {
+    //        // Create a new RemoteWebElement instance and set its properties
+    //        RemoteWebElement webElement = new RemoteWebElement();
+    //        webElement.setParent((RemoteWebElement) driver.findElementByTagName("html")); // Set a dummy parent
+    //        webElement.setId("dummy_id"); // Set a dummy id
+    //        // Simulate the href and text attributes
+    //        webElement.setAttribute("href", jsoupElement.attr("href"));
+    //        webElement.setText(jsoupElement.text());
+    //
+    //        return webElement;
+    //    }
+
     private boolean openWebDriver(boolean firstLoad) {
 
         String webDriverPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
         if (!(new File(webDriverPath)).exists()) {
+            logOperations.error("Action Required: Missing WebDriver");
             performMessage.errorMessage(
                     "Action Required: Missing WebDriver",
                     "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: The WebDriver file is missing!</span>",
@@ -1373,10 +1298,14 @@ public class ARScannedElementPane extends ARPane {
         }
 
         if (firstLoad) {
+            HomeUrlDTO homeUrlDTO = performLists.getHomeUrlByBankId(
+                    this.currentBotJob.getHomeBankingId(), this.currentBotJob.getHomeUrlId());
+            HomeBankingLoadDTO homeBanking = performLists.getHomeBankingById(this.currentBotJob.getHomeBankingId());
+
             WebDriver returned = currentARWebDriver.openDriver(
                     browserType,
                     webDriverPath,
-                    homeBanking.getUrl(),
+                    homeUrlDTO.getUrl(),
                     homeBanking.getOptionsConfig(),
                     defaultSearch,
                     searchHiddenFields,
@@ -1391,7 +1320,9 @@ public class ARScannedElementPane extends ARPane {
         } else {
 
             if (currentARWebDriver.getCurrentDriver() != null) {
-                currentARWebDriver.getCurrentDriver().get(homeBanking.getUrl());
+                HomeUrlDTO homeUrlDTO = performLists.getHomeUrlByBankId(
+                        this.currentBotJob.getHomeBankingId(), this.currentBotJob.getHomeUrlId());
+                currentARWebDriver.getCurrentDriver().get(homeUrlDTO.getUrl());
             }
         }
 
@@ -1413,7 +1344,25 @@ public class ARScannedElementPane extends ARPane {
         addCompBoxWebView();
 
         buildUIComponents();
+
+        refreshBlocks(false);
     }
+
+    //    public void saveReferencesToFile(String filePath, List<ARWebElement> elements) {
+    //        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath))) {
+    //            for (ARWebElement element : elements) {
+    //                Map<String, String> savedReferences = element.getSavedReferences();
+    //
+    //                for (Map.Entry<String, String> entry : savedReferences.entrySet()) {
+    //                    writer.write(entry.getKey() + "=" + entry.getValue());
+    //                    writer.newLine();
+    //                }
+    //            }
+    //            logOperations.info("References saved to " + filePath);
+    //        } catch (IOException e) {
+    //            logOperations.error("Error writing to file: " + e.getMessage());
+    //        }
+    //    }
 
     private void addCompBoxWebView() {
         componentBox = new HBox(this.webView);
@@ -1431,47 +1380,37 @@ public class ARScannedElementPane extends ARPane {
             int botJobId,
             String botJobName) {
         webEngine.load(getClass().getResource("/build/index.html").toExternalForm());
+
         webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
             if (newState == Worker.State.SUCCEEDED) {
                 // After the page has successfully loaded
                 try {
                     webEngine.executeScript("setTimeout(function() { window.receiveDataFromJava(JSON.stringify("
-                            + jsonData
-                            + "), "
-                            + finalPort
-                            + ", '"
-                            + sessionIdFromJava
-                            + "', "
-                            + homeBanking
-                            + ", "
-                            + botJobId
-                            + ", '"
-                            + botJobName
-                            + "' ) }, 1000)");
-
+                            + jsonData + "), " + finalPort + ", '" + sessionIdFromJava + "', " + homeBanking + ", "
+                            + botJobId + ", '" + botJobName + "' ) }, 1000)");
                 } catch (Exception e) {
-                    ARLogger.getInstance(ARViewBotJobPane.class).severe("buildWebView  \nError: " + e.getMessage());
+                    log.error("buildWebView  Error: " + e.getMessage());
                 }
             }
         });
     }
 
     private void buildUIComponents() {
-        topPane = componentBuilder.createTopPanel(ARConstants.SPACE_L, ARConstants.SPACE_SM);
-        mainPane = componentBuilder.createContentPanel(ARConstants.SPACE_L, ARConstants.SPACE_XL, ARConstants.SPACE_SM);
+        topPane = builder.createTopPanel(ARConstants.SPACE_L, ARConstants.SPACE_SM);
+        mainPane = builder.createContentPanel(ARConstants.SPACE_L, ARConstants.SPACE_XL, ARConstants.SPACE_SM);
 
-        cloneElementsButton = componentBuilder.buildButton(
+        cloneElementsButton = builder.buildButton(
                 "Clone", ARConstants.SPACE_L, ARConstants.ICON_TICK, ARConstants.SPACE_SM, new Insets(5));
-        searchWebElementsButton = componentBuilder.buildButton(
+        pageScannerButton = builder.buildButton(
                 "Page Scanner", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
 
         turnOnOffButton = new Button("Search Hidden Fields: Off");
         turnOnOffButton.setStyle("-fx-background-color: grey; -fx-text-fill: white;");
 
-        refreshWebPageButton = componentBuilder.buildButton(
+        refreshWebPageButton = builder.buildButton(
                 "Refresh Web Page", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
 
-        cleanListButton = componentBuilder.buildButton(
+        cleanListButton = builder.buildButton(
                 "Clear Grid", // No text
                 25.0, // Smaller height
                 "/cross.png", // Icon source
@@ -1494,13 +1433,13 @@ public class ARScannedElementPane extends ARPane {
         iFrameText = new Text("");
         iFrameText.setStyle("-fx-font-size: 12px; -fx-fill: blue;");
 
-        configureButton = componentBuilder.buildButton(
+        configureButton = builder.buildButton(
                 "Config", ARConstants.SPACE_M, ARConstants.ICON_CONFIG, ARConstants.SPACE_M, new Insets(5.0D));
 
-        launchBotJobButton = componentBuilder.buildButton(
+        launchBotJobButton = builder.buildButton(
                 "Pre-Launch", ARConstants.SPACE_ZERO, "/play.png", ARConstants.SPACE_M, new Insets(5.0D));
-        stopBotJobButton = componentBuilder.buildButton(
-                "STOP", ARConstants.SPACE_ZERO, "/stop.png", ARConstants.SPACE_M, new Insets(5.0D));
+        stopBotJobButton =
+                builder.buildButton("STOP", ARConstants.SPACE_ZERO, "/stop.png", ARConstants.SPACE_M, new Insets(5.0D));
 
         stopBotJobButton.setPrefWidth(100);
 
@@ -1531,11 +1470,11 @@ public class ARScannedElementPane extends ARPane {
         coordsTextField = new TextField();
         coordsTextField.setPromptText("Coordinates");
 
-        leftButton = componentBuilder.buildButton(
+        leftButton = builder.buildButton(
                 "Previous", ARConstants.SPACE_M, ARConstants.ICON_LEFT, ARConstants.SPACE_M, new Insets(5.0D));
-        rightButton = componentBuilder.buildButton(
+        rightButton = builder.buildButton(
                 "Next", ARConstants.SPACE_M, ARConstants.ICON_RIGHT, ARConstants.SPACE_M, new Insets(5.0D));
-        searchButton = componentBuilder.buildButton(
+        searchButton = builder.buildButton(
                 "", ARConstants.SPACE_M, ARConstants.ICON_SEARCH, ARConstants.SPACE_M, new Insets(5.0D));
 
         leftButton.setDisable(true);
@@ -1557,29 +1496,31 @@ public class ARScannedElementPane extends ARPane {
 
             }
 
-            Platform.runLater(() -> {
-                performCloseBrowser.dynamicCloseBrowser(
-                        performActions.getCurrentDriver(),
-                        portSocketInitial,
-                        "closeBrowser",
-                        "scannerGrid",
-                        "closeBrowser",
-                        homeBanking.getId(),
-                        homeBanking.getUrl());
-            });
+            //            Platform.runLater(() -> {
+            //                performCloseBrowser.dynamicCloseBrowser(
+            //                        performActions.getCurrentDriver(),
+            //                        portSocketInitial,
+            //                        "closeBrowser",
+            //                        "scannerGrid",
+            //                        "closeBrowser",
+            //                        this.currentBotJob.getHomeBankingId(),
+            //                        homeBanking.getUrl());
+            //            });
         });
 
         cleanListButton.setOnAction(e -> {
             if (webEngine != null) {
                 //                webEngine.reload();
 
-                var processDTO = new ElementSplitDTO();
-                processDTO.setHomeBankingId(homeBanking.getId());
-                processDTO.setSessionId("scannerGrid"); // + homeBanking.getId());
+                var processDTO = new SplitDTO();
+                processDTO.setHomeBankingId(this.currentBotJob.getHomeBankingId());
+                processDTO.setBotJobId(this.currentBotJob.getId());
+                processDTO.setBotJobName(this.currentBotJob.getName());
+                processDTO.setSessionId("scannerGrid"); // + this.currentBotJob.getHomeBankingId());
                 processDTO.setOperationId("searchTerms");
-                processDTO.setDetails(new ElementDTO[0]);
+                processDTO.setElementDetails(new ElementDTO[0]);
                 webSocketSessionManager.sendMessageJson(
-                        homeBanking.getId(), "scannerGrid", gson.toJson(processDTO), "searchTerms");
+                        this.currentBotJob.getHomeBankingId(), "scannerGrid", gson.toJson(processDTO), "searchTerms");
 
                 Platform.runLater(() -> {
                     countdownTextField.setText("Pre-Launch status: Ready");
@@ -1591,10 +1532,11 @@ public class ARScannedElementPane extends ARPane {
         currentURL.setFill(Color.BLUE);
         currentURL.setStyle("-fx-font-size: 16px;");
 
-        updateSceneTitleWithCurrentURL(homeBanking.getUrl());
+        HomeUrlDTO homeUrlDTO = performLists.getHomeUrlByBankId(
+                this.currentBotJob.getHomeBankingId(), this.currentBotJob.getHomeUrlId());
+        updateSceneTitleWithCurrentURL(homeUrlDTO.getUrl());
 
-        this.blockLoadList = performDataBase.loadBlocksByBotJobId(this.botJobLoad.getId());
-        loadAllBlockItems(this.blockLoadList);
+        //        loadAllBlockItems(performLists.getListBlock());
 
         refreshBlocksButton = createPathButton();
 
@@ -1602,17 +1544,16 @@ public class ARScannedElementPane extends ARPane {
             refreshBlocks(false);
         });
 
-        comboBoxBlocks = new ComboBox<>(blocksItems);
+        comboBoxBlocks = new ComboBox<>();
         comboBoxBlocks.setPrefWidth(comboWidth);
         comboBoxBlocks.getSelectionModel().selectFirst();
         comboBoxBlocks.setButtonCell(new ListCell<>() {
             @Override
-            protected void updateItem(ComboBoxVars item, boolean empty) {
+            protected void updateItem(BlockOptions item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
                     setText(null);
                     setGraphic(null);
-                    setTextFill(Color.BLACK); // Ensure text is black
                 } else {
                     setText(item.getText());
                     setTextFill(Color.BLACK); // Ensure text is black
@@ -1621,12 +1562,11 @@ public class ARScannedElementPane extends ARPane {
         });
         comboBoxBlocks.setCellFactory(param -> new ListCell<>() {
             @Override
-            protected void updateItem(ComboBoxVars item, boolean empty) {
+            protected void updateItem(BlockOptions item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
                     setText(null);
                     setGraphic(null);
-                    setTextFill(Color.BLACK); // Ensure text is black
                 } else {
                     setText(item.getText());
                     setTextFill(Color.BLACK); // Ensure text is black
@@ -1637,7 +1577,6 @@ public class ARScannedElementPane extends ARPane {
                 setOnMouseExited(e -> setStyle("-fx-background-color: none;"));
             }
         });
-        comboBoxBlocks.getSelectionModel().selectFirst();
 
         try {
             // Starting the View
@@ -1648,7 +1587,7 @@ public class ARScannedElementPane extends ARPane {
             gridPaneTop.setHgap(10); // Set horizontal gap between columns
 
             // Add buttons and checkbox to the GridPane
-            gridPaneTop.add(searchWebElementsButton, 0, 0);
+            gridPaneTop.add(pageScannerButton, 0, 0);
             gridPaneTop.add(searchTermsLabel, 3, 0);
             gridPaneTop.add(searchTermsField, 4, 0);
             gridPaneTop.add(searchButton, 5, 0);
@@ -1816,19 +1755,19 @@ public class ARScannedElementPane extends ARPane {
             AnchorPane.setRightAnchor(topPane, 0.0);
 
         } catch (Exception ex) {
-            ARLogger.getInstance(ARScannedElementPane.class).fine("Error using Separator line\n" + ex);
+            log.info("Error using Separator line: " + ex);
         }
     }
 
-    private void refreshBlocks(boolean secondItem) {
-        this.blockLoadList = performDataBase.loadBlocksByBotJobId(this.botJobLoad.getId());
-        loadAllBlockItems(this.blockLoadList);
-
-        if (!secondItem) {
-            comboBoxBlocks.getSelectionModel().selectFirst(); // Select the first item
-        } else {
-            comboBoxBlocks.getSelectionModel().select(1); // Select the second item (index 1)
-        }
+    public void refreshBlocks(boolean secondItem) {
+        Platform.runLater(() -> {
+            loadAllBlocks();
+            if (!secondItem) {
+                comboBoxBlocks.getSelectionModel().selectFirst();
+            } else {
+                comboBoxBlocks.getSelectionModel().select(1);
+            }
+        });
     }
 
     // Enable or disable the tab switching buttons based on the number of tabs
@@ -1839,8 +1778,7 @@ public class ARScannedElementPane extends ARPane {
             //            leftButton.setDisable(currentTabIndex == 0);
             //
             //            // Disable the right button if we are on the last tab
-            //            rightButton.setDisable(currentTabIndex ==
-            // performActions.windowHandlesList.size() - 1);
+            //            rightButton.setDisable(currentTabIndex == performActions.windowHandlesList.size() - 1);
         } else {
             // Disable both buttons if there's only one tab or no tabs
             leftButton.setDisable(true);
@@ -1884,8 +1822,7 @@ public class ARScannedElementPane extends ARPane {
             updateSceneTitleWithCurrentURL(performActions.getCurrentDriver().getCurrentUrl());
 
             // Disable the right button if we are at the last tab
-            //            rightButton.setDisable(currentTabIndex ==
-            // performActions.windowHandlesList.size() - 1);
+            //            rightButton.setDisable(currentTabIndex == performActions.windowHandlesList.size() - 1);
 
             // Enable the left button since we're no longer on the first tab
             //            leftButton.setDisable(false);
@@ -1947,7 +1884,7 @@ public class ARScannedElementPane extends ARPane {
     @Override
     public void initUIBehaviour() {
         interceptBotJobProperty().addListener((obs, oldVal, newVal) -> {
-            System.out.println("interceptBotJob changed from " + oldVal + " to " + newVal);
+            log.info("interceptBotJob changed from " + oldVal + " to " + newVal);
         });
 
         configureButton.setOnMouseClicked(e -> arNewHomeBankingScene.show());
@@ -1961,14 +1898,123 @@ public class ARScannedElementPane extends ARPane {
             setInterceptBotJob(false);
             isJobRunning.set(false);
 
-            this.botJobLoadList = performDataBase.loadCompleteJobs(botJobLoad.getId());
+            try {
+                excelPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
+            } catch (Exception error) {
+                log.error("Error Defining Excel or BaseLog File: " + error.getMessage());
+            }
+
+            executeSpecificBlock = comboBoxBlocks.getValue().getBlockOrderNumber() < 0
+                    ? 0
+                    : comboBoxBlocks.getValue().getBlockOrderNumber() - 1; // Start in a specific Block/UseCase
+
+            clearFields();
+
+            ErrorMessage errorMessage = performDBEngine.loadHomeBanking(null);
+            if (errorMessage == null)
+                errorMessage = performDBEngine.loadHomeUrls(this.currentBotJob.getHomeBankingId());
+            if (errorMessage == null) errorMessage = performDBEngine.loadCompleteJobs(this.currentBotJob.getId());
+            if (errorMessage == null)
+                errorMessage = performDBEngine.loadAllVariables("variable", this.currentBotJob.getId());
+            if (errorMessage == null)
+                excelDataGoto = performDBEngine.loadExcelGotoBlock(this.currentBotJob.getId(), "instruction");
+
+            if (errorMessage == null && !performLists.getListBotJob().isEmpty()) {
+                blocksLoaded = performLists.getListBotJob().get(0).getBlockLoadDTOList();
+                errorMessage = performDBEngine.loadAllActionsPerBlock(blocksLoaded);
+            } else if (performLists.getListBotJob().isEmpty()) {
+                log.warn("I cannot find a Bot Job with this Organization ID: " + this.currentBotJob.getHomeBankingId()
+                        + " Environment ID: " + this.currentBotJob.getId());
+            }
+
+            if (errorMessage != null) {
+                log.error("Error: " + errorMessage.getErrorMessage());
+                performMessage.errorMessageOperationFailed(errorMessage);
+            }
+
+            if (performLists.getListBotJob().isEmpty()) {
+                log.error("Cannot find Bot Jobs with this Id:" + this.currentBotJob.getId());
+                return;
+            }
+            HomeBankingLoadDTO homeBanking = performLists.getHomeBankingById(this.currentBotJob.getHomeBankingId());
+            if (homeBanking == null || StringUtils.isNullOrEmpty(homeBanking.getUrl())) {
+                log.error("Cannot find Home Banking Environment Id:" + this.currentBotJob.getHomeBankingId());
+                return;
+            }
+
+            currentBotJob = performLists.getListBotJob().get(0);
+            currentBotJob.setHomeBankingLoadDTO(homeBanking);
+            HomeUrlDTO homeUrlDTO =
+                    performLists.getHomeUrlByBankId(currentBotJob.getHomeBankingId(), currentBotJob.getHomeUrlId());
+
+            if (homeUrlDTO != null) {
+                currentBotJob.setHomeUrlId(homeUrlDTO.getId());
+                homeBanking.setUrl(homeUrlDTO.getUrl());
+            }
+
+            currentBotJobName = currentBotJob.getName();
+            excelPath = excelPath + "\\" + currentBotJobName + ".xlsx";
+
+            ExcelReader excelReader = new ExcelReader();
+            try {
+                extractedData = excelReader.extractData(excelPath, performLists.getAllActions());
+            } catch (Exception error) {
+                log.error("Error Processing Excel File");
+                performMessage.errorMessage(
+                        "Error Processing Excel File",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to Execute Excel File!</span> ⚠️",
+                        "<span style='color: #E65100; font-weight: bold;'>Please carefully review all Excel columns and their values for potential errors.</span>",
+                        "<span style='font-style: italic;'>Inconsistent or incorrect data can prevent the application from processing the file.</span>",
+                        null,
+                        0);
+            }
+
+            if (extractedData.getNumberOfDataRows() == 0) {
+                extractedData.addField("$EMPTY");
+                extractedData.addFieldValue("$EMPTY", "$EMPTY", 0);
+            }
+
+            if (extractedData != null && extractedData.getErrorMessage() != null) {
+                performMessage.errorMessage(
+                        "Excel Error", "Could Not Execute Excel File", extractedData.getErrorMessage(), null, null, 0);
+                return;
+            }
+
+            if (extractedData.getNumberOfDataRows() > 1 && excelDataGoto.isEmpty()) {
+
+                log.warn("Multiple Excel Rows Detected: each next row will return to first block");
+
+                ARExecution.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
+                        "Multiple Excel Rows Detected",
+                        "<span style='font-weight: bold;'>Your Excel data file contains multiple rows.</span>",
+                        "By default, each Excel test row <span style='font-weight: bold; color: #e854c8;'>will be processed through all blocks</span>, and after  will jump back to <span style='font-weight: bold;'>first block (Use Case).</span>",
+                        "Add the <span style='font-weight: bold; color: #FF4500;'>'Excel GOTO'</span> operation to your flow to modify the <span style='font-weight: bold;'>default behaviour.</span>",
+                        "The <span style='font-weight: bold; color: #FF4500;'>Excel GOTO</span> allows you to specify which block <span style='font-weight: bold;'>the flow should continue from</span>, after the execution of the first row across all blocks.",
+                        false,
+                        "Continue",
+                        "Stop All",
+                        0);
+
+                if (respModal.equals(ARExecution.DialogModal.STOP)) {
+                    performActions.setInterceptBotJob(true);
+                    setInterceptBotJob(true);
+                    isJobRunning.set(false);
+
+                    if (!lastBrowserTab()) {
+                        return;
+                    }
+                }
+            }
 
             // Set all instructions' executed field to false
-            botJobLoadList.get(0).getBlockLoadDTOList().stream()
-                    .flatMap(block -> block.getInstructionLoadDTOS().stream())
-                    .forEach(instruction -> instruction.setExecuted(false));
+            if (!performLists.getListBotJob().isEmpty()) {
 
-            recallJob();
+                performLists.getListBotJob().get(0).getBlockLoadDTOList().stream()
+                        .flatMap(block -> block.getInstructionLoad().stream())
+                        .forEach(instruction -> instruction.setExecuted(false));
+
+                recallJob();
+            }
         });
 
         stopBotJobButton.setOnMouseClicked(e -> {
@@ -1997,7 +2043,7 @@ public class ARScannedElementPane extends ARPane {
                 // String[] dataArrayClone = {"*"};
                 int finalPort = portSocketInitial;
                 String socketSessionId = "scannerTool";
-                String destinationId = "scannerGrid"; // + homeBanking.getId();
+                String destinationId = "scannerGrid"; // + this.currentBotJob.getHomeBankingId();
                 Platform.runLater(() -> periodicPickOneCloneThread(
                         performActions.getCurrentDriver(),
                         false,
@@ -2005,7 +2051,8 @@ public class ARScannedElementPane extends ARPane {
                         socketSessionId,
                         destinationId,
                         "addPickOne",
-                        homeBanking.getId(),
+                        this.currentBotJob.getHomeBankingId(),
+                        this.currentBotJob.getId(),
                         performActions.getCurrentDriver().getCurrentUrl()));
             }
 
@@ -2013,7 +2060,10 @@ public class ARScannedElementPane extends ARPane {
                 launchBotJobButton.setDisable(checkCloneElement.isSelected());
 
                 if (!checkCloneElement.isSelected()) {
-                    defineNameField.clear();
+                    Platform.runLater(() -> {
+                        defineNameField.clear();
+                        searchAttribValueField.clear();
+                    });
                 }
             });
         });
@@ -2021,6 +2071,10 @@ public class ARScannedElementPane extends ARPane {
         cloneElementsButton.setOnAction(e -> {
             if (targetSelected != null && targetSelected.getElement() != null) {
                 cloneElementDTO(targetSelected);
+                Platform.runLater(() -> {
+                    defineNameField.clear();
+                    searchAttribValueField.clear();
+                });
             } else {
 
                 performMessage.showCustomModalDialogDragWin11(
@@ -2036,14 +2090,14 @@ public class ARScannedElementPane extends ARPane {
             }
         });
 
-        searchWebElementsButton.setOnAction(e -> searchTermsBtn(null));
+        pageScannerButton.setOnAction(e -> searchTermsBtn(null));
 
         searchButton.setOnAction(e -> searchTermsBtn(searchTermsField.getText().trim()));
 
         turnOnOffButton.setVisible(false);
     }
 
-    private boolean lastBrowserTab() {
+    public boolean lastBrowserTab() {
         // Get all window handles (all open tabs/windows)
         try {
             windowHandles = performActions.getCurrentDriver().getWindowHandles();
@@ -2087,8 +2141,10 @@ public class ARScannedElementPane extends ARPane {
 
             elementDTO.setSomeText(defineNameField.getText().trim());
 
-            var processDTO = new ElementSplitDTO();
-            processDTO.setHomeBankingId(homeBanking.getId());
+            var processDTO = new SplitDTO();
+            processDTO.setHomeBankingId(this.currentBotJob.getHomeBankingId());
+            processDTO.setBotJobId(this.currentBotJob.getBotJobId());
+            processDTO.setBotJobName(this.currentBotJob.getName());
             processDTO.setSessionId("scannerGrid");
             processDTO.setOperationId("clonedElement");
 
@@ -2120,7 +2176,7 @@ public class ARScannedElementPane extends ARPane {
             }
 
             ElementDTO[] detailsArray = detailsList.toArray(new ElementDTO[0]);
-            processDTO.setDetails(detailsArray);
+            processDTO.setElementDetails(detailsArray);
 
             for (int x = 0; x < detailsArray.length; x++) {
                 detailsArray[x].setTypeElement("tagName-Found");
@@ -2128,53 +2184,715 @@ public class ARScannedElementPane extends ARPane {
             }
 
             webSocketSessionManager.sendMessageJson(
-                    homeBanking.getId(), "scannerGrid", gson.toJson(processDTO), "clonedElement");
+                    this.currentBotJob.getHomeBankingId(), "scannerGrid", gson.toJson(processDTO), "clonedElement");
         }
     }
 
-    private TargetElement extractPickClone(ElementDTO elementDTO) {
+    public void itPrintsElementDTO() {
 
-        xpathTextPrevious = elementDTO.getXPath();
+        //                textFlowResult.getChildren().clear();
+        //                textFlowResult.getChildren().addAll(countdownTextField);
+        //                textFlowResult.requestLayout();
+        //                contentPane.requestLayout();
 
-        TargetElement targetLocal = performActions.defineSearchReturn(elementDTO, null);
+        //                                boxListViews.requestLayout();
+        //                                verticalBox.requestLayout();
+        //                                getChildren().addAll(blockAndUrl, boxListViews);
 
-        WebElement elementFound = performActions.findWebElement(targetLocal);
-        targetLocal.setElement(elementFound);
-        // 3 Different Coordinates // Original from JavaScript  // WebDriver Selenium ElementFound
-        // FallBack React Computed
-        performActions.defineSavedReferenced(targetLocal);
+        //        for (ARWebElement arWebElement : scannedElements2.getItems()) {
+        //            performActions.highlightElement(jsExecutor, arWebElement.getElement(), null);
+        //        }
+        if (targetSelected != null) {
+            StringBuilder sb = new StringBuilder();
+            String nameDefined = "";
 
-        targetLocal = performActions.defineNameTitles(targetLocal);
+            if (targetSelected.getElement() != null) {
 
-        // First  Search for ShadowRoot
-        if (Strings.isNullOrEmpty(targetLocal.getShadowHost()) && Strings.isNullOrEmpty(targetLocal.getCssSelector())) {
+                defineNameField.setText("");
+                if (!Strings.isNullOrEmpty(targetSelected.getAttribId())
+                        || !Strings.isNullOrEmpty(targetSelected.getAttribName())
+                        || !Strings.isNullOrEmpty(targetSelected.getSomeText())) {
+                    nameDefined = (!Strings.isNullOrEmpty(targetSelected.getSomeText())
+                            ? PerformActions.truncateAndNormalize(targetSelected.getSomeText(), 30)
+                            : !Strings.isNullOrEmpty(targetSelected.getAttribId())
+                                    ? targetSelected.getAttribId()
+                                    : !Strings.isNullOrEmpty(targetSelected.getAttribName())
+                                            ? targetSelected.getAttribName()
+                                            : "");
 
-            TargetElement targetValidated = checkValidateSearchPriorities(targetLocal);
+                    if (targetSelected.getDefinedName() != null
+                            && !targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
+                        nameDefined = targetSelected.getDefinedName();
+                    }
 
-            if (targetValidated.getElement() == null) {
+                    String finalNameDefined = nameDefined;
+                    Platform.runLater(
+                            () -> defineNameField.setText(PerformActions.truncateAndNormalize(finalNameDefined, 30)));
 
-                performMessage.errorMessage(
-                        "I Cannot define this element",
-                        "I will use the Locator \"COORDINATES\"",
-                        "Try to get it again -> \"HOVER PICK  ELEMENT\" or \"PICK ONE \"",
-                        null,
-                        null,
-                        0);
+                } else if (targetSelected.getAttributeData() != null && targetSelected.getAttributeData().length > 0) {
 
-                return null;
+                    // Split by comma to get key-value pairs
+
+                    String idValue = null;
+                    String nameValue = null;
+                    String typeValue = null;
+
+                    // Loop through each key-value pair
+                    for (AttributeData attributeData : targetSelected.getAttributeData()) {
+
+                        String key = attributeData.getName().trim();
+                        String value = attributeData.getValue().trim().replaceAll("\"", ""); // Remove quotes
+
+                        if (key.equals("id")) {
+                            idValue = value;
+                        } else if (key.equals("name")) {
+                            nameValue = value;
+                        } else if (key.equals("type")) {
+                            typeValue = value;
+                        }
+                    }
+
+                    // Print based on priority: ID -> Name -> Type
+                    if (idValue != null) {
+                        nameDefined = targetSelected.getTagName() + "-" + idValue;
+                    } else if (nameValue != null) {
+                        nameDefined = targetSelected.getTagName() + "-" + nameValue;
+                    } else if (typeValue != null) {
+                        nameDefined = targetSelected.getTagName() + "-" + typeValue;
+                    } else {
+                        nameDefined = targetSelected.getTagName();
+                    }
+
+                    if (targetSelected.getDefinedName() != null
+                            && !targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
+                        nameDefined = targetSelected.getDefinedName();
+                    }
+
+                    String finalSomeText = nameDefined;
+                    Platform.runLater(
+                            () -> defineNameField.setText(PerformActions.truncateAndNormalize(finalSomeText, 30)));
+
+                } else if (!Strings.isNullOrEmpty(targetSelected.getTagName())) {
+
+                    if (targetSelected.getDefinedName() != null
+                            && !targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
+                        nameDefined = targetSelected.getDefinedName();
+                    } else {
+                        nameDefined = targetSelected.getTagName();
+                    }
+                    String finalSomeText = nameDefined;
+
+                    Platform.runLater(() -> defineNameField.setText(finalSomeText));
+                }
+            }
+
+            sb.append("TagType: " + targetSelected.getTagType()).append("\n");
+            sb.append("ID: " + targetSelected.getAttribId()).append("\n");
+            sb.append("Name: " + targetSelected.getAttribName()).append("\n");
+            if (!Strings.isNullOrEmpty(targetSelected.getShadowRoot())) {
+                sb.append("ShadowHost: " + targetSelected.getShadowHost()).append("\n");
+                sb.append("cssSelector: " + targetSelected.getCssSelector()).append("\n");
+            }
+            sb.append("Text: " + targetSelected.getSomeText()).append("\n");
+
+            if (!Strings.isNullOrEmpty(targetSelected.getCoordinates())) {
+                sb.append("Coordinates: " + targetSelected.getCoordinates()).append("\n");
+                coordsTextField.setText(targetSelected.getCoordinates());
+            } else {
+                sb.append("Coordinates: EMPTY").append("\n");
+            }
+
+            if (!Strings.isNullOrEmpty(targetSelected.getSearchAttributeValue())) {
+                sb.append("Search Attrib: " + targetSelected.getSearchAttributeValue())
+                        .append("\n");
+                searchAttribValueField.setText(targetSelected.getSearchAttributeValue());
+                searchAttribValueField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
+            } else {
+                sb.append("Search Attrib: No Defined").append("\n");
+            }
+
+            sb.append("Named: " + nameDefined).append("\n");
+            sb.append("All Attributes Found: ").append("\n");
+            if (targetSelected.getAttributeData() != null) {
+                for (AttributeData attribute : targetSelected.getAttributeData()) {
+                    sb.append("->  ")
+                            .append(attribute.getName().trim() + "="
+                                    + attribute.getValue().trim())
+                            .append("\n");
+                }
+            }
+
+            Platform.runLater(() -> {
+                countdownTextField.setText(sb.toString());
+                countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
+            });
+
+            //                textFlowResult.getChildren().clear();
+            //                textFlowResult.getChildren().addAll(countdownTextField);
+            //                textFlowResult.requestLayout();
+            //                contentPane.requestLayout();
+
+            defineCheckBoxesClickable(targetSelected);
+        }
+        performActions.getCurrentDriver().switchTo().defaultContent();
+    }
+
+    private void periodicPickOneCloneThread(
+            WebDriver driver,
+            boolean searchHiddenFields,
+            int port,
+            String sessionId,
+            String destination,
+            String operationId,
+            int homeBankingId,
+            int botJobId,
+            String currentUrl) {
+
+        ErrorMessage errorMessage = performCloneLoad.dynamicPickOneCloneElementsDTO(
+                driver,
+                searchHiddenFields,
+                port,
+                sessionId,
+                destination,
+                operationId,
+                homeBankingId,
+                botJobId,
+                currentUrl);
+
+        if (errorMessage != null) {
+            String[] lines = errorMessage.getErrorMessage().split("\n");
+
+            logOperations.error(
+                    "Error: Dynamic Pick One Clone ElementsDTO - {} - {} - {}",
+                    errorMessage.getErrorTitle(),
+                    errorMessage.getErrorHeader(),
+                    errorMessage.getErrorMessage());
+            //            performMessage.errorMessage(
+            //                    errorMessage.getErrorTitle(),
+            //                    errorMessage.getErrorHeader(),
+            //                    (!Strings.isNullOrEmpty(lines[0]) ? lines[0] : null),
+            //                    (!Strings.isNullOrEmpty(lines[0]) ? lines[1] : null),
+            //                    null,
+            //                    0);
+        }
+    }
+
+    public void periodicSearchThread(
+            WebDriver driver,
+            String[] dataArray,
+            int port,
+            String sessionId,
+            String destinationId,
+            String operationId,
+            int homeBankingId,
+            int botJobId) {
+        // "scannerTool", "scannerGrid", "searchTerms"
+        ErrorMessage errorMessage = performPreLoad.dynamicLoadElementsDTO(
+                driver,
+                dataArray,
+                searchHiddenFields,
+                port,
+                sessionId,
+                destinationId,
+                operationId,
+                homeBankingId,
+                botJobId);
+
+        if (errorMessage != null) {
+            String[] lines = errorMessage.getErrorMessage().split("\n");
+
+            logOperations.error(
+                    "Error: Dynamic Pick One Clone ElementsDTO - {} - {} - {}",
+                    errorMessage.getErrorTitle(),
+                    errorMessage.getErrorHeader(),
+                    errorMessage.getErrorMessage());
+            //            performMessage.errorMessage(
+            //                    errorMessage.getErrorTitle(),
+            //                    errorMessage.getErrorHeader(),
+            //                    (!Strings.isNullOrEmpty(lines[0]) ? lines[0] : null),
+            //                    (!Strings.isNullOrEmpty(lines[0]) ? lines[1] : null),
+            //                    null,
+            //                    0);
+        }
+    }
+
+    public void revertCloneInjections(WebDriver driver) {
+        try {
+            jsExecutor = (JavascriptExecutor) driver;
+            // Remove the injected element
+            jsExecutor.executeScript("window.revertCloneInjections();");
+            jsExecutor.executeScript(
+                    "let elem = document.getElementById('Martini-Is-Awesome'); if (elem) { elem.remove(); }");
+
+            // Reset the background color
+            //        jsExecutor.executeScript("document.body.style.backgroundColor = '';");
+        } catch (Exception ignore) {
+        }
+    }
+
+    public void revertPickInjections(WebDriver driver) {
+        try {
+            jsExecutor = (JavascriptExecutor) driver;
+            // Remove the injected element
+            jsExecutor.executeScript("window.revertPickInjections();");
+            jsExecutor.executeScript(
+                    "let elem = document.getElementById('Martini-Is-Awesome'); if (elem) { elem.remove(); }");
+
+            // Reset the background color
+            //        jsExecutor.executeScript("document.body.style.backgroundColor = '';");
+        } catch (Exception ignore) {
+        }
+    }
+
+    private void revertHoverPickInjections(WebDriver driver) {
+        try {
+            jsExecutor = (JavascriptExecutor) driver;
+            jsExecutor.executeScript("window.revertHoverPickInjections();");
+        } catch (Exception ignore) {
+        }
+    }
+
+    public void injectJumpTab(WebDriver driver) {
+        ((JavascriptExecutor) driver)
+                .executeScript("var inputs = document.getElementsByTagName('input');"
+                        + "for (var i = 0; i < inputs.length; i++) {"
+                        + "    inputs[i].scrollIntoView();"
+                        + "}");
+    }
+
+    public List<WebElement> searchAllInputs(WebDriver driver) {
+        // Execute JavaScript to find all input elements
+        String script = "var inputs = document.getElementsByTagName('input');" + "return inputs;";
+        List<WebElement> inputElements = (List<WebElement>) ((JavascriptExecutor) driver).executeScript(script);
+
+        // Print the number of input elements found
+        logOperations.info("Number of input elements: " + inputElements.size());
+        return inputElements;
+    }
+
+    private void recallJob() {
+        if (isJobRunning.compareAndSet(false, true)) { // Try to set to true if currently false
+            try {
+                if (executorServicePreLaunch == null || executorServicePreLaunch.isShutdown()) {
+                    executorServicePreLaunch = Executors.newSingleThreadExecutor();
+                }
+
+                executorServicePreLaunch.submit(() -> {
+                    try {
+                        executeJob();
+                        launchBotJobButton.setDisable(false);
+                    } finally {
+                        isJobRunning.set(false);
+                    }
+                });
+            } catch (Exception ignore) {
+                // Log the error properly instead of ignoring
+
+                log.error("Error submitting to executorServicePreLaunch: " + ignore.getMessage());
+                isJobRunning.set(false); // Ensure flag is reset on submission failure
             }
         } else {
-            targetLocal.setXPathWorkedFirst(ARConstants.SHADOW_DOM);
+            // Optionally log that a new execution was requested but is already running
+            log.info("recallJob() requested, but executeJob() is already running.");
+
+            log.info("recallJob() requested while executeJob() was running.");
         }
 
-        //        targetElement = performActions.defineTagType(targetElement);
-
-        defineCheckBoxesClickable(targetLocal);
-
-        return targetLocal;
+        if (performActions.getCurrentDriver().getWindowHandles().size() != performActions.windowHandlesList.size()) {
+            performActions.updateWindowHandlesList();
+            updateButtonState();
+        }
     }
 
-    private void defineCheckBoxesClickable(TargetElement targetCheck) {
+    private void shutDownExecutorService(ExecutorService executorService) {
+        if (executorService == null || executorService.isShutdown()) {
+            return;
+        }
+        executorService.shutdown();
+        try {
+            if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
+                executorService.shutdownNow();
+                if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
+                    log.warn("ExecutorService did not terminate");
+                }
+            }
+        } catch (InterruptedException error) {
+            executorService.shutdownNow();
+            Thread.currentThread().interrupt();
+            log.warn("ExecutorService did not terminate: " + error.getMessage());
+        }
+    }
+
+    private void clearFields() {
+        coordsTextField.setText("");
+        countdownTextField.setText("Pre-Launch status: Ready");
+        countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
+        mainPane.requestLayout();
+    }
+
+    public void quit(int status) {
+        performActions.getCurrentDriver().quit();
+        if (status == 0) {
+            System.exit(status);
+        }
+        Close();
+    }
+
+    /**
+     * Finds all elements with the specified attribute and returns a map with their XPaths as keys.
+     *
+     * @param driver    the WebDriver instance
+     * @param attribute the attribute to find elements by (e.g., "id" or "name")
+     * @return a map where keys are XPaths of elements and values are WebElements
+     */
+    private Map<String, WebElement> findElementsWithXPath(WebDriver driver, String attribute) {
+        jsExecutor = (JavascriptExecutor) driver;
+        List<WebElement> elements = (List<WebElement>)
+                jsExecutor.executeScript("return Array.from(document.querySelectorAll('[" + attribute + "]'));");
+        Set<WebElement> uniqueElements = new HashSet<>(elements);
+        Map<String, WebElement> elementMap = new HashMap<>();
+        for (WebElement element : uniqueElements) {
+            String xpath = getElementXPath(driver, element);
+            elementMap.put(xpath, element);
+        }
+        return elementMap;
+    }
+
+    @Override
+    public void start(Stage stage) throws Exception {
+        log.error("start from ARScannedElementPane");
+    }
+
+    @Override
+    public void stop() throws Exception {
+        // Cleanup tasks when the application stops
+        executorServicePreLaunch.shutdown();
+        try {
+            if (!executorServicePreLaunch.awaitTermination(5, TimeUnit.SECONDS)) {
+                executorServicePreLaunch.shutdownNow();
+                if (!executorServicePreLaunch.awaitTermination(5, TimeUnit.SECONDS)) {
+                    log.warn("ExecutorService did not terminate");
+                }
+            }
+        } catch (InterruptedException e) {
+            executorServicePreLaunch.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private void Close() {
+        log.info("ARScannedElementPane Close()");
+        Platform.runLater(() -> {
+            Stage stage = (Stage) mainPane.getScene().getWindow();
+            stage.close();
+        });
+    }
+
+    private Button createPathButton() {
+        Button button = builder.buildButton(
+                "", ARConstants.SPACE_L, ARConstants.ICON_REFRESH, ARConstants.SPACE_M, new Insets(3D));
+        button.setMaxWidth(ARConstants.SPACE_L);
+        AnchorPane.setRightAnchor(button, 0D);
+        return button;
+    }
+
+    private void browserNotAttached() {
+        String webDriverPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
+        log.error("Error: The Browser attached with this Web Scanner is Not Active");
+        performMessage.errorMessage(
+                "The Browser attached with this Web Scanner is Not Active",
+                "<span style='font-style: italic;'>Session deleted as the browser has closed the connection!</span>",
+                "<span style='color: #E65100; font-weight: bold;'>WebDriver path:</span> <span style='font-weight: bold;'>"
+                        + webDriverPath + "</span>",
+                "<span style='font-style: italic;'>Please close and Re-Open the Scanner Tool.</span>",
+                "<span style='font-style: italic;'>Details: " + "Web Browser was closed before the Scanner Tool"
+                        + "</span>",
+                0);
+    }
+
+    private int handleGreaterThan(String value1, String value2) {
+        try {
+            double num1 = Double.parseDouble(value1);
+            double num2 = Double.parseDouble(value2);
+            return num1 > num2 ? 1 : 0;
+        } catch (NumberFormatException e) {
+            // Handle non-numeric values (e.g., log an error, return false)
+            return -1; // Or throw an exception
+        }
+    }
+
+    private int handleLessThan(String value1, String value2) {
+        try {
+            double num1 = Double.parseDouble(value1);
+            double num2 = Double.parseDouble(value2);
+            return num1 < num2 ? 1 : 0;
+        } catch (NumberFormatException e) {
+            // Handle non-numeric values
+            return -1; // Or throw an exception
+        }
+    }
+
+    private String finalLogMessage(String failedMessage, String resultActions) {
+        if (!Strings.isNullOrEmpty(failedMessage)) {
+            return failedMessage + resultActions;
+        }
+        return resultActions;
+    }
+
+    public void checkRunningProcess() {
+        checkCloneElement.setSelected(false);
+        launchBotJobButton.setDisable(false);
+        revertCloneInjections(performActions.getCurrentDriver());
+        revertHoverPickInjections(performActions.getCurrentDriver());
+        if (isJobRunning.get()) {
+            setInterceptBotJob(true);
+        }
+    }
+
+    private FieldData updateMSGInstruction(FieldData msgInstruction, String failedMessage) {
+        String currentKey = msgInstruction.getKey();
+        String updatedKey = failedMessage + " - " + currentKey;
+        return new FieldData(updatedKey, msgInstruction.getValue());
+    }
+
+    public void setPayloadEmpty() {
+        if (!performLists.getListBotJob().isEmpty()
+                && performLists.getListBlock().isEmpty()) {
+            performDataBase.loadBlocks(this.currentBotJob.getId(), "", "block");
+        }
+        int blockId = -1;
+        String blockName = "1# Default Block";
+        if (this.currentBotJob.getBlockId() == null
+                && !performLists.getListBlock().isEmpty()) {
+            blockId = performLists.getListBlock().get(0).getId();
+            blockName = performLists.getListBlock().get(0).getName();
+        }
+
+        this.payloadEmpty = new PayloadJson(this.currentBotJob.getId(), blockId, blockName, 0);
+    }
+
+    private void setPayloadEmpty(String destination) {
+        int blockId = -1;
+        String blockName = "1# Default Block";
+        if (destination.equalsIgnoreCase("botJobTasks")) {
+            if (!performLists.getListBotJob().isEmpty()
+                    && performLists.getListBlock().isEmpty()) {
+                performDataBase.loadBlocks(currentBotJob.getId(), "", "block");
+            }
+            if (currentBotJob.getBlockId() == null
+                    && !performLists.getListBlock().isEmpty()) {
+                blockId = performLists.getListBlock().get(0).getId();
+                blockName = performLists.getListBlock().get(0).getName();
+            }
+        } else if (destination.equalsIgnoreCase("componentTasks")) {
+            if (!performLists.getListBotJobComp().isEmpty()
+                    && performLists.getListBlockComp().isEmpty()) {
+                performDataBase.loadBlocks(currentBotJob.getHomeBankingId(), "", "component_block");
+            }
+            if (currentBotJob.getBlockId() == null
+                    && !performLists.getListBlockComp().isEmpty()) {
+                blockId = performLists.getListBlockComp().get(0).getId();
+                blockName = performLists.getListBlockComp().get(0).getName();
+            }
+        }
+        this.payloadEmpty = new PayloadJson(this.currentBotJob.getId(), blockId, blockName, 0);
+    }
+
+    /**
+     * Adds a row with values matching the columns.
+     * Missing values are filled with empty strings.
+     *
+     * @param values Array of values; may be less than columns.
+     */
+    public void addRow(String... values) {
+        if (columnsCSV.isEmpty()) {
+            throw new IllegalStateException("Columns must be initialized before adding a row using values.");
+        }
+
+        List<String> row = new ArrayList<>();
+        int maxCols = columnsCSV.size();
+
+        for (int i = 0; i < maxCols; i++) {
+            if (i < values.length) {
+                row.add(values[i]);
+            } else {
+                row.add(""); // fill missing with empty string
+            }
+        }
+        rowsCSV.add(row);
+    }
+
+    /**
+     * Adds a row using a Map<String, String>. If this is the first row added,
+     * it sets the column order based on the map's keys.
+     */
+    public void addRowFromMap(Map<String, String> map) {
+        // Initialize column order on first insert
+        if (columnsCSV.isEmpty()) {
+            if (map instanceof LinkedHashMap) {
+                columnsCSV.addAll(map.keySet()); // preserve order
+            } else {
+                // Default to alphabetical if insertion order is unknown
+                List<String> sortedKeys = new ArrayList<>(map.keySet());
+                Collections.sort(sortedKeys);
+                columnsCSV.addAll(sortedKeys);
+            }
+        }
+
+        List<String> row = new ArrayList<>();
+        for (String column : columnsCSV) {
+            row.add(map.getOrDefault(column, ""));
+        }
+        rowsCSV.add(row);
+    }
+
+    public String getCsvContent() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("0: ").append(String.join(",", columnsCSV)).append("\n");
+
+        int rowNumber = 1;
+        for (List<String> row : rowsCSV) {
+            sb.append(rowNumber).append(": ").append(String.join(",", row)).append("\n");
+            rowNumber++;
+        }
+        sb.append(END_OF_FILE_MARKER);
+        return sb.toString();
+    }
+
+    public String getBancaStatoCsvContent(String delimiter) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("KEY")
+                .append(delimiter)
+                .append(String.join(delimiter, columnsCSV))
+                .append("\n");
+
+        int xRow = 1;
+        for (List<String> row : rowsCSV) {
+            sb.append("EXTERNAL_" + xRow)
+                    .append(delimiter)
+                    .append(String.join(delimiter, row))
+                    .append("\n");
+            xRow++;
+        }
+
+        //        sb.append(END_OF_FILE_MARKER);
+        return sb.toString();
+    }
+
+    public void writeToFile(String filename, String content) {
+        try (Writer writer =
+                new BufferedWriter(new OutputStreamWriter(new FileOutputStream(filename), StandardCharsets.UTF_8))) {
+            writer.write(content);
+            logOperations.info("CSV written to file: " + filename);
+        } catch (IOException e) {
+            logOperations.error("Error writing file: " + e.getMessage());
+        }
+    }
+
+    private void loadAllBlocks() {
+        if (comboBoxBlocks != null) {
+            Platform.runLater(() -> {
+                comboBoxBlocks.getItems().clear();
+                List<BlockOptions> listOptions = performLists.loadComboOptions("block", "ScannerPane");
+                comboBoxBlocks.setItems(FXCollections.observableArrayList(listOptions));
+
+                if (!listOptions.isEmpty()) {
+                    comboBoxBlocks.getSelectionModel().selectFirst();
+                }
+            });
+        }
+    }
+
+    public void printCsv() {
+        logOperations.info(getCsvContent());
+    }
+
+    // Allow the stage to be set from outside when pane is shown
+    public void setStage(Stage stage) {
+        this.stage = stage;
+    }
+
+    // 🔹 Method to close the window
+    public void closePane() {
+        if (this.stage != null) {
+            Platform.runLater(() -> {
+                this.stage.close();
+                instance = null; // optional reset for singleton
+            });
+        }
+    }
+
+    private void searchTermsBtn(String searchTerms) {
+
+        if (!lastBrowserTab()) {
+            return;
+        }
+
+        String[] dataArray;
+
+        //        String[] dataArray = {"with id"};
+        //        String[] dataArray = {"with name"};
+        //        String[] dataArray = {"with text"};
+        //        String[] dataArray = {"button"};
+        //        String[] dataArray = {"input"};
+
+        if (searchTerms != null && !searchTerms.trim().isEmpty()) {
+            dataArray = searchTerms.split("\\s*,\\s*"); // Splitting by comma, allowing spaces around it
+        } else {
+            dataArray = new String[] {"input", "textarea", "button", "a", "select", "label"}; // Default values
+        }
+
+        handleSearchTermClick(dataArray);
+
+        try {
+            Thread.sleep(2000);
+            revertSearchTermsInjections(performActions.getCurrentDriver());
+        } catch (Exception e) {
+
+        }
+    }
+
+    private void handleSearchTermClick(String[] dataArray) {
+        //        webElementObservableList1.clear();
+
+        performActions.getCurrentDriver().switchTo().defaultContent();
+
+        xpathTextPrevious = "";
+        //        targetSelected = null;
+
+        revertCloneInjections(performActions.getCurrentDriver());
+        revertPickInjections(performActions.getCurrentDriver());
+
+        int finalPort = portSocketInitial;
+        String socketSessionId = "scannerTool";
+        String destinationId = "scannerGrid";
+
+        periodicSearchThread(
+                performActions.getCurrentDriver(),
+                dataArray,
+                finalPort,
+                socketSessionId,
+                destinationId,
+                "searchTerms",
+                this.currentBotJob.getHomeBankingId(),
+                this.currentBotJob.getId());
+
+        //        Platform.runLater(() -> periodicSearchThread(
+        //                performActions.getCurrentDriver(),
+        //                performActions.getCurrentDriver().getCurrentUrl(),
+        //                dataArray,
+        //                finalPort));
+    }
+
+    private void revertSearchTermsInjections(WebDriver driver) {
+        try {
+            jsExecutor = (JavascriptExecutor) driver;
+            jsExecutor.executeScript("window.revertSearchInjections();");
+        } catch (Exception ignore) {
+        }
+    }
+
+    public void defineCheckBoxesClickable(TargetElement targetCheck) {
         boolean clickable = isClickable(targetCheck.getElement());
 
         boolean tagClickable = false;
@@ -2183,23 +2901,26 @@ public class ARScannedElementPane extends ARPane {
         Pattern pattern = Pattern.compile(regex);
 
         // Iterate through each attribute in the array
-        for (AttributeData attribute : targetCheck.getAttributeData()) {
-            // Assuming you want to use the value of the attribute for matching
-            String attributeValue = attribute.getValue(); // Get the value of the attribute
+        if (targetCheck.getAttributeData() != null) {
 
-            Matcher matcher = pattern.matcher(attributeValue); // Use the value for matching
+            for (AttributeData attribute : targetCheck.getAttributeData()) {
+                // Assuming you want to use the value of the attribute for matching
+                String attributeValue = attribute.getValue(); // Get the value of the attribute
 
-            // Check for matches in the current attribute value
-            while (matcher.find()) {
-                String tag = matcher.group(1);
-                if (tag.equals("a") || tag.equals("button")) {
-                    System.out.println("Found clickable tag: <" + tag + ">");
-                    tagClickable = true;
-                    break;
+                Matcher matcher = pattern.matcher(attributeValue); // Use the value for matching
+
+                // Check for matches in the current attribute value
+                while (matcher.find()) {
+                    String tag = matcher.group(1);
+                    if (tag.equals("a") || tag.equals("button")) {
+                        logOperations.info("Found clickable tag: <" + tag + ">");
+                        tagClickable = true;
+                        break;
+                    }
                 }
-            }
-            if (tagClickable) {
-                break; // Exit the loop once a clickable tag is found
+                if (tagClickable) {
+                    break; // Exit the loop once a clickable tag is found
+                }
             }
         }
 
@@ -2250,100 +2971,6 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private TargetElement checkValidateSearchPriorities(TargetElement target) {
-        WebElement elementValid = null;
-        if (!Strings.isNullOrEmpty(target.getCurrentXPath())) {
-
-            if (target.getForceCoordinates() != null && target.getForceCoordinates()) {
-                // Try by coordinates
-                try {
-                    Pair<String, String> filedData = new Pair("&EMPTY", "&EMPTY");
-                    boolean passed = performActions.executeActionsAtCoordinates(
-                            target.getCoordinates(), filedData, ARConstants.VISUALIZE, false);
-                    if (passed) {
-                        elementValid = performActions.getElementFromCoordinates(target.getCoordinates());
-                        if (elementValid != null && elementValid.getTagName() != null) {
-                            target.setElement(elementValid);
-                        }
-
-                        target.setXPathWorkedFirst(ARConstants.SEARCH_COORD);
-                    }
-
-                } catch (Exception e) {
-                    ARLogger.getInstance(ARScannedElementPane.class)
-                            .warning(String.format(
-                                    "Cannot locate a Web Element with Name: \n%s", target.getAttribName()));
-                }
-            } else if (elementValid == null) {
-                try {
-                    elementValid = performActions.getCurrentDriver().findElement(By.xpath(target.getCurrentXPath()));
-                    if (elementValid != null && elementValid.getTagName() != null) {
-                        target.setElement(elementValid);
-                        target.setXPathWorkedFirst(
-                                ARConstants.REGULAR_XPATH); // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
-                    }
-                } catch (Exception e) {
-                    ARLogger.getInstance(ARScannedElementPane.class)
-                            .warning(String.format(
-                                    "Cannot locate a Web Element with Regular XPath\n%s", target.getCurrentXPath()));
-                }
-            } else if (elementValid == null) {
-                try {
-                    elementValid = performActions.getCurrentDriver().findElement(By.xpath(target.getCustomXPath()));
-                    if (elementValid != null && elementValid.getTagName() != null) {
-                        target.setElement(elementValid);
-                        target.setXPathWorkedFirst(
-                                ARConstants.CUSTOM_XPATH); // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
-                    }
-                } catch (Exception e) {
-                    ARLogger.getInstance(ARScannedElementPane.class)
-                            .warning(String.format(
-                                    "Cannot locate a Web Element with Absolut XPath\n%s", target.getAttributeData()));
-                }
-            } else {
-                if (elementValid == null) {
-                    //            if (searchReturn.getCurrentXPath().startsWith("id(")) {
-                    if (!Strings.isNullOrEmpty(target.getAttribId())) {
-                        try {
-                            elementValid = performActions.getCurrentDriver().findElement(By.id(target.getAttribId()));
-                            if (elementValid != null && elementValid.getTagName() != null) {
-                                target.setElement(elementValid);
-                                target.setXPathWorkedFirst(ARConstants.ATTRIBUTE_ID);
-                                target.setAttributeType("id");
-                                target.setAttributeValue(target.getAttribId());
-                            }
-                        } catch (Exception e) {
-                            ARLogger.getInstance(ARScannedElementPane.class)
-                                    .warning(String.format(
-                                            "Cannot locate a Web Element with ID: \n%s", target.getAttribId()));
-                        }
-                    }
-                } else if (elementValid == null) {
-
-                    if (!Strings.isNullOrEmpty(target.getAttribName())) {
-                        try {
-                            elementValid =
-                                    performActions.getCurrentDriver().findElement(By.name(target.getAttribName()));
-                            if (elementValid != null && elementValid.getTagName() != null) {
-                                target.setElement(elementValid);
-                                target.setAttributeType("name");
-                                target.setXPathWorkedFirst(ARConstants.ATTRIBUTE_NAME);
-                            }
-                        } catch (Exception e) {
-                            ARLogger.getInstance(ARScannedElementPane.class)
-                                    .warning(String.format(
-                                            "Cannot locate a Web Element with Name: \n%s", target.getAttribName()));
-                        }
-                    }
-                }
-            }
-        }
-
-        target.setElement(elementValid);
-
-        return target;
-    }
-
     private boolean isClickable(WebElement element) {
         try {
             List<WebElementTagNameEnum> clickableTags = WebElementTagNameEnum.clickableTags();
@@ -2362,482 +2989,28 @@ public class ARScannedElementPane extends ARPane {
         // Signal for Force Click or Not from the Target Definitions
     }
 
-    private void handleSearchTermClick(String[] dataArray) {
-        //        webElementObservableList1.clear();
+    public int createBlockIfNone(String blockTable, int whereId) {
 
-        performActions.getCurrentDriver().switchTo().defaultContent();
+        // It Prevents Start without blocks
+        ErrorMessage errorMessage = performDataBase.loadBlocks(whereId, null, blockTable);
+        if (errorMessage == null && performLists.getListBlock().isEmpty()) {
 
-        xpathTextPrevious = "";
-        //        targetSelected = null;
+            errorMessage =
+                    performDataBase.initiateNewBlock(blockTable, whereId, "Default Block", "Default Block", 1, false);
 
-        revertCloneInjections(performActions.getCurrentDriver());
-        revertPickInjections(performActions.getCurrentDriver());
-
-        int finalPort = portSocketInitial;
-        String socketSessionId = "scannerTool";
-        String destinationId = "scannerGrid";
-
-        periodicSearchThread(
-                performActions.getCurrentDriver(),
-                dataArray,
-                finalPort,
-                socketSessionId,
-                destinationId,
-                "searchTerms",
-                homeBanking.getId());
-
-        //        Platform.runLater(() -> periodicSearchThread(
-        //                performActions.getCurrentDriver(),
-        //                performActions.getCurrentDriver().getCurrentUrl(),
-        //                dataArray,
-        //                finalPort));
-    }
-
-    private void searchTermsBtn(String searchTerms) {
-
-        if (!lastBrowserTab()) {
-            return;
-        }
-
-        String[] dataArray;
-
-        //        String[] dataArray = {"with id"};
-        //        String[] dataArray = {"with name"};
-        //        String[] dataArray = {"with text"};
-        //        String[] dataArray = {"button"};
-        //        String[] dataArray = {"input"};
-
-        if (searchTerms != null && !searchTerms.trim().isEmpty()) {
-            dataArray = searchTerms.split("\\s*,\\s*"); // Splitting by comma, allowing spaces around it
-        } else {
-            dataArray = new String[] {"input", "textarea", "button", "a", "select", "label"}; // Default values
-        }
-
-        handleSearchTermClick(dataArray);
-
-        try {
-            Thread.sleep(2000);
-            revertSearchTermsInjections(performActions.getCurrentDriver());
-        } catch (Exception e) {
-
-        }
-    }
-
-    private void revertSearchTermsInjections(WebDriver driver) {
-        try {
-            jsExecutor = (JavascriptExecutor) driver;
-            jsExecutor.executeScript("window.revertSearchInjections();");
-        } catch (Exception ignore) {
-        }
-    }
-
-    private void itPrintsElementDTO(TargetElement target) {
-
-        //                textFlowResult.getChildren().clear();
-        //                textFlowResult.getChildren().addAll(countdownTextField);
-        //                textFlowResult.requestLayout();
-        //                contentPane.requestLayout();
-
-        //                                boxListViews.requestLayout();
-        //                                verticalBox.requestLayout();
-        //                                getChildren().addAll(blockAndUrl, boxListViews);
-
-        //        for (ARWebElement arWebElement : scannedElements2.getItems()) {
-        //            performActions.highlightElement(jsExecutor, arWebElement.getElement(), null);
-        //        }
-
-        StringBuilder sb = new StringBuilder();
-        String nameDefined = "";
-
-        if (target.getElement() != null) {
-
-            defineNameField.setText("");
-            if (!Strings.isNullOrEmpty(targetSelected.getAttribId())
-                    || !Strings.isNullOrEmpty(targetSelected.getAttribName())
-                    || !Strings.isNullOrEmpty(targetSelected.getSomeText())) {
-                nameDefined = (!Strings.isNullOrEmpty(targetSelected.getSomeText())
-                        ? PerformActions.truncateAndNormalize(targetSelected.getSomeText(), 30)
-                        : !Strings.isNullOrEmpty(targetSelected.getAttribId())
-                                ? targetSelected.getAttribId()
-                                : !Strings.isNullOrEmpty(targetSelected.getAttribName())
-                                        ? targetSelected.getAttribName()
-                                        : "");
-
-                if (targetSelected.getDefinedName() != null
-                        && !targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
-                    nameDefined = targetSelected.getDefinedName();
-                }
-
-                String finalNameDefined = nameDefined;
-                Platform.runLater(
-                        () -> defineNameField.setText(PerformActions.truncateAndNormalize(finalNameDefined, 30)));
-
-            } else if (targetSelected.getAttributeData().length > 0) {
-
-                // Split by comma to get key-value pairs
-
-                String idValue = null;
-                String nameValue = null;
-                String typeValue = null;
-
-                // Loop through each key-value pair
-                for (AttributeData attributeData : targetSelected.getAttributeData()) {
-
-                    String key = attributeData.getName().trim();
-                    String value = attributeData.getValue().trim().replaceAll("\"", ""); // Remove quotes
-
-                    if (key.equals("id")) {
-                        idValue = value;
-                    } else if (key.equals("name")) {
-                        nameValue = value;
-                    } else if (key.equals("type")) {
-                        typeValue = value;
-                    }
-                }
-
-                // Print based on priority: ID -> Name -> Type
-                if (idValue != null) {
-                    nameDefined = targetSelected.getTagName() + "-" + idValue;
-                } else if (nameValue != null) {
-                    nameDefined = targetSelected.getTagName() + "-" + nameValue;
-                } else if (typeValue != null) {
-                    nameDefined = targetSelected.getTagName() + "-" + typeValue;
+            if (errorMessage == null) {
+                if (!performDataBase.getIdsBlockAfter().isEmpty()
+                        && performDataBase.getIdsBlockAfter().get(0) > 0) {
+                    return performDataBase.getIdsBlockAfter().get(0);
                 } else {
-                    nameDefined = targetSelected.getTagName();
+                    return -1;
                 }
+            } else {
 
-                if (targetSelected.getDefinedName() != null
-                        && !targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
-                    nameDefined = targetSelected.getDefinedName();
-                }
-
-                String finalSomeText = nameDefined;
-                Platform.runLater(
-                        () -> defineNameField.setText(PerformActions.truncateAndNormalize(finalSomeText, 30)));
-
-            } else if (!Strings.isNullOrEmpty(targetSelected.getTagName())) {
-
-                if (targetSelected.getDefinedName() != null
-                        && !targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
-                    nameDefined = targetSelected.getDefinedName();
-                } else {
-                    nameDefined = targetSelected.getTagName();
-                }
-                String finalSomeText = nameDefined;
-
-                Platform.runLater(() -> defineNameField.setText(finalSomeText));
+                performMessage.errorMessageOperationFailed(errorMessage);
             }
         }
-
-        //                sb.append(this.targetElement.getOriginalTagName() + "-" +
-        // this.targetElement.getSomeText())
-        //                        .append("\n");
-
-        sb.append("TagType: " + targetSelected.getTagType()).append("\n");
-        sb.append("ID: " + targetSelected.getAttribId()).append("\n");
-        sb.append("Name: " + targetSelected.getAttribName()).append("\n");
-        if (!Strings.isNullOrEmpty(targetSelected.getShadowRoot())) {
-            sb.append("ShadowHost: " + targetSelected.getShadowHost()).append("\n");
-            sb.append("cssSelector: " + targetSelected.getCssSelector()).append("\n");
-        }
-        sb.append("Text: " + targetSelected.getSomeText()).append("\n");
-
-        if (!Strings.isNullOrEmpty(targetSelected.getCoordinates())) {
-            sb.append("Coordinates: " + targetSelected.getCoordinates()).append("\n");
-            coordsTextField.setText(targetSelected.getCoordinates());
-        } else {
-            sb.append("Coordinates: EMPTY").append("\n");
-        }
-
-        if (!Strings.isNullOrEmpty(targetSelected.getSearchAttributeValue())) {
-            sb.append("Search Attrib: " + targetSelected.getSearchAttributeValue())
-                    .append("\n");
-            searchAttribValueField.setText(targetSelected.getSearchAttributeValue());
-            searchAttribValueField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
-        } else {
-            sb.append("Search Attrib: No Defined").append("\n");
-        }
-
-        sb.append("Named: " + nameDefined).append("\n");
-        sb.append("All Attributes Found: ").append("\n");
-        for (AttributeData attribute : targetSelected.getAttributeData()) {
-            sb.append("->  ")
-                    .append(attribute.getName().trim() + "="
-                            + attribute.getValue().trim())
-                    .append("\n");
-        }
-
-        Platform.runLater(() -> {
-            countdownTextField.setText(sb.toString());
-            countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
-        });
-
-        //                textFlowResult.getChildren().clear();
-        //                textFlowResult.getChildren().addAll(countdownTextField);
-        //                textFlowResult.requestLayout();
-        //                contentPane.requestLayout();
-
-        defineCheckBoxesClickable(targetSelected);
-        performActions.getCurrentDriver().switchTo().defaultContent();
-    }
-
-    public static double jaccardSimilarity(String text1, String text2) {
-        Set<Character> set1 = new HashSet<>();
-        for (char c : text1.toCharArray()) {
-            set1.add(c);
-        }
-
-        Set<Character> set2 = new HashSet<>();
-        for (char c : text2.toCharArray()) {
-            set2.add(c);
-        }
-
-        Set<Character> intersection = new HashSet<>(set1);
-        intersection.retainAll(set2);
-
-        Set<Character> union = new HashSet<>(set1);
-        union.addAll(set2);
-
-        return (double) intersection.size() / union.size();
-    }
-
-    //    private static WebElement convertJsoupElementToWebElement(Element jsoupElement, WebDriver
-    // driver) {
-    //        // Create a new RemoteWebElement instance and set its properties
-    //        RemoteWebElement webElement = new RemoteWebElement();
-    //        webElement.setParent((RemoteWebElement) driver.findElementByTagName("html")); // Set a
-    // dummy parent
-    //        webElement.setId("dummy_id"); // Set a dummy id
-    //        // Simulate the href and text attributes
-    //        webElement.setAttribute("href", jsoupElement.attr("href"));
-    //        webElement.setText(jsoupElement.text());
-    //
-    //        return webElement;
-    //    }
-
-    // Method to get XPath of a WebElement
-    public static String getXPath(WebDriver driver, WebElement element) {
-        return (String) ((JavascriptExecutor) driver)
-                .executeScript(
-                        "function getElementXPath(elt) {"
-                                + "    var path = '';"
-                                + "    for (; elt && elt.nodeType == 1; elt = elt.parentNode) {"
-                                + "        var idx = getElementIdx(elt);"
-                                + "        var xname = elt.tagName;"
-                                + "        if (idx > 1) xname += '[' + idx + ']';"
-                                + "        path = '/' + xname + path;"
-                                + "    }"
-                                + "    return path;"
-                                + "}"
-                                + "function getElementIdx(elt) {"
-                                + "    var count = 1;"
-                                + "    for (var sib = elt.previousSibling; sib; sib = sib.previousSibling) {"
-                                + "        if (sib.nodeType == 1 && sib.tagName == elt.tagName) count++;"
-                                + "    }"
-                                + "    return count;"
-                                + "}"
-                                + "return getElementXPath(arguments[0]);",
-                        element);
-    }
-
-    // Helper method to get the text of an associated element
-    private static String getElementText(WebElement element) {
-        String tagName = element.getTagName();
-
-        switch (tagName.toLowerCase()) {
-            case "input":
-                return element.getAttribute("value");
-            case "textarea":
-                return element.getText();
-            case "select":
-                List<WebElement> selectedOptions = element.findElements(By.cssSelector("option[selected]"));
-                return selectedOptions.stream()
-                        .map(WebElement::getText)
-                        .reduce((a, b) -> a + ", " + b)
-                        .orElse("");
-            default:
-                return element.getText();
-        }
-    }
-
-    //    public void saveReferencesToFile(String filePath, List<ARWebElement> elements) {
-    //        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath))) {
-    //            for (ARWebElement element : elements) {
-    //                Map<String, String> savedReferences = element.getSavedReferences();
-    //
-    //                for (Map.Entry<String, String> entry : savedReferences.entrySet()) {
-    //                    writer.write(entry.getKey() + "=" + entry.getValue());
-    //                    writer.newLine();
-    //                }
-    //            }
-    //            System.out.println("References saved to " + filePath);
-    //        } catch (IOException e) {
-    //            System.err.println("Error writing to file: " + e.getMessage());
-    //        }
-    //    }
-
-    private void periodicPickOneCloneThread(
-            WebDriver driver,
-            boolean searchHiddenFields,
-            int port,
-            String sessionId,
-            String destination,
-            String operationId,
-            int homeBankingId,
-            String currentUrl) {
-
-        ErrorMessage errorMessage = performCloneLoad.dynamicPickOneCloneElementsDTO(
-                driver, searchHiddenFields, port, sessionId, destination, operationId, homeBankingId, currentUrl);
-
-        if (errorMessage != null) {
-            String[] lines = errorMessage.getErrorMessage().split("\n");
-
-            performMessage.errorMessage(
-                    errorMessage.getErrorTitle(),
-                    errorMessage.getErrorHeader(),
-                    (!Strings.isNullOrEmpty(lines[0]) ? lines[0] : null),
-                    (!Strings.isNullOrEmpty(lines[0]) ? lines[1] : null),
-                    null,
-                    0);
-        }
-    }
-
-    public static String truncate(String someText, int limit) {
-        if (someText == null || someText.isEmpty()) {
-            return someText;
-        }
-
-        if (someText.length() <= limit) {
-            return someText;
-        }
-
-        return someText.substring(0, limit) + "...";
-    }
-
-    private void periodicSearchThread(
-            WebDriver driver,
-            String[] dataArray,
-            int port,
-            String sessionId,
-            String destinationId,
-            String operationId,
-            int homeBankingId) {
-        // "scannerTool", "scannerGrid", "searchTerms"
-        ErrorMessage errorMessage = performPreLoad.dynamicLoadElementsDTO(
-                driver, dataArray, searchHiddenFields, port, sessionId, destinationId, operationId, homeBankingId);
-
-        if (errorMessage != null) {
-            String[] lines = errorMessage.getErrorMessage().split("\n");
-
-            performMessage.errorMessage(
-                    errorMessage.getErrorTitle(),
-                    errorMessage.getErrorHeader(),
-                    (!Strings.isNullOrEmpty(lines[0]) ? lines[0] : null),
-                    (!Strings.isNullOrEmpty(lines[0]) ? lines[1] : null),
-                    null,
-                    0);
-        }
-    }
-
-    private void revertCloneInjections(WebDriver driver) {
-        try {
-            jsExecutor = (JavascriptExecutor) driver;
-            // Remove the injected element
-            jsExecutor.executeScript("window.revertCloneInjections();");
-            jsExecutor.executeScript(
-                    "let elem = document.getElementById('Martini-Is-Awesome'); if (elem) { elem.remove(); }");
-
-            // Reset the background color
-            //        jsExecutor.executeScript("document.body.style.backgroundColor = '';");
-        } catch (Exception ignore) {
-        }
-    }
-
-    private void revertPickInjections(WebDriver driver) {
-        try {
-            jsExecutor = (JavascriptExecutor) driver;
-            // Remove the injected element
-            jsExecutor.executeScript("window.revertPickInjections();");
-            jsExecutor.executeScript(
-                    "let elem = document.getElementById('Martini-Is-Awesome'); if (elem) { elem.remove(); }");
-
-            // Reset the background color
-            //        jsExecutor.executeScript("document.body.style.backgroundColor = '';");
-        } catch (Exception ignore) {
-        }
-    }
-
-    private void revertHoverPickInjections(WebDriver driver) {
-        try {
-            jsExecutor = (JavascriptExecutor) driver;
-            jsExecutor.executeScript("window.revertHoverPickInjections();");
-        } catch (Exception ignore) {
-        }
-    }
-
-    public void injectJumpTab(WebDriver driver) {
-        ((JavascriptExecutor) driver)
-                .executeScript("var inputs = document.getElementsByTagName('input');"
-                        + "for (var i = 0; i < inputs.length; i++) {"
-                        + "    inputs[i].scrollIntoView();"
-                        + "}");
-    }
-
-    public List<WebElement> searchAllInputs(WebDriver driver) {
-        // Execute JavaScript to find all input elements
-        String script = "var inputs = document.getElementsByTagName('input');" + "return inputs;";
-        List<WebElement> inputElements = (List<WebElement>) ((JavascriptExecutor) driver).executeScript(script);
-
-        // Print the number of input elements found
-        ARLogger.getInstance(ARScannedElementPane.class).fine("Number of input elements: " + inputElements.size());
-        return inputElements;
-    }
-
-    private static By[] parseLocators(String input) {
-        // Split the input string by commas to get individual locator strings
-        // DB Access Cannot have "'"
-        input = input.replace("\"", "'");
-
-        String[] locatorStrings = input.split(",");
-
-        // List to hold the By objects
-        List<By> byList = new ArrayList<>();
-
-        // Loop through each locator string
-        for (String locatorString : locatorStrings) {
-            // Split each locator string by colon to separate the type and value
-            String[] parts = locatorString.split(":");
-
-            // Get the type and value
-            String type = parts[0].replace("By.", "").toUpperCase();
-            String value = String.join(",", Arrays.copyOfRange(parts, 1, parts.length));
-
-            value = value.replace("COMMA", ",");
-
-            // Create the By object based on the type
-            switch (LocatorType.valueOf(type)) {
-                case TAGNAME:
-                    byList.add(By.tagName(value));
-                    break;
-                case ID:
-                    byList.add(By.id(value));
-                    break;
-                case CLASSNAME:
-                    byList.add(By.className(value));
-                    break;
-                case CSSSELECTOR:
-                    byList.add(By.cssSelector(value));
-                    break;
-                case XPATH:
-                    byList.add(By.xpath(value));
-                    break;
-                default:
-                    throw new IllegalArgumentException("Unsupported locator type: " + type);
-            }
-        }
-
-        // Convert the list to an array and return
-        return byList.toArray(new By[0]);
+        return -1;
     }
 
     public enum LocatorType {
@@ -2848,37 +3021,24 @@ public class ARScannedElementPane extends ARPane {
         XPATH
     }
 
-    private void recallJob() {
-        if (isJobRunning.compareAndSet(false, true)) { // Try to set to true if currently false
-            try {
-                if (executorServicePreLaunch == null || executorServicePreLaunch.isShutdown()) {
-                    executorServicePreLaunch = Executors.newSingleThreadExecutor();
-                }
+    public void updateHasAnyInput() {
+        if (blocksLoaded == null) return;
 
-                executorServicePreLaunch.submit(() -> {
-                    try {
-                        executeJob();
-                    } finally {
-                        isJobRunning.set(false);
-                    }
-                });
-            } catch (Exception ignore) {
-                // Log the error properly instead of ignoring
-                ARLogger.getInstance(ARScannedElementPane.class)
-                        .severe("Error submitting to executorServicePreLaunch: " + ignore.getMessage());
-                isJobRunning.set(false); // Ensure flag is reset on submission failure
-            }
-        } else {
-            // Optionally log that a new execution was requested but is already running
-            System.out.println("recallJob() requested, but executeJob() is already running.");
-            ARLogger.getInstance(ARScannedElementPane.class)
-                    .info("recallJob() requested while executeJob() was running.");
-        }
+        blocksLoaded.forEach(block -> {
+            boolean hasInput = block.getInstructionLoad() != null
+                    && block.getInstructionLoad().stream()
+                            .anyMatch(instr -> instr.getActions() != null
+                                    && instr.getActions().startsWith("I:"));
 
-        if (performActions.getCurrentDriver().getWindowHandles().size() != performActions.windowHandlesList.size()) {
-            performActions.updateWindowHandlesList();
-            updateButtonState();
-        }
+            block.setHasAnyInput(hasInput);
+        });
+    }
+
+    private void updateRowStatusAndNotify(String color) {
+        rowStatus.setColor(color);
+        jsonStatus = gson.toJson(rowStatus);
+        webSocketSessionManager.sendMessageJson(
+                this.currentBotJob.getHomeBankingId(), sessionRowStatus, jsonStatus, "rowStatus");
     }
 
     private boolean executeJob() {
@@ -2891,109 +3051,16 @@ public class ARScannedElementPane extends ARPane {
                     performActions.getCurrentDriver(), Duration.ofSeconds(Integer.parseInt(interactionTimeout)));
         }
 
-        try {
-            baseLogFile = new File(
-                    arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG) + ARConstants.FILE_NAME_SCANNER_BASE_LOG);
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
-        }
-
-        List<BlockLoadDTO> blocksLoaded = botJobLoadList.get(0).getBlockLoadDTOList();
-        String botJobName = botJobLoadList.get(0).getName();
-
-        //        ARPropertyManager managerProps = ARPropertyManager.getInstance();
-        String excelPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
-        excelPath = excelPath + "\\" + blocksLoaded.get(0).getBotJobName() + ".xlsx";
-        if (!(new File(excelPath)).exists()) {
-
-            performMessage.errorMessage(
-                    "Duplicate Name",
-                    "<span style='color: #000080; font-weight: bold; font-size: 14px;'>File Excel Does not Exist</span>",
-                    "<span style='color: #000080; font-weight: bold; font-size: 14px;'>Excel file: </span>",
-                    "<span style='color: #000080; font-weight: bold;'>" + excelPath + "</span>",
-                    "<span style='color: red; font-weight: bold;'>IS MANDATORY TO HAVE EXCEL FILE FOR TESTS!!!</span>",
-                    0);
-
-            return false;
-        }
-
         Labels.initializeLabelsInSpecLang("en");
         Properties labelsValue = Labels.labelsValue;
 
-        // Assuming blocksLoaded is your List<BlockLoadDTO>
-        List<String> allActions = blocksLoaded.stream()
-                .flatMap(blockLoadDTO ->
-                        blockLoadDTO
-                                .getInstructionLoadDTOS()
-                                .stream()) // Flatten the stream of BlockLoopInstructionLoadDTO
-                .map(InstructionLoadDTO::getActions) // Extract the actions
-                .collect(Collectors.toList()); // Collect all actions into a List
+        String baseLogString =
+                currentBotJobName + ARConstantsEngine.FIELDS_SEPARATOR + labelsValue.getProperty(Labels.START);
 
-        if (!new File(excelPath).exists()) {
-            performMessage.errorMessage(
-                    "Action Required: Prepare Excel Data",
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Crucial Step: Prepare Excel Data Before Launch!</span>",
-                    "<span style='color: #2E7D32; font-weight: bold;'>To successfully initiate the bot job, the Excel data file must be generated and compiled *first*.</span>",
-                    "<span style='font-style: italic;'>Ensure this preparation is complete before attempting to launch the automation process.</span>",
-                    null,
-                    0);
+        logLaunch.info(baseLogString);
 
-            return false;
-        }
-
-        ExcelReader excelReader = new ExcelReader();
-        ExtractedData extractedData = null;
-        try {
-            extractedData = excelReader.extractData(excelPath, allActions);
-        } catch (Exception e) {
-            performMessage.errorMessage(
-                    "Error Processing Excel File",
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to Execute Excel File!</span> ⚠️",
-                    "<span style='color: #E65100; font-weight: bold;'>Please carefully review all Excel columns and their values for potential errors.</span>",
-                    "<span style='font-style: italic;'>Inconsistent or incorrect data can prevent the application from processing the file.</span>",
-                    null,
-                    0);
-
-            //            Platform.exit();
-        }
-
-        if (extractedData.getNumberOfDataRows() == 0) {
-            extractedData.addField("$EMPTY");
-            extractedData.addFieldValue("$EMPTY", "$EMPTY", 0);
-        }
-
-        if (extractedData != null && extractedData.getErrorMessage() != null) {
-
-            performMessage.errorMessage(
-                    "Excel Error", "Could Not Execute Excel File", extractedData.getErrorMessage(), null, null, 0);
-
-            return false;
-        }
-
-        //        Set<String> blockClickables = blocksLoaded.stream()
-        //                .map(BlockLoadDTO::getBlockLoopInstructionLoadDTOS)
-        //                .reduce((identity, accumulated) -> {
-        //                    accumulated.addAll(identity);
-        //                    return accumulated;
-        //                })
-        //                .get()
-        //                .stream()
-        //                .map(BlockLoopInstructionLoadDTO::getActions)
-        //                .filter(action -> action.contains(ARConstants.CLICK))
-        //                .collect(Collectors.toSet());
-
-        //        String browser = arPropertyManager.getProperty(ARPropertyEnum.BROWSER);
-        //            WebPage webPage = new WebPage(browser, homeBankingDTO.getUrl());
-
-        String baseLogString = blocksLoaded.get(0).getBotJobName()
-                + ARConstants.FIELDS_SEPARATOR
-                + labelsValue.getProperty(Labels.START);
-
-        printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
-
-        ExcelWriter.ExcelChain writerReport = new ExcelWriter(
-                        botJobLoadList.get(0).getName(), performActions.getCurrentDriver(), false)
-                .withPurpose("report");
+        ExcelWriter.ExcelChain writerReport =
+                new ExcelWriter(currentBotJobName, performActions.getCurrentDriver(), false).withPurpose("report");
         writerReport.insertReportHead();
 
         ExcelWriter.ExcelChain writerExport = null;
@@ -3006,25 +3073,19 @@ public class ARScannedElementPane extends ARPane {
 
         String mainMsg = "";
         boolean byPassNotFound = false;
-        boolean byPassFlagLoop;
+        boolean byPassFlagLoop = false;
         boolean success = true;
         boolean stopAll = false;
+        boolean lastRecall = false;
         long botJobStartTime = System.nanoTime();
         long totalExecutionTime = 0;
         String resultActions = "No instruction executed yet";
         String failedMessage = "";
         Map<String, String> dataExcel = null;
 
-        clearFields();
-
-        // Execute All Blocks starting from executeSpecificBlock if Defined
-        int botJobId = this.botJobLoad.getId();
-        int executeSpecificBlock = comboBoxBlocks.getValue().getInstructionId();
         sessionRowStatus = "botJobTasks"; // + botJobId;
 
-        mapOperators = new HashMap<>();
-        mapExport = new LinkedHashMap<>();
-        variablesLoaded = performDataBase.loadAllVariables(botJobId);
+        variablesLoaded = performLists.getListVariable();
         Map<String, String> mapSavedLocators = new HashMap<>();
 
         Set<Integer> parentIdsForLoop = null;
@@ -3034,81 +3095,76 @@ public class ARScannedElementPane extends ARPane {
         Set<String> loopBlockActive = new HashSet<>();
         Map<String, Integer> loopBlockLimits = new HashMap<>();
 
-        ARConstants.ConditionStatus currentCondition = ARConstants.ConditionStatus.NONE;
-        ARConstants.ConditionStatus previousCondition;
-        ARConstants.ConditionStatus progressCondition;
-        ARConstants.DialogModal respModal;
+        ARExecution.ConditionStatus currentCondition = ARExecution.ConditionStatus.NONE;
+        ARExecution.ConditionStatus previousCondition;
+        ARExecution.ConditionStatus progressCondition;
+        ARExecution.DialogModal respModal = null;
 
         int exportIndex = 1;
         boolean webElementWork = false;
 
         if (extractedData.getNumberOfDataRows() > 0) {
-            List<InstructionLoadDTO> excelDataGoto = performDataBase.loadExcelGotoBlock(homeBanking.getId(), botJobId);
-
-            if (extractedData.getNumberOfDataRows() > 1 && excelDataGoto.isEmpty()) {
-
-                respModal = performMessage.showCustomModalDialogDragWin11(
-                        "Multiple Excel Rows Detected",
-                        "<span style='font-weight: bold;'>Your Excel data file contains multiple rows.</span>",
-                        "By default, each Excel test row <span style='font-weight: bold; color: #e854c8;'>will be processed through all blocks</span>, and after  will jump back to <span style='font-weight: bold;'>first block (Use Case).</span>",
-                        "Add the <span style='font-weight: bold; color: #FF4500;'>'Excel GOTO'</span> operation to your flow to modify the <span style='font-weight: bold;'>default behaviour.</span>",
-                        "The <span style='font-weight: bold; color: #FF4500;'>Excel GOTO</span> allows you to specify which block <span style='font-weight: bold;'>the flow should continue from</span>, after the execution of the first row across all blocks.",
-                        false,
-                        "Continue",
-                        "Stop All",
-                        0);
-
-                if (respModal.equals(ARConstants.DialogModal.STOP)) {
-
-                    launchBotJobButton.setDisable(false);
-                    performActions.setInterceptBotJob(true);
-                    setInterceptBotJob(true);
-                    isJobRunning.set(false);
-
-                    if (!lastBrowserTab()) {
-                        return false;
-                    }
-                }
-            }
 
             // Execute All Blocks starting from executeSpecificBlock if Defined
-            int currentBlock = (executeSpecificBlock > -1) ? executeSpecificBlock - 1 : 0;
-            int blockInitial = currentBlock;
+            currentBlockOrder = (executeSpecificBlock > -1) ? executeSpecificBlock : 0;
+            int blockInitial = currentBlockOrder;
 
+            // BLOCK DEFINED BY "DEFAULT" OR "EXCEL GOTO"
             if (!excelDataGoto.isEmpty() && !blocksLoaded.isEmpty()) {
-                Integer parentId = excelDataGoto.get(excelDataGoto.size() - 1).getParentId();
-                blockInitial = performActions.getBlockOrderNumber(blocksLoaded, parentId) - 1;
+                Integer parentBlockId =
+                        excelDataGoto.get(excelDataGoto.size() - 1).getParentBlockId();
+                blockInitial = performActions.getBlockOrderNumber(blocksLoaded, parentBlockId) - 1;
             }
 
             int xExcelCurrentRow = 0;
             int xExcelDataSize = extractedData.getNumberOfDataRows();
+            mapExportRows = new LinkedHashMap<>();
+            headersExport.clear();
+            columnsCSV.clear();
+            rowsCSV.clear();
 
             while (xExcelCurrentRow <= xExcelDataSize - 1 && !blocksLoaded.isEmpty() && !stopAll) {
+                // Clear's Up Any Loop as Per New Line
+                mapLoops.clear();
+                mapRefresh.clear();
 
                 blockLoop:
-                while (currentBlock <= blocksLoaded.size() - 1 && !blocksLoaded.isEmpty() && !stopAll) {
+                while (currentBlockOrder <= blocksLoaded.size() - 1 && !blocksLoaded.isEmpty() && !stopAll) {
                     long blockStartTime = System.nanoTime();
+                    failedMessage = "";
 
-                    currentCondition = ARConstants.ConditionStatus.NONE;
-                    previousCondition = ARConstants.ConditionStatus.NONE;
-                    progressCondition = ARConstants.ConditionStatus.NONE;
+                    currentCondition = ARExecution.ConditionStatus.NONE;
+                    previousCondition = ARExecution.ConditionStatus.NONE;
+                    progressCondition = ARExecution.ConditionStatus.NONE;
 
-                    respModal = ARConstants.DialogModal.NONE;
+                    respModal = ARExecution.DialogModal.NONE;
 
                     int parentBlockCondition = -1;
 
-                    BlockLoadDTO blockLoad = blocksLoaded.get(currentBlock);
+                    BlockLoadDTO blockLoad = blocksLoaded.get(currentBlockOrder);
 
-                    String excelFieldName = blockLoad.getExportFile();
-
-                    String blockName = blocksLoaded.get(currentBlock).getName();
-                    int blockOrder = blocksLoaded.get(currentBlock).getBlockOrderNumber();
+                    String blockName = blocksLoaded.get(currentBlockOrder).getName();
+                    int blockOrder = blocksLoaded.get(currentBlockOrder).getBlockOrderNumber();
                     String blockReportName = "#" + blockOrder + " " + blockName;
 
-                    int blockWait = blocksLoaded.get(currentBlock).getWait() > 0
-                            ? blocksLoaded.get(currentBlock).getWait()
+                    int blockWait = blocksLoaded.get(currentBlockOrder).getWait() > 0
+                            ? blocksLoaded.get(currentBlockOrder).getWait()
                             : 2;
-                    boolean blockActive = blocksLoaded.get(currentBlock).getActive();
+
+                    boolean blockActive = blocksLoaded.get(currentBlockOrder).getActive();
+
+                    if (blockActive) {
+                        excelFieldName = blockLoad.getExportFile();
+
+                        if (!Strings.isNullOrEmpty(excelFieldName)) {
+                            String[] parts = excelFieldName.split(":");
+                            if (parts.length > 2) {
+                                delimiterCSV = parts[2];
+                                excelFieldName =
+                                        excelFieldName.replace(":,", "").replace(":|", "");
+                            }
+                        }
+                    }
 
                     // It Searches the Block That have finished the Loops to Avoid recursivity
                     if (loopBlockActive.size() > 0) {
@@ -3118,7 +3174,7 @@ public class ARScannedElementPane extends ARPane {
                                     stopAll = true;
                                     int limit = loopBlockLimits.get(blocLoopKey);
 
-                                    Pair<String, String> msgBlock = new Pair(blocLoopKey, "0");
+                                    FieldData msgBlock = new FieldData(blocLoopKey, "0");
 
                                     // Excel Report and Log
                                     performActions.logAndReport(
@@ -3128,16 +3184,16 @@ public class ARScannedElementPane extends ARPane {
                                             blockStartTime,
                                             blockReportName,
                                             success,
-                                            new String[] {ARConstants.GOTO},
+                                            new String[] {ARConstantsEngine.GOTO},
                                             msgBlock,
                                             dataExcel,
                                             writerReport,
                                             "GOTO Limit Reached",
                                             blocLoopKey + " Reached: 0");
 
-                                    msgBlock = new Pair(
+                                    msgBlock = new FieldData(
                                             String.format("Exit at Block Name: \"%s\"", blockLoad.getName()),
-                                            ARConstants.EXIT);
+                                            ARConstantsEngine.EXIT);
 
                                     // Excel Report and Log
                                     performActions.logAndReport(
@@ -3147,14 +3203,14 @@ public class ARScannedElementPane extends ARPane {
                                             blockStartTime,
                                             blockReportName,
                                             success,
-                                            new String[] {ARConstants.EXIT},
+                                            new String[] {ARConstantsEngine.EXIT},
                                             msgBlock,
                                             dataExcel,
                                             writerReport,
                                             "Stopping App",
                                             String.format("Exit at Block Name: \"%s\"", blockName));
 
-                                    performActions.gotoLimitExecution(limit, resultActions);
+                                    // performActions.gotoLimitExecution(limit, resultActions);
 
                                     continue blockLoop;
                                 }
@@ -3163,10 +3219,10 @@ public class ARScannedElementPane extends ARPane {
                     }
 
                     if (!blockActive) {
-                        currentBlock++;
+                        currentBlockOrder++;
 
-                        Pair<String, String> msgBlock =
-                                new Pair(String.format("Ignore: \"%s\"", blockLoad.getName()), ARConstants.IGNORE);
+                        FieldData msgBlock = new FieldData(
+                                String.format("Ignore: \"%s\"", blockLoad.getName()), ARConstantsEngine.IGNORE);
 
                         // Excel Report and Log
                         performActions.logAndReport(
@@ -3176,7 +3232,7 @@ public class ARScannedElementPane extends ARPane {
                                 blockStartTime,
                                 blockReportName,
                                 success,
-                                new String[] {ARConstants.IGNORE},
+                                new String[] {ARConstantsEngine.IGNORE},
                                 msgBlock,
                                 dataExcel,
                                 writerReport,
@@ -3188,7 +3244,7 @@ public class ARScannedElementPane extends ARPane {
 
                     try {
 
-                        Pair<String, String> msgBlock = new Pair(blockLoad.getName(), ARConstants.EXCEL_BLOCK_HEADER);
+                        FieldData msgBlock = new FieldData(blockLoad.getName(), ARConstantsEngine.EXCEL_BLOCK_HEADER);
 
                         // Block Header Format
                         performActions.logAndReport(
@@ -3198,7 +3254,7 @@ public class ARScannedElementPane extends ARPane {
                                 blockStartTime,
                                 blockReportName,
                                 success,
-                                new String[] {ARConstants.EXCEL_BLOCK_HEADER},
+                                new String[] {ARConstantsEngine.EXCEL_BLOCK_HEADER},
                                 msgBlock,
                                 null,
                                 writerReport,
@@ -3207,9 +3263,9 @@ public class ARScannedElementPane extends ARPane {
 
                         performActions.onHoldInSeconds(blockWait);
 
-                        msgBlock = new Pair(
+                        msgBlock = new FieldData(
                                 String.format("Default Wait: \"%s\" ->  %d Seconds", blockLoad.getName(), blockWait),
-                                ARConstants.HOLD);
+                                ARConstantsEngine.HOLD);
 
                         // Excel Report and Log
                         performActions.logAndReport(
@@ -3219,7 +3275,7 @@ public class ARScannedElementPane extends ARPane {
                                 blockStartTime,
                                 blockReportName,
                                 success,
-                                new String[] {ARConstants.HOLD},
+                                new String[] {ARConstantsEngine.HOLD},
                                 msgBlock,
                                 dataExcel,
                                 writerReport,
@@ -3227,33 +3283,30 @@ public class ARScannedElementPane extends ARPane {
                                 String.format("Block: \"%s\" Wait %s Seconds: ", blockName, blockWait));
 
                     } catch (Exception ex) {
-                        ARLogger.getInstance(ARScannedElementPane.class)
-                                .severe(String.format("Error Wait Block for :\"%s\"", blockLoad.getName()));
+
+                        logOperations.error(String.format("Error Wait Block for :\"%s\"", blockLoad.getName()));
                     }
 
-                    // Step 1: Get all ParentIds For LOOPs Filter rows where actions = "REFRESH_LOOP" or
-                    // "LOOP" on
+                    // Step 1: Get all ParentIds For LOOPs Filter rows where actions = "REFRESH_LOOP" or "LOOP" on
                     // current
                     // Block
                     parentIdsForLoop = performActions.getParentIdsForLoop(
-                            blocksLoaded.get(currentBlock).getInstructionLoadDTOS());
+                            blocksLoaded.get(currentBlockOrder).getInstructionLoad());
 
-                    // Step 2: Get all Conditional By parentId for Index Locator on current Block Relocate
-                    // "IF",
+                    // Step 2: Get all Conditional By parentId for Index Locator on current Block Relocate "IF",
                     // "ELSEIF",
                     // "ELSE", and "ENDIF"
                     mapConditional = performActions.getConditionIndexMapByParentId(blockLoad);
 
                     // Step 3: Get all Instructions Ids on current Block
-                    int[] instructionIds = blockLoad.getInstructionLoadDTOS().stream()
-                            .mapToInt(InstructionLoadDTO::getId)
+                    int[] instructionIds = blockLoad.getInstructionLoad().stream()
+                            .mapToInt(InstructionLoad::getId)
                             .toArray();
 
                     // Step 2: Filter rows where actions = "REFRESH_LOOP" or "LOOP" and collect into the map
 
                     //                mapLoops = performActions.getLoopAndRefreshLoops(
-                    //
-                    // blocksLoaded.get(currentBlock).getBlockLoopInstructionLoadDTOS());
+                    //                        blocksLoaded.get(currentBlockOrder).getBlockLoopInstructionLoadS());
 
                     //                executionTimes++;
                     boolean jumpGoto = false;
@@ -3264,7 +3317,8 @@ public class ARScannedElementPane extends ARPane {
                     boolean refreshOnly = false;
 
                     while (success && xExcelCurrentRow < extractedData.getNumberOfDataRows() && !stopAll) {
-                        //                        mapExport.clear();
+                        failedMessage = "";
+                        //                        mapExportRows.clear();
 
                         //                    writerReport.insertBlockSeparation(blockLoad.getName());
 
@@ -3286,20 +3340,20 @@ public class ARScannedElementPane extends ARPane {
 
                             long currentInstructionStartTime = System.nanoTime();
 
-                            InstructionLoadDTO currentInstruction =
-                                    blockLoad.getInstructionLoadDTOS().get(currentIndex);
+                            InstructionLoad currentInstruction =
+                                    blockLoad.getInstructionLoad().get(currentIndex);
 
                             byPassFlagLoop = parentIdsForLoop.contains(currentInstruction.getId());
 
                             mainMsg =
-                                    currentInstruction.getOptional() ? "OPTIONAL INSTRUCTION" : "MANDATORY INSTRUCTION";
+                                    currentInstruction.getOptional() ? "optional instruction" : "mandatory instruction";
 
                             if (!currentInstruction.getInstructionActive()) {
 
                                 String nameInstruc =
                                         "(" + currentInstruction.getId() + ") " + currentInstruction.getName();
-                                Pair<String, String> msgBlock =
-                                        new Pair(String.format("Ignore: \"%s\"", nameInstruc), ARConstants.IGNORE);
+                                FieldData msgBlock = new FieldData(
+                                        String.format("Ignore: \"%s\"", nameInstruc), ARConstantsEngine.IGNORE);
 
                                 // Excel Report and Log
                                 performActions.logAndReport(
@@ -3309,7 +3363,7 @@ public class ARScannedElementPane extends ARPane {
                                         blockStartTime,
                                         blockReportName,
                                         success,
-                                        new String[] {ARConstants.IGNORE},
+                                        new String[] {ARConstantsEngine.IGNORE},
                                         msgBlock,
                                         dataExcel,
                                         writerReport,
@@ -3324,9 +3378,8 @@ public class ARScannedElementPane extends ARPane {
                             mapSavedLocators.clear();
 
                             // Loop through the instructionReferenceLoadDTOList
-                            if (currentInstruction.getInstructionReferenceLoadDTOList() != null) {
-                                for (InstructionReferenceLoadDTO reference :
-                                        currentInstruction.getInstructionReferenceLoadDTOList()) {
+                            if (currentInstruction.getReferenceLoadDTOList() != null) {
+                                for (ReferenceLoadDTO reference : currentInstruction.getReferenceLoadDTOList()) {
                                     // Populate the map with referenceType as the key and value as the value
                                     mapSavedLocators.put(reference.getReferenceType(), reference.getValue());
                                 }
@@ -3349,7 +3402,7 @@ public class ARScannedElementPane extends ARPane {
                             String parentFieldLoop = null;
                             String variableField = null;
                             String localFormat = null;
-                            String delimiterCSV = null;
+                            //                            delimiterCSV = null;
                             String fieldName = null;
                             int parentId = currentInstruction.getParentId();
 
@@ -3357,21 +3410,26 @@ public class ARScannedElementPane extends ARPane {
                                 continue;
                             }
 
-                            // webSocketSessionManager.sendMessageJson(int homeBankingId, String sessionId, String
-                            // msg1,
+                            // webSocketSessionManager.sendMessageJson(int homeBankingId, String sessionId, String msg1,
                             // String msg2)
                             if (rowStatus.getInstructionId() == null) {
                                 rowStatus.setInstructionId(currentInstruction.getId());
                                 rowStatus.setColor("yellow"); // #fcba03 deep carmine yellow
                                 jsonStatus = gson.toJson(rowStatus);
                                 webSocketSessionManager.sendMessageJson(
-                                        homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
+                                        this.currentBotJob.getHomeBankingId(),
+                                        sessionRowStatus,
+                                        jsonStatus,
+                                        "rowStatus");
                             } else {
                                 // Previous
                                 rowStatus.setColor("green"); // #1d9c06 green
                                 jsonStatus = gson.toJson(rowStatus);
                                 webSocketSessionManager.sendMessageJson(
-                                        homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
+                                        this.currentBotJob.getHomeBankingId(),
+                                        sessionRowStatus,
+                                        jsonStatus,
+                                        "rowStatus");
                                 try {
                                     Thread.sleep(300);
                                 } catch (Exception e) {
@@ -3381,26 +3439,30 @@ public class ARScannedElementPane extends ARPane {
                                 rowStatus.setColor("yellow"); // #fcba03 deep carmine yellow
                                 jsonStatus = gson.toJson(rowStatus);
                                 webSocketSessionManager.sendMessageJson(
-                                        homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
+                                        this.currentBotJob.getHomeBankingId(),
+                                        sessionRowStatus,
+                                        jsonStatus,
+                                        "rowStatus");
                             }
 
                             //                        String[] operation =
                             // UtilsMethods.splitIfContains(instruction.getOperation(),
                             // ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
-                            String[] actions =
-                                    currentInstruction.getActions().split(ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
+                            String[] actions = currentInstruction
+                                    .getActions()
+                                    .split(ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER);
                             String[] operations = currentInstruction.getOperation() != null
                                     ? currentInstruction
                                             .getOperation()
-                                            .split(ARConstants.ACTION_SPECIFICATIONS_SPLITTER)
+                                            .split(ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER)
                                     : null;
 
-                            if (actions[0].equalsIgnoreCase(ARConstants.IF)
-                                    || actions[0].equalsIgnoreCase(ARConstants.ELSEIF)
-                                    || actions[0].equalsIgnoreCase(ARConstants.ELSE)
-                                    || actions[0].equalsIgnoreCase(ARConstants.ENDIF)) {
-                                currentCondition = ARConstants.ConditionStatus.valueOf(actions[0]);
-                                if (previousCondition.equals(ARConstants.ConditionStatus.NONE)) {
+                            if (actions[0].equalsIgnoreCase(ARConstantsEngine.IF)
+                                    || actions[0].equalsIgnoreCase(ARConstantsEngine.ELSEIF)
+                                    || actions[0].equalsIgnoreCase(ARConstantsEngine.ELSE)
+                                    || actions[0].equalsIgnoreCase(ARConstantsEngine.ENDIF)) {
+                                currentCondition = ARExecution.ConditionStatus.valueOf(actions[0]);
+                                if (previousCondition.equals(ARExecution.ConditionStatus.NONE)) {
                                     previousCondition = currentCondition;
                                     parentBlockCondition = parentId;
                                 } else if (!previousCondition.equals(
@@ -3409,8 +3471,8 @@ public class ARScannedElementPane extends ARPane {
                                 }
 
                                 // Conditions When Pass to any of then
-                                if (progressCondition.equals(ARConstants.ConditionStatus.IF_PASSED)
-                                        || progressCondition.equals(ARConstants.ConditionStatus.ELSEIF_PASSED)) {
+                                if (progressCondition.equals(ARExecution.ConditionStatus.IF_PASSED)
+                                        || progressCondition.equals(ARExecution.ConditionStatus.ELSEIF_PASSED)) {
                                     int jumpPassed = performActions.checkActionToJump(
                                             actions[0],
                                             progressCondition,
@@ -3427,14 +3489,14 @@ public class ARScannedElementPane extends ARPane {
                                     if (jumpPassed > 0) {
                                         currentIndex = jumpPassed;
                                         // reset all Conditional
-                                        currentCondition = ARConstants.ConditionStatus.NONE;
-                                        progressCondition = ARConstants.ConditionStatus.NONE;
+                                        currentCondition = ARExecution.ConditionStatus.NONE;
+                                        progressCondition = ARExecution.ConditionStatus.NONE;
                                         continue instructionLoop;
                                     }
-                                } else if (currentCondition.equals(ARConstants.ConditionStatus.ENDIF)) {
-                                    currentCondition = ARConstants.ConditionStatus.NONE;
-                                    previousCondition = ARConstants.ConditionStatus.NONE;
-                                    progressCondition = ARConstants.ConditionStatus.NONE;
+                                } else if (currentCondition.equals(ARExecution.ConditionStatus.ENDIF)) {
+                                    currentCondition = ARExecution.ConditionStatus.NONE;
+                                    previousCondition = ARExecution.ConditionStatus.NONE;
+                                    progressCondition = ARExecution.ConditionStatus.NONE;
                                     parentBlockCondition = -1;
                                 }
                                 continue;
@@ -3442,21 +3504,22 @@ public class ARScannedElementPane extends ARPane {
 
                             // Case for Inputs
                             String valueInsert = "CHANGE ME";
-                            if (actions[0].equals(ARConstants.INSERT) && actions[1].equals(ARConstants.ENTER)) {
+                            if (actions[0].equals(ARConstantsEngine.INSERT)
+                                    && actions[1].equals(ARConstantsEngine.ENTER)) {
                                 String reference = actions[2];
                                 valueInsert = dataExcel.get(reference);
-                            } else if (actions[0].equals(ARConstants.INSERT)) {
+                            } else if (actions[0].equals(ARConstantsEngine.INSERT)) {
                                 String reference = actions[1];
                                 valueInsert = dataExcel.get(reference);
                             }
 
-                            Pair<String, String> msgInstruction = null;
-                            if (actions[0].equalsIgnoreCase(ARConstants.EXCEL_GOTO)) {
+                            FieldData msgInstruction = null;
+                            if (actions[0].equalsIgnoreCase(ARConstantsEngine.EXCEL_GOTO)) {
 
                                 //                                currentIndex++;
                                 continue instructionLoop;
 
-                            } else if (actions[0].equalsIgnoreCase(ARConstants.NEXT_ROW)) {
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.NEXT_ROW)) {
                                 // <currentId:blockId:blockOrderNumber:bockName>
                                 xExcelCurrentRow++;
 
@@ -3464,12 +3527,13 @@ public class ARScannedElementPane extends ARPane {
 
                                 if (xExcelCurrentRow >= xExcelDataSize - 1) {
                                     xExcelCurrentRow = xExcelDataSize - 1;
-                                    msgInstruction = new Pair<>(
-                                            "Excel Data limit reached keeping", String.valueOf(xExcelCurrentRow + 1));
-                                    bodyMsg = "Excel Data limit reached keeping: " + xExcelCurrentRow + 1;
+                                    msgInstruction = new FieldData(
+                                            "Excel Data (limit reached) keeping last row",
+                                            String.valueOf(xExcelCurrentRow + 1));
+                                    bodyMsg = "Excel Data (limit reached) keeping last row: " + xExcelCurrentRow + 1;
                                 } else {
                                     msgInstruction =
-                                            new Pair<>("Excel Data next row", String.valueOf(xExcelCurrentRow + 1));
+                                            new FieldData("Excel Data next row", String.valueOf(xExcelCurrentRow + 1));
                                 }
 
                                 // Excel Report and Log
@@ -3480,7 +3544,7 @@ public class ARScannedElementPane extends ARPane {
                                         blockStartTime,
                                         blockReportName,
                                         success,
-                                        new String[] {ARConstants.NEXT_ROW},
+                                        new String[] {ARConstantsEngine.NEXT_ROW},
                                         msgInstruction,
                                         dataExcel,
                                         writerReport,
@@ -3490,11 +3554,11 @@ public class ARScannedElementPane extends ARPane {
                                 //                                currentIndex++;
                                 continue instructionLoop;
 
-                            } else if (actions[0].equalsIgnoreCase(ARConstants.GOTO)) {
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.GOTO)) {
                                 // <currentId:blockId:blockOrderNumber:bockName>
                                 msgInstruction = performActions.getBlockDetailsById(blocksLoaded, currentInstruction);
                                 if (msgInstruction == null) {
-                                    msgInstruction = new Pair("GO TO Block \"Unknown\"", "Unknown");
+                                    msgInstruction = new FieldData("GO TO Block \"Unknown\"", "Unknown");
                                     success = false;
                                     jumpGotoError = true;
                                     jumpGoto = true;
@@ -3507,18 +3571,18 @@ public class ARScannedElementPane extends ARPane {
                                 } else if (mapLoops.containsKey(msgInstruction.getKey())) {
                                     // Updates the msgInstruction
                                     jumpGoto = true;
-                                    msgInstruction = new Pair<>(
+                                    msgInstruction = new FieldData(
                                             msgInstruction.getKey(),
                                             String.valueOf(mapLoops.get(msgInstruction.getKey())));
                                 }
 
-                            } else if (actions[0].equalsIgnoreCase(ARConstants.LOOP)) {
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.LOOP)) {
                                 // <currentId:parentId:parentName>
                                 msgInstruction = performActions.getInstructionDetailsById(
-                                        blocksLoaded.get(currentBlock).getInstructionLoadDTOS(), currentInstruction);
+                                        blocksLoaded.get(currentBlockOrder).getInstructionLoad(), currentInstruction);
 
                                 if (msgInstruction == null) {
-                                    msgInstruction = new Pair("Jump To Parent \"Unknown\"", "Unknown");
+                                    msgInstruction = new FieldData("Jump To Parent \"Unknown\"", "Unknown");
                                     success = false;
                                 } else if (!mapLoops.containsKey(msgInstruction.getKey())) {
                                     jumpLoopError = false;
@@ -3527,15 +3591,15 @@ public class ARScannedElementPane extends ARPane {
                                     mapRefresh.put(msgInstruction.getKey(), Integer.valueOf(parts[0])); // Wait Time
                                 } else if (mapLoops.containsKey(msgInstruction.getKey())) {
                                     // Updates the msgInstruction
-                                    msgInstruction = new Pair<>(
+                                    msgInstruction = new FieldData(
                                             msgInstruction.getKey(),
                                             String.valueOf(mapLoops.get(msgInstruction.getKey())));
                                 }
-                            } else if (actions[0].equalsIgnoreCase(ARConstants.REFRESH_LOOP)) {
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.REFRESH_LOOP)) {
                                 msgInstruction = performActions.getInstructionDetailsById(
-                                        blocksLoaded.get(currentBlock).getInstructionLoadDTOS(), currentInstruction);
+                                        blocksLoaded.get(currentBlockOrder).getInstructionLoad(), currentInstruction);
                                 if (msgInstruction == null) {
-                                    msgInstruction = new Pair("Jump To Parent \"Unknown\"", "Unknown");
+                                    msgInstruction = new FieldData("Jump To Parent \"Unknown\"", "Unknown");
                                     success = false;
                                 } else if (!mapLoops.containsKey(msgInstruction.getKey())) {
                                     jumpLoopError = false;
@@ -3545,33 +3609,32 @@ public class ARScannedElementPane extends ARPane {
                                 } else if (mapLoops.containsKey(msgInstruction.getKey())) {
                                     // Updates the msgInstruction
                                     // Refresh Loop  <5:5> <WAIT:LOOP>
-                                    String updMsg = mapRefresh.get(msgInstruction.getKey())
-                                            + ":"
+                                    String updMsg = mapRefresh.get(msgInstruction.getKey()) + ":"
                                             + mapLoops.get(msgInstruction.getKey());
-                                    msgInstruction = new Pair<>(msgInstruction.getKey(), updMsg);
+                                    msgInstruction = new FieldData(msgInstruction.getKey(), updMsg);
                                 }
-                            } else if (actions[0].equalsIgnoreCase(ARConstants.SET_VALUE)
-                                    || (actions[0].equalsIgnoreCase(ARConstants.GET_VALUE))) {
-                                msgInstruction = new Pair(
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.SET_VALUE)
+                                    || (actions[0].equalsIgnoreCase(ARConstantsEngine.GET_VALUE))) {
+                                msgInstruction = new FieldData(
                                         currentInstruction.getName(),
                                         (currentInstruction.getOperation() != null
                                                 ? "(" + parentId + ")-" + operations[0] + ":" + operations[1]
-                                                : (actions[0].equalsIgnoreCase(ARConstants.INSERT))
+                                                : (actions[0].equalsIgnoreCase(ARConstantsEngine.INSERT))
                                                         ? valueInsert
                                                         : ""));
                             } else {
-                                msgInstruction = new Pair(
+                                msgInstruction = new FieldData(
                                         "(" + currentInstruction.getId() + ")-" + currentInstruction.getName(),
                                         (currentInstruction.getOperation() != null
                                                 ? currentInstruction.getOperation()
-                                                : (actions[0].equalsIgnoreCase(ARConstants.INSERT))
+                                                : (actions[0].equalsIgnoreCase(ARConstantsEngine.INSERT))
                                                         ? valueInsert
                                                         : ""));
                             }
 
                             resultActions = performActions.actionResultMessage(blockName, actions, msgInstruction);
 
-                            if (actions[0].equalsIgnoreCase(ARConstants.PAUSE)) {
+                            if (actions[0].equalsIgnoreCase(ARConstantsEngine.PAUSE)) {
                                 pauseOperation = true;
 
                                 respModal = performMessage.showCustomModalDialogDragWin11(
@@ -3586,7 +3649,7 @@ public class ARScannedElementPane extends ARPane {
                                         0);
                             }
 
-                            if (actions[0].equalsIgnoreCase(ARConstants.LOOP)) {
+                            if (actions[0].equalsIgnoreCase(ARConstantsEngine.LOOP)) {
                                 parentFieldLoop =
                                         performActions.getInstructionParentField(currentInstruction, blockLoad);
                                 if (parentField == null && parentFieldLoop == null) {
@@ -3615,9 +3678,9 @@ public class ARScannedElementPane extends ARPane {
                                     jumpLoopError = true;
                                 }
 
-                            } else if (actions[0].equalsIgnoreCase(ARConstants.REFRESH_ONLY)) {
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.REFRESH_ONLY)) {
                                 refreshOnly = true;
-                            } else if (actions[0].equalsIgnoreCase(ARConstants.REFRESH_LOOP)) {
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.REFRESH_LOOP)) {
                                 parentFieldLoop =
                                         performActions.getInstructionParentField(currentInstruction, blockLoad);
                                 if (parentField == null && parentFieldLoop == null) {
@@ -3645,8 +3708,8 @@ public class ARScannedElementPane extends ARPane {
                                 } else {
                                     jumpLoopError = true;
                                 }
-                            } else if (actions[0].equalsIgnoreCase(ARConstants.GET_VALUE)
-                                    || actions[0].equalsIgnoreCase(ARConstants.SET_VALUE)) {
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.GET_VALUE)
+                                    || actions[0].equalsIgnoreCase(ARConstantsEngine.SET_VALUE)) {
 
                                 execGetOrSet = true;
 
@@ -3654,7 +3717,7 @@ public class ARScannedElementPane extends ARPane {
                                 String actionsParent =
                                         performActions.getInstructionParentActions(currentInstruction, blockLoad);
                                 parentActions = actionsParent != null
-                                        ? actionsParent.split(ARConstants.ACTION_SPECIFICATIONS_SPLITTER)
+                                        ? actionsParent.split(ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER)
                                         : null;
 
                                 parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
@@ -3666,10 +3729,10 @@ public class ARScannedElementPane extends ARPane {
                                     variableField = "Not Variable defined";
                                 }
 
-                            } else if (actions[0].equalsIgnoreCase(ARConstants.OUTPUT)) {
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.OUTPUT)) {
                                 execOutPut = true;
                                 fieldName = currentInstruction.getId() + "-" + currentInstruction.getName();
-                            } else if (actions[0].equalsIgnoreCase(ARConstants.CHECK_VALUE)) {
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.CHECK_VALUE)) {
                                 execCheckValue = true;
                                 parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
                                 variableField =
@@ -3677,26 +3740,27 @@ public class ARScannedElementPane extends ARPane {
                                 if (variableField == null) {
                                     variableField = "Not Variable defined";
                                 }
-                            } else if (actions[0].equalsIgnoreCase(ARConstants.EXTRACT_FIELD)) {
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.EXTRACT_FIELD)) {
                                 excelWriteOperation = true;
                                 parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
                                 variableField =
                                         performActions.getInstructionVariableField(currentInstruction, variablesLoaded);
-                                delimiterCSV = performActions.getInstructionVariableDelimiter(
-                                        currentInstruction, variablesLoaded);
+                                //                                if (delimiterCSV == null) {
+                                //                                    delimiterCSV =
+                                // performActions.getInstructionVariableDelimiter(
+                                //                                            currentInstruction, variablesLoaded);
+                                //                                }
                                 if (variableField == null) {
                                     variableField = "Not Variable defined";
                                 }
                             }
-
-                            File logFileForSingleExcel = excelReader.createLogFile(excelPath);
 
                             try {
                                 if (jumpGoto) {
 
                                     if (jumpGotoError) {
                                         success = false;
-                                        failedMessage = "Failed: GO TO";
+                                        failedMessage = "Failed: GO TO ";
                                         resultActions = performActions.blockGotoFailed(resultActions);
                                     } else {
                                         if (!loopBlockActive.contains(msgInstruction.getKey())) {
@@ -3714,13 +3778,14 @@ public class ARScannedElementPane extends ARPane {
                                                         msgInstruction.getKey().split(":");
                                                 int blockOrderNumber = Integer.parseInt(parts[2]);
 
-                                                currentBlock = blockOrderNumber - 1;
+                                                currentBlockOrder = blockOrderNumber - 1;
                                                 currentInstruction.setExecuted(true);
 
+                                                failedMessage = "";
                                                 success = true;
 
                                             } catch (Exception ex) {
-                                                failedMessage = "Failed: GO TO";
+                                                failedMessage = "Failed: GO TO ";
                                                 msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 
                                                 success = false;
@@ -3728,7 +3793,7 @@ public class ARScannedElementPane extends ARPane {
                                                 resultActions = performActions.blockGotoFailed(resultActions);
                                             }
 
-                                            Pair<String, String> currentPair = new Pair(
+                                            FieldData currentPair = new FieldData(
                                                     msgInstruction.getKey(),
                                                     String.valueOf(mapLoops.get(msgInstruction.getKey())));
 
@@ -3776,23 +3841,22 @@ public class ARScannedElementPane extends ARPane {
                                         if (repeat > 0) {
                                             mapLoops.put(parentFieldLoop, repeat);
 
-                                            ARLogger.getInstance(ARScannedElementPane.class)
-                                                    .info(String.format(
-                                                            "Loop to Parent :\"%s\" - %d Times",
-                                                            parts[0] + "-(" + parts[1] + ") " + parts[2],
-                                                            mapLoops.get(parentFieldLoop)));
+                                            logOperations.info(String.format(
+                                                    "Loop to Parent :\"%s\" - %d Times",
+                                                    parts[0] + "-(" + parts[1] + ") " + parts[2],
+                                                    mapLoops.get(parentFieldLoop)));
 
                                             if (refreshLoop) {
 
                                                 String extraLog = performActions.actionResultMessage(
                                                         blockName,
-                                                        new String[] {ARConstants.REFRESH_HOLD},
+                                                        new String[] {ARConstantsEngine.REFRESH_HOLD},
                                                         msgInstruction);
 
                                                 performActions.performOtherActions(
                                                         byPassNotFound,
                                                         currentInstruction,
-                                                        new String[] {ARConstants.REFRESH_HOLD});
+                                                        new String[] {ARConstantsEngine.REFRESH_HOLD});
 
                                                 // Excel Report and Log
                                                 performActions.logAndReport(
@@ -3802,7 +3866,7 @@ public class ARScannedElementPane extends ARPane {
                                                         currentInstructionStartTime,
                                                         blockReportName,
                                                         success,
-                                                        new String[] {ARConstants.REFRESH_HOLD},
+                                                        new String[] {ARConstantsEngine.REFRESH_HOLD},
                                                         msgInstruction,
                                                         dataExcel,
                                                         writerReport,
@@ -3812,13 +3876,13 @@ public class ARScannedElementPane extends ARPane {
                                                 // Refresh For REFRESH_LOOP
                                                 extraLog = performActions.actionResultMessage(
                                                         blockName,
-                                                        new String[] {ARConstants.REFRESH_ONLY},
+                                                        new String[] {ARConstantsEngine.REFRESH_ONLY},
                                                         msgInstruction);
 
                                                 performActions.performOtherActions(
                                                         byPassNotFound,
                                                         currentInstruction,
-                                                        new String[] {ARConstants.REFRESH_ONLY});
+                                                        new String[] {ARConstantsEngine.REFRESH_ONLY});
 
                                                 // Excel Report and Log
                                                 performActions.logAndReport(
@@ -3828,7 +3892,7 @@ public class ARScannedElementPane extends ARPane {
                                                         currentInstructionStartTime,
                                                         blockReportName,
                                                         success,
-                                                        new String[] {ARConstants.REFRESH_ONLY},
+                                                        new String[] {ARConstantsEngine.REFRESH_ONLY},
                                                         msgInstruction,
                                                         dataExcel,
                                                         writerReport,
@@ -3846,7 +3910,7 @@ public class ARScannedElementPane extends ARPane {
                                             }
 
                                             // Get Correct Updated Pair for REFRESH_LOOP ACTION
-                                            Pair<String, String> currentPair = new Pair(
+                                            FieldData currentPair = new FieldData(
                                                     msgInstruction.getKey(),
                                                     String.valueOf(mapLoops.get(msgInstruction.getKey())));
 
@@ -3875,11 +3939,11 @@ public class ARScannedElementPane extends ARPane {
                                         if (repeat > 0) {
                                             continue instructionLoop;
                                         } else {
-                                            ARLogger.getInstance(ARScannedElementPane.class)
-                                                    .info(String.format(
-                                                            "IGNORING Loop to Parent :\"%s\" - %d Times",
-                                                            parts[0] + "-(" + parts[1] + ") " + parts[2],
-                                                            mapLoops.get(parentFieldLoop)));
+
+                                            logOperations.info(String.format(
+                                                    "IGNORING Loop to Parent :\"%s\" - %d Times",
+                                                    parts[0] + "-(" + parts[1] + ") " + parts[2],
+                                                    mapLoops.get(parentFieldLoop)));
                                             continue;
                                         }
 
@@ -3901,14 +3965,14 @@ public class ARScannedElementPane extends ARPane {
 
                                     refreshOnly = false;
 
-                                } else if (actions[0].equals(ARConstants.HOLD)
-                                        || actions[0].equals(ARConstants.QUIT)
-                                        || actions[0].equals(ARConstants.SCREEN)
-                                        || actions[0].equals(ARConstants.REFRESH_ONLY)) {
+                                } else if (actions[0].equals(ARConstantsEngine.HOLD)
+                                        || actions[0].equals(ARConstantsEngine.QUIT)
+                                        || actions[0].equals(ARConstantsEngine.SCREEN)
+                                        || actions[0].equals(ARConstantsEngine.REFRESH_ONLY)) {
 
                                     performActions.performOtherActions(byPassNotFound, currentInstruction, actions);
 
-                                    if (actions[0].equals(ARConstants.QUIT)) {
+                                    if (actions[0].equals(ARConstantsEngine.QUIT)) {
                                         stopAll = true;
                                         success = true;
                                     }
@@ -3923,7 +3987,7 @@ public class ARScannedElementPane extends ARPane {
                                     webElementWork = true;
 
                                     // Extract dataFieldName and dataFieldValue using a separate method
-                                    Pair<String, String> fieldData = performActions.extractFieldData(
+                                    FieldData fieldData = performActions.extractFieldData(
                                             dataExcel,
                                             actions,
                                             currentInstruction.getDefaultValue(),
@@ -3934,7 +3998,10 @@ public class ARScannedElementPane extends ARPane {
                                             && currentInstruction.getForceCoordinates();
                                     try {
                                         webElementFound = performActions.searchElement(
-                                                currentInstruction, botJobId, forceCoordinates);
+                                                currentInstruction,
+                                                this.currentBotJob.getId(),
+                                                forceCoordinates,
+                                                byPassFlagLoop);
                                     } catch (Exception ex) {
                                         success = false;
                                     }
@@ -3942,23 +4009,28 @@ public class ARScannedElementPane extends ARPane {
                                     if (webElementFound == null && forceCoordinates) {
 
                                         Boolean pressEnterAfter = false;
-                                        if (actions[0].equals(ARConstants.INSERT)
-                                                && actions[1].equals(ARConstants.ENTER)) {
+                                        if (actions[0].equals(ARConstantsEngine.INSERT)
+                                                && actions[1].equals(ARConstantsEngine.ENTER)) {
                                             pressEnterAfter = true;
                                         }
-                                        if (actions[0].equalsIgnoreCase(ARConstants.VISUALIZE)
-                                                || actions[0].equalsIgnoreCase(ARConstants.CLICK)
-                                                || actions[0].equalsIgnoreCase(ARConstants.INSERT)) {
-                                            success = performActions.executeActionsAtCoordinates(
-                                                    mapSavedLocators.get("coordinates"),
-                                                    fieldData,
-                                                    actions[0],
-                                                    pressEnterAfter);
+                                        if (actions[0].equalsIgnoreCase(ARConstantsEngine.VISUALIZE)
+                                                || actions[0].equalsIgnoreCase(ARConstantsEngine.CLICK)
+                                                || actions[0].equalsIgnoreCase(ARConstantsEngine.INSERT)) {
+
+                                            List<WebElement> smartSearch = performActions.findBySmartLocator(
+                                                    currentInstruction.getCssSelector());
+                                            if (!smartSearch.isEmpty()) {
+                                                success = performActions.executeActionsAtCoordinates(
+                                                        mapSavedLocators.get("coordinates"),
+                                                        fieldData,
+                                                        actions[0],
+                                                        pressEnterAfter);
+                                            }
                                         }
                                     }
 
                                     byPassNotFound = byPassFlagLoop
-                                            || !currentCondition.equals(ARConstants.ConditionStatus.NONE);
+                                            || !currentCondition.equals(ARExecution.ConditionStatus.NONE);
 
                                     if (webElementFound != null && success) {
 
@@ -3973,9 +4045,9 @@ public class ARScannedElementPane extends ARPane {
 
                                         if (execOutPut) {
                                             if (mapOperators.containsKey(fieldName)) {
-                                                msgInstruction = new Pair(fieldName, mapOperators.get(fieldName));
+                                                msgInstruction = new FieldData(fieldName, mapOperators.get(fieldName));
                                             } else {
-                                                msgInstruction = new Pair(fieldName, "TEXT OUTPUT NOT FOUND");
+                                                msgInstruction = new FieldData(fieldName, "TEXT OUTPUT NOT FOUND");
                                             }
                                         }
                                     }
@@ -3983,10 +4055,11 @@ public class ARScannedElementPane extends ARPane {
                                     // It could be Improved the case
                                     if (resultActions.contains("Error:")
                                             || (webElementFound == null && !forceCoordinates)) {
-                                        failedMessage = "Failed execution Web Element";
+                                        failedMessage = "Failed execution Web Element ";
                                         msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                         success = false;
                                     } else if (resultActions != null && success) {
+                                        failedMessage = "";
                                         currentInstruction.setExecuted(true);
                                     }
 
@@ -3997,14 +4070,15 @@ public class ARScannedElementPane extends ARPane {
                                         parentField = parentId + "-" + parentField;
                                     }
                                     // Mandatory for GET_VALUE
-                                    if (xPathOperation == null && actions[0].equalsIgnoreCase(ARConstants.GET_VALUE)) {
-                                        failedMessage = "Parent Id in Wrong Block";
+                                    if (xPathOperation == null
+                                            && actions[0].equalsIgnoreCase(ARConstantsEngine.GET_VALUE)) {
+                                        failedMessage = "Parent Id in Wrong Block ";
                                         msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                         resultActions = performActions.parentIdWrongBlock(
                                                 currentInstruction, blockLoad, resultActions, currentCondition);
                                         success = false;
                                     } else if (parentField == null) {
-                                        failedMessage = "Parent Id in Wrong Block";
+                                        failedMessage = "Parent Id in Wrong Block ";
                                         msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                         resultActions = performActions.parentIdWrongBlock(
                                                 currentInstruction, blockLoad, resultActions, currentCondition);
@@ -4023,10 +4097,11 @@ public class ARScannedElementPane extends ARPane {
                                                 mapOperators);
 
                                         if (resultActions.contains("Error:")) {
-                                            failedMessage = "Failed: Operation (GetValue / SetValue)";
+                                            failedMessage = "Failed: Operation (GetValue / SetValue) ";
                                             msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                             success = false;
                                         } else {
+                                            failedMessage = "";
                                             success = true;
                                             if (!Strings.isNullOrEmpty(localFormat)) {
                                                 String valueTo = mapOperators.get(variableField);
@@ -4041,13 +4116,13 @@ public class ARScannedElementPane extends ARPane {
                                     // Check Validation Operator
 
                                     if (!mapOperators.containsKey(variableField)) {
-                                        failedMessage = "Get Value Is Not Defined";
+                                        failedMessage = "Get Value Is Not Defined ";
                                         msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                         resultActions = performActions.getValueIsNotDefined(
                                                 actions[0],
                                                 currentInstruction,
                                                 resultActions,
-                                                ARConstants.ConditionStatus
+                                                ARExecution.ConditionStatus
                                                         .NONE, // NOT  currentCondition to Force Message,
                                                 parentField,
                                                 variableField);
@@ -4102,11 +4177,11 @@ public class ARScannedElementPane extends ARPane {
                                         }
 
                                         if (isOperationValid) {
-
                                             currentInstruction.setExecuted(true);
+                                            failedMessage = "";
                                             success = true;
                                         } else {
-                                            failedMessage = "Failed: Check Validation";
+                                            failedMessage = "Failed: Check Validation ";
                                             msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                             resultActions = performActions.checkValidationFailed(
                                                     invalidValues,
@@ -4125,7 +4200,7 @@ public class ARScannedElementPane extends ARPane {
                                     // Excel Write Operator
 
                                     if (parentField == null) {
-                                        failedMessage = "Parent Id in Wrong Block";
+                                        failedMessage = "Parent Id in Wrong Block ";
                                         msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                         resultActions = performActions.parentIdWrongBlock(
                                                 currentInstruction, blockLoad, resultActions, currentCondition);
@@ -4133,13 +4208,13 @@ public class ARScannedElementPane extends ARPane {
                                         success = false;
 
                                     } else if (!mapOperators.containsKey(variableField)) {
-                                        failedMessage = "Get Value Is Not Defined";
+                                        failedMessage = "Get Value Is Not Defined ";
                                         msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                         resultActions = performActions.getValueIsNotDefined(
                                                 actions[0],
                                                 currentInstruction,
                                                 resultActions,
-                                                ARConstants.ConditionStatus
+                                                ARExecution.ConditionStatus
                                                         .NONE, // NOT  currentCondition to Force Message,
                                                 parentField,
                                                 variableField);
@@ -4161,18 +4236,14 @@ public class ARScannedElementPane extends ARPane {
 
                                         if (writerExport != null) {
 
-                                            resultActions = "insertValueFieldNameInExcel -> "
-                                                    + variableField
-                                                    + "-"
+                                            resultActions = "insertValueFieldNameInExcel -> " + variableField + "-"
                                                     + mapOperators.get(variableField);
                                         } else {
-                                            resultActions = "NO Export Excel File defined -> "
-                                                    + variableField
-                                                    + "-"
+                                            resultActions = "NO Export Excel File defined -> " + variableField + "-"
                                                     + mapOperators.get(variableField);
                                         }
 
-                                        if (mapExport.size() == 0) {
+                                        if (mapExportRows.size() == 0) {
                                             //
                                             // writerExport.insertBlockSeparation(blockLoad.getName());
                                             //                                            exportIndex *= 2;
@@ -4180,12 +4251,15 @@ public class ARScannedElementPane extends ARPane {
 
                                         // Insert the updated mapExport into the Excel after each instruction
                                         if (writerExport != null) {
-                                            mapExport.put("KEY", "EXTERNAL");
-                                            mapExport.put(
+                                            headersExport.add(parentField.trim());
+                                            mapExportRows.put(
                                                     parentField.trim(),
                                                     mapOperators
                                                             .get(variableField)
                                                             .trim());
+
+                                            //
+                                            // addRowFromMap(mapExportRows);
                                             if (excelFieldName != null
                                                     && excelFieldName
                                                             .toLowerCase()
@@ -4193,21 +4267,32 @@ public class ARScannedElementPane extends ARPane {
                                                 if (Strings.isNullOrEmpty(delimiterCSV)) {
                                                     delimiterCSV = ",";
                                                 }
-                                                writerExport.writeMapToCSV(mapExport, excelFieldName, delimiterCSV);
+
+                                                //
+                                                //                                                String csvContent
+                                                // =
+                                                // getBancaStatoCsvContent(delimiterCSV);
+                                                //
+                                                // writeToFile(excelFieldName, csvContent);
+
+                                                // writerExport.writeMapToCSV(mapExport, excelFieldName,
+                                                // delimiterCSV);
                                             } else {
-                                                writerExport.insertFieldNameAndValueLastColumn(
-                                                        mapExport, exportIndex - 1);
+                                                //
+                                                // writerExport.insertFieldNameAndValueLastColumn(
+                                                //                                                        mapExport,
+                                                // exportIndex - 1);
                                             }
                                         }
                                         performActions.onHoldForSeconds(null);
 
                                         if (resultActions != null) {
                                             currentInstruction.setExecuted(true);
+                                            failedMessage = "";
                                             success = true;
                                         } else {
-                                            failedMessage = "Failed: Generate File -> Excel/CSV";
+                                            failedMessage = "Failed: Generate File -> Excel/CSV ";
                                             msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
-
                                             success = false;
                                         }
                                     }
@@ -4231,35 +4316,31 @@ public class ARScannedElementPane extends ARPane {
                                 String msg3 = resultActions;
 
                                 if (Strings.isNullOrEmpty(failedMessage)) {
-                                    failedMessage = "Failed: General Execution";
+                                    failedMessage = "Failed: General Execution ";
                                     msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                 }
-
-                                performMessage.errorMessage(resultActions, msg1, msg2, msg3, null, 260);
+                                logOperations.error("Error: {} - {} - {} - {}", resultActions, msg1, msg2, msg3);
+                                //                                performMessage.errorMessage(resultActions, msg1, msg2,
+                                // msg3, null, 260);
                                 //                            throw new RuntimeException(t);
                             }
 
-                            printLog(
-                                    generateTimestamp(),
-                                    logFileForSingleExcel,
-                                    finalLogMessage(failedMessage, resultActions),
-                                    success);
+                            printLog(finalLogMessage(failedMessage, resultActions), success);
 
-                            // Here mark the Status of a progress Condition Fail or Success at the end of each
-                            // Kind
+                            // Here mark the Status of a progress Condition Fail or Success at the end of each Kind
                             // of Execution
                             if (!jumpGotoError
                                     && !jumpLoopError
-                                    && !currentCondition.equals(ARConstants.ConditionStatus.NONE)) {
+                                    && !currentCondition.equals(ARExecution.ConditionStatus.NONE)) {
                                 progressCondition = performActions.updateProgressSuccess(success, currentCondition);
                                 //                                continue instructionLoop;
                             } else {
-                                progressCondition = ARConstants.ConditionStatus.NONE;
+                                progressCondition = ARExecution.ConditionStatus.NONE;
                             }
 
                             // Excel Report and Log
                             performActions.logAndReport(
-                                    !byPassFlagLoop ? progressCondition : ARConstants.ConditionStatus.BY_PASS,
+                                    !byPassFlagLoop ? progressCondition : ARExecution.ConditionStatus.BY_PASS,
                                     true,
                                     true,
                                     currentInstructionStartTime,
@@ -4272,14 +4353,16 @@ public class ARScannedElementPane extends ARPane {
                                     mainMsg,
                                     finalLogMessage(failedMessage, resultActions));
 
-                            if (pauseOperation && respModal.equals(ARConstants.DialogModal.STOP)) {
+                            failedMessage = "";
+
+                            if (pauseOperation && respModal.equals(ARExecution.DialogModal.STOP)) {
 
                                 String nameInstruc =
                                         "(" + currentInstruction.getId() + ") " + currentInstruction.getName();
 
                                 resultActions = String.format("STOP ALL PROCESSES: \"%s\"", nameInstruc);
 
-                                Pair<String, String> msgBlock = new Pair(resultActions, ARConstants.PAUSE);
+                                FieldData msgBlock = new FieldData(resultActions, ARConstantsEngine.PAUSE);
 
                                 // Excel Report and Log
                                 performActions.logAndReport(
@@ -4289,24 +4372,76 @@ public class ARScannedElementPane extends ARPane {
                                         blockStartTime,
                                         blockReportName,
                                         success,
-                                        new String[] {ARConstants.PAUSE},
+                                        new String[] {ARConstantsEngine.PAUSE},
                                         msgBlock,
                                         dataExcel,
                                         writerReport,
                                         "PAUSE -> STOP",
                                         String.format("STOP ALL CALLED AT: \"%s\" : ", nameInstruc));
 
-                                respModal = ARConstants.DialogModal.NONE;
+                                respModal = ARExecution.DialogModal.NONE;
                                 stopAll = true;
                                 break;
                             }
 
                             // It decides Here if ByPass as per Loop or Per IF-ELSEIF-ELSE-ENDIF blocks
+                            // Does not block other executions if it fails for any reason and jumps to the beginning or
+                            // Excel GOTO position block
                             if (!success
                                     && !byPassFlagLoop
-                                    && currentCondition.equals(ARConstants.ConditionStatus.NONE)) {
-                                stopAll = true;
-                                break;
+                                    && currentCondition.equals(ARExecution.ConditionStatus.NONE)) {
+                                if (lastRecall) {
+                                    stopAll = true;
+                                } else {
+
+                                    //                                    if
+                                    // (blocksLoaded.get(currentBlockOrder).isHasAnyInput()) {
+
+                                    xExcelCurrentRow++;
+
+                                    //                                    String bodyMsg = "Excel Data Calling Next Row:
+                                    // " + xExcelCurrentRow + 1;
+
+                                    if (xExcelCurrentRow >= xExcelDataSize - 1) {
+                                        xExcelCurrentRow = xExcelDataSize - 1;
+                                        //                                        msgInstruction = new FieldData(
+                                        //                                                "Excel Data (limit reached)
+                                        // keeping last row",
+                                        //
+                                        // String.valueOf(xExcelCurrentRow + 1));
+                                        //                                        bodyMsg =
+                                        //                                                "Excel Data (limit reached)
+                                        // keeping last row: " + xExcelCurrentRow + 1;
+                                        lastRecall = true;
+                                    } else {
+                                        //                                        msgInstruction = new FieldData(
+                                        //                                                "Excel Data next row",
+                                        // String.valueOf(xExcelCurrentRow + 1));
+                                    }
+
+                                    //                                    // Excel Report and Log
+                                    //                                    performActions.logAndReport(
+                                    //                                            currentCondition,
+                                    //                                            true,
+                                    //                                            true,
+                                    //                                            blockStartTime,
+                                    //                                            blockReportName,
+                                    //                                            success,
+                                    //                                            new String[]
+                                    // {ARConstantsEngine.NEXT_ROW},
+                                    //                                            msgInstruction,
+                                    //                                            dataExcel,
+                                    //                                            writerReport,
+                                    //                                            "Excel Data Calling Next Row",
+                                    //                                            bodyMsg);
+                                    //                                    }
+
+                                    //                                currentIndex++;
+                                    currentBlockOrder = blockInitial; // BLOCK DEFINED BY "DEFAULT" OR "EXCEL GOTO"
+                                    currentIndex = 0; // INITIAL INDEX FOR ANY BLOCK LOADED
+                                    success = true; // TO ALLOW OTHER FUNCTIONS TO BE EXECUTED
+                                    continue blockLoop;
+                                }
                             }
 
                             // It decides Here if ByPass as per Loop or Per IF-ELSEIF-ELSE-ENDIF blocks
@@ -4323,8 +4458,8 @@ public class ARScannedElementPane extends ARPane {
 
                             // Here it Call the next block of IF, ELSIF, ELSE OR ENDIF as Per the Machine State
                             // Conditions When Pass to any of then
-                            if (progressCondition.equals(ARConstants.ConditionStatus.IF_PASSED)
-                                    || progressCondition.equals(ARConstants.ConditionStatus.ELSEIF_PASSED)) {
+                            if (progressCondition.equals(ARExecution.ConditionStatus.IF_PASSED)
+                                    || progressCondition.equals(ARExecution.ConditionStatus.ELSEIF_PASSED)) {
                                 int jumpPassed = performActions.checkActionToJump(
                                         actions[0],
                                         progressCondition,
@@ -4341,21 +4476,21 @@ public class ARScannedElementPane extends ARPane {
                                 if (jumpPassed > 0) {
                                     currentIndex = jumpPassed;
                                     // reset all Conditional
-                                    currentCondition = ARConstants.ConditionStatus.NONE;
-                                    progressCondition = ARConstants.ConditionStatus.NONE;
+                                    currentCondition = ARExecution.ConditionStatus.NONE;
+                                    progressCondition = ARExecution.ConditionStatus.NONE;
                                     continue instructionLoop;
                                 }
                             }
 
                             // Conditions When Fails to any of then and Look for the next Correct Block
-                            if (progressCondition.equals(ARConstants.ConditionStatus.IF_FAILED)
-                                    || progressCondition.equals(ARConstants.ConditionStatus.ELSEIF_FAILED)) {
+                            if (progressCondition.equals(ARExecution.ConditionStatus.IF_FAILED)
+                                    || progressCondition.equals(ARExecution.ConditionStatus.ELSEIF_FAILED)) {
 
                                 // Goes to the next ELSEIF IF EXIST (ELSEIF index + 1);
                                 int index = performActions.searchMapConditional(
                                         mapConditional,
                                         parentBlockCondition,
-                                        ARConstants.ConditionStatus.ELSEIF,
+                                        ARExecution.ConditionStatus.ELSEIF,
                                         currentIndex,
                                         false);
 
@@ -4364,7 +4499,7 @@ public class ARScannedElementPane extends ARPane {
                                     index = performActions.searchMapConditional(
                                             mapConditional,
                                             parentBlockCondition,
-                                            ARConstants.ConditionStatus.ELSE,
+                                            ARExecution.ConditionStatus.ELSE,
                                             currentIndex,
                                             true);
                                 }
@@ -4373,16 +4508,16 @@ public class ARScannedElementPane extends ARPane {
                                     continue blockLoop;
                                 }
                                 currentIndex = index;
-                                currentCondition = ARConstants.ConditionStatus.NONE;
-                                progressCondition = ARConstants.ConditionStatus.NONE;
+                                currentCondition = ARExecution.ConditionStatus.NONE;
+                                progressCondition = ARExecution.ConditionStatus.NONE;
                                 continue instructionLoop;
 
-                            } else if (progressCondition.equals(ARConstants.ConditionStatus.ELSE_FAILED)) {
+                            } else if (progressCondition.equals(ARExecution.ConditionStatus.ELSE_FAILED)) {
                                 // Goes to the ENDIF (ENDIF index + 1);
                                 int index = performActions.searchMapConditional(
                                         mapConditional,
                                         parentBlockCondition,
-                                        ARConstants.ConditionStatus.ENDIF,
+                                        ARExecution.ConditionStatus.ENDIF,
                                         currentIndex,
                                         true);
 
@@ -4391,183 +4526,42 @@ public class ARScannedElementPane extends ARPane {
                                     continue blockLoop;
                                 }
                                 currentIndex = index;
-                                currentCondition = ARConstants.ConditionStatus.NONE;
-                                progressCondition = ARConstants.ConditionStatus.NONE;
+                                currentCondition = ARExecution.ConditionStatus.NONE;
+                                progressCondition = ARExecution.ConditionStatus.NONE;
                                 continue instructionLoop;
                             }
                         }
 
                         // Has Transversed All Columns in the Block
-                        // Way Out from the Current Excel Data Row to another Block keeping the Same Excel Data
-                        // Row
+                        // Way Out from the Current Excel Data Row to another Block keeping the Same Excel Data Row
                         break;
                     }
-                    currentBlock++;
+                    currentBlockOrder++;
                 }
 
-                currentBlock = blockInitial;
+                currentBlockOrder = blockInitial; // BLOCK DEFINED BY "DEFAULT" OR "EXCEL GOTO"
                 xExcelCurrentRow++;
-            }
-        } else { //  if dataExel is NULL
-            // Creating Dynamic Data if Default is Null
-            Pair<String, String> dataDynamic = null;
-            for (int j = 0; success && j < blocksLoaded.size(); j++) {
-
-                for (InstructionLoadDTO currentInstruction : blocksLoaded.get(j).getInstructionLoadDTOS()) {
-                    if (currentInstruction.getDefaultValue() == null) {
-                        String[] arr = UtilsMethods.splitIfContains(
-                                currentInstruction.getActions(), ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
-                        if (arr.length > 1) {
-                            String dataFieldName = arr[1].split(ARConstants.PATH_FIELD_SUBSTITUTION)[0];
-                            PerformActions.insertRandomName(dataFieldName);
-                        }
-                    }
-                }
-            }
-            for (int j = 0; success && j < blocksLoaded.size(); j++) {
-
-                String blockName = blocksLoaded.get(j).getName();
-                int blockOrder = blocksLoaded.get(j).getBlockOrderNumber();
-                String blockReportName = "#" + blockOrder + " " + blockName;
-
-                for (InstructionLoadDTO currentInstruction : blocksLoaded.get(j).getInstructionLoadDTOS()) {
-
-                    long currentInstructionStartTime = System.nanoTime();
-                    File logFileForSingleExcel = excelReader.createLogFile(excelPath);
-
-                    String[] actions = currentInstruction.getActions().split(ARConstants.ACTIONS_AND_PATHS_SPLITTER);
-
-                    // Case for Inputs
-                    String valueInsert = "CHANGE ME";
-                    if (actions[0].equals(ARConstants.INSERT) && actions[1].equals(ARConstants.ENTER)) {
-                        String reference = actions[2];
-                        valueInsert = dataExcel.get(reference);
-                    } else if (actions[0].equals(ARConstants.INSERT)) {
-                        String reference = actions[1];
-                        valueInsert = dataExcel.get(reference);
+                addRowFromMap(mapExportRows);
+                if (excelFieldName != null && excelFieldName.toLowerCase().endsWith(".csv")) {
+                    if (Strings.isNullOrEmpty(delimiterCSV)) {
+                        delimiterCSV = ",";
                     }
 
-                    Pair<String, String> msgInstruction = new Pair(
-                            currentInstruction.getName(),
-                            (currentInstruction.getOperation() != null
-                                    ? currentInstruction.getOperation()
-                                    : (actions[0].equalsIgnoreCase(ARConstants.INSERT)) ? valueInsert : ""));
-
-                    resultActions = performActions.actionResultMessage(blockName, actions, msgInstruction);
-
-                    try {
-
-                        if (actions[0].equals(ARConstants.HOLD)
-                                || actions[0].equals(ARConstants.QUIT)
-                                || actions[0].equals(ARConstants.SCREEN)
-                                || actions[0].equals(ARConstants.REFRESH_ONLY)) {
-                            performActions.performOtherActions(byPassNotFound, currentInstruction, actions);
-
-                            if (actions[0].equals(ARConstants.QUIT)) {
-                                stopAll = true;
-                                success = true;
-                            }
-
-                            // Excel Report and Log
-                            performActions.logAndReport(
-                                    currentCondition,
-                                    true,
-                                    true,
-                                    currentInstructionStartTime,
-                                    blockReportName,
-                                    success,
-                                    actions,
-                                    msgInstruction,
-                                    dataExcel,
-                                    writerReport,
-                                    mainMsg,
-                                    finalLogMessage(failedMessage, resultActions));
-
-                            continue;
-                        }
-
-                        WebElement webElementFound = null;
-                        boolean forceCoordinates = currentInstruction.getForceCoordinates() != null
-                                && currentInstruction.getForceCoordinates();
-
-                        try {
-                            webElementFound =
-                                    performActions.searchElement(currentInstruction, botJobId, forceCoordinates);
-                        } catch (Exception ex) {
-                        }
-
-                        success = performActions.performWebActions(
-                                byPassNotFound,
-                                mapSavedLocators.get("coordinates"),
-                                dataDynamic,
-                                currentInstruction,
-                                mapOperators,
-                                webElementFound,
-                                actions);
-
-                        // Special Cases for Select Responses
-                        // It could be Improved the case
-                        if (resultActions.contains("Error:")) {
-                            success = false;
-                        } else if (resultActions != null) {
-                            currentInstruction.setExecuted(true);
-                            success = true;
-                        } else {
-                            failedMessage = "Failed: Execution";
-                            msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
-
-                            resultActions = currentInstruction.getName();
-                            success = false;
-                        }
-
-                        // Excel Report and Log
-                        performActions.logAndReport(
-                                currentCondition,
-                                true,
-                                true,
-                                currentInstructionStartTime,
-                                blockReportName,
-                                success,
-                                actions,
-                                msgInstruction,
-                                dataExcel,
-                                writerReport,
-                                mainMsg,
-                                finalLogMessage(failedMessage, resultActions));
-
-                    } catch (Throwable t) {
-                        success = false;
-                        currentInstruction.setExecuted(false);
-
-                        failedMessage = "Failed: ";
-                        msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
-
-                        // Excel Report and Log
-                        performActions.logAndReport(
-                                currentCondition,
-                                true,
-                                true,
-                                currentInstructionStartTime,
-                                blockReportName,
-                                success,
-                                actions,
-                                msgInstruction,
-                                dataExcel,
-                                writerReport,
-                                mainMsg,
-                                finalLogMessage(failedMessage, resultActions));
-
-                        //                        throw new RuntimeException(t);
+                    String csvContent = getBancaStatoCsvContent(delimiterCSV);
+                    writeToFile(excelFieldName, csvContent);
+                    if (xExcelDataSize > 1) {
+                        mapExportRows = new LinkedHashMap<>();
                     }
-                    printLog(
-                            generateTimestamp(),
-                            logFileForSingleExcel,
-                            finalLogMessage(failedMessage, resultActions),
-                            success);
+                    excelFieldName = "";
+                } else if (excelFieldName != null
+                        && excelFieldName.toLowerCase().endsWith(".xlsx")) {
+                    //
+                    //                    writerExport.insertFieldNameAndValueLastColumn(mapExportRows, exportIndex -
+                    // 1);
+                    writerExport.insertCSVContentIntoExcel(columnsCSV, rowsCSV, exportIndex - 1);
                 }
             }
         }
-        launchBotJobButton.setDisable(false);
 
         totalExecutionTime = performActions.getTotalExecutionTime();
 
@@ -4578,22 +4572,18 @@ public class ARScannedElementPane extends ARPane {
         }
 
         // PRINT END BASE LOG//
-
         if (success) {
             baseLogString = blocksLoaded.get(0).getName()
-                    + ARConstants.FIELDS_SEPARATOR
+                    + ARConstantsEngine.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.END)
-                    + ARConstants.FIELDS_SEPARATOR
+                    + ARConstantsEngine.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.OK);
 
-            if (!isInterceptBotJob()) {
-                rowStatus.setColor("green"); // #1d9c06 deep carmine green
-                jsonStatus = gson.toJson(rowStatus);
-                webSocketSessionManager.sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
-
+            if (isInterceptBotJob()) {
+                updateRowStatusAndNotify("yellow"); // #fcba03 deep carmine yellow
                 performMessage.showCustomModalDialogDragWin11(
-                        "Bot-Job Finished - successfully",
-                        botJobName,
+                        "Bot-Job Interrupted successfully",
+                        currentBotJobName,
                         "Last Execution:",
                         resultActions,
                         null,
@@ -4602,19 +4592,16 @@ public class ARScannedElementPane extends ARPane {
                         null,
                         300);
             } else {
-                rowStatus.setColor("yellow"); // #fcba03 deep carmine yellow
-                jsonStatus = gson.toJson(rowStatus);
-                webSocketSessionManager.sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
-
-                performMessage.showCustomModalDialogDragWin11(
-                        "Bot-Job Interrupted successfully",
-                        botJobName,
+                updateRowStatusAndNotify("green"); // #1d9c06 deep carmine green
+                respModal = performMessage.showCustomModalDialogDragWin11(
+                        "Bot-Job Finished - successfully",
+                        currentBotJobName,
                         "Last Execution:",
                         resultActions,
                         null,
                         false,
                         "OK",
-                        null,
+                        "Close Browser",
                         300);
             }
 
@@ -4626,21 +4613,18 @@ public class ARScannedElementPane extends ARPane {
             countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: red;");
             countdownTextField.setText(resultActions);
             baseLogString = blocksLoaded.get(0).getName()
-                    + ARConstants.FIELDS_SEPARATOR
+                    + ARConstantsEngine.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.END)
-                    + ARConstants.FIELDS_SEPARATOR
+                    + ARConstantsEngine.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.KO)
-                    + ARConstants.FIELDS_SEPARATOR
+                    + ARConstantsEngine.FIELDS_SEPARATOR
                     + resultActions;
 
             if (isInterceptBotJob()) {
-                rowStatus.setColor("yellow"); // #fcba03 deep carmine yellow
-                jsonStatus = gson.toJson(rowStatus);
-                webSocketSessionManager.sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
-
+                updateRowStatusAndNotify("yellow"); // #fcba03 deep carmine yellow
                 performMessage.showCustomModalDialogDragWin11(
                         "Bot-Job Interrupted successfully",
-                        botJobName,
+                        currentBotJobName,
                         "Last Execution:",
                         resultActions,
                         null,
@@ -4648,632 +4632,45 @@ public class ARScannedElementPane extends ARPane {
                         "OK",
                         null,
                         300);
-            } else if (webElementWork) {
 
-                rowStatus.setColor("red"); // #FF3131 deep carmine red
-                jsonStatus = gson.toJson(rowStatus);
-                webSocketSessionManager.sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
-
-                performMessage.errorMessage(
-                        "Failed finding element (5 attempts).",
-                        "Use \"Force Coordinates\" in some cases.",
-                        !Strings.isNullOrEmpty(failedMessage) ? failedMessage : "Failed:",
-                        "Last Execution:",
-                        resultActions,
-                        350);
             } else {
-
-                rowStatus.setColor("red"); // #FF3131 deep carmine red
-                jsonStatus = gson.toJson(rowStatus);
-                webSocketSessionManager.sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
-
-                performMessage.errorMessage(
-                        "Process Execution Terminated",
-                        !Strings.isNullOrEmpty(failedMessage) ? failedMessage : "Failed:",
-                        "Last Execution:",
-                        resultActions,
-                        null,
-                        350);
+                updateRowStatusAndNotify("red"); // #FF3131 deep carmine red
+                if (webElementWork) {
+                    respModal = performMessage.showCustomModalDialogDragWin11(
+                            "Bot-Job Finished - successfully",
+                            currentBotJobName,
+                            "Last Execution:",
+                            resultActions,
+                            null,
+                            false,
+                            "OK",
+                            "Close Browser",
+                            300);
+                } else {
+                    respModal = performMessage.showCustomModalDialogDragWin11(
+                            "Process Execution Terminated",
+                            !Strings.isNullOrEmpty(failedMessage) ? failedMessage : "Failed:",
+                            "Last Execution:",
+                            resultActions,
+                            null,
+                            true,
+                            "OK",
+                            "Close Browser",
+                            350);
+                }
             }
         }
-        printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
+
+        logLaunch.info(baseLogString);
+
+        if (resultActions.equalsIgnoreCase("Close Browser") || respModal.equals(ARExecution.DialogModal.STOP)) {
+            currentARWebDriver.getCurrentDriver().quit();
+        }
 
         shutDownExecutorService(executorServicePreLaunch);
         performActions.setInterceptBotJob(true);
         setInterceptBotJob(false);
         isJobRunning.set(false);
         return true;
-    }
-
-    private void shutDownExecutorService(ExecutorService executorService) {
-        if (executorService == null || executorService.isShutdown()) {
-            return;
-        }
-        executorService.shutdown();
-        try {
-            if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
-                executorService.shutdownNow();
-                if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
-                    System.err.println("ExecutorService did not terminate");
-                    ARLogger.getInstance(ARWebDriver.class).severe("ExecutorService did not terminate");
-                }
-            }
-        } catch (InterruptedException error) {
-            executorService.shutdownNow();
-            Thread.currentThread().interrupt();
-            ARLogger.getInstance(ARWebDriver.class).severe("ExecutorService did not terminate\n" + error.getMessage());
-        }
-    }
-
-    private void clearFields() {
-        coordsTextField.setText("");
-        countdownTextField.setText("Pre-Launch status: Ready");
-        countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
-        mainPane.requestLayout();
-    }
-
-    public static List<InstructionLoadDTO> getUnexecutedInstructions(
-            List<InstructionLoadDTO> instructionsExecuted, List<InstructionLoadDTO> otherList) {
-        // Create a set of instructionOrderNumbers from instructionsExecuted
-        Set<Integer> executedInstructionOrderNumbers = instructionsExecuted.stream()
-                .map(InstructionLoadDTO::getInstructionOrderNumber)
-                .collect(Collectors.toSet());
-
-        // Filter the otherList to get instructions where executed is false and not in
-        // executedInstructionOrderNumbers
-        return otherList.stream()
-                //                .filter(instruction -> instruction.getExecuted() != null &&
-                // !instruction.getExecuted())
-                .filter(instruction ->
-                        !executedInstructionOrderNumbers.contains(instruction.getInstructionOrderNumber()))
-                .collect(Collectors.toList());
-    }
-
-    private static void printBaseLog(File logFile, String timeStamp, String msg) {
-        String resultMsg;
-        String log = String.join(ARConstants.FIELDS_SEPARATOR, timeStamp, msg);
-
-        try {
-            FileWriter fileWriter = new FileWriter(logFile, true);
-            fileWriter.write(log + System.lineSeparator());
-            fileWriter.close();
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
-        }
-    }
-
-    private static String generateTimestamp() {
-        Date date = new Date();
-        dateFormatter = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
-        return dateFormatter.format(date);
-    }
-
-    private static void printLog(String timeStamp, File logFile, String resultActions, boolean result) {
-        String resultMsg = result ? ARConstants.SUCCESS : ARConstants.FAIL;
-        String log = String.join(ARConstants.FIELDS_SEPARATOR, timeStamp, resultMsg, resultActions);
-
-        try {
-            FileWriter fileWriter = new FileWriter(logFile, true);
-            fileWriter.write(log + System.lineSeparator());
-            fileWriter.close();
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
-        }
-    }
-
-    public void quit(int status) {
-        performActions.getCurrentDriver().quit();
-        if (status == 0) {
-            System.exit(status);
-        }
-        Close();
-    }
-
-    /**
-     * Finds all elements with the specified attribute and returns a map with their XPaths as keys.
-     *
-     * @param driver the WebDriver instance
-     * @param attribute the attribute to find elements by (e.g., "id" or "name")
-     * @return a map where keys are XPaths of elements and values are WebElements
-     */
-    private Map<String, WebElement> findElementsWithXPath(WebDriver driver, String attribute) {
-        jsExecutor = (JavascriptExecutor) driver;
-        List<WebElement> elements = (List<WebElement>)
-                jsExecutor.executeScript("return Array.from(document.querySelectorAll('[" + attribute + "]'));");
-        Set<WebElement> uniqueElements = new HashSet<>(elements);
-        Map<String, WebElement> elementMap = new HashMap<>();
-        for (WebElement element : uniqueElements) {
-            String xpath = getElementXPath(driver, element);
-            elementMap.put(xpath, element);
-        }
-        return elementMap;
-    }
-
-    /**
-     * Finds all elements of the specified tag name without "id" or "name" attributes and returns a
-     * map with their XPaths as keys.
-     *
-     * @param driver the WebDriver instance
-     * @param tagName the tag name of the elements to find (e.g., "input", "button")
-     * @return a map where keys are XPaths of elements and values are WebElements
-     */
-    private static Map<String, WebElement> findElementsWithoutIdOrName(WebDriver driver, String tagName) {
-        jsExecutor = (JavascriptExecutor) driver;
-        List<WebElement> elements = (List<WebElement>) jsExecutor.executeScript(
-                "return Array.from(document.querySelectorAll('" + tagName + ":not([id]):not([name])'));");
-        Set<WebElement> uniqueElements = new HashSet<>(elements);
-        Map<String, WebElement> elementMap = new HashMap<>();
-        for (WebElement element : uniqueElements) {
-            String xpath = getElementXPath(driver, element);
-            elementMap.put(xpath, element);
-        }
-        return elementMap;
-    }
-
-    /**
-     * Finds all elements of the specified tag name without "id" or "name" attributes and returns a
-     * map with their XPaths as keys.
-     *
-     * @param driver the WebDriver instance
-     * @return a map where keys are XPaths of elements and values are WebElements
-     */
-    private static Map<String, WebElement> findElementsOutputCriteria(WebDriver driver) {
-
-        String allWithText = "// Global array to store XPaths of elements with text\n"
-                + "let elementsWithText = [];\n"
-                + "(function() {\n"
-                + "    function getXPath(element) {\n"
-                + "        if (element.id) {\n"
-                + "            return `//*[@id='${element.id}']`;\n"
-                + "        }\n"
-                + "        if (element === document.body) {\n"
-                + "            return '/html/body';\n"
-                + "        }\n"
-                + "        let index = 1;\n"
-                + "        let siblings = element.parentNode ? element.parentNode.children : [];\n"
-                + "        for (let i = 0; i < siblings.length; i++) {\n"
-                + "            if (siblings[i] === element) {\n"
-                + "                return getXPath(element.parentNode) + '/' + element.tagName.toLowerCase() + `[${index}]`;\n"
-                + "            }\n"
-                + "            if (siblings[i].tagName === element.tagName) {\n"
-                + "                index++;\n"
-                + "            }\n"
-                + "        }\n"
-                + "        return '';\n"
-                + "    }\n"
-                + "\n"
-                + "    function collectElementsWithText() {\n"
-                + "        let elements = document.querySelectorAll('*');\n"
-                + "\n"
-                + "        elements.forEach(element => {\n"
-                + "            let text = element.textContent.trim();\n"
-                + "            if (text.length > 0 && element.offsetWidth > 0 && element.offsetHeight > 0) {\n"
-                + "                let xpath = getXPath(element);\n"
-                + "                if (xpath) {\n"
-                + "                    elementsWithText.push(xpath);\n"
-                + "                }\n"
-                + "            }\n"
-                + "        });\n"
-                + "        window.allWithText = elementsWithText;\n"
-                + "    }\n"
-                + "\n"
-                + "    window.allWithText = [];\n"
-                + "    collectElementsWithText();\n"
-                + "})();\n";
-
-        List<WebElement> elements = new ArrayList<>();
-        Map<String, WebElement> elementMap = new HashMap<>();
-
-        try {
-            jsExecutor = (JavascriptExecutor) driver;
-            jsExecutor.executeScript(allWithText);
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
-        }
-
-        try {
-            Thread.sleep(2);
-        } catch (InterruptedException e) {
-        }
-
-        String[] listXPaths = new String[0];
-
-        LinkedHashMap<String, Object> linkedHashMap = (LinkedHashMap<String, Object>)
-                jsExecutor.executeScript("var obj = { allWithText: window.allWithText }; return obj;");
-
-        // Convert the LinkedHashMap to a Java Map (if necessary)
-        Map<String, Object> resultMap = new LinkedHashMap<>(linkedHashMap);
-
-        if (linkedHashMap != null) {
-            //            Platform.runLater(() -> {
-            //                                iFrameXPath = (String) resultMap.get("iFrameXPath");
-
-            Object iframeElementsObject = resultMap.get("allWithText");
-
-            if (iframeElementsObject instanceof List<?> iframeElementsList) {
-                // Convert List to String[]
-                lstAllPaths = iframeElementsList.toArray(new String[0]);
-            } else if (iframeElementsObject instanceof Object[]) {
-                // If it's an array, check if it's an array of Strings
-                lstAllPaths = Arrays.copyOf(
-                        (Object[]) iframeElementsObject, ((Object[]) iframeElementsObject).length, String[].class);
-            } else {
-                System.out.println("The iframeElements data is not a List or an array.");
-            }
-
-            for (String xPath : lstAllPaths) {
-                WebElement element = driver.findElement(By.xpath(xPath));
-                if (element != null) {
-                    elementMap.put(xPath, element);
-                }
-            }
-            //            });
-        }
-
-        //        List<WebElement> elements = driver.findElements(By.xpath("//label[@for]"));
-        //        Set<WebElement> uniqueElements = new HashSet<>(elements);
-        //
-        //        elements = driver.findElements(By.xpath("//label[not(@for)]"));
-        //        uniqueElements.addAll(elements);
-        //
-        //        elements = driver.findElements(By.xpath("//label[normalize-space(text()) != '']"));
-        //        uniqueElements.addAll(elements);
-        //
-        //        elements = driver.findElements(By.xpath("//div[normalize-space(text()) != '']"));
-        //        uniqueElements.addAll(elements);
-        //
-        //        elements = driver.findElements(By.xpath("//span[normalize-space(text()) != '']"));
-        //        uniqueElements.addAll(elements);
-        //
-        //        elements = driver.findElements(By.xpath("//div[@for]"));
-        //        uniqueElements.addAll(elements);
-        //
-        //        elements = driver.findElements(By.xpath("//div[not(@for)]"));
-        //        uniqueElements.addAll(elements);
-        //
-        //        elements = driver.findElements(By.xpath("//span[@for]"));
-        //        uniqueElements.addAll(elements);
-        //
-        //        elements = driver.findElements(By.xpath("//span[not(@for)]"));
-        //        uniqueElements.addAll(elements);
-        //
-        //        elements = driver.findElements(By.xpath("//label[@title != '' or @aria-label !=
-        // '']"));
-        //        uniqueElements.addAll(elements);
-
-        //        Map<String, WebElement> elementMap = new HashMap<>();
-        //        for (WebElement element : elements) {
-        //            String xpath = getElementXPath(driver, element);
-        //            elementMap.put(xpath, element);
-        //        }
-        return elementMap;
-    }
-
-    /**
-     * Prints out the elements, their specified attribute, and their XPath.
-     *
-     * @param elements a map where keys are XPaths of elements and values are WebElements
-     * @param attribute the attribute to print
-     */
-    private static void printElementsWithAttributeAndXPath(Map<String, WebElement> elements, String attribute) {
-        for (Map.Entry<String, WebElement> entry : elements.entrySet()) {
-            WebElement element = entry.getValue();
-            String xpath = entry.getKey();
-            String attributeValue = element.getAttribute(attribute);
-            System.out.println(
-                    "Tag: " + element.getTagName() + ", " + attribute + ": " + attributeValue + ", XPath: " + xpath);
-        }
-    }
-
-    /**
-     * Constructs the XPath of a given WebElement.
-     *
-     * @param driver the WebDriver instance
-     * @param element the WebElement to construct the XPath for
-     * @return the XPath of the element
-     */
-    private static String getElementXPath(WebDriver driver, WebElement element) {
-        return (String) ((JavascriptExecutor) driver)
-                .executeScript(
-                        "function absoluteXPath(element) {"
-                                + "    var comp, comps = [];"
-                                + "    var parent = null;"
-                                + "    var xpath = '';"
-                                + "    var getPos = function(element) {"
-                                + "        var position = 1, curNode;"
-                                + "        if (element.nodeType == Node.ATTRIBUTE_NODE) {"
-                                + "            return null;"
-                                + "        }"
-                                + "        for (curNode = element.previousSibling; curNode; curNode = curNode.previousSibling) {"
-                                + "            if (curNode.nodeName == element.nodeName) {"
-                                + "                ++position;"
-                                + "            }"
-                                + "        }"
-                                + "        return position;"
-                                + "    };"
-                                + "    if (element instanceof Document) {"
-                                + "        return '/';"
-                                + "    }"
-                                + "    for (; element && !(element instanceof Document); element = element.nodeType == Node.ATTRIBUTE_NODE ? element.ownerElement : element.parentNode) {"
-                                + "        comp = comps[comps.length] = {};"
-                                + "        switch (element.nodeType) {"
-                                + "            case Node.TEXT_NODE:"
-                                + "                comp.name = 'text()';"
-                                + "                break;"
-                                + "            case Node.ATTRIBUTE_NODE:"
-                                + "                comp.name = '@' + element.nodeName;"
-                                + "                break;"
-                                + "            case Node.PROCESSING_INSTRUCTION_NODE:"
-                                + "                comp.name = 'processing-instruction()';"
-                                + "                break;"
-                                + "            case Node.COMMENT_NODE:"
-                                + "                comp.name = 'comment()';"
-                                + "                break;"
-                                + "            case Node.ELEMENT_NODE:"
-                                + "                comp.name = element.nodeName;"
-                                + "                break;"
-                                + "        }"
-                                + "        comp.position = getPos(element);"
-                                + "    }"
-                                + "    for (var i = comps.length - 1; i >= 0; i--) {"
-                                + "        comp = comps[i];"
-                                + "        xpath += '/' + comp.name.toLowerCase();"
-                                + "        if (comp.position !== null) {"
-                                + "            xpath += '[' + comp.position + ']';"
-                                + "        }"
-                                + "    }"
-                                + "    return xpath;"
-                                + "}"
-                                + "return absoluteXPath(arguments[0]);",
-                        element);
-    }
-
-    @Override
-    public void start(Stage stage) throws Exception {
-        ARLogger.getInstance(ARWebDriver.class).severe("start from ARScannedElementPane");
-    }
-
-    @Override
-    public void stop() throws Exception {
-        // Cleanup tasks when the application stops
-        executorServicePreLaunch.shutdown();
-        try {
-            if (!executorServicePreLaunch.awaitTermination(5, TimeUnit.SECONDS)) {
-                executorServicePreLaunch.shutdownNow();
-                if (!executorServicePreLaunch.awaitTermination(5, TimeUnit.SECONDS)) {
-                    System.err.println("ExecutorService did not terminate");
-                    ARLogger.getInstance(ARWebDriver.class).severe("ExecutorService did not terminate");
-                }
-            }
-        } catch (InterruptedException e) {
-            executorServicePreLaunch.shutdownNow();
-            Thread.currentThread().interrupt();
-        }
-    }
-
-    private void Close() {
-        ARLogger.getInstance(ARScannedElementPane.class).finer("ARScannedElementPane Close()");
-        Platform.runLater(() -> {
-            Stage stage = (Stage) mainPane.getScene().getWindow();
-            stage.close();
-        });
-    }
-
-    private static void showAlertInfo(String title, String header, String content) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle(title);
-        alert.setHeaderText(header);
-        alert.setContentText(content);
-        alert.showAndWait();
-    }
-
-    private int preFillAddInstruction(
-            String name,
-            String description,
-            String actions,
-            String operation,
-            Integer onHold,
-            Integer varId,
-            Integer instructionOrderNumber,
-            boolean exportToAR,
-            String xPath,
-            String coordinates,
-            boolean forceCoordinates,
-            String iFrameXPath,
-            String tagName,
-            String shadowHost,
-            String shadowRoot,
-            String cssSelector,
-            Integer currentBotJobId,
-            Integer currentBlockId,
-            boolean updateRow) {
-
-        InstructionLoadDTO instructionLoadDTO = new InstructionLoadDTO();
-
-        instructionLoadDTO.setXpath(xPath);
-        instructionLoadDTO.setCoordinates(coordinates);
-        instructionLoadDTO.setForceCoordinates(forceCoordinates);
-        instructionLoadDTO.setIFrameXPath(iFrameXPath);
-
-        instructionLoadDTO.setTagName(tagName);
-        instructionLoadDTO.setShadowHost(shadowHost);
-        instructionLoadDTO.setShadowRoot(shadowRoot);
-        instructionLoadDTO.setCssSelector(cssSelector);
-
-        instructionLoadDTO.setName(name);
-
-        instructionLoadDTO.setCodified(false);
-
-        instructionLoadDTO.setInstructionOrderNumber(instructionOrderNumber);
-
-        instructionLoadDTO.setOptional(false);
-
-        //        InstructionLoadDTO.setOperation(operation);
-        instructionLoadDTO.setActions(actions);
-        instructionLoadDTO.setDescription(description);
-
-        instructionLoadDTO.setVariableId(varId);
-
-        instructionLoadDTO.setActionCustomMaxWaitSec(30);
-        instructionLoadDTO.setOnHoldSeconds(onHold);
-        //        InstructionLoadDTO.setBlock(savedBlockDTO);
-        instructionLoadDTO.setExportToABR(exportToAR);
-        instructionLoadDTO.setInstructionActive(true);
-
-        // Wrap the persistence in a try-catch block
-        int newId = -1;
-
-        try {
-            if (!updateRow) {
-                newId = performDataBase.insertInstruction(
-                        "botJobTasks", instructionLoadDTO, currentBotJobId, currentBlockId, homeBanking.getId());
-            } else {
-                newId = performDataBase.updateInstruction(
-                        "botJobTasks", instructionLoadDTO, currentBotJobId, currentBlockId, homeBanking.getId());
-            }
-
-        } catch (Exception e) {
-
-            ARLogger.getInstance(ARScannedElementPane.class)
-                    .severe(String.format(
-                            "Cannot Insert \"Instruction\"  \"%s\"\nCannot be saved!\nError: %s",
-                            instructionLoadDTO.getName(), e.getMessage()));
-
-            return -1;
-        }
-        return newId;
-    }
-
-    private void loadAllBlockItems(List<BlockLoadDTO> blockLoadDTOList) {
-        blocksItems.clear();
-        if (blockLoadDTOList.size() > 0) {
-            blocksItems.add(new ComboBoxVars("Execute All Blocks", "", -1, -1, -1, -1, null, -1, null));
-        } else {
-            blocksItems.add(new ComboBoxVars("#1 Default Block", "Default Block", 1, 1, -1, -1, null, -1, null));
-        }
-        for (BlockLoadDTO block : blockLoadDTOList) {
-            blocksItems.add(new ComboBoxVars(
-                    block.getBlockOrderNumber() + "# " + block.getName(),
-                    block.getName(),
-                    block.getBlockOrderNumber(),
-                    block.getId(),
-                    -1,
-                    -1,
-                    null,
-                    -1,
-                    null));
-        }
-    }
-
-    private Button createPathButton() {
-        Button button = componentBuilder.buildButton(
-                "", ARConstants.SPACE_L, ARConstants.ICON_REFRESH, ARConstants.SPACE_M, new Insets(3D));
-        button.setMaxWidth(ARConstants.SPACE_L);
-        AnchorPane.setRightAnchor(button, 0D);
-        return button;
-    }
-
-    private static String loadScriptFromResource(String resourcePath) throws IOException {
-        // Use ClassLoader to get the resource as an InputStream
-        try (InputStream inputStream =
-                ARScannedElementPane.class.getClassLoader().getResourceAsStream(resourcePath)) {
-            if (inputStream == null) {
-                throw new IOException("Resource not found: " + resourcePath);
-            }
-
-            // Convert InputStream to String
-            return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
-        }
-    }
-
-    public static boolean isBrowserClosed(WebDriver webDriver) {
-        try {
-            webDriver.getTitle(); // Try accessing a property
-            return false; // If no exception, browser is open
-        } catch (Exception e) {
-            return true; // If exception occurs, browser is closed
-        }
-    }
-
-    private void browserNotAttached() {
-        String webDriverPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
-        performMessage.errorMessage(
-                "The Browser attached with this Web Scanner is Not Active",
-                "<span style='font-style: italic;'>Session deleted as the browser has closed the connection!</span>",
-                "<span style='color: #E65100; font-weight: bold;'>WebDriver path:</span> <span style='font-weight: bold;'>"
-                        + webDriverPath
-                        + "</span>",
-                "<span style='font-style: italic;'>Please close and Re-Open the Scanner Tool.</span>",
-                "<span style='font-style: italic;'>Details: "
-                        + "Web Browser was closed before the Scanner Tool"
-                        + "</span>",
-                0);
-    }
-
-    private int handleGreaterThan(String value1, String value2) {
-        try {
-            double num1 = Double.parseDouble(value1);
-            double num2 = Double.parseDouble(value2);
-            return num1 > num2 ? 1 : 0;
-        } catch (NumberFormatException e) {
-            // Handle non-numeric values (e.g., log an error, return false)
-            return -1; // Or throw an exception
-        }
-    }
-
-    private int handleLessThan(String value1, String value2) {
-        try {
-            double num1 = Double.parseDouble(value1);
-            double num2 = Double.parseDouble(value2);
-            return num1 < num2 ? 1 : 0;
-        } catch (NumberFormatException e) {
-            // Handle non-numeric values
-            return -1; // Or throw an exception
-        }
-    }
-
-    private String finalLogMessage(String failedMessage, String resultActions) {
-        if (!Strings.isNullOrEmpty(failedMessage)) {
-            return failedMessage + resultActions;
-        }
-        return resultActions;
-    }
-
-    private void checkRunningProcess() {
-        checkCloneElement.setSelected(false);
-        launchBotJobButton.setDisable(false);
-        revertCloneInjections(performActions.getCurrentDriver());
-        revertHoverPickInjections(performActions.getCurrentDriver());
-        if (isJobRunning.get()) {
-            setInterceptBotJob(true);
-        }
-    }
-
-    private Pair<String, String> updateMSGInstruction(Pair<String, String> msgInstruction, String failedMessage) {
-        String currentKey = msgInstruction.getKey();
-        String updatedKey = failedMessage + " - " + currentKey;
-        return new Pair<>(updatedKey, msgInstruction.getValue());
-    }
-
-    private static int getMajorJavaVersion(String version) {
-        // For Java 9 and above, the version string starts with the major version (e.g., "17.0.1")
-        // For Java 8 and below, it starts with "1." (e.g., "1.8.0_311")
-        if (version.startsWith("1.")) {
-            return Integer.parseInt(version.substring(2, 3)); // e.g., "1.8" -> 8
-        } else {
-            String[] parts = version.split("\\.");
-            return Integer.parseInt(parts[0]); // e.g., "17.0.1" -> 17
-        }
-    }
-
-    private void setPayloadEmpty() {
-        this.botJobLoadList = new ArrayList<>();
-        BotJobLoadDTO botJobDTO = new BotJobLoadDTO();
-        botJobDTO.setId(this.botJobLoad.getId() != null ? this.botJobLoad.getId() : 0);
-        botJobDTO.setName(this.botJobLoad.getName() != null ? this.botJobLoad.getName() : "Bot Job Name Default");
-        botJobDTO.setBlockLoadDTOList(new ArrayList<>());
-        this.botJobLoadList.add(botJobDTO);
-
-        this.payloadEmpty = new PayloadJson(this.botJobLoad.getId(), this.botJobLoad.getName(), 0);
     }
 }

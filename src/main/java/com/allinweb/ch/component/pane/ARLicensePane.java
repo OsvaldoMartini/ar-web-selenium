@@ -6,7 +6,6 @@ import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.license.LicenceVal;
 import com.allinweb.ch.license.LicenseManager;
 import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
@@ -20,29 +19,42 @@ import java.io.IOException;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.control.Button;
-import javafx.scene.control.CheckBox;
-import javafx.scene.control.Label;
-import javafx.scene.control.RadioButton;
-import javafx.scene.control.TextArea;
-import javafx.scene.control.TextField;
-import javafx.scene.control.ToggleGroup;
-import javafx.scene.layout.AnchorPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Pane;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.VBox;
+import javafx.scene.control.*;
+import javafx.scene.layout.*;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class ARLicensePane extends ARPane {
 
+    private static final ARPropertyManager arPropertyManager;
+    private static final PerformMessage performMessage;
+    private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
     protected static volatile ARLicensePane instance;
+
+    static {
+        arPropertyManager = ARPropertyManager.getInstance();
+        performMessage = PerformMessage.getInstance();
+    }
+
+    private Button btnLicense; // Declare the License button
+    private Pane mainPane;
+    private CheckBox cbAgree;
+    private Button btnProceed;
+    private Button btnClose;
+    private RadioButton rbRequestLicense;
+    private RadioButton rbActivateLicense;
+    private RadioButton rbUseExistentLicense;
+    private TextField tfLicenseOwner;
+    private Button uploadButton;
+    private TextField filePathField;
+    private String fileFolder;
 
     // Private constructor to prevent instantiation
     private ARLicensePane() {
-        // Initialize if necessary
+
         super();
     }
 
@@ -62,32 +74,6 @@ public class ARLicensePane extends ARPane {
         defineDesktopFolder();
     }
 
-    private static final ARPropertyManager arPropertyManager;
-    private static final PerformMessage performMessage;
-    private static final ARComponentBuilder builder = new ARComponentBuilder();
-
-    static {
-        arPropertyManager = ARPropertyManager.getInstance();
-        performMessage = PerformMessage.getInstance();
-    }
-
-    private Button btnLicense; // Declare the License button
-
-    private Pane mainPane;
-    private CheckBox cbAgree;
-    private Button btnProceed;
-    private Button btnClose;
-
-    private RadioButton rbRequestLicense;
-    private RadioButton rbActivateLicense;
-    private RadioButton rbUseExistentLicense;
-    private TextField tfLicenseOwner;
-
-    private Button uploadButton;
-    private TextField filePathField;
-
-    private String fileFolder;
-
     @Override
     public Pane getPaneReference() {
         return mainPane;
@@ -97,59 +83,57 @@ public class ARLicensePane extends ARPane {
     public void initUIComponents() {
         // Initialize the License button
         //        LicenseManager.showAlert(
-        //                Alert.AlertType.INFORMATION, LicenseManager.checkLicenseFile().getStaus() +
-        // "\n\nPress OK to
+        //                Alert.AlertType.INFORMATION, LicenseManager.checkLicenseFile().getStaus() + "\n\nPress OK to
         // proceed.");
 
         // Header label for the application
         // TextArea for the License Agreement
         TextArea taLicenseAgreement = new TextArea(
                 """
-                SOFTWARE LICENSE AGREEMENT
+                        SOFTWARE LICENSE AGREEMENT
 
-                Important - Read Carefully: This License Agreement ("Agreement") is a legal contract between you
-                (an individual or a legal entity) and Allinweb SA. ("Licensor") for the software that accompanies
-                this agreement, which includes associated software and media material, whether printed, electronic, or online ("Software").
+                        Important - Read Carefully: This License Agreement ("Agreement") is a legal contract between you
+                        (an individual or a legal entity) and Allinweb SA. ("Licensor") for the software that accompanies
+                        this agreement, which includes associated software and media material, whether printed, electronic, or online ("Software").
 
-                1. License Grant:
-                   Subject to the terms of this Agreement, the Licensor grants you a non-exclusive,
-                   non-transferable license to use the Software for internal purposes according to the following limitations
-                   and in compliance with the provided documentation.
+                        1. License Grant:
+                           Subject to the terms of this Agreement, the Licensor grants you a non-exclusive,
+                           non-transferable license to use the Software for internal purposes according to the following limitations
+                           and in compliance with the provided documentation.
 
-                2. Restrictions:
-                   You are not authorized to:
-                   - Modify, translate, adapt, or create derivative works from the Software.
-                   - Reverse engineer, decompile, disassemble, or otherwise attempt to discover the Software's source code.
-                   - Resell, rent, sublicense, distribute, or otherwise transfer the Software without prior written consent from the Licensor.
-                   - Remove any copyright notices, trademarks, or other proprietary notices included in the Software.
+                        2. Restrictions:
+                           You are not authorized to:
+                           - Modify, translate, adapt, or create derivative works from the Software.
+                           - Reverse engineer, decompile, disassemble, or otherwise attempt to discover the Software's source code.
+                           - Resell, rent, sublicense, distribute, or otherwise transfer the Software without prior written consent from the Licensor.
+                           - Remove any copyright notices, trademarks, or other proprietary notices included in the Software.
 
-                3. Ownership of the Software:
-                   The Software is protected by copyright laws and international treaties, as well as other intellectual
-                   property laws and treaties. The Software is licensed, not sold.
+                        3. Ownership of the Software:
+                           The Software is protected by copyright laws and international treaties, as well as other intellectual
+                           property laws and treaties. The Software is licensed, not sold.
 
-                4. Limited Warranty:
-                   The Licensor warrants that the Software will operate substantially in accordance with the documentation
-                   for a period of ninety (90) days from the date of your purchase. Any replacement Software will be
-                   warranted for the remainder of the original warranty period or for thirty (30) days, whichever is longer.
+                        4. Limited Warranty:
+                           The Licensor warrants that the Software will operate substantially in accordance with the documentation
+                           for a period of ninety (90) days from the date of your purchase. Any replacement Software will be
+                           warranted for the remainder of the original warranty period or for thirty (30) days, whichever is longer.
 
-                5. Limitation of Liability:
-                   In no event shall the Licensor be liable for special, incidental, indirect, or consequential damages
-                   resulting from the use or inability to use the Software, even if the Licensor has been advised of
-                   the possibility of such damages. In no event shall the Licensor's liability for damages exceed
-                   the amount paid to purchase the Software.
+                        5. Limitation of Liability:
+                           In no event shall the Licensor be liable for special, incidental, indirect, or consequential damages
+                           resulting from the use or inability to use the Software, even if the Licensor has been advised of
+                           the possibility of such damages. In no event shall the Licensor's liability for damages exceed
+                           the amount paid to purchase the Software.
 
-                6. Termination:
-                   This Agreement remains in effect until terminated. This Agreement will automatically terminate without notice
-                   from the Licensor if you fail to comply with any term or condition of this Agreement.
+                        6. Termination:
+                           This Agreement remains in effect until terminated. This Agreement will automatically terminate without notice
+                           from the Licensor if you fail to comply with any term or condition of this Agreement.
 
-                7. Miscellaneous:
-                   This Agreement constitutes the entire agreement between you and the Licensor and supersedes all prior
-                   communications, proposals, or agreements, whether verbal or written, regarding the Software.
-                """);
+                        7. Miscellaneous:
+                           This Agreement constitutes the entire agreement between you and the Licensor and supersedes all prior
+                           communications, proposals, or agreements, whether verbal or written, regarding the Software.
+                        """);
 
         Label headerLabel = new Label("AR Web Activation software required");
-        headerLabel.setStyle("-fx-text-fill: white; "
-                + // Keep text color white
+        headerLabel.setStyle("-fx-text-fill: white; " + // Keep text color white
                 "-fx-font-size: 14px; "
                 + "-fx-padding: 10;");
 
@@ -206,8 +190,7 @@ public class ARLicensePane extends ARPane {
         radioAndUploadBox.setPadding(new Insets(10));
         radioAndUploadBox.setAlignment(Pos.TOP_LEFT);
 
-        //        HBox radioButtonsBox = new HBox(10, rbRequestLicense, rbActivateLicense,
-        // rbUseExistentLicense,
+        //        HBox radioButtonsBox = new HBox(10, rbRequestLicense, rbActivateLicense, rbUseExistentLicense,
         // uploadButton, filePathField);
         //        radioButtonsBox.setPadding(new Insets(10));
 
@@ -321,7 +304,7 @@ public class ARLicensePane extends ARPane {
         cbAgree.setOnAction(event -> btnProceed.setDisable(!cbAgree.isSelected()));
 
         btnClose.setOnAction(event -> {
-            ARLogger.getInstance(ARLicensePane.class).finer("ARLicensePane close()");
+            log.info("ARLicensePane close()");
             Platform.runLater(() -> {
                 Stage stage = (Stage) btnClose.getScene().getWindow();
                 stage.close();
@@ -362,8 +345,7 @@ public class ARLicensePane extends ARPane {
                                     "<span style='color: #0277BD; font-weight: bold;'>Please send this request file to your provider to receive the User License.</span>",
                                     "<span style='font-style: italic;'>This request file contains encrypted system information required for license activation.</span>",
                                     "<span style='color: #E65100; font-weight: bold;'>Request file path:</span> <span style='font-weight: bold;'>"
-                                            + fileFolder
-                                            + "</span>",
+                                            + fileFolder + "</span>",
                                     false,
                                     "OK",
                                     null,
@@ -391,8 +373,7 @@ public class ARLicensePane extends ARPane {
                                             "<span style='color: #0277BD; font-weight: bold;'>You may now use the application without restrictions.</span>",
                                             "<span style='font-style: italic;'>You can close this message and continue.</span>",
                                             "<span style='color: #E65100; font-weight: bold;'>License path:</span> <span style='font-weight: bold;'>"
-                                                    + licensePath
-                                                    + "</span>",
+                                                    + licensePath + "</span>",
                                             false,
                                             "OK",
                                             null,
@@ -407,8 +388,7 @@ public class ARLicensePane extends ARPane {
                                         "<span style='color: #0277BD; font-weight: bold;'>Please make sure the response file is available and try again.</span>",
                                         "<span style='font-style: italic;'>Ensure the file was received from your provider and has not been modified.</span>",
                                         "<span style='color: #E65100; font-weight: bold;'>Expected license path:</span> <span style='font-weight: bold;'>"
-                                                + fileFolder
-                                                + "</span>",
+                                                + fileFolder + "</span>",
                                         0);
                             }
                         } else if (rbUseExistentLicense.isSelected()) {
@@ -431,8 +411,7 @@ public class ARLicensePane extends ARPane {
                                             "<span style='color: #0277BD; font-weight: bold;'>You may now use the application without restrictions.</span>",
                                             "<span style='font-style: italic;'>You can close this message and continue.</span>",
                                             "<span style='color: #E65100; font-weight: bold;'>License path:</span> <span style='font-weight: bold;'>"
-                                                    + filePathField.getText().trim()
-                                                    + "</span>",
+                                                    + filePathField.getText().trim() + "</span>",
                                             false,
                                             "OK",
                                             null,
@@ -444,6 +423,7 @@ public class ARLicensePane extends ARPane {
                         }
                     }
                 } catch (Exception error) {
+                    log.error("License Activation Error: {} ->  {}", fileFolder, error.getMessage());
                     performMessage.errorMessage(
                             "License Activation Error",
                             "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>An error occurred during the license activation or verification process.</span>",
@@ -473,8 +453,7 @@ public class ARLicensePane extends ARPane {
                     "<span style='color: " + msgColor + "; font-weight: bold;'>" + msgValid + "</span>",
                     "<span style='font-style: italic;'>" + msgNextStep + "</span>",
                     "<span style='color: #E65100; font-weight: bold;'>Current license status:</span> <span style='font-weight: bold;'>"
-                            + licenseStatus.getStaus()
-                            + "</span>",
+                            + licenseStatus.getStaus() + "</span>",
                     false,
                     "OK",
                     null,
@@ -501,20 +480,16 @@ public class ARLicensePane extends ARPane {
                             .SHGetKnownFolderPath(KnownFolders.FOLDERID_Desktop, 0, null, ppszPath)
                             .intValue()
                     != 0) {
+                log.warn("Error reading/writing to the file! -> Desktop Folder");
                 //                performMessage.errorMessage(
                 //                        "Error reading/writing to the file!",
-                //                        "<span style='color: #D32F2F; font-weight: bold; font-size:
-                // 1.1em;'>Please
-                // verify that you have the necessary permissions to read and write to the specified
-                // directory.</span>",
-                //                        "<span style='color: #E65100; font-weight: bold;'>Attempted to
-                // access the
+                //                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please
+                // verify that you have the necessary permissions to read and write to the specified directory.</span>",
+                //                        "<span style='color: #E65100; font-weight: bold;'>Attempted to access the
                 // following location:</span> <span style='font-weight: bold;'>Desktop</span>",
-                //                        "<span style='color: #E65100; font-style: italic; font-weight:
-                // bold;'>The
+                //                        "<span style='color: #E65100; font-style: italic; font-weight: bold;'>The
                 // request for the License file path was defined at:</span>",
-                //                        "<span style='color: #1A237E; font-style: italic; font-weight:
-                // bold;
+                //                        "<span style='color: #1A237E; font-style: italic; font-weight: bold;
                 // font-size: 1.05em;'>Desktop Folder</span>",
                 //                        0);
 
@@ -536,16 +511,19 @@ public class ARLicensePane extends ARPane {
                     fileFolder = System.getProperty("user.dir");
                 }
             }
-
-            performMessage.errorMessage(
-                    "Error reading/writing to the file!",
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please verify that you have the necessary permissions to read and write to the specified directory.</span>",
-                    "<span style='color: #E65100; font-weight: bold;'>Attempted to access the following location:</span> <span style='font-weight: bold;'>Desktop</span>",
-                    "<span style='color: #E65100; font-style: italic; font-weight: bold;'>The request for the License file path was defined at:</span>",
-                    "<span style='color: #1A237E; font-style: italic; font-weight: bold; font-size: 1.05em;'>"
-                            + fileFolder
-                            + "</span>",
-                    0);
+            log.warn("Error reading/writing to the file: " + fileFolder);
+            //            performMessage.errorMessage(
+            //                    "Error reading/writing to the file!",
+            //                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please verify that
+            // you have the necessary permissions to read and write to the specified directory.</span>",
+            //                    "<span style='color: #E65100; font-weight: bold;'>Attempted to access the following
+            // location:</span> <span style='font-weight: bold;'>Desktop</span>",
+            //                    "<span style='color: #E65100; font-style: italic; font-weight: bold;'>The request for
+            // the License file path was defined at:</span>",
+            //                    "<span style='color: #1A237E; font-style: italic; font-weight: bold; font-size:
+            // 1.05em;'>"
+            //                            + fileFolder + "</span>",
+            //                    0);
         }
     }
 }

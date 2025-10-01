@@ -1,8 +1,10 @@
 package com.allinweb.ch.component.pane;
 
 import java.util.Objects;
+import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.WebElement;
 
+@Slf4j
 public class WebElementWrapper {
     private String text;
     private String href;
@@ -65,15 +67,9 @@ public class WebElementWrapper {
 
     @Override
     public String toString() {
-        return "WebElementWrapper{"
-                + "text='"
-                + text
-                + '\''
-                + ", href='"
-                + href
-                + '\''
-                + ", webElement="
-                + webElement
-                + '}';
+        return "WebElementWrapper{" + "text='"
+                + text + '\'' + ", href='"
+                + href + '\'' + ", webElement="
+                + webElement + '}';
     }
 }

@@ -1,8 +1,9 @@
 package com.allinweb.ch.util;
 
 import javafx.scene.image.Image;
+import lombok.extern.slf4j.Slf4j;
 
-// Helper class to hold text and image
+@Slf4j
 public class ComboBoxOperator {
     private final String text;
     private final Image image;

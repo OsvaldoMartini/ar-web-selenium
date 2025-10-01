@@ -1,12 +1,12 @@
 // File: src/main/java/com/allinweb/ch/socket/SimpleHttpServer.java (or a suitable package)
 package com.allinweb.ch.socket;
 
-import com.allinweb.ch.util.ARLogger;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.server.handler.HandlerList;
@@ -17,10 +17,10 @@ import org.eclipse.jetty.util.resource.Resource;
  * A simple HTTP server using Jetty to serve static files from a 'web' directory. If
  * 'web/index.html' does not exist, it will create a basic one.
  */
+@Slf4j
 public class SimpleHttpServerBase {
     private static Server httpServer;
     private static final String WEB_DIR_NAME = "web";
-    private static final ARLogger logger = ARLogger.getInstance(SimpleHttpServerBase.class);
 
     /**
      * Starts the HTTP server on the specified port. It will attempt to create a 'web' directory and
@@ -44,9 +44,9 @@ public class SimpleHttpServerBase {
         if (!Files.exists(staticContentPath)) {
             try {
                 Files.createDirectories(staticContentPath);
-                logger.info("Created static content directory: " + staticContentPath);
+                log.info("Created static content directory: " + staticContentPath);
             } catch (IOException e) {
-                logger.severe("Failed to create static content directory: "
+                log.error("Failed to create static content directory: "
                         + staticContentPath
                         + " Error: "
                         + e.getMessage());
@@ -90,9 +90,9 @@ public class SimpleHttpServerBase {
                     + "</html>";
             try {
                 Files.write(indexHtmlPath, htmlContent.getBytes());
-                logger.info("Created default index.html at: " + indexHtmlPath);
+                log.info("Created default index.html at: " + indexHtmlPath);
             } catch (IOException e) {
-                logger.severe("Failed to create default index.html: " + indexHtmlPath + " Error: " + e.getMessage());
+                log.error("Failed to create default index.html: " + indexHtmlPath + " Error: " + e.getMessage());
                 throw new IOException("Failed to create default index.html.", e);
             }
         }
@@ -115,7 +115,7 @@ public class SimpleHttpServerBase {
 
         // Start the server
         httpServer.start();
-        logger.info("HTTP Server started at http://localhost:" + port);
+        log.info("HTTP Server started at http://localhost:" + port);
         System.out.println("HTTP Server started at http://localhost:" + port);
     }
 
@@ -128,7 +128,7 @@ public class SimpleHttpServerBase {
         if (httpServer != null && httpServer.isStarted()) {
             httpServer.stop();
             httpServer.join(); // Wait for the server to gracefully stop
-            logger.info("HTTP Server stopped.");
+            log.info("HTTP Server stopped.");
             System.out.println("HTTP Server stopped.");
         }
     }

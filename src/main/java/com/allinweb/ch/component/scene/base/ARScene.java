@@ -2,28 +2,36 @@ package com.allinweb.ch.component.scene.base;
 
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARLogger;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
-public abstract class ARScene implements IARScene {
+@Slf4j
+public abstract class ARScene implements IARScene, IconLoader {
 
-    private Image icon;
-    protected Stage stage; // Make stage protected to allow access in subclass
-    private Scene scene; // Keep a reference to the scene
     protected final List<Thread> threadList = new ArrayList<>();
+
+    @Setter
+    protected Image icon;
+
+    protected Stage stage; // Make stage protected to allow access in subclass
     // Flag to track if the close request handler has been set
     protected boolean isCloseHandlerSet = false;
+    private Scene scene; // Keep a reference to the scene
 
     public ARScene() {
         setupStage(); // Initialize the stage and set its behavior
         loadIcon();
+    }
+
+    public void loadIcon() {
+        loadAndSetIcon(ARConstants.ICON_APPLICATION); // e.g. "/images/ABR_icon.png"
     }
 
     public abstract IARPane buildPane();
@@ -51,17 +59,9 @@ public abstract class ARScene implements IARScene {
                 stage = new Stage(); // Retry stage creation if failed
                 setStageBehaviour(stage); // Ensure stage behavior is set
             } catch (IllegalStateException ex) {
-                ARLogger.getInstance(ARScene.class).severe("ARScene IllegalStateException: " + ex);
+                log.error("ARScene IllegalStateException: " + ex);
             }
         });
-    }
-
-    private void loadIcon() {
-        try {
-            icon = new Image(Objects.requireNonNull(getClass().getResourceAsStream(ARConstants.ICON_APPLICATION)));
-        } catch (Exception e) {
-            ARLogger.getInstance(ARScene.class).severe("Error loading icon in ARScene\n" + e);
-        }
     }
 
     public void createScene() {
@@ -111,13 +111,13 @@ public abstract class ARScene implements IARScene {
 
     protected void handleCloseThreads() {
         if (!isCloseHandlerSet) {
-            System.out.println("Setting close handler for the first time");
+            log.info("Setting close handler for the first time");
             this.stage.setOnCloseRequest(event -> {
                 threadList.forEach(this::interruptThread);
             });
             isCloseHandlerSet = true; // Mark the flag as true after setting
         } else {
-            System.out.println("Close handler already set, skipping...");
+            log.info("Close handler already set, skipping...");
         }
     }
 
@@ -140,7 +140,7 @@ public abstract class ARScene implements IARScene {
         cleanUpFinishedThreads();
         for (Thread existingThread : threadList) {
             if (existingThread.getName().equals(threadName) && existingThread.isAlive()) {
-                ARLogger.getInstance(ARScene.class).info("Thread with name '" + threadName + "' is already running.");
+                log.info("Thread with name '" + threadName + "' is already running.");
                 return;
             }
         }
@@ -153,7 +153,7 @@ public abstract class ARScene implements IARScene {
     }
 
     private void handleWindowClose(WindowEvent event) {
-        ARLogger.getInstance(ARScene.class).info("X button clicked. Window is closing.");
+        log.info("X button clicked. Window is closing.");
         // Platform.exit();
         System.exit(0);
     }

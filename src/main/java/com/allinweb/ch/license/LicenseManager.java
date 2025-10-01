@@ -21,7 +21,9 @@ import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class LicenseManager {
     private static final String KEY = "0123456789abcdef"; // 16-byte key for AES-128
     private static final PerformMessage performMessage;
@@ -42,21 +44,21 @@ public class LicenseManager {
         // Write the encrypted data to the file
         try (FileWriter writer = new FileWriter(newFile)) {
             writer.write(encryptedRequest);
-            System.out.println("File saved to: " + newFile.getAbsolutePath());
+            log.info("File saved to: " + newFile.getAbsolutePath());
         } catch (IOException error) {
-            System.err.println("Error writing to file: " + error.getMessage());
-
-            performMessage.errorMessage(
-                    "Error reading/writing to the file!",
-                    "<span style='font-style: italic;'>Please ensure the application has the necessary write permissions for the specified directory</span>",
-                    "<span style='color: #E65100; font-weight: bold;'>Attempted to read/write:</span> <span style='font-weight: bold;'>"
-                            + fileFolder
-                            + "</span>",
-                    "<span style='color: #E65100; font-weight: bold;'>File name:</span> <span style='color: #6A1B9A; font-weight: bold;'>"
-                            + fileName
-                            + "</span>",
-                    "<span style='font-style: italic;'>Details: " + "error.getMessage()" + "</span>",
-                    0);
+            log.warn("Error reading/writing to the file: " + error.getMessage());
+            //            performMessage.errorMessage(
+            //                    "Error reading/writing to the file!",
+            //                    "<span style='font-style: italic;'>Please ensure the application has the necessary
+            // write permissions for the specified directory</span>",
+            //                    "<span style='color: #E65100; font-weight: bold;'>Attempted to read/write:</span>
+            // <span style='font-weight: bold;'>"
+            //                            + fileFolder + "</span>",
+            //                    "<span style='color: #E65100; font-weight: bold;'>File name:</span> <span
+            // style='color: #6A1B9A; font-weight: bold;'>"
+            //                            + fileName + "</span>",
+            //                    "<span style='font-style: italic;'>Details: " + "error.getMessage()" + "</span>",
+            //                    0);
         }
     }
 
@@ -102,6 +104,7 @@ public class LicenseManager {
             byte[] decrypted = cipher.doFinal(Base64.getDecoder().decode(encryptedData));
             return new String(decrypted);
         } catch (Exception error) {
+            log.error("An error occurred while decrypting the license file.");
             performMessage.errorMessage(
                     "An error occurred while decrypting the license file.",
                     "File Name:",
@@ -149,7 +152,7 @@ public class LicenseManager {
         String[] parts = decryptedContent.split("\\|");
         if (parts.length != 4) return LicenceVal.MISSING; // Invalid data format
 
-        //        System.out.println("License:" + parts);
+        //        log.info("License:" + parts);
 
         String pcID = parts[0];
         String domainName = parts[1];
@@ -158,7 +161,7 @@ public class LicenseManager {
         String formatted = expiryDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
         arPropertyManager.setProperty(ARPropertyEnum.EXPIRATION.getValue(), formatted);
 
-        // System.out.println(" expiryDate is " + expiryDate);
+        // log.info(" expiryDate is " + expiryDate);
         // Check if the PC ID matches and the current date is before the expiry date
         if (LocalDate.now().isAfter(expiryDate)) return LicenceVal.EXPIRED; // date has expired
 
@@ -202,10 +205,10 @@ public class LicenseManager {
             // Write the encrypted data to the file
             try (FileWriter writer = new FileWriter(newFile)) {
                 writer.write(encryptedResponse);
-                System.out.println("File saved to: " + newFile.getAbsolutePath());
+                log.info("File saved to: " + newFile.getAbsolutePath());
                 return "File creation success";
             } catch (IOException e) {
-                System.err.println("Error writing to file: " + e.getMessage());
+                log.error("Error writing to file: " + e.getMessage());
                 performMessage.errorMessage(
                         "Error writing to the file!",
                         "File Name:",

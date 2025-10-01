@@ -3,8 +3,10 @@ package com.allinweb.ch.builder;
 import com.allinweb.ch.util.ARWebUtil;
 import java.util.HashMap;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.WebElement;
 
+@Slf4j
 public class WebElementScriptBuilder {
 
     private static final String DOUBLE_APEX = "\"";
@@ -41,23 +43,13 @@ public class WebElementScriptBuilder {
     }
 
     private String getReference(WebElementAttributeEnum attributeReference) {
-        return "document.querySelector("
-                + DOUBLE_APEX
-                + currentElementSelected.getTagName()
-                + "["
-                + attributeReference.getValue()
-                + "='"
-                + currentElementSelected.getAttribute(attributeReference.getValue())
-                + "']"
-                + DOUBLE_APEX
-                + ")";
+        return "document.querySelector(" + DOUBLE_APEX + currentElementSelected.getTagName() + "["
+                + attributeReference.getValue() + "='"
+                + currentElementSelected.getAttribute(attributeReference.getValue()) + "']" + DOUBLE_APEX + ")";
     }
 
     private String getXPathReference() {
-        return "document.evaluate("
-                + DOUBLE_APEX
-                + extractXPath()
-                + DOUBLE_APEX
+        return "document.evaluate(" + DOUBLE_APEX + extractXPath() + DOUBLE_APEX
                 + ", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue";
     }
 

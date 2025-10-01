@@ -4,21 +4,30 @@ import com.allinweb.ch.component.model.HomeBankingLoadDTO;
 import com.allinweb.ch.component.pane.ARNewHomeBankingPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
-import com.allinweb.ch.util.ARLogger;
+import com.allinweb.ch.facade.PerformLists;
 import java.util.List;
 import javafx.application.Platform;
-import javafx.collections.ObservableList;
+import javafx.collections.FXCollections;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class ARNewHomeBankingScene extends ARScene {
 
+    private static final PerformLists performLists = PerformLists.getInstance();
+    private static final ARNewHomeBankingPane arNewHomeBankingPane = ARNewHomeBankingPane.getInstance();
+    private static final Double SCENE_HEIGHT = 750D;
+    private static final Double SCENE_WIDTH = 1200D;
+    private static final String TITLE = "New Organization";
     protected static volatile ARNewHomeBankingScene instance;
-
+    private static HomeBankingLoadDTO homeBank;
+    private Stage modalStage;
+    private Scene modalScene;
     // Private constructor to prevent instantiation
     private ARNewHomeBankingScene() {
-        // Initialize if necessary
+
         super();
     }
 
@@ -33,25 +42,10 @@ public class ARNewHomeBankingScene extends ARScene {
         return instance;
     }
 
-    private Stage modalStage;
-    private Scene modalScene;
+    public void initialize(HomeBankingLoadDTO homeBank) {
+        this.homeBank = homeBank;
 
-    private static final ARNewHomeBankingPane arNewHomeBankingPane;
-
-    static {
-        arNewHomeBankingPane = ARNewHomeBankingPane.getInstance();
-    }
-
-    private static final Double SCENE_HEIGHT = 750D;
-    private static final Double SCENE_WIDTH = 1200D;
-    private static final String TITLE = "New Url";
-
-    private ObservableList<HomeBankingLoadDTO> homeBankingList;
-
-    public void initialize(ObservableList<HomeBankingLoadDTO> homeBankingList) {
-        this.homeBankingList = homeBankingList;
-
-        if (!isNullOrEmpty(arNewHomeBankingPane.getHomeBankingList())) {
+        if (!isNullOrEmpty(FXCollections.observableArrayList(performLists.getListHomeBanking()))) {
             arNewHomeBankingPane.updateTableBankingView();
         }
     }
@@ -60,18 +54,20 @@ public class ARNewHomeBankingScene extends ARScene {
         return list == null || list.isEmpty();
     }
 
-    public void showModal() {
+    public void showModal(Stage parentStage) {
 
-        arNewHomeBankingPane.initialize(homeBankingList);
+        arNewHomeBankingPane.initialize(homeBank);
 
         if (modalStage == null) {
             modalStage = new Stage();
+            modalStage.getIcons().add(icon);
             IARPane pane = buildPane();
             if (pane != null) {
                 modalScene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
                 modalStage.setScene(modalScene);
                 modalStage.setTitle(getTitle());
-                modalStage.initModality(Modality.NONE); // Changed to NONE
+                modalStage.initOwner(parentStage); // ✅ Set the owner first
+                modalStage.initModality(Modality.NONE);
                 modalStage.setAlwaysOnTop(true); // Set always on top
                 modalStage.toFront();
                 // Reset alwaysOnTop after showing so it behaves normally afterward
@@ -83,16 +79,17 @@ public class ARNewHomeBankingScene extends ARScene {
                 });
             } else {
                 // Handle the case where pane creation failed
-                ARLogger.getInstance(ARNewCommandScene.class).severe("Failed to build pane for modal.");
+                log.error("Failed to build pane for modal.");
                 return;
             }
         }
 
         modalStage.setTitle(getTitle()); // Update title if it might have changed
 
-        // Check if the stage is already showing
         if (!modalStage.isShowing()) {
-            modalStage.showAndWait(); // Show and wait only if not already showing
+            modalStage.showAndWait();
+        } else {
+            modalStage.requestFocus(); // 👈 only this, no forceful toFront
         }
     }
 
@@ -115,5 +112,16 @@ public class ARNewHomeBankingScene extends ARScene {
     @Override
     public String getTitle() {
         return TITLE;
+    }
+
+    public void closeModal() {
+        try {
+            if (modalStage != null) {
+                modalStage.close();
+            }
+            modalStage = null;
+        } catch (Exception error) {
+            log.error("Browser Closed Before Web Scanner. Error: " + error.getMessage());
+        }
     }
 }

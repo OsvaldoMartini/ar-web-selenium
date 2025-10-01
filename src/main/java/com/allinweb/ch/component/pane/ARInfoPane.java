@@ -15,14 +15,34 @@ import javafx.scene.control.Label;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class ARInfoPane extends ARPane {
 
+    private static final ARPropertyManager arPropertyManager;
+    private static final ARLicenseScene arLicenseScene;
     protected static volatile ARInfoPane instance;
+
+    static {
+        arPropertyManager = ARPropertyManager.getInstance();
+        arLicenseScene = ARLicenseScene.getInstance();
+    }
+
+    private boolean isEnabledLicence;
+    private Label applicationNameLabel;
+    private Label compileDateLabel;
+    private Label expirationDateLabel;
+    private Label copyrightLabel;
+    private Label rightsReservedLabel;
+
+    private Button btnLicense; // Declare the License button
+
+    private Pane mainPane;
 
     // Private constructor to prevent instantiation
     private ARInfoPane() {
-        // Initialize if necessary
+
         super();
     }
 
@@ -37,24 +57,8 @@ public class ARInfoPane extends ARPane {
         return instance;
     }
 
-    public void initialize() {}
-
-    private Label applicationNameLabel;
-    private Label compileDateLabel;
-    private Label expirationDateLabel;
-    private Label copyrightLabel;
-    private Label rightsReservedLabel;
-
-    private Button btnLicense; // Declare the License button
-
-    private Pane mainPane;
-
-    private static final ARPropertyManager arPropertyManager;
-    private static final ARLicenseScene arLicenseScene;
-
-    static {
-        arPropertyManager = ARPropertyManager.getInstance();
-        arLicenseScene = ARLicenseScene.getInstance();
+    public void initialize(boolean isEnabledLicence) {
+        this.isEnabledLicence = isEnabledLicence;
     }
 
     @Override
@@ -97,8 +101,14 @@ public class ARInfoPane extends ARPane {
 
         } catch (Exception e) {
             // Fallback in case of invalid format
-            expirationDateLabel.setStyle(baseLabelStyle + "-fx-text-fill: #d63031;");
-            expirationDateLabel.setText("Expiration: Invalid date");
+            if (isEnabledLicence) {
+                expirationDateLabel.setStyle(baseLabelStyle + "-fx-text-fill: #d63031; -fx-font-weight: bold;");
+                expirationDateLabel.setText("⚠ Unlicensed Version – Features May Be Limited");
+            } else {
+                expirationDateLabel.setStyle(
+                        baseLabelStyle + "-fx-text-fill: #3498db; -fx-font-weight: bold;"); // Blue tone
+                expirationDateLabel.setText("⚠ Unlicensed Version – Demo Version");
+            }
         }
 
         // VBox container
@@ -106,11 +116,8 @@ public class ARInfoPane extends ARPane {
                 5, applicationNameLabel, compileDateLabel, expirationDateLabel, copyrightLabel, rightsReservedLabel);
         versionInfoBox.setPadding(new Insets(12));
         versionInfoBox.setAlignment(Pos.CENTER_LEFT);
-        versionInfoBox.setStyle("-fx-background-color: #f1f2f6; "
-                + "-fx-border-color: #dcdde1; "
-                + "-fx-border-width: 1; "
-                + "-fx-border-radius: 6; "
-                + "-fx-background-radius: 6;");
+        versionInfoBox.setStyle("-fx-background-color: #f1f2f6; " + "-fx-border-color: #dcdde1; "
+                + "-fx-border-width: 1; " + "-fx-border-radius: 6; " + "-fx-background-radius: 6;");
 
         // Initialize the License button
         btnLicense = new Button("License");

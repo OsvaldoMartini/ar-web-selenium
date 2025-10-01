@@ -1,17 +1,41 @@
 package com.allinweb.ch.control;
 
-import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARLogger;
 import java.util.Objects;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
-import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.*;
+import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class ARComponentBuilder {
+
+    // Static final variable to hold the singleton instance
+    protected static volatile ARComponentBuilder instance;
+
+    // Private constructor to prevent instantiation
+    private ARComponentBuilder() {}
+
+    // Public method to access the singleton instance
+    public static ARComponentBuilder getInstance() {
+        if (instance == null) {
+            synchronized (ARComponentBuilder.class) {
+                if (instance == null) {
+                    instance = new ARComponentBuilder();
+                }
+            }
+        }
+        return instance;
+    }
 
     public HBox createTopPanel(Double topPanelHeight, Double edgeSpace) {
         HBox topPane = new HBox();
@@ -65,8 +89,8 @@ public class ARComponentBuilder {
             image.setPreserveRatio(true);
             return image;
         } catch (Exception e) {
-            ARLogger.getInstance(ARWebDriver.class)
-                    .severe(String.format("BuildImageView source: %s size %d \n%s", source, size, e.getMessage()));
+
+            log.error(String.format("BuildImageView source: %s size %d \n%s", source, size, e.getMessage()));
         }
         return null;
     }
@@ -87,8 +111,13 @@ public class ARComponentBuilder {
     }
 
     public Button buildButton(String text, Double height, String iconSource, Double iconSize, Insets padding) {
-
         return buildButton(text, height, iconSource, iconSize, padding, null);
+    }
+
+    public Button buildButton(
+            String text, Double height, String iconSource, Double iconSize, Insets padding, double maxTextWidth) {
+
+        return buildButton(text, height, iconSource, iconSize, padding, null, maxTextWidth);
     }
 
     public Button buildButton(
@@ -98,6 +127,35 @@ public class ARComponentBuilder {
         button.setGraphic(image);
         button.setMaxHeight(height);
         button.setPadding(padding);
+        if (fill != null) {
+            button.setBackground(fill);
+        }
+        return button;
+    }
+
+    public Button buildButton(
+            String text,
+            Double height,
+            String iconSource,
+            Double iconSize,
+            Insets padding,
+            Background fill,
+            double maxTextWidth) {
+
+        ImageView image = buildImageView(iconSource, iconSize);
+        Label label = new Label(text);
+        label.setWrapText(true);
+        label.setMaxWidth(maxTextWidth);
+
+        VBox vbox = new VBox(image, label);
+        vbox.setAlignment(Pos.CENTER);
+        vbox.setSpacing(2);
+
+        Button button = new Button();
+        button.setGraphic(vbox);
+        button.setMaxHeight(height);
+        button.setPadding(padding);
+        button.setContentDisplay(ContentDisplay.GRAPHIC_ONLY); // Important to avoid text outside graphic
         if (fill != null) {
             button.setBackground(fill);
         }

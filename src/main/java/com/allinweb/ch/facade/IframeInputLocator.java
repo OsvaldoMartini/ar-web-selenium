@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
@@ -11,10 +12,19 @@ import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
+@Slf4j
 public class IframeInputLocator {
 
     // Public method to access the singleton instance
     private static volatile IframeInputLocator instance;
+    private WebDriver driver;
+    private Map<WebElement, List<WebElement>> iframeElementsMap;
+
+    private IframeInputLocator() {}
+
+    public IframeInputLocator(WebDriver driver) {
+        this.driver = driver;
+    }
 
     // Public method to access the singleton instance
     public static IframeInputLocator getInstance() {
@@ -28,20 +38,9 @@ public class IframeInputLocator {
         return instance;
     }
 
-    private IframeInputLocator() {
-        // Initialize if necessary
-    }
-
-    private WebDriver driver;
-    private Map<WebElement, List<WebElement>> iframeElementsMap;
-
     public void initializeIframeInputLocator(Map<WebElement, List<WebElement>> iframeElementsMap, WebDriver drive) {
         this.driver = drive;
         this.iframeElementsMap = iframeElementsMap;
-    }
-
-    public IframeInputLocator(WebDriver driver) {
-        this.driver = driver;
     }
 
     // Method to find an input element inside a specific iframe using the iframeElementsMap
@@ -59,7 +58,7 @@ public class IframeInputLocator {
                 try {
                     // Print the XPath of each element
                     //                    String elementXPath = getElementXPath(element, driver);
-                    //                    System.out.println("Element XPath: " + elementXPath);
+                    //                    log.info("Element XPath: " + elementXPath);
 
                     // Ensure the element is an input field
                     if (element.getTagName().equalsIgnoreCase("input")
@@ -75,13 +74,10 @@ public class IframeInputLocator {
 
                         // Validate if the input was correctly received
                         if (inputText.equals(retrievedValue)) {
-                            System.out.println("SUCCESS: Sent '"
-                                    + inputText
-                                    + "' and received '"
-                                    + retrievedValue
+                            log.info("Success: Sent '" + inputText + "' and received '" + retrievedValue
                                     + "' in IFrame.");
                         } else {
-                            System.out.println(
+                            log.info(
                                     "ERROR: Sent '" + inputText + "' but received '" + retrievedValue + "' in IFrame.");
                         }
 
@@ -90,7 +86,7 @@ public class IframeInputLocator {
 
                     }
                 } catch (Exception e) {
-                    System.out.println("Element interaction failed in IFrame. Error: " + e.getMessage());
+                    log.info("Element interaction failed in IFrame. Error: " + e.getMessage());
                 }
             }
 
@@ -106,8 +102,7 @@ public class IframeInputLocator {
     public String getElementXPath(WebElement element, WebDriver driver) {
         return (String) ((JavascriptExecutor) driver)
                 .executeScript(
-                        "function getElementXPath(element) {"
-                                + "    var paths = [];"
+                        "function getElementXPath(element) {" + "    var paths = [];"
                                 + "    for (; element && element.nodeType == 1; element = element.parentNode) {"
                                 + "        var index = 0;"
                                 + "        for (var sibling = element.previousSibling; sibling; sibling = sibling.previousSibling) {"
@@ -130,8 +125,7 @@ public class IframeInputLocator {
         // Make sure we're in the correct frame before executing the script
         return (String) ((JavascriptExecutor) driver)
                 .executeScript(
-                        "function getElementXPath(element) {"
-                                + "    var paths = [];"
+                        "function getElementXPath(element) {" + "    var paths = [];"
                                 + "    for (; element && element.nodeType == 1; element = element.parentNode) {"
                                 + "        var index = 0;"
                                 + "        for (var sibling = element.previousSibling; sibling; sibling = sibling.previousSibling) {"
@@ -154,8 +148,7 @@ public class IframeInputLocator {
         // Make sure we're in the correct frame before executing the script
         return (String) ((JavascriptExecutor) driver)
                 .executeScript(
-                        "function getElementXPath(element) {"
-                                + "    var paths = [];"
+                        "function getElementXPath(element) {" + "    var paths = [];"
                                 + "    while (element && element.nodeType == 1) {"
                                 + "        var index = 0;"
                                 + "        // Loop through previous siblings of the current element"
@@ -186,8 +179,7 @@ public class IframeInputLocator {
         // Make sure we're in the correct frame before executing the script
         return (String) ((JavascriptExecutor) driver)
                 .executeScript(
-                        "function getElementXPath(element) {"
-                                + "    var paths = [];"
+                        "function getElementXPath(element) {" + "    var paths = [];"
                                 + "    while (element && element.nodeType == 1) {"
                                 + "        var index = 0;"
                                 + "        // Loop through previous siblings of the current element"
@@ -215,8 +207,7 @@ public class IframeInputLocator {
         // Wait for iframe to be available
         wait.until(ExpectedConditions.frameToBeAvailableAndSwitchToIt(iFrameElement));
 
-        String script = "var doc = document;"
-                + "var elements = doc.querySelectorAll('*');"
+        String script = "var doc = document;" + "var elements = doc.querySelectorAll('*');"
                 + "return Array.from(elements).map(el => {"
                 + "   var path = '';"
                 + "   while (el && el.nodeType === 1) {"
@@ -245,8 +236,7 @@ public class IframeInputLocator {
     public String getElementXPathAll(WebElement element, WebDriver driver) {
         return (String) ((JavascriptExecutor) driver)
                 .executeScript(
-                        "function getElementXPath(element) {"
-                                + "    var paths = [];"
+                        "function getElementXPath(element) {" + "    var paths = [];"
                                 + "    for (; element && element.nodeType == 1; element = element.parentNode) {"
                                 + "        var index = 0;"
                                 + "        for (var sibling = element.previousSibling; sibling; sibling = sibling.previousSibling) {"
@@ -273,7 +263,7 @@ public class IframeInputLocator {
         // Iterate through all elements and print their XPath
         for (WebElement element : allElements) {
             String elementXPath = getElementXPathAll(element, driver);
-            System.out.println("Element XPath: " + elementXPath);
+            log.info("Element XPath: " + elementXPath);
             allXPaths.add(elementXPath);
         }
 

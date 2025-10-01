@@ -4,24 +4,23 @@ import com.allinweb.ch.component.listCell.ARCellFactory;
 import com.allinweb.ch.component.listCell.BotJobListCell;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
-import com.allinweb.ch.component.scene.ARConfigurationScene;
-import com.allinweb.ch.component.scene.ARInfoScene;
-import com.allinweb.ch.component.scene.ARNewBotJobScene;
-import com.allinweb.ch.component.scene.ARSaveCloneScene;
-import com.allinweb.ch.component.scene.ARViewBotJobScene;
+import com.allinweb.ch.component.scene.*;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.driver.ARWebDriver;
+import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.license.LicenceVal;
 import com.allinweb.ch.license.LicenseManager;
 import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
+import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
 import java.io.File;
 import java.io.IOException;
+import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -33,16 +32,20 @@ import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.layout.*;
+import javafx.stage.Stage;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.WebDriver;
 
+@Slf4j
 public class ARMainPane extends ARPane {
 
     private static final String OPENAI_ENDPOINT = "https://api.openai.com/v1/chat/completions";
-
     //    private static final ARSharedResources dbResource;
     private static final ARInfoScene arInfoScene;
     private static final ARPropertyManager arPropertyManager;
+    private static final PerformLists performLists;
+    private static final PerformDBEngine performDBEngine;
     private static final PerformDataBase performDataBase;
     private static final PerformMessage performMessage;
     private static final ARConfigurationScene arConfigurationScene;
@@ -50,16 +53,8 @@ public class ARMainPane extends ARPane {
     private static final ARSaveCloneScene arSaveCloneScene;
     private static final ARNewBotJobScene arNewBotJobScene;
     private static final ARWebDriver arWebDriver;
-
-    private ObservableList<BotJobLoadDTO> botJobList = FXCollections.observableArrayList();
-
-    @Getter
-    private ObservableList<WebDriver> webDriverList;
-
-    private static final String CONNECTION_TYPE = "jdbc:ucanaccess://";
-    private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
-    // Postgres
-    private static boolean POSTGRES_DB = false;
+    private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
+    protected static volatile ARMainPane instance;
 
     // Static block to initialize
     static {
@@ -67,6 +62,8 @@ public class ARMainPane extends ARPane {
         //        //        dbResource = PerformDataBase.;
         arPropertyManager = ARPropertyManager.getInstance();
         arNewBotJobScene = ARNewBotJobScene.getInstance();
+        performLists = PerformLists.getInstance();
+        performDBEngine = PerformDBEngine.getInstance();
         performDataBase = PerformDataBase.getInstance();
         performMessage = PerformMessage.getInstance();
         arConfigurationScene = ARConfigurationScene.getInstance();
@@ -75,9 +72,9 @@ public class ARMainPane extends ARPane {
         arWebDriver = ARWebDriver.getInstance();
     }
 
-    private static final ARComponentBuilder builder = new ARComponentBuilder();
-    private Properties properties = new Properties();
-
+    public final String CONNECTION_TYPE = "jdbc:ucanaccess://";
+    public final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
+    public final String CONNECTION_TYPE_SQLITE = "jdbc:sqlite:"; // no parameters needed
     // UI components
     Button newBotJobButton;
     Button cloneBotJobButton;
@@ -88,107 +85,82 @@ public class ARMainPane extends ARPane {
     Button launchBotJobButton;
     Button exitButton;
     Button aiButton;
-
     TextArea aiTextArea;
-
     HBox buttonPane;
     VBox panelPane;
-
     GridPane header = new GridPane();
-
     ListView<BotJobLoadDTO> viewBotJobListView = new ListView<>();
+    private boolean isEnabledLicence;
+    private ObservableList<BotJobLoadDTO> botJobList = FXCollections.observableArrayList();
 
-    public ARMainPane(ObservableList<WebDriver> webDriverList) {
-        this.webDriverList = webDriverList;
-        String pathDB = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
-        performDataBase.initialize(dataBaseType);
+    @Getter
+    private ObservableList<WebDriver> webDriverList;
 
-        if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
-            POSTGRES_DB = true;
+    private Properties properties = new Properties();
+    private BotJobLoadDTO selecBotJobDTO;
 
-            if (!performDataBase.doesInstructionTableExist()) {
-                performDataBase.initializeMainDatabasePostgres();
-            }
+    // Private constructor to prevent instantiation
+    private ARMainPane() {
 
-            //            performDataBase.dropPostGresSequences();
-            performDataBase.postGresIntegration();
-            performDataBase.importHomeUrlTable();
+        super();
+    }
 
-        } else {
-            POSTGRES_DB = false;
-        }
-
-        if (!POSTGRES_DB) {
-            String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-            String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
-
-            File dbFile = new File(dbPath + ARConstants.FILE_NAME_DB);
-            try {
-
-                if (!dbFile.exists()) {
-                    performDataBase.initializeMainDatabaseAccess(dbUrl, dbFile);
-                } else {
-                    //                performDataBase.disableForeignKeyConstraints(dbUrl);
-                    //                                    performDataBase.updateTableAccess(dbUrl, dbFile);
-                    //                                    performDataBase.updateDatabaseSchema(dbUrl, dbFile);
-
-                    ARLogger.getInstance(ARMainPane.class)
-                            .info(String.format("Database '%s' already exists!", dbFile.getName()));
+    public static ARMainPane getInstance() {
+        if (instance == null) {
+            synchronized (ARMainPane.class) {
+                if (instance == null) {
+                    instance = new ARMainPane();
                 }
-            } catch (Exception error) {
-                performMessage.errorMessage(
-                        "Configuration Needed", // Using configurationFileName as the title
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: Set the path for the Database!</span>",
-                        "<span style='color: #2E7D32; font-weight: bold;'>The Path for Database is Blank!</span>",
-                        "<span style='font-weight: bold;'>Please configure the application before use.</span>.",
-                        "<span style='font-weight: bold;'>" + dbPath + ARConstants.FILE_NAME_DB + "</span>.",
-                        0);
-                System.exit(0);
             }
-
-            //            performDataBase.updatePossibleMigrationColumnsTable(dbUrl, dbFile);
-
         }
+        return instance;
+    }
 
-        //        dbResource.setPreviousDB(previousDB);
+    private static int getMajorJavaVersion(String version) {
+        // For Java 9 and above, the version string starts with the major version (e.g., "17.0.1")
+        // For Java 8 and below, it starts with "1." (e.g., "1.8.0_311")
+        if (version.startsWith("1.")) {
+            return Integer.parseInt(version.substring(2, 3)); // e.g., "1.8" -> 8
+        } else {
+            String[] parts = version.split("\\.");
+            return Integer.parseInt(parts[0]); // e.g., "17.0.1" -> 17
+        }
+    }
 
-        //        if (pathDB == null || pathDB.isBlank()) {
-        //            arConfigurationScene.showModal();
-        //            performMessage.errorMessage(
-        //                    "Configuration Needed", // Using configurationFileName as the title
-        //                    "<span style='color: #D32F2F; font-weight: bold; font-size:
-        // 1.1em;'>Critical: Set the path
-        // for the Database!</span>",
-        //                    "<span style='color: #2E7D32; font-weight: bold;'>The Path for Database is
-        // Blank!</span>",
-        //                    "<span style='font-weight: bold;'>Please configure the application before
-        // use.</span>.",
-        //                    null,
-        //                    0);
-        //        }
+    public void initialize(ObservableList<WebDriver> webDriverList, boolean isEnabledLicence) {
+        this.isEnabledLicence = isEnabledLicence;
+        this.webDriverList = webDriverList;
+
+        botJobList.clear();
+        ErrorMessage errorMessage = performDataBase.loadQuickBotJobs();
+        if (!performDataBase.dbFailed && errorMessage != null) {
+            performMessage.errorMessageOperationFailed(errorMessage);
+        }
+        botJobList.addAll(performLists.getQuickBotJobs());
     }
 
     @Override
     public void initUIComponents() {
-        newBotJobButton = builder.buildButton(
-                "New", ARConstants.SPACE_M, ARConstants.ICON_NEW, ARConstants.SPACE_M, new Insets(8, 10, 8, 10));
-        cloneBotJobButton = builder.buildButton(
-                "Clone Job", ARConstants.SPACE_M, ARConstants.ICON_SAVE, ARConstants.SPACE_M, new Insets(8, 10, 8, 10));
-        configureButton = builder.buildButton(
-                "Config", ARConstants.SPACE_M, ARConstants.ICON_CONFIG, ARConstants.SPACE_M, new Insets(8, 10, 8, 10));
-        infoButton = builder.buildButton(
-                "Info", ARConstants.SPACE_M, ARConstants.ICON_INFO, ARConstants.SPACE_M, new Insets(8, 10, 8, 10));
-        editBotJobButton = builder.buildButton(
-                "Open Job", ARConstants.SPACE_L, ARConstants.ICON_EDIT, ARConstants.SPACE_M, new Insets(8, 10, 8, 10));
-        launchBotJobButton = builder.buildButton(
-                "Launch", ARConstants.SPACE_L, ARConstants.ICON_PLAY, ARConstants.SPACE_M, new Insets(8, 10, 8, 10));
-        exitButton = builder.buildButton(
-                "Exit", ARConstants.SPACE_L, ARConstants.ICON_CROSS, ARConstants.SPACE_M, new Insets(8, 10, 8, 10));
+        double smallHeight = ARConstants.SPACE_S; // or just a smaller double like 20.0
+        double smallIconSize = ARConstants.SPACE_S; // smaller icon size
+        Insets smallPadding = new Insets(4, 6, 4, 6);
+
+        newBotJobButton = builder.buildButton("New", smallHeight, ARConstants.ICON_NEW, smallIconSize, smallPadding);
+        cloneBotJobButton =
+                builder.buildButton("Clone Job", smallHeight, ARConstants.ICON_SAVE, smallIconSize, smallPadding);
+        configureButton =
+                builder.buildButton("Config", smallHeight, ARConstants.ICON_CONFIG, smallIconSize, smallPadding);
+        infoButton = builder.buildButton("Info", smallHeight, ARConstants.ICON_INFO, smallIconSize, smallPadding);
+        editBotJobButton =
+                builder.buildButton("Open Job", smallHeight, ARConstants.ICON_EDIT, smallIconSize, smallPadding);
+        launchBotJobButton =
+                builder.buildButton("Launch", smallHeight, ARConstants.ICON_PLAY, smallIconSize, smallPadding);
+        exitButton = builder.buildButton("Exit", smallHeight, ARConstants.ICON_CROSS, smallIconSize, smallPadding);
 
         // 🔹 AI Button and TextArea
         aiButton = builder.buildButton(
                 "AI", ARConstants.SPACE_L, ARConstants.ICON_AI, ARConstants.SPACE_M, new Insets(8, 10, 8, 10));
+        aiButton.setVisible(false);
 
         aiTextArea = new TextArea();
         aiTextArea.setPromptText("AI Tool: Upgrade your version to access this premium feature.");
@@ -198,8 +170,19 @@ public class ARMainPane extends ARPane {
         aiTextArea.setManaged(false); // ensures space is not reserved when hidden
         aiTextArea.setPrefRowCount(4);
 
+        int buttonWidth = 100;
+
+        aiButton.setPrefWidth(buttonWidth);
+        newBotJobButton.setPrefWidth(buttonWidth);
+        cloneBotJobButton.setPrefWidth(buttonWidth);
+        configureButton.setPrefWidth(buttonWidth);
+        infoButton.setPrefWidth(buttonWidth);
+        launchBotJobButton.setPrefWidth(buttonWidth);
+        editBotJobButton.setPrefWidth(buttonWidth);
+        exitButton.setPrefWidth(buttonWidth);
+
         buttonPane = new HBox(
-                aiButton,
+                //                aiButton,
                 newBotJobButton,
                 cloneBotJobButton,
                 configureButton,
@@ -208,21 +191,28 @@ public class ARMainPane extends ARPane {
                 editBotJobButton,
                 exitButton);
 
-        buttonPane.setAlignment(Pos.TOP_CENTER);
-        buttonPane.setSpacing(5); // optional
+        buttonPane.setAlignment(Pos.CENTER);
+        buttonPane.setSpacing(5);
+        buttonPane.setPadding(new Insets(0, 5, 0, 5));
+
         AnchorPane.setTopAnchor(buttonPane, ARConstants.SPACE_ZERO);
-        AnchorPane.setLeftAnchor(buttonPane, ARConstants.SPACE_ZERO);
-        AnchorPane.setRightAnchor(buttonPane, ARConstants.SPACE_ZERO);
+        //        AnchorPane.setLeftAnchor(buttonPane, 5.0);
+        //        AnchorPane.setRightAnchor(buttonPane, 5.0);
 
         initHeader();
 
-        botJobList.addAll(performDataBase.loadAllBotJobs());
-
         viewBotJobListView.setItems(botJobList);
-        viewBotJobListView.setCellFactory(new ARCellFactory<>(
-                BotJobListCell.class, arViewBotJobScene, arWebDriver, botJobList, webDriverList)::call);
+        viewBotJobListView.setCellFactory(
+                new ARCellFactory<>(
+                        BotJobListCell.class,
+                        arViewBotJobScene,
+                        arWebDriver,
+                        botJobList,
+                        webDriverList,
+                        isEnabledLicence)::call);
 
-        arNewBotJobScene.initialize(arViewBotJobScene, arWebDriver, botJobList, webDriverList);
+        arConfigurationScene.initialize(viewBotJobListView, isEnabledLicence);
+        arNewBotJobScene.initialize(arViewBotJobScene, arWebDriver, webDriverList, isEnabledLicence);
         arWebDriver.initialize(webDriverList);
 
         // 🔹 Wrap buttonPane + aiTextArea
@@ -250,28 +240,68 @@ public class ARMainPane extends ARPane {
         });
 
         newBotJobButton.setOnMouseClicked(e -> {
-            arNewBotJobScene.initialize(arViewBotJobScene, arWebDriver, botJobList, webDriverList);
-            arNewBotJobScene.showModal();
-            botJobList.clear();
-            botJobList.addAll(performDataBase.loadAllBotJobs());
-            viewBotJobListView.setItems(botJobList);
+            if (performLists.getListHomeUrl().isEmpty()) {
+                performDBEngine.loadHomeUrls(null);
+            }
+
+            if (!performLists.getListHomeUrl().isEmpty()) {
+
+                arNewBotJobScene.initialize(arViewBotJobScene, arWebDriver, webDriverList, isEnabledLicence);
+
+                Stage currentStage = (Stage) cloneBotJobButton.getScene().getWindow();
+                arNewBotJobScene.showModal(currentStage);
+
+                botJobList.clear();
+                performDataBase.loadQuickBotJobs();
+                botJobList.addAll(performLists.getQuickBotJobs());
+
+                viewBotJobListView.setItems(botJobList);
+            } else {
+                performMessage.showCustomModalDialogDragWin11(
+                        "Environments Are Empty",
+                        "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>Please add at least one Organization Environment.</span>",
+                        "<span style='font-style: italic;'>Go to the Configuration and add Organizations.</span>",
+                        "<span style='color: #E65100; font-weight: bold;'>Select an Organization and add an </span><span style='font-weight: bold;'>Environment</span>.",
+                        null,
+                        false,
+                        "OK",
+                        null,
+                        0);
+            }
         });
 
         cloneBotJobButton.setOnMouseClicked(e -> {
-            if (!checkLicense()) {
+            if (isEnabledLicence && !checkLicense()) {
                 return;
+            }
+
+            String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
+
+            try {
+                Connection conn = performDataBase.getConnection();
+                if (conn != null) {
+                    log.error(dataBaseType + " Database connected!");
+                } else {
+                    log.error(dataBaseType + " Database NOT connected!");
+                }
+            } catch (Exception error) {
+                log.error(dataBaseType + " Database error!" + error.getMessage());
             }
 
             var selecBotJobDTO = viewBotJobListView.getSelectionModel().getSelectedItem();
             if (selecBotJobDTO != null) {
-                arSaveCloneScene.initialize(selecBotJobDTO, performDataBase.loadAllBotJobs());
-                arSaveCloneScene.showModal();
+                if (performDataBase.isConnDBWorks()) {
+                    arSaveCloneScene.initialize(selecBotJobDTO, botJobList, isEnabledLicence);
 
-                ObservableList<BotJobLoadDTO> botJobList =
-                        FXCollections.observableArrayList(performDataBase.loadAllBotJobs());
-                viewBotJobListView.setItems(botJobList);
-                viewBotJobListView.refresh();
+                    Stage currentStage = (Stage) cloneBotJobButton.getScene().getWindow();
+                    arSaveCloneScene.showModal(currentStage);
 
+                    performDataBase.loadQuickBotJobs();
+                    ObservableList<BotJobLoadDTO> botJobList =
+                            FXCollections.observableArrayList(performLists.getQuickBotJobs());
+                    viewBotJobListView.setItems(botJobList);
+                    viewBotJobListView.refresh();
+                }
             } else {
                 performMessage.errorMessage("Select a Bot Job", "There is NOT a Job Selected", null, null, null, 0);
                 return;
@@ -279,12 +309,39 @@ public class ARMainPane extends ARPane {
         });
 
         configureButton.setOnMouseClicked(e -> {
-            arConfigurationScene.initialize(viewBotJobListView, botJobList);
+            arConfigurationScene.initialize(viewBotJobListView, isEnabledLicence);
             arConfigurationScene.showModal();
-            performDataBase.changeDbConnection();
-            ObservableList<BotJobLoadDTO> botJobList =
-                    FXCollections.observableArrayList(performDataBase.loadAllBotJobs());
-            viewBotJobListView.setItems(botJobList);
+
+            //            try {
+            //                performDataBase.changeDbConnection();
+            //            } catch (Exception error) {
+            //                throw new RuntimeException(error);
+            //            }
+
+            String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
+            try {
+
+                Connection conn = performDataBase.getConnection();
+                if (conn != null) {
+                    log.info(dataBaseType + " Database connected!");
+                }
+            } catch (Exception error) {
+                log.error(dataBaseType + " Database Connection failed : " + error.getMessage());
+            }
+
+            if (performDataBase.isConnDBWorks()) {
+                try {
+                    if (performLists.getQuickBotJobs().isEmpty()) {
+                        performDataBase.loadQuickBotJobs();
+                        //                    ObservableList<BotJobLoadDTO> botJobList =
+                        //                            FXCollections.observableArrayList(performLists.getQuickBotJobs());
+
+                        viewBotJobListView.setItems(FXCollections.observableArrayList(performLists.getQuickBotJobs()));
+                    }
+                } catch (Exception error) {
+                    throw new RuntimeException(error);
+                }
+            }
         });
         infoButton.setOnMouseClicked(e -> {
             arInfoScene.showModal();
@@ -295,18 +352,20 @@ public class ARMainPane extends ARPane {
         });
 
         editBotJobButton.setOnMouseClicked(e -> {
-            if (!checkLicense()) {
+            if (isEnabledLicence && !checkLicense()) {
                 return;
             }
 
-            BotJobLoadDTO selecBotJobDTO =
-                    viewBotJobListView.getSelectionModel().getSelectedItem();
+            selecBotJobDTO = viewBotJobListView.getSelectionModel().getSelectedItem();
 
             if (selecBotJobDTO != null) {
                 try {
+
+                    reloadList();
+
                     Platform.runLater(() -> {
                         // new ARViewBotJobScene(selecBotJobDTO).showModal();
-                        arViewBotJobScene.initialize(arWebDriver, selecBotJobDTO, botJobList);
+                        arViewBotJobScene.initialize(arWebDriver, selecBotJobDTO, isEnabledLicence);
                         arViewBotJobScene.showModal();
 
                         // new Alert(AlertType.WARNING, "Error" + selecBotJobDTO.getName()).show();
@@ -324,7 +383,7 @@ public class ARMainPane extends ARPane {
         });
 
         launchBotJobButton.setOnMouseClicked(e -> {
-            if (!checkLicense()) {
+            if (isEnabledLicence && !checkLicense()) {
                 return;
             }
 
@@ -347,11 +406,11 @@ public class ARMainPane extends ARPane {
                 }
 
                 String version = System.getProperty("java.version");
-                System.out.println("Detected Java Version: " + version);
+                log.info("Detected Java Version: " + version);
 
                 int majorVersion = getMajorJavaVersion(version);
                 if (majorVersion >= 17) {
-                    System.out.println("✅ Java 17 or higher is installed.");
+                    log.info("✅ Java 17 or higher is installed.");
                 } else {
                     performMessage.errorMessage(
                             "Compatibility Issue: Incompatible Java Version",
@@ -383,6 +442,7 @@ public class ARMainPane extends ARPane {
                     "execute/j",
                     String.valueOf(selecBotJobDTO.getHomeBankingLoadDTO().getId()),
                     String.valueOf(selecBotJobDTO.getId()),
+                    String.valueOf(1), // block execution
                     "\"" + excelPath + "\"",
                     "-c",
                     arPropertyManager.getConfigurationFileName()
@@ -402,7 +462,7 @@ public class ARMainPane extends ARPane {
                         try {
                             file.createNewFile();
                         } catch (IOException ex) {
-                            ARLogger.getInstance(ARMainPane.class).fine("Error : " + ex);
+                            log.info("Error : " + ex);
                         }
                     }
                 }
@@ -412,7 +472,7 @@ public class ARMainPane extends ARPane {
                 try {
                     processBuilder.start();
                 } catch (IOException ex) {
-                    ARLogger.getInstance(ARMainPane.class).fine("Error : " + ex);
+                    log.info("Error : " + ex);
                 }
             } else {
                 performMessage.errorMessage("Select a Bot Job", "There is NOT a Job Selected", null, null, null, 0);
@@ -426,9 +486,9 @@ public class ARMainPane extends ARPane {
             try {
                 Platform.runLater(() -> arWebDriver.getWebDriverList().remove(driver));
                 Platform.runLater(driver::quit);
-                ARLogger.getInstance(ARMainPane.class).info("WebDriver closed.");
+                log.info("WebDriver closed.");
             } catch (Exception e) {
-                ARLogger.getInstance(ARMainPane.class).warning("Error closing WebDriver: " + e.getMessage());
+                log.warn("Error closing WebDriver: " + e.getMessage());
             }
         }
         Platform.runLater(() -> {
@@ -455,7 +515,7 @@ public class ARMainPane extends ARPane {
         descriptionLabel.setMaxWidth(150); // Set maximum width
         descriptionLabel.setWrapText(true);
 
-        Label environmentLabel = new Label("Environment");
+        Label environmentLabel = new Label("Organization");
         environmentLabel.setMinWidth(100); // Set minimum width
         environmentLabel.setMaxWidth(100); // Set maximum width
         environmentLabel.setWrapText(true);
@@ -511,17 +571,6 @@ public class ARMainPane extends ARPane {
         return new AnchorPane(panelPane);
     }
 
-    private static int getMajorJavaVersion(String version) {
-        // For Java 9 and above, the version string starts with the major version (e.g., "17.0.1")
-        // For Java 8 and below, it starts with "1." (e.g., "1.8.0_311")
-        if (version.startsWith("1.")) {
-            return Integer.parseInt(version.substring(2, 3)); // e.g., "1.8" -> 8
-        } else {
-            String[] parts = version.split("\\.");
-            return Integer.parseInt(parts[0]); // e.g., "17.0.1" -> 17
-        }
-    }
-
     private boolean checkLicense() {
         try {
             String licensePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_LICENSE);
@@ -546,8 +595,7 @@ public class ARMainPane extends ARPane {
                         "<span style='color: " + msgColor + "; font-weight: bold;'>" + msgValid + "</span>",
                         "<span style='font-style: italic;'>" + msgNextStep + "</span>",
                         "<span style='color: #E65100; font-weight: bold;'>Current license status:</span> <span style='font-weight: bold;'>"
-                                + licenseStatus.getStaus()
-                                + "</span>",
+                                + licenseStatus.getStaus() + "</span>",
                         false,
                         "OK",
                         null,
@@ -556,9 +604,54 @@ public class ARMainPane extends ARPane {
             }
             return true;
         } catch (Exception error) {
-            ARLogger.getInstance(ARMainPane.class)
-                    .severe("Cannot read/validate the License path/file. Error: " + error.getMessage());
+
+            log.error("Cannot read/validate the License path/file. Error: " + error.getMessage());
             return false;
+        }
+    }
+
+    private void reloadList() {
+
+        // IN CASE the ADDED New Bot Job tomREfresh Main List as Observable
+        if (performLists.getListHomeUrl().isEmpty()) {
+            performDBEngine.loadHomeUrls(null);
+        }
+
+        if (performLists.getQuickBotJobs().isEmpty()) {
+            performDataBase.loadQuickBotJobs();
+        }
+
+        ErrorMessage errorMessage =
+                performDataBase.loadBlocks(selecBotJobDTO.getId(), selecBotJobDTO.getName(), "block");
+        if (errorMessage == null) {
+            performDataBase.loadBlocks(selecBotJobDTO.getHomeBankingId(), selecBotJobDTO.getName(), "component_block");
+        }
+
+        if (errorMessage != null) {
+            performMessage.errorMessageOperationFailed(errorMessage);
+        }
+
+        //        this.botLoadJobs = performDataBase.loadBotJobWithBlock(this.botJobId);
+
+        BotJobLoadDTO botJobLoad = performLists.getQuickBotJobById(selecBotJobDTO.getId());
+
+        //         performDBEngine.loadHomeBanking(selecBotJobDTO.getHomeBankingId());
+
+        if (botJobLoad != null && botJobLoad.getBlockLoadDTOList() == null) {
+            botJobLoad.setBlockLoadDTOList(performLists.getListBlock());
+        }
+        // It Prevents Start without blocks
+        if (performLists.getListBlock().isEmpty()) {
+
+            errorMessage = performDataBase.initiateNewBlock(
+                    "block", selecBotJobDTO.getId(), "Default Block", "Default Block", 1, false);
+
+            if (errorMessage == null) {
+
+                log.info(String.format("A new Block was created for bot job Id %d", selecBotJobDTO.getId()));
+            } else {
+                performMessage.errorMessageOperationFailed(errorMessage);
+            }
         }
     }
 }

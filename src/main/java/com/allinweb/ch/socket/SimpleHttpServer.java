@@ -1,13 +1,13 @@
 // File: src/main/java/com/allinweb/ch/socket/SimpleHttpServer.java
 package com.allinweb.ch.socket;
 
-import com.allinweb.ch.util.ARLogger;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.server.handler.HandlerList;
@@ -18,9 +18,9 @@ import org.eclipse.jetty.util.resource.Resource;
  * A simple HTTP server using Jetty to serve a specific index.html file. The server will return the
  * port it started on.
  */
+@Slf4j
 public class SimpleHttpServer {
     private static Server httpServer;
-    private static final ARLogger logger = ARLogger.getInstance(SimpleHttpServer.class);
 
     /**
      * Starts the HTTP server on the specified port, serving the given index.html file. If the
@@ -40,9 +40,9 @@ public class SimpleHttpServer {
         if (requestedPort == 0) {
             try (ServerSocket serverSocket = new ServerSocket(0)) { // Port 0 = auto-assign
                 actualPort = serverSocket.getLocalPort();
-                logger.info("Dynamically assigned HTTP port: " + actualPort);
+                log.info("Dynamically assigned HTTP port: " + actualPort);
             } catch (IOException e) {
-                logger.severe("Failed to find a dynamic port: " + e.getMessage());
+                log.error("Failed to find a dynamic port: " + e.getMessage());
                 throw new IOException("Failed to find an available dynamic port.", e);
             }
         } else {
@@ -56,14 +56,14 @@ public class SimpleHttpServer {
             // Get the URL for the resource. This is typically from the classpath (e.g., target/classes).
             URL resourceUrl = SimpleHttpServer.class.getResource(filePath);
             if (resourceUrl == null) {
-                logger.severe("Resource not found for path: " + filePath + ". Please ensure it's on the classpath.");
+                log.error("Resource not found for path: " + filePath + ". Please ensure it's on the classpath.");
                 throw new IOException("Resource not found for path: " + filePath);
             }
             // Convert URL to URI, then to Path to correctly handle file system paths from resources.
             indexHtmlFilePath = Paths.get(resourceUrl.toURI());
-            logger.info("index.html resolved to file system path: " + indexHtmlFilePath.toAbsolutePath());
+            log.info("index.html resolved to file system path: " + indexHtmlFilePath.toAbsolutePath());
         } catch (Exception error) {
-            logger.severe("Failed to resolve index.html path for resource '" + filePath + "': " + error.getMessage());
+            log.error("Failed to resolve index.html path for resource '" + filePath + "': " + error.getMessage());
             throw new IOException("Failed to resolve index.html path for resource: " + filePath, error);
         }
 
@@ -83,7 +83,7 @@ public class SimpleHttpServer {
         Path baseDirectory = indexHtmlFilePath.getParent();
         if (baseDirectory == null) { // Handle case where index.html is in the root of a drive/filesystem
             baseDirectory = Paths.get("./"); // Use current directory as fallback base
-            logger.warning("Index.html has no parent directory. Using current directory as base: "
+            log.warn("Index.html has no parent directory. Using current directory as base: "
                     + baseDirectory.toAbsolutePath());
         }
 
@@ -109,7 +109,7 @@ public class SimpleHttpServer {
 
         // Start the server
         httpServer.start();
-        logger.info("HTTP Server started at http://localhost:"
+        log.info("HTTP Server started at http://localhost:"
                 + actualPort
                 + " serving: "
                 + indexHtmlFilePath.toAbsolutePath());
@@ -130,7 +130,7 @@ public class SimpleHttpServer {
         if (httpServer != null && httpServer.isStarted()) {
             httpServer.stop();
             httpServer.join(); // Wait for the server to gracefully stop
-            logger.info("HTTP Server stopped.");
+            log.info("HTTP Server stopped.");
             System.out.println("HTTP Server stopped.");
         }
     }

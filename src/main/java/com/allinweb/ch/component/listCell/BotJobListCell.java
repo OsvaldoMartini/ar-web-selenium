@@ -6,26 +6,26 @@ import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.persistence.*;
 import com.allinweb.ch.util.ARConstants;
-import java.util.*;
+import com.allinweb.ch.util.ARExecution;
+import com.allinweb.ch.util.ErrorMessage;
 import javafx.application.Platform;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
-import javafx.scene.control.*;
-import javafx.scene.layout.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
+import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import org.openqa.selenium.WebDriver;
 
 public class BotJobListCell extends ListCell<BotJobLoadDTO> {
-
-    private ARViewBotJobScene arViewBotJobScene;
-    private ARWebDriver arWebDriver;
-    private ObservableList<BotJobLoadDTO> botJobList;
-    private ObservableList<WebDriver> webDriverList;
 
     private static final PerformDataBase performDataBase;
     private static final PerformMessage performMessage;
@@ -35,15 +35,23 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
         performMessage = PerformMessage.getInstance();
     }
 
+    private ARViewBotJobScene arViewBotJobScene;
+    private ARWebDriver arWebDriver;
+    private ObservableList<BotJobLoadDTO> botJobList;
+    private ObservableList<WebDriver> webDriverList;
+    private boolean isEnabledLicence;
+
     public BotJobListCell(
             ARViewBotJobScene arViewBotJobScene,
             ARWebDriver arWebDriver,
             ObservableList<BotJobLoadDTO> botJobList,
-            ObservableList<WebDriver> webDriverList) {
+            ObservableList<WebDriver> webDriverList,
+            Boolean isEnabledLicence) {
         this.arViewBotJobScene = arViewBotJobScene;
         this.arWebDriver = arWebDriver;
         this.botJobList = botJobList;
         this.webDriverList = webDriverList;
+        this.isEnabledLicence = isEnabledLicence;
     }
 
     public BotJobListCell() {
@@ -55,7 +63,7 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
         super.updateItem(item, empty);
         Node graphic = null;
         if (!empty && item != null && item.getHomeBankingLoadDTO() != null) {
-            ARComponentBuilder builder = new ARComponentBuilder();
+            ARComponentBuilder builder = ARComponentBuilder.getInstance();
 
             HBox uiBotJob = new HBox(10); // 10 pixels spacing
             uiBotJob.setPadding(new Insets(5));
@@ -166,7 +174,7 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
 
             row.setOnMouseClicked(mouseEvent -> {
                 if (mouseEvent.getClickCount() == 2) {
-                    arViewBotJobScene.initialize(arWebDriver, item, botJobList);
+                    arViewBotJobScene.initialize(arWebDriver, item, isEnabledLicence);
                     arViewBotJobScene.showModal();
                 }
             });
@@ -180,16 +188,13 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
     private void handleDelete(BotJobLoadDTO item) {
         //        VBox confirmationBox = new VBox(
         //                5,
-        //                createStyledText("Are you sure you want to delete the bot job selected?",
-        // "blue"),
-        //                createStyledText(String.format("Bot Job: \"(%s)%s\"", item.getId(),
-        // item.getName()), "blue"),
+        //                createStyledText("Are you sure you want to delete the bot job selected?", "blue"),
+        //                createStyledText(String.format("Bot Job: \"(%s)%s\"", item.getId(), item.getName()), "blue"),
         //                createStyledText("THIS ACTION IS GOING TO REMOVE ALL JOB DATA!!!", "red"),
         //                createStyledText("INCLUDING SAVED COMPONENTS FOR THIS JOB!!!", "red"));
         //
         //        boolean confirmed = performMessage.showAlertCombinedVBOX(
-        //                Alert.AlertType.CONFIRMATION, "Bot Job Deletion", "Remove All Details Bot
-        // Job", null,
+        //                Alert.AlertType.CONFIRMATION, "Bot Job Deletion", "Remove All Details Bot Job", null,
         // confirmationBox);
         //
         //        if (confirmed) {
@@ -197,12 +202,11 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
         //            Platform.runLater(() -> getListView().getItems().remove(item));
         //        }
 
-        ARConstants.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
+        ARExecution.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
                 "Bot Job Deletion",
                 "<span style='color: #000080; font-weight: bold; font-size: 14px;'>Are you sure you want to delete the bot job selected?</span>",
                 "<span style='color: #000080; font-weight: bold;'>"
-                        + String.format("Bot Job: \"(%s)%s\"", item.getId(), item.getName())
-                        + "</span>",
+                        + String.format("Bot Job: \"(%s)%s\"", item.getId(), item.getName()) + "</span>",
                 "<span style='color: red; font-weight: bold;'>THIS ACTION IS GOING TO REMOVE ALL JOB DATA!!!</span>",
                 "<span style='color: red; font-weight: bold;'>INCLUDING SAVED COMPONENTS FOR THIS JOB!!!</span>",
                 true,
@@ -210,7 +214,7 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
                 "Cancel",
                 0);
 
-        if (!respModal.equals(ARConstants.DialogModal.STOP)) {
+        if (!respModal.equals(ARExecution.DialogModal.STOP)) {
             deleteBotJob(item);
             Platform.runLater(() -> getListView().getItems().remove(item));
         }
@@ -223,28 +227,23 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
     }
 
     private void deleteBotJob(BotJobLoadDTO botJob) {
-        int rowsAffected = performDataBase.deleteBotJob(botJob.getId());
+        ErrorMessage errorMessage = performDataBase.deleteBotJobData(botJob.getId());
 
-        if (rowsAffected == 0) {
+        if (errorMessage == null) {
             performMessage.showCustomModalDialogDragWin11(
                     "Action Delete Bot-Job",
-                    "Bot-Job deleted successfully!",
-                    String.format("The Bot Job \"%s\" was Deleted!", botJob.getName()),
-                    null,
-                    null,
+                    "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>Operation Successful!</span> ✅",
+                    "<span style='color: #388E3C; font-weight: bold;'>Success:</span> Bot Job Deleted",
+                    "<span style='color: #2E7D32; font-weight: bold;'>" + botJob.getName() + "</span>",
+                    "<span style='font-style: italic;'>Detail:</span> The Bot Job \"" + botJob.getName()
+                            + "\" was deleted successfully!",
                     false,
                     "Close",
                     null,
                     0);
-        } else if (rowsAffected < 0) {
-            performMessage.errorMessage(
-                    "I cannot delete the BotJob Now",
-                    "This Bot Job was Flagged as Inactive!",
-                    "Some Access ROW still in use",
-                    null,
-                    null,
-                    0);
-            performDataBase.updateStatusBotJob(botJob.getId(), 0);
+        } else {
+            performMessage.errorMessageOperationFailed(errorMessage);
+            //            performDataBase.updateStatusBotJob(botJob.getId(), 0);
         }
     }
 }

@@ -11,9 +11,12 @@ import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
-import javafx.scene.layout.*;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class LicenseActivationApp extends Application {
 
     private static final PerformMessage performMessage;
@@ -23,6 +26,50 @@ public class LicenseActivationApp extends Application {
     }
 
     private String fileFolder;
+
+    public static void main(String[] args) throws Exception {
+        String licensePath = System.getProperty("user.dir");
+        if (args.length > 0) {
+            licensePath = args[0];
+        }
+
+        if (!LicenseManager.checkLicenseFile(licensePath).isActive()) {
+            launch(args);
+        } else {
+            log.info("AR Web agree licence terms are activate.\n\nPress OK to proceed.");
+            //        Application.launch(LicenceResponseManagerApp.class, args); // Lancia questa
+            // applicazione se la
+            // condizione  falsa
+        }
+    }
+
+    private static String getDesktopDir() throws IOException {
+        PointerByReference ppszPath = new PointerByReference();
+        if (Shell32.INSTANCE
+                        .SHGetKnownFolderPath(KnownFolders.FOLDERID_Desktop, 0, null, ppszPath)
+                        .intValue()
+                != 0) {
+            log.warn("Error reading/writing to the file! -> Desktop Folder");
+            //            performMessage.errorMessage(
+            //                    "Error reading/writing to the file!",
+            //                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please verify that
+            // you have the necessary permissions to read and write to the specified directory.</span>",
+            //                    "<span style='color: #E65100; font-weight: bold;'>Attempted to access the following
+            // location:</span> <span style='font-weight: bold;'>Desktop</span>",
+            //                    "<span style='color: #E65100; font-style: italic; font-weight: bold;'>The request for
+            // the License file path was defined at:</span>",
+            //                    "<span style='color: #1A237E; font-style: italic; font-weight: bold; font-size:
+            // 1.05em;'>Desktop Folder</span>",
+            //                    0);
+            return null;
+            //            throw new IOException("Failed to get desktop directory.");
+        }
+
+        // Convert pointer to string
+        String desktopPath = ppszPath.getValue().getWideString(0);
+        Native.free(Pointer.nativeValue(ppszPath.getValue()));
+        return desktopPath;
+    }
 
     @Override
     public void start(Stage primaryStage) throws Exception {
@@ -45,8 +92,7 @@ public class LicenseActivationApp extends Application {
                 "<span style='color: " + msgColor + "; font-weight: bold;'>" + msgValid + "</span>",
                 "<span style='font-style: italic;'>" + msgNextStep + "</span>",
                 "<span style='color: #E65100; font-weight: bold;'>Current license status:</span> <span style='font-weight: bold;'>"
-                        + licenseStatus.getStaus()
-                        + "</span>",
+                        + licenseStatus.getStaus() + "</span>",
                 false,
                 "OK",
                 null,
@@ -142,8 +188,7 @@ public class LicenseActivationApp extends Application {
                                         "<span style='color: #0277BD; font-weight: bold;'>Please send this request file to your provider to receive the User License.</span>",
                                         "<span style='font-style: italic;'>This request file contains encrypted system information required for license activation.</span>",
                                         "<span style='color: #E65100; font-weight: bold;'>License path:</span> <span style='font-weight: bold;'>"
-                                                + licensePath
-                                                + "</span>",
+                                                + licensePath + "</span>",
                                         false,
                                         "OK",
                                         null,
@@ -156,8 +201,7 @@ public class LicenseActivationApp extends Application {
                                         "<span style='color: #0277BD; font-weight: bold;'>You may now use the application without restrictions.</span>",
                                         "<span style='font-style: italic;'>You can close this message and continue.</span>",
                                         "<span style='color: #E65100; font-weight: bold;'>License path:</span> <span style='font-weight: bold;'>"
-                                                + licensePath
-                                                + "</span>",
+                                                + licensePath + "</span>",
                                         false,
                                         "OK",
                                         null,
@@ -170,8 +214,7 @@ public class LicenseActivationApp extends Application {
                                         "<span style='color: #0277BD; font-weight: bold;'>Please make sure the response file is available and try again.</span>",
                                         "<span style='font-style: italic;'>Ensure the file was received from your provider and has not been modified.</span>",
                                         "<span style='color: #E65100; font-weight: bold;'>Expected license path:</span> <span style='font-weight: bold;'>"
-                                                + licensePath
-                                                + "</span>",
+                                                + licensePath + "</span>",
                                         0);
                             }
                         } catch (Exception error) {
@@ -210,45 +253,5 @@ public class LicenseActivationApp extends Application {
         primaryStage.setTitle("Activation Software Required");
         primaryStage.setScene(scene);
         primaryStage.show();
-    }
-
-    public static void main(String[] args) throws Exception {
-        String licensePath = System.getProperty("user.dir");
-        if (args.length > 0) {
-            licensePath = args[0];
-        }
-
-        if (!LicenseManager.checkLicenseFile(licensePath).isActive()) {
-            launch(args);
-        } else {
-            System.out.println("AR Web agree licence terms are activate.\n\nPress OK to proceed.");
-            //        Application.launch(LicenceResponseManagerApp.class, args); // Lancia questa
-            // applicazione se la
-            // condizione  falsa
-        }
-    }
-
-    private static String getDesktopDir() throws IOException {
-        PointerByReference ppszPath = new PointerByReference();
-        if (Shell32.INSTANCE
-                        .SHGetKnownFolderPath(KnownFolders.FOLDERID_Desktop, 0, null, ppszPath)
-                        .intValue()
-                != 0) {
-
-            performMessage.errorMessage(
-                    "Error reading/writing to the file!",
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please verify that you have the necessary permissions to read and write to the specified directory.</span>",
-                    "<span style='color: #E65100; font-weight: bold;'>Attempted to access the following location:</span> <span style='font-weight: bold;'>Desktop</span>",
-                    "<span style='color: #E65100; font-style: italic; font-weight: bold;'>The request for the License file path was defined at:</span>",
-                    "<span style='color: #1A237E; font-style: italic; font-weight: bold; font-size: 1.05em;'>Desktop Folder</span>",
-                    0);
-            return null;
-            //            throw new IOException("Failed to get desktop directory.");
-        }
-
-        // Convert pointer to string
-        String desktopPath = ppszPath.getValue().getWideString(0);
-        Native.free(Pointer.nativeValue(ppszPath.getValue()));
-        return desktopPath;
     }
 }

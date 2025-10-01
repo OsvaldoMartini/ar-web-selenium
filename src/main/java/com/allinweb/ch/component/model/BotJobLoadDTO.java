@@ -12,6 +12,7 @@ public class BotJobLoadDTO {
     private String priority;
     private Integer blockOrderNumber;
     private String blockName;
+    private Integer blockId;
     private String blockDescription;
     private Integer homeBankingId;
     private Integer homeUrlId;
@@ -22,14 +23,9 @@ public class BotJobLoadDTO {
 
     @Override
     public String toString() {
-        return "BotJobLoadDTO{"
-                + "id="
-                + id
-                + ", name='"
-                + name
-                + '\''
-                + ", blockLoadDTOList="
-                + blockLoadDTOList
-                + '}';
+        return "BotJobLoadDTO{" + "id="
+                + id + ", name='"
+                + name + '\'' + ", blockLoadDTOList="
+                + blockLoadDTOList + '}';
     }
 }

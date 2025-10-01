@@ -1,12 +1,14 @@
 package com.allinweb.ch.component.pane;
 
-import com.allinweb.ch.component.model.FormatOption;
-import com.allinweb.ch.component.model.RowMoveDTO;
-import com.allinweb.ch.component.model.VariableUserDTO;
+import com.allinweb.ch.component.model.*;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
+import com.allinweb.ch.socket.WebSocketSessionManager;
+import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
+import com.google.gson.Gson;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
@@ -20,15 +22,46 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.util.Callback;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class ARElementValuePane extends ARPane {
 
+    private static final PerformLists performLists = PerformLists.getInstance();
+    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
+    private static final PerformMessage performMessage = PerformMessage.getInstance();
+    private static final ARNewCommandPane arNewCommandPane = ARNewCommandPane.getInstance();
     protected static volatile ARElementValuePane instance;
-
+    private static WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
+    private final Gson gson = new Gson();
+    TextField idField;
+    TextField parentField;
+    TextField nameField;
+    TextField valueField;
+    TextField usedVarsField;
+    CheckBox stringCheckBox;
+    CheckBox numericCheckBox;
+    Label numberFormatLabel;
+    Label delimeterCSVLabel;
+    ComboBox<FormatOption> comboBoxLocalFormat;
+    ComboBox<FormatOption> comboBoxCSVColumns;
+    Button insertButton;
+    Button updateButton;
+    Button deleteButton;
+    // Postgres
+    private Connection conn = null;
+    private TableView<VariableUserDTO> tableView = new TableView<>();
+    private SplitDTO splitDTO;
+    private int varId;
+    private String varValue;
+    private int instructionId;
+    private String instructionName;
+    private String varName;
+    private String instructionType;
+    private Pane mainPane;
+    private PayloadJson payloadEmpty;
     // Private constructor to prevent instantiation
-    private ARElementValuePane() {
-        // Initialize if necessary
-    }
+    private ARElementValuePane() {}
 
     public static ARElementValuePane getInstance() {
         if (instance == null) {
@@ -41,56 +74,15 @@ public class ARElementValuePane extends ARPane {
         return instance;
     }
 
-    // Postgres
-    private Connection conn = null;
-
-    private ObservableList<VariableUserDTO> variablesList = FXCollections.observableArrayList();
-    private TableView<VariableUserDTO> tableView = new TableView<>();
-    private RowMoveDTO rowMoveDTO;
-    private int varId;
-    private String varValue;
-    private int instructionId;
-
-    private String instructionName;
-    private String varName;
-    private String instructionType;
-
-    private Pane mainPane;
-
-    TextField idField;
-    TextField parentField;
-    TextField nameField;
-    TextField valueField;
-    TextField usedVarsField;
-    CheckBox stringCheckBox;
-    CheckBox numericCheckBox;
-    Label numberFormatLabel;
-    Label delimeterCSVLabel;
-    ComboBox<FormatOption> comboBoxLocalFormat;
-    ComboBox<FormatOption> comboBoxCSVColumns;
-    Button updateButton;
-    Button deleteButton;
-
-    private static final PerformDataBase performDataBase;
-    private static final PerformMessage performMessage;
-    private static final ARNewCommandPane arNewCommandPane;
-
-    // Static block to initialize
-    static {
-        performDataBase = PerformDataBase.getInstance();
-        performMessage = PerformMessage.getInstance();
-        arNewCommandPane = ARNewCommandPane.getInstance();
-    }
-
     public void initialize(
-            RowMoveDTO rowMoveDTO,
+            SplitDTO splitDTO,
             int varId,
             String varValue,
             int instructionId,
             String instructionName,
             String varName,
             String instructionType) {
-        this.rowMoveDTO = rowMoveDTO;
+        this.splitDTO = splitDTO;
         this.varId = varId;
         this.varValue = varValue;
         this.instructionId = instructionId;
@@ -98,17 +90,36 @@ public class ARElementValuePane extends ARPane {
         this.varName = varName;
         this.instructionType = instructionType;
 
-        this.variablesList = performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId);
+        String varTable = splitDTO.getSessionId().equals("componentTasks") ? "component_variable" : "variable";
+        int whereId =
+                splitDTO.getSessionId().equals("componentTasks") ? splitDTO.getHomeBankingId() : splitDTO.getBotJobId();
 
-        if (this.varId > -1) {
-            selectRowById(varId);
+        // if (performLists.getListVariablesUser().isEmpty()) {
+        String instrTable = varTable.equals("variable") ? "instruction" : "component_instruction";
+        InstructionLoad instructionLoad = performLists.getInstructionById(instrTable, whereId, instructionId);
+
+        if (instructionLoad != null) {
+            ErrorMessage errorMessage = performDataBase.loadAllVariablesByCriteria(
+                    varTable, whereId, instructionLoad.getId(), instructionLoad.getName());
+            if (errorMessage != null) {
+                performMessage.errorMessageOperationFailed(errorMessage);
+            }
         }
 
-        if (idField != null && this.varId == -1) {
+        if (tableView != null) {
+            tableView.setItems(FXCollections.observableArrayList(performLists.getListVariablesUser()));
+        }
+        // }
+
+        if (idField != null) {
             idField.clear();
             idField.setText(String.valueOf(varId));
             parentField.setText(instructionName);
             nameField.setText(varName);
+
+            //            if (this.varId > -1) {
+            //                selectRowById(varId);
+            //            }
         }
 
         if (valueField != null) {
@@ -254,140 +265,15 @@ public class ARElementValuePane extends ARPane {
         });
         comboBoxCSVColumns.getSelectionModel().selectFirst();
 
-        // Ensure only one checkbox can be selected at a time
-        stringCheckBox.selectedProperty().addListener((obs, oldValue, newValue) -> {
-            if (newValue) {
-                numericCheckBox.setSelected(false);
-                numberFormatLabel.setDisable(true);
-                comboBoxLocalFormat.setDisable(true);
-            }
-        });
-
-        numericCheckBox.selectedProperty().addListener((obs, oldValue, newValue) -> {
-            if (newValue) {
-                stringCheckBox.setSelected(false);
-                numberFormatLabel.setDisable(false);
-                comboBoxLocalFormat.setDisable(false);
-            } else {
-                numberFormatLabel.setDisable(true);
-                comboBoxLocalFormat.setDisable(true);
-            }
-        });
-
         // Create submit button
-        Button submitButton = new Button("Insert");
-        submitButton.setOnAction(event -> {
-            String selectedType =
-                    stringCheckBox.isSelected() ? "$String" : numericCheckBox.isSelected() ? "#Numeric" : "";
-
-            String valueVar = Strings.isNullOrEmpty(valueField.getText()) ? "$EMPTY" : valueField.getText();
-
-            String localFormat = "";
-            if (numericCheckBox.isSelected()) {
-                FormatOption selected = comboBoxLocalFormat.getValue();
-                if (selected != null) {
-                    localFormat = selected.getValue(); // "US" or "EU"
-                }
-            }
-
-            String delimiter = "";
-            FormatOption selected = comboBoxCSVColumns.getValue();
-            if (selected != null) {
-                delimiter = selected.getValue(); // "US" or "EU"
-            }
-
-            VariableUserDTO user = new VariableUserDTO(
-                    -1,
-                    selectedType,
-                    nameField.getText().trim(),
-                    valueVar,
-                    rowMoveDTO.getBotJobId(),
-                    instructionId,
-                    localFormat,
-                    delimiter,
-                    "");
-
-            if (nameExists(nameField.getText().trim())) {
-                performMessage.errorMessage(
-                        "Variable Name Already Exists",
-                        String.format("'%s' cannot be inserted with the existent name!", nameField.getText()),
-                        null,
-                        null,
-                        null,
-                        0);
-
-                return;
-            }
-
-            if (nameField.getText().trim().isEmpty() || selectedType.isEmpty()) {
-                performMessage.errorMessage(
-                        "Name and Type Cannot be Empty", "Name and Type Cannot be Empty", null, null, null, 0);
-                return;
-            }
-
-            performDataBase.saveUserData(user);
-            this.variablesList.clear();
-            this.variablesList = performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId);
-            arNewCommandPane.reloadComboVars(instructionId, true, -1);
-        });
+        insertButton = new Button("Insert");
 
         // Create update button
         updateButton = new Button("Update");
-        updateButton.setOnAction(event -> {
-            VariableUserDTO selectedUser = tableView.getSelectionModel().getSelectedItem();
-
-            String selectedType =
-                    stringCheckBox.isSelected() ? "$String" : numericCheckBox.isSelected() ? "#Numeric" : "";
-
-            String valueVar = Strings.isNullOrEmpty(valueField.getText()) ? "$EMPTY" : valueField.getText();
-
-            selectedUser.setType(selectedType);
-            selectedUser.setName(nameField.getText().trim());
-            selectedUser.setValue(valueVar.trim());
-
-            String localFormat = "";
-            if (numericCheckBox.isSelected()) {
-                FormatOption selected = comboBoxLocalFormat.getValue();
-                if (selected != null) {
-                    localFormat = selected.getValue(); // "US" or "EU"
-                }
-            }
-            selectedUser.setLocalFormat(localFormat);
-
-            String delimiter = "";
-            FormatOption selected = comboBoxCSVColumns.getValue();
-            if (selected != null) {
-                delimiter = selected.getValue(); // "US" or "EU"
-            }
-            selectedUser.setDelimiter(delimiter);
-
-            performDataBase.updateUserData(selectedUser.getId(), selectedUser);
-
-            this.variablesList = performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId);
-            arNewCommandPane.reloadComboVars(instructionId, true, varId);
-        });
         updateButton.setDisable(true);
 
         // Create delete button
         deleteButton = new Button("Delete");
-        deleteButton.setOnAction(event -> {
-            String id = idField.getText();
-            if (Integer.parseInt(usedVarsField.getText()) > 0) {
-                performMessage.errorMessage(
-                        "Action Remove Error",
-                        String.format("This '%s' cannot be deleted!", nameField.getText()),
-                        String.format("Exist %s Steps attached!", usedVarsField.getText()),
-                        null,
-                        null,
-                        0);
-
-                return;
-            }
-
-            performDataBase.deleteUserData(id);
-            this.variablesList = performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId);
-            arNewCommandPane.reloadComboVars(instructionId, true, -1);
-        });
         deleteButton.setDisable(true);
 
         // Create layout and add components
@@ -422,7 +308,7 @@ public class ARElementValuePane extends ARPane {
         gridPane.add(jobsLabel, 0, 8);
         gridPane.add(usedVarsField, 1, 8);
 
-        HBox buttonsBox = new HBox(11, submitButton, updateButton, deleteButton);
+        HBox buttonsBox = new HBox(11, insertButton, updateButton, deleteButton);
         buttonsBox.setAlignment(Pos.CENTER);
         buttonsBox.setSpacing(10); // Horizontal spacing between buttons
 
@@ -469,30 +355,7 @@ public class ARElementValuePane extends ARPane {
         List<TableColumn<VariableUserDTO, String>> columns =
                 List.of(idColumn, typeColumn, nameColumn, valueColumn, localFormatColumn, delimiterColumn);
         tableView.getColumns().addAll(columns);
-        tableView.setItems(variablesList);
-
-        // Add listener to TableView selection
-        //        tableView
-        //                .getColumns()
-        //                .addAll(idColumn, typeColumn, nameColumn, valueColumn, localFormatColumn,
-        // delimiterColumn);
-        //        tableView.setItems(variablesList);
-
-        tableView.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
-            if (newSelection != null) {
-                // Get the selected UserDTO object
-                VariableUserDTO selectedUser = tableView.getSelectionModel().getSelectedItem();
-
-                fillFields(selectedUser);
-
-                deleteButton.setDisable(false);
-                updateButton.setDisable(false);
-
-            } else {
-                // If no row is selected, clear the text fields and checkboxes
-                clearData();
-            }
-        });
+        tableView.setItems(FXCollections.observableArrayList(performLists.getListVariablesUser()));
 
         // Wrap the TableView in a VBox for more control
         VBox tableViewContainer = new VBox(tableView);
@@ -542,8 +405,7 @@ public class ARElementValuePane extends ARPane {
     //        for (HomeBankingDTO homeBankingDTO : listHomeBankingDTO) {
     //            List<JobDTO> listJobsDto = new ArrayList<>();
     //            for (BotJobDTO botJobDTO : homeBankingDTO.getBotJobs()) {
-    //                JobDTO jobsDto = new JobDTO(botJobDTO.getName(), botJobDTO.getDescription(), new
-    // ArrayList<>());
+    //                JobDTO jobsDto = new JobDTO(botJobDTO.getName(), botJobDTO.getDescription(), new ArrayList<>());
     //                listJobsDto.add(jobsDto);
     //            }
     //
@@ -559,7 +421,260 @@ public class ARElementValuePane extends ARPane {
     //    }
 
     @Override
-    public void initUIBehaviour() {}
+    public void initUIBehaviour() {
+        insertButton.setOnAction(event -> {
+            String selectedType =
+                    stringCheckBox.isSelected() ? "$String" : numericCheckBox.isSelected() ? "#Numeric" : "";
+
+            String valueVar = Strings.isNullOrEmpty(valueField.getText()) ? "$EMPTY" : valueField.getText();
+
+            String localFormat = "";
+            if (numericCheckBox.isSelected()) {
+                FormatOption selected = comboBoxLocalFormat.getValue();
+                if (selected != null) {
+                    localFormat = selected.getValue(); // "US" or "EU"
+                }
+            }
+
+            String delimiter = "";
+            FormatOption selected = comboBoxCSVColumns.getValue();
+            if (selected != null) {
+                delimiter = selected.getValue(); // "US" or "EU"
+            }
+
+            String varTable = splitDTO.getSessionId().equals("componentTasks") ? "component_variable" : "variable";
+            int whereId = splitDTO.getSessionId().equals("componentTasks")
+                    ? splitDTO.getHomeBankingId()
+                    : splitDTO.getBotJobId();
+
+            // if (performLists.getListVariablesUser().isEmpty()) {
+            String instrTable = varTable.equals("variable") ? "instruction" : "component_instruction";
+            InstructionLoad instructionLoad = performLists.getInstructionById(instrTable, whereId, instructionId);
+
+            VariableUserDTO user = new VariableUserDTO(
+                    -1,
+                    selectedType,
+                    nameField.getText().trim(),
+                    valueVar,
+                    splitDTO.getBotJobId(),
+                    instructionLoad.getId(),
+                    instructionLoad.getName(),
+                    localFormat,
+                    delimiter,
+                    "");
+
+            if (nameExists(nameField.getText().trim())) {
+                performMessage.errorMessage(
+                        "Variable Name Already Exists",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                        String.format(
+                                "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> Duplicate Variable Name - '%s'",
+                                nameField.getText()),
+                        "<span style='font-style: italic;'>Detail:</span> A variable with this name already exists. Please choose a unique name.",
+                        null,
+                        0);
+
+                return;
+            }
+
+            if (nameField.getText().trim().isEmpty()) {
+                performMessage.errorMessage(
+                        "Name Cannot be Empty",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> Name Cannot be Empty",
+                        "<span style='font-style: italic;'>Detail:</span> Please enter a valid name before continuing. This field is required.",
+                        null,
+                        0);
+                return;
+            }
+
+            if (selectedType.isEmpty()) {
+                performMessage.errorMessage(
+                        "Type of Variable Cannot be Empty",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> Type of Variable Cannot be Empty",
+                        "<span style='font-style: italic;'>Detail:</span> You must select or provide a valid variable type before proceeding.",
+                        null,
+                        0);
+                return;
+            }
+
+            performDataBase.createVariable(user);
+
+            arNewCommandPane.reloadComboVars(varTable, whereId, instructionId, true, -1);
+        });
+
+        updateButton.setOnAction(event -> {
+            VariableUserDTO selectedUser = tableView.getSelectionModel().getSelectedItem();
+
+            String typeVar = stringCheckBox.isSelected() ? "$String" : numericCheckBox.isSelected() ? "#Numeric" : "";
+
+            String valueVar = Strings.isNullOrEmpty(valueField.getText()) ? "$EMPTY" : valueField.getText();
+
+            selectedUser.setType(typeVar);
+            selectedUser.setName(nameField.getText().trim());
+            selectedUser.setValue(valueVar.trim());
+
+            String localFormat = "";
+            if (numericCheckBox.isSelected()) {
+                FormatOption selected = comboBoxLocalFormat.getValue();
+                if (selected != null) {
+                    localFormat = selected.getValue(); // "US" or "EU"
+                }
+            }
+            selectedUser.setLocalFormat(localFormat);
+
+            String delimiter = "";
+            FormatOption selected = comboBoxCSVColumns.getValue();
+            if (selected != null) {
+                delimiter = selected.getValue(); // "US" or "EU"
+            }
+            selectedUser.setDelimiter(delimiter);
+
+            String varTable = splitDTO.getSessionId().equals("componentTasks") ? "component_variable" : "variable";
+            String instrTable =
+                    splitDTO.getSessionId().equals("componentTasks") ? "component_instruction" : "instruction";
+            int whereId = splitDTO.getSessionId().equals("componentTasks")
+                    ? splitDTO.getHomeBankingId()
+                    : splitDTO.getBotJobId();
+
+            performDataBase.updateUserData(varTable, whereId, selectedUser);
+
+            ErrorMessage errorMessage = performDataBase.loadAllParents(instrTable, whereId, instructionId);
+
+            String type = typeVar.equals("$String") ? "$" : "#";
+
+            if (errorMessage == null) {
+                if (!performLists.getListParentOperations().isEmpty()) {
+                    for (ParentOperations parent : performLists.getListParentOperations()) {
+                        if ("GET".equals(parent.getActions())) {
+                            String[] parts = parent.getOperations().split(":");
+                            parent.setOperations(parts[0] + ":" + type + selectedUser.getName());
+                        } else if ("CK".equals(parent.getActions())) {
+                            String[] parts = parent.getOperations().split(":");
+                            parent.setOperations(
+                                    type + selectedUser.getName() + ":" + parts[1] + ":" + selectedUser.getValue());
+                        } else if ("E".equals(parent.getActions())) {
+                            parent.setOperations(type + selectedUser.getName());
+                        }
+                    }
+
+                    errorMessage = performDataBase.rowsUpdateParentName(
+                            instrTable, whereId, performLists.getListParentOperations());
+
+                    // UPDATE MEMORY LIST FOR PARENTS OPERATION NAMES
+                    if (errorMessage == null) {
+                        performLists.updateMemoryParentOpenName(
+                                instrTable, whereId, performLists.getListParentOperations());
+                    }
+                }
+
+                String updateAction = instrTable.equals("instruction") ? "updateInstructions" : "componentsUpdate";
+                List<BotJobLoadDTO> listBot = instrTable.equals("instruction")
+                        ? performLists.getListBotJob()
+                        : performLists.getListBotJobComp();
+
+                setPayloadEmpty(
+                        splitDTO.getSessionId(),
+                        splitDTO.getHomeBankingId(),
+                        splitDTO.getBotJobId(),
+                        splitDTO.getBotJobName());
+                String jsonData = gson.toJson(payloadEmpty);
+                if (!listBot.isEmpty()) {
+                    List<InstructionLoad> instructionLoads = performLists.buildJsonViewData(listBot);
+                    jsonData = gson.toJson(instructionLoads);
+                }
+
+                webSocketSessionManager.sendMessageJson(
+                        splitDTO.getHomeBankingId(), splitDTO.getSessionId(), jsonData, updateAction);
+            }
+
+            //            // UPDATE MEMORY LIST FOR PARENTS INSTRUCION NAME
+            //            if (errorMessage == null) {
+            //                performLists.updateMemoryInstructionName(instrTable, whereId,
+            // rowUpdateDTO.getUpdatedRows());
+            //            }
+
+            if (errorMessage != null) {
+                performMessage.errorMessageOperationFailed(errorMessage);
+            }
+
+            arNewCommandPane.reloadComboVars(varTable, whereId, instructionId, true, varId);
+        });
+
+        deleteButton.setOnAction(event -> {
+            String id = idField.getText();
+            if (Integer.parseInt(usedVarsField.getText()) > 0) {
+                performMessage.errorMessage(
+                        "Action Remove Denied",
+                        String.format("This '%s' cannot be deleted!", nameField.getText()),
+                        String.format("Exist %s Steps attached!", usedVarsField.getText()),
+                        null,
+                        null,
+                        0);
+
+                return;
+            }
+
+            String varTable = splitDTO.getSessionId().equals("componentTasks") ? "component_variable" : "variable";
+            int whereId = splitDTO.getSessionId().equals("componentTasks")
+                    ? splitDTO.getHomeBankingId()
+                    : splitDTO.getBotJobId();
+
+            int idVar = -1;
+            try {
+                idVar = Integer.parseInt(idField.getText());
+            } catch (Exception ignore) {
+            }
+            ErrorMessage errorMessage = performDataBase.deleteUserData(varTable, whereId, idVar);
+            if (errorMessage != null) {
+                performMessage.errorMessageOperationFailed(errorMessage);
+            }
+            arNewCommandPane.reloadComboVars(varTable, whereId, instructionId, true, -1);
+        });
+
+        // Add listener to TableView selection
+        //        tableView
+        //                .getColumns()
+        //                .addAll(idColumn, typeColumn, nameColumn, valueColumn, localFormatColumn, delimiterColumn);
+        //        tableView.setItems(variablesList);
+
+        // Ensure only one checkbox can be selected at a time
+        stringCheckBox.selectedProperty().addListener((obs, oldValue, newValue) -> {
+            if (newValue) {
+                numericCheckBox.setSelected(false);
+                numberFormatLabel.setDisable(true);
+                comboBoxLocalFormat.setDisable(true);
+            }
+        });
+
+        numericCheckBox.selectedProperty().addListener((obs, oldValue, newValue) -> {
+            if (newValue) {
+                stringCheckBox.setSelected(false);
+                numberFormatLabel.setDisable(false);
+                comboBoxLocalFormat.setDisable(false);
+            } else {
+                numberFormatLabel.setDisable(true);
+                comboBoxLocalFormat.setDisable(true);
+            }
+        });
+
+        tableView.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
+            if (newSelection != null) {
+                // Get the selected UserDTO object
+                VariableUserDTO selectedUser = tableView.getSelectionModel().getSelectedItem();
+
+                fillFields(selectedUser);
+
+                deleteButton.setDisable(false);
+                updateButton.setDisable(false);
+
+            } else {
+                // If no row is selected, clear the text fields and checkboxes
+                clearData();
+            }
+        });
+    }
 
     private void updateFields() {}
 
@@ -584,7 +699,7 @@ public class ARElementValuePane extends ARPane {
     }
 
     private boolean nameExists(String name) {
-        for (VariableUserDTO dto : variablesList) {
+        for (VariableUserDTO dto : performLists.getListVariablesUser()) {
             if (dto.getName().trim().equalsIgnoreCase(name)) {
                 return true;
             }
@@ -598,27 +713,40 @@ public class ARElementValuePane extends ARPane {
             try {
                 conn.close();
             } catch (SQLException e) {
-                System.out.println(e.getMessage());
+                log.info(e.getMessage());
             }
         }
     }
 
     public void selectRowById(int idToFind) {
-        if (rowMoveDTO != null && rowMoveDTO.getBotJobId() != null) {
+        if (splitDTO != null && splitDTO.getBotJobId() != null) {
 
-            if (this.variablesList.isEmpty()) {
-                this.variablesList =
-                        performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId);
+            if (performLists.getListVariablesUser().isEmpty()) {
+                String varTable = splitDTO.getSessionId().equals("componentTasks") ? "component_variable" : "variable";
+                int whereId = splitDTO.getSessionId().equals("componentTasks")
+                        ? splitDTO.getHomeBankingId()
+                        : splitDTO.getBotJobId();
+
+                String instrTable = varTable.equals("variable") ? "instruction" : "component_instruction";
+                InstructionLoad instructionLoad = performLists.getInstructionById(instrTable, whereId, instructionId);
+
+                if (instructionLoad != null) {
+                    ErrorMessage errorMessage = performDataBase.loadAllVariablesByCriteria(
+                            varTable, whereId, instructionLoad.getId(), instructionLoad.getName());
+                    if (errorMessage != null) {
+                        performMessage.errorMessageOperationFailed(errorMessage);
+                    }
+                }
             }
 
             if (tableView == null) {
-                System.err.println("TableView not initialized.");
+                log.error("TableView not initialized.");
                 return;
             }
 
             ObservableList<VariableUserDTO> items = tableView.getItems();
             if (items == null || items.isEmpty()) {
-                System.out.println("TableView is empty.");
+                log.info("TableView is empty.");
                 return;
             }
 
@@ -640,13 +768,13 @@ public class ARElementValuePane extends ARPane {
         }
 
         // If the loop completes without finding the ID
-        System.out.println("Variable with ID " + idToFind + " not found in the TableView.");
+        log.info("Variable with ID " + idToFind + " not found in the TableView.");
     }
 
     private void fillFields(VariableUserDTO userDTO) {
         // Set the values of the selected row to the text fields
         idField.setText(String.valueOf(userDTO.getId()));
-        parentField.setText("(" + userDTO.getParentId() + ")" + userDTO.getName());
+        parentField.setText("(" + userDTO.getParentId() + ")" + userDTO.getParentName());
         nameField.setText(userDTO.getName());
         String valueVar = userDTO.getValue().equalsIgnoreCase("$EMPTY") ? "" : userDTO.getValue();
         valueField.setText(valueVar);
@@ -720,5 +848,30 @@ public class ARElementValuePane extends ARPane {
                 }
             }
         });
+    }
+
+    private void setPayloadEmpty(String destination, int homeBankId, int botJobId, String botJobName) {
+        int blockId = -1;
+        int whereId = -1;
+        if (destination.equalsIgnoreCase("botJobTasks")) {
+            if (performLists.getListBlock().isEmpty()) {
+                performDataBase.loadBlocks(botJobId, botJobName, "block");
+            }
+            whereId = botJobId;
+            if (!performLists.getListBlock().isEmpty()) {
+                blockId = performLists.getListBlock().get(0).getId();
+            }
+
+        } else if (destination.equalsIgnoreCase("componentTasks")) {
+            if (!performLists.getListBotJobComp().isEmpty()
+                    && performLists.getListBlockComp().isEmpty()) {
+                performDataBase.loadBlocks(homeBankId, "", "component_block");
+            }
+            whereId = homeBankId;
+            if (!performLists.getListBlockComp().isEmpty()) {
+                blockId = performLists.getListBlockComp().get(0).getId();
+            }
+        }
+        this.payloadEmpty = new PayloadJson(whereId, blockId, botJobName, 0);
     }
 }

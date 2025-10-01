@@ -3,19 +3,30 @@ package com.allinweb.ch.component.scene;
 import com.allinweb.ch.component.pane.ARLicensePane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
-import com.allinweb.ch.util.ARLogger;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class ARLicenseScene extends ARScene {
+    private static final ARLicensePane arLicensePane;
+    private static final Double SCENE_HEIGHT = 550D;
+    private static final Double SCENE_WIDTH = 800D;
+    private static final String TITLE = "Activation Software Required";
     protected static volatile ARLicenseScene instance;
 
+    static {
+        arLicensePane = ARLicensePane.getInstance();
+    }
+
+    private Stage modalStage;
+    private Scene modalScene;
     // Private constructor to prevent instantiation
     private ARLicenseScene() {
-        // Initialize if necessary
+
         super();
     }
 
@@ -30,19 +41,6 @@ public class ARLicenseScene extends ARScene {
         }
         return instance;
     }
-
-    private Stage modalStage;
-    private Scene modalScene;
-
-    private static final ARLicensePane arLicensePane;
-
-    static {
-        arLicensePane = ARLicensePane.getInstance();
-    }
-
-    private static final Double SCENE_HEIGHT = 550D;
-    private static final Double SCENE_WIDTH = 800D;
-    private static final String TITLE = "Activation Software Required";
 
     @Override
     public IARPane buildPane() {
@@ -76,12 +74,12 @@ public class ARLicenseScene extends ARScene {
     }
 
     private void handleCloseRequest(WindowEvent event) {
-        System.out.println("Handle Close (Main Stage): Exiting Threads and Quitting WebDriver");
+        log.info("Handle Close (Main Stage): Exiting Threads and Quitting WebDriver");
         cleanupAndClose((Stage) event.getSource());
     }
 
     private void cleanupAndClose(Stage stage) {
-        System.out.println("Cleanup and Close: Exiting Threads");
+        log.info("Cleanup and Close: Exiting Threads");
         // Interrupt running threads
         threadList.forEach(this::interruptThread);
         // Add any other cleanup logic here (e.g., WebDriver quit)
@@ -94,12 +92,13 @@ public class ARLicenseScene extends ARScene {
 
         if (modalStage == null) {
             modalStage = new Stage();
+            modalStage.getIcons().add(icon);
             IARPane pane = buildPane();
             if (pane != null) {
                 modalScene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
                 modalStage.setScene(modalScene);
                 modalStage.setTitle(getTitle());
-                modalStage.initModality(Modality.WINDOW_MODAL); // Changed to NONE
+                modalStage.initModality(Modality.WINDOW_MODAL);
                 modalStage.setAlwaysOnTop(true); // Set always on top
                 modalStage.toFront();
                 // Reset alwaysOnTop after showing so it behaves normally afterward
@@ -112,14 +111,14 @@ public class ARLicenseScene extends ARScene {
 
                 // Set the onCloseRequest handler for the modal stage
                 modalStage.setOnCloseRequest(event -> {
-                    System.out.println("Handle Close (Modal Stage): Exiting Threads from Modal");
+                    log.info("Handle Close (Modal Stage): Exiting Threads from Modal");
                     cleanupAndClose(modalStage);
                     event.consume(); // Prevent default close behavior if needed
                 });
 
             } else {
                 // Handle the case where pane creation failed
-                ARLogger.getInstance(ARLicenseScene.class).severe("Failed to build pane for modal.");
+                log.error("Failed to build pane for modal.");
                 return;
             }
         }

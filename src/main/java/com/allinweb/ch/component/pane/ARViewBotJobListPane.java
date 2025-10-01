@@ -8,6 +8,7 @@ import com.allinweb.ch.component.scene.ARViewBotJobScene;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.util.ARConstants;
 import javafx.collections.FXCollections;
@@ -16,15 +17,34 @@ import javafx.geometry.HPos;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.layout.*;
+import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.WebDriver;
 
+@Slf4j
 public class ARViewBotJobListPane extends ARPane {
 
+    private static final PerformLists performLists;
+    private static final PerformDataBase performDataBase;
+    private static final PerformActions performActions;
+    private static final PerformMessage performMessage;
     protected static volatile ARViewBotJobListPane instance;
 
+    static {
+        performLists = PerformLists.getInstance();
+        performDataBase = PerformDataBase.getInstance();
+        performActions = PerformActions.getInstance();
+        performMessage = PerformMessage.getInstance();
+    }
+
+    // UI components
+    private final GridPane header = new GridPane();
+    private ListView<BotJobLoadDTO> uiBotJobList;
+    private ARViewBotJobScene arViewBotJobScene;
+    private ARWebDriver arWebDriver;
+    private ObservableList<WebDriver> webDriverList;
     // Private constructor to prevent instantiation
     private ARViewBotJobListPane() {
-        // Initialize if necessary
+
         super();
     }
 
@@ -37,24 +57,6 @@ public class ARViewBotJobListPane extends ARPane {
             }
         }
         return instance;
-    }
-
-    // UI components
-    private final GridPane header = new GridPane();
-    private ListView<BotJobLoadDTO> uiBotJobList;
-
-    private ARViewBotJobScene arViewBotJobScene;
-    private ARWebDriver arWebDriver;
-    private ObservableList<WebDriver> webDriverList;
-
-    private static final PerformDataBase performDataBase;
-    private static final PerformActions performActions;
-    private static final PerformMessage performMessage;
-
-    static {
-        performDataBase = PerformDataBase.getInstance();
-        performActions = PerformActions.getInstance();
-        performMessage = PerformMessage.getInstance();
     }
 
     // Constructor for Dependency Injection
@@ -73,7 +75,10 @@ public class ARViewBotJobListPane extends ARPane {
 
     @Override
     public void initUIComponents() {
-        ObservableList<BotJobLoadDTO> botJobList = FXCollections.observableArrayList(performDataBase.loadAllBotJobs());
+
+        performDataBase.loadQuickBotJobs();
+        ObservableList<BotJobLoadDTO> botJobList =
+                FXCollections.observableArrayList(FXCollections.observableArrayList(performLists.getQuickBotJobs()));
         uiBotJobList = new ListView<>(botJobList);
 
         // Setting the cell factory correctly

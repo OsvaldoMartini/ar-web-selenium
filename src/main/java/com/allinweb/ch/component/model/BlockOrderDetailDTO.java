@@ -1,13 +1,12 @@
 package com.allinweb.ch.component.model;
 
-import lombok.Builder;
 import lombok.Data;
 
 @Data
-@Builder
 public class BlockOrderDetailDTO {
-    private int blockId;
-    private int botJobId;
-    private int blockOrderNumber;
+    private Integer homeBankId;
+    private Integer botJobId;
+    private Integer blockId;
     private String blockName;
+    private Integer blockOrderNumber;
 }

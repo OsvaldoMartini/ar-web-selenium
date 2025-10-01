@@ -4,30 +4,20 @@ import com.allinweb.ch.component.listCell.ARCellFactory;
 import com.allinweb.ch.component.listCell.HomeBankingListCell;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.HomeBankingLoadDTO;
-import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
-import com.allinweb.ch.component.scene.ARAlertScene;
-import com.allinweb.ch.component.scene.ARElementValueScene;
-import com.allinweb.ch.component.scene.ARNewBotJobScene;
-import com.allinweb.ch.component.scene.ARNewCommandScene;
-import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
-import com.allinweb.ch.component.scene.ARScannedElementScene;
-import com.allinweb.ch.component.scene.ARViewBotJobScene;
+import com.allinweb.ch.component.scene.*;
 import com.allinweb.ch.control.ARComponentBuilder;
-import com.allinweb.ch.facade.PerformDataBase;
-import com.allinweb.ch.facade.PerformMessage;
+import com.allinweb.ch.driver.ARWebDriver;
+import com.allinweb.ch.facade.*;
 import com.allinweb.ch.license.LicenceVal;
 import com.allinweb.ch.license.LicenseManager;
-import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARLogger;
-import com.allinweb.ch.util.ARPropertyEnum;
-import com.allinweb.ch.util.ARPropertyManager;
-import com.allinweb.ch.util.ErrorMessage;
+import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import java.io.File;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.List;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -37,22 +27,130 @@ import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
+import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class ARConfigurationPane extends ARPane {
 
+    private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
+    private static final int SECONDS = 3; // Total seconds for the countdown
+    private static final ARPropertyManager arPropertyManager;
+    private static final ARNewHomeBankingScene arNewHomeBankingScene;
+    private static final PerformMessage performMessage;
+    private static final PerformLists performLists;
+    private static final PerformDBEngine performDBEngine;
+    private static final PerformDataBase performDataBase;
+    private static final PerformBackup performBackup;
+    private static final PerformInitializer performInitializer;
+    private static final ARWebDriver arWebDriver = ARWebDriver.getInstance();
+    private static final ARScannedElementScene arScannedElementScene;
+    private static final ARViewBotJobScene arViewBotJobScene;
+    private static final ARNewCommandScene arNewCommandScene;
+    private static final ARElementValueScene arElementValueScene;
+    private static final ARNewBotJobScene arNewBotJobScene;
     protected static volatile ARConfigurationPane instance;
+
+    // Static block to initialize
+    static {
+        arScannedElementScene = ARScannedElementScene.getInstance();
+        arNewCommandScene = ARNewCommandScene.getInstance();
+        arElementValueScene = ARElementValueScene.getInstance();
+        arViewBotJobScene = ARViewBotJobScene.getInstance();
+        arNewBotJobScene = ARNewBotJobScene.getInstance();
+
+        arPropertyManager = ARPropertyManager.getInstance();
+        performMessage = PerformMessage.getInstance();
+        performLists = PerformLists.getInstance();
+        performDataBase = PerformDataBase.getInstance();
+        performDBEngine = PerformDBEngine.getInstance();
+        arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
+        performBackup = PerformBackup.getInstance();
+        performInitializer = PerformInitializer.getInstance();
+    }
+
+    // UI Components
+    Label title;
+    Label pathExcelLabel;
+    Label pathLicenseLabel;
+    //    Label pathExportLabel;
+    //    Label fileExportLabel;
+    Label pathLogLabel;
+    Label sizeLogLabel;
+    Label reduceSearchLabel;
+    Label dbUrlLabel;
+    Label dbUserLabel;
+    Label dbPwdLabel;
+    Label pathAccessDBLabel;
+    Label databaseLabel;
+    Label pathReportLabel;
+    Label pathPriorityLabel;
+    Label pathEngineLabel;
+    Label browserLabel;
+    Label reloadDBLabel;
+    Label backupDBLabel;
+    Label restoreDateLabel;
+    Label deleteAllDBLabel;
+    Label insertSitesLabel;
+    Label pathWebDriverLabel;
+    TextField pathExcel;
+    TextField pathLicense;
+    TextField pathLog;
+    TextField pathAccessDB;
+    TextField pathReport;
+    TextField pathPriority;
+    TextField dbUrl;
+    TextField dbUser;
+    TextField dbPwd;
+    TextField pathEngine;
+    TextField pathWebDriver;
+    ChoiceBox<String> browserChoiceBox = new ChoiceBox<>();
+    ChoiceBox<String> databaseChoiceBox = new ChoiceBox<>();
+    ObservableList<String> browserList =
+            FXCollections.observableArrayList(ARConstants.CHROME, ARConstants.EDGE, ARConstants.FIREFOX);
+    ObservableList<String> databaseList =
+            FXCollections.observableArrayList(ARConstants.ACCESS, ARConstants.POSTGRES, ARConstants.SQLITE);
+    Button pathExcelButton;
+    Button pathLicenseButton;
+    //    Button pathExportButton;
+    Button pathLogButton;
+    Button pathAccessDBButton;
+    Button pathReportButton;
+    Button pathPriorityButton;
+    Button pathEngineButton;
+    Button pathWebDriverButton;
+    Button reloadDBButton;
+    Button backupDBButton;
+    Button restoreDBButton;
+    Button deleteAllDBButton;
+    Button insertSitesdButton;
+    HBox backupRestoreGroup;
+    DatePicker restoreDatePicker;
+    VBox pathGroup;
+    AnchorPane mainPane;
+    private ListView<BotJobLoadDTO> viewBotJobListView;
+    private Stage modalStage;
+    private boolean isEnabledLicence;
+    private String previousDB;
+    private String previousDBUrl;
+    private int remainingSeconds = SECONDS;
+    private Timeline timeline;
+    private ExecutorService executorService;
+    private Alert alertToShow;
+    private ListView<HomeBankingLoadDTO> homeBankingListView;
 
     // Private constructor to prevent instantiation
     private ARConfigurationPane() {
-        // Initialize if necessary
+
         super();
     }
 
@@ -67,120 +165,11 @@ public class ARConfigurationPane extends ARPane {
         return instance;
     }
 
-    private ListView<BotJobLoadDTO> viewBotJobListView;
-    private ObservableList<BotJobLoadDTO> botJobList;
-    private Stage modalStage;
-
-    public void initialize(
-            Stage modalStage, ListView<BotJobLoadDTO> viewBotJobListView, ObservableList<BotJobLoadDTO> botJobList) {
+    public void initialize(Stage modalStage, ListView<BotJobLoadDTO> viewBotJobListView, boolean isEnabledLicence) {
+        this.isEnabledLicence = isEnabledLicence;
         this.modalStage = modalStage;
         this.viewBotJobListView = viewBotJobListView;
-        this.botJobList = botJobList;
     }
-
-    private static final ARComponentBuilder builder = new ARComponentBuilder();
-
-    private static final int SECONDS = 3; // Total seconds for the countdown
-    private int remainingSeconds = SECONDS;
-    private Timeline timeline;
-    private ExecutorService executorService;
-    private Alert alertToShow;
-
-    private static final ARPropertyManager arPropertyManager;
-    private static final ARNewHomeBankingScene arNewHomeBankingScene;
-    private static final PerformMessage performMessage;
-    private static final PerformDataBase performDataBase;
-
-    private static final ARScannedElementScene arScannedElementScene;
-    private static final ARViewBotJobScene arViewBotJobScene;
-    private static final ARNewCommandScene arNewCommandScene;
-    private static final ARElementValueScene arElementValueScene;
-    private static final ARNewBotJobScene arNewBotJobScene;
-
-    // Static block to initialize
-    static {
-        arScannedElementScene = ARScannedElementScene.getInstance();
-        arNewCommandScene = ARNewCommandScene.getInstance();
-        arElementValueScene = ARElementValueScene.getInstance();
-        arViewBotJobScene = ARViewBotJobScene.getInstance();
-        arNewBotJobScene = ARNewBotJobScene.getInstance();
-
-        arPropertyManager = ARPropertyManager.getInstance();
-        performMessage = PerformMessage.getInstance();
-        performDataBase = PerformDataBase.getInstance();
-        arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
-    }
-
-    private ObservableList<HomeBankingLoadDTO> homeBankingList = FXCollections.observableArrayList();
-    private ListView<HomeBankingLoadDTO> homeBankingListView;
-
-    // UI Components
-    Label title;
-    Label pathExcelLabel;
-    Label pathLicenseLabel;
-    //    Label pathExportLabel;
-    //    Label fileExportLabel;
-    Label pathLogLabel;
-    Label sizeLogLabel;
-    Label reduceSearchLabel;
-
-    Label dbUrlLabel;
-    Label dbUserLabel;
-    Label dbPwdLabel;
-
-    Label pathAccessDBLabel;
-    Label databaseLabel;
-
-    Label pathReportLabel;
-    Label pathPriorityLabel;
-    Label pathEngineLabel;
-    Label browserLabel;
-    Label reloadDBLabel;
-    Label migrationDBLabel;
-    Label deleteAllDBLabel;
-    Label insertSitesLabel;
-    Label pathWebDriverLabel;
-
-    TextField pathExcel;
-    TextField pathLicense;
-    TextField pathLog;
-    TextField pathAccessDB;
-    TextField pathReport;
-    TextField pathPriority;
-
-    TextField dbUrl;
-    TextField dbUser;
-    TextField dbPwd;
-
-    TextField pathEngine;
-    TextField pathWebDriver;
-
-    ChoiceBox<String> browserChoiceBox = new ChoiceBox<>();
-    ChoiceBox<String> databaseChoiceBox = new ChoiceBox<>();
-    ObservableList<String> browserList =
-            FXCollections.observableArrayList(ARConstants.CHROME, ARConstants.EDGE, ARConstants.FIREFOX);
-    ObservableList<String> databaseList = FXCollections.observableArrayList(ARConstants.ACCESS, ARConstants.POSTGRES);
-
-    Button pathExcelButton;
-    Button pathLicenseButton;
-    //    Button pathExportButton;
-    Button pathLogButton;
-
-    Button pathAccessDBButton;
-    Button pathReportButton;
-    Button pathPriorityButton;
-
-    Button pathEngineButton;
-    Button pathWebDriverButton;
-
-    Button reloadDBButton;
-    Button migrationDBButton;
-    Button deleteAllDBButton;
-    Button addHomeBankingButton;
-
-    VBox pathGroup;
-
-    AnchorPane mainPane;
 
     @Override
     public Pane getPaneReference() {
@@ -189,6 +178,10 @@ public class ARConfigurationPane extends ARPane {
 
     @Override
     public void initUIComponents() {
+
+        this.previousDB = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
+        this.previousDBUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
+
         //  Alert Timer Components
         // Create a label to display the countdown
         Label countdownLabel = new Label(String.valueOf(remainingSeconds));
@@ -226,14 +219,22 @@ public class ARConfigurationPane extends ARPane {
         AnchorPane.setRightAnchor(title, ARConstants.SPACE_M);
 
         //        ButtonBar homeBankingActionGroup = new ButtonBar();
-        addHomeBankingButton = builder.buildButton("Insert / Config Scan");
+        insertSitesdButton = builder.buildButton("Insert Organizations");
+        insertSitesdButton.setMaxWidth(120);
+
         //        homeBankingActionGroup.getButtons().addAll(addHomeBankingButton);
 
         //        ObservableList<HomeBankingDTO> homeBankingList =
         //                PerformDataBase..getEntityList(HomeBankingDTO.class);
 
-        homeBankingList.addAll(performDataBase.loadHomeBanking(null));
-        homeBankingListView = new ListView<>(homeBankingList);
+        if (performDataBase.isConnDBWorks()) {
+            ErrorMessage errorMessage = performDBEngine.loadHomeBanking(null);
+            if (errorMessage != null) {
+                performMessage.errorMessageOperationFailed(errorMessage);
+            }
+        }
+
+        homeBankingListView = new ListView<>(FXCollections.observableArrayList(performLists.getListHomeBanking()));
         homeBankingListView.setCellFactory(new ARCellFactory<>(HomeBankingListCell.class)::call);
 
         // Setting the preferred height for homeBankingListView
@@ -318,72 +319,93 @@ public class ARConfigurationPane extends ARPane {
         // Set margin for pathDBButton to create spacing from right border
         GridPane.setMargin(pathAccessDBButton, new Insets(0, 0, 0, 5));
 
-        GridPane gridPaneButton = new GridPane();
-        gridPaneButton.setHgap(2);
-
-        // Set column constraints for each column to take up 33.33% of the grid width
-        ColumnConstraints col1Button = new ColumnConstraints();
-        col1Button.setPercentWidth(16);
-
-        ColumnConstraints col2Button = new ColumnConstraints();
-        col2Button.setPercentWidth(16);
-
-        ColumnConstraints col3Button = new ColumnConstraints();
-        col3Button.setPercentWidth(16);
-
-        ColumnConstraints col4Button = new ColumnConstraints();
-        col4Button.setPercentWidth(16);
-
-        ColumnConstraints col5Button = new ColumnConstraints();
-        col5Button.setPercentWidth(16);
-
-        ColumnConstraints col6Button = new ColumnConstraints();
-        col6Button.setPercentWidth(16);
-
-        gridPaneButton
-                .getColumnConstraints()
-                .addAll(col1Button, col2Button, col3Button, col4Button, col5Button, col6Button);
-
         browserLabel = new Label("Browser");
         databaseLabel = new Label("DB Type");
-
-        migrationDBLabel = new Label("Migrate DB");
-
+        backupDBLabel = new Label("Backup DB  Restore DB");
+        restoreDateLabel = new Label("Date Restore");
         reloadDBLabel = new Label("Reload DB");
         deleteAllDBLabel = new Label("Delete ALL DB");
         insertSitesLabel = new Label("Insert Sites");
 
-        migrationDBButton = builder.buildButton("Migrate");
-        migrationDBButton.setMaxHeight(ARConstants.SPACE_XXS);
+        backupDBButton = builder.buildButton("Backup");
+        backupDBButton.setMaxHeight(ARConstants.SPACE_XXS);
+        backupDBButton.setMaxWidth(100);
+        backupDBButton.setStyle("-fx-font-size: 12px;");
 
-        migrationDBLabel.setVisible(true);
-        migrationDBButton.setVisible(true);
+        restoreDBButton = builder.buildButton("Restore");
+        restoreDBButton.setMaxHeight(ARConstants.SPACE_XXS);
+        restoreDBButton.setMaxWidth(100);
+        restoreDBButton.setStyle("-fx-font-size: 12px;");
+
+        backupDBButton.setDisable(false);
+
+        restoreDatePicker = new DatePicker(LocalDate.now());
+        restoreDatePicker.setPrefWidth(140);
+        restoreDatePicker.setStyle("-fx-font-size: 12px;");
+        restoreDatePicker.setMaxHeight(28); // match button height
+
+        backupRestoreGroup = new HBox(10); // More spacing for clarity
+        backupRestoreGroup.setAlignment(Pos.CENTER);
+        //        backupRestoreGroup.setPadding(new Insets(2, 0, 2, 0)); // Add light vertical padding
+
+        backupRestoreGroup.getChildren().addAll(backupDBButton, restoreDBButton, restoreDatePicker);
 
         reloadDBButton = builder.buildButton("Reload Configs");
         reloadDBButton.setMaxHeight(ARConstants.SPACE_L);
+        reloadDBButton.setMaxWidth(120);
 
         deleteAllDBButton = builder.buildButton("Delete DB");
         deleteAllDBButton.setMaxHeight(ARConstants.SPACE_L);
+        deleteAllDBButton.setMaxWidth(120);
         deleteAllDBButton.setStyle("-fx-background-color: lightcoral; -fx-text-fill: blue;");
 
         browserChoiceBox.setItems(browserList);
         databaseChoiceBox.setItems(databaseList);
+        databaseChoiceBox.setDisable(false);
 
-        // Add labels in the first row
-        gridPaneButton.add(browserLabel, 0, 0);
-        gridPaneButton.add(databaseLabel, 1, 0);
-        gridPaneButton.add(reloadDBLabel, 2, 0);
-        gridPaneButton.add(migrationDBLabel, 3, 0);
-        gridPaneButton.add(deleteAllDBLabel, 4, 0);
-        gridPaneButton.add(insertSitesLabel, 5, 0);
+        HBox buttonRow = new HBox(10); // spacing between columns
+        buttonRow.setAlignment(Pos.CENTER);
+        buttonRow.setPadding(new Insets(5, 0, 5, 0)); // optional
 
-        // Add components in the second row, each occupying 25% of the width
-        gridPaneButton.add(browserChoiceBox, 0, 1);
-        gridPaneButton.add(databaseChoiceBox, 1, 1);
-        gridPaneButton.add(reloadDBButton, 2, 1);
-        gridPaneButton.add(migrationDBButton, 3, 1);
-        gridPaneButton.add(deleteAllDBButton, 4, 1);
-        gridPaneButton.add(addHomeBankingButton, 5, 1);
+        // Column 1: Browser
+        VBox browserColumn = new VBox(2);
+        browserColumn.getChildren().addAll(browserLabel, browserChoiceBox);
+
+        // Column 2: DB Type
+        VBox databaseColumn = new VBox(2);
+        databaseColumn.getChildren().addAll(databaseLabel, databaseChoiceBox);
+
+        // Column 3: Reload DB
+        VBox reloadColumn = new VBox(2);
+        reloadColumn.getChildren().addAll(reloadDBLabel, reloadDBButton);
+
+        // Column 4: Backup & Restore Group (keep as-is)
+        VBox backupColumn = new VBox(2);
+        backupColumn.getChildren().addAll(backupDBLabel, backupRestoreGroup);
+
+        // Column 5: Restore Date Picker
+        VBox dateColumn = new VBox(2);
+        dateColumn.getChildren().addAll(restoreDateLabel, restoreDatePicker);
+
+        // Column 6: Delete DB
+        VBox deleteColumn = new VBox(2);
+        deleteColumn.getChildren().addAll(deleteAllDBLabel, deleteAllDBButton);
+
+        // Column 7: Insert Sites
+        VBox insertSitesColumn = new VBox(2);
+        insertSitesColumn.getChildren().addAll(insertSitesLabel, insertSitesdButton);
+
+        // Add all columns to the row
+        buttonRow
+                .getChildren()
+                .addAll(
+                        browserColumn,
+                        databaseColumn,
+                        reloadColumn,
+                        backupColumn,
+                        dateColumn,
+                        deleteColumn,
+                        insertSitesColumn);
 
         //        AnchorPane logGroup = new AnchorPane(pathLog, sizeLog, pathLogButton);
         dbUrlLabel = new Label("Database URL:");
@@ -430,6 +452,11 @@ public class ARConfigurationPane extends ARPane {
         pathWebDriverButton = createPathButton();
         AnchorPane driverGroup = new AnchorPane(pathWebDriver, pathWebDriverButton);
 
+        Label organizationsLabel = new Label("Organizations");
+        organizationsLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #1565C0;");
+        organizationsLabel.setAlignment(Pos.CENTER);
+        organizationsLabel.setMaxWidth(Double.MAX_VALUE);
+
         pathGroup = new VBox(
                 pathLicenseLabel,
                 licenseGroup,
@@ -449,14 +476,52 @@ public class ARConfigurationPane extends ARPane {
                 dbUrlLabel,
                 dbUrl,
                 dbUserPwdGroup,
-                gridPaneButton,
+                buttonRow,
+                organizationsLabel,
                 homeBankingContainer);
+
+        VBox.setVgrow(homeBankingContainer, Priority.ALWAYS);
+        homeBankingContainer.setMaxHeight(Double.MAX_VALUE);
+
+        VBox.setVgrow(homeBankingListView, Priority.ALWAYS);
+        homeBankingListView.setMaxHeight(Double.MAX_VALUE);
 
         AnchorPane.setTopAnchor(pathGroup, ARConstants.SPACE_L + ARConstants.SPACE_M);
         AnchorPane.setLeftAnchor(pathGroup, ARConstants.SPACE_M);
         AnchorPane.setRightAnchor(pathGroup, ARConstants.SPACE_M);
+        AnchorPane.setBottomAnchor(pathGroup, ARConstants.SPACE_M); // Allow bottom expansion
 
         mainPane = new AnchorPane(title, pathGroup);
+
+        Platform.runLater(() -> {
+            double choiceBoxHeight = databaseChoiceBox.getHeight();
+
+            if (choiceBoxHeight > 0) {
+                reloadDBButton.setMinHeight(choiceBoxHeight);
+                reloadDBButton.setPrefHeight(choiceBoxHeight);
+                reloadDBButton.setMaxHeight(choiceBoxHeight);
+
+                backupDBButton.setMinHeight(choiceBoxHeight);
+                backupDBButton.setPrefHeight(choiceBoxHeight);
+                backupDBButton.setMaxHeight(choiceBoxHeight);
+
+                restoreDBButton.setMinHeight(choiceBoxHeight);
+                restoreDBButton.setPrefHeight(choiceBoxHeight);
+                restoreDBButton.setMaxHeight(choiceBoxHeight);
+
+                restoreDatePicker.setMinHeight(choiceBoxHeight);
+                restoreDatePicker.setPrefHeight(choiceBoxHeight);
+                restoreDatePicker.setMaxHeight(choiceBoxHeight);
+
+                deleteAllDBButton.setMinHeight(choiceBoxHeight);
+                deleteAllDBButton.setPrefHeight(choiceBoxHeight);
+                deleteAllDBButton.setMaxHeight(choiceBoxHeight);
+
+                insertSitesdButton.setMinHeight(choiceBoxHeight);
+                insertSitesdButton.setPrefHeight(choiceBoxHeight);
+                insertSitesdButton.setMaxHeight(choiceBoxHeight);
+            }
+        });
     }
 
     @Override
@@ -477,45 +542,26 @@ public class ARConfigurationPane extends ARPane {
             }
         });
 
-        try (Connection conn = performDataBase.getConnection()) {
-            List<BotJobLoadDTO> botJobLoadList = performDataBase.loadAllBotJobs();
-
-            List<InstructionLoadDTO> instList = null;
-
-            for (BotJobLoadDTO botJobLoadDTO : botJobLoadList) {
-
-                instList = performDataBase.instructionsToDuplicate(
-                        conn,
-                        botJobLoadDTO.getHomeBankingId(),
-                        botJobLoadDTO.getId(),
-                        -1,
-                        "instruction",
-                        "block"); // instruction
-                break;
+        if (performDataBase.isConnDBWorks()) {
+            try (Connection conn = performDataBase.getConnection()) {
+                if (conn != null) {
+                    if (performLists.getListHomeBanking().isEmpty()) {
+                        backupDBButton.setDisable(true);
+                    }
+                }
+            } catch (SQLException ignore) {
+                log.info("Check if It Was Migrated! - Not Migrate Columns found!");
             }
-
-            if ((instList != null && instList.size() > 0) || botJobLoadList.size() == 0) {
-                migrationDBLabel.setVisible(false);
-                migrationDBButton.setVisible(false);
-            }
-        } catch (SQLException ignore) {
-            System.out.println("Check if It Was Migrated! - Not Migrate Columns found!");
         }
 
-        //        homeBankingGroup
-        //                .maxHeightProperty()
-        //                .bind(mainPane.heightProperty()
-        //                        .subtract(title.heightProperty())
-        //                        .subtract(pathGroup.heightProperty())
-        //                        .subtract(reloadDBButton.heightProperty())
-        //                        .subtract(ARConstants.SPACE_M * 2)
-        //                        .subtract(ARConstants.SPACE_L * 2));
-        addHomeBankingButton.setOnMouseClicked(e -> {
-            if (!checkLicense()) {
+        insertSitesdButton.setOnMouseClicked(e -> {
+            if (isEnabledLicence && !checkLicense()) {
                 return;
             }
-            arNewHomeBankingScene.initialize(homeBankingList);
-            arNewHomeBankingScene.showModal();
+            HomeBankingLoadDTO homeBank = performLists.getFirstHomeBanking();
+            arNewHomeBankingScene.initialize(homeBank);
+            Stage currentStage = (Stage) insertSitesdButton.getScene().getWindow();
+            arNewHomeBankingScene.showModal(currentStage);
         });
 
         pathLicenseButton.setOnMouseClicked(e -> openChooserFor(pathLicense, modalStage, true));
@@ -536,65 +582,157 @@ public class ARConfigurationPane extends ARPane {
             databaseChoiceBox.setValue(arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE));
         }
 
-        reloadDBButton.setOnMouseClicked(e -> saveConfigurations());
-        migrationDBButton.setOnMouseClicked(e -> runMigrateScripts());
+        reloadDBButton.setOnMouseClicked(e -> {
+            try {
+                saveConfigurations();
+            } catch (SQLException ex) {
+                throw new RuntimeException(ex);
+            }
+        });
+        backupDBButton.setOnMouseClicked(e -> runBackupScripts());
+        restoreDBButton.setOnMouseClicked(e -> runRestoreScripts());
         deleteAllDBButton.setOnMouseClicked(e -> deleteAllDB());
     }
 
-    private void runMigrateScripts() {
+    private void runBackupScripts() {
         String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
+        String date = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy_MM_dd"));
 
-        Label newInstruction =
-                new Label("DB MIGRATION\nDatabase Selected: \"" + dataBaseType + "\" \nRelease : \"v2.6f Beta Test\"");
+        if (dataBaseType.equalsIgnoreCase(databaseChoiceBox.getValue().trim())) {
+            try {
+                performDataBase.changeDbConnection();
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            performMessage.showCustomModalDialogDragWin11(
+                    "Database Selection Mismatch ⚠️",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>The selected database type does not match the saved database!</span>",
+                    "<span style='color: #1565C0; font-weight: bold;'>Please select the database that matches the saved type, or reload configurations to apply your selection.</span>",
+                    "<span style='color: #6A1B9A; font-weight: bold;'>Selected Database:</span> "
+                            + databaseChoiceBox.getValue().trim(),
+                    "<span style='color: #6A1B9A; font-weight: bold;'>Saved Database:</span> "
+                            + dataBaseType + "<br/>"
+                            + "<span style='color: #E65100; font-weight: bold;'>💡 Reminder:</span> Press the <span style='text-decoration: underline;'>Reload Configs</span> button to save and apply your database choice before continuing.",
+                    false,
+                    "OK",
+                    null,
+                    0);
+            return;
+        }
+
+        if (dataBaseType.equalsIgnoreCase("ACCESS")) {
+            String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+            File dbFile = new File(dbPath + ARConstants.FILE_NAME_ACCESS);
+
+            try {
+                if (dbFile.exists()) {
+                    // Format the current date and time: yyyy_MM_dd_HH_mm_ss
+                    String timestamp = new java.text.SimpleDateFormat("yyyyMMdd_HHmmss").format(new java.util.Date());
+
+                    // Create backup filename with timestamp before extension
+                    String backupFileName = dbFile.getName().replaceFirst("(\\.\\w+)?$", "_backup_" + timestamp + "$1");
+
+                    File backupFile = new File(dbFile.getParent(), backupFileName);
+
+                    try {
+                        java.nio.file.Files.copy(
+                                dbFile.toPath(),
+                                backupFile.toPath(),
+                                java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                        log.info("Backup created: " + backupFile.getAbsolutePath());
+                    } catch (java.io.IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            } catch (Exception ex) {
+                log.info(ex.getMessage());
+            }
+        }
+
+        Label newInstruction = new Label(
+                "DB BACKUP\nDatabase Selected: \"" + dataBaseType + "\" \nDatabase Folder : \"v4.7f Beta Test\"");
         newInstruction.setStyle("-fx-font-size: 18px; -fx-text-fill: red;");
 
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION, null, ButtonType.YES, ButtonType.NO);
-        alert.setHeaderText("Are you sure you want to EXECUTE MIGRATION DB (\"" + dataBaseType + "\")?");
+        alert.setHeaderText("Are you sure you want to EXECUTE BACKUP DB (\"" + dataBaseType + "\")?");
         alert.getDialogPane().setContent(newInstruction);
 
         Optional<ButtonType> result = alert.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.YES) {
 
             try (Connection conn = performDataBase.getConnection()) {
-                List<BotJobLoadDTO> botJobLoadList = performDataBase.loadAllBotJobs();
 
-                String[] tablesMigration = {
-                    "block", "block_loop_instruction", "instruction", "instruction_reference", "reference", "variable"
-                };
-                ErrorMessage errorMessage = null;
-                for (BotJobLoadDTO botJobLoadDTO : botJobLoadList) {
-                    // tablesMigration = {"block", "block_loop_instruction", "instruction",
-                    // "instruction_reference",
-                    // "reference"};
-                    //                    errorMessage = performDataBase.migration2_6f(
-                    //                            conn, botJobLoadDTO.getId(), botJobLoadDTO.getId(),
-                    // tablesMigration);
-                    //
-                    //                    if (errorMessage != null) {
-                    //                        break;
-                    //                    }
+                performBackup.initialize(conn);
+
+                String databasePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+
+                String backupFilePath = databasePath + File.separator + "backup_home_banking_" + date + ".sql";
+                ErrorMessage errorMessage = performBackup.backupHomeBanking(conn, backupFilePath);
+
+                if (errorMessage == null) {
+                    backupFilePath = databasePath + File.separator + "backup_home_url_" + date + ".sql";
+                    errorMessage = performBackup.backupHomeUrl(conn, backupFilePath);
                 }
 
-                performDataBase.dropTablesMigrationScriptsv2_7f();
+                if (errorMessage == null) {
+                    backupFilePath = databasePath + File.separator + "backup_bot_job_" + date + ".sql";
+                    errorMessage = performBackup.backupBotJob(conn, backupFilePath);
+                }
+
+                if (errorMessage == null) {
+                    backupFilePath = databasePath + File.separator + "backup_block_" + date + ".sql";
+                    errorMessage = performBackup.backupBlock(conn, backupFilePath);
+                }
+
+                if (errorMessage == null) {
+                    backupFilePath = databasePath + File.separator + "backup_instruction_" + date + ".sql";
+                    errorMessage = performBackup.backupInstruction(conn, backupFilePath);
+                }
+
+                if (errorMessage == null) {
+                    backupFilePath = databasePath + File.separator + "backup_variable_" + date + ".sql";
+                    errorMessage = performBackup.backupVariable(conn, backupFilePath);
+                }
+
+                if (errorMessage == null) {
+                    backupFilePath = databasePath + File.separator + "backup_reference_" + date + ".sql";
+                    errorMessage = performBackup.backupReference(conn, backupFilePath);
+                }
+
+                if (errorMessage == null) {
+                    backupFilePath = databasePath + File.separator + "backup_component_block_" + date + ".sql";
+                    errorMessage = performBackup.backupComponentBlock(conn, backupFilePath);
+                }
+
+                if (errorMessage == null) {
+                    backupFilePath = databasePath + File.separator + "backup_component_instruction_" + date + ".sql";
+                    errorMessage = performBackup.backupComponentInstruction(conn, backupFilePath);
+                }
+
+                if (errorMessage == null) {
+                    backupFilePath = databasePath + File.separator + "backup_component_variable_" + date + ".sql";
+                    errorMessage = performBackup.backupComponentVariable(conn, backupFilePath);
+                }
+
+                if (errorMessage == null) {
+                    backupFilePath = databasePath + File.separator + "backup_component_reference_" + date + ".sql";
+                    errorMessage = performBackup.backupComponentReference(conn, backupFilePath);
+                }
 
                 if (errorMessage == null) {
                     showAlertTimer(
                             Alert.AlertType.INFORMATION,
-                            "Migration DB Scripts Success!",
-                            "The Block Component job has been successfully created!",
+                            "Backup DB Success!",
+                            "Check the LOGS folder!",
                             "Database",
                             databaseChoiceBox.getValue(),
                             null,
                             null);
 
-                    Platform.runLater(() -> {
-                        migrationDBLabel.setVisible(false);
-                        migrationDBButton.setVisible(false);
-                    });
-
                 } else {
-                    String errorType = "Database error";
-                    String errorDetail = "Verify  [INSERT] or [UPDATE] or [SELECT]";
+                    String errorType = "Backup Database error";
+                    String errorDetail = "Verify the backup script";
 
                     String detailedMessage = "Type: " + errorType + "\nDetail: " + errorDetail;
 
@@ -603,39 +741,210 @@ public class ARConfigurationPane extends ARPane {
                             errorMessage.getErrorTitle(),
                             errorMessage.getErrorHeader(),
                             detailedMessage,
-                            "Migration DB Scripts error",
+                            "Backup DB Scripts error",
                             databaseChoiceBox.getValue(),
                             null);
                 }
 
             } catch (SQLException ex) {
-                System.out.println(ex.getMessage());
+                log.info(ex.getMessage());
             }
-
-            //            int rowsAffected = performDataBase.migrationScriptsv2_6f();
-            //            if (rowsAffected < 0) {
-            //                performMessage.errorMessage(
-            //                        "Migration DB Scripts error",
-            //                        "Cannot perform  Migration for the Database",
-            //                        databaseChoiceBox.getValue(),
-            //                        null,
-            //                        null,
-            //                        0);
-            //            } else {
-            //                performMessage.showCustomModalDialogDragWin11(
-            //                        "Migration DB Scripts Success!",
-            //                        String.format("Perform Migration on %s records", rowsAffected),
-            //                        "Database",
-            //                        databaseChoiceBox.getValue(),
-            //                        null,
-            //                        false,
-            //                        null,
-            //                        0);
-            //            }
         }
     }
 
-    private void saveConfigurations() {
+    private void runRestoreScripts() {
+
+        LocalDate selectedDate = restoreDatePicker.getValue();
+
+        String formattedDate;
+        if (selectedDate != null) {
+            formattedDate = selectedDate.format(DateTimeFormatter.ofPattern("yyyy_MM_dd"));
+            log.info("Selected backup date: " + formattedDate);
+        } else {
+            Label dateSelection = new Label(
+                    "Please select a date to restore from.\n" + "Check the database directory for available backups.");
+            dateSelection.setWrapText(true);
+
+            Alert alert = new Alert(Alert.AlertType.WARNING, null, ButtonType.OK);
+            alert.setTitle("Restore Warning");
+            alert.setHeaderText("No Date Selected");
+            alert.getDialogPane().setContent(dateSelection);
+            alert.showAndWait();
+            return;
+        }
+
+        String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
+        String dataBaseFolder = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+
+        if (dataBaseType.equalsIgnoreCase(databaseChoiceBox.getValue().trim())) {
+
+            try {
+                performDataBase.changeDbConnection();
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            performMessage.showCustomModalDialogDragWin11(
+                    "Database Selection Mismatch ⚠️",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>The selected database type does not match the saved database!</span>",
+                    "<span style='color: #1565C0; font-weight: bold;'>Please select the database that matches the saved type, or reload configurations to apply your selection.</span>",
+                    "<span style='color: #6A1B9A; font-weight: bold;'>Selected Database:</span> "
+                            + databaseChoiceBox.getValue().trim(),
+                    "<span style='color: #6A1B9A; font-weight: bold;'>Saved Database:</span> "
+                            + dataBaseType + "<br/>"
+                            + "<span style='color: #E65100; font-weight: bold;'>💡 Reminder:</span> Press the <span style='text-decoration: underline;'>Reload Configs</span> button to save and apply your database choice before continuing.",
+                    false,
+                    "OK",
+                    null,
+                    0);
+            return;
+        }
+
+        Label newInstruction = new Label(
+                "DB RESTORE\nDatabase Selected: \"" + dataBaseType + "\" \nDatabase Folder : \"v4.7f Beta Test\"");
+        newInstruction.setStyle("-fx-font-size: 18px; -fx-text-fill: red;");
+
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION, null, ButtonType.YES, ButtonType.NO);
+        alert.setHeaderText("Are you sure you want to EXECUTE RESTORE DB (\"" + dataBaseType + "\")?");
+        alert.getDialogPane().setContent(newInstruction);
+
+        ARExecution.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
+                "Restore Database Confirmation",
+                "<span style='font-weight: bold; color: #D32F2F;'>Are you sure you want to execute a database restore?</span>",
+                "The database type selected is: <span style='color: #1565C0; font-weight: bold;'>" + dataBaseType
+                        + "</span>.",
+                "<span style='color: #6A1B9A; font-weight: bold;'>The restore will apply to the folder: </span>.",
+                "<span style='font-style: italic;'>Details: " + dataBaseFolder + "</span>",
+                false,
+                "Execute Restore",
+                "Cancel",
+                0);
+
+        if (!respModal.equals(ARExecution.DialogModal.STOP)) {
+            try (Connection conn = performDataBase.getConnection()) {
+
+                performBackup.initialize(conn);
+
+                String databasePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+
+                String backupFilePath = databasePath + File.separator + "backup_home_banking_" + formattedDate + ".sql";
+                ErrorMessage errorMessage = performBackup.restoreHomeBanking(conn, backupFilePath);
+
+                if (errorMessage == null) {
+                    backupFilePath = databasePath + File.separator + "backup_home_url_" + formattedDate + ".sql";
+                    errorMessage = performBackup.restoreHomeUrl(conn, backupFilePath);
+                }
+
+                if (errorMessage == null) {
+                    backupFilePath = databasePath + File.separator + "backup_bot_job_" + formattedDate + ".sql";
+                    errorMessage = performBackup.restoreBotJob(conn, backupFilePath);
+                }
+                if (errorMessage == null) {
+                    backupFilePath = databasePath + File.separator + "backup_block_" + formattedDate + ".sql";
+                    errorMessage = performBackup.restoreBlock(conn, backupFilePath);
+                }
+
+                if (errorMessage == null) {
+                    backupFilePath = databasePath + File.separator + "backup_instruction_" + formattedDate + ".sql";
+                    errorMessage = performBackup.restoreInstruction(conn, backupFilePath);
+                }
+
+                if (errorMessage == null) {
+                    backupFilePath = databasePath + File.separator + "backup_variable_" + formattedDate + ".sql";
+                    errorMessage = performBackup.restoreVariable(conn, backupFilePath);
+                }
+
+                if (errorMessage == null) {
+                    errorMessage = performBackup.restoreUpdateInstruction(conn);
+                }
+
+                if (errorMessage == null) {
+                    backupFilePath = databasePath + File.separator + "backup_reference_" + formattedDate + ".sql";
+                    errorMessage = performBackup.restoreReference(conn, backupFilePath);
+                }
+
+                if (errorMessage == null) {
+                    backupFilePath = databasePath + File.separator + "backup_component_block_" + formattedDate + ".sql";
+                    errorMessage = performBackup.restoreComponentBlock(conn, backupFilePath);
+                }
+
+                if (errorMessage == null) {
+                    backupFilePath =
+                            databasePath + File.separator + "backup_component_instruction_" + formattedDate + ".sql";
+                    errorMessage = performBackup.restoreComponentInstruction(conn, backupFilePath);
+                }
+
+                if (errorMessage == null) {
+                    backupFilePath =
+                            databasePath + File.separator + "backup_component_variable_" + formattedDate + ".sql";
+                    errorMessage = performBackup.restoreComponentVariable(conn, backupFilePath);
+                }
+
+                if (errorMessage == null) {
+                    errorMessage = performBackup.restoreComponentUpdateInstruction(conn);
+                }
+
+                if (errorMessage == null) {
+                    backupFilePath =
+                            databasePath + File.separator + "backup_component_reference_" + formattedDate + ".sql";
+                    errorMessage = performBackup.restoreComponentReference(conn, backupFilePath);
+                }
+
+                if (errorMessage == null) {
+                    closeAllScenes();
+
+                    performLists.clearAllLists();
+
+                    errorMessage = performDBEngine.loadHomeBanking(null);
+                    if (errorMessage == null) {
+                        errorMessage = performDBEngine.loadHomeUrls(null);
+                    }
+
+                    if (errorMessage == null) {
+                        errorMessage = performDataBase.loadQuickBotJobs();
+                    }
+
+                    if (errorMessage != null) {
+                        performMessage.errorMessageOperationFailed(errorMessage);
+                    }
+                    viewBotJobListView.setItems(FXCollections.observableArrayList(performLists.getQuickBotJobs()));
+
+                    backupDBButton.setDisable(performLists.getListHomeBanking().isEmpty());
+                    homeBankingListView.setItems(FXCollections.observableArrayList(performLists.getListHomeBanking()));
+
+                    HomeBankingLoadDTO homeBank = performLists.getFirstHomeBanking();
+                    arNewHomeBankingScene.initialize(homeBank);
+
+                    performMessage.showCustomModalDialogDragWin11(
+                            "Restore DB Success! ✅",
+                            "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>Database restored successfully!</span>",
+                            "<span style='color: #1565C0; font-weight: bold;'>Now you can start to use your database!</span>",
+                            "<span style='color: #6A1B9A; font-weight: bold;'>Database:</span> "
+                                    + databaseChoiceBox.getValue(),
+                            "<span style='color: #E65100; font-weight: bold;'>💡 Don't forget:</span> Press the <span style='text-decoration: underline;'>Reload DB</span> button to refresh your data!",
+                            false,
+                            "OK",
+                            null,
+                            0);
+                } else {
+                    log.error("Restore Database error: " + errorMessage.getErrorMessage());
+                    performMessage.errorMessage(
+                            "Restore Database error",
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>"
+                                    + errorMessage.getErrorTitle() + "</span> ❌",
+                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                    + errorMessage.getErrorHeader(),
+                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                            null,
+                            0);
+                }
+            } catch (SQLException error) {
+                log.error("Restore Database error: " + error.getMessage());
+            }
+        }
+    }
+
+    private void saveConfigurations() throws SQLException {
         boolean validfields = true;
         if (Strings.isNullOrEmpty(pathLicense.getText())) {
             new ARAlertScene(Alert.AlertType.ERROR, "Field Blank", "License Path must be filed!", ButtonType.OK);
@@ -647,14 +956,12 @@ public class ARConfigurationPane extends ARPane {
             validfields = false;
         }
         //        if (Strings.isNullOrEmpty(pathExport.getText())) {
-        //            new ARAlertScene(Alert.AlertType.ERROR, "Field Blank", "Export Path must be
-        // filed!",
+        //            new ARAlertScene(Alert.AlertType.ERROR, "Field Blank", "Export Path must be filed!",
         // ButtonType.OK);
         //            validfields = false;
         //        }
         //        if (Strings.isNullOrEmpty(fileExport.getText())) {
-        //            new ARAlertScene(Alert.AlertType.ERROR, "Field Blank", "File Name Export must be
-        // filed!",
+        //            new ARAlertScene(Alert.AlertType.ERROR, "Field Blank", "File Name Export must be filed!",
         // ButtonType.OK);
         //            validfields = false;
         //        }
@@ -729,14 +1036,14 @@ public class ARConfigurationPane extends ARPane {
                     pathWebDriver.getText().trim());
 
             try {
-                performDataBase.testConnection(
+                performInitializer.testConnection(
                         databaseChoiceBox.getValue(),
                         pathAccessDB.getText().trim(),
                         dbUrl.getText(),
                         dbUser.getText().trim(),
                         dbPwd.getText().trim());
             } catch (Exception error) {
-                ARLogger.getInstance(PerformDataBase.class).severe("testConnection Error: " + error.getMessage());
+                log.error("testConnection Error: " + error.getMessage());
                 performMessage.errorMessage(
                         "Database connection Failed",
                         "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>An error occurred during the Database connection.</span>",
@@ -748,34 +1055,13 @@ public class ARConfigurationPane extends ARPane {
                 return;
             }
 
-            if (arViewBotJobScene != null) {
-                arViewBotJobScene.closeModal();
-            }
-
-            if (arScannedElementScene != null) {
-                arScannedElementScene.closeModal();
-            }
-
-            if (arNewBotJobScene != null) {
-                arNewBotJobScene.closeModal();
-            }
-
-            if (arNewCommandScene.getRowMoveDTO() != null) {
-                arNewCommandScene.setRowMoveDTO(null);
-                arNewCommandScene.closeModal();
-            }
-
-            if (arElementValueScene.getRowMoveDTO() != null) {
-                arElementValueScene.setRowMoveDTO(null);
-                arElementValueScene.closeModal();
-            }
-
             arPropertyManager.setProperty(ARPropertyEnum.DATABASE_TYPE.getValue(), databaseChoiceBox.getValue());
 
             arPropertyManager.setProperty(
                     ARPropertyEnum.PATH_DB.getValue(), pathAccessDB.getText().trim());
 
-            arPropertyManager.setProperty(ARPropertyEnum.DB_URL.getValue(), dbUrl.getText());
+            arPropertyManager.setProperty(
+                    ARPropertyEnum.DB_URL.getValue(), dbUrl.getText().trim());
 
             arPropertyManager.setProperty(
                     ARPropertyEnum.DB_USER.getValue(), dbUser.getText().trim());
@@ -785,14 +1071,47 @@ public class ARConfigurationPane extends ARPane {
 
             performDataBase.changeDbConnection();
 
-            homeBankingList.clear();
-            homeBankingList.addAll(performDataBase.loadHomeBanking(null));
-            homeBankingListView = new ListView<>(homeBankingList);
+            closeAllScenes();
 
-            arNewHomeBankingScene.initialize(homeBankingList);
+            performLists.clearAllLists();
 
-            botJobList = FXCollections.observableArrayList(performDataBase.loadAllBotJobs());
-            viewBotJobListView.setItems(botJobList);
+            ErrorMessage errorMessage = performDBEngine.loadHomeBanking(null);
+            if (errorMessage == null) {
+                errorMessage = performDBEngine.loadHomeUrls(null);
+            }
+
+            if (errorMessage == null) {
+                errorMessage = performDataBase.loadQuickBotJobs();
+            }
+
+            if (errorMessage != null) {
+                performMessage.errorMessageOperationFailed(errorMessage);
+            }
+            viewBotJobListView.setItems(FXCollections.observableArrayList(performLists.getQuickBotJobs()));
+
+            backupDBButton.setDisable(performLists.getListHomeBanking().isEmpty());
+            homeBankingListView.setItems(FXCollections.observableArrayList(performLists.getListHomeBanking()));
+
+            HomeBankingLoadDTO homeBank = performLists.getFirstHomeBanking();
+            arNewHomeBankingScene.initialize(homeBank);
+
+            try {
+
+                if (!this.previousDB.equalsIgnoreCase(databaseChoiceBox.getValue())
+                        || !this.previousDBUrl.equalsIgnoreCase(dbUrl.getText().trim())) {
+
+                    errorMessage = performDataBase.loadQuickBotJobs();
+                    if (errorMessage != null) {
+                        performMessage.errorMessageOperationFailed(errorMessage);
+                    }
+                    this.previousDB = databaseChoiceBox.getValue();
+                    this.previousDBUrl = dbUrl.getText().trim();
+                }
+                //                botJobList =
+                // FXCollections.observableArrayList(FXCollections.observableArrayList(performLists.getQuickBotJobs()));
+            } catch (Exception error) {
+                throw error;
+            }
 
             new ARAlertScene(
                     Alert.AlertType.INFORMATION,
@@ -803,11 +1122,35 @@ public class ARConfigurationPane extends ARPane {
     }
 
     private void deleteAllDB() {
-        if (!checkLicense()) {
+        if (isEnabledLicence && !checkLicense()) {
             return;
         }
 
         String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
+
+        if (dataBaseType.equalsIgnoreCase(databaseChoiceBox.getValue().trim())) {
+
+            try {
+                performDataBase.changeDbConnection();
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            performMessage.showCustomModalDialogDragWin11(
+                    "Database Selection Mismatch ⚠️",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>The selected database type does not match the saved database!</span>",
+                    "<span style='color: #1565C0; font-weight: bold;'>Please select the database that matches the saved type, or reload configurations to apply your selection.</span>",
+                    "<span style='color: #6A1B9A; font-weight: bold;'>Selected Database:</span> "
+                            + databaseChoiceBox.getValue().trim(),
+                    "<span style='color: #6A1B9A; font-weight: bold;'>Saved Database:</span> "
+                            + dataBaseType + "<br/>"
+                            + "<span style='color: #E65100; font-weight: bold;'>💡 Reminder:</span> Press the <span style='text-decoration: underline;'>Reload Configs</span> button to save and apply your database choice before continuing.",
+                    false,
+                    "OK",
+                    null,
+                    0);
+            return;
+        }
 
         Label newInstruction = new Label("DELETE ALL JOB DETAILS\nDatabase Selected: \"" + dataBaseType + "\"");
         newInstruction.setStyle("-fx-font-size: 18px; -fx-text-fill: red;");
@@ -831,9 +1174,7 @@ public class ARConfigurationPane extends ARPane {
                 new ARAlertScene(
                         Alert.AlertType.ERROR,
                         "\"" + dataBaseType + "\" Problems\nNot possible  to delete All Job Details!",
-                        "\""
-                                                        + dataBaseType
-                                                        + "\" Problems!\n"
+                        "\"" + dataBaseType + "\" Problems!\n"
                                                         + "The Instructions and Job Details cannot be deleted and the data has been reloaded\n"
                                                         + dataBaseType
                                                 != null
@@ -998,8 +1339,7 @@ public class ARConfigurationPane extends ARPane {
                         "<span style='color: " + msgColor + "; font-weight: bold;'>" + msgValid + "</span>",
                         "<span style='font-style: italic;'>" + msgNextStep + "</span>",
                         "<span style='color: #E65100; font-weight: bold;'>Current license status:</span> <span style='font-weight: bold;'>"
-                                + licenseStatus.getStaus()
-                                + "</span>",
+                                + licenseStatus.getStaus() + "</span>",
                         false,
                         "OK",
                         null,
@@ -1008,9 +1348,38 @@ public class ARConfigurationPane extends ARPane {
             }
             return true;
         } catch (Exception error) {
-            ARLogger.getInstance(ARConfigurationPane.class)
-                    .severe("Cannot read/validate the License path/file. Error: " + error.getMessage());
+
+            log.error("Cannot read/validate the License path/file. Error: " + error.getMessage());
             return false;
+        }
+    }
+
+    private void closeAllScenes() {
+        if (arNewBotJobScene != null) {
+            arNewBotJobScene.closeModal();
+        }
+        if (arNewCommandScene != null) {
+            arNewCommandScene.setSplitDTO(null);
+            arNewCommandScene.closeModal();
+        }
+        if (arElementValueScene != null) {
+            arElementValueScene.setSplitDTO(null);
+            arElementValueScene.closeModal();
+        }
+        if (arViewBotJobScene != null) {
+            arViewBotJobScene.closeModal();
+        }
+        if (arNewHomeBankingScene != null) {
+            arNewHomeBankingScene.closeModal();
+        }
+        if (arScannedElementScene != null) {
+            arScannedElementScene.closeModal();
+            arScannedElementScene.closeWebDrivers();
+        }
+
+        if (arWebDriver != null) {
+            arWebDriver.closeAllDrivers();
+            arWebDriver.closeCurrentDriver();
         }
     }
 }

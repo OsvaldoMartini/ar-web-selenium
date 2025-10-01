@@ -1,24 +1,43 @@
 package com.allinweb.ch.component.scene;
 
-import com.allinweb.ch.component.model.RowMoveDTO;
+import com.allinweb.ch.component.model.SplitDTO;
 import com.allinweb.ch.component.pane.ARElementValuePane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
-import com.allinweb.ch.util.ARLogger;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class ARElementValueScene extends ARScene {
 
+    private static final Double SCENE_HEIGHT = 600D;
+    private static final Double SCENE_WIDTH = 600D;
+    private static final String TITLE = "New Variables";
     protected static volatile ARElementValueScene instance;
+    private static ARElementValuePane arElementValuePane = ARElementValuePane.getInstance();
+    public boolean closeCalled;
 
+    @Getter
+    @Setter
+    public SplitDTO splitDTO;
+
+    private Stage modalStage;
+    private Scene modalScene;
+    private int varId;
+    private String varValue;
+    private int instructionId;
+    private String instructionName;
+    private String varName;
+    private String instructionType;
+    private boolean firstLoad = true;
     // Private constructor to prevent instantiation
     private ARElementValueScene() {
-        // Initialize if necessary
+
         super();
     }
 
@@ -34,53 +53,30 @@ public class ARElementValueScene extends ARScene {
     }
 
     public void initialize(
-            RowMoveDTO rowMoveDTO,
+            SplitDTO splitDTO,
             int varId,
+            String varName,
             String varValue,
             int instructionId,
             String instructionName,
-            String varName,
             String instructionType) {
-        this.rowMoveDTO = rowMoveDTO;
+        this.splitDTO = splitDTO;
         this.varId = varId;
+        this.varName = varName;
         this.varValue = varValue;
         this.instructionId = instructionId;
         this.instructionName = instructionName;
-        this.varName = varName;
         this.instructionType = instructionType;
 
-        arElementValuePane.initialize(
-                rowMoveDTO, varId, varValue, instructionId, instructionName, varName, instructionType);
+        if (!firstLoad) {
+            arElementValuePane.initialize(
+                    splitDTO, varId, varValue, instructionId, instructionName, varName, instructionType);
+        }
     }
-
-    private Stage modalStage;
-    private Scene modalScene;
-
-    private static ARElementValuePane arElementValuePane;
-
-    static {
-        arElementValuePane = ARElementValuePane.getInstance();
-    }
-
-    private static final Double SCENE_HEIGHT = 600D;
-    private static final Double SCENE_WIDTH = 600D;
-    private static final String TITLE = "New Variables";
-
-    @Getter
-    @Setter
-    public RowMoveDTO rowMoveDTO;
-
-    private int varId;
-    private String varValue;
-    private int instructionId;
-    private String instructionName;
-    private String varName;
-    private String instructionType;
 
     @Override
     public IARPane buildPane() {
-        //        arElementValuePane.initialize(rowMoveDTO, varId, instructionId, instructionName,
-        // varName,
+        //        arElementValuePane.initialize(rowMoveDTO, varId, instructionId, instructionName, varName,
         // instructionType);
         return arElementValuePane;
     }
@@ -102,18 +98,21 @@ public class ARElementValueScene extends ARScene {
 
     public void showModal() {
 
+        firstLoad = false;
+
         arElementValuePane.initialize(
-                rowMoveDTO, varId, varValue, instructionId, instructionName, varName, instructionType);
+                splitDTO, varId, varValue, instructionId, instructionName, varName, instructionType);
 
         if (modalStage == null) {
             modalStage = new Stage();
+            modalStage.getIcons().add(icon);
             IARPane pane = buildPane();
             if (pane != null) {
                 modalScene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
                 modalStage.setScene(modalScene);
                 modalStage.setTitle(getTitle());
                 if (getTitle().equalsIgnoreCase("New Variables")) {
-                    modalStage.initModality(Modality.WINDOW_MODAL); // Changed to NONE
+                    modalStage.initModality(Modality.WINDOW_MODAL);
                 } else {
                     modalStage.initModality(Modality.NONE);
                 }
@@ -128,7 +127,7 @@ public class ARElementValueScene extends ARScene {
                 });
             } else {
                 // Handle the case where pane creation failed
-                ARLogger.getInstance(ARElementValueScene.class).severe("Failed to build pane for modal.");
+                log.error("Failed to build pane for modal.");
                 return;
             }
         }
@@ -146,8 +145,9 @@ public class ARElementValueScene extends ARScene {
                 modalStage.close();
             }
             modalStage = null;
+            closeCalled = true;
         } catch (Exception error) {
-
+            closeCalled = true;
         }
     }
 
