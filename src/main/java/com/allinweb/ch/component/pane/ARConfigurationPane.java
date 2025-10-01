@@ -361,7 +361,7 @@ public class ARConfigurationPane extends ARPane {
 
         browserChoiceBox.setItems(browserList);
         databaseChoiceBox.setItems(databaseList);
-        databaseChoiceBox.setDisable(true);
+        databaseChoiceBox.setDisable(false);
 
         HBox buttonRow = new HBox(10); // spacing between columns
         buttonRow.setAlignment(Pos.CENTER);
