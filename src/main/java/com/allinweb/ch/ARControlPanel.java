@@ -318,7 +318,10 @@ public class ARControlPanel extends Application {
             log.error("Error Database Connections: " + error.getMessage());
         }
 
-        if ("TEXT".equalsIgnoreCase(dataBaseType)) {
+        if ("Postgres".equalsIgnoreCase(dataBaseType)) {
+            // Postgres-specific logic
+            performDataBase.POSTGRES_DB = true;
+        } else if ("TEXT".equalsIgnoreCase(dataBaseType)) {
             // SQLite-specific logic
             performDataBase.SQLITE_DB = true;
         } else if ("Access".equalsIgnoreCase(dataBaseType)) {
