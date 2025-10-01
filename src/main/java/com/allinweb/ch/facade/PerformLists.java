@@ -59,10 +59,7 @@ public class PerformLists {
     private List<ParentOperations> listParentOperations = new ArrayList<>();
 
     // Private constructor to prevent instantiation
-    private PerformLists() {
-
-        initialize();
-    }
+    private PerformLists() {}
 
     // Public method to access the singleton instance
     public static PerformLists getInstance() {
@@ -78,17 +75,21 @@ public class PerformLists {
 
     //    private List<BlockOptions> listComboOptions = new ArrayList<>();
 
-    public void initialize() {
+    public void initialize(String sessionId) {
         this.executorWebSocket = Executors.newSingleThreadExecutor();
 
         String port =
                 System.getProperty("ARWebChosenPort"); // arPropertyManager.getProperty(ARPropertyEnum.PORT_SOCKET);
         if (!Strings.isNullOrEmpty(port)) {
-            portSocketInitial = Integer.parseInt(port);
+            try {
+                portSocketInitial = Integer.parseInt(port);
+            } catch (Exception error) {
+                log.error("Pot Socket wrong Format: {}", port);
+            }
         }
 
         if (!isConnectWebSocket) {
-            connectWebSocketClient(portSocketInitial, "perform-list-data");
+            connectWebSocketClient(portSocketInitial, sessionId);
         }
     }
 
@@ -108,7 +109,7 @@ public class PerformLists {
                                     .sendText("ping-perform-list-data"); // Or a specific keep-alive message
                         }
                     } catch (IOException e) {
-                        System.err.println("Error sending ping: " + e.getMessage());
+                        log.error("Error sending ping: " + e.getMessage());
                         // Handle potential disconnection
                     }
                 },
@@ -121,20 +122,34 @@ public class PerformLists {
     public void onOpen(Session session) {
         this.session = session;
         latch.countDown(); // Release the latch after connection is established
-        System.out.println("Connected to WebSocket server at: " + session.getRequestURI());
+        log.info("Connected to WebSocket server at: " + session.getRequestURI());
         // Sending an initial message
         sendMessage("Hello from JavaFX WebSocket client!");
+
+        String sessionId = null;
+        try {
+            sessionId = session.getRequestParameterMap().get("sessionId").get(0);
+
+            // Add the Session to be Possiboe to send messages from Clients via PerformLists
+            if (!Strings.isNullOrEmpty(sessionId) && sessionId.equals("engine-perform-bot-job")) {
+                webSocketSessionManager.addSession(sessionId, session);
+            } else {
+                //                addSession(generateCustomSessionId(session), session);
+            }
+        } catch (Exception noSessionId) {
+            //            addSession(generateCustomSessionId(session), session);
+        }
     }
 
     @OnClose
     public void onClose(Session session) {
-        System.out.println("Connection closed.");
+        log.info("Connection closed.");
         stopKeepAlivePings();
     }
 
     @OnError
     public void onError(Session session, Throwable throwable) {
-        System.out.println("Error: " + throwable.getMessage());
+        log.info("Error: " + throwable.getMessage());
         stopKeepAlivePings();
     }
 
@@ -162,18 +177,18 @@ public class PerformLists {
                 isConnectWebSocket = true;
             } catch (Exception e) {
                 isConnectWebSocket = false;
-                System.err.println("WebSocket connection failed sessionId: " + sessionId + " error: " + e.getMessage());
+                log.warn("WebSocket connection failed sessionId: " + sessionId + " error: " + e.getMessage());
             }
         });
     }
 
     @OnMessage
     public void onMessage(String message) {
-        System.out.println("Received: " + message);
+        log.info("Received: " + message);
         if (message == null || message.contains("CONNECT") || message.contains("ping")) {
             // Ignore null, CONNECT, or ping messages
             message = message.replaceAll("ping-", "");
-            // System.out.println("Active : " + message);
+            // log.info("Active : " + message);
             return;
         }
 
@@ -219,20 +234,19 @@ public class PerformLists {
                     jsonObjMSG.has("sessionId") ? jsonObjMSG.get("sessionId").getAsString() : null;
 
             // Debug print (optional)
-            System.out.printf(
-                    "homeBankingId=%d, sessionId=%s, type=%s, body=%s%n", homeBankingId, sessionId, type, body);
+            log.info("homeBankingId={}, sessionId={}, type={}, body={}", homeBankingId, sessionId, type, body);
             // After Decoding
             if (type == null || type.trim().isEmpty() || type.contains("CONNECT") || type.contains("ping")) {
                 // Ignore null or empty messages
                 type = type.replaceAll("ping-", "");
-                // System.out.println("Active : " + type);
+                // log.info("Active : " + type);
                 return;
             }
             // After Decoding
             if (type == null || type.trim().isEmpty() || type.contains("CONNECT") || type.contains("ping")) {
                 // Ignore null or empty messages
                 type = type.replaceAll("ping-", "");
-                // System.out.println("Active : " + type);
+                // log.info("Active : " + type);
                 return;
             }
 
@@ -271,6 +285,7 @@ public class PerformLists {
             }
         } catch (Exception error) {
             if (error.getMessage().contains("invalid session id")) {
+                log.error("Browser is Closed");
                 //                performMessage.errorMessage(
                 //                        "Browser is Closed",
                 //                        "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>To perform
@@ -280,9 +295,9 @@ public class PerformLists {
                 // window</span>",
                 //                        null,
                 //                        0);
+            } else {
+                log.error("Closed processing message: " + error.getMessage());
             }
-
-            System.err.println("Closed processing message: " + error.getMessage());
         }
     }
 
@@ -1357,7 +1372,7 @@ public class PerformLists {
 
                 return blockLoopInstructions;
             } catch (Exception error) {
-                System.err.println("No BotJob Loaded for buildJsonViewData");
+                log.error("No BotJob Loaded for buildJsonViewData");
             }
         }
 

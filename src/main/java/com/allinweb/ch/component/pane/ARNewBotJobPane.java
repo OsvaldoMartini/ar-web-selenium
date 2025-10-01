@@ -259,8 +259,14 @@ public class ARNewBotJobPane extends ARPane {
         this.arViewBotJobScene = arViewBotJobScene;
         this.arWebDriver = arWebDriver;
 
-        performDBEngine.loadHomeBanking(null);
-        performDBEngine.loadHomeUrls(null);
+        ErrorMessage errorMessage = performDBEngine.loadHomeBanking(null);
+        if (errorMessage == null) {
+            errorMessage = performDBEngine.loadHomeUrls(null);
+        }
+
+        if (errorMessage != null) {
+            performMessage.errorMessageOperationFailed(errorMessage);
+        }
     }
 
     private void launchBotJobCreation() {

@@ -135,7 +135,7 @@ public class ARMainScene extends ARScene {
 
                 // Set the onCloseRequest handler for the modal stage
                 modalStage.setOnCloseRequest(event -> {
-                    System.out.println("Handle Close (Modal Stage): Exiting Threads from Modal");
+                    log.info("Handle Close (Modal Stage): Exiting Threads from Modal");
                     cleanupAndClose(modalStage);
                     event.consume(); // Prevent default close behavior if needed
                 });
@@ -162,18 +162,19 @@ public class ARMainScene extends ARScene {
     }
 
     private void cleanupAndClose(Stage stage) {
-        System.out.println("Cleanup and Close: Exiting Threads");
+        log.info("Cleanup and Close: Exiting Threads");
         // Interrupt running threads
         threadList.forEach(this::interruptThread);
         // Add any other cleanup logic here (e.g., WebDriver quit)
         stage.close();
+        closeWebDrivers();
     }
 
     private void handleCloseRequest(WindowEvent event) {
 
         //        stopWebSocketServer();
 
-        System.out.println("Handle Close: Exiting Threads and Quitting WebDriver");
+        log.info("Handle Close: Exiting Threads and Quitting WebDriver");
 
         // Interrupt running threads
         threadList.forEach(this::interruptThread);
@@ -187,10 +188,10 @@ public class ARMainScene extends ARScene {
     //        int portInitial = 54525;
     //        try (ServerSocket serverSocket = new ServerSocket(0)) { // Port 0 = auto-assign
     //            portInitial = serverSocket.getLocalPort();
-    //            System.out.println("Available port: " + portInitial);
+    //            log.info("Available port: " + portInitial);
     //            arPropertyManager.setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), String.valueOf(portInitial));
     //        } catch (IOException e) {
-    //            System.out.println("Fixed Port : " + 54525);
+    //            log.info("Fixed Port : " + 54525);
     //            arPropertyManager.setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), String.valueOf(54525));
     //            portInitial = 54525;
     //        }
@@ -236,11 +237,11 @@ public class ARMainScene extends ARScene {
     //
     //        // Start Jetty server
     //        jettyServer.start();
-    //        System.out.println("Server started at ws://localhost:" + port + "/websocket");
+    //        log.info("Server started at ws://localhost:" + port + "/websocket");
     //
     //        //        // Example: Retrieve all active sessions
     //        //        activeSessions = simpleWebSocketServer.getAllSessions();
-    //        System.out.println(
+    //        log.info(
     //                "Active sessions: " + webSocketSessionManager.getAllSessions().size());
     //    }
 
@@ -279,7 +280,7 @@ public class ARMainScene extends ARScene {
     //            }
     //            jettyServer.destroy();
     //            log.info("WebSocket server stopped.");
-    //            //            System.out.println("WebSocket server stopped.");
+    //            //            log.info("WebSocket server stopped.");
     //        }
     //    }
 }

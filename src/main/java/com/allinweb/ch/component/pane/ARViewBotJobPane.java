@@ -158,14 +158,7 @@ public class ARViewBotJobPane extends ARPane {
         }
 
         if (errorMessage != null) {
-            performMessage.errorMessage(
-                    errorMessage.getErrorTitle(),
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                            + errorMessage.getErrorHeader(),
-                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                    null,
-                    0);
+            performMessage.errorMessageOperationFailed(errorMessage);
         }
 
         if (arNewCommandScene.getSplitDTO() != null) {
@@ -225,14 +218,7 @@ public class ARViewBotJobPane extends ARPane {
         ErrorMessage errorMessage = performDBEngine.loadCompleteJobs(selectedBotJob.getId());
 
         if (errorMessage != null) {
-            performMessage.errorMessage(
-                    errorMessage.getErrorTitle(),
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                            + errorMessage.getErrorHeader(),
-                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                    null,
-                    0);
+            performMessage.errorMessageOperationFailed(errorMessage);
         }
 
         // Updates the Grid After Load
@@ -255,14 +241,7 @@ public class ARViewBotJobPane extends ARPane {
                 selectedBotJob.getHomeBankingId(), selectedBotJob.getId(), selectedBotJob.getName());
 
         if (errorMessage != null) {
-            performMessage.errorMessage(
-                    errorMessage.getErrorTitle(),
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                            + errorMessage.getErrorHeader(),
-                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                    null,
-                    0);
+            performMessage.errorMessageOperationFailed(errorMessage);
         }
 
         if (!firstLoad) {
@@ -288,14 +267,7 @@ public class ARViewBotJobPane extends ARPane {
         if (performLists.getListBotJob().isEmpty()) {
             ErrorMessage errorMessage = performDBEngine.loadCompleteJobs(selectedBotJob.getId());
             if (errorMessage != null) {
-                performMessage.errorMessage(
-                        errorMessage.getErrorTitle(),
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                + errorMessage.getErrorHeader(),
-                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                        null,
-                        0);
+                performMessage.errorMessageOperationFailed(errorMessage);
             }
         }
 
@@ -332,14 +304,7 @@ public class ARViewBotJobPane extends ARPane {
                     selectedBotJob.getHomeBankingId(), selectedBotJob.getId(), selectedBotJob.getName());
 
             if (errorMessage != null) {
-                performMessage.errorMessage(
-                        errorMessage.getErrorTitle(),
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                + errorMessage.getErrorHeader(),
-                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                        null,
-                        0);
+                performMessage.errorMessageOperationFailed(errorMessage);
             }
         }
 
@@ -650,7 +615,7 @@ public class ARViewBotJobPane extends ARPane {
                             + jsonData + "), " + finalPort + ", '" + sessionIdFromJava + "', " + homeBanking + ", "
                             + botJobId + ", '" + botJobName + "' ) }, 1000)");
                 } catch (Exception e) {
-                    log.error("buildWebView  \nError: " + e.getMessage());
+                    log.error("buildWebView  Error: " + e.getMessage());
                 }
             }
         });
@@ -712,6 +677,7 @@ public class ARViewBotJobPane extends ARPane {
             String excelPath = managerProps.getProperty(ARPropertyEnum.PATH_EXCEL);
             excelPath = excelPath + "\\" + selectedBotJob.getName() + ".xlsx";
             if (!new File(excelPath).exists()) {
+                log.error("Action Required: Prepare Excel Data");
                 performMessage.errorMessage(
                         "Action Required: Prepare Excel Data",
                         "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Crucial Step: Prepare Excel Data Before Launch!</span>",
@@ -806,26 +772,23 @@ public class ARViewBotJobPane extends ARPane {
         this.generateExcelButton.setOnMouseClicked((e) -> {
             // Cache entities from the database
             //            PerformDataBase..changeDbConnection(previousDB);
+            ErrorMessage errorMessage = null;
             if (performLists.getQuickBotJobs().isEmpty()) {
-                performDataBase.loadQuickBotJobs();
+                errorMessage = performDataBase.loadQuickBotJobs();
             }
 
-            if (!performLists.getListBotJob().isEmpty()) {
+            if (errorMessage == null && !performLists.getListBotJob().isEmpty()) {
                 if (performLists.getListBlock().isEmpty()) {
-                    performDataBase.loadBlocks(selectedBotJob.getId(), selectedBotJob.getName(), "block");
+                    errorMessage =
+                            performDataBase.loadBlocks(selectedBotJob.getId(), selectedBotJob.getName(), "block");
                 }
 
-                ErrorMessage errorMessage = performDBEngine.loadAllActionsPerBlock(performLists.getListBlock());
+                if (errorMessage == null) {
+                    errorMessage = performDBEngine.loadAllActionsPerBlock(performLists.getListBlock());
+                }
 
                 if (errorMessage != null) {
-                    performMessage.errorMessage(
-                            errorMessage.getErrorTitle(),
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                    + errorMessage.getErrorHeader(),
-                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                            null,
-                            0);
+                    performMessage.errorMessageOperationFailed(errorMessage);
                 }
 
                 // Check if the Excel file already exists
@@ -859,7 +822,7 @@ public class ARViewBotJobPane extends ARPane {
                     // Prepare the combined text container for the dialog
                     // You can add more content to the combinedTextContainer if needed
 
-                    ARConstants.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
+                    ARExecution.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
                             "Warning: Excel File Already Exists",
                             "<span style='color: #000080; font-weight: bold; font-size: 14px;'>An Excel file with this name already exists. Do you want to overwrite it?</span>",
                             "<span style='color: #000080; font-weight: bold;'>" + excelFile + "</span>",
@@ -870,10 +833,10 @@ public class ARViewBotJobPane extends ARPane {
                             "Cancel",
                             0);
 
-                    if (!respModal.equals(ARConstants.DialogModal.STOP)) {
+                    if (!respModal.equals(ARExecution.DialogModal.STOP)) {
 
                         new Thread(excelTask).start();
-
+                        log.warn("Warning: Excel File Already Exists");
                         performMessage.errorMessage(
                                 "Warning: Excel File Already Exists",
                                 "<span style='color: #000080; font-weight: bold; font-size: 14px;'>Success Excel File Override.</span>",
@@ -886,7 +849,7 @@ public class ARViewBotJobPane extends ARPane {
                     // If file does not exist, start the Excel generation task directly
 
                     new Thread(excelTask).start();
-
+                    log.warn("Warning: New Excel File Created!");
                     performMessage.errorMessage(
                             "Warning: New Excel File Created!",
                             "<span style='color: #000080; font-weight: bold; font-size: 14px;'>Success Excel File Generated.</span>",
@@ -903,6 +866,7 @@ public class ARViewBotJobPane extends ARPane {
             String excelPath = managerProps.getProperty(ARPropertyEnum.PATH_EXCEL);
             excelPath = excelPath + "\\" + selectedBotJob.getName() + ".xlsx";
             if (!new File(excelPath).exists()) {
+                log.error("Action Required: Prepare Excel Data");
                 performMessage.errorMessage(
                         "Action Required: Prepare Excel Data",
                         "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Crucial Step: Prepare Excel Data Before Launch!</span>",
@@ -915,12 +879,13 @@ public class ARViewBotJobPane extends ARPane {
             }
 
             String version = System.getProperty("java.version");
-            System.out.println("Detected Java Version: " + version);
+            log.info("Detected Java Version: " + version);
 
             int majorVersion = getMajorJavaVersion(version);
             if (majorVersion >= 17) {
-                System.out.println("✅ Java 17 or higher is installed.");
+                log.info("✅ Java 17 or higher is installed.");
             } else {
+                log.error("Compatibility Issue: Incompatible Java Version");
                 performMessage.errorMessage(
                         "Compatibility Issue: Incompatible Java Version",
                         "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: Your Java version is lower than the required 17!</span>",
@@ -931,6 +896,7 @@ public class ARViewBotJobPane extends ARPane {
             }
             String webDriverPath = managerProps.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
             if (!(new File(webDriverPath)).exists()) {
+                log.error("Action Required: Missing WebDriver");
                 performMessage.errorMessage(
                         "Action Required: Missing WebDriver",
                         "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: The WebDriver file is missing!</span>",
@@ -951,6 +917,7 @@ public class ARViewBotJobPane extends ARPane {
                 "execute/j",
                 String.valueOf(selectedBotJob.getHomeBankingLoadDTO().getId()),
                 String.valueOf(selectedBotJob.getId()),
+                String.valueOf(1), // block execution
                 "\"" + excelPath + "\"",
                 "-c",
                 arPropertyManager.getConfigurationFileName()
@@ -1007,6 +974,7 @@ public class ARViewBotJobPane extends ARPane {
             // Create a File object
             File fileCheck = new File(fileName);
             if (!fileCheck.exists() && !fileCheck.isDirectory()) {
+                log.error("File Not Found: {}", fileName);
                 performMessage.errorMessage(
                         "File Not Found",
                         "<span style='color: #000080; font-weight: bold; font-size: 14px;'>File does not exist:</span>",
@@ -1026,13 +994,13 @@ public class ARViewBotJobPane extends ARPane {
                     //                    Runtime.getRuntime().exec("rundll32 url.dll, FileProtocolHandler " +
                     // excelFilePath);
                 } catch (IOException var3) {
-
+                    log.error("Error loading Excel Rows. Maybe it is better to re-generate the file: {}", fileName);
                     performMessage.errorMessage(
                             "Excel File Error",
                             "<span style='color: #000080; font-weight: bold; font-size: 14px;'>Check All Excel Columns and Values!</span>",
                             "<span style='color: #000080; font-weight: bold;'></span>",
                             "<span style='font-style: italic;'>Details:</span>",
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Error loading Excel Rows.  Maybe it is better to re-generate the file.</span>",
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Error loading Excel Rows. Maybe it is better to re-generate the file.</span>",
                             0);
 
                     return;
@@ -1071,7 +1039,8 @@ public class ARViewBotJobPane extends ARPane {
         String batFilePath = basePath + File.separator + batFileName; // Corrected path
 
         String javaCommand = "java.exe -jar \"" + enginePath + "\" execute/j "
-                + selectedBotJob.getHomeBankingId() + " " + selectedBotJob.getId() + " \"" + excelFilePath + "\" -c \""
+                + selectedBotJob.getHomeBankingId() + " " + selectedBotJob.getId() + " " + 1 + " \"" + excelFilePath
+                + "\" -c \""
                 + configPath + "\"";
 
         try (FileWriter writer = new FileWriter(batFilePath)) {
@@ -1090,9 +1059,9 @@ public class ARViewBotJobPane extends ARPane {
                     null,
                     0);
 
-            System.out.println("BAT file created at: " + batFilePath);
+            log.info("BAT file created at: " + batFilePath);
         } catch (IOException error) {
-            System.err.println("Error creating BAT file: " + error.getMessage());
+            log.error("Error creating BAT file: " + error.getMessage());
             performMessage.errorMessage(
                     "BAT File Creation Error",
                     "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to create file:</span>",
@@ -1128,7 +1097,7 @@ public class ARViewBotJobPane extends ARPane {
             executeScannerTask();
             Platform.runLater(() -> {
                 // Update UI here, if needed
-                System.out.println("Scanner task completed for " + threadName);
+                log.info("Scanner task completed for " + threadName);
             });
         });
     }
@@ -1155,14 +1124,7 @@ public class ARViewBotJobPane extends ARPane {
         }
 
         if (errorMessage != null) {
-            performMessage.errorMessage(
-                    errorMessage.getErrorTitle(),
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                            + errorMessage.getErrorHeader(),
-                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                    null,
-                    0);
+            performMessage.errorMessageOperationFailed(errorMessage);
         }
         HomeBankingLoadDTO homeBanking = performLists.getListHomeBanking().isEmpty()
                 ? null
@@ -1181,14 +1143,7 @@ public class ARViewBotJobPane extends ARPane {
 
             errorMessage = performDataBase.loadBlocks(selectedBotJob.getId(), selectedBotJob.getName(), "block");
             if (errorMessage != null) {
-                performMessage.errorMessage(
-                        errorMessage.getErrorTitle(),
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                + errorMessage.getErrorHeader(),
-                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                        null,
-                        0);
+                performMessage.errorMessageOperationFailed(errorMessage);
             }
             if (!performLists.getListBlock().isEmpty()) {
                 this.blockLoad = performLists.getListBlock().get(0);
@@ -1214,8 +1169,9 @@ public class ARViewBotJobPane extends ARPane {
 
         if (error.getMessage().contains("no such window: target window already closed")
                 || error.getMessage().contains("web view not found")) {
+            log.error("Error Calling SCANNER: {}", webDriverPath);
             performMessage.errorMessage(
-                    "Error Calling SCAN",
+                    "Error Calling SCANNER",
                     "<span style='font-style: italic;'>Web Browser was closed before the Scanner Tool!</span>",
                     "<span style='color: #E65100; font-weight: bold;'>WebDriver path:</span> <span style='font-weight: bold;'>"
                             + webDriverPath + "</span>",
@@ -1234,8 +1190,9 @@ public class ARViewBotJobPane extends ARPane {
 
                 if (error.getMessage().contains("session deleted as the browser has closed the connection")
                         || error.getMessage().contains("Expected condition failed: waiting for com")) {
+                    log.error("Interruption Calling SCANNER: {}", webDriverPath);
                     performMessage.errorMessage(
-                            "Interruption Calling SCAN",
+                            "Interruption Calling SCANNER",
                             "<span style='font-style: italic;'>Session deleted as the browser has closed the connection!</span>",
                             "<span style='color: #E65100; font-weight: bold;'>WebDriver path:</span> <span style='font-weight: bold;'>"
                                     + webDriverPath + "</span>",
@@ -1244,6 +1201,7 @@ public class ARViewBotJobPane extends ARPane {
                                     + "Web Browser was closed before the Scanner Tool" + "</span>",
                             0);
                 } else {
+                    log.error("WebDriver Access Issue: Browser: {} - {}", browser, webDriverPath);
                     performMessage.errorMessage(
                             "WebDriver Access Issue",
                             "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to access WebDriver.</span>",
@@ -1265,20 +1223,22 @@ public class ARViewBotJobPane extends ARPane {
                 String directoryPath = webDriverPath.substring(0, lastSlashIndex + 1); // includes the last backslash
                 String fileName = webDriverPath.substring(lastSlashIndex + 1);
 
+                log.error("Invalid URL or Navigation Error: {} - {} - {}", browser, directoryPath, fileName);
                 performMessage.errorMessage(
-                        "WebDriver Version Incompatibility",
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>WebDriver version might be incompatible.</span>",
+                        "Invalid URL or Navigation Error",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>The provided URL is invalid or cannot be reached.</span>",
                         "<span style='font-weight: bold;'>Please verify the following:</span>",
                         "<ul>"
-                                + "   <li>The installed browser version: <span style='color: #008b8b ; font-weight: bold;'>"
+                                + "   <li>The entered URL is valid and accessible.</li>"
+                                + "   <li>The installed browser version: <span style='color: #008b8b; font-weight: bold;'>"
                                 + browser + "</span></li>"
-                                + "   <li>The WebDriver path:<br><span style='color: #008b8b ; font-weight: bold;'>"
+                                + "   <li>The WebDriver path:<br><span style='color: #008b8b; font-weight: bold;'>"
                                 + directoryPath + "</span></li>"
-                                + "<li>The WebDriver file:<br><span style='color: #008b8b ; font-weight: bold;'>"
+                                + "   <li>The WebDriver file:<br><span style='color: #008b8b; font-weight: bold;'>"
                                 + fileName + "</span></li>"
-                                + "   <li>Ensure the WebDriver version is the correct one for your browser version.</li>"
+                                + "   <li>Ensure the WebDriver and browser are compatible and correctly configured.</li>"
                                 + "</ul>",
-                        "<span style='font-style: italic;'>Refer to your browser's documentation or the WebDriver's release notes for compatibility information.</span>",
+                        "<span style='font-style: italic;'>Check the URL format (e.g., including https://) and review browser/WebDriver logs for more details.</span>",
                         0);
             }
         }
@@ -1286,7 +1246,7 @@ public class ARViewBotJobPane extends ARPane {
         //        Platform.runLater(() -> {
         //            JOptionPane.showMessageDialog(
         //                    null,
-        //                    "An error has occurred Calling SCAN: \nCause: " + ex.getMessage(),
+        //                    "An error has occurred Calling SCAN: Cause: " + ex.getMessage(),
         //                    "Error calling in SCAN",
         //                    JOptionPane.ERROR_MESSAGE);
         //        });
@@ -1320,7 +1280,7 @@ public class ARViewBotJobPane extends ARPane {
         searchTextField.textProperty().addListener((observable, oldValue, newValue) -> {
             //            ObservableList<ComponentBlockDTO> componentBlockDTOS;
             if (!newValue.equals("")) {
-                System.out.println(newValue + " Text");
+                log.info(newValue + " Text");
             } else {
             }
         });
@@ -1359,14 +1319,7 @@ public class ARViewBotJobPane extends ARPane {
                     && performLists.getListBlock().isEmpty()) {
                 ErrorMessage errorMessage = performDataBase.loadBlocks(selectedBotJob.getId(), "", "block");
                 if (errorMessage != null) {
-                    performMessage.errorMessage(
-                            errorMessage.getErrorTitle(),
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                    + errorMessage.getErrorHeader(),
-                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                            null,
-                            0);
+                    performMessage.errorMessageOperationFailed(errorMessage);
                 }
             }
             if (selectedBotJob.getBlockId() == null
@@ -1381,14 +1334,7 @@ public class ARViewBotJobPane extends ARPane {
                         performDataBase.loadBlocks(selectedBotJob.getHomeBankingId(), "", "component_block");
 
                 if (errorMessage != null) {
-                    performMessage.errorMessage(
-                            errorMessage.getErrorTitle(),
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                    + errorMessage.getErrorHeader(),
-                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                            null,
-                            0);
+                    performMessage.errorMessageOperationFailed(errorMessage);
                 }
             }
 

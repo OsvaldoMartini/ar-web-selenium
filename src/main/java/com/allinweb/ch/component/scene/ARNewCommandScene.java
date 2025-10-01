@@ -82,10 +82,10 @@ public class ARNewCommandScene extends ARScene {
                 }
                 session.getBasicRemote().sendText(jsonMessage.toString());
             } catch (IOException e) {
-                System.err.println("Error sending message to session " + sessionId + ": " + e.getMessage());
+                log.error("Error sending message to session " + sessionId + ": " + e.getMessage());
             }
         } else {
-            System.err.println("Session " + sessionId + " not found or closed.");
+            log.error("Session " + sessionId + " not found or closed.");
         }
     }
 
@@ -102,7 +102,7 @@ public class ARNewCommandScene extends ARScene {
                                     .sendText("ping-new-command-scene"); // Or a specific keep-alive message
                         }
                     } catch (IOException e) {
-                        System.err.println("Error sending ping: " + e.getMessage());
+                        log.error("Error sending ping: " + e.getMessage());
                         // Handle potential disconnection
                     }
                 },
@@ -113,11 +113,11 @@ public class ARNewCommandScene extends ARScene {
 
     @OnMessage
     public void onMessage(String message, Session session) {
-        System.out.println("Received: " + message);
+        log.info("Received: " + message);
         if (message == null || message.contains("CONNECT") || message.contains("ping")) {
             // Ignore null, CONNECT, or ping messages
             message = message.replaceAll("ping-", "");
-            // System.out.println("Active : " + message);
+            // log.info("Active : " + message);
             return;
         }
 
@@ -163,13 +163,12 @@ public class ARNewCommandScene extends ARScene {
                     jsonObjMSG.has("sessionId") ? jsonObjMSG.get("sessionId").getAsString() : null;
 
             // Debug print (optional)
-            System.out.printf(
-                    "homeBankingId=%d, sessionId=%s, type=%s, body=%s%n", homeBankingId, sessionId, type, body);
+            log.info("homeBankingId={}, sessionId={}, type={}, body={}", homeBankingId, sessionId, type, body);
             // After Decoding
             if (type == null || type.trim().isEmpty() || type.contains("CONNECT") || type.contains("ping")) {
                 // Ignore null or empty messages
                 type = type.replaceAll("ping-", "");
-                // System.out.println("Active : " + type);
+                // log.info("Active : " + type);
                 return;
             }
 
@@ -185,14 +184,7 @@ public class ARNewCommandScene extends ARScene {
                     }
                     ErrorMessage errorMessage = arNewCommandPane.reloadDBBlocks(blockMoveDTO.getBotJobId(), "block");
                     if (errorMessage != null) {
-                        performMessage.errorMessage(
-                                errorMessage.getErrorTitle(),
-                                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                                "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                        + errorMessage.getErrorHeader(),
-                                "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                                null,
-                                0);
+                        performMessage.errorMessageOperationFailed(errorMessage);
                     }
                     break;
                 case "UPDATE_BLOCKS_COMP":
@@ -207,14 +199,7 @@ public class ARNewCommandScene extends ARScene {
 
                     errorMessage = arNewCommandPane.reloadDBBlocks(blockMoveDTO.getHomeBankingId(), "component_block");
                     if (errorMessage != null) {
-                        performMessage.errorMessage(
-                                errorMessage.getErrorTitle(),
-                                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                                "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                        + errorMessage.getErrorHeader(),
-                                "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                                null,
-                                0);
+                        performMessage.errorMessageOperationFailed(errorMessage);
                     }
 
                     break;
@@ -253,20 +238,12 @@ public class ARNewCommandScene extends ARScene {
                             previousBlock = blockUpdate;
                         }
 
-                        performDataBase.preDeleteNullBlocks(blockTable, whereId, instTable);
-
-                        errorMessage = arNewCommandPane.reloadDBBlocks(whereId, blockTable);
-
+                        errorMessage = performDataBase.preDeleteNullBlocks(blockTable, whereId, instTable);
+                        if (errorMessage == null) {
+                            errorMessage = arNewCommandPane.reloadDBBlocks(whereId, blockTable);
+                        }
                         if (errorMessage != null) {
-                            performMessage.errorMessage(
-                                    errorMessage.getErrorTitle(),
-                                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                            + errorMessage.getErrorHeader(),
-                                    "<span style='font-style: italic;'>Detail:</span> "
-                                            + errorMessage.getErrorMessage(),
-                                    null,
-                                    0);
+                            performMessage.errorMessageOperationFailed(errorMessage);
                         }
 
                         initialize(splitDTO);
@@ -280,7 +257,7 @@ public class ARNewCommandScene extends ARScene {
             }
 
         } catch (Exception error) {
-            System.err.println("Closed processing message: " + error.getMessage());
+            log.error("Closed processing message: " + error.getMessage());
             if (type != null) {
                 sendMessageJson(homeBankingId, session, type, "Action type : \"" + type + "\"", "cannot be processed");
             } else {
@@ -293,20 +270,20 @@ public class ARNewCommandScene extends ARScene {
     public void onOpen(Session session) {
         this.session = session;
         latch.countDown(); // Release the latch after connection is established
-        System.out.println("Connected to WebSocket server at: " + session.getRequestURI());
+        log.info("Connected to WebSocket server at: " + session.getRequestURI());
         // Sending an initial message
         sendMessage("Hello from JavaFX ARNewCommandScene WebSocket client!");
     }
 
     @OnClose
     public void onClose(Session session) {
-        System.out.println("Connection closed.");
+        log.info("Connection closed.");
         stopKeepAlivePings();
     }
 
     @OnError
     public void onError(Session session, Throwable throwable) {
-        System.out.println("Error: " + throwable.getMessage());
+        log.info("Error: " + throwable.getMessage());
         stopKeepAlivePings();
     }
 
@@ -368,8 +345,7 @@ public class ARNewCommandScene extends ARScene {
                 }
 
             } catch (Exception error) {
-
-                log.error("Error reading 'EXCEL GOTO' instructions: " + error.getMessage());
+                log.warn("Error reading 'EXCEL GOTO' instructions: " + error.getMessage());
                 //                    performMessage.errorMessage(
                 //                            "Excel GOTO Detected",
                 //                            "<span style='font-weight: bold;'>This Bot Job already has an </span><span
@@ -458,7 +434,7 @@ public class ARNewCommandScene extends ARScene {
                 isConnectWebSocket = true;
             } catch (Exception e) {
                 isConnectWebSocket = false;
-                System.err.println("WebSocket connection failed sessionId: " + sessionId + " error: " + e.getMessage());
+                log.error("WebSocket connection failed sessionId: " + sessionId + " error: " + e.getMessage());
             }
         });
     }

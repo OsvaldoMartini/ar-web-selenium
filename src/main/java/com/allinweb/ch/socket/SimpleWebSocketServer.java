@@ -7,10 +7,7 @@ import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARPropertyEnum;
-import com.allinweb.ch.util.ARPropertyManager;
-import com.allinweb.ch.util.ErrorMessage;
+import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -72,9 +69,9 @@ public class SimpleWebSocketServer {
 
         if (sessionId != null) {
             webSocketSessionManager.addSession(sessionId, session); // Store the session with the custom ID
-            System.out.println("New connection: Session ID = " + sessionId);
+            log.info("New connection: Session ID = " + sessionId);
         } else {
-            System.out.println("No session ID provided by client");
+            log.info("No session ID provided by client");
         }
     }
 
@@ -83,7 +80,7 @@ public class SimpleWebSocketServer {
         if (message == null || message.contains("CONNECT") || message.contains("ping")) {
             // Ignore null or empty messages
             message = message.replaceAll("ping-", "");
-            // System.out.println("Active : " + message);
+            // log.info("Active : " + message);
             return;
         }
 
@@ -92,11 +89,11 @@ public class SimpleWebSocketServer {
             byte[] decodedBytes = Base64.getDecoder().decode(message);
             message = new String(decodedBytes, "UTF-8");
 
-            //            System.out.println("Decoded Received Data: " + message);
+            //            log.info("Decoded Received Data: " + message);
 
             // Process the message as needed...
         } catch (IllegalArgumentException e) {
-            //            System.err.println("Invalid Base64 message received: " + message);
+            //            log.error("Invalid Base64 message received: " + message);
         } catch (Exception e) {
             //            e.printStackTrace();
         }
@@ -118,7 +115,7 @@ public class SimpleWebSocketServer {
             if (type == null || type.trim().isEmpty() || type.contains("CONNECT") || type.contains("ping")) {
                 // Ignore null or empty messages
                 type = type.replaceAll("ping-", "");
-                // System.out.println("Active : " + type);
+                // log.info("Active : " + type);
                 return;
             }
 
@@ -180,7 +177,7 @@ public class SimpleWebSocketServer {
                     break;
             }
         } catch (Exception error) {
-            System.err.println("Closed processing message: " + error.getMessage());
+            log.error("Closed processing message: " + error.getMessage());
             if (type != null) {
                 webSocketSessionManager.sendMessageJson(
                         homeBankingId, session, type, "Action type : \"" + type + "\"", "cannot be processed");
@@ -193,13 +190,13 @@ public class SimpleWebSocketServer {
 
     @OnError
     public void onError(Session session, Throwable throwable) {
-        System.err.println("Error in session " + session.getId() + ": " + throwable.getMessage());
+        log.error("Error in session " + session.getId() + ": " + throwable.getMessage());
         try {
             if (session.isOpen()) {
                 session.close();
             }
         } catch (IOException e) {
-            System.err.println("Error closing session: " + e.getMessage());
+            log.error("Error closing session: " + e.getMessage());
         }
     }
 
@@ -285,7 +282,12 @@ public class SimpleWebSocketServer {
                         : performLists.getListBlockComp())
                 .stream().map(BlockLoadDTO::getId).filter(Objects::nonNull).toList();
 
-        performDataBase.loadInstructions(whereId, -1, -1, instrTable);
+        if (errorMessage == null) {
+            errorMessage = performDataBase.loadInstructions(whereId, -1, -1, instrTable);
+        }
+        if (errorMessage != null) {
+            performMessage.errorMessageOperationFailed(errorMessage);
+        }
 
         try {
             List<BotJobLoadDTO> listBotJob =
@@ -590,7 +592,7 @@ public class SimpleWebSocketServer {
                     alreadySentMgsSocket = false;
                     break;
                 case "DELETE_INSTRUCTION":
-                    ARConstants.DialogModal respModal = ARConstants.DialogModal.NONE;
+                    ARExecution.DialogModal respModal = ARExecution.DialogModal.NONE;
 
                     errorMessage = performDataBase.loadAllParents(instrTable, whereId, instructionId);
 
@@ -623,7 +625,7 @@ public class SimpleWebSocketServer {
                                     "Cancel",
                                     0);
 
-                            continueDelete = respModal.equals(ARConstants.DialogModal.OK);
+                            continueDelete = respModal.equals(ARExecution.DialogModal.OK);
                             deleteParents = continueDelete;
                         }
 
@@ -761,28 +763,14 @@ public class SimpleWebSocketServer {
         }
 
         if (errorMessage != null) {
-            performMessage.errorMessage(
-                    errorMessage.getErrorTitle(),
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                            + errorMessage.getErrorHeader(),
-                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                    null,
-                    0);
+            performMessage.errorMessageOperationFailed(errorMessage);
         }
 
         if (!alreadySentMgsSocket && (sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
             if (performLists.getListBotJob().isEmpty()) {
                 errorMessage = performDBEngine.loadCompleteJobs(botJobIdTask);
                 if (errorMessage != null) {
-                    performMessage.errorMessage(
-                            errorMessage.getErrorTitle(),
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                    + errorMessage.getErrorHeader(),
-                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                            null,
-                            0);
+                    performMessage.errorMessageOperationFailed(errorMessage);
                 }
             }
         } else if (!alreadySentMgsSocket
@@ -790,14 +778,7 @@ public class SimpleWebSocketServer {
             if (performLists.getListBotJobComp().isEmpty()) {
                 errorMessage = performDataBase.loadComponentsComplete(homeBankingId, botJobIdTask, botJobNameTask);
                 if (errorMessage != null) {
-                    performMessage.errorMessage(
-                            errorMessage.getErrorTitle(),
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                    + errorMessage.getErrorHeader(),
-                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                            null,
-                            0);
+                    performMessage.errorMessageOperationFailed(errorMessage);
                 }
             }
         }
@@ -919,13 +900,13 @@ public class SimpleWebSocketServer {
         // Clean up session when it closes
         String sessionId = webSocketSessionManager.getSessionIdBySession(session);
         if (sessionId != null) {
-            System.out.println("Connection closed: Session ID = " + sessionId + ", Reason: "
+            log.info("Connection closed: Session ID = " + sessionId + ", Reason: "
                     + closeReason.getReasonPhrase() + " (Code: "
                     + closeReason.getCloseCode() + ")");
             webSocketSessionManager.removeSession(sessionId);
         } else {
-            System.out.println("Connection closed for unknown session, Reason: " + closeReason.getReasonPhrase()
-                    + " (Code: " + closeReason.getCloseCode() + ")");
+            log.info("Connection closed for unknown session, Reason: " + closeReason.getReasonPhrase() + " (Code: "
+                    + closeReason.getCloseCode() + ")");
         }
     }
 
@@ -934,9 +915,9 @@ public class SimpleWebSocketServer {
         BlockDetailsDTO originalBlock = blockSplitDTO.getDetails().getOriginalBlock();
         BlockDetailsDTO newBlock = blockSplitDTO.getDetails().getNewBlock();
         List<BlockOrderDetailDTO> updatedBlock = blockSplitDTO.getDetails().getUpdatedBlocks();
-        System.out.println("Original Block ID: " + originalBlock.getBlockId());
-        System.out.println("New Block Name: " + newBlock.getBlockName());
-        System.out.println("Updated Block: " + updatedBlock.size());
+        log.info("Original Block ID: " + originalBlock.getBlockId());
+        log.info("New Block Name: " + newBlock.getBlockName());
+        log.info("Updated Block: " + updatedBlock.size());
         newBlock.setForceOrder(true);
 
         int homeBankId = blockSplitDTO.getHomeBankingId();
@@ -987,25 +968,11 @@ public class SimpleWebSocketServer {
                 }
 
                 if (errorMessage != null) {
-                    performMessage.errorMessage(
-                            errorMessage.getErrorTitle(),
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                    + errorMessage.getErrorHeader(),
-                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                            null,
-                            0);
+                    performMessage.errorMessageOperationFailed(errorMessage);
                 }
             }
         } else {
-            performMessage.errorMessage(
-                    errorMessage.getErrorTitle(),
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                            + errorMessage.getErrorHeader(),
-                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                    null,
-                    0);
+            performMessage.errorMessageOperationFailed(errorMessage);
         }
 
         //        performDataBase.loadBlocks(blockSplitDTO.getBotJobId(), "", "block");
@@ -1033,14 +1000,7 @@ public class SimpleWebSocketServer {
         }
 
         if (errorMessage != null) {
-            performMessage.errorMessage(
-                    errorMessage.getErrorTitle(),
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                            + errorMessage.getErrorHeader(),
-                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                    null,
-                    0);
+            performMessage.errorMessageOperationFailed(errorMessage);
         }
 
         if (!splitDTO.getType().equals("INSERT_BEFORE_ELSEIF")
@@ -1147,14 +1107,7 @@ public class SimpleWebSocketServer {
 
             errorMessage = performDBEngine.loadCompleteJobs(blockDetailsDTO.getBotJobId());
             if (errorMessage != null) {
-                performMessage.errorMessage(
-                        errorMessage.getErrorTitle(),
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                + errorMessage.getErrorHeader(),
-                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                        null,
-                        0);
+                performMessage.errorMessageOperationFailed(errorMessage);
             }
 
             String jsonData = "[]";

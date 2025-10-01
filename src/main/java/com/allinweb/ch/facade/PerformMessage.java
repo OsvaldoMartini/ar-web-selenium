@@ -2,7 +2,8 @@ package com.allinweb.ch.facade;
 
 import com.allinweb.ch.component.model.ElementDTO;
 import com.allinweb.ch.component.model.InstructionLoad;
-import com.allinweb.ch.util.ARConstants;
+import com.allinweb.ch.util.ARExecution;
+import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
 import com.google.gson.ExclusionStrategy;
 import com.google.gson.FieldAttributes;
@@ -15,12 +16,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonType;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
-import javafx.scene.text.Text;
 import javax.swing.*;
 import lombok.extern.slf4j.Slf4j;
 
@@ -139,16 +134,16 @@ public class PerformMessage {
     public void initializePerformMessages() {}
 
     public void couldNotFindElement(String criteria) {
-        showCustomModalDialogDragWin11(
-                criteria,
-                "1. Verify if you are on the correct web page.",
-                "2. Check if the page layout or content has been updated. (Page Refreshed)",
-                "3. Consider increasing the wait time to ensure the page loads completely.",
-                "4. Consider to Re Scanner or Re Select the Element!",
-                true,
-                "OK",
-                null,
-                0);
+        //        showCustomModalDialogDragWin11(
+        //                criteria,
+        //                "1. Verify if you are on the correct web page.",
+        //                "2. Check if the page layout or content has been updated. (Page Refreshed)",
+        //                "3. Consider increasing the wait time to ensure the page loads completely.",
+        //                "4. Consider to Re Scanner or Re Select the Element!",
+        //                true,
+        //                "OK",
+        //                null,
+        //                0);
     }
 
     public void couldNotInputBotJobVeryFast(String criteria) {
@@ -175,6 +170,23 @@ public class PerformMessage {
                 "OK",
                 null,
                 0);
+    }
+
+    public void errorMessageOperationFailed(ErrorMessage errorMessage) {
+        log.error(
+                "Error: {} Title: {} Message: {}",
+                errorMessage.getErrorHeader(),
+                errorMessage.getErrorTitle(),
+                errorMessage.getErrorMessage());
+        //        errorMessage(
+        //                errorMessage.getErrorHeader(),
+        //                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span>
+        // ❌",
+        //                "<span style='color: #E65100; font-weight: bold;'>Error Type:</span>",
+        //                "<span style='color: #2E7D32; font-weight: bold;'>" + errorMessage.getErrorTitle() +
+        // "</span>",
+        //                "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+        //                0);
     }
 
     public void errorMessage(String criteria, String msg1, String msg2, String msg3, String msg4, int height) {
@@ -281,7 +293,7 @@ public class PerformMessage {
         dialog.setVisible(true); // This will block other input until the dialog is closed
     }
 
-    public ARConstants.DialogModal showCustomModalDialog(
+    public ARExecution.DialogModal showCustomModalDialog(
             String title,
             String message,
             String message2,
@@ -349,7 +361,7 @@ public class PerformMessage {
         messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
         panel.add(messageLabel, BorderLayout.CENTER);
 
-        final ARConstants.DialogModal[] status = {ARConstants.DialogModal.NONE};
+        final ARExecution.DialogModal[] status = {ARExecution.DialogModal.NONE};
 
         if (!Strings.isNullOrEmpty(secondButton)) {
 
@@ -405,7 +417,7 @@ public class PerformMessage {
                 @Override
                 public void actionPerformed(ActionEvent e) {
                     dialog.dispose();
-                    status[0] = ARConstants.DialogModal.OK;
+                    status[0] = ARExecution.DialogModal.OK;
                 }
             });
 
@@ -413,9 +425,9 @@ public class PerformMessage {
             stopButton.addActionListener(new ActionListener() {
                 @Override
                 public void actionPerformed(ActionEvent e) {
-                    System.out.println("Stop button clicked!");
+                    log.info("Stop button clicked!");
                     dialog.dispose();
-                    status[0] = ARConstants.DialogModal.STOP;
+                    status[0] = ARExecution.DialogModal.STOP;
                 }
             });
 
@@ -447,7 +459,7 @@ public class PerformMessage {
                 @Override
                 public void actionPerformed(ActionEvent e) {
                     dialog.dispose();
-                    status[0] = ARConstants.DialogModal.OK;
+                    status[0] = ARExecution.DialogModal.OK;
                 }
             });
 
@@ -462,7 +474,7 @@ public class PerformMessage {
         return status[0];
     }
 
-    public ARConstants.DialogModal showCustomModalDialogDrag(
+    public ARExecution.DialogModal showCustomModalDialogDrag(
             String title,
             String message,
             String message2,
@@ -533,7 +545,7 @@ public class PerformMessage {
         messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
         panel.add(messageLabel, BorderLayout.CENTER);
 
-        final ARConstants.DialogModal[] status = {ARConstants.DialogModal.NONE};
+        final ARExecution.DialogModal[] status = {ARExecution.DialogModal.NONE};
 
         // Create button panel if second button exists
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 0));
@@ -547,7 +559,7 @@ public class PerformMessage {
         okButton.setPreferredSize(buttonSize);
         okButton.addActionListener(e -> {
             dialog.dispose();
-            status[0] = ARConstants.DialogModal.OK;
+            status[0] = ARExecution.DialogModal.OK;
         });
         buttonPanel.add(okButton);
 
@@ -556,9 +568,9 @@ public class PerformMessage {
             JButton stopButton = createStyledButton(secondButton);
             stopButton.setPreferredSize(buttonSize);
             stopButton.addActionListener(e -> {
-                System.out.println("Stop button clicked!");
+                log.info("Stop button clicked!");
                 dialog.dispose();
-                status[0] = ARConstants.DialogModal.STOP;
+                status[0] = ARExecution.DialogModal.STOP;
             });
             buttonPanel.add(stopButton);
         }
@@ -643,7 +655,7 @@ public class PerformMessage {
     /**
      * Creates a styled button with Windows 11 theme
      */
-    public ARConstants.DialogModal showCustomModalDialogDragWin11(
+    public ARExecution.DialogModal showCustomModalDialogDragWin11(
             String title,
             String message1,
             String message2,
@@ -661,7 +673,7 @@ public class PerformMessage {
     /**
      * Creates a styled button with Windows 11 theme
      */
-    public ARConstants.DialogModal showCustomModalDialogDragWin11Timer(
+    public ARExecution.DialogModal showCustomModalDialogDragWin11Timer(
             String title,
             String message1,
             String message2,
@@ -701,17 +713,17 @@ public class PerformMessage {
         panel.setLayout(new BorderLayout());
 
         //                    Type	Emoji/Icon	Example Code
-        //                    Success	✅	System.out.println("✅ Java version is valid.");
-        //                    Info	ℹ️	System.out.println("ℹ️ Running version check...");
-        //                    Warning	⚠️	System.out.println("⚠️ Java version might be outdated.");
-        //                    Error	❌	System.out.println("❌ Java version is too old.");
-        //                    Stop	🛑	System.out.println("🛑 Application cannot continue.");
-        //                    Bug/Debug	🐛	System.out.println("🐛 Debug mode enabled.");
-        //                    Time	⏱️	System.out.println("⏱️ Checking environment...");
-        //                    Rocket/Start	🚀	System.out.println("🚀 Starting process...");
-        //                    Lock	🔒	System.out.println("🔒 Secure mode enabled.");
-        //                    Folder	📂	System.out.println("📂 Loading files...");
-        //                    Checkmark	✔️	System.out.println("✔️ All checks passed.");
+        //                    Success	✅	log.info("✅ Java version is valid.");
+        //                    Info	ℹ️	log.info("ℹ️ Running version check...");
+        //                    Warning	⚠️	log.info("⚠️ Java version might be outdated.");
+        //                    Error	❌	log.info("❌ Java version is too old.");
+        //                    Stop	🛑	log.info("🛑 Application cannot continue.");
+        //                    Bug/Debug	🐛	log.info("🐛 Debug mode enabled.");
+        //                    Time	⏱️	log.info("⏱️ Checking environment...");
+        //                    Rocket/Start	🚀	log.info("🚀 Starting process...");
+        //                    Lock	🔒	log.info("🔒 Secure mode enabled.");
+        //                    Folder	📂	log.info("📂 Loading files...");
+        //                    Checkmark	✔️	log.info("✔️ All checks passed.");
 
         // Build the message
         String titleMessage = "<html><br><span style='color: blue;'>"
@@ -757,7 +769,7 @@ public class PerformMessage {
         messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
         panel.add(messageLabel, BorderLayout.CENTER);
 
-        final ARConstants.DialogModal[] status = {ARConstants.DialogModal.NONE};
+        final ARExecution.DialogModal[] status = {ARExecution.DialogModal.NONE};
 
         // Create button panel if second button exists
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 0));
@@ -771,7 +783,7 @@ public class PerformMessage {
         okButton.setPreferredSize(buttonSize);
         okButton.addActionListener(e -> {
             dialog.dispose();
-            status[0] = ARConstants.DialogModal.OK;
+            status[0] = ARExecution.DialogModal.OK;
         });
         buttonPanel.add(okButton);
 
@@ -780,9 +792,9 @@ public class PerformMessage {
             JButton stopButton = createStyledButtonWin11(secondButton);
             stopButton.setPreferredSize(buttonSize);
             stopButton.addActionListener(e -> {
-                System.out.println("Stop button clicked!");
+                log.info("Stop button clicked!");
                 dialog.dispose();
-                status[0] = ARConstants.DialogModal.STOP;
+                status[0] = ARExecution.DialogModal.STOP;
             });
             buttonPanel.add(stopButton);
 
@@ -847,48 +859,6 @@ public class PerformMessage {
 
         // Return empty string for no actions
         return "";
-    }
-
-    public boolean showAlertCombinedVBOX(
-            Alert.AlertType alertType, String title, String header, String content, VBox combinedTextContainer) {
-        Alert alert = new Alert(alertType);
-        alert.setTitle(title);
-        alert.setHeaderText(header);
-        alert.setContentText(content);
-        alert.getDialogPane().setContent(combinedTextContainer);
-
-        if (alertType.equals(Alert.AlertType.CONFIRMATION)) {
-            alert.getButtonTypes().set(0, ButtonType.YES);
-            alert.getButtonTypes().set(1, ButtonType.NO);
-        }
-        Optional<ButtonType> result = alert.showAndWait();
-
-        if (alertType.equals(Alert.AlertType.CONFIRMATION)) {
-            return result.isPresent() && result.get().equals(ButtonType.YES);
-        } else {
-            return result.isPresent() && result.get().equals(ButtonType.OK);
-        }
-    }
-
-    public boolean showCombinedHBox(
-            Alert.AlertType alertType, String title, String header, String content, HBox combinedTextContainer) {
-        Alert alert = new Alert(alertType);
-        alert.setTitle(title);
-        alert.setHeaderText(header);
-        alert.setContentText(content);
-        alert.getDialogPane().setContent(combinedTextContainer);
-
-        if (alertType.equals(Alert.AlertType.CONFIRMATION)) {
-            alert.getButtonTypes().set(0, ButtonType.YES);
-            alert.getButtonTypes().set(1, ButtonType.NO);
-        }
-        Optional<ButtonType> result = alert.showAndWait();
-
-        if (alertType.equals(Alert.AlertType.CONFIRMATION)) {
-            return result.isPresent() && result.get().equals(ButtonType.YES);
-        } else {
-            return result.isPresent() && result.get().equals(ButtonType.OK);
-        }
     }
 
     public void outputJson(
@@ -980,9 +950,9 @@ public class PerformMessage {
         // Write the JSON data to the file
         try (FileWriter writer = new FileWriter(outputFilePath)) {
             writer.write(jsonData);
-            System.out.println("JSON file saved to: " + outputFilePath);
+            log.info("JSON file saved to: " + outputFilePath);
         } catch (IOException e) {
-            System.err.println("Error writing JSON to file: " + e.getMessage());
+            log.error("Error writing JSON to file: " + e.getMessage());
         }
     }
 
@@ -1017,39 +987,39 @@ public class PerformMessage {
         // Write the JSON data to the file
         try (FileWriter writer = new FileWriter(outputFilePath)) {
             writer.write(jsonData);
-            System.out.println("JSON file saved to: " + outputFilePath);
+            log.info("JSON file saved to: " + outputFilePath);
         } catch (IOException e) {
-            System.err.println("Error writing JSON to file: " + e.getMessage());
+            log.error("Error writing JSON to file: " + e.getMessage());
         }
     }
 
-    public void generalErrorIFrame(String xpath) {
-        // Styled text elements
-        Text titleText = new Text("Fail Searching IFrame Elements");
-        titleText.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-
-        Text errorText = new Text("Error: Attempt identify IFrame elements");
-        errorText.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-
-        Text xpathText = new Text(xpath);
-        xpathText.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-
-        // Create a container for the message
-        VBox messageContainer = new VBox(5); // Adds spacing of 5px
-
-        // Add relevant elements to the container
-        messageContainer.getChildren().addAll(titleText, errorText);
-
-        if (!Strings.isNullOrEmpty(xpath)) {
-            messageContainer.getChildren().add(xpathText);
-        }
-
-        // Display the alert message
-        showAlertCombinedVBOX(
-                Alert.AlertType.WARNING,
-                "iFrame Web Elements",
-                "Action: Search iFrame Elements!",
-                null,
-                messageContainer);
-    }
+    //    public void generalErrorIFrame(String xpath) {
+    //        // Styled text elements
+    //        Text titleText = new Text("Fail Searching IFrame Elements");
+    //        titleText.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+    //
+    //        Text errorText = new Text("Error: Attempt identify IFrame elements");
+    //        errorText.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+    //
+    //        Text xpathText = new Text(xpath);
+    //        xpathText.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+    //
+    //        // Create a container for the message
+    //        VBox messageContainer = new VBox(5); // Adds spacing of 5px
+    //
+    //        // Add relevant elements to the container
+    //        messageContainer.getChildren().addAll(titleText, errorText);
+    //
+    //        if (!Strings.isNullOrEmpty(xpath)) {
+    //            messageContainer.getChildren().add(xpathText);
+    //        }
+    //
+    //        // Display the alert message
+    //        showAlertCombinedVBOX(
+    //                Alert.AlertType.WARNING,
+    //                "iFrame Web Elements",
+    //                "Action: Search iFrame Elements!",
+    //                null,
+    //                messageContainer);
+    //    }
 }

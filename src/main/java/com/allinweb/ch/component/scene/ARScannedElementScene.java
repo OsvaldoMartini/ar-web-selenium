@@ -27,7 +27,6 @@ import javafx.scene.Scene;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
-import javafx.util.Pair;
 import javax.websocket.*;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -123,7 +122,7 @@ public class ARScannedElementScene extends ARScene {
                                     .sendText("ping-scanner-element-pane"); // Or a specific keep-alive message
                         }
                     } catch (IOException e) {
-                        System.err.println("Error sending ping: " + e.getMessage());
+                        log.error("Error sending ping: " + e.getMessage());
                         // Handle potential disconnection
                     }
                 },
@@ -136,20 +135,20 @@ public class ARScannedElementScene extends ARScene {
     public void onOpen(Session session) {
         this.session = session;
         latch.countDown(); // Release the latch after connection is established
-        System.out.println("Connected to WebSocket server at: " + session.getRequestURI());
+        log.info("Connected to WebSocket server at: " + session.getRequestURI());
         // Sending an initial message
         sendMessage("Hello from JavaFX WebSocket client!");
     }
 
     @OnClose
     public void onClose(Session session) {
-        System.out.println("Connection closed.");
+        log.info("Connection closed.");
         stopKeepAlivePings();
     }
 
     @OnError
     public void onError(Session session, Throwable throwable) {
-        System.out.println("Error: " + throwable.getMessage());
+        log.info("Error: " + throwable.getMessage());
         stopKeepAlivePings();
     }
 
@@ -177,18 +176,18 @@ public class ARScannedElementScene extends ARScene {
                 isConnectWebSocket = true;
             } catch (Exception e) {
                 isConnectWebSocket = false;
-                System.err.println("WebSocket connection failed sessionId: " + sessionId + " error: " + e.getMessage());
+                log.error("WebSocket connection failed sessionId: " + sessionId + " error: " + e.getMessage());
             }
         });
     }
 
     @OnMessage
     public void onMessage(String message) {
-        System.out.println("Received: " + message);
+        log.info("Received: " + message);
         if (message == null || message.trim().isEmpty() || message.contains("CONNECT") || message.contains("ping")) {
             // Ignore null or empty messages
             message = message.replaceAll("ping-", "");
-            // System.out.println("Active : " + message);
+            // log.info("Active : " + message);
             return;
         }
 
@@ -220,7 +219,7 @@ public class ARScannedElementScene extends ARScene {
             if (type == null || type.trim().isEmpty() || type.contains("CONNECT") || type.contains("ping")) {
                 // Ignore null or empty messages
                 type = type.replaceAll("ping-", "");
-                // System.out.println("Active : " + type);
+                // log.info("Active : " + type);
                 return;
             }
 
@@ -349,7 +348,11 @@ public class ARScannedElementScene extends ARScene {
                                         && performLists.getListInstruction().isEmpty()
                                 || (tableName.equals("component_instruction")
                                         && performLists.getListInstructionComp().isEmpty())) {
-                            performDataBase.loadInstructions(whereId, -1, -1, tableName);
+
+                            ErrorMessage errorMessage = performDataBase.loadInstructions(whereId, -1, -1, tableName);
+                            if (errorMessage != null) {
+                                performMessage.errorMessageOperationFailed(errorMessage);
+                            }
                         }
 
                         InstructionLoad instruction = performLists.getInstructionById(
@@ -398,6 +401,7 @@ public class ARScannedElementScene extends ARScene {
             }
         } catch (Exception error) {
             if (error.getMessage().contains("invalid session id")) {
+                log.warn("Browser is Closed");
                 performMessage.errorMessage(
                         "Browser is Closed",
                         "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>To perform this action, please</span> ✅",
@@ -407,7 +411,7 @@ public class ARScannedElementScene extends ARScene {
                         0);
             }
 
-            System.err.println("Closed processing message: " + error.getMessage());
+            log.error("Closed processing message: " + error.getMessage());
         }
     }
 
@@ -435,7 +439,7 @@ public class ARScannedElementScene extends ARScene {
     }
 
     public void handleCloseRequest(WindowEvent event) {
-        System.out.println("Handle Close: Exiting Threads and Quitting WebDriver");
+        log.info("Handle Close: Exiting Threads and Quitting WebDriver");
 
         // Interrupt running threads
         threadList.forEach(this::interruptThread);
@@ -452,9 +456,9 @@ public class ARScannedElementScene extends ARScene {
                 shutDownExecutorService(executorWebSocket);
                 shutDownExecutorService(executorServicePreLaunch);
 
-                System.out.println("WebDriver quit successfully.");
+                log.info("WebDriver quit successfully.");
             } catch (Exception e) {
-                System.err.println("Error closing WebDriver: " + e.getMessage());
+                log.error("Error closing WebDriver: " + e.getMessage());
             }
         }
     }
@@ -500,14 +504,13 @@ public class ARScannedElementScene extends ARScene {
             if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
                 executorService.shutdownNow();
                 if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
-                    System.err.println("ExecutorService did not terminate");
-                    log.error("ExecutorService did not terminate");
+                    log.warn("ExecutorService did not terminate");
                 }
             }
         } catch (InterruptedException e) {
             executorService.shutdownNow();
             Thread.currentThread().interrupt();
-            log.error("ExecutorService did not terminate\n" + e.getMessage());
+            log.warn("ExecutorService did not terminate" + e.getMessage());
         }
     }
 
@@ -563,21 +566,24 @@ public class ARScannedElementScene extends ARScene {
                             webDriverPath.substring(0, lastSlashIndex + 1); // includes the last backslash
                     String fileName = webDriverPath.substring(lastSlashIndex + 1);
 
+                    log.error("Invalid URL or Navigation Error: {} - {} - {}", browser, directoryPath, fileName);
                     performMessage.errorMessage(
-                            "WebDriver Version Incompatibility",
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>WebDriver version might be incompatible.</span>",
+                            "Invalid URL or Navigation Error",
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>The provided URL is invalid or cannot be reached.</span>",
                             "<span style='font-weight: bold;'>Please verify the following:</span>",
                             "<ul>"
-                                    + "   <li>The installed browser version: <span style='color: #008b8b ; font-weight: bold;'>"
+                                    + "   <li>The entered URL is valid and accessible.</li>"
+                                    + "   <li>The installed browser version: <span style='color: #008b8b; font-weight: bold;'>"
                                     + browser + "</span></li>"
-                                    + "   <li>The WebDriver path:<br><span style='color: #008b8b ; font-weight: bold;'>"
+                                    + "   <li>The WebDriver path:<br><span style='color: #008b8b; font-weight: bold;'>"
                                     + directoryPath + "</span></li>"
-                                    + "<li>The WebDriver file:<br><span style='color: #008b8b ; font-weight: bold;'>"
+                                    + "   <li>The WebDriver file:<br><span style='color: #008b8b; font-weight: bold;'>"
                                     + fileName + "</span></li>"
-                                    + "   <li>Ensure the WebDriver version is the correct one for your browser version.</li>"
+                                    + "   <li>Ensure the WebDriver and browser are compatible and correctly configured.</li>"
                                     + "</ul>",
-                            "<span style='font-style: italic;'>Refer to your browser's documentation or the WebDriver's release notes for compatibility information.</span>",
+                            "<span style='font-style: italic;'>Check the URL format (e.g., including https://) and review browser/WebDriver logs for more details.</span>",
                             0);
+
                 } else {
 
                     log.error("Scanner Pane showModal error:" + error.getMessage());
@@ -593,7 +599,7 @@ public class ARScannedElementScene extends ARScene {
             }
             modalStage = null;
         } catch (Exception error) {
-            System.err.println("Browser Closed Before Web Scanner. Error: " + error.getMessage());
+            log.error("Browser Closed Before Web Scanner. Error: " + error.getMessage());
         }
     }
 
@@ -610,7 +616,9 @@ public class ARScannedElementScene extends ARScene {
                 TargetElement targetEach = extractPickClone(elementDTO);
 
                 WebElement elementFound = performActions.findWebElement(targetEach);
-                targetEach.setElement(elementFound);
+                if (targetEach.getElement() == null && elementFound != null) {
+                    targetEach.setElement(elementFound);
+                }
                 // 3 Different Coordinates
                 // Original from JavaScript
                 // WebDriver Selenium ElementFound
@@ -655,6 +663,10 @@ public class ARScannedElementScene extends ARScene {
 
                 if (instructionList.size()
                         != performDataBase.getIdsInstrucAfter().size()) {
+                    log.error(
+                            "Error Inserting ALL Elements - Expected (from list):{} - Actual (inserted): {}",
+                            instructionList.size(),
+                            performDataBase.getIdsInstrucAfter().size());
                     performMessage.errorMessage(
                             "Error Inserting ALL Elements",
                             "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Batch Insertion Failed ❌</span>",
@@ -684,14 +696,7 @@ public class ARScannedElementScene extends ARScene {
                 sendStatusButton();
 
                 if (errorMessage != null) {
-                    performMessage.errorMessage(
-                            errorMessage.getErrorTitle(),
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                    + errorMessage.getErrorTitle(),
-                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                            null,
-                            0);
+                    performMessage.errorMessageOperationFailed(errorMessage);
                 }
             }
         } else {
@@ -722,7 +727,9 @@ public class ARScannedElementScene extends ARScene {
         TargetElement targetLocal = performActions.defineSearchReturn(elementDTO, null);
 
         WebElement elementFound = performActions.findWebElement(targetLocal);
-        targetLocal.setElement(elementFound);
+        if (targetLocal.getElement() == null && elementFound != null) {
+            targetLocal.setElement(elementFound);
+        }
         // 3 Different Coordinates // Original from JavaScript  // WebDriver Selenium ElementFound
         // FallBack React Computed
         performActions.defineSavedReferenced(targetLocal);
@@ -735,7 +742,8 @@ public class ARScannedElementScene extends ARScene {
             TargetElement targetValidated = checkValidateSearchPriorities(targetLocal);
 
             if (targetValidated.getElement() == null) {
-
+                log.error(
+                        "I Cannot define this element. Try to get it again -> \"HOVER PICK  ELEMENT\" or \"PICK ONE \"");
                 performMessage.errorMessage(
                         "I Cannot define this element",
                         "I will use the Locator \"COORDINATES\"",
@@ -767,7 +775,7 @@ public class ARScannedElementScene extends ARScene {
             if (target.getForceCoordinates() != null && target.getForceCoordinates()) {
                 // Try by coordinates
                 try {
-                    Pair<String, String> filedData = new Pair("&EMPTY", "&EMPTY");
+                    FieldData filedData = new FieldData("&EMPTY", "&EMPTY");
                     boolean passed = performActions.executeActionsAtCoordinates(
                             target.getCoordinates(), filedData, ARConstants.VISUALIZE, false);
                     if (passed) {
@@ -781,7 +789,7 @@ public class ARScannedElementScene extends ARScene {
 
                 } catch (Exception e) {
 
-                    log.warn(String.format("Cannot locate a Web Element with Name: \n%s", target.getAttribName()));
+                    log.warn(String.format("Cannot locate a Web Element with Name: %s", target.getAttribName()));
                 }
             } else if (elementValid == null) {
                 try {
@@ -794,7 +802,7 @@ public class ARScannedElementScene extends ARScene {
                 } catch (Exception e) {
 
                     log.warn(String.format(
-                            "Cannot locate a Web Element with Regular XPath\n%s", target.getCurrentXPath()));
+                            "Cannot locate a Web Element with Regular XPath: %s", target.getCurrentXPath()));
                 }
             } else if (elementValid == null) {
                 try {
@@ -807,7 +815,7 @@ public class ARScannedElementScene extends ARScene {
                 } catch (Exception e) {
 
                     log.warn(String.format(
-                            "Cannot locate a Web Element with Absolut XPath\n%s", target.getAttributeData()));
+                            "Cannot locate a Web Element with Absolut XPath: %s", target.getAttributeData()));
                 }
             } else {
                 if (elementValid == null) {
@@ -823,7 +831,7 @@ public class ARScannedElementScene extends ARScene {
                             }
                         } catch (Exception e) {
 
-                            log.warn(String.format("Cannot locate a Web Element with ID: \n%s", target.getAttribId()));
+                            log.warn(String.format("Cannot locate a Web Element with ID: %s", target.getAttribId()));
                         }
                     }
                 } else if (elementValid == null) {
@@ -839,8 +847,8 @@ public class ARScannedElementScene extends ARScene {
                             }
                         } catch (Exception e) {
 
-                            log.warn(String.format(
-                                    "Cannot locate a Web Element with Name: \n%s", target.getAttribName()));
+                            log.warn(
+                                    String.format("Cannot locate a Web Element with Name: %s", target.getAttribName()));
                         }
                     }
                 }
@@ -859,14 +867,7 @@ public class ARScannedElementScene extends ARScene {
     public void updateBotJobTasks(int currentBotJobId) {
         ErrorMessage errorMessage = performDBEngine.loadCompleteJobs(currentBotJobId);
         if (errorMessage != null) {
-            performMessage.errorMessage(
-                    errorMessage.getErrorTitle(),
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                            + errorMessage.getErrorHeader(),
-                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                    null,
-                    0);
+            performMessage.errorMessageOperationFailed(errorMessage);
             return;
         }
 

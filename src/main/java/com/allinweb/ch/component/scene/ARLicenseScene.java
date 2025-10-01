@@ -74,12 +74,12 @@ public class ARLicenseScene extends ARScene {
     }
 
     private void handleCloseRequest(WindowEvent event) {
-        System.out.println("Handle Close (Main Stage): Exiting Threads and Quitting WebDriver");
+        log.info("Handle Close (Main Stage): Exiting Threads and Quitting WebDriver");
         cleanupAndClose((Stage) event.getSource());
     }
 
     private void cleanupAndClose(Stage stage) {
-        System.out.println("Cleanup and Close: Exiting Threads");
+        log.info("Cleanup and Close: Exiting Threads");
         // Interrupt running threads
         threadList.forEach(this::interruptThread);
         // Add any other cleanup logic here (e.g., WebDriver quit)
@@ -111,7 +111,7 @@ public class ARLicenseScene extends ARScene {
 
                 // Set the onCloseRequest handler for the modal stage
                 modalStage.setOnCloseRequest(event -> {
-                    System.out.println("Handle Close (Modal Stage): Exiting Threads from Modal");
+                    log.info("Handle Close (Modal Stage): Exiting Threads from Modal");
                     cleanupAndClose(modalStage);
                     event.consume(); // Prevent default close behavior if needed
                 });

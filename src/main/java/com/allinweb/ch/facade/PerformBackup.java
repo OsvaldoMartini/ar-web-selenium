@@ -835,7 +835,7 @@ public class PerformBackup {
                             case 7 -> setSafeParam(pstmt, 7, val, Types.VARCHAR); // driver_session
                             case 8 -> setSafeParam(pstmt, 8, val, Types.VARCHAR); // username
                             case 9 -> setSafeParam(pstmt, 9, val, Types.VARCHAR); // password
-                            default -> System.err.println("Unexpected value index: " + i);
+                            default -> log.error("Unexpected value index: " + i);
                         }
                     }
 
@@ -845,7 +845,7 @@ public class PerformBackup {
                         insertedOldIds.add(oldId);
                         homeBankMap.put(oldId, -1); // initially set to -1
                     } catch (Exception ex) {
-                        System.out.println("Error parsing homeBankMap entry: " + ex.getMessage());
+                        log.info("Error parsing homeBankMap entry: " + ex.getMessage());
                     }
 
                     pstmt.addBatch();
@@ -873,15 +873,14 @@ public class PerformBackup {
             newIds.removeAll(idsBefore);
 
             if (insertedOldIds.size() != newIds.size()) {
-                System.err.println(
-                        "Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
+                log.error("Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
             }
 
             for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
                 homeBankMap.put(insertedOldIds.get(i), newIds.get(i));
             }
 
-            System.out.println("HomeBankMap populated: " + homeBankMap);
+            log.info("HomeBankMap populated: " + homeBankMap);
 
             return null;
 
@@ -966,7 +965,7 @@ public class PerformBackup {
                         String oldHomeBankIdStr = values.get(2);
                         oldHomeBankId = Integer.parseInt(oldHomeBankIdStr);
                     } catch (NumberFormatException ex) {
-                        System.out.println("Invalid home_banking_id format: " + values.get(2));
+                        log.info("Invalid home_banking_id format: " + values.get(2));
                     }
 
                     // Lookup newHomeBankId from homeBankMap
@@ -976,7 +975,7 @@ public class PerformBackup {
                     }
 
                     if (newHomeBankId == null) {
-                        System.out.println("Skipped home_url with unknown home_banking_id: " + oldHomeBankId);
+                        log.info("Skipped home_url with unknown home_banking_id: " + oldHomeBankId);
                         currentInsert.setLength(0); // reset buffer
                         continue; // skip this row
                     }
@@ -997,7 +996,7 @@ public class PerformBackup {
                         insertedOldIds.add(oldId);
                         homeUrlMap.put(oldId, -1); // initialize mapping to -1
                     } catch (Exception ex) {
-                        System.out.println("Error parsing homeUrlMap entry: " + ex.getMessage());
+                        log.info("Error parsing homeUrlMap entry: " + ex.getMessage());
                     }
 
                     pstmt.addBatch();
@@ -1024,15 +1023,14 @@ public class PerformBackup {
             newIds.removeAll(idsBefore);
 
             if (insertedOldIds.size() != newIds.size()) {
-                System.err.println(
-                        "Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
+                log.error("Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
             }
 
             for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
                 homeUrlMap.put(insertedOldIds.get(i), newIds.get(i));
             }
 
-            System.out.println("homeUrlMap populated: " + homeUrlMap);
+            log.info("homeUrlMap populated: " + homeUrlMap);
 
             return null;
 
@@ -1092,7 +1090,7 @@ public class PerformBackup {
                         String oldBotJobIdStr = values.get(8);
                         oldBotJobId = Integer.parseInt(oldBotJobIdStr);
                     } catch (NumberFormatException ex) {
-                        System.out.println("Invalid bot_job_id format: " + values.get(8));
+                        log.info("Invalid bot_job_id format: " + values.get(8));
                     }
 
                     // Lookup newBotJobId from botJobMap
@@ -1102,7 +1100,7 @@ public class PerformBackup {
                     }
 
                     if (newBotJobId == null) {
-                        System.out.println("Skipped block with unknown bot_job_id: " + oldBotJobId);
+                        log.info("Skipped block with unknown bot_job_id: " + oldBotJobId);
                         currentInsert.setLength(0);
                         continue; // skip this row
                     }
@@ -1130,7 +1128,7 @@ public class PerformBackup {
                         insertedOldIds.add(oldId);
                         blockMap.put(oldId, -1); // initialize mapping
                     } catch (Exception ex) {
-                        System.out.println("Error parsing blockMap entry: " + ex.getMessage());
+                        log.info("Error parsing blockMap entry: " + ex.getMessage());
                     }
 
                     pstmt.addBatch();
@@ -1156,15 +1154,14 @@ public class PerformBackup {
             newIds.removeAll(idsBefore);
 
             if (insertedOldIds.size() != newIds.size()) {
-                System.err.println(
-                        "Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
+                log.error("Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
             }
 
             for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
                 blockMap.put(insertedOldIds.get(i), newIds.get(i));
             }
 
-            System.out.println("blockMap populated: " + blockMap);
+            log.info("blockMap populated: " + blockMap);
 
             return null;
 
@@ -1224,7 +1221,7 @@ public class PerformBackup {
                         String oldHomeBankIdStr = values.get(4);
                         oldHomeBankId = Integer.parseInt(oldHomeBankIdStr);
                     } catch (NumberFormatException ex) {
-                        System.out.println("Invalid home_banking_id format: " + values.get(4));
+                        log.info("Invalid home_banking_id format: " + values.get(4));
                     }
 
                     // Extract old home_url_id (index 5)
@@ -1233,7 +1230,7 @@ public class PerformBackup {
                         String oldHomeUrlIdStr = values.get(5);
                         oldHomeUrlId = Integer.parseInt(oldHomeUrlIdStr);
                     } catch (NumberFormatException ex) {
-                        System.out.println("Invalid home_url_id format: " + values.get(5));
+                        log.info("Invalid home_url_id format: " + values.get(5));
                     }
 
                     // Lookup newHomeBankId and newHomeUrlId from maps
@@ -1247,13 +1244,13 @@ public class PerformBackup {
                     }
 
                     if (newHomeBankId == null) {
-                        System.out.println("Skipped bot_job with unknown home_banking_id: " + oldHomeBankId);
+                        log.info("Skipped bot_job with unknown home_banking_id: " + oldHomeBankId);
                         currentInsert.setLength(0);
                         continue; // skip this row
                     }
 
                     if (newHomeUrlId == null) {
-                        System.out.println("Skipped bot_job with unknown home_url_id: " + oldHomeUrlId);
+                        log.info("Skipped bot_job with unknown home_url_id: " + oldHomeUrlId);
                         currentInsert.setLength(0);
                         continue; // skip this row
                     }
@@ -1280,7 +1277,7 @@ public class PerformBackup {
                         insertedOldIds.add(oldId);
                         botJobMap.put(oldId, -1); // initialize mapping
                     } catch (Exception ex) {
-                        System.out.println("Error parsing botJobMap entry: " + ex.getMessage());
+                        log.info("Error parsing botJobMap entry: " + ex.getMessage());
                     }
 
                     pstmt.addBatch();
@@ -1306,15 +1303,14 @@ public class PerformBackup {
             newIds.removeAll(idsBefore);
 
             if (insertedOldIds.size() != newIds.size()) {
-                System.err.println(
-                        "Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
+                log.error("Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
             }
 
             for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
                 botJobMap.put(insertedOldIds.get(i), newIds.get(i));
             }
 
-            System.out.println("botJobMap populated: " + botJobMap);
+            log.info("botJobMap populated: " + botJobMap);
 
             return null;
 
@@ -1385,13 +1381,13 @@ public class PerformBackup {
                     Integer newBotJobId = oldBotJobId != null ? botJobMap.get(oldBotJobId) : null;
 
                     if (newBlockId == null) {
-                        System.out.println("Skipped instruction with unknown block_id: " + oldBlockId);
+                        log.info("Skipped instruction with unknown block_id: " + oldBlockId);
                         currentInsert.setLength(0);
                         continue;
                     }
 
                     if (newBotJobId == null) {
-                        System.out.println("Skipped instruction with unknown bot_job_id: " + oldBotJobId);
+                        log.info("Skipped instruction with unknown bot_job_id: " + oldBotJobId);
                         currentInsert.setLength(0);
                         continue;
                     }
@@ -1529,7 +1525,7 @@ public class PerformBackup {
                         insertedOldIds.add(oldId);
                         instructionMap.put(oldId, -1);
                     } catch (Exception ex) {
-                        System.out.println("Error parsing instructionMap entry: " + ex.getMessage());
+                        log.info("Error parsing instructionMap entry: " + ex.getMessage());
                     }
 
                     pstmt.addBatch();
@@ -1554,15 +1550,14 @@ public class PerformBackup {
             newIds.removeAll(idsBefore);
 
             if (insertedOldIds.size() != newIds.size()) {
-                System.err.println(
-                        "Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
+                log.error("Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
             }
 
             for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
                 instructionMap.put(insertedOldIds.get(i), newIds.get(i));
             }
 
-            System.out.println("instructionMap populated: " + instructionMap);
+            log.info("instructionMap populated: " + instructionMap);
             return null;
 
         } catch (Exception error) {
@@ -1621,12 +1616,12 @@ public class PerformBackup {
                     try {
                         oldInstructionId = Integer.parseInt(values.get(4));
                     } catch (NumberFormatException ex) {
-                        System.out.println("Invalid instruction_id format: " + values.get(4));
+                        log.info("Invalid instruction_id format: " + values.get(4));
                     }
                     try {
                         oldBotJobId = Integer.parseInt(values.get(5));
                     } catch (NumberFormatException ex) {
-                        System.out.println("Invalid bot_job_id format: " + values.get(5));
+                        log.info("Invalid bot_job_id format: " + values.get(5));
                     }
 
                     // Lookup new IDs
@@ -1634,12 +1629,12 @@ public class PerformBackup {
                     Integer newBotJobId = oldBotJobId != null ? botJobMap.get(oldBotJobId) : null;
 
                     if (newInstructionId == null) {
-                        System.out.println("Skipped variable with unknown instruction_id: " + oldInstructionId);
+                        log.info("Skipped variable with unknown instruction_id: " + oldInstructionId);
                         currentInsert.setLength(0);
                         continue;
                     }
                     if (newBotJobId == null) {
-                        System.out.println("Skipped variable with unknown bot_job_id: " + oldBotJobId);
+                        log.info("Skipped variable with unknown bot_job_id: " + oldBotJobId);
                         currentInsert.setLength(0);
                         continue;
                     }
@@ -1671,7 +1666,7 @@ public class PerformBackup {
                         insertedOldIds.add(oldId);
                         variableMap.put(oldId, -1);
                     } catch (Exception ex) {
-                        System.out.println("Error parsing variableMap entry: " + ex.getMessage());
+                        log.info("Error parsing variableMap entry: " + ex.getMessage());
                     }
 
                     pstmt.addBatch();
@@ -1697,15 +1692,14 @@ public class PerformBackup {
             newIds.removeAll(idsBefore);
 
             if (insertedOldIds.size() != newIds.size()) {
-                System.err.println(
-                        "Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
+                log.error("Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
             }
 
             for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
                 variableMap.put(insertedOldIds.get(i), newIds.get(i));
             }
 
-            System.out.println("variableMap populated: " + variableMap);
+            log.info("variableMap populated: " + variableMap);
 
             return null;
 
@@ -1801,14 +1795,14 @@ public class PerformBackup {
                         if (count % BATCH_SIZE == 0) {
                             updateStmt.executeBatch();
                             conn.commit();
-                            System.out.println("Updated batch of " + BATCH_SIZE);
+                            log.info("Updated batch of " + BATCH_SIZE);
                         }
                     }
 
                     if (count % BATCH_SIZE != 0) {
                         updateStmt.executeBatch();
                         conn.commit();
-                        System.out.println("Updated final batch of " + (count % BATCH_SIZE));
+                        log.info("Updated final batch of " + (count % BATCH_SIZE));
                     }
 
                     log.info("Updated instruction records: " + count);
@@ -1875,7 +1869,7 @@ public class PerformBackup {
                     Integer newBotJobId = oldBotJobId != null ? botJobMap.get(oldBotJobId) : null;
 
                     if (newInstructionId == null || newBotJobId == null) {
-                        System.out.println("Skipped reference due to unknown instruction or bot_job ID: " + "instr="
+                        log.info("Skipped reference due to unknown instruction or bot_job ID: " + "instr="
                                 + oldInstructionId + ", botJob=" + oldBotJobId);
                         currentInsert.setLength(0);
                         continue;
@@ -1900,7 +1894,7 @@ public class PerformBackup {
                         insertedOldIds.add(oldId);
                         referenceMap.put(oldId, -1); // mark for replacement
                     } catch (Exception ex) {
-                        System.out.println("Error parsing referenceMap entry: " + ex.getMessage());
+                        log.info("Error parsing referenceMap entry: " + ex.getMessage());
                     }
 
                     pstmt.addBatch();
@@ -1925,15 +1919,14 @@ public class PerformBackup {
             newIds.removeAll(idsBefore);
 
             if (insertedOldIds.size() != newIds.size()) {
-                System.err.println(
-                        "Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
+                log.error("Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
             }
 
             for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
                 referenceMap.put(insertedOldIds.get(i), newIds.get(i));
             }
 
-            System.out.println("referenceMap populated: " + referenceMap);
+            log.info("referenceMap populated: " + referenceMap);
 
             return null;
 
@@ -1996,7 +1989,7 @@ public class PerformBackup {
                         String oldHomeBankIdStr = values.get(1);
                         oldHomeBankId = Integer.parseInt(oldHomeBankIdStr);
                     } catch (NumberFormatException ex) {
-                        System.out.println("Invalid home_banking_id format: " + values.get(1));
+                        log.info("Invalid home_banking_id format: " + values.get(1));
                     }
 
                     // Lookup newBotJobId from botJobMap
@@ -2006,7 +1999,7 @@ public class PerformBackup {
                     }
 
                     if (newHomeBankId == null) {
-                        System.out.println("Skipped block with unknown home_banking_id: " + oldHomeBankId);
+                        log.info("Skipped block with unknown home_banking_id: " + oldHomeBankId);
                         currentInsert.setLength(0);
                         continue; // skip this row
                     }
@@ -2034,7 +2027,7 @@ public class PerformBackup {
                         insertedOldIds.add(oldId);
                         blockMap.put(oldId, -1); // initialize mapping
                     } catch (Exception ex) {
-                        System.out.println("Error parsing componentBlockMap entry: " + ex.getMessage());
+                        log.info("Error parsing componentBlockMap entry: " + ex.getMessage());
                     }
 
                     pstmt.addBatch();
@@ -2060,15 +2053,14 @@ public class PerformBackup {
             newIds.removeAll(idsBefore);
 
             if (insertedOldIds.size() != newIds.size()) {
-                System.err.println(
-                        "Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
+                log.error("Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
             }
 
             for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
                 blockMap.put(insertedOldIds.get(i), newIds.get(i));
             }
 
-            System.out.println("componentBlockMap populated: " + blockMap);
+            log.info("componentBlockMap populated: " + blockMap);
 
             return null;
 
@@ -2139,12 +2131,12 @@ public class PerformBackup {
                     Integer newHomeBankId = oldHomeBankId != null ? homeBankMap.get(oldHomeBankId) : null;
 
                     if (newBlockId == null) {
-                        System.out.println("Skipped component_instruction with unknown block_id: " + oldBlockId);
+                        log.info("Skipped component_instruction with unknown block_id: " + oldBlockId);
                         currentInsert.setLength(0);
                         continue;
                     }
                     if (newHomeBankId == null) {
-                        System.out.println("Skipped instruction with unknown home_banking_id: " + oldHomeBankId);
+                        log.info("Skipped instruction with unknown home_banking_id: " + oldHomeBankId);
                         currentInsert.setLength(0);
                         continue;
                     }
@@ -2282,7 +2274,7 @@ public class PerformBackup {
                         insertedOldIds.add(oldId);
                         instructionMap.put(oldId, -1);
                     } catch (Exception ex) {
-                        System.out.println("Error parsing instructionMap entry: " + ex.getMessage());
+                        log.info("Error parsing instructionMap entry: " + ex.getMessage());
                     }
 
                     pstmt.addBatch();
@@ -2307,15 +2299,14 @@ public class PerformBackup {
             newIds.removeAll(idsBefore);
 
             if (insertedOldIds.size() != newIds.size()) {
-                System.err.println(
-                        "Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
+                log.error("Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
             }
 
             for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
                 instructionMap.put(insertedOldIds.get(i), newIds.get(i));
             }
 
-            System.out.println("instructionMap populated: " + instructionMap);
+            log.info("instructionMap populated: " + instructionMap);
             return null;
 
         } catch (Exception e) {
@@ -2378,12 +2369,12 @@ public class PerformBackup {
                     Integer newHomeBankingId = oldHomeBankingId != null ? homeBankMap.get(oldHomeBankingId) : null;
 
                     if (newInstructionId == null) {
-                        System.out.println("Skipped variable with unknown instruction_id: " + oldInstructionId);
+                        log.info("Skipped variable with unknown instruction_id: " + oldInstructionId);
                         currentInsert.setLength(0);
                         continue;
                     }
                     if (newHomeBankingId == null) {
-                        System.out.println("Skipped variable with unknown home_banking_id: " + oldHomeBankingId);
+                        log.info("Skipped variable with unknown home_banking_id: " + oldHomeBankingId);
                         currentInsert.setLength(0);
                         continue;
                     }
@@ -2417,7 +2408,7 @@ public class PerformBackup {
                         insertedOldIds.add(oldId);
                         variableMap.put(oldId, -1);
                     } catch (Exception ex) {
-                        System.out.println("Error parsing variableMap entry: " + ex.getMessage());
+                        log.info("Error parsing variableMap entry: " + ex.getMessage());
                     }
 
                     pstmt.addBatch();
@@ -2443,15 +2434,14 @@ public class PerformBackup {
             newIds.removeAll(idsBefore);
 
             if (insertedOldIds.size() != newIds.size()) {
-                System.err.println(
-                        "Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
+                log.error("Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
             }
 
             for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
                 variableMap.put(insertedOldIds.get(i), newIds.get(i));
             }
 
-            System.out.println("variableMap populated: " + variableMap);
+            log.info("variableMap populated: " + variableMap);
 
             return null;
 
@@ -2546,14 +2536,14 @@ public class PerformBackup {
                         if (count % BATCH_SIZE == 0) {
                             updateStmt.executeBatch();
                             conn.commit();
-                            System.out.println("Updated batch of " + BATCH_SIZE);
+                            log.info("Updated batch of " + BATCH_SIZE);
                         }
                     }
 
                     if (count % BATCH_SIZE != 0) {
                         updateStmt.executeBatch();
                         conn.commit();
-                        System.out.println("Updated final batch of " + (count % BATCH_SIZE));
+                        log.info("Updated final batch of " + (count % BATCH_SIZE));
                     }
 
                     log.info("Updated component_instruction records: " + count);
@@ -2622,8 +2612,8 @@ public class PerformBackup {
                     Integer newHomeBankId = oldHomeBankId != null ? homeBankMap.get(oldHomeBankId) : null;
 
                     if (newInstructionId == null || newHomeBankId == null) {
-                        System.out.println("Skipped component_reference due to unknown instruction or home_bank ID: "
-                                + "instr=" + oldInstructionId + ", homeBankId=" + oldHomeBankId);
+                        log.info("Skipped component_reference due to unknown instruction or home_bank ID: " + "instr="
+                                + oldInstructionId + ", homeBankId=" + oldHomeBankId);
                         currentInsert.setLength(0);
                         continue;
                     }
@@ -2648,7 +2638,7 @@ public class PerformBackup {
                         insertedOldIds.add(oldId);
                         referenceMap.put(oldId, -1); // mark for replacement
                     } catch (Exception ex) {
-                        System.out.println("Error parsing referenceMap entry: " + ex.getMessage());
+                        log.info("Error parsing referenceMap entry: " + ex.getMessage());
                     }
 
                     pstmt.addBatch();
@@ -2673,15 +2663,14 @@ public class PerformBackup {
             newIds.removeAll(idsBefore);
 
             if (insertedOldIds.size() != newIds.size()) {
-                System.err.println(
-                        "Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
+                log.error("Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
             }
 
             for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
                 referenceMap.put(insertedOldIds.get(i), newIds.get(i));
             }
 
-            System.out.println("referenceMap populated: " + referenceMap);
+            log.info("referenceMap populated: " + referenceMap);
 
             return null;
 

@@ -205,14 +205,7 @@ public class ARNewCommandPane extends ARPane {
                 : splitDTO.getBotJobId();
         ErrorMessage errorMessage = performDataBase.loadWebPageFields(whereId, tableName);
         if (errorMessage != null) {
-            performMessage.errorMessage(
-                    errorMessage.getErrorTitle(),
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                            + errorMessage.getErrorHeader(),
-                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                    null,
-                    0);
+            performMessage.errorMessageOperationFailed(errorMessage);
         }
 
         this.filteredPageItems.clear();
@@ -309,14 +302,7 @@ public class ARNewCommandPane extends ARPane {
                 errorMessage = performDataBase.loadAllVariablesByCriteria(
                         varTable, whereId, instructionLoad.getId(), instructionLoad.getName());
                 if (errorMessage != null) {
-                    performMessage.errorMessage(
-                            errorMessage.getErrorTitle(),
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                    + errorMessage.getErrorHeader(),
-                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                            null,
-                            0);
+                    performMessage.errorMessageOperationFailed(errorMessage);
                 }
             }
         }
@@ -1488,14 +1474,16 @@ public class ARNewCommandPane extends ARPane {
     }
 
     private void callInitializeElementValueScene(String varName) {
-        arElementValueScene.initialize(
-                splitDTO,
-                comboBoxVars.getValue().getVarId(),
-                varName,
-                comboBoxVars.getValue().getValue(),
-                comboBoxWebFields.getValue().getInstructionId(),
-                comboBoxWebFields.getValue().getText(),
-                comboBoxInstruc.getValue().getValue());
+        if (!comboBoxVars.getItems().isEmpty() && comboBoxVars.getValue() != null) {
+            arElementValueScene.initialize(
+                    splitDTO,
+                    comboBoxVars.getValue().getVarId(),
+                    varName,
+                    comboBoxVars.getValue().getValue(),
+                    comboBoxWebFields.getValue().getInstructionId(),
+                    comboBoxWebFields.getValue().getText(),
+                    comboBoxInstruc.getValue().getValue());
+        }
         //        arElementValueScene.showModal();
     }
 
@@ -1573,7 +1561,7 @@ public class ARNewCommandPane extends ARPane {
                 mainPane.requestLayout();
 
             } catch (Exception ex) {
-                System.out.println(ex.getMessage());
+                log.info(ex.getMessage());
             }
 
         } else if (ARConstants.GOTO.equalsIgnoreCase(valueEdit)) {
@@ -1627,7 +1615,7 @@ public class ARNewCommandPane extends ARPane {
                 mainPane.requestLayout();
 
             } catch (Exception ex) {
-                System.out.println(ex.getMessage());
+                log.info(ex.getMessage());
             }
 
         } else if (ARConstants.EXCEL_GOTO.equalsIgnoreCase(valueEdit)) {
@@ -1682,7 +1670,7 @@ public class ARNewCommandPane extends ARPane {
                 mainPane.requestLayout();
 
             } catch (Exception ex) {
-                System.out.println(ex.getMessage());
+                log.info(ex.getMessage());
             }
 
         } else if (ARConstants.REFRESH_ONLY.equalsIgnoreCase(valueEdit)) {
@@ -1733,7 +1721,7 @@ public class ARNewCommandPane extends ARPane {
                 mainPane.requestLayout();
 
             } catch (Exception ex) {
-                System.out.println(ex.getMessage());
+                log.info(ex.getMessage());
             }
 
         } else if (ARConstants.LOOP.equalsIgnoreCase(valueEdit)) {
@@ -1789,7 +1777,7 @@ public class ARNewCommandPane extends ARPane {
                 mainPane.requestLayout();
 
             } catch (Exception ex) {
-                System.out.println(ex.getMessage());
+                log.info(ex.getMessage());
             }
 
         } else if (ARConstants.REFRESH_LOOP.equalsIgnoreCase(valueEdit)) {
@@ -1845,7 +1833,7 @@ public class ARNewCommandPane extends ARPane {
                 mainPane.requestLayout();
 
             } catch (Exception ex) {
-                System.out.println(ex.getMessage());
+                log.info(ex.getMessage());
             }
 
         } else if (ARConstants.IF.equalsIgnoreCase(valueEdit)) {
@@ -1895,7 +1883,7 @@ public class ARNewCommandPane extends ARPane {
                 mainPane.requestLayout();
 
             } catch (Exception ex) {
-                System.out.println(ex.getMessage());
+                log.info(ex.getMessage());
             }
 
         } else {
@@ -1949,7 +1937,7 @@ public class ARNewCommandPane extends ARPane {
                 mainPane.requestLayout();
 
             } catch (Exception ex) {
-                System.out.println(ex.getMessage());
+                log.info(ex.getMessage());
             }
         }
     }
@@ -2321,14 +2309,7 @@ public class ARNewCommandPane extends ARPane {
             ErrorMessage errorMessage = performDataBase.loadAllVariablesByCriteria(
                     varTable, whereId, instructionLoad.getId(), instructionLoad.getName());
             if (errorMessage != null) {
-                performMessage.errorMessage(
-                        errorMessage.getErrorTitle(),
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                + errorMessage.getErrorHeader(),
-                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                        null,
-                        0);
+                performMessage.errorMessageOperationFailed(errorMessage);
             }
         }
 
@@ -2368,6 +2349,9 @@ public class ARNewCommandPane extends ARPane {
 
         } else {
             variablesItems.add(new ComboBoxVars("no variables added", "", -1, -1, -1, -1, null, -1, null));
+            if (comboBoxVars.getItems().isEmpty()) {
+                comboBoxVars.setItems(FXCollections.observableArrayList(variablesItems));
+            }
             if (selectLast) {
                 comboBoxVars.getSelectionModel().selectFirst();
             }
@@ -2377,14 +2361,7 @@ public class ARNewCommandPane extends ARPane {
     private void updateFields(String tableName, int whereId) {
         ErrorMessage errorMessage = performDataBase.loadWebPageFields(whereId, tableName);
         if (errorMessage != null) {
-            performMessage.errorMessage(
-                    errorMessage.getErrorTitle(),
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                            + errorMessage.getErrorHeader(),
-                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                    null,
-                    0);
+            performMessage.errorMessageOperationFailed(errorMessage);
         }
 
         this.filteredPageItems.clear();
@@ -2486,7 +2463,7 @@ public class ARNewCommandPane extends ARPane {
             try {
                 conn.close();
             } catch (SQLException e) {
-                System.out.println(e.getMessage());
+                log.info(e.getMessage());
             }
         }
     }
@@ -2540,8 +2517,7 @@ public class ARNewCommandPane extends ARPane {
                     this.splitDTO.setType("INSERT_AFTER");
                 }
             } catch (Exception error) {
-
-                log.error("Error reading 'EXCEL GOTO' instructions: " + error.getMessage());
+                log.warn("Error reading 'EXCEL GOTO' instructions: " + error.getMessage());
             }
 
         } else {
@@ -2608,28 +2584,14 @@ public class ARNewCommandPane extends ARPane {
                         this.splitDTO.getHomeBankingId(), this.splitDTO.getBotJobId(), this.splitDTO.getBotJobName());
 
                 if (errorMessage != null) {
-                    performMessage.errorMessage(
-                            errorMessage.getErrorTitle(),
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                    + errorMessage.getErrorHeader(),
-                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                            null,
-                            0);
+                    performMessage.errorMessageOperationFailed(errorMessage);
                 }
 
             } else {
                 errorMessage = performDBEngine.loadCompleteJobs(this.splitDTO.getBotJobId());
 
                 if (errorMessage != null) {
-                    performMessage.errorMessage(
-                            errorMessage.getErrorTitle(),
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                    + errorMessage.getErrorHeader(),
-                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                            null,
-                            0);
+                    performMessage.errorMessageOperationFailed(errorMessage);
                 }
             }
 
@@ -2776,8 +2738,8 @@ public class ARNewCommandPane extends ARPane {
             if (instrValue.equals("GOTO")) {
                 for (int i = 0; i < listOptions.size(); i++) {
                     if (listOptions.get(i).getBlockId().equals(splitDTO.getParentBlockId())) {
-                        comboBoxBlocksGoto.getSelectionModel().select(i - 1);
-                        indexGeneric = i - 1;
+                        comboBoxBlocksGoto.getSelectionModel().select(i);
+                        indexGeneric = i;
                         break;
                     }
                 }
@@ -2814,8 +2776,8 @@ public class ARNewCommandPane extends ARPane {
             if (instrValue.equals("EXCEL GOTO")) {
                 for (int i = 0; i < listOptions.size(); i++) {
                     if (listOptions.get(i).getBlockId().equals(splitDTO.getParentBlockId())) {
-                        comboBoxBlocksGoto.getSelectionModel().select(i - 1);
-                        indexGeneric = i - 1;
+                        comboBoxBlocksGoto.getSelectionModel().select(i);
+                        indexGeneric = i;
                         break;
                     }
                 }

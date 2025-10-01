@@ -1,7 +1,7 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.component.model.*;
-import com.allinweb.ch.util.ARConstants;
+import com.allinweb.ch.util.ARConstantsEngine;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ErrorMessage;
@@ -12,10 +12,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.sqlite.SQLiteConfig;
 
 @Slf4j
 public class PerformDBEngine {
+
+    private static final Logger logDB = LoggerFactory.getLogger("com.allinweb.database");
 
     public static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
     public static final PerformMessage performMessage = PerformMessage.getInstance();
@@ -30,6 +34,7 @@ public class PerformDBEngine {
     public boolean POSTGRES_DB = false;
     public boolean SQLITE_DB = false;
     public boolean connDBWorks = false;
+    public boolean dbFailed = false;
     // Private constructor to prevent instantiation
     private PerformDBEngine() {}
 
@@ -57,13 +62,16 @@ public class PerformDBEngine {
         ACCESS_DB = false;
 
         if (dataBaseType != null) {
-            if (dataBaseType.equalsIgnoreCase("POSTGRES")) {
+            if ("Postgres".equalsIgnoreCase(dataBaseType)) {
+                // Postgres-specific logic
                 POSTGRES_DB = true;
-            } else if (dataBaseType.equalsIgnoreCase("SQLITE")) {
+            } else if ("TEXT".equalsIgnoreCase(dataBaseType)) {
+                // SQLite-specific logic
                 SQLITE_DB = true;
-            } else
-                // else default to Access
+            } else if ("Access".equalsIgnoreCase(dataBaseType)) {
+                // Access-specific logic
                 ACCESS_DB = true;
+            }
         }
 
         try {
@@ -73,8 +81,8 @@ public class PerformDBEngine {
                 String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
                 String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
 
-                log.info("POSTGRES connection URL: " + dbUrl);
-                // log.info("User Details: " + userDB + " - [PROTECTED]");
+                logDB.info("POSTGRES connection URL: " + dbUrl);
+                // logDB.info("User Details: " + userDB + " - [PROTECTED]");
 
                 Class.forName("org.postgresql.Driver");
                 Connection conn = DriverManager.getConnection(dbUrl, userDB, userPwd);
@@ -93,9 +101,9 @@ public class PerformDBEngine {
                 String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
                 String sqliteUrl = CONNECTION_TYPE_SQLITE
                         + dbPath
-                        + ARConstants.FILE_NAME_SQLITE; // make sure you have FILE_NAME_SQLITE constant
+                        + ARConstantsEngine.FILE_NAME_SQLITE; // make sure you have FILE_NAME_SQLITE constant
 
-                log.info("SQLITE connection URL: " + sqliteUrl);
+                logDB.info("SQLITE connection URL: " + sqliteUrl);
 
                 Class.forName("org.sqlite.JDBC");
 
@@ -117,9 +125,9 @@ public class PerformDBEngine {
             } else {
                 // Default to Access connection
                 String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-                String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
+                String dbUrl = CONNECTION_TYPE + dbPath + ARConstantsEngine.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
 
-                log.info("ACCESS connection URL: " + dbUrl);
+                logDB.info("ACCESS connection URL: " + dbUrl);
 
                 Class.forName("net.ucanaccess.jdbc.UcanaccessDriver");
                 Connection conn = DriverManager.getConnection(dbUrl);
@@ -135,25 +143,19 @@ public class PerformDBEngine {
             }
 
         } catch (SQLException error) {
-            log.error("getConnection Error: " + error.getMessage());
+            logDB.error("getConnection Error: " + error.getMessage());
 
-            String database = POSTGRES_DB ? "Postgres" : (SQLITE_DB ? "SQLite" : "Access");
+            String database = POSTGRES_DB ? "Postgres" : (SQLITE_DB ? "TEXT" : "Access");
             connDBWorks = false;
-            performMessage.errorMessage(
-                    "Database connection Failed",
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>An error occurred during the Database connection.</span>",
-                    "<span style='font-weight: bold;'>" + database + "</span>.",
-                    "<span style='color: #E65100; font-weight: bold;'>Please ensure the Database connections are correct.</span>",
-                    "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
-                    0);
-
+            dbFailed = true;
             throw error;
         } catch (ClassNotFoundException error) {
 
-            log.error("Driver DB Class not Found Error: " + error.getMessage());
+            logDB.error("Driver DB Class not Found Error: " + error.getMessage());
         }
 
         connDBWorks = false;
+        dbFailed = false;
         return null;
     }
 
@@ -172,7 +174,7 @@ public class PerformDBEngine {
             if ("Postgres".equalsIgnoreCase(dataBaseType)) {
                 // Postgres-specific logic
                 POSTGRES_DB = true;
-            } else if ("SQLite".equalsIgnoreCase(dataBaseType)) {
+            } else if ("TEXT".equalsIgnoreCase(dataBaseType)) {
                 // SQLite-specific logic
                 SQLITE_DB = true;
             } else if ("Access".equalsIgnoreCase(dataBaseType)) {
@@ -236,7 +238,7 @@ public class PerformDBEngine {
                             "Error selecting home banking record with ID %d. Error: %s", homeBankingId, e.getMessage())
                     : String.format("Error selecting ALL home banking records. Error: %s", e.getMessage());
 
-            log.error(errorDetail);
+            logDB.error(errorDetail);
 
             return new ErrorMessage("Error Load Home Banking", "Failed to load HomeBanking records", errorDetail);
         }
@@ -273,7 +275,7 @@ public class PerformDBEngine {
             }
 
         } catch (SQLException error) {
-            log.error("Failed to load Home URLs");
+            logDB.error("Failed to load Home URLs");
             return new ErrorMessage("Failed to load Home URLs", "Home URL Load Failure", error.getMessage());
         }
 
@@ -400,7 +402,7 @@ public class PerformDBEngine {
             }
         } catch (SQLException error) {
 
-            log.error(
+            logDB.error(
                     String.format("Error loadCompleteJobs for Bot Job Id %d. Error: %s", botJobId, error.getMessage()));
             return new ErrorMessage("Error Loading Complete Job", "Error loading complete Job", error.getMessage());
         }
@@ -439,7 +441,7 @@ public class PerformDBEngine {
 
         } catch (SQLException error) {
 
-            log.error(String.format("Error loading actions for blocks. Error: %s", error.getMessage()));
+            logDB.error(String.format("Error loading actions for blocks. Error: %s", error.getMessage()));
             return new ErrorMessage("Cannot get All Actions", "Error loading actions for blocks", error.getMessage());
         }
         return null;
@@ -503,7 +505,7 @@ public class PerformDBEngine {
             return null; // success
         } catch (SQLException e) {
 
-            log.error(String.format(
+            logDB.error(String.format(
                     "Error loading variables for %s=%d. Error: %s", whereColumn, whereId, e.getMessage()));
 
             return new ErrorMessage(
@@ -576,11 +578,15 @@ public class PerformDBEngine {
             }
         } catch (SQLException error) {
 
-            log.error(String.format(
+            logDB.error(String.format(
                     "Error getting All Excel data GOTO from table %s whereId %d. Error: %s",
                     tableName, whereId, error.getMessage()));
         }
 
         return InstructionLoadList;
+    }
+
+    public void callSocketLists() {
+        performLists.initialize("engine-perform-bot-job");
     }
 }

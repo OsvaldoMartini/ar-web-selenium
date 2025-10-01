@@ -7,6 +7,7 @@ import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.util.ARConstants;
+import com.allinweb.ch.util.ARExecution;
 import com.allinweb.ch.util.ErrorMessage;
 import javafx.application.Platform;
 import javafx.collections.ObservableList;
@@ -201,7 +202,7 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
         //            Platform.runLater(() -> getListView().getItems().remove(item));
         //        }
 
-        ARConstants.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
+        ARExecution.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
                 "Bot Job Deletion",
                 "<span style='color: #000080; font-weight: bold; font-size: 14px;'>Are you sure you want to delete the bot job selected?</span>",
                 "<span style='color: #000080; font-weight: bold;'>"
@@ -213,7 +214,7 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
                 "Cancel",
                 0);
 
-        if (!respModal.equals(ARConstants.DialogModal.STOP)) {
+        if (!respModal.equals(ARExecution.DialogModal.STOP)) {
             deleteBotJob(item);
             Platform.runLater(() -> getListView().getItems().remove(item));
         }
@@ -232,7 +233,7 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
             performMessage.showCustomModalDialogDragWin11(
                     "Action Delete Bot-Job",
                     "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>Operation Successful!</span> ✅",
-                    "<span style='color: #388E3C; font-weight: bold;'>Success:</span> Bot Job Deletion",
+                    "<span style='color: #388E3C; font-weight: bold;'>Success:</span> Bot Job Deleted",
                     "<span style='color: #2E7D32; font-weight: bold;'>" + botJob.getName() + "</span>",
                     "<span style='font-style: italic;'>Detail:</span> The Bot Job \"" + botJob.getName()
                             + "\" was deleted successfully!",
@@ -241,13 +242,7 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
                     null,
                     0);
         } else {
-            performMessage.errorMessage(
-                    errorMessage.getErrorTitle(),
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> Bot Job Deletion Error",
-                    "<span style='color: #2E7D32; font-weight: bold;'>" + errorMessage.getErrorHeader() + "</span>",
-                    "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                    0);
+            performMessage.errorMessageOperationFailed(errorMessage);
             //            performDataBase.updateStatusBotJob(botJob.getId(), 0);
         }
     }

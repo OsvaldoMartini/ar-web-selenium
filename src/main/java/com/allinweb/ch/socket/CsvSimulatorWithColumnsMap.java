@@ -116,15 +116,15 @@ public class CsvSimulatorWithColumnsMap {
     }
 
     public void printCsv() {
-        System.out.println(getCsvContent());
+        log.info(getCsvContent());
     }
 
     public void writeToFile(String filename, String content) {
         try (FileWriter writer = new FileWriter(filename)) {
             writer.write(content);
-            System.out.println("CSV written to file: " + filename);
+            log.info("CSV written to file: " + filename);
         } catch (IOException e) {
-            System.err.println("Error writing file: " + e.getMessage());
+            log.error("Error writing file: " + e.getMessage());
         }
     }
 }

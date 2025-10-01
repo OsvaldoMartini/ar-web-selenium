@@ -9,13 +9,12 @@ import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.util.ARConstants;
+import com.allinweb.ch.util.ARExecution;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
@@ -142,6 +141,10 @@ public class ARNewHomeBankingPane extends ARPane {
         // Load initial data
 
         ErrorMessage errorMessage = performDataBase.loadAllDataUsers();
+
+        if (errorMessage != null) {
+            performMessage.errorMessageOperationFailed(errorMessage);
+        }
 
         // Assuming getDatabaseList() and getHomeUrlList() are populated by loadAllHomeBankingBotJob()
         // If not, you might need to call updateHomeBankList(someLoadedList) here.
@@ -420,8 +423,14 @@ public class ARNewHomeBankingPane extends ARPane {
 
     public void updateTableBankingView() {
         Platform.runLater(() -> {
-            performDataBase.loadAllDataUsers();
-            performDBEngine.loadHomeBanking(null);
+            ErrorMessage errorMessage = performDataBase.loadAllDataUsers();
+            if (errorMessage == null) {
+                performDBEngine.loadHomeBanking(null);
+            }
+
+            if (errorMessage != null) {
+                performMessage.errorMessageOperationFailed(errorMessage);
+            }
 
             if (tableViewOrg != null) {
                 tableViewOrg.setItems(FXCollections.observableArrayList(performLists.getListHomeBanking()));
@@ -480,11 +489,14 @@ public class ARNewHomeBankingPane extends ARPane {
             }
 
             ErrorMessage errorMessage = performDataBase.createNewHomeBanking(user);
+            if (errorMessage != null) {
+                performMessage.errorMessageOperationFailed(errorMessage);
+            }
 
             int newHomeBankId = performDataBase.getNewHomeBankId();
 
             if (errorMessage == null) {
-                performDataBase.createHomeUrlChild(newHomeBankId, user.getUrl());
+                errorMessage = performDataBase.createHomeUrlChild(newHomeBankId, user.getUrl());
             }
 
             if (errorMessage == null) {
@@ -501,17 +513,21 @@ public class ARNewHomeBankingPane extends ARPane {
                         0);
 
             } else {
-                performMessage.errorMessage(
-                        "Insert New Organization Failed ❌",
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>"
-                                + errorMessage.getErrorTitle() + "</span>",
-                        "<span style='color: #E65100; font-weight: bold;'>" + errorMessage.getErrorHeader() + "</span>",
-                        "Verify  [INSERT] or [UPDATE] or [SELECT]",
-                        "<span style='font-style: italic;'>" + errorMessage.getErrorMessage() + "</span>",
-                        0);
+                log.error(
+                        "Insert New Organization Failed. Error: {} ->  {}",
+                        errorMessage.getErrorTitle(),
+                        errorMessage.getErrorMessage());
+                if (errorMessage != null) {
+                    performMessage.errorMessageOperationFailed(errorMessage);
+                }
             }
-            performDataBase.loadAllDataUsers();
-            performDBEngine.loadHomeBanking(null);
+            errorMessage = performDataBase.loadAllDataUsers();
+            if (errorMessage == null) {
+                performDBEngine.loadHomeBanking(null);
+            }
+            if (errorMessage != null) {
+                performMessage.errorMessageOperationFailed(errorMessage);
+            }
             tableViewOrg.setItems(FXCollections.observableArrayList(performLists.getListHomeBanking()));
         });
 
@@ -539,9 +555,16 @@ public class ARNewHomeBankingPane extends ARPane {
                     priorityField.getText(),
                     scanConfigField.getText(),
                     optionsConfigField.getText());
-            updateUserData(id, user);
-            performDataBase.loadAllDataUsers();
-            performDBEngine.loadHomeBanking(null);
+            ErrorMessage errorMessage = performDataBase.updateUserData(id, user);
+            if (errorMessage == null) {
+                errorMessage = performDataBase.loadAllDataUsers();
+            }
+            if (errorMessage == null) {
+                performDBEngine.loadHomeBanking(null);
+            }
+            if (errorMessage != null) {
+                performMessage.errorMessageOperationFailed(errorMessage);
+            }
             tableViewOrg.setItems(FXCollections.observableArrayList(performLists.getListHomeBanking()));
         });
         deleteORGButton.setOnAction(event -> {
@@ -558,7 +581,7 @@ public class ARNewHomeBankingPane extends ARPane {
                 return;
             }
 
-            ARConstants.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
+            ARExecution.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
                     "Delete Confirmation",
                     "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Are you sure you want to delete this organization?</span>",
                     "<span style='font-weight: bold;'>" + nameField.getText() + "</span>",
@@ -569,10 +592,17 @@ public class ARNewHomeBankingPane extends ARPane {
                     "Cancel",
                     0);
 
-            if (respModal.equals(ARConstants.DialogModal.OK)) {
-                deleteUserData(id);
-                performDataBase.loadAllDataUsers();
-                performDBEngine.loadHomeBanking(null);
+            if (respModal.equals(ARExecution.DialogModal.OK)) {
+                ErrorMessage errorMessage = performDataBase.deleteUserData(id);
+                if (errorMessage == null) {
+                    errorMessage = performDataBase.loadAllDataUsers();
+                }
+                if (errorMessage == null) {
+                    performDBEngine.loadHomeBanking(null);
+                }
+                if (errorMessage != null) {
+                    performMessage.errorMessageOperationFailed(errorMessage);
+                }
                 tableViewOrg.setItems(FXCollections.observableArrayList(performLists.getListHomeBanking()));
             }
         });
@@ -672,18 +702,13 @@ public class ARNewHomeBankingPane extends ARPane {
 
             ErrorMessage errorMessage = performDataBase.createNewHomeUrl(homeBankId, homeUrl);
             if (errorMessage != null) {
-                performMessage.errorMessage(
-                        "Insert New Environment Failed ❌",
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>"
-                                + errorMessage.getErrorTitle() + "</span>",
-                        "<span style='color: #E65100; font-weight: bold;'>" + errorMessage.getErrorHeader() + "</span>",
-                        "Verify  [INSERT] or [UPDATE] or [SELECT]",
-                        "<span style='font-style: italic;'>" + errorMessage.getErrorMessage() + "</span>",
-                        0);
-
+                performMessage.errorMessageOperationFailed(errorMessage);
             } else {
                 // ✅ Reload the table after successful insert
-                performDBEngine.loadHomeUrls(null);
+                errorMessage = performDBEngine.loadHomeUrls(null);
+                if (errorMessage != null) {
+                    performMessage.errorMessageOperationFailed(errorMessage);
+                }
                 List<HomeUrlDTO> filteredHomeUrl = performLists.getHomeUrlsByBankId(homeBankId);
                 tableViewHomeUrl.setItems(FXCollections.observableArrayList(filteredHomeUrl));
 
@@ -730,20 +755,14 @@ public class ARNewHomeBankingPane extends ARPane {
 
                 ErrorMessage errorMessage = performDataBase.updateHomeUrl(homeUrlId, homeBankId, homeUrl);
                 if (errorMessage != null) {
-                    performMessage.errorMessage(
-                            "Update Environment Failed ❌",
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>"
-                                    + errorMessage.getErrorTitle() + "</span>",
-                            "<span style='color: #E65100; font-weight: bold;'>" + errorMessage.getErrorHeader()
-                                    + "</span>",
-                            "<span style='color: #E65100; font-weight: bold;'>" + errorMessage.getErrorMessage()
-                                    + "</span>",
-                            "<span style='font-style: italic;'>Please check all required fields and try again.</span>",
-                            0);
-
+                    performMessage.errorMessageOperationFailed(errorMessage);
                 } else {
                     // ✅ Reload the table after successful update
-                    performDBEngine.loadHomeUrls(null);
+                    errorMessage = performDBEngine.loadHomeUrls(null);
+                    if (errorMessage != null) {
+                        performMessage.errorMessageOperationFailed(errorMessage);
+                    }
+
                     List<HomeUrlDTO> filteredHomeUrl = performLists.getHomeUrlsByBankId(homeBankId);
                     tableViewHomeUrl.setItems(FXCollections.observableArrayList(filteredHomeUrl));
                     tableViewHomeUrl.getSelectionModel().clearSelection();
@@ -754,11 +773,12 @@ public class ARNewHomeBankingPane extends ARPane {
                 }
 
             } catch (SQLException | NumberFormatException e) {
+                log.error("Update Environment Failed. Error: {}", e.getMessage());
                 performMessage.errorMessage(
                         "Update Environment Failed",
                         "Database Error",
-                        e.getMessage(),
                         "Verify [INSERT] or [UPDATE] or [SELECT]",
+                        e.getMessage(),
                         null,
                         0);
             }
@@ -802,7 +822,7 @@ public class ARNewHomeBankingPane extends ARPane {
             }
 
             // Show confirmation modal
-            ARConstants.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
+            ARExecution.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
                     "Delete Confirmation",
                     "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Are you sure you want to delete this URL?</span>",
                     "<span style='font-weight: bold;'>" + homeUrl + "</span>",
@@ -813,7 +833,7 @@ public class ARNewHomeBankingPane extends ARPane {
                     "Cancel",
                     0);
 
-            if (!respModal.equals(ARConstants.DialogModal.OK)) {
+            if (!respModal.equals(ARExecution.DialogModal.OK)) {
                 return;
             }
 
@@ -823,14 +843,7 @@ public class ARNewHomeBankingPane extends ARPane {
 
                 ErrorMessage errorMessage = performDataBase.deleteHomeUrl(homeUrlId);
                 if (errorMessage != null) {
-                    performMessage.errorMessage(
-                            "Delete Environment Failed",
-                            errorMessage.getErrorTitle(),
-                            errorMessage.getErrorHeader(),
-                            errorMessage.getErrorMessage(),
-                            null,
-                            0);
-
+                    performMessage.errorMessageOperationFailed(errorMessage);
                 } else {
                     // ✅ Refresh list
                     performDBEngine.loadHomeUrls(null);
@@ -842,6 +855,7 @@ public class ARNewHomeBankingPane extends ARPane {
                 }
 
             } catch (SQLException | NumberFormatException e) {
+                log.error("Delete Environment Failed> Error: {}", e.getMessage());
                 performMessage.errorMessage(
                         "Delete Environment Failed",
                         "Database Error",
@@ -1017,103 +1031,13 @@ public class ARNewHomeBankingPane extends ARPane {
         return dataList;
     }
 
-    private void updateUserData(String id, DatabaseUserDTO user) {
-
-        try (Connection conn = performDataBase.getConnection()) {
-
-            int userId = Integer.parseInt(id);
-
-            // Replace newlines with "£" and handle null values
-            String priority = Strings.isNullOrEmpty(user.getPriority())
-                    ? ""
-                    : user.getPriority().replace("\n", "£");
-            String searchConfig = Strings.isNullOrEmpty(user.getSearchConfig())
-                    ? ""
-                    : user.getSearchConfig().replace("\n", "£");
-            String optionsConfig = Strings.isNullOrEmpty(user.getOptionsConfig())
-                    ? ""
-                    : user.getOptionsConfig().replace("\n", "£");
-
-            // Use placeholders (?) to prevent SQL injection
-            String updateSQL =
-                    "UPDATE home_banking SET Name = ?, Url = ?, Priority = ?, search_config = ?, options_config = ? WHERE ID = ?";
-
-            try (PreparedStatement stmt = conn.prepareStatement(updateSQL)) {
-
-                // Set parameters in the prepared statement
-                stmt.setString(1, user.getName());
-                stmt.setString(2, user.getUrl());
-                stmt.setString(3, priority);
-                stmt.setString(4, searchConfig);
-                stmt.setString(5, optionsConfig);
-                stmt.setInt(6, userId);
-
-                int rowsAffected = stmt.executeUpdate();
-
-                if (rowsAffected > 0) {
-                    //                    showAlert(Alert.AlertType.INFORMATION, "Success", "Updated", "Data updated
-                    // successfully.");
-                } else {
-                    performMessage.errorMessage(
-                            "Error",
-                            "Id Not Found",
-                            String.format("No matching record found to update Id: %d", userId),
-                            null,
-                            null,
-                            0);
-                }
-            }
-        } catch (SQLException ex) {
-            System.out.println(ex.getMessage());
-
-            performMessage.errorMessage("Error", "MAX CHARACTERS LIMIT FOR ACCESS", null, null, null, 0);
-            //            showAlert(Alert.AlertType.ERROR, "Error", "MAX CHARACTERS LIMIT FOR ACCESS", null);
-        }
-    }
-
-    private void deleteUserData(String Id) {
-        try {
-            int homeBankId = Integer.parseInt(Id);
-
-            String deleteHomeUrlSQL = "DELETE FROM home_url WHERE home_banking_id = ?";
-            String deleteHomeBankingSQL = "DELETE FROM home_banking WHERE id = ?";
-
-            try (Connection conn = performDataBase.getConnection()) {
-                // Optional: wrap in a transaction
-                conn.setAutoCommit(false);
-
-                try (PreparedStatement deleteHomeUrlStmt = conn.prepareStatement(deleteHomeUrlSQL);
-                        PreparedStatement deleteHomeBankingStmt = conn.prepareStatement(deleteHomeBankingSQL)) {
-                    deleteHomeUrlStmt.setInt(1, homeBankId);
-                    deleteHomeBankingStmt.setInt(1, homeBankId);
-
-                    int urlRows = deleteHomeUrlStmt.executeUpdate();
-                    int bankRows = deleteHomeBankingStmt.executeUpdate();
-
-                    conn.commit();
-
-                    log.info("Deleted " + urlRows + " rows from home_url and " + bankRows
-                            + " rows from home_banking for ID: " + Id);
-                } catch (SQLException error) {
-                    log.info("Error Deleting: " + error.getMessage());
-                } finally {
-                    conn.setAutoCommit(true); // restore auto-commit mode
-                }
-            } catch (SQLException connError) {
-                log.info("Database connection error: " + connError.getMessage());
-            }
-        } catch (NumberFormatException error) {
-            log.info("Invalid Format ID: " + Id);
-        }
-    }
-
     @Override
     public void clearPane(Pane panel) {
         if (conn != null) {
             try {
                 conn.close();
             } catch (SQLException e) {
-                System.out.println(e.getMessage());
+                log.info(e.getMessage());
             }
         }
     }

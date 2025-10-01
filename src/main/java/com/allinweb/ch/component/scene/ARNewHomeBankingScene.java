@@ -121,7 +121,7 @@ public class ARNewHomeBankingScene extends ARScene {
             }
             modalStage = null;
         } catch (Exception error) {
-            System.err.println("Browser Closed Before Web Scanner. Error: " + error.getMessage());
+            log.error("Browser Closed Before Web Scanner. Error: " + error.getMessage());
         }
     }
 }

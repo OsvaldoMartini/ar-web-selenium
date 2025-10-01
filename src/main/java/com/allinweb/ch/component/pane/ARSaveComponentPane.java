@@ -249,9 +249,12 @@ public class ARSaveComponentPane extends ARPane {
                         }
 
                         if (errorMessage == null) {
-                            performDataBase.loadBlocks(blockDetailsDTO.getHomeBankingId(), "", "component_block");
-                            errorMessage = performDataBase.updateBlockOrderNumber(
-                                    "component_block", blockDetailsDTO.getHomeBankingId(), true);
+                            errorMessage = performDataBase.loadBlocks(
+                                    blockDetailsDTO.getHomeBankingId(), "", "component_block");
+                            if (errorMessage == null) {
+                                errorMessage = performDataBase.updateBlockOrderNumber(
+                                        "component_block", blockDetailsDTO.getHomeBankingId(), true);
+                            }
                         }
 
                         if (errorMessage == null) {
@@ -262,15 +265,7 @@ public class ARSaveComponentPane extends ARPane {
                                     blockDetailsDTO.getBotJobName());
 
                             if (errorMessage != null) {
-                                performMessage.errorMessage(
-                                        errorMessage.getErrorTitle(),
-                                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                                + errorMessage.getErrorHeader(),
-                                        "<span style='font-style: italic;'>Detail:</span> "
-                                                + errorMessage.getErrorMessage(),
-                                        null,
-                                        0);
+                                performMessage.errorMessageOperationFailed(errorMessage);
                             }
 
                             String jsonData = "[]";
@@ -286,14 +281,18 @@ public class ARSaveComponentPane extends ARPane {
                         } else {
                             //                            performDataBase.deleteNullBlocks("component_block",
                             // blockDetailsDTO.getHomeBankingId());
-
-                            performMessage.errorMessage(
-                                    "Access Database error",
-                                    errorMessage.getErrorTitle(),
+                            log.error(
+                                    "Database problem : {} Title: {} Message: {}",
                                     errorMessage.getErrorHeader(),
-                                    "Verify  [INSERT] or [UPDATE] or [SELECT]",
-                                    null,
-                                    0);
+                                    errorMessage.getErrorTitle(),
+                                    errorMessage.getErrorMessage());
+                            //                            performMessage.errorMessage(
+                            //                                    "Database problem",
+                            //                                    errorMessage.getErrorTitle(),
+                            //                                    errorMessage.getErrorHeader(),
+                            //                                    "Verify  [INSERT] or [UPDATE] or [SELECT]",
+                            //                                    null,
+                            //                                    0);
                         }
                         log.info("ARSaveComponentPane Close()");
                         Platform.runLater(() -> {
@@ -302,7 +301,7 @@ public class ARSaveComponentPane extends ARPane {
                             stage.close();
                         });
                     } catch (SQLException error) {
-                        System.out.println(error.getMessage());
+                        log.info(error.getMessage());
                     }
 
                     // Ensure closing is done on the JavaFX Application Thread

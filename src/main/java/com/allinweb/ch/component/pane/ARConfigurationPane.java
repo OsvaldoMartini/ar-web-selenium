@@ -11,10 +11,7 @@ import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.*;
 import com.allinweb.ch.license.LicenceVal;
 import com.allinweb.ch.license.LicenseManager;
-import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARPropertyEnum;
-import com.allinweb.ch.util.ARPropertyManager;
-import com.allinweb.ch.util.ErrorMessage;
+import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import java.io.File;
 import java.sql.Connection;
@@ -33,6 +30,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
+import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.stage.DirectoryChooser;
@@ -230,8 +228,12 @@ public class ARConfigurationPane extends ARPane {
         //                PerformDataBase..getEntityList(HomeBankingDTO.class);
 
         if (performDataBase.isConnDBWorks()) {
-            performDBEngine.loadHomeBanking(null);
+            ErrorMessage errorMessage = performDBEngine.loadHomeBanking(null);
+            if (errorMessage != null) {
+                performMessage.errorMessageOperationFailed(errorMessage);
+            }
         }
+
         homeBankingListView = new ListView<>(FXCollections.observableArrayList(performLists.getListHomeBanking()));
         homeBankingListView.setCellFactory(new ARCellFactory<>(HomeBankingListCell.class)::call);
 
@@ -359,7 +361,7 @@ public class ARConfigurationPane extends ARPane {
 
         browserChoiceBox.setItems(browserList);
         databaseChoiceBox.setItems(databaseList);
-        databaseChoiceBox.setDisable(false);
+        databaseChoiceBox.setDisable(true);
 
         HBox buttonRow = new HBox(10); // spacing between columns
         buttonRow.setAlignment(Pos.CENTER);
@@ -548,7 +550,7 @@ public class ARConfigurationPane extends ARPane {
                     }
                 }
             } catch (SQLException ignore) {
-                System.out.println("Check if It Was Migrated! - Not Migrate Columns found!");
+                log.info("Check if It Was Migrated! - Not Migrate Columns found!");
             }
         }
 
@@ -575,9 +577,10 @@ public class ARConfigurationPane extends ARPane {
         browserChoiceBox.setValue(arPropertyManager.getProperty(ARPropertyEnum.BROWSER));
 
         if (arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE) == null) {
-            databaseChoiceBox.setValue("Access");
+            databaseChoiceBox.setValue("TEXT");
         } else {
-            databaseChoiceBox.setValue(arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE));
+            databaseChoiceBox.setValue("Access");
+            //            databaseChoiceBox.setValue(arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE));
         }
 
         reloadDBButton.setOnMouseClicked(e -> {
@@ -638,18 +641,18 @@ public class ARConfigurationPane extends ARPane {
                                 dbFile.toPath(),
                                 backupFile.toPath(),
                                 java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                        System.out.println("Backup created: " + backupFile.getAbsolutePath());
+                        log.info("Backup created: " + backupFile.getAbsolutePath());
                     } catch (java.io.IOException e) {
                         e.printStackTrace();
                     }
                 }
             } catch (Exception ex) {
-                System.out.println(ex.getMessage());
+                log.info(ex.getMessage());
             }
         }
 
         Label newInstruction = new Label(
-                "DB BACKUP\nDatabase Selected: \"" + dataBaseType + "\" \nDatabase Folder : \"v4.2f Beta Test\"");
+                "DB BACKUP\nDatabase Selected: \"" + dataBaseType + "\" \nDatabase Folder : \"v4.6f Beta Test\"");
         newInstruction.setStyle("-fx-font-size: 18px; -fx-text-fill: red;");
 
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION, null, ButtonType.YES, ButtonType.NO);
@@ -745,7 +748,7 @@ public class ARConfigurationPane extends ARPane {
                 }
 
             } catch (SQLException ex) {
-                System.out.println(ex.getMessage());
+                log.info(ex.getMessage());
             }
         }
     }
@@ -757,7 +760,7 @@ public class ARConfigurationPane extends ARPane {
         String formattedDate;
         if (selectedDate != null) {
             formattedDate = selectedDate.format(DateTimeFormatter.ofPattern("yyyy_MM_dd"));
-            System.out.println("Selected backup date: " + formattedDate);
+            log.info("Selected backup date: " + formattedDate);
         } else {
             Label dateSelection = new Label(
                     "Please select a date to restore from.\n" + "Check the database directory for available backups.");
@@ -799,14 +802,14 @@ public class ARConfigurationPane extends ARPane {
         }
 
         Label newInstruction = new Label(
-                "DB RESTORE\nDatabase Selected: \"" + dataBaseType + "\" \nDatabase Folder : \"v4.2f Beta Test\"");
+                "DB RESTORE\nDatabase Selected: \"" + dataBaseType + "\" \nDatabase Folder : \"v4.6f Beta Test\"");
         newInstruction.setStyle("-fx-font-size: 18px; -fx-text-fill: red;");
 
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION, null, ButtonType.YES, ButtonType.NO);
         alert.setHeaderText("Are you sure you want to EXECUTE RESTORE DB (\"" + dataBaseType + "\")?");
         alert.getDialogPane().setContent(newInstruction);
 
-        ARConstants.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
+        ARExecution.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
                 "Restore Database Confirmation",
                 "<span style='font-weight: bold; color: #D32F2F;'>Are you sure you want to execute a database restore?</span>",
                 "The database type selected is: <span style='color: #1565C0; font-weight: bold;'>" + dataBaseType
@@ -818,7 +821,7 @@ public class ARConfigurationPane extends ARPane {
                 "Cancel",
                 0);
 
-        if (!respModal.equals(ARConstants.DialogModal.STOP)) {
+        if (!respModal.equals(ARExecution.DialogModal.STOP)) {
             try (Connection conn = performDataBase.getConnection()) {
 
                 performBackup.initialize(conn);
@@ -893,9 +896,18 @@ public class ARConfigurationPane extends ARPane {
 
                     performLists.clearAllLists();
 
-                    performDBEngine.loadHomeBanking(null);
-                    performDBEngine.loadHomeUrls(null);
-                    performDataBase.loadQuickBotJobs();
+                    errorMessage = performDBEngine.loadHomeBanking(null);
+                    if (errorMessage == null) {
+                        errorMessage = performDBEngine.loadHomeUrls(null);
+                    }
+
+                    if (errorMessage == null) {
+                        errorMessage = performDataBase.loadQuickBotJobs();
+                    }
+
+                    if (errorMessage != null) {
+                        performMessage.errorMessageOperationFailed(errorMessage);
+                    }
                     viewBotJobListView.setItems(FXCollections.observableArrayList(performLists.getQuickBotJobs()));
 
                     backupDBButton.setDisable(performLists.getListHomeBanking().isEmpty());
@@ -916,9 +928,7 @@ public class ARConfigurationPane extends ARPane {
                             null,
                             0);
                 } else {
-
                     log.error("Restore Database error: " + errorMessage.getErrorMessage());
-
                     performMessage.errorMessage(
                             "Restore Database error",
                             "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>"
@@ -1066,9 +1076,18 @@ public class ARConfigurationPane extends ARPane {
 
             performLists.clearAllLists();
 
-            performDBEngine.loadHomeBanking(null);
-            performDBEngine.loadHomeUrls(null);
-            performDataBase.loadQuickBotJobs();
+            ErrorMessage errorMessage = performDBEngine.loadHomeBanking(null);
+            if (errorMessage == null) {
+                errorMessage = performDBEngine.loadHomeUrls(null);
+            }
+
+            if (errorMessage == null) {
+                errorMessage = performDataBase.loadQuickBotJobs();
+            }
+
+            if (errorMessage != null) {
+                performMessage.errorMessageOperationFailed(errorMessage);
+            }
             viewBotJobListView.setItems(FXCollections.observableArrayList(performLists.getQuickBotJobs()));
 
             backupDBButton.setDisable(performLists.getListHomeBanking().isEmpty());
@@ -1081,7 +1100,11 @@ public class ARConfigurationPane extends ARPane {
 
                 if (!this.previousDB.equalsIgnoreCase(databaseChoiceBox.getValue())
                         || !this.previousDBUrl.equalsIgnoreCase(dbUrl.getText().trim())) {
-                    performDataBase.loadQuickBotJobs();
+
+                    errorMessage = performDataBase.loadQuickBotJobs();
+                    if (errorMessage != null) {
+                        performMessage.errorMessageOperationFailed(errorMessage);
+                    }
                     this.previousDB = databaseChoiceBox.getValue();
                     this.previousDBUrl = dbUrl.getText().trim();
                 }

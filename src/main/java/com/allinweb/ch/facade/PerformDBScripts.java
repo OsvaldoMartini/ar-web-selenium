@@ -52,7 +52,7 @@ public class PerformDBScripts {
         String tableRelation = "block".equalsIgnoreCase(tableName) ? "instruction" : "component_instruction";
 
         // Only use alias in databases that support it
-        boolean useAlias = !"SQLite".equalsIgnoreCase(dataBaseType) && !"Access".equalsIgnoreCase(dataBaseType);
+        boolean useAlias = !"TEXT".equalsIgnoreCase(dataBaseType) && !"Access".equalsIgnoreCase(dataBaseType);
 
         String alias = useAlias ? " t" : "";
         String fromPart = tableName + (useAlias ? alias : "");

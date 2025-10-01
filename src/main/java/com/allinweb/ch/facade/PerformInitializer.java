@@ -468,7 +468,7 @@ public class PerformInitializer {
                 stmt.executeUpdate(
                         "ALTER TABLE component_variable ADD CONSTRAINT fk_component_variable_home_banking FOREIGN KEY (home_banking_id) REFERENCES home_banking(ID) ON DELETE CASCADE");
             }
-            System.out.printf("Database %s has been created with cascading deletes!%n", dbFile.getName());
+            log.info("Database %s has been created with cascading deletes! %n" + dbFile.getName());
 
             return null;
         } catch (SQLException error) {
@@ -677,10 +677,10 @@ public class PerformInitializer {
                 }
             }
         } catch (SQLException error) {
-            System.out.println("Error checking table existence: " + error.getMessage());
+            log.info("Error checking table existence: " + error.getMessage());
             throw error; // rethrow so caller handles it
         } catch (Exception error) {
-            System.out.println("Unexpected error while checking table existence: " + error.getMessage());
+            log.info("Unexpected error while checking table existence: " + error.getMessage());
             throw new SQLException("Unexpected error while checking table existence", error);
         }
 
@@ -696,10 +696,10 @@ public class PerformInitializer {
                 }
             }
         } catch (SQLException error) {
-            System.out.println("SQL error while checking table existence: " + error.getMessage());
+            log.info("SQL error while checking table existence: " + error.getMessage());
             throw error;
         } catch (Exception error) {
-            System.out.println("Unexpected error while checking table existence: " + error.getMessage());
+            log.info("Unexpected error while checking table existence: " + error.getMessage());
             throw new SQLException("Unexpected error while checking table existence", error);
         }
 
@@ -714,10 +714,10 @@ public class PerformInitializer {
                 }
             }
         } catch (SQLException error) {
-            System.out.println("SQL error while checking SQLite table existence: " + error.getMessage());
+            log.info("SQL error while checking SQLite table existence: " + error.getMessage());
             throw error;
         } catch (Exception error) {
-            System.out.println("Unexpected error while checking SQLite table existence: " + error.getMessage());
+            log.info("Unexpected error while checking SQLite table existence: " + error.getMessage());
             throw new SQLException("Unexpected error while checking SQLite table existence", error);
         }
 
@@ -745,7 +745,7 @@ public class PerformInitializer {
                 log.info("SQLServer URL: " + dbUrl);
                 Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
                 conn = DriverManager.getConnection(dbUrl, userDB, userPwd);
-            } else if ("SQLite".equalsIgnoreCase(dataBaseType)) {
+            } else if ("TEXT".equalsIgnoreCase(dataBaseType)) {
                 // SQLite
                 String dbSQLiteUrl = CONNECTION_TYPE_SQLITE + dbUrlPath + ARConstants.FILE_NAME_SQLITE;
                 log.info("SQLite connection URL: " + dbSQLiteUrl);
@@ -772,7 +772,7 @@ public class PerformInitializer {
                 try {
                     conn.close();
                 } catch (SQLException e) {
-                    System.out.println("Error closing connection: " + e.getMessage());
+                    log.info("Error closing connection: " + e.getMessage());
                 }
             }
         }
@@ -787,14 +787,7 @@ public class PerformInitializer {
 
                         log.error("Database Creation Error: " + errorMessage.getErrorMessage());
 
-                        performMessage.errorMessage(
-                                errorMessage.getErrorTitle(),
-                                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span>",
-                                "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> Database Creation Error",
-                                "<span style='color: #2E7D32; font-weight: bold;'>" + errorMessage.getErrorHeader()
-                                        + "</span>",
-                                "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                                0);
+                        performMessage.errorMessageOperationFailed(errorMessage);
                     }
                 }
             } catch (Exception error) {
@@ -814,15 +807,7 @@ public class PerformInitializer {
 
                             log.error("Database Creation Error: " + errorMessage.getErrorMessage());
 
-                            performMessage.errorMessage(
-                                    errorMessage.getErrorTitle(),
-                                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span>",
-                                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> Database Creation Error",
-                                    "<span style='color: #2E7D32; font-weight: bold;'>" + errorMessage.getErrorHeader()
-                                            + "</span>",
-                                    "<span style='font-style: italic;'>Detail:</span> "
-                                            + errorMessage.getErrorMessage(),
-                                    0);
+                            performMessage.errorMessageOperationFailed(errorMessage);
                         }
                     }
                 }
@@ -843,15 +828,7 @@ public class PerformInitializer {
 
                             log.error("Database Creation Error: " + errorMessage.getErrorMessage());
 
-                            performMessage.errorMessage(
-                                    errorMessage.getErrorTitle(),
-                                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span>",
-                                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> Database Creation Error",
-                                    "<span style='color: #2E7D32; font-weight: bold;'>" + errorMessage.getErrorHeader()
-                                            + "</span>",
-                                    "<span style='font-style: italic;'>Detail:</span> "
-                                            + errorMessage.getErrorMessage(),
-                                    0);
+                            performMessage.errorMessageOperationFailed(errorMessage);
                         }
                     }
                 }

@@ -3,7 +3,7 @@ package com.allinweb.ch.driver;
 import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementScriptFactory;
 import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.util.ARConstants;
+import com.allinweb.ch.util.ARConstantsEngine;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
@@ -18,7 +18,6 @@ import java.util.List;
 import java.util.UUID;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
-import javafx.collections.ObservableList;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.*;
@@ -83,7 +82,7 @@ public class ARWebDriver {
         return System.lineSeparator(); // Default line separator if none found
     }
 
-    public void initialize(ObservableList<WebDriver> webDriverList) {
+    public void initialize(List<WebDriver> webDriverList) {
         this.webDriverList = webDriverList;
     }
 
@@ -190,7 +189,6 @@ public class ARWebDriver {
 
         if (Strings.isNullOrEmpty(url.trim())) {
             log.info("URL IS EMPTY");
-
             performMessage.errorMessage("URL IS EMPTY", "URL Web Browser is Empty", null, null, null, 0);
 
             return null;
@@ -219,7 +217,7 @@ public class ARWebDriver {
         String logFolder = arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG);
         try {
             switch (browserType) {
-                case ARConstants.CHROME -> {
+                case ARConstantsEngine.CHROME -> {
                     //                        String driverPath = webDriverPath + "\\chrome.exe";
                     if (!(new File(webDriverPath)).exists()) {
                         log.info("Web Driver NOT EXIST " + webDriverPath);
@@ -240,7 +238,7 @@ public class ARWebDriver {
                         this.currentDriver.get("about:blank");
                     }
                 }
-                case ARConstants.EDGE -> {
+                case ARConstantsEngine.EDGE -> {
                     //                        String driverPath = webDriverPath + "\\msedgedriver.exe";
                     if (!(new File(webDriverPath)).exists()) {
                         log.info("Web Driver NOT EXIST " + webDriverPath);
@@ -278,7 +276,7 @@ public class ARWebDriver {
                         this.currentDriver.get("about:blank");
                     }
                 }
-                case ARConstants.FIREFOX -> {
+                case ARConstantsEngine.FIREFOX -> {
                     //                        String driverPath = webDriverPath + "\\geckodriver.exe";
                     if (!(new File(webDriverPath)).exists()) {
                         log.info("Web Driver NOT EXIST " + webDriverPath);
@@ -344,6 +342,7 @@ public class ARWebDriver {
             // messageChunks[3], 0);
             if (error.getMessage().contains("session deleted as the browser has closed the connection")
                     || error.getMessage().contains("Expected condition failed: waiting for com")) {
+                log.error("Interruption Calling SCANNER: {}", webDriverPath);
                 performMessage.errorMessage(
                         "Interruption Calling SCAN",
                         "<span style='font-style: italic;'>Session deleted as the browser has closed the connection!</span>",
@@ -354,8 +353,9 @@ public class ARWebDriver {
                                 + "</span>",
                         0);
             } else {
+                log.error("Error attempt to open WebDriver: {}", webDriverPath);
                 performMessage.errorMessage(
-                        "Access WebDriver",
+                        "Error attempt to open WebDriver",
                         "<span style='font-style: italic;'>The WebDriver data directory is probably already in use.</span>",
                         "<span style='color: #E65100; font-weight: bold;'>WebDriver path:</span> <span style='font-weight: bold;'>"
                                 + webDriverPath + "</span>",
@@ -367,7 +367,7 @@ public class ARWebDriver {
 
             // Example: print or log the chunks if needed
             //            for (String chunk : messageChunks) {
-            //                System.out.println("Browser response : " + chunk);
+            //                log.info("Browser response : " + chunk);
             //            }
             return null;
         }

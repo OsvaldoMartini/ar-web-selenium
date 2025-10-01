@@ -102,14 +102,7 @@ public class ARElementValuePane extends ARPane {
             ErrorMessage errorMessage = performDataBase.loadAllVariablesByCriteria(
                     varTable, whereId, instructionLoad.getId(), instructionLoad.getName());
             if (errorMessage != null) {
-                performMessage.errorMessage(
-                        errorMessage.getErrorTitle(),
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                + errorMessage.getErrorHeader(),
-                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                        null,
-                        0);
+                performMessage.errorMessageOperationFailed(errorMessage);
             }
         }
 
@@ -603,14 +596,7 @@ public class ARElementValuePane extends ARPane {
             //            }
 
             if (errorMessage != null) {
-                performMessage.errorMessage(
-                        errorMessage.getErrorTitle(),
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                + errorMessage.getErrorHeader(),
-                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                        null,
-                        0);
+                performMessage.errorMessageOperationFailed(errorMessage);
             }
 
             arNewCommandPane.reloadComboVars(varTable, whereId, instructionId, true, varId);
@@ -640,8 +626,10 @@ public class ARElementValuePane extends ARPane {
                 idVar = Integer.parseInt(idField.getText());
             } catch (Exception ignore) {
             }
-            performDataBase.deleteUserData(varTable, whereId, idVar);
-
+            ErrorMessage errorMessage = performDataBase.deleteUserData(varTable, whereId, idVar);
+            if (errorMessage != null) {
+                performMessage.errorMessageOperationFailed(errorMessage);
+            }
             arNewCommandPane.reloadComboVars(varTable, whereId, instructionId, true, -1);
         });
 
@@ -725,7 +713,7 @@ public class ARElementValuePane extends ARPane {
             try {
                 conn.close();
             } catch (SQLException e) {
-                System.out.println(e.getMessage());
+                log.info(e.getMessage());
             }
         }
     }
@@ -746,26 +734,19 @@ public class ARElementValuePane extends ARPane {
                     ErrorMessage errorMessage = performDataBase.loadAllVariablesByCriteria(
                             varTable, whereId, instructionLoad.getId(), instructionLoad.getName());
                     if (errorMessage != null) {
-                        performMessage.errorMessage(
-                                errorMessage.getErrorTitle(),
-                                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                                "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                        + errorMessage.getErrorHeader(),
-                                "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-                                null,
-                                0);
+                        performMessage.errorMessageOperationFailed(errorMessage);
                     }
                 }
             }
 
             if (tableView == null) {
-                System.err.println("TableView not initialized.");
+                log.error("TableView not initialized.");
                 return;
             }
 
             ObservableList<VariableUserDTO> items = tableView.getItems();
             if (items == null || items.isEmpty()) {
-                System.out.println("TableView is empty.");
+                log.info("TableView is empty.");
                 return;
             }
 
@@ -787,7 +768,7 @@ public class ARElementValuePane extends ARPane {
         }
 
         // If the loop completes without finding the ID
-        System.out.println("Variable with ID " + idToFind + " not found in the TableView.");
+        log.info("Variable with ID " + idToFind + " not found in the TableView.");
     }
 
     private void fillFields(VariableUserDTO userDTO) {

@@ -15,13 +15,9 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonType;
-import javafx.util.Pair;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +30,8 @@ import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.Wait;
 import org.openqa.selenium.support.ui.WebDriverWait;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * PerformActions.
@@ -43,8 +41,9 @@ import org.openqa.selenium.support.ui.WebDriverWait;
  */
 @Slf4j
 public class PerformActions {
+    private static final Logger logOperations = LoggerFactory.getLogger("com.allinweb.operations");
+
     private static final PerformMessage performMessage;
-    private static final PerformLists performLists;
     private static final IframeInputLocator iframeInputLocator;
     private static final ARPropertyManager arPropertyManager;
     private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
@@ -61,7 +60,6 @@ public class PerformActions {
     static {
         arPropertyManager = ARPropertyManager.getInstance();
         performMessage = PerformMessage.getInstance();
-        performLists = PerformLists.getInstance();
         iframeInputLocator = IframeInputLocator.getInstance();
     }
 
@@ -71,7 +69,7 @@ public class PerformActions {
     @Getter
     long totalExecutionTime = 0;
 
-    private BooleanProperty interceptBotJob = new SimpleBooleanProperty(false);
+    private AtomicBoolean interceptBotJob = new AtomicBoolean(false);
     private ARPriorities arPriorities;
 
     @Getter
@@ -164,9 +162,9 @@ public class PerformActions {
         return criteriaList;
     }
 
-    public static Pair<String, String> insertRandomName(String key) {
+    public static FieldData insertRandomName(String key) {
         String randomName = generateRandomName();
-        return new Pair<>(key, randomName);
+        return new FieldData(key, randomName);
     }
 
     public static String generateRandomName() {
@@ -187,7 +185,7 @@ public class PerformActions {
         try {
             return element.isDisplayed() && isInViewport(element, driver);
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            logOperations.info(e.getMessage());
             return false;
         }
     }
@@ -361,7 +359,7 @@ public class PerformActions {
         return sb.toString();
     }
 
-    public BooleanProperty interceptBotJobProperty() {
+    public AtomicBoolean interceptBotJobProperty() {
         return interceptBotJob;
     }
 
@@ -404,7 +402,7 @@ public class PerformActions {
     public boolean performWebActions(
             boolean byPassNotFound,
             String savedCoordinates,
-            Pair<String, String> data,
+            FieldData data,
             InstructionLoad currentInstruction,
             Map<String, String> mapOperators,
             WebElement instructionElement,
@@ -426,24 +424,24 @@ public class PerformActions {
             }
 
             Boolean pressEnterAfter = false;
-            if (actions[0].equals(ARConstants.INSERT) && actions[1].equals(ARConstants.ENTER)) {
+            if (actions[0].equals(ARConstantsEngine.INSERT) && actions[1].equals(ARConstantsEngine.ENTER)) {
                 pressEnterAfter = true;
             }
 
             if (instructionElement != null) {
                 boolean passed = true;
                 switch (actions[0]) {
-                    case ARConstants.VISUALIZE:
+                    case ARConstantsEngine.VISUALIZE:
                         passed = scrollToElement(byPassNotFound, instructionElement);
 
                         if (!passed) {
                             // Try by coordinates
-                            Pair<String, String> filedData = new Pair("&EMPTY", "&EMPTY");
+                            FieldData filedData = new FieldData("&EMPTY", "&EMPTY");
                             passed = executeActionsAtCoordinates(
-                                    savedCoordinates, filedData, ARConstants.VISUALIZE, pressEnterAfter);
+                                    savedCoordinates, filedData, ARConstantsEngine.VISUALIZE, pressEnterAfter);
                         }
                         return passed;
-                    case ARConstants.OUTPUT:
+                    case ARConstantsEngine.OUTPUT:
                         String fieldName = currentInstruction.getId() + "-" + currentInstruction.getName();
                         String valueElem = getOutPutElement(
                                 byPassNotFound,
@@ -453,18 +451,18 @@ public class PerformActions {
                                 mapOperators);
 
                         return !Strings.isNullOrEmpty(valueElem);
-                    case ARConstants.CLICK:
-                    case ARConstants.OTHER:
+                    case ARConstantsEngine.CLICK:
+                    case ARConstantsEngine.OTHER:
                         passed = clickElement(byPassNotFound, instructionElement);
                         if (!passed) {
                             // Try by coordinates
-                            Pair<String, String> filedData = new Pair("&EMPTY", "&EMPTY");
+                            FieldData filedData = new FieldData("&EMPTY", "&EMPTY");
                             //                            passed = executeActionsAtCoordinates(
                             //                                    savedCoordinates, filedData, ARConstants.CLICK,
                             // pressEnterAfter);
                         }
                         return passed;
-                    case ARConstants.INSERT:
+                    case ARConstantsEngine.INSERT:
                         if ("select".equalsIgnoreCase(instructionElement.getTagName())) {
                             passed = insertDataInSelectElement(
                                     byPassNotFound, instructionElement, savedCoordinates, data, pressEnterAfter);
@@ -472,7 +470,7 @@ public class PerformActions {
                             if (!passed) {
                                 // Try by coordinates
                                 passed = executeActionsAtCoordinates(
-                                        savedCoordinates, data, ARConstants.SELECT, pressEnterAfter);
+                                        savedCoordinates, data, ARConstantsEngine.SELECT, pressEnterAfter);
                             }
                             return passed;
                         } else {
@@ -492,7 +490,7 @@ public class PerformActions {
                             if (!passed) {
                                 // Try by coordinates
                                 passed = executeActionsAtCoordinates(
-                                        savedCoordinates, data, ARConstants.INSERT, pressEnterAfter);
+                                        savedCoordinates, data, ARConstantsEngine.INSERT, pressEnterAfter);
                             }
                             return passed;
                         }
@@ -514,39 +512,42 @@ public class PerformActions {
             throws Exception {
 
         switch (actions[0]) {
-            case ARConstants.LIST_OPERATION:
+            case ARConstantsEngine.LIST_OPERATION:
                 //                listOperation(byPassNotFound, instruction);
                 break;
-            case ARConstants.HOLD:
-            case ARConstants.REFRESH_HOLD:
+            case ARConstantsEngine.HOLD:
+            case ARConstantsEngine.REFRESH_HOLD:
                 //                        executeAlert(instruction);
                 onHoldForSeconds(instruction);
                 break;
-            case ARConstants.REFRESH_ONLY:
-            case ARConstants.REFRESH_LOOP:
+            case ARConstantsEngine.REFRESH_ONLY:
+            case ARConstantsEngine.REFRESH_LOOP:
                 refreshPage();
                 break;
-            case ARConstants.QUIT:
-                Alert alert = new Alert(
-                        Alert.AlertType.CONFIRMATION, "Do you want to continue?", ButtonType.YES, ButtonType.NO);
-                alert.setTitle("Confirmation");
-                alert.setHeaderText("This Action Closes the Browser and Scanner!");
-                //                        alert.setContentText(content);
+            case ARConstantsEngine.QUIT:
+                // Minimal confirmation using your custom modal
+                ARExecution.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
+                        "Confirmation",
+                        "Do you want to continue?",
+                        "This Action Closes the Browser and Scanner!",
+                        null,
+                        null,
+                        true,
+                        "OK",
+                        "Close Browser",
+                        350);
 
-                Optional<ButtonType> quitResult = alert.showAndWait();
-                if (quitResult.isPresent() && quitResult.get().equals(ButtonType.YES)) {
-                    //                    getInstance().cacheEntitiesFromDB();
+                if (respModal.equals(ARExecution.DialogModal.STOP)) {
                     quit(1);
-                } else {
-                    //                    getInstance().cacheEntitiesFromDB();
                 }
+
                 break;
                 //                    case ARConstants.EXTRACT:
                 //                        result = "insertValueFieldNameInExcel-->"
                 //                                + insertValueFieldNameInExcel(instructionElement, instruction,
                 // action, blockJobName);
                 //                        break;
-            case ARConstants.SCREEN:
+            case ARConstantsEngine.SCREEN:
                 break;
         }
 
@@ -589,7 +590,7 @@ public class PerformActions {
                     case "GET":
                         String valueElem;
                         msgReturn = "GET_VALUE from (Parent: " + parentField + ") Var" + variableField;
-                        if (parentOperations[0].equals(ARConstants.OUTPUT)) {
+                        if (parentOperations[0].equals(ARConstantsEngine.OUTPUT)) {
                             valueElem = getOutPutElement(
                                     byPassNotFound,
                                     instructionElement,
@@ -636,7 +637,7 @@ public class PerformActions {
             tagName = extractTagName(targetXPath);
         } catch (Exception e) {
 
-            log.info(String.format(
+            logOperations.info(String.format(
                     "Error RemoveTrailingSlash for %s -> xPath  %s -> Cause: %s",
                     tagName, targetXPath, e.getMessage()));
         }
@@ -659,13 +660,9 @@ public class PerformActions {
                             waitForPage.until(ExpectedConditions.visibilityOfElementLocated(criteria));
                         } catch (Exception e) {
 
-                            log.info(String.format(
+                            logOperations.warn(String.format(
                                     "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
                                     targetXPath, criteria, e.getMessage()));
-
-                            showNotFoundElement(targetXPath, criteria);
-
-                            //                                SwingUtilities.invokeLater(() ->
 
                             if (!byPassNotFound) {
                                 performMessage.couldNotFindElement(String.valueOf(criteria));
@@ -676,8 +673,7 @@ public class PerformActions {
                             new WebDriverWait(this.currentDriver, Duration.ofSeconds(actionCustomMaxWaitSec))
                                     .until(ExpectedConditions.presenceOfElementLocated(criteria));
                         } catch (Exception e) {
-
-                            log.info(String.format(
+                            logOperations.warn(String.format(
                                     "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
                                     targetXPath, criteria, e.getMessage()));
                             if (!byPassNotFound) {
@@ -689,7 +685,7 @@ public class PerformActions {
                             waitForAction.until(ExpectedConditions.visibilityOfElementLocated(criteria));
                         } catch (Exception e) {
 
-                            log.info(String.format(
+                            logOperations.warn(String.format(
                                     "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
                                     targetXPath, criteria, e.getMessage()));
 
@@ -757,7 +753,7 @@ public class PerformActions {
             tagName = extractTagName(instructionPath);
         } catch (Exception e) {
 
-            log.info(String.format(
+            logOperations.warn(String.format(
                     "Error RemoveTrailingSlash for %s -> xPath  %s -> Cause: %s",
                     tagName, instructionPath, e.getMessage()));
         }
@@ -765,7 +761,7 @@ public class PerformActions {
 
         if (instructionReferenceList.size() == 0) {
 
-            log.warn("####    Not XPath to Be Located!   ####"
+            logOperations.warn("####    Not XPath to Be Located!   ####"
                     + "\n####    Remove and Re-Scan the Failed Field Again   ####");
 
             return null;
@@ -810,11 +806,11 @@ public class PerformActions {
                     priorityTypeEnum = PriorityTypeEnum.getPriorityType(
                             priority.getPriorityType().toString());
                 } catch (Exception e) {
-                    System.out.println(String.format("The ENUM: was not defined!"));
+                    logOperations.warn(String.format("The ENUM: was not defined!"));
                     continue;
                 }
                 if (priorityTypeEnum == null) {
-                    System.out.println("Define priorities!");
+                    logOperations.warn("Define priorities!");
                     return null;
                 }
 
@@ -830,7 +826,7 @@ public class PerformActions {
                 // Print or process the first matching instruction reference
                 if (instructionReference.isPresent()) {
 
-                    log.info(String.format(
+                    logOperations.info(String.format(
                             "Search for %s   Type:  %s   Value: %s",
                             priority.getName(),
                             instructionReference.get().getReferenceType(),
@@ -850,29 +846,29 @@ public class PerformActions {
                         case coordinates -> {
                             /// THIS MEANT TO BE USED JUST TO LOCATE THE ELEMENT NOT APPLYING ACTIONS TO IT
 
-                            //                            Pair<String, String> filedData = new Pair("martini",
+                            //                            FieldData filedData = new FieldData("martini",
                             // "Martini");
                             //                            try {
                             //                                executeActionsAtInstructionCoordinates(currentInstruction,
                             // filedData);
                             //                            } catch (Exception e) {
-                            //                                System.out.println(e.getMessage());
+                            //                                operationsLog.warn(e.getMessage());
                             //
-                        } // System.out.println("coordinates case");
-                        case ById -> {} // System.out.println("ById case");
-                        case ByClassName -> {} // System.out.println("Default case");
-                        case ByName -> {} // System.out.println("Default case");
-                        case ByTagName -> {} // System.out.println("Default case");
-                        case ByLinkText -> {} // System.out.println("Default case");
-                        case ByPartialLinkText -> {} // System.out.println("Default case");
-                        case ByCssSelector -> {} // System.out.println("Default case"); //      ".nav-menu li";
-                        case ExecuteScript -> {} // System.out.println("Default case"); //      "return
+                        } // operationsLog.info("coordinates case");
+                        case ById -> {} // operationsLog.info("ById case");
+                        case ByClassName -> {} // operationsLog.info("Default case");
+                        case ByName -> {} // operationsLog.info("Default case");
+                        case ByTagName -> {} // operationsLog.info("Default case");
+                        case ByLinkText -> {} // operationsLog.info("Default case");
+                        case ByPartialLinkText -> {} // operationsLog.info("Default case");
+                        case ByCssSelector -> {} // operationsLog.info("Default case"); //      ".nav-menu li";
+                        case ExecuteScript -> {} // operationsLog.info("Default case"); //      "return
                             // document.getElementById('search-top')");
-                        case createXPath -> {} // System.out.println("Default case"); //         Generates XPath
+                        case createXPath -> {} // operationsLog.info("Default case"); //         Generates XPath
                             // Recursive tom the Elements Found
-                        case dynamic -> {} // System.out.println("Default case"); //         Generates Dynamic Action ->
+                        case dynamic -> {} // operationsLog.info("Default case"); //         Generates Dynamic Action ->
                             // Click, Hover, Etc.
-                        case jsoup -> {} // System.out.println("Default case");
+                        case jsoup -> {} // operationsLog.info("Default case");
                     }
 
                     if (this.currentDriver == null) {
@@ -886,12 +882,13 @@ public class PerformActions {
                         String msg2 = "Restart the APP";
                         String msg3 = "Close all Browser or Restart the APP";
 
-                        performMessage.errorMessage("Parent Id Error", msg1, msg2, msg3, null, 0);
+                        logOperations.error("WebDriver is not active. {} - {} - {}", msg1, msg2, msg3);
+                        performMessage.errorMessage("WebDriver is not active", msg1, msg2, msg3, null, 0);
 
                         return null;
                     }
 
-                    log.info("WebDriver Session ID: " + getSessionId());
+                    logOperations.info("WebDriver Session ID: " + getSessionId());
 
                     // Actualy here is Calling the Actions
                     if (criterias != null) {
@@ -902,7 +899,7 @@ public class PerformActions {
                             //                            try {
                             //                                elementFound = scroolUntilFindElement(criteria);
                             //                            } catch (Exception e) {
-                            //                                System.out.println(e.getMessage());
+                            //                                operationsLog.warn(e.getMessage());
                             //                            }
                             //                            if (elementFound != null) {
                             //                                break;
@@ -914,7 +911,7 @@ public class PerformActions {
                                         waitForPage.until(ExpectedConditions.visibilityOfElementLocated(criteria));
                                     } catch (Exception e) {
 
-                                        log.info(String.format(
+                                        logOperations.warn(String.format(
                                                 "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
                                                 instructionPath, criteria, e.getMessage()));
 
@@ -931,7 +928,7 @@ public class PerformActions {
                                                 .until(ExpectedConditions.presenceOfElementLocated(criteria));
                                     } catch (Exception e) {
 
-                                        log.info(String.format(
+                                        logOperations.warn(String.format(
                                                 "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
                                                 instructionPath, criteria, e.getMessage()));
 
@@ -943,7 +940,7 @@ public class PerformActions {
                                         waitForAction.until(ExpectedConditions.visibilityOfElementLocated(criteria));
                                     } catch (Exception e) {
 
-                                        log.info(String.format(
+                                        logOperations.warn(String.format(
                                                 "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
                                                 instructionPath, criteria, e.getMessage()));
 
@@ -1002,7 +999,7 @@ public class PerformActions {
             tagName = extractTagName(instructionPath);
         } catch (Exception e) {
 
-            log.info(String.format(
+            logOperations.warn(String.format(
                     "Error RemoveTrailingSlash for %s -> xPath  %s -> Cause: %s",
                     tagName, instructionPath, e.getMessage()));
         }
@@ -1011,7 +1008,7 @@ public class PerformActions {
 
         if (instructionReferenceList.isEmpty()) {
 
-            log.warn("####    Not XPath to Be Located!   ####"
+            logOperations.warn("####    Not XPath to Be Located!   ####"
                     + "\n####    Remove and Re-Scan the Failed Field Again   ####");
             return null;
         }
@@ -1056,9 +1053,9 @@ public class PerformActions {
                 WebElement iframe = this.currentDriver.findElement(By.xpath(currentInstruction.getIFrameXPath()));
                 this.currentDriver.switchTo().frame(iframe);
 
-                System.out.println("Found iFrame XPath: " + currentInstruction.getIFrameXPath());
+                logOperations.info("Found iFrame XPath: " + currentInstruction.getIFrameXPath());
             } catch (Exception e) {
-                System.out.println("iFrame Not Found with XPath: " + currentInstruction.getIFrameXPath());
+                logOperations.warn("iFrame Not Found with XPath: " + currentInstruction.getIFrameXPath());
                 //                performMessage.generalErrorIFrame(currentInstruction.getName());
                 return null;
             }
@@ -1085,12 +1082,13 @@ public class PerformActions {
                     priorityTypeEnum = PriorityTypeEnum.getPriorityType(
                             priority.getPriorityType().toString());
                 } catch (Exception e) {
-                    log.warn("The ENUM: \"" + priority.getPriorityType().toString() + "\" was not defined!");
+                    logOperations.warn(
+                            "The ENUM: \"" + priority.getPriorityType().toString() + "\" was not defined!");
                     continue;
                 }
 
                 if (priorityTypeEnum == null) {
-                    System.out.println("Define priorities!");
+                    logOperations.info("Define priorities!");
                     return null;
                 }
 
@@ -1101,7 +1099,7 @@ public class PerformActions {
 
                 if (instructionReference.isPresent()) {
 
-                    log.info(String.format(
+                    logOperations.info(String.format(
                             "Search for %s   Type:  %s   Value: %s",
                             priority.getName(),
                             instructionReference.get().getReferenceType(),
@@ -1154,7 +1152,7 @@ public class PerformActions {
                         }
                         case coordinates, js_coordinates, cp_coordinates, allAttributes -> {
                             // These cases are placeholders and do not need additional handling
-                            //                            System.out.println(
+                            //                            operationsLog.info(
                             //                                    String.format("Locate by \"coordinates,
                             // js_coordinates, cp_coordinates\" "));
                         }
@@ -1223,7 +1221,7 @@ public class PerformActions {
                                 //                                    scrollToElement(currentInstruction.getXpath());
                                 //                                } catch (Exception e) {
                                 //
-                                //                                            log.info(String.format(
+                                //                                            operationsLog.info(String.format(
                                 //                                                    "Could Not Find xPath \"%s\"
                                 // Criteria \"%s\" -> Cause: %s",
                                 //                                                    instructionPath, criteria,
@@ -1268,7 +1266,7 @@ public class PerformActions {
                     }
                     onHoldInSeconds(5);
 
-                    log.info(String.format(
+                    logOperations.warn(String.format(
                             "Re-try %d Locate Web Element TagName \"%s\"", attempts, currentInstruction.getName()));
 
                 } catch (Exception e) {
@@ -1286,7 +1284,7 @@ public class PerformActions {
             waitForAction.until(ExpectedConditions.visibilityOf(element));
         } catch (Exception e) {
 
-            log.info(String.format(
+            logOperations.warn(String.format(
                     "Could Not Find Field Name \"%s\" Value \"%s\" -> Cause: %s",
                     fieldName, dataFieldValue, e.getMessage()));
 
@@ -1310,7 +1308,8 @@ public class PerformActions {
             waitForAction.until(ExpectedConditions.visibilityOf(element));
         } catch (Exception e) {
 
-            log.info(String.format("Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
+            logOperations.warn(
+                    String.format("Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
 
             if (!byPassNotFound) {
                 performMessage.couldNotFindElement(element.getTagName());
@@ -1371,7 +1370,7 @@ public class PerformActions {
                         .equals("complete"));
             } catch (Exception ex) {
 
-                log.warn(String.format(
+                logOperations.warn(String.format(
                         "WaitForPage.until(d -> ((JavascriptExecutor) driver) error: %s", ex.getMessage()));
 
                 performMessage.couldNotFindElement("WaitForPage.until");
@@ -1379,7 +1378,7 @@ public class PerformActions {
         } else {
             // Handle the case when driver is null (e.g., throw an exception or initialize the driver)
 
-            log.warn("WaitForPage.until(d -> ((JavascriptExecutor) driver) is returning nulls");
+            logOperations.warn("WaitForPage.until(d -> ((JavascriptExecutor) driver) is returning nulls");
         }
     }
 
@@ -1390,7 +1389,7 @@ public class PerformActions {
             return true;
         } catch (Exception e) {
 
-            log.error(String.format(
+            logOperations.error(String.format(
                     "Failed to Scroll to Element \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
             if (!byPassNotFound) {
                 performMessage.couldNotFindElement("Failed to Scroll to Element " + element.getTagName());
@@ -1409,7 +1408,8 @@ public class PerformActions {
             }));
         } catch (Exception e) {
 
-            log.info(String.format("Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
+            logOperations.warn(
+                    String.format("Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
 
             if (!byPassNotFound) {
                 performMessage.couldNotFindElement(element.getTagName());
@@ -1419,26 +1419,38 @@ public class PerformActions {
 
         // Custom visibility and enabled checks
         if (!element.isDisplayed()) {
-            performMessage.errorMessage(
-                    "BOT JOB STOP - Web Field is not Visible",
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Verify the rules and behavior of your web page.</span>",
-                    "<span style='color: #D32F2F; font-weight: bold;'>Some fields may be conditionally enabled based on other inputs.</span>",
-                    "<span style='color: #E65100; font-weight: bold; font-size: 1.1em;'>Element is present but not visible. It may be hidden or overlapped.</span>",
-                    "<span style='color: #D32F2F; font-style: italic;'>Example: Invalid IBAN may block branch autofill.</span>",
-                    0);
+            logOperations.error(
+                    "BOT JOB STOP - Web Field is not Visible. Verify the rules and behavior of your web page.");
+            //            performMessage.errorMessage(
+            //                    "BOT JOB STOP - Web Field is not Visible",
+            //                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Verify the rules
+            // and behavior of your web page.</span>",
+            //                    "<span style='color: #D32F2F; font-weight: bold;'>Some fields may be conditionally
+            // enabled based on other inputs.</span>",
+            //                    "<span style='color: #E65100; font-weight: bold; font-size: 1.1em;'>Element is present
+            // but not visible. It may be hidden or overlapped.</span>",
+            //                    "<span style='color: #D32F2F; font-style: italic;'>Example: Invalid IBAN may block
+            // branch autofill.</span>",
+            //                    0);
             return false;
         }
 
         if (!element.isEnabled()) {
             //        callErrorMessageNotEnabled(element.getTagName());
-            performMessage.errorMessage(
-                    "BOT JOB STOP - Web Field is not Enabled",
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Verify the rules and behavior of your web page.</span>",
-                    "<span style='color: #D32F2F; font-weight: bold;'>Some fields may be conditionally enabled based on other inputs.</span>",
-                    "<span style='color: #E65100; font-weight: bold; font-size: 1.1em;'>It is visually present but cannot be clicked.</span>",
-                    "<span style='color: #D32F2F; font-style: italic;'>Example: Invalid IBAN may block branch autofill.</span>",
-                    0);
-            // throw new TimeoutException();
+            logOperations.error(
+                    "BOT JOB STOP - Web Field is not Visible. Verify the rules and behavior of your web page.");
+            //            performMessage.errorMessage(
+            //                    "BOT JOB STOP - Web Field is not Enabled",
+            //                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Verify the rules
+            // and behavior of your web page.</span>",
+            //                    "<span style='color: #D32F2F; font-weight: bold;'>Some fields may be conditionally
+            // enabled based on other inputs.</span>",
+            //                    "<span style='color: #E65100; font-weight: bold; font-size: 1.1em;'>It is visually
+            // present but cannot be clicked.</span>",
+            //                    "<span style='color: #D32F2F; font-style: italic;'>Example: Invalid IBAN may block
+            // branch autofill.</span>",
+            //                    0);
+            //            // throw new TimeoutException();
             return false;
         }
 
@@ -1469,7 +1481,7 @@ public class PerformActions {
                 return true;
             } catch (Exception ex) {
 
-                log.info(
+                logOperations.warn(
                         String.format("Could Not Click on  \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
                 return false;
             }
@@ -1492,7 +1504,7 @@ public class PerformActions {
 
         //        for (String handle : this.currentDriver.getWindowHandles()) {
         //            this.currentDriver.switchTo().window(handle);
-        //            System.out.println("Window title: " + this.currentDriver.getTitle());
+        //            operationsLog.info("Window title: " + this.currentDriver.getTitle());
         //        }
     }
 
@@ -1510,7 +1522,8 @@ public class PerformActions {
             waitForAction.until(ExpectedConditions.visibilityOf(element));
         } catch (Exception e) {
 
-            log.info(String.format("Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
+            logOperations.warn(
+                    String.format("Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
             if (!byPassNotFound) {
                 performMessage.couldNotFindElement(element.getTagName());
             }
@@ -1569,7 +1582,7 @@ public class PerformActions {
             }
         } catch (Exception e) {
 
-            log.error(String.format(
+            logOperations.error(String.format(
                     "Could Not Input Value to \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
 
             //            performMessage.couldNotFindElement("Could Input Values to Element " + element.getTagName());
@@ -1582,51 +1595,55 @@ public class PerformActions {
     /**
      * Extracts the dataFieldName and dataFieldValue based on the instruction and DTO.
      */
-    public Pair<String, String> extractFieldData(
+    /**
+     * Extracts the fieldName and fieldValue based on the instruction and DTO.
+     */
+    public FieldData extractFieldData(
             Map<String, String> data, String[] actions, String defaultValue, boolean isEncrypted) throws Exception {
 
         String dataFieldName = "";
         String dataFieldValue = "";
 
         if (data != null) {
-            if (actions.length >= 3 && actions[0].equals(ARConstants.INSERT) && actions[1].equals(ARConstants.ENTER)) {
-                dataFieldName = actions[2].split(ARConstants.PATH_FIELD_SUBSTITUTION)[0];
+            if (actions.length >= 3
+                    && actions[0].equals(ARConstantsEngine.INSERT)
+                    && actions[1].equals(ARConstantsEngine.ENTER)) {
+
+                dataFieldName = actions[2].split(ARConstantsEngine.PATH_FIELD_SUBSTITUTION)[0];
                 dataFieldValue = data.get(dataFieldName);
 
                 if (isEncrypted && dataFieldValue != null) {
                     dataFieldValue = CryptationAlgorithm.decrypt(dataFieldValue);
                 }
-            } else if (actions.length == 2 && actions[0].equals(ARConstants.INSERT)) {
-                dataFieldName = actions[1].split(ARConstants.PATH_FIELD_SUBSTITUTION)[0];
+
+            } else if (actions.length == 2 && actions[0].equals(ARConstantsEngine.INSERT)) {
+
+                dataFieldName = actions[1].split(ARConstantsEngine.PATH_FIELD_SUBSTITUTION)[0];
                 dataFieldValue = data.get(dataFieldName);
 
                 if (isEncrypted && dataFieldValue != null) {
                     dataFieldValue = CryptationAlgorithm.decrypt(dataFieldValue);
                 }
             }
-        } else if (!Strings.isNullOrEmpty(defaultValue)) {
+        } else if (defaultValue != null && !defaultValue.isEmpty()) {
             dataFieldValue = defaultValue;
             if (isEncrypted) {
                 dataFieldValue = CryptationAlgorithm.decrypt(dataFieldValue);
             }
         }
 
-        return new Pair<>(dataFieldName, dataFieldValue);
+        return new FieldData(dataFieldName, dataFieldValue);
     }
 
     private boolean insertDataInSelectElement(
-            boolean byPassNotFound,
-            WebElement element,
-            String coordinates,
-            Pair<String, String> data,
-            boolean pressEnterAfter)
+            boolean byPassNotFound, WebElement element, String coordinates, FieldData data, boolean pressEnterAfter)
             throws Exception {
         UtilsMethods.exceptionIfNullWebElement(element);
         try {
             waitForAction.until(ExpectedConditions.visibilityOf(element));
         } catch (Exception e) {
 
-            log.info(String.format(
+            logOperations.warn(String.format(
                     "Could Not Find Select \"%s\" Value  \"%s\" -> Cause: %s",
                     data.getKey(), data.getValue(), e.getMessage()));
             if (!byPassNotFound) {
@@ -1641,11 +1658,12 @@ public class PerformActions {
             //            selectCountry.selectByVisibleText(data.getValue());
 
             String[] coordArray = new String[] {coordinates, "coordinates"};
-            sequenceOfCommands(element, ARConstants.SELECT, coordArray, data, this.currentDriver, pressEnterAfter);
+            sequenceOfCommands(
+                    element, ARConstantsEngine.SELECT, coordArray, data, this.currentDriver, pressEnterAfter);
 
         } catch (Exception e) {
 
-            log.error(String.format(
+            logOperations.error(String.format(
                     "Could Not Input Value to \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
 
             performMessage.couldNotFindElement("Could Input Values to Element " + element.getTagName());
@@ -1669,7 +1687,8 @@ public class PerformActions {
             waitForAction.until(ExpectedConditions.visibilityOf(element));
         } catch (Exception ex) {
 
-            log.warn(String.format("Could Not Find Field Name \"%s\" -> Cause: %s", fieldName, ex.getMessage()));
+            logOperations.warn(
+                    String.format("Could Not Find Field Name \"%s\" -> Cause: %s", fieldName, ex.getMessage()));
 
             if (!byPassNotFound) {
                 performMessage.couldNotFindElement(fieldName);
@@ -1687,7 +1706,7 @@ public class PerformActions {
             textByhJS = (String) js.executeScript("return arguments[0].textContent;", element);
         } catch (Exception ex) {
 
-            log.warn(
+            logOperations.warn(
                     String.format("By JavascriptExecutor - Not succeeded to get a Text from Label for: %s", fieldName));
         }
 
@@ -1700,14 +1719,15 @@ public class PerformActions {
             finalTextNested = textByNested.toString().trim();
         } catch (Exception ex) {
 
-            log.warn(String.format("By Text Nested - Not succeeded to get a Text from Label for: %s", fieldName));
+            logOperations.warn(
+                    String.format("By Text Nested - Not succeeded to get a Text from Label for: %s", fieldName));
         }
 
         try {
             textAttribute = element.getAttribute("value");
         } catch (Exception ex) {
 
-            log.warn(String.format(
+            logOperations.warn(String.format(
                     "By Text Attribute - Not succeeded to get a Text from Label for: %s Operation: %s",
                     fieldName, action));
         }
@@ -1716,7 +1736,7 @@ public class PerformActions {
             textContext = element.getAttribute("textContent");
         } catch (Exception ex) {
 
-            log.warn(String.format(
+            logOperations.warn(String.format(
                     "By Text Content - Not succeeded to get a Text from Label for: %s Operation: %s",
                     fieldName, action));
         }
@@ -1728,7 +1748,7 @@ public class PerformActions {
             isClickable = true;
         } catch (Exception e) {
 
-            log.warn(String.format("Element is not clickable: \"%s\"", fieldName));
+            logOperations.warn(String.format("Element is not clickable: \"%s\"", fieldName));
         }
 
         // Set the final text value by priority and add to mapOperators
@@ -1752,7 +1772,7 @@ public class PerformActions {
         } else {
             mapOperators.put(fieldName.trim(), "Failed to Load teh Text");
 
-            log.error(String.format("Failed to retrieve text from element for: %s", fieldName));
+            logOperations.error(String.format("Failed to retrieve text from element for: %s", fieldName));
         }
 
         return finalText;
@@ -1769,15 +1789,15 @@ public class PerformActions {
 
         if (success) {
 
-            log.info(String.format(
-                    success ? "SUCCESS %s Current Cmd: %s - Duration: %s" : "FAILED %s Current Cmd: %s - Duration: %s",
+            logOperations.info(String.format(
+                    success ? "Success %s Current Cmd: %s - Duration: %s" : "Failed %s Current Cmd: %s - Duration: %s",
                     mainMsg,
                     currentExecution,
                     LocalTime.ofNanoOfDay(duration).format(FORMAT_TIME)));
         } else {
 
-            log.warn(String.format(
-                    success ? "SUCCESS %s Current Cmd: %s - Duration: %s" : "FAILED %s Current Cmd: %s - Duration: %s",
+            logOperations.warn(String.format(
+                    success ? "Success %s Current Cmd: %s - Duration: %s" : "Failed %s Current Cmd: %s - Duration: %s",
                     mainMsg,
                     currentExecution,
                     LocalTime.ofNanoOfDay(duration).format(FORMAT_TIME)));
@@ -1835,14 +1855,14 @@ public class PerformActions {
             String action,
             InstructionLoad currentInstruction,
             String lastInstructionExecuted,
-            ARConstants.ConditionStatus conditionStatus,
+            ARExecution.ConditionStatus conditionStatus,
             String parentField,
             String variableField) {
 
-        if (conditionStatus.equals(ARConstants.ConditionStatus.NONE)) {
+        if (conditionStatus.equals(ARExecution.ConditionStatus.NONE)) {
             String msg1, msg2, msg3, msg4 = null;
 
-            if (action.equals(ARConstants.EXTRACT_FIELD) || action.equals(ARConstants.CHECK_VALUE)) {
+            if (action.equals(ARConstantsEngine.EXTRACT_FIELD) || action.equals(ARConstantsEngine.CHECK_VALUE)) {
                 msg1 = "The variable \"" + variableField + "\" has not been assigned.";
                 msg2 = "Please add a <span style='color: #000080; font-weight: bold;'>GET</span> step for \""
                         + currentInstruction.getName() + "\" to assign this variable.";
@@ -1861,19 +1881,26 @@ public class PerformActions {
                     msg4 = "Ensure a valid parent field is assigned.";
                 }
             }
+            logOperations.error(
+                    "Missing Variable for \"{}\" - {} - {} - {} - {}",
+                    currentInstruction.getName(),
+                    msg1,
+                    msg2,
+                    msg3,
+                    msg4);
             performMessage.errorMessage(
                     "Missing Variable for \"" + currentInstruction.getName() + "\"", msg1, msg2, msg3, msg4, 0);
         }
 
-        String conditionalBlock = conditionStatus.equals(ARConstants.ConditionStatus.IF_PASSED)
+        String conditionalBlock = conditionStatus.equals(ARExecution.ConditionStatus.IF_PASSED)
                 ? "Closing Block { IF -> ELSE }  -> "
-                : conditionStatus.equals(ARConstants.ConditionStatus.ELSEIF_PASSED)
+                : conditionStatus.equals(ARExecution.ConditionStatus.ELSEIF_PASSED)
                         ? "Closing Block { ELSEIF -> ELSE }  -> "
-                        : conditionStatus.equals(ARConstants.ConditionStatus.ELSE_PASSED)
+                        : conditionStatus.equals(ARExecution.ConditionStatus.ELSE_PASSED)
                                 ? "Closing Block { ELSE -> ENDIF }  -> "
                                 : "Get Value Is Not Defined";
 
-        if (!conditionStatus.equals(ARConstants.ConditionStatus.NONE)) {
+        if (!conditionStatus.equals(ARExecution.ConditionStatus.NONE)) {
             return conditionalBlock + " -> " + lastInstructionExecuted;
 
         } else {
@@ -1896,6 +1923,7 @@ public class PerformActions {
         String msg2 = "There is NOT PARENT VALUE defined for: ";
         String msg3 = "Check the PARENT Web field for \"" + parentField + "\"";
 
+        logOperations.error("Parent Id Error: {} - {} - {}", msg1, msg2, msg3);
         performMessage.errorMessage("Parent Id Error", msg1, msg2, msg3, null, 0);
 
         return resultActions;
@@ -1916,6 +1944,7 @@ public class PerformActions {
         String msg2 = "There is NOT PARENT VALUE defined for: \"" + instructionName + "\"";
         String msg3 = "Check the PARENT Web field for \"" + parentField + "\"";
 
+        logOperations.error("Parent Id Error: {} - {} - {}", msg1, msg2, msg3);
         performMessage.errorMessage("Parent Id Error", msg1, msg2, msg3, null, 0);
 
         return resultActions;
@@ -1949,7 +1978,7 @@ public class PerformActions {
 
         if (ifClause || elseClause) {
 
-            log.warn(String.format(
+            logOperations.warn(String.format(
                     "%sParent Id Error Check Parent Id: %d "
                             + "For the \"%s\" Does not belong to this block: "
                             + blockLoad.getId() + "-" + blockLoad.getName(),
@@ -1959,7 +1988,7 @@ public class PerformActions {
 
         } else {
 
-            log.error(String.format(
+            logOperations.error(String.format(
                     "Parent Id Error Check Parent Id: %d "
                             + "For the \"%s\" Does not belong to this block: "
                             + blockLoad.getId() + "-" + blockLoad.getName(),
@@ -1976,9 +2005,9 @@ public class PerformActions {
             InstructionLoad currentInstruction,
             BlockLoadDTO blockLoad,
             String lastInstructionExecuted,
-            ARConstants.ConditionStatus conditionStatus) {
+            ARExecution.ConditionStatus conditionStatus) {
 
-        if (conditionStatus.equals(ARConstants.ConditionStatus.NONE)) {
+        if (conditionStatus.equals(ARExecution.ConditionStatus.NONE)) {
             String operation = currentInstruction.getOperation();
             int colonIndex = operation.indexOf(":");
             String parentOperationPart = colonIndex != -1 ? operation.substring(0, colonIndex) : "Unknown Operation";
@@ -1987,27 +2016,28 @@ public class PerformActions {
             String msg2 = "Does not belong to the block: \"" + blockLoad.getBlockOrderNumber() + "-"
                     + blockLoad.getName() + "\"";
             String msg3 = "Attempted Operation : \""
-                    + (currentInstruction.getActions().equals(ARConstants.EXTRACT_FIELD)
+                    + (currentInstruction.getActions().equals(ARConstantsEngine.EXTRACT_FIELD)
                             ? "Extract "
                             : currentInstruction.getActions())
                     + "\" -> \""
                     + operation + "\"";
             String msg4 = "Check the Web Field \" ( ID ) <NAME> \" per Block";
 
+            logOperations.error("Parent Id Error: {} - {} - {} - {}", msg1, msg2, msg3, msg4);
             performMessage.errorMessage("Parent Id Error", msg1, msg2, msg3, msg4, 0);
         }
 
-        String conditionalBlock = conditionStatus.equals(ARConstants.ConditionStatus.IF_PASSED)
+        String conditionalBlock = conditionStatus.equals(ARExecution.ConditionStatus.IF_PASSED)
                 ? "Closing Block { IF -> ELSE }  -> "
-                : conditionStatus.equals(ARConstants.ConditionStatus.ELSEIF_PASSED)
+                : conditionStatus.equals(ARExecution.ConditionStatus.ELSEIF_PASSED)
                         ? "Closing Block { ELSEIF -> ELSE }  -> "
-                        : conditionStatus.equals(ARConstants.ConditionStatus.ELSE_PASSED)
+                        : conditionStatus.equals(ARExecution.ConditionStatus.ELSE_PASSED)
                                 ? "Closing Block { ELSE -> ENDIF }  -> "
                                 : "Parent Id in Wrong Block";
 
-        if (!conditionStatus.equals(ARConstants.ConditionStatus.NONE)) {
+        if (!conditionStatus.equals(ARExecution.ConditionStatus.NONE)) {
 
-            log.warn(String.format(
+            logOperations.warn(String.format(
                     "%sParent Id Error Check Parent Id: %d For the \"%s\" Does not belong to this block: %d-%s",
                     conditionalBlock,
                     currentInstruction.getParentId(),
@@ -2016,7 +2046,7 @@ public class PerformActions {
                     blockLoad.getName()));
         } else {
 
-            log.error(String.format(
+            logOperations.error(String.format(
                     "Parent Id Error Check Parent Id: %d For the \"%s\" Does not belong to this block: %d-%s",
                     currentInstruction.getParentId(),
                     currentInstruction.getOperation(),
@@ -2024,7 +2054,7 @@ public class PerformActions {
                     blockLoad.getName()));
         }
 
-        if (!conditionStatus.equals(ARConstants.ConditionStatus.NONE)) {
+        if (!conditionStatus.equals(ARExecution.ConditionStatus.NONE)) {
             return conditionalBlock + " -> " + lastInstructionExecuted;
         } else {
             return lastInstructionExecuted;
@@ -2071,10 +2101,10 @@ public class PerformActions {
             String expected,
             String lastInstructionExecuted,
             String[] operations,
-            ARConstants.ConditionStatus conditionStatus,
+            ARExecution.ConditionStatus conditionStatus,
             boolean byPassFlagLoop) {
 
-        if (conditionStatus.equals(ARConstants.ConditionStatus.NONE) && !byPassFlagLoop) {
+        if (conditionStatus.equals(ARExecution.ConditionStatus.NONE) && !byPassFlagLoop) {
 
             String msg1;
             if (operations[1].equals(">")) {
@@ -2119,18 +2149,19 @@ public class PerformActions {
                     invalidValues += " Operator: (\" " + operations[1] + " \")";
                 }
             }
+            logOperations.error("Invalid Values Error: {} - {} - {} - {} - {}", invalidValues, msg1, msg2, msg3, msg4);
             performMessage.errorMessage(invalidValues, msg1, msg2, msg3, msg4, 0);
         }
 
-        String conditionalBlock = conditionStatus.equals(ARConstants.ConditionStatus.IF_PASSED)
+        String conditionalBlock = conditionStatus.equals(ARExecution.ConditionStatus.IF_PASSED)
                 ? "Closing Block { IF -> ELSE }  -> "
-                : conditionStatus.equals(ARConstants.ConditionStatus.ELSEIF_PASSED)
+                : conditionStatus.equals(ARExecution.ConditionStatus.ELSEIF_PASSED)
                         ? "Closing Block { ELSEIF -> ELSE }  -> "
-                        : conditionStatus.equals(ARConstants.ConditionStatus.ELSE_PASSED)
+                        : conditionStatus.equals(ARExecution.ConditionStatus.ELSE_PASSED)
                                 ? "Closing Block { ELSE -> ENDIF }  -> "
                                 : "";
 
-        if (!conditionStatus.equals(ARConstants.ConditionStatus.NONE)) {
+        if (!conditionStatus.equals(ARExecution.ConditionStatus.NONE)) {
             return conditionalBlock + " -> " + lastInstructionExecuted;
 
         } else {
@@ -2139,11 +2170,11 @@ public class PerformActions {
     }
 
     public boolean excelReportWrite(
-            ARConstants.ConditionStatus currentCondition,
+            ARExecution.ConditionStatus currentCondition,
             String blockName,
             boolean success,
             String[] actions,
-            Pair<String, String> msgLoop,
+            FieldData msgLoop,
             long duration,
             Map<String, String> dataExcel,
             ExcelWriter.ExcelChain writerReport) {
@@ -2165,9 +2196,10 @@ public class PerformActions {
         String msg2 = "Check Correct Block Existence";
         String msg3 = "CMD: " + resultActions;
 
+        logOperations.error("Parent Id Error: {} - {} - {}", msg1, msg2, msg3);
         performMessage.errorMessage("Parent Id Error", msg1, msg2, msg3, null, 0);
 
-        log.error("Block GO TO Error: -> Check Correct Block Existence! -> CMD: " + resultActions);
+        logOperations.error("Block GO TO Error: -> Check Correct Block Existence! -> CMD: " + resultActions);
 
         return resultActions;
     }
@@ -2182,6 +2214,10 @@ public class PerformActions {
         // %s\nWe are Exiting All of processes Now!",
         //                        executionTimes, lastInstructionExecuted));
 
+        logOperations.warn(
+                "Block Execution LIMIT Reached!. Process Reached BLOCK LIMIT of {} executions. Last Exetution: {}",
+                executionTimes,
+                lastInstructionExecuted);
         performMessage.errorMessage(
                 "Block Execution LIMIT Reached!",
                 String.format("Process Reached BLOCK LIMIT of %d executions", executionTimes),
@@ -2233,38 +2269,38 @@ public class PerformActions {
         try {
             Thread.sleep(5000); // 10 minutes in milliseconds
         } catch (InterruptedException e) {
-            System.out.println(e.getMessage());
+            logOperations.warn(e.getMessage());
         }
 
         // Accept (close) the alert
         alert.accept();
     }
 
-    public String actionResultMessage(String blockJobName, String actions[], Pair<String, String> msgInstruction) {
+    public String actionResultMessage(String blockJobName, String actions[], FieldData msgInstruction) {
 
         switch (actions[0]) {
-            case ARConstants.VISUALIZE:
+            case ARConstantsEngine.VISUALIZE:
                 return "Visualize " + msgInstruction.getKey();
-            case ARConstants.OTHER:
+            case ARConstantsEngine.OTHER:
                 return "Other Element --> " + msgInstruction.getKey();
-            case ARConstants.OUTPUT:
+            case ARConstantsEngine.OUTPUT:
                 return "Output Element --> " + msgInstruction.getKey();
-            case ARConstants.CLICK:
+            case ARConstantsEngine.CLICK:
                 return "Click Element --> " + msgInstruction.getKey();
-            case ARConstants.INSERT:
-                if (actions[0].equals(ARConstants.INSERT) && actions[1].equals(ARConstants.ENTER)) {
+            case ARConstantsEngine.INSERT:
+                if (actions[0].equals(ARConstantsEngine.INSERT) && actions[1].equals(ARConstantsEngine.ENTER)) {
                     return "Insert/<Enter> action for  -> " + msgInstruction.getKey() + " = "
                             + msgInstruction.getValue();
                 } else {
                     return "Insert action for  -> " + msgInstruction.getKey() + " = " + msgInstruction.getValue();
                 }
-            case ARConstants.LIST_OPERATION:
+            case ARConstantsEngine.LIST_OPERATION:
                 return "List Operation " + msgInstruction.getKey();
-            case ARConstants.HOLD:
+            case ARConstantsEngine.HOLD:
                 return "Hold executed " + msgInstruction.getKey();
-            case ARConstants.PAUSE:
+            case ARConstantsEngine.PAUSE:
                 return "Pause action triggered";
-            case ARConstants.GOTO:
+            case ARConstantsEngine.GOTO:
                 if (msgInstruction.getValue().equals("Unknown")) {
                     return msgInstruction.getKey();
                 } else {
@@ -2273,15 +2309,15 @@ public class PerformActions {
                             "GO TO Block \"%s\" Limit %s times",
                             "(" + parts[0] + ")-#" + parts[2] + " " + parts[3], msgInstruction.getValue());
                 }
-            case ARConstants.REFRESH_ONLY:
+            case ARConstantsEngine.REFRESH_ONLY:
                 return " Refresh Web Page";
-            case ARConstants.REFRESH_HOLD:
+            case ARConstantsEngine.REFRESH_HOLD:
                 String[] msgParent = msgInstruction.getKey().split(":");
                 String[] msgValue = msgInstruction.getValue().split(":");
                 return String.format(
                         "Wait for Parent \"%s\" Limit %s seconds",
                         "(" + msgParent[1] + ") " + msgParent[2], msgValue[0]);
-            case ARConstants.LOOP:
+            case ARConstantsEngine.LOOP:
                 if (msgInstruction.getValue().equals("Unknown")) {
                     return msgInstruction.getKey();
                 } else {
@@ -2290,7 +2326,7 @@ public class PerformActions {
                             "Jump To Parent \"%s\" Limit %s times",
                             msgParent[0] + "-(" + msgParent[1] + ") " + msgParent[2], msgInstruction.getValue());
                 }
-            case ARConstants.REFRESH_LOOP:
+            case ARConstantsEngine.REFRESH_LOOP:
                 if (msgInstruction.getValue().equals("Unknown")) {
                     return msgInstruction.getKey();
                 } else {
@@ -2300,27 +2336,27 @@ public class PerformActions {
                             "Refresh in %s seconds Loop %s times Jump To Parent \"%s\" ",
                             msgValue[0], msgValue[1], msgParent[0] + "-(" + msgParent[1] + ") " + msgParent[2]);
                 }
-            case ARConstants.QUIT:
+            case ARConstantsEngine.QUIT:
                 return "Quit action processed";
-            case ARConstants.SCREEN:
+            case ARConstantsEngine.SCREEN:
                 return "Screen action executed for " + msgInstruction.getKey() + " --> " + blockJobName;
-            case ARConstants.GET_VALUE:
-            case ARConstants.SET_VALUE:
+            case ARConstantsEngine.GET_VALUE:
+            case ARConstantsEngine.SET_VALUE:
                 return actions[0]
-                        + ARConstants.BLANK_STRING
+                        + ARConstantsEngine.BLANK_STRING
                         + msgInstruction.getKey()
-                        + ARConstants.BLANK_STRING
+                        + ARConstantsEngine.BLANK_STRING
                         + msgInstruction.getValue();
-            case ARConstants.CHECK_VALUE:
+            case ARConstantsEngine.CHECK_VALUE:
                 return actions[0]
-                        + ARConstants.BLANK_STRING
+                        + ARConstantsEngine.BLANK_STRING
                         + msgInstruction.getValue()
-                        + ARConstants.BLANK_STRING
+                        + ARConstantsEngine.BLANK_STRING
                         + msgInstruction.getKey();
-            case ARConstants.EXTRACT_FIELD:
-                return ARConstants.BLANK_STRING
+            case ARConstantsEngine.EXTRACT_FIELD:
+                return ARConstantsEngine.BLANK_STRING
                         + msgInstruction.getKey() + " Extract "
-                        + ARConstants.BLANK_STRING
+                        + ARConstantsEngine.BLANK_STRING
                         + msgInstruction.getValue();
 
             default:
@@ -2421,7 +2457,7 @@ public class PerformActions {
     public int searchMapConditional(
             Map<String, List<Integer>> mapConditional,
             int parentBlockCondition,
-            ARConstants.ConditionStatus condition,
+            ARExecution.ConditionStatus condition,
             int currentIndex,
             boolean showMessage) {
 
@@ -2531,7 +2567,7 @@ public class PerformActions {
                     .map(s -> "\"" + s.replace("\"", "\\\"") + "\"") // Escape double quotes
                     .collect(Collectors.joining(", ", "[", "]"))); // Format as JSON array
         } catch (IOException e) {
-            System.out.println("Error writing to file: " + e.getMessage());
+            logOperations.warn("Error writing to file: " + e.getMessage());
         } finally {
             // Close the browser if necessary
             // driver.quit();
@@ -2582,7 +2618,7 @@ public class PerformActions {
     }
 
     public boolean executeActionsAtCoordinates(
-            String savedCoordinates, Pair<String, String> data, String action, boolean pressEnterAfter) {
+            String savedCoordinates, FieldData data, String action, boolean pressEnterAfter) {
 
         boolean forceCLick = false;
 
@@ -2591,7 +2627,7 @@ public class PerformActions {
         int xCoord = 0;
         int yCoord = 0;
         try {
-            String[] coordinates = savedCoordinates.split(ARConstants.FIELDS_SEPARATOR);
+            String[] coordinates = savedCoordinates.split(ARConstantsEngine.FIELDS_SEPARATOR);
             double temp1 = Double.parseDouble(coordinates[0]);
             double temp2 = Double.parseDouble(coordinates[1]);
             x = (int) temp1;
@@ -2603,14 +2639,14 @@ public class PerformActions {
             xCoord = x > maxWidth ? x - offsetX : x;
             yCoord = y > maxHeight ? y - offsetY : y;
 
-            if (ARConstants.VISUALIZE.equals(action)) {
+            if (ARConstantsEngine.VISUALIZE.equals(action)) {
                 scrollToCoordinates(x, y);
-            } else if (ARConstants.CLICK.equals(action)) {
+            } else if (ARConstantsEngine.CLICK.equals(action)) {
                 scrollToCoordinates(x, y);
                 //                circleAtCoordinates(x, y, this.currentDriver);
                 onHoldForSeconds(null);
                 clickAtCoordinates(xCoord, yCoord);
-            } else if (ARConstants.INSERT.equals(action)) {
+            } else if (ARConstantsEngine.INSERT.equals(action)) {
                 scrollToCoordinates(x, y);
                 //                sendInputJS(x, y, data.getValue(),this.currentDriver);
                 //                circleAtCoordinates(x, y, this.currentDriver);
@@ -2624,7 +2660,7 @@ public class PerformActions {
                         sendEnterWithJS();
                     }
                 }
-            } else if (ARConstants.INSERT.equals(action) && forceCLick) {
+            } else if (ARConstantsEngine.INSERT.equals(action) && forceCLick) {
                 scrollToCoordinates(x, y);
                 //                sendInputJS(x, y, data.getValue(),this.currentDriver);
                 //                circleAtCoordinates(x, y, this.currentDriver);
@@ -2700,7 +2736,7 @@ public class PerformActions {
         int xCoord = 0;
         int yCoord = 0;
         try {
-            String[] coordinates = savedCoordinates.split(ARConstants.FIELDS_SEPARATOR);
+            String[] coordinates = savedCoordinates.split(ARConstantsEngine.FIELDS_SEPARATOR);
             double temp1 = Double.parseDouble(coordinates[0]);
             double temp2 = Double.parseDouble(coordinates[1]);
             x = (int) temp1;
@@ -2747,7 +2783,7 @@ public class PerformActions {
         ((JavascriptExecutor) driver).executeScript(script);
     }
 
-    private void typeCharacters(String savedCoords, Pair<String, String> fieldData) {
+    private void typeCharacters(String savedCoords, FieldData fieldData) {
         clearValueAtCoordinates(savedCoords);
         boolean passed = setValueAtCoordinates(savedCoords, fieldData.getValue().trim());
         if (!passed) {
@@ -2797,18 +2833,18 @@ public class PerformActions {
             WebElement element,
             String typeCommand,
             String[] coordinates,
-            Pair<String, String> fieldData,
+            FieldData fieldData,
             WebDriver driver,
             boolean pressEnterAfter) {
 
         String message = "Nothing to execute";
         try {
-            if (typeCommand.equals(ARConstants.SELECT)) {
+            if (typeCommand.equals(ARConstantsEngine.SELECT)) {
                 // Create a Select instance to interact with the dropdown
                 message = "Select(element)";
                 Select selectCountry = new Select(element);
                 selectCountry.selectByVisibleText(fieldData.getValue());
-            } else if (typeCommand.equals(ARConstants.CLEAR)) {
+            } else if (typeCommand.equals(ARConstantsEngine.CLEAR)) {
                 message = "clear()";
                 element.clear();
                 //                clearElement(element);
@@ -2818,34 +2854,34 @@ public class PerformActions {
                     clearValueAtCoordinates(coords);
                 }
 
-            } else if (typeCommand.equals(ARConstants.CLICK)) {
+            } else if (typeCommand.equals(ARConstantsEngine.CLICK)) {
                 message = "click()";
                 element.click();
-            } else if (typeCommand.equals(ARConstants.INSERT)) {
+            } else if (typeCommand.equals(ARConstantsEngine.INSERT)) {
                 message = "sendKeys(\"" + fieldData.getValue() + "\")";
                 element.sendKeys(fieldData.getValue());
-            } else if (typeCommand.equals(ARConstants.TAB)) {
+            } else if (typeCommand.equals(ARConstantsEngine.TAB)) {
                 message = "(Keys.TAB)";
                 element.sendKeys(Keys.TAB);
-            } else if (typeCommand.equals(ARConstants.GET_VALUE)) {
+            } else if (typeCommand.equals(ARConstantsEngine.GET_VALUE)) {
                 message = "getText()";
                 element.getText();
-            } else if (typeCommand.equals(ARConstants.FOCUS)) {
+            } else if (typeCommand.equals(ARConstantsEngine.FOCUS)) {
                 message = "focusElement(element, driver)";
                 focusElement(element, driver);
-            } else if (typeCommand.equals(ARConstants.COORD_VISUALIZA)) {
+            } else if (typeCommand.equals(ARConstantsEngine.COORD_VISUALIZA)) {
                 message = "Coordinates Visualiza";
                 for (String coords : coordinates) {
-                    executeActionsAtCoordinates(coords, fieldData, ARConstants.VISUALIZE, pressEnterAfter);
+                    executeActionsAtCoordinates(coords, fieldData, ARConstantsEngine.VISUALIZE, pressEnterAfter);
                 }
-            } else if (typeCommand.equals(ARConstants.COORD_CLICK)) {
+            } else if (typeCommand.equals(ARConstantsEngine.COORD_CLICK)) {
                 message = "Coordinates Click";
                 for (String coords : coordinates) {
                     //                    executeActionsAtCoordinates(coords, fieldData, ARConstants.CLICK,
                     // pressEnterAfter);
                     clickElementAtCoordinates(coords);
                 }
-            } else if (typeCommand.equals(ARConstants.COORD_INSERT)) {
+            } else if (typeCommand.equals(ARConstantsEngine.COORD_INSERT)) {
                 message = "Coordinates Insert";
                 if (pressEnterAfter) {
                     message = "Coordinates Insert with <ENTER>";
@@ -2856,7 +2892,7 @@ public class PerformActions {
                     setValueAtCoordinates(coords, fieldData.getValue());
                 }
                 //                insertElement(element, fieldData.getValue());
-            } else if (typeCommand.equals(ARConstants.COORD_MOVE_CLICK_RED)) {
+            } else if (typeCommand.equals(ARConstantsEngine.COORD_MOVE_CLICK_RED)) {
                 message = "Coordinates Move Insert Red Circle";
                 for (String coords : coordinates) {
                     moveAndClickAtCoordinates(coords, pressEnterAfter);
@@ -2895,7 +2931,7 @@ public class PerformActions {
     public boolean setValueAtCoordinates(String savedCoords, String textToSet) {
 
         try {
-            String[] coordinates = savedCoords.split(ARConstants.FIELDS_SEPARATOR);
+            String[] coordinates = savedCoords.split(ARConstantsEngine.FIELDS_SEPARATOR);
             double temp1 = Double.parseDouble(coordinates[0]);
             double temp2 = Double.parseDouble(coordinates[1]);
 
@@ -2923,7 +2959,7 @@ public class PerformActions {
     public boolean clearValueAtCoordinates(String savedCoords) {
 
         try {
-            String[] coordinates = savedCoords.split(ARConstants.FIELDS_SEPARATOR);
+            String[] coordinates = savedCoords.split(ARConstantsEngine.FIELDS_SEPARATOR);
             double temp1 = Double.parseDouble(coordinates[0]);
             double temp2 = Double.parseDouble(coordinates[1]);
             JavascriptExecutor jsExecutor = (JavascriptExecutor) currentDriver;
@@ -2954,7 +2990,7 @@ public class PerformActions {
 
     public boolean clickElementAtCoordinates(String savedCoords) {
         try {
-            String[] coordinates = savedCoords.split(ARConstants.FIELDS_SEPARATOR);
+            String[] coordinates = savedCoords.split(ARConstantsEngine.FIELDS_SEPARATOR);
             double temp1 = Double.parseDouble(coordinates[0]);
             double temp2 = Double.parseDouble(coordinates[1]);
             JavascriptExecutor jsExecutor = (JavascriptExecutor) currentDriver;
@@ -3006,7 +3042,7 @@ public class PerformActions {
     }
 
     public String moveAndClickAtCoordinates(String savedCoordinates, boolean pressEnterAfter) {
-        String[] coordinates = savedCoordinates.split(ARConstants.FIELDS_SEPARATOR);
+        String[] coordinates = savedCoordinates.split(ARConstantsEngine.FIELDS_SEPARATOR);
         double temp1 = Double.parseDouble(coordinates[0]);
         double temp2 = Double.parseDouble(coordinates[1]);
         int xCoord = (int) temp1;
@@ -3068,11 +3104,10 @@ public class PerformActions {
         }
     }
 
-    public Pair<String, String> getBlockDetailsById(
-            List<BlockLoadDTO> blocksLoaded, InstructionLoad currentInstruction) {
+    public FieldData getBlockDetailsById(List<BlockLoadDTO> blocksLoaded, InstructionLoad currentInstruction) {
         for (BlockLoadDTO block : blocksLoaded) {
             if (block.getId() != null && block.getId().equals(currentInstruction.getParentBlockId())) {
-                Pair<String, String> blockDetails = new Pair<>(
+                FieldData blockDetails = new FieldData(
                         currentInstruction.getId() + ":" + block.getId() + ":" + block.getBlockOrderNumber() + ":"
                                 + block.getName().trim(),
                         currentInstruction.getOperation());
@@ -3091,11 +3126,11 @@ public class PerformActions {
         return -1;
     }
 
-    public Pair<String, String> getInstructionDetailsById(
+    public FieldData getInstructionDetailsById(
             List<InstructionLoad> InstructionLoadS, InstructionLoad currentInstruction) {
         for (InstructionLoad instParent : InstructionLoadS) {
             if (instParent.getId() != null && instParent.getId().equals(currentInstruction.getParentId())) {
-                Pair<String, String> blockDetails = new Pair<>(
+                FieldData blockDetails = new FieldData(
                         currentInstruction.getId() + ":" + instParent.getId() + ":"
                                 + instParent.getName().trim(),
                         currentInstruction.getOperation());
@@ -3145,7 +3180,7 @@ public class PerformActions {
                     .collect(Collectors.joining(":")); // Join with ':'
 
             // Print the key and value
-            System.out.println("Key: " + key + ", Value: " + valuesAsString);
+            logOperations.info("Key: " + key + ", Value: " + valuesAsString);
         }
 
         return mapRefreshLoops;
@@ -3160,14 +3195,14 @@ public class PerformActions {
     }
 
     public void logAndReport(
-            ARConstants.ConditionStatus currentCondition,
+            ARExecution.ConditionStatus currentCondition,
             boolean excelReport,
             boolean logOperation,
             long blockStartTime,
             String blockReportName,
             boolean success,
             String[] action,
-            Pair<String, String> msgBlock,
+            FieldData msgBlock,
             Map<String, String> dataExcel,
             ExcelWriter.ExcelChain writerReport,
             String mainMsg,
@@ -3187,42 +3222,42 @@ public class PerformActions {
         totalExecutionTime += duration;
     }
 
-    public ARConstants.ConditionStatus updateProgressSuccess(
-            boolean success, ARConstants.ConditionStatus currentCondition) {
+    public ARExecution.ConditionStatus updateProgressSuccess(
+            boolean success, ARExecution.ConditionStatus currentCondition) {
         // It Gets last Progress Status
         // Machine State
-        if (currentCondition.equals(ARConstants.ConditionStatus.IF)) {
-            return success ? ARConstants.ConditionStatus.IF_PASSED : ARConstants.ConditionStatus.IF_FAILED;
-        } else if (currentCondition.equals(ARConstants.ConditionStatus.ELSEIF)) {
-            return success ? ARConstants.ConditionStatus.ELSEIF_PASSED : ARConstants.ConditionStatus.ELSEIF_FAILED;
-        } else if (currentCondition.equals(ARConstants.ConditionStatus.ELSE)) {
-            return success ? ARConstants.ConditionStatus.ELSE_PASSED : ARConstants.ConditionStatus.ELSE_FAILED;
-        } else if (currentCondition.equals(ARConstants.ConditionStatus.ENDIF)) {
-            return ARConstants.ConditionStatus.NONE;
+        if (currentCondition.equals(ARExecution.ConditionStatus.IF)) {
+            return success ? ARExecution.ConditionStatus.IF_PASSED : ARExecution.ConditionStatus.IF_FAILED;
+        } else if (currentCondition.equals(ARExecution.ConditionStatus.ELSEIF)) {
+            return success ? ARExecution.ConditionStatus.ELSEIF_PASSED : ARExecution.ConditionStatus.ELSEIF_FAILED;
+        } else if (currentCondition.equals(ARExecution.ConditionStatus.ELSE)) {
+            return success ? ARExecution.ConditionStatus.ELSE_PASSED : ARExecution.ConditionStatus.ELSE_FAILED;
+        } else if (currentCondition.equals(ARExecution.ConditionStatus.ENDIF)) {
+            return ARExecution.ConditionStatus.NONE;
         }
-        return ARConstants.ConditionStatus.NONE;
+        return ARExecution.ConditionStatus.NONE;
     }
 
     public int checkActionToJump(
             String action,
-            ARConstants.ConditionStatus progressCondition,
+            ARExecution.ConditionStatus progressCondition,
             Map<String, List<Integer>> mapConditional,
             int parentBlockCondition,
             int currentIndex) {
-        if (action.equalsIgnoreCase(ARConstants.ELSEIF)) {
+        if (action.equalsIgnoreCase(ARConstantsEngine.ELSEIF)) {
             // Goes to the ENDIF (ENDIF index + 1);
             return searchMapConditional(
-                    mapConditional, parentBlockCondition, ARConstants.ConditionStatus.ENDIF, currentIndex, true);
+                    mapConditional, parentBlockCondition, ARExecution.ConditionStatus.ENDIF, currentIndex, true);
 
-        } else if (action.equalsIgnoreCase(ARConstants.ELSE)) {
+        } else if (action.equalsIgnoreCase(ARConstantsEngine.ELSE)) {
             // Goes to the ENDIF (ENDIF index + 1);
             return searchMapConditional(
-                    mapConditional, parentBlockCondition, ARConstants.ConditionStatus.ENDIF, currentIndex, true);
+                    mapConditional, parentBlockCondition, ARExecution.ConditionStatus.ENDIF, currentIndex, true);
 
-        } else if (action.equalsIgnoreCase(ARConstants.ELSE)) {
+        } else if (action.equalsIgnoreCase(ARConstantsEngine.ELSE)) {
             // Goes to the ENDIF (ENDIF index + 1);
             return searchMapConditional(
-                    mapConditional, parentBlockCondition, ARConstants.ConditionStatus.ENDIF, currentIndex, true);
+                    mapConditional, parentBlockCondition, ARExecution.ConditionStatus.ENDIF, currentIndex, true);
         }
         return 0;
     }
@@ -3233,7 +3268,7 @@ public class PerformActions {
         if (this.currentDriver != null) {
             // Get all iframe elements on the page
             List<WebElement> iframeList = this.currentDriver.findElements(By.tagName("iframe"));
-            System.out.println("Number of iframes found: " + iframeList.size());
+            logOperations.info("Number of iframes found: " + iframeList.size());
 
             for (WebElement iframe : iframeList) {
                 try {
@@ -3244,9 +3279,9 @@ public class PerformActions {
                     List<WebElement> elementsInsideIframe = this.currentDriver.findElements(By.xpath("//*"));
                     iframeElementsMap.put(iframe, elementsInsideIframe);
 
-                    System.out.println("Iframe contains " + elementsInsideIframe.size() + " elements");
+                    logOperations.info("Iframe contains " + elementsInsideIframe.size() + " elements");
                 } catch (Exception e) {
-                    System.out.println("Could not access iframe: " + e.getMessage());
+                    logOperations.warn("Could not access iframe: " + e.getMessage());
                 } finally {
                     // Switch back to the main page
                     this.currentDriver.switchTo().defaultContent();
@@ -3365,7 +3400,7 @@ public class PerformActions {
             }
             targetDefine.setIFrameElements(null);
 
-            targetDefine.setXPathWorkedFirst(ARConstants.REGULAR_XPATH);
+            targetDefine.setXPathWorkedFirst(ARConstantsEngine.REGULAR_XPATH);
 
             // W3C 6 Headers
             String[] validHeaders = {"h1", "h2", "h3", "h4", "h5", "h6"};
@@ -3547,11 +3582,11 @@ public class PerformActions {
                 //                } else  if (tagNameDefined.equalsIgnoreCase("input")) {
                 //                    target.setTagType(WebElementTagNameEnum.OUTPUT);
                 //                }
-                target = setElementText(target, target.getTagName(), ARConstants.VALUE_NO_IDENTIFICATION);
+                target = setElementText(target, target.getTagName(), ARConstantsEngine.VALUE_NO_IDENTIFICATION);
             }
 
         } catch (Exception e) {
-            log.info("Error define Target Name Titles");
+            logOperations.warn("Cannot define Target Name Titles");
         }
         return target;
     }
@@ -3581,14 +3616,14 @@ public class PerformActions {
     public TargetElement defineTagType(TargetElement targetTagType) {
 
         try {
-            System.out.println("Defined Name: " + targetTagType.getDefinedName());
-            System.out.println("Tag Name: " + targetTagType.getTagName());
-            System.out.println("Id: " + targetTagType.getAttribId());
-            System.out.println("Name: " + targetTagType.getAttribName());
-            System.out.println("xPath: " + targetTagType.getCurrentXPath());
-            System.out.println("Absolut xPath: " + targetTagType.getAttributeData());
-            System.out.println("Custom xPath: " + targetTagType.getCustomXPath());
-            System.out.println("iFrame xPath: " + targetTagType.getIFrameXPath());
+            logOperations.info("Defined Name: " + targetTagType.getDefinedName());
+            logOperations.info("Tag Name: " + targetTagType.getTagName());
+            logOperations.info("Id: " + targetTagType.getAttribId());
+            logOperations.info("Name: " + targetTagType.getAttribName());
+            logOperations.info("xPath: " + targetTagType.getCurrentXPath());
+            logOperations.info("Absolut xPath: " + targetTagType.getAttributeData());
+            logOperations.info("Custom xPath: " + targetTagType.getCustomXPath());
+            logOperations.info("iFrame xPath: " + targetTagType.getIFrameXPath());
 
             if (targetTagType.getCoordinates() != null) {
                 String[] coords = targetTagType.getCoordinates().split(",");
@@ -3596,8 +3631,8 @@ public class PerformActions {
                     String coordLeft = coords[0].trim();
                     String coordRight = coords[1].trim();
                     // Print or use the extracted values
-                    System.out.println("CoordLeft: " + coordLeft);
-                    System.out.println("CoordRight: " + coordRight);
+                    logOperations.info("CoordLeft: " + coordLeft);
+                    logOperations.info("CoordRight: " + coordRight);
                 }
             }
 
@@ -3624,7 +3659,7 @@ public class PerformActions {
 
         } catch (Exception ex) {
 
-            log.error("Could not find any Web Element with XPath/Id/Attributes values.");
+            logOperations.error("Could not find any Web Element with XPath/Id/Attributes values.");
         }
         return null;
     }
@@ -3656,7 +3691,7 @@ public class PerformActions {
                 }
             } catch (Exception e) {
                 // Log or handle the exception if needed
-                System.err.println("Error locating element with XPath: " + xpath + ". Exception: " + e.getMessage());
+                logOperations.error("Error locating element with XPath: " + xpath + ". Exception: " + e.getMessage());
             }
         }
         return null;
@@ -3713,7 +3748,6 @@ public class PerformActions {
 
         String action = buildAction(forceTag, actionReq, identityHover, targetBuild);
         loop.setActions(action);
-        loop.setName(targetBuild.getNameLabel());
         loop.setExportToABR(true);
 
         return loop;
@@ -3733,21 +3767,25 @@ public class PerformActions {
     private String handleIdentityHover(
             String actionReq, WebElementTagNameEnum forceTag, String nameLabel, Boolean clickElement) {
         return switch (actionReq.toUpperCase()) {
-            case ARConstants.INSERT -> buildInsertAction(forceTag, nameLabel);
-            case ARConstants.OUTPUT -> ARConstants.OUTPUT + ARConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel;
-            case ARConstants.OTHER -> ARConstants.OTHER + ARConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel;
-            case ARConstants.CLICK -> ARConstants.CLICK;
+            case ARConstantsEngine.INSERT -> buildInsertAction(forceTag, nameLabel);
+            case ARConstantsEngine.OUTPUT -> ARConstantsEngine.OUTPUT
+                    + ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER
+                    + nameLabel;
+            case ARConstantsEngine.OTHER -> ARConstantsEngine.OTHER
+                    + ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER
+                    + nameLabel;
+            case ARConstantsEngine.CLICK -> ARConstantsEngine.CLICK;
             default -> clickElement
-                    ? ARConstants.CLICK
-                    : ARConstants.INSERT + ARConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel;
+                    ? ARConstantsEngine.CLICK
+                    : ARConstantsEngine.INSERT + ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER + nameLabel;
         };
     }
 
     private String buildInsertAction(WebElementTagNameEnum forceTag, String nameLabel) {
         if (forceTag.equals(WebElementTagNameEnum.INPUT_ENTER)) {
-            return ARConstants.INSERT_ENTER + ARConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel;
+            return ARConstantsEngine.INSERT_ENTER + ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER + nameLabel;
         } else {
-            return ARConstants.INSERT + ARConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel;
+            return ARConstantsEngine.INSERT + ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER + nameLabel;
         }
     }
 
@@ -3755,19 +3793,19 @@ public class PerformActions {
             WebElementTagNameEnum forceTag, TargetElement targetBuild, String nameLabel, boolean clickElement) {
         if (targetBuild.getTagType() == null) {
             return clickElement
-                    ? ARConstants.CLICK
-                    : ARConstants.INSERT + ARConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel;
+                    ? ARConstantsEngine.CLICK
+                    : ARConstantsEngine.INSERT + ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER + nameLabel;
         }
 
         return switch (targetBuild.getTagType()) {
             case INPUT -> buildInsertAction(forceTag, nameLabel);
-            case HIDDEN -> ARConstants.INSERT
-                    + ARConstants.ACTION_SPECIFICATIONS_SPLITTER
+            case HIDDEN -> ARConstantsEngine.INSERT
+                    + ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER
                     + nameLabel
-                    + ARConstants.ACTION_SPECIFICATIONS_SPLITTER
-                    + ARConstants.HIDDEN;
-            case BUTTON -> ARConstants.CLICK;
-            default -> ARConstants.OUTPUT + ARConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel;
+                    + ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER
+                    + ARConstantsEngine.HIDDEN;
+            case BUTTON -> ARConstantsEngine.CLICK;
+            default -> ARConstantsEngine.OUTPUT + ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER + nameLabel;
         };
     }
 
@@ -3826,7 +3864,7 @@ public class PerformActions {
             savedReferences.put("coordinates", newCoordinates);
             targetRefs.setCoordinates(newCoordinates);
         } catch (Exception coords) {
-            System.err.println("Invalid coordinates from WebDriver Selenium");
+            logOperations.error("Invalid coordinates from WebDriver Selenium");
         }
 
         String[] parts = targetRefs.getCoordinates().split(",");
@@ -3849,7 +3887,7 @@ public class PerformActions {
             // Computed
             savedReferences.put("cp_coordinates", newCoordinates);
         } catch (NumberFormatException e) {
-            System.err.println("Invalid coordinates from Javascript code: " + targetRefs.getCoordinates());
+            logOperations.error("Invalid coordinates from Javascript code: " + targetRefs.getCoordinates());
         }
     }
 
@@ -3880,7 +3918,7 @@ public class PerformActions {
                     elementFound = getCurrentDriver().findElement(By.xpath(targetFind.getXPath()));
                 } catch (Exception error) {
 
-                    log.info("iFrame Element not Located\niFrameXPath"
+                    logOperations.warn("iFrame Element not Located\niFrameXPath"
                             + targetFind.getIFrameXPath()
                             + "iFrameChild: "
                             + targetFind.getXPath());
@@ -3890,7 +3928,7 @@ public class PerformActions {
             }
 
         } catch (Exception error) {
-            log.info("Element not Located: " + targetFind.getXPath());
+            logOperations.warn("Scope Changed - Element not Located - : " + targetFind.getXPath());
             //            performMessage.errorMessage(
             //                    "Element not Located",
             //                    "Cannot able to find the ",
@@ -3919,14 +3957,14 @@ public class PerformActions {
 
             if (foundElement == null) {
 
-                log.info(String.format("Element with CSS Selector \"%s\" not found.", cssSelector));
+                logOperations.warn(String.format("Element with CSS Selector \"%s\" not found.", cssSelector));
                 return null;
             }
             return foundElement;
 
         } catch (Exception e) {
 
-            log.error(String.format(
+            logOperations.error(String.format(
                     "Error finding element with CSS Selector \"%s\" -> Cause: %s", cssSelector, e.getMessage()));
             return null;
         }
@@ -3935,6 +3973,7 @@ public class PerformActions {
     public WebElement findElementByCssSelector(String cssSelector, boolean byPassNotFound) throws Exception {
         WebElement element = findElementByCssSelector(cssSelector);
         if (element == null && !byPassNotFound) {
+            logOperations.warn("Could not find element with CSS Selector: " + cssSelector);
             performMessage.couldNotFindElement("Could not find element with CSS Selector: " + cssSelector);
         }
         return element;
@@ -3998,7 +4037,7 @@ public class PerformActions {
             return decimalPart.isEmpty() ? groupedInteger : groupedInteger + decimalSeparator + decimalPart;
 
         } catch (Exception e) {
-            System.err.println("Error formatting number: " + numberString + " - " + e.getMessage());
+            logOperations.error("Error formatting number: " + numberString + " - " + e.getMessage());
             return numberString;
         }
     }
@@ -4029,7 +4068,7 @@ public class PerformActions {
     // waitForPage.until(ExpectedConditions.visibilityOfElementLocated(By.tagName(complexActionParts[2])));
     //            } catch (Exception e) {
     //
-    //                        log.info(String.format(
+    //                        operationsLog.warn(String.format(
     //                                "Could Not Find TagName \"%s\" Criteria \"%s\" -> Cause: %s",
     //                                complexActionParts[2], By.tagName(complexActionParts[2]), e.getMessage()));
     //
@@ -4054,7 +4093,7 @@ public class PerformActions {
     //                        webElementList = this.currentDriver.findElements(By.tagName(complexActionParts[2]));
     //                    } catch (Exception e) {
     //
-    //                                log.info(String.format(
+    //                                operationsLog.warn(String.format(
     //                                        "Could Not Find TagName \"%s\" Criteria \"%s\" -> Cause: %s",
     //                                        complexActionParts[2], By.tagName(complexActionParts[2]),
     // e.getMessage()));
@@ -4101,7 +4140,7 @@ public class PerformActions {
     //
     // ".//avq-breadcrumb[@test-id='web-banking-portal.pages.payments-overview.breadcrumb']")));
     //                } catch (Exception e) {
-    //                    System.out.println("Impossible execute operation on this element: " + element.toString());
+    //                    operationsLog.warn("Impossible execute operation on this element: " + element.toString());
     //                }
     //            }
     //

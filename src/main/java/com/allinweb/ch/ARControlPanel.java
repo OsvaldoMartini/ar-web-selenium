@@ -31,6 +31,8 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ARControlPanel extends Application {
 
+    private static final SuppressHsqldbLogs suppressHsqldbLogs = SuppressHsqldbLogs.getInstance();
+    private static final LogControl logControl = LogControl.getInstance();
     private static final PerformMessage performMessage;
     private static final ARPropertyManager arPropertyManager;
     private static final PerformDataBase performDataBase;
@@ -41,7 +43,7 @@ public class ARControlPanel extends Application {
     private static WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static ARWebSocketServerIP arWebSocketServerIP;
     private static ARWebSocketServer arWebSocketServer; // Static block to initialize
-    private static String defaultConfigurationFileName = ARConstants.USER_PATH + ARConstants.FILE_NAME_CONFIGURATION;
+    private static String defaultConfigurationFileName = ARConstants.USER_PATH + ARConstants.FILE_DEFAULT_CONFIG;
     private static boolean isEnabledLicence = true;
 
     static {
@@ -55,7 +57,8 @@ public class ARControlPanel extends Application {
     }
 
     public static void main(String[] args) {
-        System.setProperty("org.eclipse.jetty.LEVEL", "OFF");
+        log.info("Application started - all console output is now redirected to logback.");
+
         List<String> arguments = Arrays.asList(args);
         int chosenPort = getInitialPort();
         int chosenPortIP = getInitialPort();
@@ -80,8 +83,9 @@ public class ARControlPanel extends Application {
                 arPropertyManager.setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), porSocketInUse);
                 // Make path available to Logback via System property
                 setLogPath();
+                logControl.enableLogging();
                 licenseControl();
-                initialeServers();
+                initializeServers();
             } catch (Exception error) {
                 if (!configurationFile.exists()) {
                     arPropertyManager.createDefaultProperties(configurationFile);
@@ -103,13 +107,18 @@ public class ARControlPanel extends Application {
             arPropertyManager.setConfigurationFileName(defaultConfigurationFileName);
             File configurationFile = new File(defaultConfigurationFileName);
             try (FileInputStream conf = new FileInputStream(configurationFile)) {
+                // reads from config.properties
                 arPropertyManager.loadProperties(conf);
+                // changes to ARWeb.config
+                defaultConfigurationFileName = ARConstants.USER_PATH + ARConstants.FILE_AR_WEB_CONFIG;
+                arPropertyManager.setConfigurationFileName(defaultConfigurationFileName);
                 String porSocketInUse = System.getProperty("ARWebChosenPort");
                 arPropertyManager.setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), porSocketInUse);
                 // Make path available to Logback via System property
                 setLogPath();
+                logControl.enableLogging();
                 licenseControl();
-                initialeServers();
+                initializeServers();
             } catch (Exception error) {
                 if (!configurationFile.exists()) {
                     arPropertyManager.createDefaultProperties(configurationFile);
@@ -123,13 +132,14 @@ public class ARControlPanel extends Application {
             log.info("Configuration file path: " + defaultConfigurationFileName);
         }
 
-        arPropertyManager.setProperty(ARPropertyEnum.VERSION.getValue(), "AR Web v4.2f Beta Test");
-        arPropertyManager.setProperty(ARPropertyEnum.BUILD.getValue(), "Build: 18/08/2025"); //
+        arPropertyManager.setProperty(ARPropertyEnum.VERSION.getValue(), "AR Web v4.6f Beta Test");
+        arPropertyManager.setProperty(ARPropertyEnum.BUILD.getValue(), "Build: 01/10/2025"); //
     }
 
-    private static void initialeServers() {
+    private static void initializeServers() {
         arWebSocketServerIP = ARWebSocketServerIP.getInstance();
         arWebSocketServer = ARWebSocketServer.getInstance();
+        performDataBase.callSocketLists();
     }
 
     private static void setLogPath() {
@@ -137,7 +147,7 @@ public class ARControlPanel extends Application {
         String logPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG);
         File logDir = new File(logPath);
         if (!logDir.exists() && !logDir.mkdirs()) {
-            System.err.println("❌ Failed to create log directory: " + logDir.getAbsolutePath());
+            log.error("❌ Failed to create log directory: " + logDir.getAbsolutePath());
             System.exit(1);
         }
         System.setProperty("LOG_PATH", logDir.getAbsolutePath());
@@ -164,14 +174,19 @@ public class ARControlPanel extends Application {
             try {
                 license.set(LicenseManager.checkLicenseFile(licensePath));
             } catch (Exception error) {
-                performMessage.errorMessage(
-                        "Error reading/writing to the file!",
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please verify that you have permission to read/write.!</span>",
-                        "<span style='color: #E65100; font-weight: bold;'>Attempted to read/write:</span> <span style='font-weight: bold;'>"
-                                + licensePath + "</span>",
-                        "<span style='font-style: italic;'>Please ensure the application has the necessary write permissions for the specified directory</span>",
-                        "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
-                        0);
+                log.warn("Error reading/writing to the file: " + licensePath);
+                //                performMessage.errorMessage(
+                //                        "Error reading/writing to the file!",
+                //                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please
+                // verify that you have permission to read/write.!</span>",
+                //                        "<span style='color: #E65100; font-weight: bold;'>Attempted to
+                // read/write:</span> <span style='font-weight: bold;'>"
+                //                                + licensePath + "</span>",
+                //                        "<span style='font-style: italic;'>Please ensure the application has the
+                // necessary write permissions for the specified directory</span>",
+                //                        "<span style='font-style: italic;'>Details: " + error.getMessage() +
+                // "</span>",
+                //                        0);
             }
             try {
                 if (license.get().isMissing()) {
@@ -193,14 +208,19 @@ public class ARControlPanel extends Application {
                                 licenseMessages(license.get());
                             }
                         } catch (Exception error) {
-                            performMessage.errorMessage(
-                                    "Error reading/writing to the file!",
-                                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please verify that you have permission to read/write.!</span>",
-                                    "<span style='color: #E65100; font-weight: bold;'>Attempted to read/write:</span> <span style='font-weight: bold;'>"
-                                            + finalLicensePath + "</span>",
-                                    "<span style='font-style: italic;'>Please ensure the application has the necessary write permissions for the specified directory</span>",
-                                    "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
-                                    0);
+                            log.warn("Error reading/writing to the file: " + finalLicensePath);
+                            //                            performMessage.errorMessage(
+                            //                                    "Error reading/writing to the file!",
+                            //                                    "<span style='color: #D32F2F; font-weight: bold;
+                            // font-size: 1.1em;'>Please verify that you have permission to read/write.!</span>",
+                            //                                    "<span style='color: #E65100; font-weight:
+                            // bold;'>Attempted to read/write:</span> <span style='font-weight: bold;'>"
+                            //                                            + finalLicensePath + "</span>",
+                            //                                    "<span style='font-style: italic;'>Please ensure the
+                            // application has the necessary write permissions for the specified directory</span>",
+                            //                                    "<span style='font-style: italic;'>Details: " +
+                            // error.getMessage() + "</span>",
+                            //                                    0);
                         }
                     });
 
@@ -220,14 +240,19 @@ public class ARControlPanel extends Application {
                     }
                 }
             } catch (Exception error) {
-                performMessage.errorMessage(
-                        "Error reading/writing to the file!",
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please verify that you have permission to read/write.!</span>",
-                        "<span style='color: #E65100; font-weight: bold;'>Attempted to read/write:</span> <span style='font-weight: bold;'>"
-                                + licensePath + "</span>",
-                        "<span style='font-style: italic;'>Please ensure the application has the necessary write permissions for the specified directory</span>",
-                        "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
-                        0);
+                log.warn("Error reading/writing to the file: " + licensePath);
+                //                performMessage.errorMessage(
+                //                        "Error reading/writing to the file!",
+                //                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please
+                // verify that you have permission to read/write.!</span>",
+                //                        "<span style='color: #E65100; font-weight: bold;'>Attempted to
+                // read/write:</span> <span style='font-weight: bold;'>"
+                //                                + licensePath + "</span>",
+                //                        "<span style='font-style: italic;'>Please ensure the application has the
+                // necessary write permissions for the specified directory</span>",
+                //                        "<span style='font-style: italic;'>Details: " + error.getMessage() +
+                // "</span>",
+                //                        0);
 
                 log.info(error.getMessage());
             }
@@ -293,10 +318,7 @@ public class ARControlPanel extends Application {
             log.error("Error Database Connections: " + error.getMessage());
         }
 
-        if ("Postgres".equalsIgnoreCase(dataBaseType)) {
-            // Postgres-specific logic
-            performDataBase.POSTGRES_DB = true;
-        } else if ("SQLite".equalsIgnoreCase(dataBaseType)) {
+        if ("TEXT".equalsIgnoreCase(dataBaseType)) {
             // SQLite-specific logic
             performDataBase.SQLITE_DB = true;
         } else if ("Access".equalsIgnoreCase(dataBaseType)) {
@@ -326,7 +348,6 @@ public class ARControlPanel extends Application {
                     log.info("Postgres Database connected!");
                 }
             } catch (Exception error) {
-                log.error("Error Export to Postgres: " + error.getMessage());
             }
 
         } else if (performDataBase.ACCESS_DB) {
@@ -345,15 +366,7 @@ public class ARControlPanel extends Application {
                         if (errorMessage != null) {
                             log.error("Database Creation Error: " + errorMessage.getErrorMessage());
 
-                            performMessage.errorMessage(
-                                    errorMessage.getErrorTitle(),
-                                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
-                                    "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> Database Creation Error",
-                                    "<span style='color: #2E7D32; font-weight: bold;'>" + errorMessage.getErrorHeader()
-                                            + "</span>",
-                                    "<span style='font-style: italic;'>Detail:</span> "
-                                            + errorMessage.getErrorMessage(),
-                                    0);
+                            performMessage.errorMessageOperationFailed(errorMessage);
                         }
                     }
                 } else {
@@ -368,7 +381,6 @@ public class ARControlPanel extends Application {
 
             } catch (Exception error) {
                 log.error("Database Creation Error: " + error.getMessage());
-
                 performMessage.errorMessage(
                         "Configuration Needed", // Using configurationFileName as the title
                         "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: Set the path for the Database!</span>",
@@ -410,6 +422,7 @@ public class ARControlPanel extends Application {
                 }
 
             } catch (Exception error) {
+                log.error("Database Creation Error: " + error.getMessage());
                 performMessage.errorMessage(
                         "Configuration Needed", // Using configurationFileName as the title
                         "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: Set the path for the Database!</span>",
@@ -428,6 +441,22 @@ public class ARControlPanel extends Application {
             } catch (Exception error) {
                 log.error("Error SQLite: " + error.getMessage());
             }
+        }
+
+        if (performDataBase.dbFailed) {
+            log.error(
+                    "Database connection Failed: {} -> {} ",
+                    performDataBase.getErrorMessage().getErrorHeader(),
+                    performDataBase.getErrorMessage().getErrorMessage());
+            performMessage.errorMessage(
+                    "Database connection Failed",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>An error occurred during the Database connection.</span>",
+                    "<span style='font-weight: bold;'>"
+                            + performDataBase.getErrorMessage().getErrorHeader() + "</span>.",
+                    "<span style='color: #E65100; font-weight: bold;'>Please ensure the Database connections are correct.</span>",
+                    "<span style='font-style: italic;'>Details: "
+                            + performDataBase.getErrorMessage().getErrorMessage() + "</span>",
+                    0);
         }
     }
 
