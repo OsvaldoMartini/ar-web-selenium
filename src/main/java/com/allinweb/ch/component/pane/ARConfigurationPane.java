@@ -577,10 +577,9 @@ public class ARConfigurationPane extends ARPane {
         browserChoiceBox.setValue(arPropertyManager.getProperty(ARPropertyEnum.BROWSER));
 
         if (arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE) == null) {
-            databaseChoiceBox.setValue("TEXT");
-        } else {
             databaseChoiceBox.setValue("Access");
-            //            databaseChoiceBox.setValue(arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE));
+        } else {
+            databaseChoiceBox.setValue(arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE));
         }
 
         reloadDBButton.setOnMouseClicked(e -> {
