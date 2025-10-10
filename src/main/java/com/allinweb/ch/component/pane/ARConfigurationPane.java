@@ -102,6 +102,7 @@ public class ARConfigurationPane extends ARPane {
     Label deleteAllDBLabel;
     Label insertSitesLabel;
     Label pathWebDriverLabel;
+    Label pathAppiumLabel;
     TextField pathExcel;
     TextField pathLicense;
     TextField pathLog;
@@ -113,6 +114,7 @@ public class ARConfigurationPane extends ARPane {
     TextField dbPwd;
     TextField pathEngine;
     TextField pathWebDriver;
+    TextField pathAppium;
     ChoiceBox<String> browserChoiceBox = new ChoiceBox<>();
     ChoiceBox<String> databaseChoiceBox = new ChoiceBox<>();
     ObservableList<String> browserList =
@@ -128,6 +130,7 @@ public class ARConfigurationPane extends ARPane {
     Button pathPriorityButton;
     Button pathEngineButton;
     Button pathWebDriverButton;
+    Button pathAppiumButton;
     Button reloadDBButton;
     Button backupDBButton;
     Button restoreDBButton;
@@ -452,6 +455,11 @@ public class ARConfigurationPane extends ARPane {
         pathWebDriverButton = createPathButton();
         AnchorPane driverGroup = new AnchorPane(pathWebDriver, pathWebDriverButton);
 
+        pathAppiumLabel = new Label("Appium Path:");
+        pathAppium = createPathTextField(ARPropertyEnum.PATH_APPIUM);
+        pathAppiumButton = createPathButton();
+        AnchorPane appiumGroup = new AnchorPane(pathAppium, pathAppiumButton);
+
         Label organizationsLabel = new Label("Organizations");
         organizationsLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #1565C0;");
         organizationsLabel.setAlignment(Pos.CENTER);
@@ -473,6 +481,8 @@ public class ARConfigurationPane extends ARPane {
                 engineGroup,
                 pathWebDriverLabel,
                 driverGroup,
+                pathAppiumLabel,
+                appiumGroup,
                 dbUrlLabel,
                 dbUrl,
                 dbUserPwdGroup,
@@ -573,6 +583,7 @@ public class ARConfigurationPane extends ARPane {
 
         pathEngineButton.setOnMouseClicked(e -> openChooserFor(pathEngine, modalStage, false));
         pathWebDriverButton.setOnMouseClicked(e -> openChooserFor(pathWebDriver, modalStage, false));
+        pathAppiumButton.setOnMouseClicked(e -> openChooserFor(pathAppium, modalStage, false));
 
         browserChoiceBox.setValue(arPropertyManager.getProperty(ARPropertyEnum.BROWSER));
 
@@ -1011,6 +1022,11 @@ public class ARConfigurationPane extends ARPane {
             validfields = false;
         }
 
+        if (Strings.isNullOrEmpty(pathAppium.getText())) {
+            new ARAlertScene(Alert.AlertType.ERROR, "Field Blank", "Appium Path must be filed!", ButtonType.OK);
+            validfields = false;
+        }
+
         if (validfields) {
 
             arPropertyManager.setProperty(ARPropertyEnum.BROWSER.getValue(), browserChoiceBox.getValue());
@@ -1034,6 +1050,8 @@ public class ARConfigurationPane extends ARPane {
             arPropertyManager.setProperty(
                     ARPropertyEnum.PATH_WEBDRIVER.getValue(),
                     pathWebDriver.getText().trim());
+            arPropertyManager.setProperty(
+                    ARPropertyEnum.PATH_APPIUM.getValue(), pathAppium.getText().trim());
 
             try {
                 performInitializer.testConnection(
