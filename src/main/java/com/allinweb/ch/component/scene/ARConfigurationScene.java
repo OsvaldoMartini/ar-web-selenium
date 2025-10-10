@@ -31,7 +31,7 @@ public class ARConfigurationScene extends ARScene {
     private boolean isEnabledLicence;
     private Stage modalStage;
     private Scene modalScene;
-    private ListView<BotJobLoadDTO> viewBotJobListView;
+    private ListView<BotJobLoadDTO> viewBotJobListView = new ListView<>();
     // Private constructor to prevent instantiation
     private ARConfigurationScene() {
 
