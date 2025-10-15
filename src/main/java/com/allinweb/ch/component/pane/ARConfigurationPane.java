@@ -2,8 +2,6 @@ package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.listCell.ARCellFactory;
 import com.allinweb.ch.component.listCell.HomeBankingListCell;
-import com.allinweb.ch.component.model.BotJobLoadDTO;
-import com.allinweb.ch.component.model.HomeBankingLoadDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.*;
 import com.allinweb.ch.control.ARComponentBuilder;
@@ -11,6 +9,8 @@ import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.*;
 import com.allinweb.ch.license.LicenceVal;
 import com.allinweb.ch.license.LicenseManager;
+import com.allinweb.ch.model.BotJobLoadDTO;
+import com.allinweb.ch.model.HomeBankingLoadDTO;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import java.io.File;
@@ -583,7 +583,7 @@ public class ARConfigurationPane extends ARPane {
 
         pathEngineButton.setOnMouseClicked(e -> openChooserFor(pathEngine, modalStage, false));
         pathWebDriverButton.setOnMouseClicked(e -> openChooserFor(pathWebDriver, modalStage, false));
-        pathAppiumButton.setOnMouseClicked(e -> openChooserFor(pathAppium, modalStage, false));
+        pathAppiumButton.setOnMouseClicked(e -> openChooserFor(pathAppium, modalStage, true));
 
         browserChoiceBox.setValue(arPropertyManager.getProperty(ARPropertyEnum.BROWSER));
 

@@ -1,14 +1,14 @@
 package com.allinweb.ch.component.pane;
 
-import com.allinweb.ch.component.model.BotJobLoadDTO;
-import com.allinweb.ch.component.model.FormatOption;
-import com.allinweb.ch.component.model.InstructionLoad;
-import com.allinweb.ch.component.model.SplitDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
+import com.allinweb.ch.model.BotJobLoadDTO;
+import com.allinweb.ch.model.FormatOption;
+import com.allinweb.ch.model.InstructionLoad;
+import com.allinweb.ch.model.SplitDTO;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARPropertyEnum;

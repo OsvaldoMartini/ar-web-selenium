@@ -1,6 +1,6 @@
 package com.allinweb.ch.component.listCell;
 
-import com.allinweb.ch.component.model.HomeBankingLoadDTO;
+import com.allinweb.ch.model.HomeBankingLoadDTO;
 import javafx.application.Platform;
 import javafx.geometry.Pos;
 import javafx.scene.Node;

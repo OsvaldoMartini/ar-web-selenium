@@ -1,9 +1,9 @@
 package com.allinweb.ch.component.scene;
 
-import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.pane.ARSaveClonePane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
+import com.allinweb.ch.model.BotJobLoadDTO;
 import java.util.List;
 import javafx.application.Platform;
 import javafx.scene.Scene;

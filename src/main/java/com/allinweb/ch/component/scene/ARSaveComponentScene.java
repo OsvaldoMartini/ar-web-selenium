@@ -1,9 +1,9 @@
 package com.allinweb.ch.component.scene;
 
-import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.pane.ARSaveComponentPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
+import com.allinweb.ch.model.BlockDetailsDTO;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.stage.Modality;

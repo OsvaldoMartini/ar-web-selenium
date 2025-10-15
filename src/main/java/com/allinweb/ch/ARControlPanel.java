@@ -139,7 +139,7 @@ public class ARControlPanel extends Application {
     private static void initializeServers() {
         arWebSocketServerIP = ARWebSocketServerIP.getInstance();
         arWebSocketServer = ARWebSocketServer.getInstance();
-        performDataBase.callSocketLists();
+        performDataBase.callSocketLists("perform-list-data");
     }
 
     private static void setLogPath() {

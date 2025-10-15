@@ -1,12 +1,12 @@
 package com.allinweb.ch.socket;
 
-import com.allinweb.ch.component.model.*;
 import com.allinweb.ch.component.scene.ARExcelFileScene;
 import com.allinweb.ch.component.scene.ARSaveComponentScene;
 import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
+import com.allinweb.ch.model.*;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
@@ -305,6 +305,17 @@ public class SimpleWebSocketServer {
             }
 
             switch (type) {
+                case "ATTACHED_DEVICE":
+                case "DISCOVERY_APP":
+                case "SCANNER_APP":
+                    if (sessionIdToSend.equals("scannerGridMobile")) {
+                        splitDTO.setOperationId(type);
+                        String jsonData = gson.toJson(splitDTO);
+                        webSocketSessionManager.sendMessageJson(
+                                homeBankingId, "mobile-perform-bot-job", jsonData, type);
+                    }
+                    alreadySentMgsSocket = true;
+                    break;
                 case "CLOSE_BROWSER":
                     if (sessionIdToSend.equals("scanner-element-pane")) {
                         splitDTO.setOperationId("closeBrowser");

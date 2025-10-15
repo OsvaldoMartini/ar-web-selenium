@@ -1,8 +1,5 @@
 package com.allinweb.ch.component.pane;
 
-import com.allinweb.ch.component.model.BotJobLoadDTO;
-import com.allinweb.ch.component.model.HomeBankingLoadDTO;
-import com.allinweb.ch.component.model.HomeUrlDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
 import com.allinweb.ch.control.ARComponentBuilder;
@@ -12,6 +9,9 @@ import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.license.LicenceVal;
 import com.allinweb.ch.license.LicenseManager;
+import com.allinweb.ch.model.BotJobLoadDTO;
+import com.allinweb.ch.model.HomeBankingLoadDTO;
+import com.allinweb.ch.model.HomeUrlDTO;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import java.util.List;

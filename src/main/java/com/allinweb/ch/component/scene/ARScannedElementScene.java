@@ -1,12 +1,12 @@
 package com.allinweb.ch.component.scene;
 
-import com.allinweb.ch.component.model.*;
 import com.allinweb.ch.component.pane.ARNewCommandPane;
 import com.allinweb.ch.component.pane.ARScannedElementPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.*;
+import com.allinweb.ch.model.*;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARPropertyEnum;
@@ -676,7 +676,8 @@ public class ARScannedElementScene extends ARScene {
                                     + performDataBase.getIdsInstrucAfter().size(),
                             0);
 
-                    sendStatusButton();
+                    sendStatusButton("scannerGrid", "activate-insert-all", "Insert All Elements button activated");
+
                     //                    updateBotJobTasks();
 
                     return;
@@ -693,31 +694,27 @@ public class ARScannedElementScene extends ARScene {
                 }
 
                 updateBotJobTasks(this.currentBotJob.getId());
-                sendStatusButton();
+                sendStatusButton("scannerGrid", "activate-insert-all", "Insert All Elements button activated");
 
                 if (errorMessage != null) {
                     performMessage.errorMessageOperationFailed(errorMessage);
                 }
             }
         } else {
-            sendStatusButton();
+            sendStatusButton("scannerGrid", "activate-insert-all", "Insert All Elements button activated");
         }
     }
 
-    private void sendStatusButton() {
+    private void sendStatusButton(String sessionId, String operationId, String message) {
         WebSocketSignal webSockteSocketSignal = WebSocketSignal.builder()
-                .operationId("activate-insert-all")
-                .sessionId("scannerGrid")
-                .message("Insert All Elements button activated")
+                .sessionId(sessionId)
+                .operationId(operationId)
+                .message(message)
                 .build();
 
         String jsonData = gson.toJson(webSockteSocketSignal);
 
-        webSocketSessionManager.sendMessageJson(
-                currentBotJob.getHomeBankingId(),
-                "scannerGrid", // + currentBotJobId,
-                jsonData,
-                "activate-insert-all");
+        webSocketSessionManager.sendMessageJson(currentBotJob.getHomeBankingId(), sessionId, jsonData, operationId);
     }
 
     public TargetElement extractPickClone(ElementDTO elementDTO) {

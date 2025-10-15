@@ -1,6 +1,6 @@
 package com.allinweb.ch.facade;
 
-import com.allinweb.ch.component.model.*;
+import com.allinweb.ch.model.*;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import java.io.File;
@@ -7031,7 +7031,7 @@ public class PerformDataBase {
         return errorMessage;
     }
 
-    public void callSocketLists() {
-        performLists.initialize("perform-list-data");
+    public void callSocketLists(String sessionId) {
+        performLists.initialize(sessionId);
     }
 }

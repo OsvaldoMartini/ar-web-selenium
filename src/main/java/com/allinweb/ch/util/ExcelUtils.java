@@ -1,13 +1,13 @@
 package com.allinweb.ch.util;
 
-import com.allinweb.ch.component.model.BlockLoadDTO;
-import com.allinweb.ch.component.model.BotJobLoadDTO;
-import com.allinweb.ch.component.model.InstructionLoad;
 import com.allinweb.ch.component.scene.ARAlertScene;
 import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
+import com.allinweb.ch.model.BlockLoadDTO;
+import com.allinweb.ch.model.BotJobLoadDTO;
+import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.readersAndWriters.ExcelReader;
 import com.google.common.base.Strings;
 import java.awt.*;
