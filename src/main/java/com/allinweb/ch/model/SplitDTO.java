@@ -31,6 +31,8 @@ public class SplitDTO {
     private Integer parentBlockId;
 
     private String exportFile;
+    private String appQueryApp;
+    private String appQueryPackage;
 
     // Optional fields for SplitDTO
     private ElementDTO[] elementDetails;

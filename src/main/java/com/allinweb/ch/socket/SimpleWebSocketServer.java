@@ -103,19 +103,43 @@ public class SimpleWebSocketServer {
         try {
             // Parse the incoming message (assuming JSON format)
             JsonObject jsonObjMSG = JsonParser.parseString(message).getAsJsonObject();
+
             homeBankingId = jsonObjMSG.has("homeBankingId")
                     ? Integer.parseInt(jsonObjMSG.get("homeBankingId").getAsString())
                     : -1;
 
+            // 1) read top-level type (if any)
             type = jsonObjMSG.has("type") ? jsonObjMSG.get("type").getAsString() : "unknown";
+
+            // 2) if still unknown, try to read "type" from inside body (which may be a stringified JSON)
+            if ("unknown".equals(type) && jsonObjMSG.has("body")) {
+                try {
+                    var bodyEl = jsonObjMSG.get("body");
+                    JsonObject bodyObj = null;
+
+                    if (bodyEl.isJsonPrimitive() && bodyEl.getAsJsonPrimitive().isString()) {
+                        // body is a JSON string -> parse it
+                        bodyObj = JsonParser.parseString(bodyEl.getAsString()).getAsJsonObject();
+                    } else if (bodyEl.isJsonObject()) {
+                        // body already an object
+                        bodyObj = bodyEl.getAsJsonObject();
+                    }
+
+                    if (bodyObj != null && bodyObj.has("type")) {
+                        type = bodyObj.get("type").getAsString();
+                    }
+                } catch (Exception ignore) {
+                    // leave type as "unknown"
+                }
+            }
+
             String sessionId =
                     jsonObjMSG.has("sessionId") ? jsonObjMSG.get("sessionId").getAsString() : "unknown";
 
             // After Decoding
             if (type == null || type.trim().isEmpty() || type.contains("CONNECT") || type.contains("ping")) {
                 // Ignore null or empty messages
-                type = type.replaceAll("ping-", "");
-                // log.info("Active : " + type);
+                type = (type == null) ? "unknown" : type.replaceAll("ping-", "");
                 return;
             }
 
@@ -246,9 +270,9 @@ public class SimpleWebSocketServer {
         List<UpdatedRow> updatedRows =
                 splitDTO.getUpdatedRows() != null ? splitDTO.getUpdatedRows() : new ArrayList<>();
 
-        String instrTable = null;
-        String blockTable = null;
-        String variableTable = null;
+        String instrTable = "instruction";
+        String blockTable = "block";
+        String variableTable = "variable";
         String updteBlocks = "";
         String updateAction = null;
 
@@ -258,6 +282,7 @@ public class SimpleWebSocketServer {
             if (sessionIdToSend.matches(".*botJobTasks.*")
                     || sessionIdToSend.matches(".*scannerTool.*")
                     || sessionIdToSend.matches(".*scannerGrid.*")
+                    || sessionIdToSend.matches(".*mobileScannerGrid.*")
                     || sessionIdToSend.matches(".*scanner-element-pane.*")) {
                 instrTable = "instruction";
                 blockTable = "block";
@@ -305,14 +330,38 @@ public class SimpleWebSocketServer {
             }
 
             switch (type) {
-                case "ATTACHED_DEVICE":
+                case "ATTACHED_DEVICE": //  DATA CONTROL FOR THE MOBILE mobile-perform-list
                 case "DISCOVERY_APP":
                 case "SCANNER_APP":
-                    if (sessionIdToSend.equals("scannerGridMobile")) {
+                    if (sessionIdToSend.equals("mobileScannerGrid")) {
                         splitDTO.setOperationId(type);
                         String jsonData = gson.toJson(splitDTO);
                         webSocketSessionManager.sendMessageJson(
                                 homeBankingId, "mobile-perform-bot-job", jsonData, type);
+                    }
+                    alreadySentMgsSocket = true;
+                    break;
+                case "REACTIVATE_BUTTONS":
+                    if (sessionIdToSend.equals("mobile-perform-list")) {
+                        // Convert your JsonObject to a proper JSON string
+                        String jsonText = gson.toJson(jsonEntry);
+                        sendStatusButton("mobileScannerGrid", operationId, "Insert All Elements button activated");
+                    }
+                    alreadySentMgsSocket = true;
+                    break;
+
+                case "MOBILE_LOAD_JOBS": //  DATA CONTROL FOR THE MOBILE mobile-perform-list
+                    if (sessionIdToSend.equals("mobile-perform-list")) {
+                        splitDTO.setOperationId("botJobList");
+
+                        errorMessage = performDataBase.loadQuickBotJobs();
+                        if (errorMessage == null) {
+                            List<BotJobLoadDTO> fetched = Optional.ofNullable(performLists.getQuickBotJobs())
+                                    .orElse(Collections.emptyList());
+                            String jsonData = gson.toJson(fetched);
+                            webSocketSessionManager.sendMessageJson(
+                                    homeBankingId, "mobileScannerGrid", jsonData, "botJobList");
+                        }
                     }
                     alreadySentMgsSocket = true;
                     break;
@@ -1223,17 +1272,36 @@ public class SimpleWebSocketServer {
 
     private SplitDTO parseSplitDTO(JsonObject jsonEntry) {
         if (jsonEntry == null || jsonEntry.isEmpty()) {
-
             log.warn("parseSplitDTO called with null or empty JSON object");
             return null;
         }
 
         try {
-            return gson.fromJson(jsonEntry, SplitDTO.class);
-        } catch (Exception error) {
+            // 🔹 Step 1: If there's a "body" key, extract its string and parse it as JSON
+            if (jsonEntry.has("body")) {
+                String bodyStr = jsonEntry.get("body").getAsString();
+                JsonObject inner = gson.fromJson(bodyStr, JsonObject.class);
+                return gson.fromJson(inner, SplitDTO.class);
+            }
 
+            // 🔹 Step 2: Otherwise, parse the current object directly
+            return gson.fromJson(jsonEntry, SplitDTO.class);
+
+        } catch (Exception error) {
             log.error("Cannot parse SplitDTO: " + error.getMessage() + " | JSON: " + jsonEntry);
+            return null;
         }
-        return null;
+    }
+
+    private void sendStatusButton(String sessionId, String operationId, String message) {
+        WebSocketSignal webSockteSocketSignal = WebSocketSignal.builder()
+                .sessionId(sessionId)
+                .operationId(operationId)
+                .message(message)
+                .build();
+
+        String jsonData = gson.toJson(webSockteSocketSignal);
+
+        webSocketSessionManager.sendMessageJson(-9999, sessionId, jsonData, operationId);
     }
 }
