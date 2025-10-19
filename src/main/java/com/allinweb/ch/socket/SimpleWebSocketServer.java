@@ -352,7 +352,7 @@ public class SimpleWebSocketServer {
                     alreadySentMgsSocket = true;
                     break;
                 case "REACTIVATE_BUTTONS":
-                    if (sessionIdToSend.equals("mobile-perform-list")) {
+                    if (sessionIdToSend.equals("mobileScannerGrid")) {
                         // Convert your JsonObject to a proper JSON string
                         sendStatusButton("mobileScannerGrid", operationId, "Insert All Elements button activated");
                     }
@@ -415,6 +415,29 @@ public class SimpleWebSocketServer {
                                 "attributeValue");
                         performMessage.outputJsonElementDTO(
                                 splitDTO.getElementDetails(), excludeList, "AI-ElementDTO", jsonPath);
+                    } else if (sessionIdToSend.equals("mobileScannerGrid")) {
+                        String jsonData = gson.toJson(splitDTO);
+                        webSocketSessionManager.sendMessageJson(homeBankingId, "mobileScannerGrid", jsonData, "addPickOne");
+
+                        List<String> excludeList = List.of("optional", "blockMarked", "editMode");
+                        String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+                        performMessage.outputJsonElementDTO(
+                                splitDTO.getElementDetails(), excludeList, "elementDTO", jsonPath);
+                        excludeList = List.of(
+                                "optional",
+                                "blockMarked",
+                                "editMode",
+                                "id",
+                                "attributeData",
+                                "typeElement",
+                                "customXPath",
+                                "shadowRoot",
+                                "nestedShadow",
+                                "searchAttributeValue",
+                                "attributeType",
+                                "attributeValue");
+                        performMessage.outputJsonElementDTO(
+                                splitDTO.getElementDetails(), excludeList, "AI-ElementDTO", jsonPath);
                     }
                     alreadySentMgsSocket = true;
                     break;
@@ -424,7 +447,12 @@ public class SimpleWebSocketServer {
                 case "DETAILS_ELEMENT_DTO":
                 case "TEST_CLICK_DTO":
                 case "TEST_INPUT_DTO":
-                    if (splitDTO.getElementDetails() != null && splitDTO.getElementDetails().length > 0) {
+                    if (sessionIdToSend.equals("mobileScannerGrid")) {
+                        splitDTO.setOperationId(type);
+                        String jsonData = gson.toJson(splitDTO);
+                        webSocketSessionManager.sendMessageJson(
+                                homeBankingId, "mobile-perform-bot-job", jsonData, type);
+                    } else if (splitDTO.getElementDetails() != null && splitDTO.getElementDetails().length > 0) {
                         webSocketSessionManager.sendMessageJson(
                                 "scanner-element-pane", gson.toJson(splitDTO)); // Sending as details
                     }
