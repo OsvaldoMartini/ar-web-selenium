@@ -330,6 +330,16 @@ public class SimpleWebSocketServer {
             }
 
             switch (type) {
+                case "LAUNCH_BOT_JOB_TEST":
+                    if (sessionIdToSend.equals("mobileScannerGrid")) {
+                        splitDTO.setOperationId(type);
+                        String jsonData = gson.toJson(splitDTO);
+                        webSocketSessionManager.sendMessageJson(
+                                homeBankingId, "mobile-perform-bot-job", jsonData, type);
+                    }
+                    sendStatusButton("mobileScannerGrid", "activate-running-bot-job", "Launch Bot Job button activated");
+                    alreadySentMgsSocket = true;
+                    break;
                 case "ATTACHED_DEVICE": //  DATA CONTROL FOR THE MOBILE mobile-perform-list
                 case "DISCOVERY_APP":
                 case "SCANNER_APP":
@@ -344,7 +354,6 @@ public class SimpleWebSocketServer {
                 case "REACTIVATE_BUTTONS":
                     if (sessionIdToSend.equals("mobile-perform-list")) {
                         // Convert your JsonObject to a proper JSON string
-                        String jsonText = gson.toJson(jsonEntry);
                         sendStatusButton("mobileScannerGrid", operationId, "Insert All Elements button activated");
                     }
                     alreadySentMgsSocket = true;
