@@ -66,6 +66,9 @@ public class TargetElementHelper {
         }
 
         // Save references for different coordinate strategies
+        // 3 Different Coordinates // Original from JavaScript  // WebDriver Selenium ElementFound
+        // FallBack React Computed
+        // TO DO:   KEEP THE ORIGINALS  FROM ANDROID
         performActions.defineSavedReferenced(targetLocal);
 
         // Define tag name/title
