@@ -91,30 +91,44 @@ public class SplitDTO {
         List<ReferenceLoadDTO> refs = instruction.getReferenceLoadDTOList();
         if (refs == null || refs.isEmpty()) return;
 
-        // collect all attributes whose referenceType starts with "AttrData:"
         List<AttributeData> attributes = new ArrayList<>();
+        String attribId = null;
+        String attribName = null;
+
+        // Collect attributes and identify "id"/"name" special cases
         for (ReferenceLoadDTO ref : refs) {
             if (ref == null || ref.getReferenceType() == null || ref.getValue() == null) continue;
-            if (ref.getReferenceType().startsWith(ATTR_PREFIX)) {
-                String name =
-                        ref.getReferenceType().substring(ATTR_PREFIX.length()).trim();
-                attributes.add(new AttributeData(name, ref.getValue()));
+            String refType = ref.getReferenceType().trim();
+
+            if (refType.startsWith(ATTR_PREFIX)) {
+                String name = refType.substring(ATTR_PREFIX.length()).trim();
+                String value = ref.getValue();
+
+                // Capture special identifiers
+                if (name.equalsIgnoreCase("id")) {
+                    attribId = value;
+                } else if (name.equalsIgnoreCase("name")) {
+                    attribName = value;
+                }
+
+                attributes.add(new AttributeData(name, value));
             }
         }
 
-        if (attributes.isEmpty()) return;
+        if (attributes.isEmpty() && attribId == null && attribName == null) return;
 
-        // ensure elementDetails exists; create if missing
+        // Ensure elementDetails exists
         ElementDTO[] elements = splitDTO.getElementDetails();
         if (elements == null || elements.length == 0) {
             splitDTO.setElementDetails(new ElementDTO[] {new ElementDTO()});
             elements = splitDTO.getElementDetails();
         }
 
-        // assign or append attributes to each element
+        // Assign data
         for (ElementDTO el : elements) {
             if (el == null) continue;
 
+            // Append or replace attributeData[]
             List<AttributeData> current = new ArrayList<>();
             if (el.getAttributeData() != null) {
                 for (AttributeData a : el.getAttributeData()) {
@@ -123,6 +137,10 @@ public class SplitDTO {
             }
             current.addAll(attributes);
             el.setAttributeData(current.toArray(new AttributeData[0]));
+
+            // Set special fields
+            if (attribId != null) el.setAttribId(attribId);
+            if (attribName != null) el.setAttribName(attribName);
         }
     }
 }

@@ -623,13 +623,7 @@ public class ARViewBotJobPane extends ARPane {
 
     public void initUIBehaviour() {
         refreshEnvsButton.setOnAction(e -> {
-            // Reload from performLists after reloading from DB
-            performDBEngine.loadHomeUrls(null);
-
-            // If homeURLChoiceBox was initialized, refresh its items
-            if (homeURLChoiceBox != null) {
-                populateHomeUrlChoiceBox(selectedBotJob.getHomeBankingId(), selectedBotJob.getHomeUrlId());
-            }
+            reloadEnvs();
         });
         homeURLChoiceBox.setConverter(new StringConverter<>() {
             @Override
@@ -705,19 +699,24 @@ public class ARViewBotJobPane extends ARPane {
         this.editBotJobButton.setOnMouseClicked((e) -> {
             this.isEditingBotJob.set(this.isEditingBotJob.not().getValue());
             saveBotJobButton.setDisable(this.isEditingBotJob.not().getValue());
+            reloadEnvs();
         });
         saveBotJobButton.setOnMouseClicked((e) -> {
             this.isEditingBotJob.set(false);
             this.isEditingBotJob.set(false);
             saveBotJobButton.setDisable(true);
 
+            String rawName = nameFileOnWindows(botJobNameTextField.getText().trim());
+
+            botJobNameTextField.setText(rawName);
+
             if (homeURLChoiceBox.getValue() != null
                     && homeURLChoiceBox.getValue().getId() > 0) {
                 ErrorMessage errorMessage = performDataBase.updateBotJobDetails(
                         selectedBotJob.getId(),
                         homeURLChoiceBox.getValue().getId(),
-                        botJobNameTextField.getText(),
-                        botJobDescriptionTextField.getText());
+                        botJobNameTextField.getText().trim(),
+                        botJobDescriptionTextField.getText().trim());
 
                 if (errorMessage == null) {
 
@@ -742,13 +741,17 @@ public class ARViewBotJobPane extends ARPane {
                             null,
                             0);
                 } else {
+
+                    if (errorMessage.getErrorMessage().contains("unique constraint")) {
+                        errorMessage.setErrorMessage("Verify existents name for: " + botJobNameTextField.getText());
+                    }
                     performMessage.showCustomModalDialogDragWin11(
                             "Update Bot Job Details ❌",
                             "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to update Bot Job!</span>",
                             "<span style='color: #1565C0; font-weight: bold;'>There was an error while saving the Bot Job details.</span>",
                             "<span style='color: #6A1B9A; font-weight: bold;'>Bot Job:</span> "
                                     + botJobNameTextField.getText(),
-                            "<span style='color: #E65100; font-weight: bold;'>💡 Tip:</span> Please check the input values and try again.",
+                            "<span style='font-style: italic;'>Details: " + botJobNameTextField.getText() + "</span>",
                             false,
                             "OK",
                             null,
@@ -1029,6 +1032,16 @@ public class ARViewBotJobPane extends ARPane {
             }
             isComponentBoxVisible = !isComponentBoxVisible;
         });
+    }
+
+    private void reloadEnvs() {
+        // Reload from performLists after reloading from DB
+        performDBEngine.loadHomeUrls(null);
+
+        // If homeURLChoiceBox was initialized, refresh its items
+        if (homeURLChoiceBox != null) {
+            populateHomeUrlChoiceBox(selectedBotJob.getHomeBankingId(), selectedBotJob.getHomeUrlId());
+        }
     }
 
     public void createBatFile(String excelFilePath, String enginePath, String configPath) {
@@ -1425,5 +1438,20 @@ public class ARViewBotJobPane extends ARPane {
                 instance = null; // optional reset for singleton
             });
         }
+    }
+
+    private String nameFileOnWindows(String rawName) {
+        String safeFileName = rawName.replaceAll("[\\\\/:*?\"<>|]", "");
+
+        safeFileName = safeFileName.replaceAll("[\\p{Cntrl}]", "").trim();
+
+        if (safeFileName.isEmpty()) {
+            safeFileName = "default_name";
+        }
+
+        if (safeFileName.length() > 100) {
+            safeFileName = safeFileName.substring(0, 100);
+        }
+        return safeFileName;
     }
 }

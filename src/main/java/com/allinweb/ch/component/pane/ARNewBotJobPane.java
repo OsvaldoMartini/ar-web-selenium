@@ -318,26 +318,12 @@ public class ARNewBotJobPane extends ARPane {
             // Normalize/prepare name with required prefix for Android/iOS
             String rawName =
                     botJobName.getText() == null ? "" : botJobName.getText().trim();
-            String requiredPrefix = "";
-            if ("Android".equals(appType)) requiredPrefix = "Android:";
-            else if ("iOS".equals(appType)) requiredPrefix = "iOS:";
+            String projectType = "Web App";
+            if ("Android".equals(appType)) projectType = "Android";
+            else if ("iOS".equals(appType)) projectType = "iOS";
 
-            // For Android/iOS, enforce presence of the prefix (do not change Web behavior)
-            String nameWithoutPrefix = rawName;
-            if (!requiredPrefix.isEmpty()) {
-                if (rawName.startsWith(requiredPrefix)) {
-                    nameWithoutPrefix =
-                            rawName.substring(requiredPrefix.length()).trim();
-                } else {
-                    // Will add prefix later, but for validation we still check the meaningful part
-                    nameWithoutPrefix = rawName; // no prefix present yet
-                }
-            }
-
-            // Validation: treat "Android:" or "iOS:" alone as empty
-            boolean isMeaningfulEmpty = Strings.isNullOrEmpty(requiredPrefix) // Web -> normal empty check on rawName
-                    ? Strings.isNullOrEmpty(rawName)
-                    : Strings.isNullOrEmpty(nameWithoutPrefix);
+            // Validation: simply check if rawName is empty or null
+            boolean isMeaningfulEmpty = Strings.isNullOrEmpty(rawName);
 
             if (isMeaningfulEmpty) {
                 performMessage.errorMessage(
@@ -350,22 +336,9 @@ public class ARNewBotJobPane extends ARPane {
                 return;
             }
 
-            // Build the final name (only prefix for Android/iOS; Web unchanged)
-            String finalName;
-            if (!requiredPrefix.isEmpty()) {
-                // Ensure exactly one prefix and a space before the meaningful part
-                if (rawName.startsWith(requiredPrefix)) {
-                    finalName = (requiredPrefix + " " + nameWithoutPrefix).trim();
-                } else {
-                    finalName = requiredPrefix + " " + rawName;
-                }
-            } else {
-                finalName = rawName; // Web -> unchanged
-            }
-
             // From here on, use finalName instead of botJobName.getText().trim()
 
-            if (Strings.isNullOrEmpty(finalName)) {
+            if (Strings.isNullOrEmpty(rawName)) {
                 performMessage.errorMessage(
                         "Missing Bot Job Name",
                         "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>The Bot Job Name cannot be empty.</span>",
@@ -376,14 +349,15 @@ public class ARNewBotJobPane extends ARPane {
                 return;
             }
 
+            String finalRawName = rawName;
             boolean existName = performLists.getListBotJob().stream()
-                    .anyMatch(f -> f.getName().equalsIgnoreCase(finalName));
+                    .anyMatch(f -> f.getName().equalsIgnoreCase(finalRawName));
 
             if (existName) {
                 performMessage.errorMessage(
                         "Bot Job Name Already Exists",
                         "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>The name you have entered is already in use.</span>",
-                        "<span style='color: #000080; font-weight: bold;'>" + finalName + "</span>",
+                        "<span style='color: #000080; font-weight: bold;'>" + rawName + "</span>",
                         null,
                         null,
                         0);
@@ -419,8 +393,11 @@ public class ARNewBotJobPane extends ARPane {
                 return;
             }
 
+            rawName = nameFileOnWindows(rawName);
+
             BotJobLoadDTO createdBotJob = new BotJobLoadDTO();
-            createdBotJob.setName(finalName);
+            createdBotJob.setName(rawName);
+            createdBotJob.setPriority(projectType);
             createdBotJob.setDescription(botJobDescription.getText().trim());
             createdBotJob.setHomeBankingId(homeURLChoiceBox.getValue().getHomeBankingId());
             createdBotJob.setHomeUrlId(homeURLChoiceBox.getValue().getId());
@@ -458,6 +435,21 @@ public class ARNewBotJobPane extends ARPane {
                         0);
             }
         });
+    }
+
+    private String nameFileOnWindows(String rawName) {
+        String safeFileName = rawName.replaceAll("[\\\\/:*?\"<>|]", "");
+
+        safeFileName = safeFileName.replaceAll("[\\p{Cntrl}]", "").trim();
+
+        if (safeFileName.isEmpty()) {
+            safeFileName = "default_name";
+        }
+
+        if (safeFileName.length() > 100) {
+            safeFileName = safeFileName.substring(0, 100);
+        }
+        return safeFileName;
     }
 
     private boolean checkLicense() {

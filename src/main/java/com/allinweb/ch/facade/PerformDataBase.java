@@ -903,7 +903,7 @@ public class PerformDataBase {
     public ErrorMessage createNewBotJob(BotJobLoadDTO createdBotJob) {
         String tableName = "bot_job";
         String insertSQL =
-                "INSERT INTO bot_job (name, description, home_banking_id, home_url_id, active) VALUES (?, ?, ?, ?, ?)";
+                "INSERT INTO bot_job (name, description, priority, home_banking_id, home_url_id, active) VALUES (?, ?, ?, ?, ?, ?)";
 
         try (Connection conn = getConnection();
                 Statement idStmtBefore = conn.createStatement();
@@ -921,9 +921,10 @@ public class PerformDataBase {
             // Step 2: Insert new bot job
             pstmt.setString(1, createdBotJob.getName());
             pstmt.setString(2, createdBotJob.getName() + " description");
-            pstmt.setInt(3, createdBotJob.getHomeBankingId());
-            pstmt.setInt(4, createdBotJob.getHomeUrlId());
-            pstmt.setInt(5, 1); // active = true
+            pstmt.setString(3, createdBotJob.getPriority());
+            pstmt.setInt(4, createdBotJob.getHomeBankingId());
+            pstmt.setInt(5, createdBotJob.getHomeUrlId());
+            pstmt.setInt(6, 1); // active = true
 
             pstmt.executeUpdate();
 
@@ -1795,7 +1796,7 @@ public class PerformDataBase {
         String wherePart = "";
         if (this.mobileDevices) {
             // Case-insensitive prefix match for "Android:" or "iOS:"
-            wherePart = "WHERE (UPPER(bot.name) LIKE 'ANDROID:%' OR UPPER(bot.name) LIKE 'IOS:%') ";
+            wherePart = "WHERE (UPPER(bot.priority) LIKE 'ANDROID%' OR UPPER(bot.priority) LIKE 'IOS%') ";
         }
 
         String orderPart = "ORDER BY bot.id ASC, b.block_order_number ASC;";
@@ -1818,7 +1819,13 @@ public class PerformDataBase {
                     botJobDTO.setId(botJobId);
                     botJobDTO.setName(rs.getString("bot_job_name"));
                     botJobDTO.setDescription(rs.getString("bot_job_description"));
-                    botJobDTO.setPriority(rs.getString("bot_job_priority"));
+
+                    String priority = rs.getString("bot_job_priority");
+                    if (priority == null || priority.trim().isEmpty()) {
+                        priority = "Web App";
+                    }
+
+                    botJobDTO.setPriority(priority);
                     botJobDTO.setHomeBankingId(rs.getInt("home_banking_id"));
                     botJobDTO.setHomeUrlId(rs.getInt("home_url_id"));
                     botJobDTO.setActive(rs.getBoolean("active"));

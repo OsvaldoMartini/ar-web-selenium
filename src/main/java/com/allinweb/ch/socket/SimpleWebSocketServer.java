@@ -451,7 +451,47 @@ public class SimpleWebSocketServer {
                 case "DETAILS_ELEMENT_DTO":
                 case "TEST_CLICK_DTO":
                 case "TEST_INPUT_DTO": {
+                    if (!performLists.getListBotJob().isEmpty() && splitDTO.getBotJobId() != null) {
+                        performLists.getListBotJob().stream()
+                                .filter(j -> java.util.Objects.equals(j.getId(), splitDTO.getBotJobId()))
+                                .findFirst()
+                                .ifPresent(j -> {
+                                    splitDTO.setBotJobName(j.getName());
+                                    splitDTO.setProjectType(j.getPriority());
+                                });
+                    }
+                    if (splitDTO.getProjectType() != null
+                            && (splitDTO.getProjectType().equalsIgnoreCase("Android")
+                                    || splitDTO.getProjectType().equalsIgnoreCase("iOS"))) {
+                        sessionIdToSend = "mobileScannerGrid";
+                        splitDTO.setSessionId(sessionIdToSend);
+                    }
+
                     if ("mobileScannerGrid".equals(sessionIdToSend)) {
+
+                        // Safely extract the first element ID (if present)
+                        Integer elementId = Optional.ofNullable(splitDTO.getElementDetails())
+                                .filter(arr -> arr.length > 0)
+                                .map(arr -> arr[0])
+                                .map(ElementDTO::getId)
+                                .orElse(null);
+
+                        // Find matching instruction by variableId
+                        InstructionLoad matchingInstruction =
+                                Optional.ofNullable(performLists.getListInstruction())
+                                        .orElse(Collections.emptyList())
+                                        .stream()
+                                        .filter(i -> Objects.equals(i.getId(), elementId))
+                                        .findFirst()
+                                        .orElse(null);
+
+                        // 2) Apply only non-empty values into splitDTO and elementDetails[0]
+                        if (matchingInstruction != null) {
+                            // >>> Add AttrData:* references into elementDetails.attributesData
+                            SplitDTO.applyAttrDataFromReferences(splitDTO, matchingInstruction);
+
+                            applyInstructionToSplit(splitDTO, matchingInstruction);
+                        }
 
                         splitDTO.setOperationId(type);
                         String jsonData = gson.toJson(splitDTO);
@@ -1361,5 +1401,75 @@ public class SimpleWebSocketServer {
         String jsonData = gson.toJson(webSockteSocketSignal);
 
         webSocketSessionManager.sendMessageJson(-9999, sessionId, jsonData, operationId);
+    }
+
+    // ---------- helpers ----------
+
+    private static boolean hasText(String s) {
+        return s != null && !s.trim().isEmpty();
+    }
+
+    private static ElementDTO ensureFirstElement(SplitDTO splitDTO) {
+        ElementDTO[] arr = splitDTO.getElementDetails();
+        if (arr == null || arr.length == 0) {
+            ElementDTO e = new ElementDTO();
+            splitDTO.setElementDetails(new ElementDTO[] {e});
+            return e;
+        }
+        return arr[0];
+    }
+
+    /**
+     * Copies only non-null / non-blank fields from InstructionLoad into SplitDTO and its first ElementDTO.
+     */
+    private static void applyInstructionToSplit(SplitDTO splitDTO, InstructionLoad src) {
+        if (splitDTO == null || src == null) return;
+
+        // --- SplitDTO (top-level) ---
+        if (src.getHomeBankingId() != null) splitDTO.setHomeBankingId(src.getHomeBankingId());
+        if (src.getBotJobId() != null) splitDTO.setBotJobId(src.getBotJobId());
+        if (hasText(src.getBotJobName())) splitDTO.setBotJobName(src.getBotJobName());
+
+        if (src.getBlockId() != null) splitDTO.setBlockId(src.getBlockId());
+        if (hasText(src.getBlockName())) splitDTO.setBlockName(src.getBlockName());
+        if (src.getBlockOrderNumber() != null) splitDTO.setBlockOrderNumber(src.getBlockOrderNumber());
+        if (src.getBlockActive() != null) splitDTO.setBlockActive(src.getBlockActive());
+
+        if (src.getId() != null) splitDTO.setInstructionId(src.getId());
+        if (hasText(src.getName())) splitDTO.setInstructionName(src.getName());
+        if (src.getInstructionOrderNumber() != null)
+            splitDTO.setInstructionOrderNumber(src.getInstructionOrderNumber());
+        if (src.getInstructionActive() != null) splitDTO.setInstructionActive(src.getInstructionActive());
+
+        if (hasText(src.getActions())) splitDTO.setActions(src.getActions());
+        if (hasText(src.getOperation())) splitDTO.setOperation(src.getOperation());
+
+        if (src.getVariableId() != null) splitDTO.setVariableId(src.getVariableId());
+        if (src.getParentId() != null) splitDTO.setParentId(src.getParentId());
+        if (src.getParentBlockId() != null) splitDTO.setParentBlockId(src.getParentBlockId());
+
+        if (hasText(src.getExportFile())) splitDTO.setExportFile(src.getExportFile());
+        // appQueryApp / appQueryPackage not present on InstructionLoad → not set here.
+
+        // --- ElementDTO (first item in array) ---
+        ElementDTO el = ensureFirstElement(splitDTO);
+
+        // Choose which ID to mirror on the element:
+        // If your ElementDTO.id represents the variable link, prefer variableId; otherwise use src.getId()
+        if (src.getVariableId() != null) el.setId(src.getVariableId());
+        else if (src.getId() != null) el.setId(src.getId());
+
+        if (hasText(src.getType())) el.setTypeElement(src.getType());
+        if (hasText(src.getTagName())) el.setTagName(src.getTagName());
+        if (hasText(src.getXpath())) el.setXPath(src.getXpath()); // Lombok: field `xPath` -> setter `setXPath`
+        if (hasText(src.getCoordinates())) el.setCoordinates(src.getCoordinates());
+        if (hasText(src.getIFrameXPath())) el.setIFrameXPath(src.getIFrameXPath());
+        if (hasText(src.getShadowHost())) el.setShadowHost(src.getShadowHost());
+        if (hasText(src.getShadowRoot())) el.setShadowRoot(src.getShadowRoot());
+        if (hasText(src.getCssSelector())) el.setCssSelector(src.getCssSelector());
+
+        // Fields without a clear mapping from InstructionLoad are left untouched:
+        // someText, attribId, attribName, attributeData, customXPath, nestedShadow,
+        // attributeValue, attributeType, searchAttributeValue.
     }
 }

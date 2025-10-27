@@ -149,6 +149,14 @@ public class TargetElementHelper {
             targetLocal.getSavedReferences().put("attributeId", elementDTO.getAttribId());
         }
 
+        if (isBotJobContext && elementDTO.getAttributeData() != null) {
+            for (AttributeData attr : elementDTO.getAttributeData()) {
+                if (attr != null && attr.getName() != null) {
+                    targetLocal.getSavedReferences().put("AttrData:" + attr.getName(), attr.getValue());
+                }
+            }
+        }
+
         // Define tag name/title
         targetLocal.setNameLabel(
                 elementDTO.getSomeText() == null
@@ -537,5 +545,75 @@ public class TargetElementHelper {
 
         // Extract the substring after the last period
         return lastSegment.substring(lastIndexOfDot + 1);
+    }
+
+    // ---------- helpers ----------
+
+    private static boolean hasText(String s) {
+        return s != null && !s.trim().isEmpty();
+    }
+
+    private static ElementDTO ensureFirstElement(SplitDTO splitDTO) {
+        ElementDTO[] arr = splitDTO.getElementDetails();
+        if (arr == null || arr.length == 0) {
+            ElementDTO e = new ElementDTO();
+            splitDTO.setElementDetails(new ElementDTO[] {e});
+            return e;
+        }
+        return arr[0];
+    }
+
+    /**
+     * Copies only non-null / non-blank fields from InstructionLoad into SplitDTO and its first ElementDTO.
+     */
+    private static void applyInstructionToSplit(SplitDTO splitDTO, InstructionLoad src) {
+        if (splitDTO == null || src == null) return;
+
+        // --- SplitDTO (top-level) ---
+        if (src.getHomeBankingId() != null) splitDTO.setHomeBankingId(src.getHomeBankingId());
+        if (src.getBotJobId() != null) splitDTO.setBotJobId(src.getBotJobId());
+        if (hasText(src.getBotJobName())) splitDTO.setBotJobName(src.getBotJobName());
+
+        if (src.getBlockId() != null) splitDTO.setBlockId(src.getBlockId());
+        if (hasText(src.getBlockName())) splitDTO.setBlockName(src.getBlockName());
+        if (src.getBlockOrderNumber() != null) splitDTO.setBlockOrderNumber(src.getBlockOrderNumber());
+        if (src.getBlockActive() != null) splitDTO.setBlockActive(src.getBlockActive());
+
+        if (src.getId() != null) splitDTO.setInstructionId(src.getId());
+        if (hasText(src.getName())) splitDTO.setInstructionName(src.getName());
+        if (src.getInstructionOrderNumber() != null)
+            splitDTO.setInstructionOrderNumber(src.getInstructionOrderNumber());
+        if (src.getInstructionActive() != null) splitDTO.setInstructionActive(src.getInstructionActive());
+
+        if (hasText(src.getActions())) splitDTO.setActions(src.getActions());
+        if (hasText(src.getOperation())) splitDTO.setOperation(src.getOperation());
+
+        if (src.getVariableId() != null) splitDTO.setVariableId(src.getVariableId());
+        if (src.getParentId() != null) splitDTO.setParentId(src.getParentId());
+        if (src.getParentBlockId() != null) splitDTO.setParentBlockId(src.getParentBlockId());
+
+        if (hasText(src.getExportFile())) splitDTO.setExportFile(src.getExportFile());
+        // appQueryApp / appQueryPackage not present on InstructionLoad → not set here.
+
+        // --- ElementDTO (first item in array) ---
+        ElementDTO el = ensureFirstElement(splitDTO);
+
+        // Choose which ID to mirror on the element:
+        // If your ElementDTO.id represents the variable link, prefer variableId; otherwise use src.getId()
+        if (src.getVariableId() != null) el.setId(src.getVariableId());
+        else if (src.getId() != null) el.setId(src.getId());
+
+        if (hasText(src.getType())) el.setTypeElement(src.getType());
+        if (hasText(src.getTagName())) el.setTagName(src.getTagName());
+        if (hasText(src.getXpath())) el.setXPath(src.getXpath()); // Lombok: field `xPath` -> setter `setXPath`
+        if (hasText(src.getCoordinates())) el.setCoordinates(src.getCoordinates());
+        if (hasText(src.getIFrameXPath())) el.setIFrameXPath(src.getIFrameXPath());
+        if (hasText(src.getShadowHost())) el.setShadowHost(src.getShadowHost());
+        if (hasText(src.getShadowRoot())) el.setShadowRoot(src.getShadowRoot());
+        if (hasText(src.getCssSelector())) el.setCssSelector(src.getCssSelector());
+
+        // Fields without a clear mapping from InstructionLoad are left untouched:
+        // someText, attribId, attribName, attributeData, customXPath, nestedShadow,
+        // attributeValue, attributeType, searchAttributeValue.
     }
 }
