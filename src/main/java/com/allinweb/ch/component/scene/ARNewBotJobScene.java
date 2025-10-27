@@ -15,7 +15,7 @@ import org.openqa.selenium.WebDriver;
 @Slf4j
 public class ARNewBotJobScene extends ARScene {
 
-    private static final Double SCENE_HEIGHT = 380D;
+    private static final Double SCENE_HEIGHT = 430D;
     private static final Double SCENE_WIDTH = 450D;
     private static final String TITLE = "New Bot Job";
     protected static volatile ARNewBotJobScene instance;

@@ -49,6 +49,13 @@ public class ARNewBotJobPane extends ARPane {
     private Button refreshEnvsButton;
     private Button insertSitesdButton;
     private ChoiceBox<HomeUrlDTO> homeURLChoiceBox;
+
+    private ToggleGroup appTypeGroup;
+    private RadioButton rbWeb;
+    private RadioButton rbAndroid;
+    private RadioButton rbIos;
+    private HBox groupOptions;
+
     private Pane mainPane;
     private boolean isEnabledLicence;
     private ARViewBotJobScene arViewBotJobScene;
@@ -162,9 +169,32 @@ public class ARNewBotJobPane extends ARPane {
                 "-fx-background-color: #E8F5E9; -fx-border-color: #ccc; -fx-border-width: 1px; -fx-border-radius: 5px;");
         homeUrlDetailsContainer.getChildren().addAll(labelHomeBanking, choiceAndRefreshBox, buttonsBox);
 
+        // App type options
+        appTypeGroup = new ToggleGroup();
+
+        rbWeb = new RadioButton("Web Apps");
+        rbWeb.setToggleGroup(appTypeGroup);
+        rbWeb.setSelected(true); // default
+
+        rbAndroid = new RadioButton("Android Apps");
+        rbAndroid.setToggleGroup(appTypeGroup);
+
+        rbIos = new RadioButton("iOS Apps");
+        rbIos.setToggleGroup(appTypeGroup);
+
+        // Optional styling
+        rbWeb.setStyle("-fx-font-size: 13;");
+        rbAndroid.setStyle("-fx-font-size: 13;");
+        rbIos.setStyle("-fx-font-size: 13;");
+
+        groupOptions = new HBox(15, rbWeb, rbAndroid, rbIos);
+        groupOptions.setAlignment(Pos.CENTER);
+        groupOptions.setPadding(new Insets(0, 0, 10, 0));
+
         VBox mainLayout = new VBox(
                 12,
                 paneTitleLabel,
+                groupOptions,
                 labelBotJobName,
                 botJobName,
                 descriptionLabel,
@@ -282,7 +312,34 @@ public class ARNewBotJobPane extends ARPane {
 
     private void createBotJob() {
         Platform.runLater(() -> {
-            if (Strings.isNullOrEmpty(botJobName.getText().trim())) {
+            // Resolve selected app type
+            String appType = getSelectedAppType(); // "Web", "Android", or "iOS"
+
+            // Normalize/prepare name with required prefix for Android/iOS
+            String rawName =
+                    botJobName.getText() == null ? "" : botJobName.getText().trim();
+            String requiredPrefix = "";
+            if ("Android".equals(appType)) requiredPrefix = "Android:";
+            else if ("iOS".equals(appType)) requiredPrefix = "iOS:";
+
+            // For Android/iOS, enforce presence of the prefix (do not change Web behavior)
+            String nameWithoutPrefix = rawName;
+            if (!requiredPrefix.isEmpty()) {
+                if (rawName.startsWith(requiredPrefix)) {
+                    nameWithoutPrefix =
+                            rawName.substring(requiredPrefix.length()).trim();
+                } else {
+                    // Will add prefix later, but for validation we still check the meaningful part
+                    nameWithoutPrefix = rawName; // no prefix present yet
+                }
+            }
+
+            // Validation: treat "Android:" or "iOS:" alone as empty
+            boolean isMeaningfulEmpty = Strings.isNullOrEmpty(requiredPrefix) // Web -> normal empty check on rawName
+                    ? Strings.isNullOrEmpty(rawName)
+                    : Strings.isNullOrEmpty(nameWithoutPrefix);
+
+            if (isMeaningfulEmpty) {
                 performMessage.errorMessage(
                         "Missing Bot Job Name",
                         "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>The Bot Job Name cannot be empty.</span>",
@@ -293,18 +350,44 @@ public class ARNewBotJobPane extends ARPane {
                 return;
             }
 
-            boolean existName = performLists.getListBotJob().stream().anyMatch(f -> f.getName()
-                    .equalsIgnoreCase(botJobName.getText().trim()));
+            // Build the final name (only prefix for Android/iOS; Web unchanged)
+            String finalName;
+            if (!requiredPrefix.isEmpty()) {
+                // Ensure exactly one prefix and a space before the meaningful part
+                if (rawName.startsWith(requiredPrefix)) {
+                    finalName = (requiredPrefix + " " + nameWithoutPrefix).trim();
+                } else {
+                    finalName = requiredPrefix + " " + rawName;
+                }
+            } else {
+                finalName = rawName; // Web -> unchanged
+            }
+
+            // From here on, use finalName instead of botJobName.getText().trim()
+
+            if (Strings.isNullOrEmpty(finalName)) {
+                performMessage.errorMessage(
+                        "Missing Bot Job Name",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>The Bot Job Name cannot be empty.</span>",
+                        "<span style='color: #000080; font-weight: bold;'>Please enter a name for the Bot Job to proceed.</span>",
+                        null,
+                        null,
+                        0);
+                return;
+            }
+
+            boolean existName = performLists.getListBotJob().stream()
+                    .anyMatch(f -> f.getName().equalsIgnoreCase(finalName));
 
             if (existName) {
                 performMessage.errorMessage(
                         "Bot Job Name Already Exists",
                         "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>The name you have entered is already in use.</span>",
-                        "<span style='color: #000080; font-weight: bold;'>"
-                                + botJobName.getText().trim() + "</span>",
+                        "<span style='color: #000080; font-weight: bold;'>" + finalName + "</span>",
                         null,
                         null,
                         0);
+
                 return;
             }
 
@@ -337,7 +420,7 @@ public class ARNewBotJobPane extends ARPane {
             }
 
             BotJobLoadDTO createdBotJob = new BotJobLoadDTO();
-            createdBotJob.setName(botJobName.getText().trim());
+            createdBotJob.setName(finalName);
             createdBotJob.setDescription(botJobDescription.getText().trim());
             createdBotJob.setHomeBankingId(homeURLChoiceBox.getValue().getHomeBankingId());
             createdBotJob.setHomeUrlId(homeURLChoiceBox.getValue().getId());
@@ -413,5 +496,12 @@ public class ARNewBotJobPane extends ARPane {
             log.error("Cannot read/validate the License path/file. Error: " + error.getMessage());
             return false;
         }
+    }
+
+    private String getSelectedAppType() {
+        Toggle t = appTypeGroup == null ? null : appTypeGroup.getSelectedToggle();
+        if (t == rbAndroid) return "Android";
+        if (t == rbIos) return "iOS";
+        return "Web"; // default
     }
 }

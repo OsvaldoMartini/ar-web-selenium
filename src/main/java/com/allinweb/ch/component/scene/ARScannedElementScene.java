@@ -1,5 +1,6 @@
 package com.allinweb.ch.component.scene;
 
+import com.allinweb.ch.component.TargetElementHelper;
 import com.allinweb.ch.component.pane.ARNewCommandPane;
 import com.allinweb.ch.component.pane.ARScannedElementPane;
 import com.allinweb.ch.component.pane.base.IARPane;
@@ -8,7 +9,6 @@ import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.*;
 import com.allinweb.ch.model.*;
 import com.allinweb.ch.socket.WebSocketSessionManager;
-import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ErrorMessage;
@@ -30,7 +30,6 @@ import javafx.stage.WindowEvent;
 import javax.websocket.*;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 
@@ -47,6 +46,7 @@ public class ARScannedElementScene extends ARScene {
     private static final PerformLists performLists = PerformLists.getInstance();
     private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
+    private static final TargetElementHelper targetElementHelper = TargetElementHelper.getInstance();
     private static final ARScannedElementPane arScannedElementPane = ARScannedElementPane.getInstance();
     private static final ARWebDriver arWebDriver = ARWebDriver.getInstance();
     private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
@@ -226,6 +226,8 @@ public class ARScannedElementScene extends ARScene {
             String sessionId =
                     jsonObjMSG.has("sessionId") ? jsonObjMSG.get("sessionId").getAsString() : "unknown";
 
+            SplitDTO splitDTO = parseSplitDTO(jsonObjMSG);
+
             // Process the message based on its type
             switch (type) {
                 case "UPDATE_BLOCKS":
@@ -299,10 +301,9 @@ public class ARScannedElementScene extends ARScene {
                 case "SEND_ALL_ELEMENTS_DTO":
                     arScannedElementPane.checkRunningProcess();
                     // Extract the "body" field from the JsonObject
-                    SplitDTO processDTO = gson.fromJson(jsonObjMSG, SplitDTO.class);
 
                     blockUpdate =
-                            processDTO.getSessionId().equals("componentTasks") ? "UPDATE_BLOCKS_COMP" : "UPDATE_BLOCKS";
+                            splitDTO.getSessionId().equals("componentTasks") ? "UPDATE_BLOCKS_COMP" : "UPDATE_BLOCKS";
 
                     if (previousBlock != null && !previousBlock.equals(blockUpdate)) {
                         arNewCommandPane.closePane();
@@ -312,26 +313,26 @@ public class ARScannedElementScene extends ARScene {
                     }
 
                     boolean isMany = "SEND_ALL_ELEMENTS_DTO".equalsIgnoreCase(type);
-                    stepsInsertManyDTO(processDTO, isMany);
+                    stepsInsertManyDTO(splitDTO, isMany);
                     //                    stepsInsertOneDTO(targetSelected);
                     break;
                 case "TEST_CLICK_DTO":
                 case "TEST_INPUT_DTO":
                     arScannedElementPane.checkRunningProcess();
                     // Extract the "body" field from the JsonObject
-                    processDTO = gson.fromJson(jsonObjMSG, SplitDTO.class);
+                    splitDTO = gson.fromJson(jsonObjMSG, SplitDTO.class);
 
                     String tableName = "instruction";
-                    whereId = processDTO.getBotJobId() != null ? processDTO.getBotJobId() : currentBotJob.getId();
-                    if (processDTO.getSessionId().equals("componentTasks")) {
+                    whereId = splitDTO.getBotJobId() != null ? splitDTO.getBotJobId() : currentBotJob.getId();
+                    if (splitDTO.getSessionId().equals("componentTasks")) {
                         tableName = "component_instruction";
-                        whereId = processDTO.getHomeBankingId() != null
-                                ? processDTO.getHomeBankingId()
+                        whereId = splitDTO.getHomeBankingId() != null
+                                ? splitDTO.getHomeBankingId()
                                 : currentBotJob.getHomeBankingId();
                     }
 
                     blockUpdate =
-                            processDTO.getSessionId().equals("componentTasks") ? "UPDATE_BLOCKS_COMP" : "UPDATE_BLOCKS";
+                            splitDTO.getSessionId().equals("componentTasks") ? "UPDATE_BLOCKS_COMP" : "UPDATE_BLOCKS";
 
                     if (previousBlock != null && !previousBlock.equals(blockUpdate)) {
                         arNewCommandPane.closePane();
@@ -340,8 +341,8 @@ public class ARScannedElementScene extends ARScene {
                         previousBlock = blockUpdate;
                     }
 
-                    if (processDTO.getOperationId() != null
-                            && processDTO.getOperationId().equalsIgnoreCase("TEST_STEP")) {
+                    if (splitDTO.getOperationId() != null
+                            && splitDTO.getOperationId().equalsIgnoreCase("TEST_STEP")) {
 
                         // I want all Instructions
                         if (tableName.equals("instruction")
@@ -356,34 +357,37 @@ public class ARScannedElementScene extends ARScene {
                         }
 
                         InstructionLoad instruction = performLists.getInstructionById(
-                                tableName, whereId, processDTO.getElementDetails()[0].getId());
+                                tableName, whereId, splitDTO.getElementDetails()[0].getId());
                         if (instruction != null && instruction.getId() != null) {
                             ElementDTO elementDTO = performActions.buildElementDTO(instruction);
-                            arScannedElementPane.targetSelected = extractPickClone(elementDTO);
+                            targetElementHelper.initialize(performActions, arScannedElementPane);
+                            arScannedElementPane.targetSelected = targetElementHelper.extractPickClone(elementDTO);
                             arScannedElementPane.itPrintsElementDTO();
                             arScannedElementPane.testingActions(
-                                    arScannedElementPane.targetSelected, processDTO.getType());
+                                    arScannedElementPane.targetSelected, splitDTO.getType());
                         } else {
+                            targetElementHelper.initialize(performActions, arScannedElementPane);
                             arScannedElementPane.targetSelected =
-                                    extractPickClone(processDTO.getElementDetails()[0]);
+                                    targetElementHelper.extractPickClone(splitDTO.getElementDetails()[0]);
                             arScannedElementPane.itPrintsElementDTO();
                             arScannedElementPane.testingActions(
-                                    arScannedElementPane.targetSelected, processDTO.getType());
+                                    arScannedElementPane.targetSelected, splitDTO.getType());
                         }
                     } else {
+                        targetElementHelper.initialize(performActions, arScannedElementPane);
                         arScannedElementPane.targetSelected =
-                                extractPickClone(processDTO.getElementDetails()[0]);
+                                targetElementHelper.extractPickClone(splitDTO.getElementDetails()[0]);
                         arScannedElementPane.itPrintsElementDTO();
-                        arScannedElementPane.testingActions(arScannedElementPane.targetSelected, processDTO.getType());
+                        arScannedElementPane.testingActions(arScannedElementPane.targetSelected, splitDTO.getType());
                     }
                     break;
                 case "DEL_ELEMENT_DTO":
                 case "DETAILS_ELEMENT_DTO":
                     // Extract the "body" field from the JsonObject
-                    processDTO = gson.fromJson(jsonObjMSG, SplitDTO.class);
+                    splitDTO = gson.fromJson(jsonObjMSG, SplitDTO.class);
 
                     blockUpdate =
-                            processDTO.getSessionId().equals("componentTasks") ? "UPDATE_BLOCKS_COMP" : "UPDATE_BLOCKS";
+                            splitDTO.getSessionId().equals("componentTasks") ? "UPDATE_BLOCKS_COMP" : "UPDATE_BLOCKS";
 
                     if (previousBlock != null && !previousBlock.equals(blockUpdate)) {
                         arNewCommandPane.closePane();
@@ -392,8 +396,9 @@ public class ARScannedElementScene extends ARScene {
                         previousBlock = blockUpdate;
                     }
 
+                    targetElementHelper.initialize(performActions, arScannedElementPane);
                     arScannedElementPane.targetSelected =
-                            extractPickClone(processDTO.getElementDetails()[0]);
+                            targetElementHelper.extractPickClone(splitDTO.getElementDetails()[0]);
                     arScannedElementPane.itPrintsElementDTO();
                     break;
                 default:
@@ -612,8 +617,10 @@ public class ARScannedElementScene extends ARScene {
             int nextOrder = instruc.size() + 1;
 
             instructionList.clear();
+            targetElementHelper.initialize(performActions, arScannedElementPane);
+
             for (ElementDTO elementDTO : processDTO.getElementDetails()) {
-                TargetElement targetEach = extractPickClone(elementDTO);
+                TargetElement targetEach = targetElementHelper.extractPickClone(elementDTO);
 
                 WebElement elementFound = performActions.findWebElement(targetEach);
                 if (targetEach.getElement() == null && elementFound != null) {
@@ -717,146 +724,6 @@ public class ARScannedElementScene extends ARScene {
         webSocketSessionManager.sendMessageJson(currentBotJob.getHomeBankingId(), sessionId, jsonData, operationId);
     }
 
-    public TargetElement extractPickClone(ElementDTO elementDTO) {
-
-        arScannedElementPane.xpathTextPrevious = elementDTO.getXPath();
-
-        TargetElement targetLocal = performActions.defineSearchReturn(elementDTO, null);
-
-        WebElement elementFound = performActions.findWebElement(targetLocal);
-        if (targetLocal.getElement() == null && elementFound != null) {
-            targetLocal.setElement(elementFound);
-        }
-        // 3 Different Coordinates // Original from JavaScript  // WebDriver Selenium ElementFound
-        // FallBack React Computed
-        performActions.defineSavedReferenced(targetLocal);
-
-        targetLocal = performActions.defineNameTitles(targetLocal);
-
-        // First  Search for ShadowRoot
-        if (Strings.isNullOrEmpty(targetLocal.getShadowHost()) && Strings.isNullOrEmpty(targetLocal.getCssSelector())) {
-
-            TargetElement targetValidated = checkValidateSearchPriorities(targetLocal);
-
-            if (targetValidated.getElement() == null) {
-                log.error(
-                        "I Cannot define this element. Try to get it again -> \"HOVER PICK  ELEMENT\" or \"PICK ONE \"");
-                performMessage.errorMessage(
-                        "I Cannot define this element",
-                        "I will use the Locator \"COORDINATES\"",
-                        "Try to get it again -> \"HOVER PICK  ELEMENT\" or \"PICK ONE \"",
-                        null,
-                        null,
-                        0);
-
-                return null;
-            }
-        } else if (!Strings.isNullOrEmpty(targetLocal.getCssSelector())) {
-            targetLocal.setXPathWorkedFirst(ARConstants.REGULAR_XPATH);
-
-        } else {
-            targetLocal.setXPathWorkedFirst(ARConstants.SHADOW_DOM);
-        }
-
-        //        targetElement = performActions.defineTagType(targetElement);
-
-        arScannedElementPane.defineCheckBoxesClickable(targetLocal);
-
-        return targetLocal;
-    }
-
-    private TargetElement checkValidateSearchPriorities(TargetElement target) {
-        WebElement elementValid = null;
-        if (!Strings.isNullOrEmpty(target.getCurrentXPath())) {
-
-            if (target.getForceCoordinates() != null && target.getForceCoordinates()) {
-                // Try by coordinates
-                try {
-                    FieldData filedData = new FieldData("&EMPTY", "&EMPTY");
-                    boolean passed = performActions.executeActionsAtCoordinates(
-                            target.getCoordinates(), filedData, ARConstants.VISUALIZE, false);
-                    if (passed) {
-                        elementValid = performActions.getElementFromCoordinates(target.getCoordinates());
-                        if (elementValid != null && elementValid.getTagName() != null) {
-                            target.setElement(elementValid);
-                        }
-
-                        target.setXPathWorkedFirst(ARConstants.SEARCH_COORD);
-                    }
-
-                } catch (Exception e) {
-
-                    log.warn(String.format("Cannot locate a Web Element with Name: %s", target.getAttribName()));
-                }
-            } else if (elementValid == null) {
-                try {
-                    elementValid = performActions.getCurrentDriver().findElement(By.xpath(target.getCurrentXPath()));
-                    if (elementValid != null && elementValid.getTagName() != null) {
-                        target.setElement(elementValid);
-                        target.setXPathWorkedFirst(
-                                ARConstants.REGULAR_XPATH); // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
-                    }
-                } catch (Exception e) {
-
-                    log.warn(String.format(
-                            "Cannot locate a Web Element with Regular XPath: %s", target.getCurrentXPath()));
-                }
-            } else if (elementValid == null) {
-                try {
-                    elementValid = performActions.getCurrentDriver().findElement(By.xpath(target.getCustomXPath()));
-                    if (elementValid != null && elementValid.getTagName() != null) {
-                        target.setElement(elementValid);
-                        target.setXPathWorkedFirst(
-                                ARConstants.CUSTOM_XPATH); // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
-                    }
-                } catch (Exception e) {
-
-                    log.warn(String.format(
-                            "Cannot locate a Web Element with Absolut XPath: %s", target.getAttributeData()));
-                }
-            } else {
-                if (elementValid == null) {
-                    //            if (searchReturn.getCurrentXPath().startsWith("id(")) {
-                    if (!Strings.isNullOrEmpty(target.getAttribId())) {
-                        try {
-                            elementValid = performActions.getCurrentDriver().findElement(By.id(target.getAttribId()));
-                            if (elementValid != null && elementValid.getTagName() != null) {
-                                target.setElement(elementValid);
-                                target.setXPathWorkedFirst(ARConstants.ATTRIBUTE_ID);
-                                target.setAttributeType("id");
-                                target.setAttributeValue(target.getAttribId());
-                            }
-                        } catch (Exception e) {
-
-                            log.warn(String.format("Cannot locate a Web Element with ID: %s", target.getAttribId()));
-                        }
-                    }
-                } else if (elementValid == null) {
-
-                    if (!Strings.isNullOrEmpty(target.getAttribName())) {
-                        try {
-                            elementValid =
-                                    performActions.getCurrentDriver().findElement(By.name(target.getAttribName()));
-                            if (elementValid != null && elementValid.getTagName() != null) {
-                                target.setElement(elementValid);
-                                target.setAttributeType("name");
-                                target.setXPathWorkedFirst(ARConstants.ATTRIBUTE_NAME);
-                            }
-                        } catch (Exception e) {
-
-                            log.warn(
-                                    String.format("Cannot locate a Web Element with Name: %s", target.getAttribName()));
-                        }
-                    }
-                }
-            }
-        }
-
-        target.setElement(elementValid);
-
-        return target;
-    }
-
     public void destroyPanel() {
         arScannedElementPane.destroy();
     }
@@ -878,5 +745,28 @@ public class ARScannedElementScene extends ARScene {
                 "botJobTasks", // + currentBotJobId,
                 jsonData,
                 "updateInstructions");
+    }
+
+    private SplitDTO parseSplitDTO(JsonObject jsonEntry) {
+        if (jsonEntry == null || jsonEntry.isEmpty()) {
+            log.warn("parseSplitDTO called with null or empty JSON object");
+            return null;
+        }
+
+        try {
+            // 🔹 Step 1: If there's a "body" key, extract its string and parse it as JSON
+            if (jsonEntry.has("body")) {
+                String bodyStr = jsonEntry.get("body").getAsString();
+                JsonObject inner = gson.fromJson(bodyStr, JsonObject.class);
+                return gson.fromJson(inner, SplitDTO.class);
+            }
+
+            // 🔹 Step 2: Otherwise, parse the current object directly
+            return gson.fromJson(jsonEntry, SplitDTO.class);
+
+        } catch (Exception error) {
+            log.error("Cannot parse SplitDTO: " + error.getMessage() + " | JSON: " + jsonEntry);
+            return null;
+        }
     }
 }

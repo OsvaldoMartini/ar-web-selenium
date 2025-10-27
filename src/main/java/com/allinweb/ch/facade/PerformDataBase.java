@@ -59,6 +59,10 @@ public class PerformDataBase {
     @Getter
     @Setter
     public List<Integer> idsVariableAfter = new ArrayList<>();
+
+    @Setter
+    public boolean mobileDevices;
+
     // Postgres
     public boolean ACCESS_DB = false;
     public boolean POSTGRES_DB = false;
@@ -1770,7 +1774,8 @@ public class PerformDataBase {
     public ErrorMessage loadQuickBotJobs() {
         performLists.getQuickBotJobs().clear();
 
-        String query = "SELECT bot.id AS bot_job_id, bot.name AS bot_job_name, "
+        // Build the query dynamically, adding a WHERE only when mobileDevices is true
+        String selectPart = "SELECT bot.id AS bot_job_id, bot.name AS bot_job_name, "
                 + "       bot.description AS bot_job_description, bot.priority AS bot_job_priority, "
                 + "       bot.home_banking_id, bot.home_url_id, "
                 + "       hu.url AS home_banking_url, "
@@ -1780,12 +1785,22 @@ public class PerformDataBase {
                 + "       hb.username, hb.password, "
                 + "       bot.active, "
                 + "       b.id AS block_id, b.block_order_number, b.name AS block_name, "
-                + "       b.description AS block_description, b.type_id, b.active AS block_active, b.wait "
-                + "FROM bot_job bot "
+                + "       b.description AS block_description, b.type_id, b.active AS block_active, b.wait ";
+
+        String fromPart = "FROM bot_job bot "
                 + "LEFT JOIN home_banking hb ON bot.home_banking_id = hb.id "
                 + "LEFT JOIN home_url hu ON bot.home_url_id = hu.id AND hu.home_banking_id = hb.id "
-                + "LEFT JOIN block b ON b.bot_job_id = bot.id "
-                + "ORDER BY bot.id ASC, b.block_order_number ASC;";
+                + "LEFT JOIN block b ON b.bot_job_id = bot.id ";
+
+        String wherePart = "";
+        if (this.mobileDevices) {
+            // Case-insensitive prefix match for "Android:" or "iOS:"
+            wherePart = "WHERE (UPPER(bot.name) LIKE 'ANDROID:%' OR UPPER(bot.name) LIKE 'IOS:%') ";
+        }
+
+        String orderPart = "ORDER BY bot.id ASC, b.block_order_number ASC;";
+
+        String query = selectPart + fromPart + wherePart + orderPart;
 
         Map<Integer, BotJobLoadDTO> botJobMap = new HashMap<>();
         Map<Integer, BlockLoadDTO> blockMap = new HashMap<>();

@@ -337,7 +337,8 @@ public class SimpleWebSocketServer {
                         webSocketSessionManager.sendMessageJson(
                                 homeBankingId, "mobile-perform-bot-job", jsonData, type);
                     }
-                    sendStatusButton("mobileScannerGrid", "activate-running-bot-job", "Launch Bot Job button activated");
+                    sendStatusButton(
+                            "mobileScannerGrid", "activate-running-bot-job", "Launch Bot Job button activated");
                     alreadySentMgsSocket = true;
                     break;
                 case "ATTACHED_DEVICE": //  DATA CONTROL FOR THE MOBILE mobile-perform-list
@@ -363,6 +364,7 @@ public class SimpleWebSocketServer {
                     if (sessionIdToSend.equals("mobile-perform-list")) {
                         splitDTO.setOperationId("botJobList");
 
+                        performDataBase.setMobileDevices(true);
                         errorMessage = performDataBase.loadQuickBotJobs();
                         if (errorMessage == null) {
                             List<BotJobLoadDTO> fetched = Optional.ofNullable(performLists.getQuickBotJobs())
@@ -371,6 +373,7 @@ public class SimpleWebSocketServer {
                             webSocketSessionManager.sendMessageJson(
                                     homeBankingId, "mobileScannerGrid", jsonData, "botJobList");
                         }
+                        performDataBase.setMobileDevices(false);
                     }
                     alreadySentMgsSocket = true;
                     break;
@@ -417,7 +420,8 @@ public class SimpleWebSocketServer {
                                 splitDTO.getElementDetails(), excludeList, "AI-ElementDTO", jsonPath);
                     } else if (sessionIdToSend.equals("mobileScannerGrid")) {
                         String jsonData = gson.toJson(splitDTO);
-                        webSocketSessionManager.sendMessageJson(homeBankingId, "mobileScannerGrid", jsonData, "addPickOne");
+                        webSocketSessionManager.sendMessageJson(
+                                homeBankingId, "mobileScannerGrid", jsonData, "addPickOne");
 
                         List<String> excludeList = List.of("optional", "blockMarked", "editMode");
                         String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
@@ -446,18 +450,35 @@ public class SimpleWebSocketServer {
                 case "DEL_ELEMENT_DTO":
                 case "DETAILS_ELEMENT_DTO":
                 case "TEST_CLICK_DTO":
-                case "TEST_INPUT_DTO":
-                    if (sessionIdToSend.equals("mobileScannerGrid")) {
+                case "TEST_INPUT_DTO": {
+                    if ("mobileScannerGrid".equals(sessionIdToSend)) {
+
                         splitDTO.setOperationId(type);
                         String jsonData = gson.toJson(splitDTO);
-                        webSocketSessionManager.sendMessageJson(
-                                homeBankingId, "mobile-perform-bot-job", jsonData, type);
+
+                        if (!"NEW_ELEMENT_DTO".equals(type) && !"SEND_ALL_ELEMENTS_DTO".equals(type)) {
+                            webSocketSessionManager.sendMessageJson(
+                                    homeBankingId, "mobile-perform-bot-job", jsonData, type);
+                        } else {
+                            Session sessionBotJob = webSocketSessionManager.sendMessageJson(
+                                    homeBankingId, "bot-job-scene", jsonData, type);
+                            if (sessionBotJob == null) {
+                                performMessage.errorMessage(
+                                        "Bot Job Details Not Open",
+                                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                                        "<span style='color: #1565C0; font-weight: bold;'>" + splitDTO.getBotJobName()
+                                                + "</span>.",
+                                        "<span style='color: #E65100; font-weight: bold;'>The Integration AR Mobile is waiting for the Bot Job to be open.</span>",
+                                        "<span style='font-style: italic;'>Details: Please select and open the Bot Job on AR Web.</span>",
+                                        0);
+                            }
+                        }
                     } else if (splitDTO.getElementDetails() != null && splitDTO.getElementDetails().length > 0) {
-                        webSocketSessionManager.sendMessageJson(
-                                "scanner-element-pane", gson.toJson(splitDTO)); // Sending as details
+                        webSocketSessionManager.sendMessageJson("scanner-element-pane", gson.toJson(splitDTO));
                     }
                     alreadySentMgsSocket = true;
                     break;
+                }
                 case "RESPONSE_BACK":
                     splitDTO.setType("MARTINI");
                     String jsonData = gson.toJson(splitDTO);
