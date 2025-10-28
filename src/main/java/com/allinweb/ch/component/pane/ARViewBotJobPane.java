@@ -910,6 +910,17 @@ public class ARViewBotJobPane extends ARPane {
                 return;
             }
 
+            if (!selectedBotJob.getPriority().equalsIgnoreCase("Web App")) {
+                performMessage.errorMessage(
+                        "Mobile Bot Job Selected",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Mobile Bot Jobs can only be executed from AR Mobile!</span>",
+                        "<span style='color: #2E7D32; font-weight: bold;'>Please run \"AR Mobile\" to launch the Bot Job tests.</span>",
+                        null,
+                        null,
+                        0);
+                return;
+            }
+
             //    ".\\java\\bin\\java.exe",
             String[] command = new String[] {
                 "cmd.exe",

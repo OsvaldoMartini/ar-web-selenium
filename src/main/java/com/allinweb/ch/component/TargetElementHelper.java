@@ -167,6 +167,11 @@ public class TargetElementHelper {
                         ? elementDTO.getTagName()
                         : elementDTO.getSomeText().trim().replaceAll("\\s+", " "));
 
+        targetLocal.setDefinedName(
+                elementDTO.getSomeText() == null
+                        ? elementDTO.getTagName()
+                        : elementDTO.getSomeText().trim().replaceAll("\\s+", " "));
+
         // Validate Shadow DOM or regular CSS selectors
         targetLocal.setXPathWorkedFirst(ARConstants.REGULAR_XPATH);
 

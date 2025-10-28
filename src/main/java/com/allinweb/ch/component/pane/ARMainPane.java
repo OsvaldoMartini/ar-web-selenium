@@ -389,6 +389,18 @@ public class ARMainPane extends ARPane {
 
             var selecBotJobDTO = viewBotJobListView.getSelectionModel().getSelectedItem();
             if (selecBotJobDTO != null) {
+
+                if (!selecBotJobDTO.getPriority().equalsIgnoreCase("Web App")) {
+                    performMessage.errorMessage(
+                            "Mobile Bot Job Selected",
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Mobile Bot Jobs can only be executed from AR Mobile!</span>",
+                            "<span style='color: #2E7D32; font-weight: bold;'>Please run \"AR Mobile\" to launch the Bot Job tests.</span>",
+                            null,
+                            null,
+                            0);
+                    return;
+                }
+
                 String enginePath =
                         arPropertyManager.getProperty(ARPropertyEnum.PATH_ENGINE); // + "\\AR_Web_Engine.jar";
                 String excelPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
