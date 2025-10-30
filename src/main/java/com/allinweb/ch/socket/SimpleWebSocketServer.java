@@ -337,8 +337,6 @@ public class SimpleWebSocketServer {
                         webSocketSessionManager.sendMessageJson(
                                 homeBankingId, "mobile-perform-bot-job", jsonData, type);
                     }
-                    sendStatusButton(
-                            "mobileScannerGrid", "activate-running-bot-job", "Launch Bot Job button activated");
                     alreadySentMgsSocket = true;
                     break;
                 case "ATTACHED_DEVICE": //  DATA CONTROL FOR THE MOBILE mobile-perform-list
@@ -355,7 +353,11 @@ public class SimpleWebSocketServer {
                 case "REACTIVATE_BUTTONS":
                     if (sessionIdToSend.equals("mobileScannerGrid")) {
                         // Convert your JsonObject to a proper JSON string
-                        sendStatusButton("mobileScannerGrid", operationId, "Insert All Elements button activated");
+                        sendStatusButton(
+                                splitDTO.getHomeBankingId(),
+                                "mobileScannerGrid",
+                                operationId,
+                                "Activated button ");
                     }
                     alreadySentMgsSocket = true;
                     break;
@@ -1391,7 +1393,7 @@ public class SimpleWebSocketServer {
         }
     }
 
-    private void sendStatusButton(String sessionId, String operationId, String message) {
+    private void sendStatusButton(int homeBankId, String sessionId, String operationId, String message) {
         WebSocketSignal webSockteSocketSignal = WebSocketSignal.builder()
                 .sessionId(sessionId)
                 .operationId(operationId)
@@ -1400,6 +1402,6 @@ public class SimpleWebSocketServer {
 
         String jsonData = gson.toJson(webSockteSocketSignal);
 
-        webSocketSessionManager.sendMessageJson(-9999, sessionId, jsonData, operationId);
+        webSocketSessionManager.sendMessageJson(homeBankId, sessionId, jsonData, operationId);
     }
 }
