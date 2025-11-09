@@ -105,18 +105,27 @@ public class SplitDTO {
                 String name = refType.substring(ATTR_PREFIX.length()).trim();
                 String value = ref.getValue();
 
+                // keep raw values for AttributeData[]
+                // Replace any previous value for this attribute name
+                attrs.put(name, value);
+
+                // legacy fields (will be overridden below with smarter locator)
                 if (name.equalsIgnoreCase("id")) {
-                    attribId = value;
+                    attribId = value; // temporary; may be replaced by computed XPath-like locator
                 } else if (name.equalsIgnoreCase("name")) {
                     attribName = value;
                 }
-
-                // Replace any previous value for this attribute name
-                attrs.put(name, value);
             }
         }
 
         if (attrs.isEmpty() && attribId == null && attribName == null) return;
+
+        // ---- NEW: compute smarter attribId from collected attrs ----
+        // expects: class (optional), id (resource-id), text/content-desc (optional)
+        String computedLocator = buildAttribLocatorFromAttrs(attrs);
+        if (!computedLocator.isBlank()) {
+            attribId = computedLocator; // override the plain resource-id
+        }
 
         // ===== OPTION A: fully reset elementDetails to a single element (no accumulation across calls)
         // If you want to ALWAYS avoid accumulation across calls, keep the next 2 lines enabled:
@@ -147,7 +156,7 @@ public class SplitDTO {
 
             el.setAttributeData(newAttrArray); // <-- replace instead of append
             if (instruction.getId() != null) el.setId(instruction.getId());
-            if (attribId != null) el.setAttribId(attribId);
+            if (attribId != null) el.setAttribId(attribId); // <- now the smart locator
             if (attribName != null) el.setAttribName(attribName);
         }
     }
@@ -155,31 +164,34 @@ public class SplitDTO {
     // Builds: //<class>[@resource-id="..." and (@text="..." | @content-desc="...")]
     private static String buildAttribLocatorFromAttrs(Map<String, String> attrs) {
         if (attrs == null) return "";
-        String cls   = nz(attrs.get("class"));               // optional
-        String resId = nz(attrs.get("id"));                  // required to build
-        String text  = nz(attrs.get("text"));                // optional
-        String desc  = nz(attrs.get("content-desc"));        // optional
+        String cls = nz(attrs.get("class")); // optional
+        String resId = nz(attrs.get("id")); // required to build
+        String text = nz(attrs.get("text")); // optional
+        String desc = nz(attrs.get("content-desc")); // optional
 
         if (resId.isEmpty()) return ""; // without resource-id we keep the old attribId
 
         // Base: //<class or *>[@resource-id="..."]
         StringBuilder sb = new StringBuilder("//")
                 .append(cls.isEmpty() ? "*" : cls)
-                .append("[@resource-id=\"").append(resId.replace("\"","\\\"")).append("\"]");
+                .append("[@resource-id=\"")
+                .append(resId.replace("\"", "\\\""))
+                .append("\"]");
 
         // Prefer @text when present; else @content-desc (ignore literal "null")
         if (!text.isBlank() && !"null".equalsIgnoreCase(text)) {
-            sb.insert(sb.length() - 1, " and @text=\"" + text.replace("\"","\\\"") + "\"");
+            sb.insert(sb.length() - 1, " and @text=\"" + text.replace("\"", "\\\"") + "\"");
         } else if (!desc.isBlank() && !"null".equalsIgnoreCase(desc)) {
-            sb.insert(sb.length() - 1, " and @content-desc=\"" + desc.replace("\"","\\\"") + "\"");
+            sb.insert(sb.length() - 1, " and @content-desc=\"" + desc.replace("\"", "\\\"") + "\"");
         }
 
         return sb.toString();
     }
 
     // tiny null-to-empty guard
-    private static String nz(String s) { return (s == null) ? "" : s; }
-
+    private static String nz(String s) {
+        return (s == null) ? "" : s;
+    }
 
     /**
      * Copies only non-null / non-blank fields from InstructionLoad into SplitDTO and its first ElementDTO.
