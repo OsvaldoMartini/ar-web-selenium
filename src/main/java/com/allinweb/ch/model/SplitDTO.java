@@ -1,7 +1,8 @@
 package com.allinweb.ch.model;
 
-import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import lombok.Data;
 
 @Data
@@ -91,11 +92,11 @@ public class SplitDTO {
         List<ReferenceLoadDTO> refs = instruction.getReferenceLoadDTOList();
         if (refs == null || refs.isEmpty()) return;
 
-        List<AttributeData> attributes = new ArrayList<>();
+        // Collect attributes (no duplicates by name; last wins)
+        Map<String, String> attrs = new LinkedHashMap<>();
         String attribId = null;
         String attribName = null;
 
-        // Collect attributes and identify "id"/"name" special cases
         for (ReferenceLoadDTO ref : refs) {
             if (ref == null || ref.getReferenceType() == null || ref.getValue() == null) continue;
             String refType = ref.getReferenceType().trim();
@@ -104,45 +105,81 @@ public class SplitDTO {
                 String name = refType.substring(ATTR_PREFIX.length()).trim();
                 String value = ref.getValue();
 
-                // Capture special identifiers
                 if (name.equalsIgnoreCase("id")) {
                     attribId = value;
                 } else if (name.equalsIgnoreCase("name")) {
                     attribName = value;
                 }
 
-                attributes.add(new AttributeData(name, value));
+                // Replace any previous value for this attribute name
+                attrs.put(name, value);
             }
         }
 
-        if (attributes.isEmpty() && attribId == null && attribName == null) return;
+        if (attrs.isEmpty() && attribId == null && attribName == null) return;
 
-        // Ensure elementDetails exists
+        // ===== OPTION A: fully reset elementDetails to a single element (no accumulation across calls)
+        // If you want to ALWAYS avoid accumulation across calls, keep the next 2 lines enabled:
+        splitDTO.setElementDetails(new ElementDTO[] {new ElementDTO()});
+
+        // ===== OPTION B: keep existing elements but REPLACE their attributes (no duplicates inside)
+        // If you prefer to keep existing elements, comment out OPTION A above and ensure there is at least one element:
+        // ElementDTO[] elements = splitDTO.getElementDetails();
+        // if (elements == null || elements.length == 0) {
+        //     splitDTO.setElementDetails(new ElementDTO[] { new ElementDTO() });
+        // }
+
         ElementDTO[] elements = splitDTO.getElementDetails();
         if (elements == null || elements.length == 0) {
+            // safety: should not happen if OPTION A is enabled
             splitDTO.setElementDetails(new ElementDTO[] {new ElementDTO()});
             elements = splitDTO.getElementDetails();
         }
 
-        // Assign data
+        // Build the replacement AttributeData[]
+        AttributeData[] newAttrArray = attrs.entrySet().stream()
+                .map(e -> new AttributeData(e.getKey(), e.getValue()))
+                .toArray(AttributeData[]::new);
+
+        // Assign data (REPLACE, do not append)
         for (ElementDTO el : elements) {
             if (el == null) continue;
 
-            // Append or replace attributeData[]
-            List<AttributeData> current = new ArrayList<>();
-            if (el.getAttributeData() != null) {
-                for (AttributeData a : el.getAttributeData()) {
-                    if (a != null) current.add(a);
-                }
-            }
-            current.addAll(attributes);
-            el.setAttributeData(current.toArray(new AttributeData[0]));
-
-            // Set special fields
+            el.setAttributeData(newAttrArray); // <-- replace instead of append
+            if (instruction.getId() != null) el.setId(instruction.getId());
             if (attribId != null) el.setAttribId(attribId);
             if (attribName != null) el.setAttribName(attribName);
         }
     }
+
+    // Builds: //<class>[@resource-id="..." and (@text="..." | @content-desc="...")]
+    private static String buildAttribLocatorFromAttrs(Map<String, String> attrs) {
+        if (attrs == null) return "";
+        String cls   = nz(attrs.get("class"));               // optional
+        String resId = nz(attrs.get("id"));                  // required to build
+        String text  = nz(attrs.get("text"));                // optional
+        String desc  = nz(attrs.get("content-desc"));        // optional
+
+        if (resId.isEmpty()) return ""; // without resource-id we keep the old attribId
+
+        // Base: //<class or *>[@resource-id="..."]
+        StringBuilder sb = new StringBuilder("//")
+                .append(cls.isEmpty() ? "*" : cls)
+                .append("[@resource-id=\"").append(resId.replace("\"","\\\"")).append("\"]");
+
+        // Prefer @text when present; else @content-desc (ignore literal "null")
+        if (!text.isBlank() && !"null".equalsIgnoreCase(text)) {
+            sb.insert(sb.length() - 1, " and @text=\"" + text.replace("\"","\\\"") + "\"");
+        } else if (!desc.isBlank() && !"null".equalsIgnoreCase(desc)) {
+            sb.insert(sb.length() - 1, " and @content-desc=\"" + desc.replace("\"","\\\"") + "\"");
+        }
+
+        return sb.toString();
+    }
+
+    // tiny null-to-empty guard
+    private static String nz(String s) { return (s == null) ? "" : s; }
+
 
     /**
      * Copies only non-null / non-blank fields from InstructionLoad into SplitDTO and its first ElementDTO.
