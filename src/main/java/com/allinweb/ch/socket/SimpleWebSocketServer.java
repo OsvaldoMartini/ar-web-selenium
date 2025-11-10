@@ -54,23 +54,17 @@ public class SimpleWebSocketServer {
     @OnOpen
     public void onOpen(Session session) {
         // Get the sessionId from the query parameter passed by the frontend
-        String sessionId = null;
         try {
-            sessionId = session.getRequestParameterMap().get("sessionId").get(0);
+            String sessionId = session.getRequestParameterMap().get("sessionId").get(0);
 
             if (!Strings.isNullOrEmpty(sessionId)) {
-                webSocketSessionManager.addSession(sessionId, session);
+                webSocketSessionManager.addSession(sessionId, session); // Store the session with the custom ID
+                log.info("New connection: Session ID = " + sessionId);
             } else {
-                //                addSession(generateCustomSessionId(session), session);
+                log.info("No session ID provided by client");
             }
         } catch (Exception noSessionId) {
             //            addSession(generateCustomSessionId(session), session);
-        }
-
-        if (sessionId != null) {
-            webSocketSessionManager.addSession(sessionId, session); // Store the session with the custom ID
-            log.info("New connection: Session ID = " + sessionId);
-        } else {
             log.info("No session ID provided by client");
         }
     }
@@ -143,25 +137,6 @@ public class SimpleWebSocketServer {
                 return;
             }
 
-            if (sessionId.equals("engine-perform-bot-job")) {
-                JsonObject jsonRowStatus = JsonParser.parseString(
-                                jsonObjMSG.get("body").getAsString())
-                        .getAsJsonObject();
-
-                if (jsonRowStatus.has("instructionId") && jsonRowStatus.has("color")) {
-                    int instructionId = jsonRowStatus.get("instructionId").getAsInt();
-                    String color = jsonRowStatus.get("color").getAsString();
-
-                    rowStatus.setInstructionId(instructionId);
-                    rowStatus.setColor(color); // e.g. "#fcba03" deep carmine yellow
-                }
-
-                String jsonStatus = gson.toJson(rowStatus);
-                webSocketSessionManager.sendMessageJson(homeBankingId, "botJobTasks", jsonStatus, "rowStatus");
-                return;
-            }
-
-            // if Not have Session and does not Exist into the activeSessions
             // Is Going to Handle the Control
             if (Strings.isNullOrEmpty(sessionId)) {
                 sessionId = null;
@@ -230,6 +205,26 @@ public class SimpleWebSocketServer {
         boolean alreadySentMgsSocket = false;
         ErrorMessage errorMessage = null;
         SplitDTO splitDTO = parseSplitDTO(jsonEntry);
+
+        if (sessionId.equals("engine-perform-bot-job")
+                || (splitDTO.getOperationId() != null
+                        && splitDTO.getOperationId().equals("rowStatus"))) {
+            JsonObject jsonRowStatus =
+                    JsonParser.parseString(jsonEntry.get("body").getAsString()).getAsJsonObject();
+
+            if (jsonRowStatus.has("instructionId") && jsonRowStatus.has("color")) {
+                int instructionId = jsonRowStatus.get("instructionId").getAsInt();
+                String color = jsonRowStatus.get("color").getAsString();
+
+                rowStatus.setInstructionId(instructionId);
+                rowStatus.setColor(color); // e.g. "#fcba03" deep carmine yellow
+            }
+
+            String jsonStatus = gson.toJson(rowStatus);
+            webSocketSessionManager.sendMessageJson(
+                    splitDTO.getHomeBankingId(), "botJobTasks", jsonStatus, "rowStatus");
+            return;
+        }
 
         String sessionIdToSend = splitDTO.getSessionId();
         String operationId = splitDTO.getOperationId() != null ? splitDTO.getOperationId() : "";
@@ -331,39 +326,34 @@ public class SimpleWebSocketServer {
 
             switch (type) {
                 case "LAUNCH_BOT_JOB_TEST":
-                    if (sessionIdToSend.equals("mobileScannerGrid")) {
+                    if (sessionIdToSend.equals("mobile-return-server")) {
                         splitDTO.setOperationId(type);
                         String jsonData = gson.toJson(splitDTO);
-                        webSocketSessionManager.sendMessageJson(
-                                homeBankingId, "mobile-perform-bot-job", jsonData, type);
+                        webSocketSessionManager.sendMessageJson(homeBankingId, "mobile-return-server", jsonData, type);
                     }
                     alreadySentMgsSocket = true;
                     break;
-                case "ATTACHED_DEVICE": //  DATA CONTROL FOR THE MOBILE mobile-perform-list
+                case "ATTACHED_DEVICE":
                 case "DISCOVERY_APP":
                 case "SCANNER_APP":
-                    if (sessionIdToSend.equals("mobileScannerGrid")) {
+                    if (sessionIdToSend.equals("mobile-return-server")) {
                         splitDTO.setOperationId(type);
                         String jsonData = gson.toJson(splitDTO);
-                        webSocketSessionManager.sendMessageJson(
-                                homeBankingId, "mobile-perform-bot-job", jsonData, type);
+                        webSocketSessionManager.sendMessageJson(homeBankingId, "mobile-return-server", jsonData, type);
                     }
                     alreadySentMgsSocket = true;
                     break;
                 case "REACTIVATE_BUTTONS":
-                    if (sessionIdToSend.equals("mobileScannerGrid")) {
+                    if (sessionId.equals("mobile-return-server")) {
                         // Convert your JsonObject to a proper JSON string
                         sendStatusButton(
-                                splitDTO.getHomeBankingId(),
-                                "mobileScannerGrid",
-                                operationId,
-                                "Activated button ");
+                                splitDTO.getHomeBankingId(), "mobileScannerGrid", operationId, "Activated button ");
                     }
                     alreadySentMgsSocket = true;
                     break;
 
-                case "MOBILE_LOAD_JOBS": //  DATA CONTROL FOR THE MOBILE mobile-perform-list
-                    if (sessionIdToSend.equals("mobile-perform-list")) {
+                case "MOBILE_LOAD_JOBS": //  DATA CONTROL FOR THE MOBILE mobileScannerGrid
+                    if (sessionId.equals("mobile-return-server")) {
                         splitDTO.setOperationId("botJobList");
 
                         performDataBase.setMobileDevices(true);
@@ -420,7 +410,7 @@ public class SimpleWebSocketServer {
                                 "attributeValue");
                         performMessage.outputJsonElementDTO(
                                 splitDTO.getElementDetails(), excludeList, "AI-ElementDTO", jsonPath);
-                    } else if (sessionIdToSend.equals("mobileScannerGrid")) {
+                    } else if (sessionIdToSend.equals("mobile-return-server")) {
                         String jsonData = gson.toJson(splitDTO);
                         webSocketSessionManager.sendMessageJson(
                                 homeBankingId, "mobileScannerGrid", jsonData, "addPickOne");
@@ -465,11 +455,11 @@ public class SimpleWebSocketServer {
                     if (splitDTO.getProjectType() != null
                             && (splitDTO.getProjectType().equalsIgnoreCase("Android")
                                     || splitDTO.getProjectType().equalsIgnoreCase("iOS"))) {
-                        sessionIdToSend = "mobileScannerGrid";
+                        sessionIdToSend = "mobile-return-server";
                         splitDTO.setSessionId(sessionIdToSend);
                     }
 
-                    if ("mobileScannerGrid".equals(sessionIdToSend)) {
+                    if ("mobile-return-server".equals(sessionIdToSend)) {
 
                         // Safely extract the first element ID (if present)
                         Integer elementId = Optional.ofNullable(splitDTO.getElementDetails())
@@ -490,6 +480,7 @@ public class SimpleWebSocketServer {
                         // 2) Apply only non-empty values into splitDTO and elementDetails[0]
                         if (matchingInstruction != null) {
                             // >>> Add AttrData:* references into elementDetails.attributesData
+                            splitDTO.setElementDetails(null);
                             SplitDTO.applyAttrDataFromReferences(splitDTO, matchingInstruction);
 
                             SplitDTO.applyInstructionToSplit(splitDTO, matchingInstruction);
@@ -500,7 +491,7 @@ public class SimpleWebSocketServer {
 
                         if (!"NEW_ELEMENT_DTO".equals(type) && !"SEND_ALL_ELEMENTS_DTO".equals(type)) {
                             webSocketSessionManager.sendMessageJson(
-                                    homeBankingId, "mobile-perform-bot-job", jsonData, type);
+                                    homeBankingId, "mobile-return-server", jsonData, type);
                         } else {
                             Session sessionBotJob = webSocketSessionManager.sendMessageJson(
                                     homeBankingId, "bot-job-scene", jsonData, type);
@@ -956,7 +947,9 @@ public class SimpleWebSocketServer {
                 }
             }
 
-            webSocketSessionManager.sendMessageJson(homeBankingId, sessionIdToSend, jsonData, updateAction);
+            if (sessionIdToSend != null) {
+                webSocketSessionManager.sendMessageJson(homeBankingId, sessionIdToSend, jsonData, updateAction);
+            }
 
             //            broadcastMessageToAll(homeBankingId, "componentTasks", jsonData, "componentsUpdate");
             //            sendMessageJson(sessionIdToSend, jsonData, "componentsUpdate");
@@ -1377,15 +1370,24 @@ public class SimpleWebSocketServer {
         }
 
         try {
-            // 🔹 Step 1: If there's a "body" key, extract its string and parse it as JSON
+            JsonObject merged = new JsonObject();
+
+            // Step 1: If there's a "body" key, parse it as JSON and merge it
             if (jsonEntry.has("body")) {
                 String bodyStr = jsonEntry.get("body").getAsString();
                 JsonObject inner = gson.fromJson(bodyStr, JsonObject.class);
-                return gson.fromJson(inner, SplitDTO.class);
+                inner.entrySet().forEach(entry -> merged.add(entry.getKey(), entry.getValue()));
             }
 
-            // 🔹 Step 2: Otherwise, parse the current object directly
-            return gson.fromJson(jsonEntry, SplitDTO.class);
+            // Step 2: Merge all top-level fields (except "body")
+            jsonEntry.entrySet().forEach(entry -> {
+                if (!"body".equals(entry.getKey())) {
+                    merged.add(entry.getKey(), entry.getValue());
+                }
+            });
+
+            // Step 3: Deserialize merged object into DTO
+            return gson.fromJson(merged, SplitDTO.class);
 
         } catch (Exception error) {
             log.error("Cannot parse SplitDTO: " + error.getMessage() + " | JSON: " + jsonEntry);
