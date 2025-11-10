@@ -19,8 +19,7 @@ import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.net.URI;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.*;
 import javafx.application.Platform;
 import javafx.scene.Scene;
@@ -318,53 +317,116 @@ public class ARScannedElementScene extends ARScene {
                     break;
                 case "TEST_CLICK_DTO":
                 case "TEST_INPUT_DTO":
-                    arScannedElementPane.checkRunningProcess();
-                    // Extract the "body" field from the JsonObject
-                    splitDTO = gson.fromJson(jsonObjMSG, SplitDTO.class);
-
-                    String tableName = "instruction";
-                    whereId = splitDTO.getBotJobId() != null ? splitDTO.getBotJobId() : currentBotJob.getId();
-                    if (splitDTO.getSessionId().equals("componentTasks")) {
-                        tableName = "component_instruction";
-                        whereId = splitDTO.getHomeBankingId() != null
-                                ? splitDTO.getHomeBankingId()
-                                : currentBotJob.getHomeBankingId();
+                    if (!performLists.getListBotJob().isEmpty() && splitDTO.getBotJobId() != null) {
+                        performLists.getListBotJob().stream()
+                                .filter(j -> java.util.Objects.equals(j.getId(), splitDTO.getBotJobId()))
+                                .findFirst()
+                                .ifPresent(j -> {
+                                    splitDTO.setBotJobName(j.getName());
+                                    splitDTO.setProjectType(j.getPriority());
+                                });
+                    }
+                    if (splitDTO.getProjectType() != null
+                            && (splitDTO.getProjectType().equalsIgnoreCase("Android")
+                                    || splitDTO.getProjectType().equalsIgnoreCase("iOS"))) {
+                        sessionId = "mobileScannerGrid";
+                        splitDTO.setSessionId(sessionId);
                     }
 
-                    blockUpdate =
-                            splitDTO.getSessionId().equals("componentTasks") ? "UPDATE_BLOCKS_COMP" : "UPDATE_BLOCKS";
+                    if ("mobileScannerGrid".equals(sessionId)) {
 
-                    if (previousBlock != null && !previousBlock.equals(blockUpdate)) {
-                        arNewCommandPane.closePane();
-                        previousBlock = blockUpdate;
-                    } else if (previousBlock == null) {
-                        previousBlock = blockUpdate;
-                    }
+                        // Safely extract the first element ID (if present)
+                        Integer elementId = Optional.ofNullable(splitDTO.getElementDetails())
+                                .filter(arr -> arr.length > 0)
+                                .map(arr -> arr[0])
+                                .map(ElementDTO::getId)
+                                .orElse(null);
 
-                    if (splitDTO.getOperationId() != null
-                            && splitDTO.getOperationId().equalsIgnoreCase("TEST_STEP")) {
+                        // Find matching instruction by variableId
+                        InstructionLoad matchingInstruction =
+                                Optional.ofNullable(performLists.getListInstruction())
+                                        .orElse(Collections.emptyList())
+                                        .stream()
+                                        .filter(i -> Objects.equals(i.getId(), elementId))
+                                        .findFirst()
+                                        .orElse(null);
 
-                        // I want all Instructions
-                        if (tableName.equals("instruction")
-                                        && performLists.getListInstruction().isEmpty()
-                                || (tableName.equals("component_instruction")
-                                        && performLists.getListInstructionComp().isEmpty())) {
+                        // 2) Apply only non-empty values into splitDTO and elementDetails[0]
+                        if (matchingInstruction != null) {
+                            // >>> Add AttrData:* references into elementDetails.attributesData
+                            SplitDTO.applyAttrDataFromReferences(splitDTO, matchingInstruction);
 
-                            ErrorMessage errorMessage = performDataBase.loadInstructions(whereId, -1, -1, tableName);
-                            if (errorMessage != null) {
-                                performMessage.errorMessageOperationFailed(errorMessage);
-                            }
+                            SplitDTO.applyInstructionToSplit(splitDTO, matchingInstruction);
                         }
 
-                        InstructionLoad instruction = performLists.getInstructionById(
-                                tableName, whereId, splitDTO.getElementDetails()[0].getId());
-                        if (instruction != null && instruction.getId() != null) {
-                            ElementDTO elementDTO = performActions.buildElementDTO(instruction);
-                            targetElementHelper.initialize(performActions, arScannedElementPane);
-                            arScannedElementPane.targetSelected = targetElementHelper.extractPickClone(elementDTO);
-                            arScannedElementPane.itPrintsElementDTO();
-                            arScannedElementPane.testingActions(
-                                    arScannedElementPane.targetSelected, splitDTO.getType());
+                        splitDTO.setOperationId(type);
+                        String jsonData = gson.toJson(splitDTO);
+
+                        if (!"NEW_ELEMENT_DTO".equals(type) && !"SEND_ALL_ELEMENTS_DTO".equals(type)) {
+                            webSocketSessionManager.sendMessageJson(
+                                    splitDTO.getHomeBankingId(), "mobile-return-server", jsonData, type);
+                        }
+                    } else {
+                        arScannedElementPane.checkRunningProcess();
+
+                        // Extract the "body" field from the JsonObject
+                        //                    splitDTO = gson.fromJson(jsonObjMSG, SplitDTO.class);
+
+                        String tableName = "instruction";
+                        whereId = splitDTO.getBotJobId() != null ? splitDTO.getBotJobId() : currentBotJob.getId();
+                        if (splitDTO.getSessionId().equals("componentTasks")) {
+                            tableName = "component_instruction";
+                            whereId = splitDTO.getHomeBankingId() != null
+                                    ? splitDTO.getHomeBankingId()
+                                    : currentBotJob.getHomeBankingId();
+                        }
+
+                        blockUpdate = splitDTO.getSessionId().equals("componentTasks")
+                                ? "UPDATE_BLOCKS_COMP"
+                                : "UPDATE_BLOCKS";
+
+                        if (previousBlock != null && !previousBlock.equals(blockUpdate)) {
+                            arNewCommandPane.closePane();
+                            previousBlock = blockUpdate;
+                        } else if (previousBlock == null) {
+                            previousBlock = blockUpdate;
+                        }
+
+                        if (splitDTO.getOperationId() != null
+                                && splitDTO.getOperationId().equalsIgnoreCase("TEST_STEP")) {
+
+                            // I want all Instructions
+                            if (tableName.equals("instruction")
+                                            && performLists.getListInstruction().isEmpty()
+                                    || (tableName.equals("component_instruction")
+                                            && performLists
+                                                    .getListInstructionComp()
+                                                    .isEmpty())) {
+
+                                ErrorMessage errorMessage =
+                                        performDataBase.loadInstructions(whereId, -1, -1, tableName);
+                                if (errorMessage != null) {
+                                    performMessage.errorMessageOperationFailed(errorMessage);
+                                }
+                            }
+
+                            InstructionLoad instruction = performLists.getInstructionById(
+                                    tableName, whereId, splitDTO.getElementDetails()[0].getId());
+                            if (instruction != null && instruction.getId() != null) {
+                                ElementDTO elementDTO = performActions.buildElementDTO(instruction);
+                                targetElementHelper.initialize(performActions, arScannedElementPane);
+                                arScannedElementPane.targetSelected = targetElementHelper.extractPickClone(elementDTO);
+                                arScannedElementPane.itPrintsElementDTO();
+                                arScannedElementPane.testingActions(
+                                        arScannedElementPane.targetSelected, splitDTO.getType());
+                            } else {
+                                targetElementHelper.initialize(performActions, arScannedElementPane);
+                                arScannedElementPane.targetSelected =
+                                        targetElementHelper.extractPickClone(splitDTO.getElementDetails()[0]);
+                                arScannedElementPane.itPrintsElementDTO();
+                                arScannedElementPane.testingActions(
+                                        arScannedElementPane.targetSelected, splitDTO.getType());
+                            }
                         } else {
                             targetElementHelper.initialize(performActions, arScannedElementPane);
                             arScannedElementPane.targetSelected =
@@ -373,33 +435,30 @@ public class ARScannedElementScene extends ARScene {
                             arScannedElementPane.testingActions(
                                     arScannedElementPane.targetSelected, splitDTO.getType());
                         }
-                    } else {
+                        break;
+                    }
+                case "DEL_ELEMENT_DTO":
+                case "DETAILS_ELEMENT_DTO":
+                    // Extract the "body" field from the JsonObject
+                    //                    splitDTO = gson.fromJson(jsonObjMSG, SplitDTO.class);
+
+                    if (type.equals("TEST_CLICK_DTO")) {
+                        blockUpdate = splitDTO.getSessionId().equals("componentTasks")
+                                ? "UPDATE_BLOCKS_COMP"
+                                : "UPDATE_BLOCKS";
+
+                        if (previousBlock != null && !previousBlock.equals(blockUpdate)) {
+                            arNewCommandPane.closePane();
+                            previousBlock = blockUpdate;
+                        } else if (previousBlock == null) {
+                            previousBlock = blockUpdate;
+                        }
+
                         targetElementHelper.initialize(performActions, arScannedElementPane);
                         arScannedElementPane.targetSelected =
                                 targetElementHelper.extractPickClone(splitDTO.getElementDetails()[0]);
                         arScannedElementPane.itPrintsElementDTO();
-                        arScannedElementPane.testingActions(arScannedElementPane.targetSelected, splitDTO.getType());
                     }
-                    break;
-                case "DEL_ELEMENT_DTO":
-                case "DETAILS_ELEMENT_DTO":
-                    // Extract the "body" field from the JsonObject
-                    splitDTO = gson.fromJson(jsonObjMSG, SplitDTO.class);
-
-                    blockUpdate =
-                            splitDTO.getSessionId().equals("componentTasks") ? "UPDATE_BLOCKS_COMP" : "UPDATE_BLOCKS";
-
-                    if (previousBlock != null && !previousBlock.equals(blockUpdate)) {
-                        arNewCommandPane.closePane();
-                        previousBlock = blockUpdate;
-                    } else if (previousBlock == null) {
-                        previousBlock = blockUpdate;
-                    }
-
-                    targetElementHelper.initialize(performActions, arScannedElementPane);
-                    arScannedElementPane.targetSelected =
-                            targetElementHelper.extractPickClone(splitDTO.getElementDetails()[0]);
-                    arScannedElementPane.itPrintsElementDTO();
                     break;
                 default:
                     break;
