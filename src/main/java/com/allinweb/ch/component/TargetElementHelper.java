@@ -317,7 +317,7 @@ public class TargetElementHelper {
 
             //links
             if (elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.LINK.getValue())) {
-                targetDefine.setTagName(WebElementTagNameEnum.ANCHOR.getValue());
+                elemenDTO.setTagName(WebElementTagNameEnum.ANCHOR.getValue());
             }
 
             if (elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.BUTTON.getValue())
