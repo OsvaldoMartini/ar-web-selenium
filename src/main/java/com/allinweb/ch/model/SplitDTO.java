@@ -38,6 +38,8 @@ public class SplitDTO {
     private String exportFile;
     private String appQueryApp;
     private String appQueryPackage;
+    private List<String> packagesFound;
+    private String appMainActivity;
 
     private String projectType;
 
@@ -169,6 +171,9 @@ public class SplitDTO {
         String text = nz(attrs.get("text")); // optional
         String desc = nz(attrs.get("content-desc")); // optional
 
+        // >>> NEW: if it's actually a Button, DON'T override attribId
+        if (isButtonClassName(cls)) return "";
+
         if (resId.isEmpty()) return ""; // without resource-id we keep the old attribId
 
         // Base: //<class or *>[@resource-id="..."]
@@ -186,6 +191,14 @@ public class SplitDTO {
         }
 
         return sb.toString();
+    }
+
+    private static boolean isButtonClassName(String cls) {
+        if (cls == null) return false;
+        cls = cls.trim();
+        return "android.widget.Button".equals(cls)
+                || cls.endsWith("Button") // e.g., AppCompatButton
+                || "button".equalsIgnoreCase(cls); // in case class was normalized elsewhere
     }
 
     // tiny null-to-empty guard

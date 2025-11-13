@@ -315,7 +315,7 @@ public class TargetElementHelper {
             // W3C 6 Headers
             String[] validHeaders = {"h1", "h2", "h3", "h4", "h5", "h6"};
 
-            //links
+            // links
             if (elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.LINK.getValue())) {
                 elemenDTO.setTagName(WebElementTagNameEnum.ANCHOR.getValue());
             }

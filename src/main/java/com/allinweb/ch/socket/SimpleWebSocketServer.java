@@ -347,7 +347,11 @@ public class SimpleWebSocketServer {
                     if (sessionId.equals("mobile-return-server")) {
                         // Convert your JsonObject to a proper JSON string
                         sendStatusButton(
-                                splitDTO.getHomeBankingId(), "mobileScannerGrid", operationId, "Activated button ");
+                                splitDTO.getHomeBankingId(),
+                                "mobileScannerGrid",
+                                operationId,
+                                "Activated button ",
+                                splitDTO);
                     }
                     alreadySentMgsSocket = true;
                     break;
@@ -1395,11 +1399,13 @@ public class SimpleWebSocketServer {
         }
     }
 
-    private void sendStatusButton(int homeBankId, String sessionId, String operationId, String message) {
+    private void sendStatusButton(
+            int homeBankId, String sessionId, String operationId, String message, SplitDTO splitDTO) {
         WebSocketSignal webSockteSocketSignal = WebSocketSignal.builder()
                 .sessionId(sessionId)
                 .operationId(operationId)
                 .message(message)
+                .splitDTO(splitDTO)
                 .build();
 
         String jsonData = gson.toJson(webSockteSocketSignal);
