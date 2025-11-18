@@ -11,6 +11,25 @@
     -c "C:/ARWeb/ARWeb.config"
 ```
 
+## Arguments
+```bash
+-c "D:\Projects\ARWeb-Martini\Config-4.7\ARWeb.config"
+```
+
+# VM Options
+
+## Java JCE 
+```bash
+-Djava.library.path="D:\Projects\ARWeb-Martini\ARWeb-Scanner\javaJCE"
+```
+
+## JavaFX 
+```bash
+--module-path "D:\Projects\ARWeb-Martini\ARWeb-Scanner\javaFX\lib" --add-modules javafx.controls,javafx.web,javafx.fxml
+```
+
+
+
 ##  CSS Selectors
 ```text
 Access Does Not Accept *[contains(@idCOMMA 'mat-input')]
