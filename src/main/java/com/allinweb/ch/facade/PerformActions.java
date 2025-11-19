@@ -451,11 +451,19 @@ public class PerformActions {
                             clearElement(instructionElement);
                             //                            clearValueAtCoordinates(savedCoordinates);
 
+                            // AR Mobile Work Around for Not creating a new DB column
+                            String defaultValue = currentInstruction.getDefaultValue() != null
+                                            && !currentInstruction
+                                                    .getDefaultValue()
+                                                    .contains("scroll-active")
+                                    ? currentInstruction.getDefaultValue()
+                                    : null;
+
                             passed = insertInElement(
                                     byPassNotFound,
                                     instructionElement,
                                     data.getValue(),
-                                    currentInstruction.getDefaultValue(),
+                                    defaultValue,
                                     currentInstruction.getCodified(),
                                     pressEnterAfter);
 
@@ -3289,7 +3297,8 @@ public class PerformActions {
 
         elementDTO.setAttributeValue(targetElement.getAttributeValue());
         elementDTO.setAttributeType(targetElement.getAttributeType());
-        elementDTO.setSearchAttributeValue(null); // Assuming this is not directly available in TargetElement
+        elementDTO.setSearchAttributeValue(
+                targetElement.getSearchAttributeValue()); // Assuming this is not directly available in TargetElement
 
         // Determine typeElement based on tagType
         if (targetElement.getTagType() != null) {

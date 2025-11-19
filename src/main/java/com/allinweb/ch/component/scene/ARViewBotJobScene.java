@@ -699,6 +699,8 @@ public class ARViewBotJobScene extends ARScene {
         loop.setShadowRoot(targetBuild.getShadowRoot());
         loop.setCssSelector(targetBuild.getCssSelector());
 
+        loop.setDefaultValue(targetBuild.getSearchAttributeValue());
+
         String action = buildAction(forceTag, actionReq, identityHover, targetBuild);
         loop.setActions(action);
         loop.setExportToABR(true);

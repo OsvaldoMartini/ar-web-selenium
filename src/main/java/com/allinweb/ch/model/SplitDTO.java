@@ -255,6 +255,12 @@ public class SplitDTO {
         if (hasText(src.getShadowRoot())) el.setShadowRoot(src.getShadowRoot());
         if (hasText(src.getCssSelector())) el.setCssSelector(src.getCssSelector());
 
+        // AR Mobile Work Around for Not creating a new DB column
+        if (hasText(src.getDefaultValue()) && src.getDefaultValue().equals("scroll-active")) {
+            el.setSearchAttributeValue(src.getDefaultValue());
+            src.setDefaultValue(null);
+        }
+
         // Fields without a clear mapping from InstructionLoad are left untouched:
         // someText, attribId, attribName, attributeData, customXPath, nestedShadow,
         // attributeValue, attributeType, searchAttributeValue.

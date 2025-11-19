@@ -1339,6 +1339,7 @@ public class PerformLists {
                                         loopInstLoad.getParentId(),
                                         loopInstLoad.getVariableId(),
                                         loopInstLoad.getOperation(),
+                                        loopInstLoad.getDefaultValue(),
                                         itemBlock.getExportFile(),
                                         loopInstLoad.getTagName())))
                         .collect(Collectors.toList());

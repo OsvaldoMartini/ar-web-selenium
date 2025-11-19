@@ -295,6 +295,8 @@ public class TargetElementHelper {
             targetDefine.setCssSelector(elemenDTO.getCssSelector());
             targetDefine.setNestedShadow(elemenDTO.getNestedShadow());
 
+            targetDefine.setSearchAttributeValue(elemenDTO.getSearchAttributeValue());
+
             targetDefine.setAttributeData(elemenDTO.getAttributeData());
             targetDefine.setCustomXPath(elemenDTO.getCustomXPath());
 

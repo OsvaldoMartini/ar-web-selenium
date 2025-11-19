@@ -3987,11 +3987,16 @@ public class ARScannedElementPane extends ARPane {
                                     webElementWork = true;
 
                                     // Extract dataFieldName and dataFieldValue using a separate method
+                                    // AR Mobile Work Around for Not creating a new DB column
+                                    String defaultValue = currentInstruction.getDefaultValue() != null
+                                                    && !currentInstruction
+                                                            .getDefaultValue()
+                                                            .contains("scroll-active")
+                                            ? currentInstruction.getDefaultValue()
+                                            : null;
+
                                     FieldData fieldData = performActions.extractFieldData(
-                                            dataExcel,
-                                            actions,
-                                            currentInstruction.getDefaultValue(),
-                                            currentInstruction.getCodified());
+                                            dataExcel, actions, defaultValue, currentInstruction.getCodified());
 
                                     WebElement webElementFound = null;
                                     boolean forceCoordinates = currentInstruction.getForceCoordinates() != null
