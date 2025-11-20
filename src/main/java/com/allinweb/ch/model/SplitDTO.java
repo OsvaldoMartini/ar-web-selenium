@@ -40,6 +40,7 @@ public class SplitDTO {
     private String appQueryPackage;
     private List<String> packagesFound;
     private String appMainActivity;
+    private Integer scrollTimes;
 
     private String projectType;
 
