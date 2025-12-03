@@ -57,6 +57,23 @@ public class ARControlPanel extends Application {
     }
 
     public static void main(String[] args) {
+        if (!SingleInstance.acquire("ARWebScanner")) {
+            // log to file; do NOT print to console
+            log.warn("Another instance is already running. Exiting.");
+            performMessage.showCustomModalDialogDragWin11(
+                    "AR Web Scanner Already Running",
+                    "<span style='color:#2E7D32;font-weight:bold;font-size:1.1em;'>Another instance of AR Web Scanner is already running.</span>",
+                    "<span style='color:#388E3C;font-weight:bold;'>Please close the existing instance before starting a new one.</span>",
+                    null,
+                    null,
+                    false,
+                    "OK",
+                    null,
+                    0);
+            return;
+        }
+        Runtime.getRuntime().addShutdownHook(new Thread(SingleInstance::release));
+
         log.info("Application started - all console output is now redirected to logback.");
 
         List<String> arguments = Arrays.asList(args);
