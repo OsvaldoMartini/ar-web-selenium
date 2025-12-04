@@ -5,16 +5,16 @@ import com.allinweb.ch.component.scene.ARLicenseScene;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
+import java.awt.Color;
+import java.awt.Font;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.layout.AnchorPane;
-import javafx.scene.layout.Pane;
-import javafx.scene.layout.VBox;
+import javax.swing.JButton;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.border.EmptyBorder;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -30,19 +30,18 @@ public class ARInfoPane extends ARPane {
     }
 
     private boolean isEnabledLicence;
-    private Label applicationNameLabel;
-    private Label compileDateLabel;
-    private Label expirationDateLabel;
-    private Label copyrightLabel;
-    private Label rightsReservedLabel;
 
-    private Button btnLicense; // Declare the License button
-
-    private Pane mainPane;
+    // Swing components
+    private JLabel applicationNameLabel;
+    private JLabel compileDateLabel;
+    private JLabel expirationDateLabel;
+    private JLabel copyrightLabel;
+    private JLabel rightsReservedLabel;
+    private JButton btnLicense;
+    private JPanel mainPane;
 
     // Private constructor to prevent instantiation
     private ARInfoPane() {
-
         super();
     }
 
@@ -62,98 +61,115 @@ public class ARInfoPane extends ARPane {
     }
 
     @Override
-    public Pane getPaneReference() {
+    public JComponent getPaneReference() {
         return mainPane;
     }
 
     @Override
     public void initUIComponents() {
-        Label applicationNameLabel = new Label(arPropertyManager.getProperty(ARPropertyEnum.VERSION));
-        Label compileDateLabel = new Label("Build: " + arPropertyManager.getProperty(ARPropertyEnum.BUILD));
+        // --- Create labels from properties ---
+        applicationNameLabel = new JLabel(arPropertyManager.getProperty(ARPropertyEnum.VERSION));
+        compileDateLabel = new JLabel("Build: " + arPropertyManager.getProperty(ARPropertyEnum.BUILD));
 
         String expirationStr = arPropertyManager.getProperty(ARPropertyEnum.EXPIRATION);
-        Label expirationDateLabel = new Label("Expiration: " + expirationStr);
+        expirationDateLabel = new JLabel("Expiration: " + expirationStr);
 
-        Label copyrightLabel = new Label("© Allinweb AG");
-        Label rightsReservedLabel = new Label("All rights reserved");
+        copyrightLabel = new JLabel("© Allinweb AG");
+        rightsReservedLabel = new JLabel("All rights reserved");
 
-        // Styles
-        String baseLabelStyle = "-fx-font-size: 13px; -fx-text-fill: #2d3436;";
-        String versionStyle = "-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #0984e3;";
-        String footerStyle = "-fx-text-fill: #636e72;";
+        // --- Styles (Swing equivalents of the old -fx styles) ---
+        Font baseFont = new Font("SansSerif", Font.PLAIN, 13);
+        Color baseColor = new Color(0x2d3436);
+        Color footerColor = new Color(0x636e72);
 
-        // Apply version and other static styles
-        applicationNameLabel.setStyle(versionStyle);
-        compileDateLabel.setStyle(baseLabelStyle);
-        copyrightLabel.setStyle(baseLabelStyle + footerStyle);
-        rightsReservedLabel.setStyle(baseLabelStyle + footerStyle);
+        applicationNameLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
+        applicationNameLabel.setForeground(new Color(0x0984e3)); // blue
 
-        // Handle expiration color dynamically
+        compileDateLabel.setFont(baseFont);
+        compileDateLabel.setForeground(baseColor);
+
+        copyrightLabel.setFont(baseFont);
+        rightsReservedLabel.setFont(baseFont);
+        // base + footer tone
+        copyrightLabel.setForeground(footerColor);
+        rightsReservedLabel.setForeground(footerColor);
+
+        // --- Expiration label dynamic color/logic ---
         try {
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
             LocalDate expirationDate = LocalDate.parse(expirationStr, formatter);
             LocalDate today = LocalDate.now();
             long daysLeft = ChronoUnit.DAYS.between(today, expirationDate);
 
-            String expirationColor = daysLeft > 30 ? "#218c52" : "#c0392b"; // Dark green or dark red
-            expirationDateLabel.setStyle(
-                    baseLabelStyle + "-fx-font-weight: bold; -fx-text-fill: " + expirationColor + ";");
+            Color expirationColor = daysLeft > 30 ? new Color(0x218c52) : new Color(0xc0392b); // green or red
+            expirationDateLabel.setFont(new Font("SansSerif", Font.BOLD, 13));
+            expirationDateLabel.setForeground(expirationColor);
 
         } catch (Exception e) {
-            // Fallback in case of invalid format
+            // Fallback in case of invalid date format
+            expirationDateLabel.setFont(new Font("SansSerif", Font.BOLD, 13));
             if (isEnabledLicence) {
-                expirationDateLabel.setStyle(baseLabelStyle + "-fx-text-fill: #d63031; -fx-font-weight: bold;");
+                expirationDateLabel.setForeground(new Color(0xd63031)); // red
                 expirationDateLabel.setText("⚠ Unlicensed Version – Features May Be Limited");
             } else {
-                expirationDateLabel.setStyle(
-                        baseLabelStyle + "-fx-text-fill: #3498db; -fx-font-weight: bold;"); // Blue tone
+                expirationDateLabel.setForeground(new Color(0x3498db)); // blue
                 expirationDateLabel.setText("⚠ Unlicensed Version – Demo Version");
             }
         }
 
-        // VBox container
-        VBox versionInfoBox = new VBox(
-                5, applicationNameLabel, compileDateLabel, expirationDateLabel, copyrightLabel, rightsReservedLabel);
-        versionInfoBox.setPadding(new Insets(12));
-        versionInfoBox.setAlignment(Pos.CENTER_LEFT);
-        versionInfoBox.setStyle("-fx-background-color: #f1f2f6; " + "-fx-border-color: #dcdde1; "
-                + "-fx-border-width: 1; " + "-fx-border-radius: 6; " + "-fx-background-radius: 6;");
+        // --- License button ---
+        btnLicense = new JButton("License");
+        btnLicense.setFocusPainted(false);
+        btnLicense.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        btnLicense.setBackground(new Color(0x007bff));
+        btnLicense.setForeground(Color.WHITE);
+        btnLicense.setBorder(new EmptyBorder(6, 12, 6, 12));
 
-        // Initialize the License button
-        btnLicense = new Button("License");
-        btnLicense.setId("btnLicense"); // Set an ID for styling purposes
-        btnLicense.setStyle("-fx-background-color: #007bff; -fx-text-fill: white; -fx-font-size: 14px;"); // Blue color
+        // Hover effect (approximation of old CSS hover)
+        btnLicense.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseEntered(java.awt.event.MouseEvent e) {
+                btnLicense.setBackground(new Color(0x0056b3));
+            }
 
-        // Optional: Add a hover effect to change button color when hovered
-        btnLicense.setOnMouseEntered(event ->
-                btnLicense.setStyle("-fx-background-color: #0056b3; -fx-text-fill: white; -fx-font-size: 14px;"));
-        btnLicense.setOnMouseExited(event ->
-                btnLicense.setStyle("-fx-background-color: #007bff; -fx-text-fill: white; -fx-font-size: 14px;"));
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent e) {
+                btnLicense.setBackground(new Color(0x007bff));
+            }
+        });
 
-        // Arrange labels and button in a VBox layout for a clean vertical arrangement
-        VBox infoGroup = new VBox(
-                10,
-                applicationNameLabel,
-                compileDateLabel,
-                expirationDateLabel,
-                copyrightLabel,
-                rightsReservedLabel,
-                btnLicense);
-        infoGroup.setStyle("-fx-padding: " + ARConstants.SPACE_M + ";");
+        // --- Layout: vertical group equivalent of VBox ---
+        JPanel infoGroup = new JPanel();
+        infoGroup.setLayout(new javax.swing.BoxLayout(infoGroup, javax.swing.BoxLayout.Y_AXIS));
 
-        // Set layout constraints for the VBox within the AnchorPane
-        AnchorPane.setTopAnchor(infoGroup, ARConstants.SPACE_M);
-        AnchorPane.setBottomAnchor(infoGroup, ARConstants.SPACE_M);
-        AnchorPane.setLeftAnchor(infoGroup, ARConstants.SPACE_M);
-        AnchorPane.setRightAnchor(infoGroup, ARConstants.SPACE_M);
+        int pad = (int) ARConstants.SPACE_M;
+        infoGroup.setBorder(new EmptyBorder(pad, pad, pad, pad));
+        infoGroup.setBackground(new Color(0xf1f2f6)); // light background
 
-        // Create the main pane (AnchorPane) and add the VBox layout to it
-        mainPane = new AnchorPane(infoGroup);
+        // This border mimics subtle card style
+        infoGroup.setOpaque(true);
+
+        infoGroup.add(applicationNameLabel);
+        infoGroup.add(javax.swing.Box.createVerticalStrut(5));
+        infoGroup.add(compileDateLabel);
+        infoGroup.add(javax.swing.Box.createVerticalStrut(5));
+        infoGroup.add(expirationDateLabel);
+        infoGroup.add(javax.swing.Box.createVerticalStrut(5));
+        infoGroup.add(copyrightLabel);
+        infoGroup.add(javax.swing.Box.createVerticalStrut(5));
+        infoGroup.add(rightsReservedLabel);
+        infoGroup.add(javax.swing.Box.createVerticalStrut(10));
+        infoGroup.add(btnLicense);
+
+        // --- Root pane ---
+        mainPane = new JPanel(new java.awt.BorderLayout());
+        mainPane.setBackground(new Color(0xf5f5f5));
+        mainPane.add(infoGroup, java.awt.BorderLayout.CENTER);
     }
 
     @Override
     public void initUIBehaviour() {
-        // Additional behavior for the button can be added here if needed
-        btnLicense.setOnMouseClicked(e -> arLicenseScene.showModal());
+        // Wire button to license scene (same logical behavior as JavaFX version)
+        btnLicense.addActionListener(e -> arLicenseScene.showModal());
     }
 }

@@ -121,8 +121,8 @@ Scene class example:
 ```java
 public class ARMainScene extends ARScene {
 
-    private static final Double SCENE_HEIGHT = 30D;
-    private static final Double SCENE_WIDTH = 300D;
+    private static final int SCENE_HEIGHT = 30;
+    private static final int SCENE_WIDTH = 300;
     private static final String TITLE = "AR Web Scanner";
 
     public ARMainScene() {

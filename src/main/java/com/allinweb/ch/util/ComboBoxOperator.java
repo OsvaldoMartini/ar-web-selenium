@@ -1,15 +1,15 @@
 package com.allinweb.ch.util;
 
-import javafx.scene.image.Image;
+import javax.swing.ImageIcon;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class ComboBoxOperator {
     private final String text;
-    private final Image image;
+    private final ImageIcon image;
     private final String operator;
 
-    public ComboBoxOperator(String text, Image image, String operator) {
+    public ComboBoxOperator(String text, ImageIcon image, String operator) {
         this.text = text;
         this.image = image;
         this.operator = operator;
@@ -19,7 +19,7 @@ public class ComboBoxOperator {
         return text;
     }
 
-    public Image getImage() {
+    public ImageIcon getImage() {
         return image;
     }
 

@@ -46,8 +46,8 @@
 // @Slf4j
 // public class ARScannedElementScene extends ARScene {
 //
-//    private static final Double SCENE_HEIGHT = 650D;
-//    private static final Double SCENE_WIDTH = 1100D;
+//    private static final int SCENE_HEIGHT = 650D;
+//    private static final int SCENE_WIDTH = 1100D;
 //    private static final String TITLE = "AR Web Factory";
 //    private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
 //    private static final CountDownLatch latch = new CountDownLatch(1);
@@ -577,7 +577,7 @@
 //
 //                    modalDialog = new JDialog(owner, getTitle(), Dialog.ModalityType.APPLICATION_MODAL);
 //                    modalDialog.setSize(
-//                            getSceneWidth().intValue(), getSceneHeight().intValue());
+//                            getSceneWidth(), getSceneHeight());
 //                    modalDialog.setLocationRelativeTo(owner);
 //
 //                    if (icon != null) {

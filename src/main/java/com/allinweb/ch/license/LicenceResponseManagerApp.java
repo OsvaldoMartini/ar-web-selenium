@@ -7,99 +7,78 @@ import com.sun.jna.Pointer;
 import com.sun.jna.platform.win32.KnownFolders;
 import com.sun.jna.platform.win32.Shell32;
 import com.sun.jna.ptr.PointerByReference;
+import java.awt.*;
 import java.io.File;
-import java.io.IOException;
-import javafx.application.Application;
-import javafx.geometry.Insets;
-import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.TextField;
-import javafx.scene.control.TextFormatter;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.VBox;
-import javafx.stage.FileChooser;
-import javafx.stage.Stage;
-import javafx.util.converter.IntegerStringConverter;
-import lombok.extern.slf4j.Slf4j;
+import java.text.NumberFormat;
+import javax.swing.*;
+import javax.swing.text.NumberFormatter;
 
-@Slf4j
-public class LicenceResponseManagerApp extends Application {
+public class LicenceResponseManagerApp {
 
-    private static final PerformMessage performMessage;
-
-    static {
-        performMessage = PerformMessage.getInstance();
-    }
+    private static final PerformMessage performMessage = PerformMessage.getInstance();
 
     public static void main(String[] args) {
-        launch(args);
+        SwingUtilities.invokeLater(() -> new LicenceResponseManagerApp().showUI());
     }
 
-    @Override
-    public void start(Stage primaryStage) {
-        primaryStage.setTitle("Generate AR Web Licence File App");
+    private void showUI() {
+        JFrame frame = new JFrame("Generate AR Web Licence File App");
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setSize(600, 300);
+        frame.setLayout(new BorderLayout());
 
-        VBox root = new VBox(10);
-        root.setPadding(new Insets(20, 10, 10, 10));
+        // Header label
+        JLabel headerLabel = new JLabel("AR Web Licence response file generator");
+        headerLabel.setOpaque(true);
+        headerLabel.setBackground(new Color(0, 120, 215));
+        headerLabel.setForeground(Color.WHITE);
+        headerLabel.setFont(headerLabel.getFont().deriveFont(Font.BOLD, 14f));
+        headerLabel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        frame.add(headerLabel, BorderLayout.NORTH);
 
-        // Header label for the application
-        Label headerLabel = new Label("AR Web Licence response file generator");
-        headerLabel.setStyle(
-                "-fx-background-color: #0078d7; -fx-text-fill: white; -fx-font-size: 14px; -fx-padding: 10;");
-        headerLabel.setMinWidth(500);
-        headerLabel.setMaxHeight(Double.MAX_VALUE); // Ensure the label stretches across the top
-        root.getChildren().add(headerLabel);
+        // Grid panel
+        JPanel grid = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        GridPane grid = new GridPane();
-        grid.setHgap(10);
-        grid.setVgap(10);
-        grid.setPadding(new Insets(20, 0, 20, 0));
+        // File upload
+        JLabel filePathLabel = new JLabel("Upload AR request file:");
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        grid.add(filePathLabel, gbc);
 
-        Label filePathLabel = new Label("Upload AR request file:");
-        grid.add(filePathLabel, 0, 0);
-
-        TextField filePathField = new TextField();
-        filePathField.setPromptText("Upload AR request file");
+        JTextField filePathField = new JTextField();
         filePathField.setEditable(false);
-        grid.add(filePathField, 1, 0);
+        gbc.gridx = 1;
+        gbc.weightx = 1;
+        grid.add(filePathField, gbc);
 
-        Button uploadButton = new Button("Upload");
-        uploadButton.setOnAction(e -> {
-            FileChooser fileChooser = new FileChooser();
-            fileChooser.setTitle("Open Request AR Web File");
-            fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("All Files", "*.*"));
+        JButton uploadButton = new JButton("Upload");
+        gbc.gridx = 2;
+        gbc.weightx = 0;
+        grid.add(uploadButton, gbc);
+
+        uploadButton.addActionListener(e -> {
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setDialogTitle("Open Request AR Web File");
 
             // Set initial directory to Desktop
             try {
-                // Use SHGetKnownFolderPath to get Desktop path
                 PointerByReference ppszPath = new PointerByReference();
-                if (Shell32.INSTANCE
-                                .SHGetKnownFolderPath(KnownFolders.FOLDERID_Desktop, 0, null, ppszPath)
-                                .intValue()
-                        != 0) {
-                    throw new IOException("Failed to get desktop directory.");
+                if (Shell32.INSTANCE.SHGetKnownFolderPath(KnownFolders.FOLDERID_Desktop, 0, null, ppszPath) == 0) {
+
+                    String desktopPath = ppszPath.getValue().getWideString(0);
+                    Native.free(Pointer.nativeValue(ppszPath.getValue()));
+                    fileChooser.setCurrentDirectory(new File(desktopPath));
                 }
-
-                // Convert pointer to string
-                String desktopPath = ppszPath.getValue().getWideString(0);
-                Native.free(Pointer.nativeValue(ppszPath.getValue()));
-
-                File desktopDir = new File(desktopPath);
-                if (desktopDir.exists() && desktopDir.isDirectory()) {
-                    fileChooser.setInitialDirectory(desktopDir);
-                }
-
             } catch (Exception ex) {
-                ex.printStackTrace(); // fallback to default if desktop not available
+                ex.printStackTrace();
             }
 
-            var file = fileChooser.showOpenDialog(primaryStage);
-            if (file != null) {
-                filePathField.setText(file.getAbsolutePath());
-            }
-
-            if (file != null) {
+            int result = fileChooser.showOpenDialog(frame);
+            if (result == JFileChooser.APPROVE_OPTION) {
+                File file = fileChooser.getSelectedFile();
                 if (file.getName().endsWith(".request")) {
                     filePathField.setText(file.getAbsolutePath());
                 } else {
@@ -114,23 +93,29 @@ public class LicenceResponseManagerApp extends Application {
             }
         });
 
-        grid.add(uploadButton, 2, 0);
+        // Number of days
+        JLabel daysLabel = new JLabel("Number of days granted:");
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        grid.add(daysLabel, gbc);
 
-        Label daysLabel = new Label("Number of days granted:");
-        grid.add(daysLabel, 0, 1);
+        NumberFormat format = NumberFormat.getIntegerInstance();
+        format.setGroupingUsed(false);
+        NumberFormatter numberFormatter = new NumberFormatter(format);
+        numberFormatter.setAllowsInvalid(false);
+        JFormattedTextField daysField = new JFormattedTextField(numberFormatter);
+        daysField.setColumns(10);
+        gbc.gridx = 1;
+        grid.add(daysField, gbc);
 
-        TextField daysField = new TextField();
-        daysField.setPromptText("Enter number of days");
-        daysField.setTextFormatter(new TextFormatter<>(new IntegerStringConverter(), null, change -> {
-            String newText = change.getControlNewText();
-            return newText.matches("^[0-9,-]*$") ? change : null;
-        }));
-        grid.add(daysField, 1, 1);
+        // Generate button
+        JButton generateButton = new JButton("Generate");
+        gbc.gridx = 1;
+        gbc.gridy = 2;
+        grid.add(generateButton, gbc);
 
-        Button generateButton = new Button("Generate");
-        generateButton.setOnAction(e -> {
+        generateButton.addActionListener(e -> {
             try {
-
                 if (Strings.isNullOrEmpty(filePathField.getText().trim())) {
                     performMessage.errorMessage(
                             "Error reading the file!", "You have not selected any file!", null, null, null, 0);
@@ -144,13 +129,11 @@ public class LicenceResponseManagerApp extends Application {
                 }
 
                 String decryptedContent = LicenseManager.getDecryptedResponseFile(filePathField.getText());
-                if (decryptedContent.equals("Invalid file selected")) {
-                    return;
-                }
+                if ("Invalid file selected".equals(decryptedContent)) return;
+
                 String response = new LicenseManager()
                         .genereteResponseFile(decryptedContent, Integer.parseInt(daysField.getText()));
-                if (response.equals("File creation success")) {
-
+                if ("File creation success".equals(response)) {
                     performMessage.errorMessage(
                             "File was Generated successfully!",
                             "File Name:",
@@ -159,6 +142,7 @@ public class LicenceResponseManagerApp extends Application {
                             null,
                             0);
                 }
+
             } catch (Exception ex) {
                 performMessage.errorMessage(
                         "Error writing to the file!",
@@ -169,16 +153,16 @@ public class LicenceResponseManagerApp extends Application {
                         0);
             }
         });
-        grid.add(generateButton, 1, 2);
 
-        Button closeButton = new Button("Close");
-        closeButton.setOnAction(e -> primaryStage.close());
-        grid.add(closeButton, 1, 3);
+        // Close button
+        JButton closeButton = new JButton("Close");
+        gbc.gridy = 3;
+        gbc.gridx = 1;
+        grid.add(closeButton, gbc);
+        closeButton.addActionListener(e -> frame.dispose());
 
-        root.getChildren().add(grid);
-
-        Scene scene = new Scene(root, 600, 300);
-        primaryStage.setScene(scene);
-        primaryStage.show();
+        frame.add(grid, BorderLayout.CENTER);
+        frame.setLocationRelativeTo(null);
+        frame.setVisible(true);
     }
 }

@@ -4,27 +4,32 @@ import com.allinweb.ch.component.pane.ARExcelFilePane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.model.SplitDTO;
-import javafx.application.Platform;
-import javafx.scene.Scene;
-import javafx.stage.Modality;
-import javafx.stage.Stage;
+import java.awt.Dialog;
+import java.awt.Window;
+import javax.swing.JComponent;
+import javax.swing.JDialog;
+import javax.swing.JFrame;
+import javax.swing.SwingUtilities;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class ARExcelFileScene extends ARScene {
 
-    private static final Double SCENE_HEIGHT = 300D;
-    private static final Double SCENE_WIDTH = 800D;
+    private static final int SCENE_HEIGHT = 300;
+    private static final int SCENE_WIDTH = 800;
     private static final String TITLE = "Create or Delete the Export Excel File";
+
     protected static volatile ARExcelFileScene instance;
-    private static ARExcelFilePane arExcelFilePane = ARExcelFilePane.getInstance();
-    private Stage modalStage;
-    private Scene modalScene;
+
+    private static final ARExcelFilePane arExcelFilePane = ARExcelFilePane.getInstance();
+
+    private JDialog modalDialog;
+
     private SplitDTO splitDTO;
     private String sessionId;
+
     // Private constructor to prevent instantiation
     private ARExcelFileScene() {
-
         super();
     }
 
@@ -46,7 +51,6 @@ public class ARExcelFileScene extends ARScene {
 
     @Override
     public IARPane buildPane() {
-        //        arExcelFilePane.initialize(sessionId, blockExcelDTO, modalStage);
         return arExcelFilePane;
     }
 
@@ -65,39 +69,53 @@ public class ARExcelFileScene extends ARScene {
         return TITLE;
     }
 
-    public void showModal() {
+    /**
+     * Swing modal dialog version of the old JavaFX showModal().
+     */
+    public void showModal(JFrame parentFrame) {
 
-        arExcelFilePane.initialize(sessionId, splitDTO, modalStage);
+        arExcelFilePane.initialize(sessionId, splitDTO);
 
-        if (modalStage == null) {
-            modalStage = new Stage();
-            modalStage.getIcons().add(icon);
+        if (modalDialog == null) {
+
+            Window owner = parentFrame != null ? parentFrame : SwingUtilities.getWindowAncestor(parentFrame);
+
+            modalDialog = new JDialog(owner, getTitle(), Dialog.ModalityType.APPLICATION_MODAL);
+
+            if (icon != null) {
+                modalDialog.setIconImage(icon);
+            }
+
             IARPane pane = buildPane();
             if (pane != null) {
-                modalScene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
-                modalStage.setScene(modalScene);
-                modalStage.setTitle(getTitle());
-                modalStage.initModality(Modality.WINDOW_MODAL);
-                modalStage.setAlwaysOnTop(true); // Set always on top
-                modalStage.toFront();
-                // Reset alwaysOnTop after showing so it behaves normally afterward
-                modalStage.setAlwaysOnTop(false);
-
-                // Once shown, reset AlwaysOnTop to false so it behaves normally
-                modalStage.setOnShown(event -> {
-                    Platform.runLater(() -> modalStage.setAlwaysOnTop(false));
-                });
+                JComponent content = pane.createPane();
+                modalDialog.setContentPane(content);
+                modalDialog.setSize(getSceneWidth(), getSceneHeight());
+                modalDialog.setLocationRelativeTo(parentFrame);
             } else {
-                // Handle the case where pane creation failed
                 log.error("Failed to build pane for modal.");
                 return;
             }
         }
-        modalStage.setTitle(getTitle()); // Update title if it might have changed
 
-        // Check if the stage is already showing
-        if (!modalStage.isShowing()) {
-            modalStage.showAndWait(); // Show and wait only if not already showing
+        modalDialog.setTitle(getTitle());
+
+        if (!modalDialog.isVisible()) {
+            modalDialog.setLocationRelativeTo(parentFrame);
+            modalDialog.setVisible(true);
+        } else {
+            modalDialog.toFront();
+        }
+    }
+
+    public void closeModal() {
+        try {
+            if (modalDialog != null) {
+                modalDialog.dispose();
+            }
+            modalDialog = null;
+        } catch (Exception e) {
+            log.error("Error closing Excel modal: {}", e.getMessage());
         }
     }
 }

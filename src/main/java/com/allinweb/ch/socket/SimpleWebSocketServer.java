@@ -15,7 +15,7 @@ import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
-import javafx.application.Platform;
+import javax.swing.*;
 import javax.websocket.*;
 import javax.websocket.server.ServerEndpoint;
 import lombok.extern.slf4j.Slf4j;
@@ -1182,10 +1182,14 @@ public class SimpleWebSocketServer {
     }
 
     private void excelFileBlock(String sessionId, SplitDTO splitDTO) {
-        // Ensure JavaFX UI updates are done on the JavaFX Application Thread
-        Platform.runLater(() -> {
+        // Ensure Swing UI updates are done on the Event Dispatch Thread (EDT)
+        SwingUtilities.invokeLater(() -> {
+            // Assuming arExcelFileScene is now a Swing component, e.g., JDialog or JFrame
             arExcelFileScene.initialize(sessionId, splitDTO);
-            arExcelFileScene.showModal();
+            arExcelFileScene.showModal(new JFrame()); // if it's a JDialog
+            //            arExcelFileScene.pack();         // adjust size
+            //            arExcelFileScene.setLocationRelativeTo(null); // center on screen
+            //            arExcelFileScene.setVisible(true); // show modal
         });
     }
 
@@ -1208,9 +1212,13 @@ public class SimpleWebSocketServer {
             blockDetailsDTO.setBlockOrderNumber(1);
         }
 
-        Platform.runLater(() -> {
+        SwingUtilities.invokeLater(() -> {
+            // Assuming arSaveComponentScene is now a Swing component, e.g., JDialog or JFrame
             arSaveComponentScene.initialize(blockDetailsDTO);
-            arSaveComponentScene.showModal();
+            arSaveComponentScene.showModal(); // if it's a JDialog
+            //            arSaveComponentScene.pack();         // adjust size
+            //            arSaveComponentScene.setLocationRelativeTo(null); // center on screen
+            //            arSaveComponentScene.setVisible(true); // show modal
         });
     }
 

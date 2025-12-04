@@ -16,8 +16,8 @@ import lombok.extern.slf4j.Slf4j;
 public class ARSaveCloneScene extends ARScene {
 
     private static final ARSaveClonePane arSaveClonePane;
-    private static final Double SCENE_HEIGHT = 450D;
-    private static final Double SCENE_WIDTH = 800D;
+    private static final int SCENE_HEIGHT = 450;
+    private static final int SCENE_WIDTH = 800;
     private static final String TITLE = "Clone Job";
     protected static volatile ARSaveCloneScene instance;
 
@@ -84,7 +84,7 @@ public class ARSaveCloneScene extends ARScene {
         SwingUtilities.invokeLater(() -> {
             if (modalDialog == null) {
                 modalDialog = new JDialog(owner, getTitle(), Dialog.ModalityType.APPLICATION_MODAL);
-                modalDialog.setSize(getSceneWidth().intValue(), getSceneHeight().intValue());
+                modalDialog.setSize(getSceneWidth(), getSceneHeight());
                 modalDialog.setLocationRelativeTo(owner);
 
                 if (icon != null) {

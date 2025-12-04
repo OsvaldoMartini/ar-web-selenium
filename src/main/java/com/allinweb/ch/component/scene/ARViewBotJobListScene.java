@@ -4,19 +4,17 @@ import com.allinweb.ch.component.pane.ARViewBotJobListPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.driver.ARWebDriver;
-import javafx.application.Platform;
-import javafx.collections.ObservableList;
-import javafx.scene.Scene;
-import javafx.stage.Modality;
-import javafx.stage.Stage;
+import java.awt.*;
+import java.util.List;
+import javax.swing.*;
 import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.WebDriver;
 
 @Slf4j
 public class ARViewBotJobListScene extends ARScene {
 
-    private static final Double SCENE_HEIGHT = 600D;
-    private static final Double SCENE_WIDTH = 800D;
+    private static final int SCENE_HEIGHT = 600;
+    private static final int SCENE_WIDTH = 800;
     private static final String TITLE = "Bot Job List";
     private static final ARViewBotJobListPane arViewBotJobListPane;
     protected static volatile ARViewBotJobListScene instance;
@@ -27,12 +25,10 @@ public class ARViewBotJobListScene extends ARScene {
 
     private ARViewBotJobScene arViewBotJobScene;
     private ARWebDriver arWebDriver;
-    private ObservableList<WebDriver> webDriverList;
-    private Stage modalStage;
-    private Scene modalScene;
-    // Private constructor to prevent instantiation
-    private ARViewBotJobListScene() {
+    private List<WebDriver> webDriverList;
+    private JDialog modalDialog;
 
+    private ARViewBotJobListScene() {
         super();
     }
 
@@ -48,7 +44,7 @@ public class ARViewBotJobListScene extends ARScene {
     }
 
     public void initialize(
-            ARViewBotJobScene arViewBotJobScene, ARWebDriver arWebDriver, ObservableList<WebDriver> webDriverList) {
+            ARViewBotJobScene arViewBotJobScene, ARWebDriver arWebDriver, List<WebDriver> webDriverList) {
         this.arViewBotJobScene = arViewBotJobScene;
         this.arWebDriver = arWebDriver;
         this.webDriverList = webDriverList;
@@ -75,39 +71,37 @@ public class ARViewBotJobListScene extends ARScene {
     }
 
     public void showModal() {
+        SwingUtilities.invokeLater(() -> {
+            try {
+                arViewBotJobListPane.initialize(arViewBotJobScene, arWebDriver, webDriverList);
 
-        arViewBotJobListPane.initialize(arViewBotJobScene, arWebDriver, webDriverList);
+                if (modalDialog == null) {
+                    modalDialog = new JDialog((Frame) null, getTitle(), true); // modal dialog
+                    IARPane pane = buildPane();
+                    if (pane != null) {
+                        modalDialog.getContentPane().add(pane.createPane());
+                        modalDialog.setSize(getSceneWidth(), getSceneHeight());
+                        modalDialog.setLocationRelativeTo(null); // center on screen
+                        modalDialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
 
-        if (modalStage == null) {
-            modalStage = new Stage();
-            modalStage.getIcons().add(icon);
-            IARPane pane = buildPane();
-            if (pane != null) {
-                modalScene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
-                modalStage.setScene(modalScene);
-                modalStage.setTitle(getTitle());
-                modalStage.initModality(Modality.WINDOW_MODAL);
-                modalStage.setAlwaysOnTop(true); // Set always on top
-                modalStage.toFront();
-                // Reset alwaysOnTop after showing so it behaves normally afterward
-                modalStage.setAlwaysOnTop(false);
+                        // Optional: set icon if you have one
+                        if (icon != null) {
+                            modalDialog.setIconImage(icon);
+                        }
+                    } else {
+                        log.error("Failed to build pane for modal.");
+                        return;
+                    }
+                }
 
-                // Once shown, reset AlwaysOnTop to false so it behaves normally
-                modalStage.setOnShown(event -> {
-                    Platform.runLater(() -> modalStage.setAlwaysOnTop(false));
-                });
-            } else {
-                // Handle the case where pane creation failed
-                log.error("Failed to build pane for modal.");
-                return;
+                modalDialog.setTitle(getTitle());
+
+                if (!modalDialog.isVisible()) {
+                    modalDialog.setVisible(true);
+                }
+            } catch (Exception e) {
+                log.error("Error showing modal: {}", e.getMessage(), e);
             }
-        }
-
-        modalStage.setTitle(getTitle());
-
-        // Check if the stage is already showing
-        if (!modalStage.isShowing()) {
-            modalStage.showAndWait(); // Show and wait only if not already showing
-        }
+        });
     }
 }

@@ -23,8 +23,8 @@ import org.openqa.selenium.WebDriver;
 @Slf4j
 public class ARMainScene extends ARScene {
 
-    private static final Double SCENE_HEIGHT = 600D;
-    private static final Double SCENE_WIDTH = 700D;
+    private static final int SCENE_HEIGHT = 600;
+    private static final int SCENE_WIDTH = 700;
     private static final String TITLE = "AR Web Bot Job List";
 
     private static final ARMainPane arMainPane;
@@ -123,7 +123,7 @@ public class ARMainScene extends ARScene {
 
                 modalDialog = new JDialog(owner, getTitle(), Dialog.ModalityType.APPLICATION_MODAL);
                 modalDialog.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
-                modalDialog.setSize(getSceneWidth().intValue(), getSceneHeight().intValue());
+                modalDialog.setSize(getSceneWidth(), getSceneHeight());
                 modalDialog.setLocationRelativeTo(owner);
 
                 if (icon != null) {

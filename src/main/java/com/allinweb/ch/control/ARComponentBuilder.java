@@ -31,24 +31,22 @@ public class ARComponentBuilder {
      * Create a "top panel" with a preferred height and outer margin.
      * This replaces the old JavaFX HBox + AnchorPane anchoring.
      */
-    public JPanel createTopPanel(Double topPanelHeight, Double edgeSpace) {
+    public JPanel createTopPanel(int topPanelHeight, int edgeSpace) {
         JPanel topPane = new JPanel();
         topPane.setLayout(new FlowLayout(FlowLayout.LEFT));
-        topPane.setBorder(
-                BorderFactory.createEmptyBorder(edgeSpace.intValue(), edgeSpace.intValue(), 0, edgeSpace.intValue()));
-        topPane.setPreferredSize(new Dimension(0, topPanelHeight.intValue()));
+        topPane.setBorder(BorderFactory.createEmptyBorder(edgeSpace, edgeSpace, 0, edgeSpace));
+        topPane.setPreferredSize(new Dimension(0, topPanelHeight));
         return topPane;
     }
 
     /**
      * Create a "bottom panel" with a preferred height and outer margin.
      */
-    public JPanel createBottomPanel(Double bottomPanelHeight, Double edgeSpace) {
+    public JPanel createBottomPanel(int bottomPanelHeight, int edgeSpace) {
         JPanel bottomPane = new JPanel();
         bottomPane.setLayout(new FlowLayout(FlowLayout.RIGHT));
-        bottomPane.setBorder(
-                BorderFactory.createEmptyBorder(0, edgeSpace.intValue(), edgeSpace.intValue(), edgeSpace.intValue()));
-        bottomPane.setPreferredSize(new Dimension(0, bottomPanelHeight.intValue()));
+        bottomPane.setBorder(BorderFactory.createEmptyBorder(0, edgeSpace, edgeSpace, edgeSpace));
+        bottomPane.setPreferredSize(new Dimension(0, bottomPanelHeight));
         return bottomPane;
     }
 
@@ -56,11 +54,10 @@ public class ARComponentBuilder {
      * Create a central content panel with margins.
      * In JavaFX you used AnchorPane constraints; here we just use border / BoxLayout.
      */
-    public JPanel createContentPanel(Double topPanelHeight, Double bottomPanelHeight, Double edgeSpace) {
+    public JPanel createContentPanel(int topPanelHeight, int bottomPanelHeight, int edgeSpace) {
         JPanel contentPane = new JPanel();
         contentPane.setLayout(new BorderLayout());
-        contentPane.setBorder(BorderFactory.createEmptyBorder(
-                edgeSpace.intValue(), edgeSpace.intValue(), edgeSpace.intValue(), edgeSpace.intValue()));
+        contentPane.setBorder(BorderFactory.createEmptyBorder(edgeSpace, edgeSpace, edgeSpace, edgeSpace));
         return contentPane;
     }
 
@@ -91,7 +88,7 @@ public class ARComponentBuilder {
             }
             ImageIcon icon = new ImageIcon(url);
             if (size != null && size > 0) {
-                Image scaled = icon.getImage().getScaledInstance(size.intValue(), size.intValue(), Image.SCALE_SMOOTH);
+                Image scaled = icon.getImage().getScaledInstance(size, size, Image.SCALE_SMOOTH);
                 return new ImageIcon(scaled);
             }
             return icon;
@@ -159,7 +156,7 @@ public class ARComponentBuilder {
 
     public JButton buildButton(
             String text,
-            Double height,
+            Integer height,
             String iconSource,
             Integer iconSize,
             Insets padding,
@@ -185,7 +182,7 @@ public class ARComponentBuilder {
 
         if (height != null) {
             Dimension d = button.getPreferredSize();
-            d.height = height.intValue();
+            d.height = height;
             button.setPreferredSize(d);
         }
         if (padding != null) {

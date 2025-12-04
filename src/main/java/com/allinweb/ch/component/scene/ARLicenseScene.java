@@ -17,8 +17,8 @@ import lombok.extern.slf4j.Slf4j;
 public class ARLicenseScene {
 
     private static final ARLicensePane arLicensePane;
-    private static final Double SCENE_HEIGHT = 550D;
-    private static final Double SCENE_WIDTH = 800D;
+    private static final int SCENE_HEIGHT = 550;
+    private static final int SCENE_WIDTH = 800;
     private static final String TITLE = "Activation Software Required";
     protected static volatile ARLicenseScene instance;
 
@@ -48,11 +48,11 @@ public class ARLicenseScene {
         return arLicensePane;
     }
 
-    public Double getSceneHeight() {
+    public int getSceneHeight() {
         return SCENE_HEIGHT;
     }
 
-    public Double getSceneWidth() {
+    public int getSceneWidth() {
         return SCENE_WIDTH;
     }
 
@@ -85,7 +85,7 @@ public class ARLicenseScene {
 
                 modalDialog = new JDialog(owner, getTitle(), Dialog.ModalityType.APPLICATION_MODAL);
                 modalDialog.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
-                modalDialog.setSize(getSceneWidth().intValue(), getSceneHeight().intValue());
+                modalDialog.setSize(getSceneWidth(), getSceneHeight());
                 modalDialog.setLocationRelativeTo(owner);
 
                 IARPane pane = buildPane();

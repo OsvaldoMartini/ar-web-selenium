@@ -3,31 +3,31 @@ package com.allinweb.ch.component.scene;
 import com.allinweb.ch.component.pane.ARInfoPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
-import javafx.application.Platform;
-import javafx.scene.Scene;
-import javafx.stage.Modality;
-import javafx.stage.Stage;
+import java.awt.Frame;
+import javax.swing.JComponent;
+import javax.swing.JDialog;
+import javax.swing.WindowConstants;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class ARInfoScene extends ARScene {
 
-    private static final Double SCENE_HEIGHT = 300D;
-    private static final Double SCENE_WIDTH = 400D;
+    private static final int DIALOG_HEIGHT = 300;
+    private static final int DIALOG_WIDTH = 400;
     private static final String TITLE = "About";
+
     protected static volatile ARInfoScene instance;
-    private static ARInfoPane arInfoPane;
+    private static final ARInfoPane arInfoPane;
 
     static {
         arInfoPane = ARInfoPane.getInstance();
     }
 
-    private Stage modalStage;
-    private Scene modalScene;
+    private JDialog dialog;
     private boolean isEnabledLicence;
+
     // Private constructor to prevent instantiation
     private ARInfoScene() {
-
         super();
     }
 
@@ -42,6 +42,13 @@ public class ARInfoScene extends ARScene {
         return instance;
     }
 
+    /**
+     * Initialize license flag (if needed by ARInfoPane).
+     */
+    public void initialize(boolean isEnabledLicence) {
+        this.isEnabledLicence = isEnabledLicence;
+    }
+
     @Override
     public IARPane buildPane() {
         return arInfoPane;
@@ -49,12 +56,12 @@ public class ARInfoScene extends ARScene {
 
     @Override
     public int getSceneHeight() {
-        return SCENE_HEIGHT;
+        return DIALOG_HEIGHT;
     }
 
     @Override
     public int getSceneWidth() {
-        return SCENE_WIDTH;
+        return DIALOG_WIDTH;
     }
 
     @Override
@@ -62,39 +69,53 @@ public class ARInfoScene extends ARScene {
         return TITLE;
     }
 
+    /**
+     * Show the info dialog (modal, centered, always on top initially).
+     * Equivalent to the old JavaFX showModal().
+     */
     public void showModal() {
 
+        // Initialize pane with license flag
         arInfoPane.initialize(isEnabledLicence);
 
-        if (modalStage == null) {
-            modalStage = new Stage();
-            modalStage.getIcons().add(icon);
+        if (dialog == null) {
             IARPane pane = buildPane();
-            if (pane != null) {
-                modalScene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
-                modalStage.setScene(modalScene);
-                modalStage.setTitle(getTitle());
-                modalStage.initModality(Modality.WINDOW_MODAL);
-                modalStage.setAlwaysOnTop(true); // Set always on top
-                modalStage.toFront();
-                // Reset alwaysOnTop after showing so it behaves normally afterward
-                modalStage.setAlwaysOnTop(false);
-
-                // Once shown, reset AlwaysOnTop to false so it behaves normally
-                modalStage.setOnShown(event -> {
-                    Platform.runLater(() -> modalStage.setAlwaysOnTop(false));
-                });
-
-            } else {
-                // Handle the case where pane creation failed
+            if (pane == null) {
                 log.error("Failed to build pane for modal.");
                 return;
             }
+
+            dialog = new JDialog((Frame) null, getTitle(), true); // modal
+            dialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
+
+            JComponent root = pane.createPane();
+            dialog.setContentPane(root);
+
+            dialog.setSize(getSceneWidth(), getSceneHeight());
+            dialog.setResizable(false);
+
+            if (icon != null) {
+                // 'icon' comes from ARScene Swing base (java.awt.Image)
+                dialog.setIconImage(icon);
+            }
+
+            // Center and bring to front
+            dialog.setLocationRelativeTo(null);
+            dialog.setAlwaysOnTop(true);
         }
-        modalStage.setTitle(getTitle()); // Update title if it might have changed
-        // Check if the stage is already showing
-        if (!modalStage.isShowing()) {
-            modalStage.showAndWait(); // Show and wait only if not already showing
+
+        dialog.setTitle(getTitle()); // update title if needed
+        dialog.setVisible(true); // blocks until dialog is closed
+        // After visible returns, Swing has already handled modality.
+    }
+
+    /**
+     * Optional helper to programmatically close the dialog.
+     */
+    public void closeModal() {
+        if (dialog != null) {
+            dialog.dispose();
+            dialog = null;
         }
     }
 }

@@ -6,18 +6,13 @@ import com.sun.jna.Pointer;
 import com.sun.jna.platform.win32.KnownFolders;
 import com.sun.jna.platform.win32.Shell32;
 import com.sun.jna.ptr.PointerByReference;
+import java.awt.*;
 import java.io.IOException;
-import javafx.application.Application;
-import javafx.geometry.Insets;
-import javafx.scene.Scene;
-import javafx.scene.control.*;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
-import javafx.stage.Stage;
+import javax.swing.*;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class LicenseActivationApp extends Application {
+public class LicenseActivationApp {
 
     private static final PerformMessage performMessage;
 
@@ -25,7 +20,7 @@ public class LicenseActivationApp extends Application {
         performMessage = PerformMessage.getInstance();
     }
 
-    private String fileFolder;
+    private JFrame frame;
 
     public static void main(String[] args) throws Exception {
         String licensePath = System.getProperty("user.dir");
@@ -34,46 +29,40 @@ public class LicenseActivationApp extends Application {
         }
 
         if (!LicenseManager.checkLicenseFile(licensePath).isActive()) {
-            launch(args);
+            String finalLicensePath = licensePath;
+            SwingUtilities.invokeLater(() -> {
+                try {
+                    new LicenseActivationApp().start(finalLicensePath);
+                } catch (Exception e) {
+                    log.error("Error starting LicenseActivationApp: {}", e.getMessage(), e);
+                }
+            });
         } else {
-            log.info("AR Web agree licence terms are activate.\n\nPress OK to proceed.");
-            //        Application.launch(LicenceResponseManagerApp.class, args); // Lancia questa
-            // applicazione se la
-            // condizione  falsa
+            log.info("AR Web agree licence terms are active.\n\nPress OK to proceed.");
+            // Previously they might show a dialog and continue the application
         }
     }
 
+    /**
+     * Windows Desktop directory via JNA (unchanged logic, only used in Swing now).
+     */
     private static String getDesktopDir() throws IOException {
         PointerByReference ppszPath = new PointerByReference();
-        if (Shell32.INSTANCE
-                        .SHGetKnownFolderPath(KnownFolders.FOLDERID_Desktop, 0, null, ppszPath)
-                        .intValue()
-                != 0) {
+        if (Shell32.INSTANCE.SHGetKnownFolderPath(KnownFolders.FOLDERID_Desktop, 0, null, ppszPath) != 0) {
+
             log.warn("Error reading/writing to the file! -> Desktop Folder");
-            //            performMessage.errorMessage(
-            //                    "Error reading/writing to the file!",
-            //                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please verify that
-            // you have the necessary permissions to read and write to the specified directory.</span>",
-            //                    "<span style='color: #E65100; font-weight: bold;'>Attempted to access the following
-            // location:</span> <span style='font-weight: bold;'>Desktop</span>",
-            //                    "<span style='color: #E65100; font-style: italic; font-weight: bold;'>The request for
-            // the License file path was defined at:</span>",
-            //                    "<span style='color: #1A237E; font-style: italic; font-weight: bold; font-size:
-            // 1.05em;'>Desktop Folder</span>",
-            //                    0);
             return null;
-            //            throw new IOException("Failed to get desktop directory.");
         }
 
-        // Convert pointer to string
         String desktopPath = ppszPath.getValue().getWideString(0);
         Native.free(Pointer.nativeValue(ppszPath.getValue()));
         return desktopPath;
     }
 
-    @Override
-    public void start(Stage primaryStage) throws Exception {
-        String licensePath = System.getProperty("user.dir");
+    /**
+     * Entry point for building the Swing UI (replacement for JavaFX start()).
+     */
+    public void start(String licensePath) throws Exception {
         LicenceVal licenseStatus = LicenseManager.checkLicenseFile(licensePath);
 
         String msgValid = "The license file is valid and the application is authorized for use.";
@@ -98,28 +87,39 @@ public class LicenseActivationApp extends Application {
                 null,
                 0);
 
-        // Header label for the application
-        Label headerLabel = new Label("AR Web Activation software required");
-        headerLabel.setStyle(
-                "-fx-background-color: #0078d7; -fx-text-fill: white; -fx-font-size: 14px; -fx-padding: 10;");
-        headerLabel.setMinWidth(500);
-        headerLabel.setMaxHeight(Double.MAX_VALUE); // Ensure the label stretches across the top
+        buildSwingUI(licensePath);
+    }
 
-        // ToggleGroup for exclusive RadioButton selection
-        ToggleGroup toggleGroup = new ToggleGroup();
+    private void buildSwingUI(String licensePath) {
+        frame = new JFrame("Activation Software Required");
+        frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        frame.setSize(600, 450);
+        frame.setLocationRelativeTo(null);
 
-        RadioButton rbRequestLicense = new RadioButton("Request License");
-        rbRequestLicense.setToggleGroup(toggleGroup);
+        // === Header label ===
+        JLabel headerLabel = new JLabel("AR Web Activation software required", SwingConstants.LEFT);
+        headerLabel.setOpaque(true);
+        headerLabel.setBackground(new Color(0x0078d7));
+        headerLabel.setForeground(Color.WHITE);
+        headerLabel.setFont(headerLabel.getFont().deriveFont(Font.BOLD, 14f));
+        headerLabel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        // === Radio buttons (Request / Activate) ===
+        JRadioButton rbRequestLicense = new JRadioButton("Request License");
+        JRadioButton rbActivateLicense = new JRadioButton("Activate with License");
+
+        ButtonGroup toggleGroup = new ButtonGroup();
+        toggleGroup.add(rbRequestLicense);
+        toggleGroup.add(rbActivateLicense);
+
         rbRequestLicense.setSelected(true);
 
-        RadioButton rbActivateLicense = new RadioButton("Activate with License");
-        rbActivateLicense.setToggleGroup(toggleGroup);
+        JPanel radioButtonsBox = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
+        radioButtonsBox.add(rbRequestLicense);
+        radioButtonsBox.add(rbActivateLicense);
 
-        HBox radioButtonsBox = new HBox(10, rbRequestLicense, rbActivateLicense);
-        radioButtonsBox.setPadding(new Insets(10));
-
-        // TextArea for the License Agreement
-        TextArea taLicenseAgreement = new TextArea(
+        // === License agreement text area inside scroll ===
+        JTextArea taLicenseAgreement = new JTextArea(
                 "SOFTWARE LICENSE AGREEMENT\n\n"
                         + "Important - Read Carefully: This License Agreement (\"Agreement\") is a legal contract between you (an individual or a legal entity) and Allinweb SA. (\"Licensor\") for the software that accompanies this agreement, which includes associated software and media material, whether printed, electronic, or online (\"Software\").\n\n"
                         + "1. License Grant: Subject to the terms of this Agreement, the Licensor grants you a non-exclusive, non-transferable license to use the Software for internal purposes according to the following limitations and in compliance with the provided documentation.\n\n"
@@ -133,30 +133,31 @@ public class LicenseActivationApp extends Application {
                         + "5. Limitation of Liability: In no event shall the Licensor be liable for special, incidental, indirect, or consequential damages resulting from the use or inability to use the Software, even if the Licensor has been advised of the possibility of such damages. In no event shall the Licensor’s liability for damages exceed the amount paid to purchase the Software.\n\n"
                         + "6. Termination: This Agreement remains in effect until terminated. This Agreement will automatically terminate without notice from the Licensor if you fail to comply with any term or condition of this Agreement.\n\n"
                         + "7. Miscellaneous: This Agreement constitutes the entire agreement between you and the Licensor and supersedes all prior communications, proposals, or agreements, whether verbal or written, regarding the Software.\n");
-
-        taLicenseAgreement.setWrapText(true);
+        taLicenseAgreement.setWrapStyleWord(true);
+        taLicenseAgreement.setLineWrap(true);
         taLicenseAgreement.setEditable(false);
-        ScrollPane scrollPane = new ScrollPane(taLicenseAgreement);
-        scrollPane.setFitToWidth(true);
-        scrollPane.setPrefHeight(300);
 
-        // TextField for entering the license owner's name
-        TextField tfLicenseOwner = new TextField();
-        tfLicenseOwner.setPromptText("Licensed to (Owner of the license, min 6 chars)");
+        JScrollPane scrollPane = new JScrollPane(taLicenseAgreement);
+        scrollPane.setPreferredSize(new Dimension(580, 250));
 
-        // Checkbox to agree
-        CheckBox cbAgree = new CheckBox("Agree");
-        cbAgree.setPadding(new Insets(10));
+        // === License owner text field ===
+        JTextField tfLicenseOwner = new JTextField();
+        tfLicenseOwner.setToolTipText("Licensed to (Owner of the license, min 6 chars)");
 
-        // Button to proceed
-        Button btnProceed = new Button("Proceed");
-        btnProceed.setDisable(true); // Initially disabled
+        // === Agree checkbox ===
+        JCheckBox cbAgree = new JCheckBox("Agree");
 
-        // Enable the proceed button only if the checkbox is checked
-        cbAgree.setOnAction(event -> btnProceed.setDisable(!cbAgree.isSelected()));
+        // === Buttons ===
+        JButton btnProceed = new JButton("Proceed");
+        btnProceed.setEnabled(false);
 
-        // Actions for Proceed button
-        btnProceed.setOnAction(event -> {
+        JButton btnClose = new JButton("Close");
+
+        // === Wire checkbox to enable/disable Proceed ===
+        cbAgree.addActionListener(e -> btnProceed.setEnabled(cbAgree.isSelected()));
+
+        // === Proceed button logic ===
+        btnProceed.addActionListener(e -> {
             if (!cbAgree.isSelected()) {
                 performMessage.errorMessage(
                         "License Aggreement!",
@@ -165,93 +166,97 @@ public class LicenseActivationApp extends Application {
                         "<span style='font-style: italic;'>This software is governed by legal terms and conditions. Your use constitutes acceptance of these terms.</span>",
                         null,
                         0);
-            } else
-                try {
-                    if (tfLicenseOwner.getText().isEmpty() && !LicenseManager.importResponseFile(licensePath)) {
-                        performMessage.errorMessage(
-                                "Mandatory field is missing!",
-                                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please provide the \"User License\" field information!</span>",
-                                "<span style='color: #E65100; font-weight: bold;'>You must accept the User License Agreement to continue with the installation.</span>",
-                                "<span style='font-style: italic;'>By proceeding, you confirm that you understand and agree to the terms of the User License.</span>",
-                                null,
-                                0);
-                    } else {
-                        try {
-                            if (rbRequestLicense.isSelected()) {
-                                String desktopDir = getDesktopDir();
+                return;
+            }
 
-                                LicenseManager.generateRequestFile(
-                                        desktopDir, tfLicenseOwner.getText().trim());
-                                performMessage.showCustomModalDialogDragWin11(
-                                        "Request File Generated Successfully!",
-                                        "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>The request file for license generation has been successfully created.</span>",
-                                        "<span style='color: #0277BD; font-weight: bold;'>Please send this request file to your provider to receive the User License.</span>",
-                                        "<span style='font-style: italic;'>This request file contains encrypted system information required for license activation.</span>",
-                                        "<span style='color: #E65100; font-weight: bold;'>License path:</span> <span style='font-weight: bold;'>"
-                                                + licensePath + "</span>",
-                                        false,
-                                        "OK",
-                                        null,
-                                        0);
-                            } else if (rbActivateLicense.isSelected()
-                                    && LicenseManager.importResponseFile(licensePath)) {
-                                performMessage.showCustomModalDialogDragWin11(
-                                        "License Activated!",
-                                        "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>Your license has been successfully activated.</span>",
-                                        "<span style='color: #0277BD; font-weight: bold;'>You may now use the application without restrictions.</span>",
-                                        "<span style='font-style: italic;'>You can close this message and continue.</span>",
-                                        "<span style='color: #E65100; font-weight: bold;'>License path:</span> <span style='font-weight: bold;'>"
-                                                + licensePath + "</span>",
-                                        false,
-                                        "OK",
-                                        null,
-                                        0);
-                            } else {
+            try {
+                if (tfLicenseOwner.getText().isEmpty() && !LicenseManager.importResponseFile(licensePath)) {
+                    performMessage.errorMessage(
+                            "Mandatory field is missing!",
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please provide the \"User License\" field information!</span>",
+                            "<span style='color: #E65100; font-weight: bold;'>You must accept the User License Agreement to continue with the installation.</span>",
+                            "<span style='font-style: italic;'>By proceeding, you confirm that you understand and agree to the terms of the User License.</span>",
+                            null,
+                            0);
+                } else {
+                    try {
+                        if (rbRequestLicense.isSelected()) {
+                            String desktopDir = getDesktopDir();
 
-                                performMessage.errorMessage(
-                                        "License Activation Failed!",
-                                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Response file not found or could not be processed.</span>",
-                                        "<span style='color: #0277BD; font-weight: bold;'>Please make sure the response file is available and try again.</span>",
-                                        "<span style='font-style: italic;'>Ensure the file was received from your provider and has not been modified.</span>",
-                                        "<span style='color: #E65100; font-weight: bold;'>Expected license path:</span> <span style='font-weight: bold;'>"
-                                                + licensePath + "</span>",
-                                        0);
-                            }
-                        } catch (Exception error) {
+                            LicenseManager.generateRequestFile(
+                                    desktopDir, tfLicenseOwner.getText().trim());
+                            performMessage.showCustomModalDialogDragWin11(
+                                    "Request File Generated Successfully!",
+                                    "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>The request file for license generation has been successfully created.</span>",
+                                    "<span style='color: #0277BD; font-weight: bold;'>Please send this request file to your provider to receive the User License.</span>",
+                                    "<span style='font-style: italic;'>This request file contains encrypted system information required for license activation.</span>",
+                                    "<span style='color: #E65100; font-weight: bold;'>License path:</span> <span style='font-weight: bold;'>"
+                                            + licensePath + "</span>",
+                                    false,
+                                    "OK",
+                                    null,
+                                    0);
+                        } else if (rbActivateLicense.isSelected() && LicenseManager.importResponseFile(licensePath)) {
+                            performMessage.showCustomModalDialogDragWin11(
+                                    "License Activated!",
+                                    "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>Your license has been successfully activated.</span>",
+                                    "<span style='color: #0277BD; font-weight: bold;'>You may now use the application without restrictions.</span>",
+                                    "<span style='font-style: italic;'>You can close this message and continue.</span>",
+                                    "<span style='color: #E65100; font-weight: bold;'>License path:</span> <span style='font-weight: bold;'>"
+                                            + licensePath + "</span>",
+                                    false,
+                                    "OK",
+                                    null,
+                                    0);
+                        } else {
                             performMessage.errorMessage(
-                                    "License Activation Error",
-                                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>An error occurred during the license activation or verification process.</span>",
-                                    "<span style='font-weight: bold;'>" + licensePath + "</span>.",
-                                    "<span style='color: #E65100; font-weight: bold;'>Please ensure the response file is valid and accessible, and that the application has the required permissions.</span>",
-                                    "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
+                                    "License Activation Failed!",
+                                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Response file not found or could not be processed.</span>",
+                                    "<span style='color: #0277BD; font-weight: bold;'>Please make sure the response file is available and try again.</span>",
+                                    "<span style='font-style: italic;'>Ensure the file was received from your provider and has not been modified.</span>",
+                                    "<span style='color: #E65100; font-weight: bold;'>Expected license path:</span> <span style='font-weight: bold;'>"
+                                            + licensePath + "</span>",
                                     0);
                         }
+                    } catch (Exception error) {
+                        performMessage.errorMessage(
+                                "License Activation Error",
+                                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>An error occurred during the license activation or verification process.</span>",
+                                "<span style='font-weight: bold;'>" + licensePath + "</span>.",
+                                "<span style='color: #E65100; font-weight: bold;'>Please ensure the response file is valid and accessible, and that the application has the required permissions.</span>",
+                                "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
+                                0);
                     }
-                } catch (Exception e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
                 }
+            } catch (Exception ex) {
+                log.error("Error in Proceed button action: {}", ex.getMessage(), ex);
+            }
         });
 
-        // Enable the proceed button only if the checkbox is checked
-        cbAgree.setOnAction(event -> btnProceed.setDisable(!cbAgree.isSelected()));
+        // === Close button logic ===
+        btnClose.addActionListener(e -> frame.dispose());
 
-        // Button to close the application
-        Button btnClose = new Button("Close");
-        btnClose.setOnAction(event -> primaryStage.close());
+        JPanel actionButtonsBox = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 10));
+        actionButtonsBox.add(btnProceed);
+        actionButtonsBox.add(btnClose);
 
-        HBox actionButtonsBox = new HBox(10, btnProceed, btnClose);
-        actionButtonsBox.setPadding(new Insets(10));
+        // === Main layout (vertical) ===
+        JPanel mainLayout = new JPanel();
+        mainLayout.setLayout(new BoxLayout(mainLayout, BoxLayout.Y_AXIS));
+        mainLayout.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        // Main layout
-        VBox mainLayout =
-                new VBox(10, headerLabel, radioButtonsBox, scrollPane, tfLicenseOwner, cbAgree, actionButtonsBox);
-        mainLayout.setPadding(new Insets(10));
+        mainLayout.add(headerLabel);
+        mainLayout.add(Box.createVerticalStrut(10));
+        mainLayout.add(radioButtonsBox);
+        mainLayout.add(scrollPane);
+        mainLayout.add(Box.createVerticalStrut(10));
+        mainLayout.add(tfLicenseOwner);
+        mainLayout.add(Box.createVerticalStrut(5));
+        mainLayout.add(cbAgree);
+        mainLayout.add(Box.createVerticalStrut(10));
+        mainLayout.add(actionButtonsBox);
 
-        // Set up the scene
-        Scene scene = new Scene(mainLayout, 600, 450); // Adjusted window size for better layout
-        primaryStage.setTitle("Activation Software Required");
-        primaryStage.setScene(scene);
-        primaryStage.show();
+        frame.setContentPane(mainLayout);
+        frame.setVisible(true);
     }
 }

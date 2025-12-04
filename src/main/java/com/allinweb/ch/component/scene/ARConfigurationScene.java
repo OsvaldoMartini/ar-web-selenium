@@ -20,8 +20,8 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ARConfigurationScene extends ARScene {
 
-    private static final Double SCENE_HEIGHT = 700D;
-    private static final Double SCENE_WIDTH = 800D;
+    private static final int SCENE_HEIGHT = 700;
+    private static final int SCENE_WIDTH = 800;
     private static final String TITLE = "Configuration";
     private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
 
@@ -97,7 +97,7 @@ public class ARConfigurationScene extends ARScene {
 
                 modalDialog = new JDialog(owner, getTitle(), Dialog.ModalityType.APPLICATION_MODAL);
                 modalDialog.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
-                modalDialog.setSize(getSceneWidth().intValue(), getSceneHeight().intValue());
+                modalDialog.setSize(getSceneWidth(), getSceneHeight());
                 modalDialog.setLocationRelativeTo(owner);
 
                 if (icon != null) {

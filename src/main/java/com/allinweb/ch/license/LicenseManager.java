@@ -188,10 +188,8 @@ public class LicenseManager {
 
             // Use SHGetKnownFolderPath to get Desktop path
             PointerByReference ppszPath = new PointerByReference();
-            if (Shell32.INSTANCE
-                            .SHGetKnownFolderPath(KnownFolders.FOLDERID_Desktop, 0, null, ppszPath)
-                            .intValue()
-                    != 0) {
+            if (Shell32.INSTANCE.SHGetKnownFolderPath(KnownFolders.FOLDERID_Desktop, 0, null, ppszPath) != 0) {
+
                 throw new IOException("Failed to get desktop directory.");
             }
 

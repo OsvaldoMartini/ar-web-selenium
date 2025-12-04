@@ -15,8 +15,8 @@ public class ARNewHomeBankingScene extends ARScene {
 
     private static final PerformLists performLists = PerformLists.getInstance();
     //    private static final ARNewHomeBankingPane arNewHomeBankingPane = ARNewHomeBankingPane.getInstance();
-    private static final Double SCENE_HEIGHT = 750D;
-    private static final Double SCENE_WIDTH = 1200D;
+    private static final int SCENE_HEIGHT = 750;
+    private static final int SCENE_WIDTH = 1200;
     private static final String TITLE = "New Organization";
 
     protected static volatile ARNewHomeBankingScene instance;
@@ -75,7 +75,7 @@ public class ARNewHomeBankingScene extends ARScene {
                 modalDialog.setContentPane(content);
 
                 // Size equivalent to scene width/height
-                modalDialog.setSize(getSceneWidth().intValue(), getSceneHeight().intValue());
+                modalDialog.setSize(getSceneWidth(), getSceneHeight());
                 modalDialog.setLocationRelativeTo(owner);
 
                 // Set icon if ARScene provides one (icon is usually a java.awt.Image in the Swing version)

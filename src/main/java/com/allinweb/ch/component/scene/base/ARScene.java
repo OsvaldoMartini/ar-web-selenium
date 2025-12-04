@@ -77,7 +77,7 @@ public abstract class ARScene implements IARScene, IconLoader {
                 if (content != null) {
                     frame.setContentPane(content);
                 }
-                frame.setSize(getSceneWidth().intValue(), getSceneHeight().intValue());
+                frame.setSize(getSceneWidth(), getSceneHeight());
                 frame.setLocationRelativeTo(null);
 
                 frame.setAlwaysOnTop(true);

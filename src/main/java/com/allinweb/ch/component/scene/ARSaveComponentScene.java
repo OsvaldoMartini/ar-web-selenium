@@ -15,8 +15,8 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ARSaveComponentScene extends ARScene {
 
-    private static final Double SCENE_HEIGHT = 250D;
-    private static final Double SCENE_WIDTH = 600D;
+    private static final int SCENE_HEIGHT = 250;
+    private static final int SCENE_WIDTH = 600D;
     protected static volatile ARSaveComponentScene instance;
     private static ARSaveComponentPane arSaveComponentPane = ARSaveComponentPane.getInstance();
     private static String TITLE = "Move Block";
@@ -61,7 +61,7 @@ public class ARSaveComponentScene extends ARScene {
                 }
 
                 modalDialog = new JDialog(owner, getTitle(), Dialog.ModalityType.APPLICATION_MODAL);
-                modalDialog.setSize(getSceneWidth().intValue(), getSceneHeight().intValue());
+                modalDialog.setSize(getSceneWidth(), getSceneHeight());
                 modalDialog.setLocationRelativeTo(owner);
 
                 if (icon != null) {

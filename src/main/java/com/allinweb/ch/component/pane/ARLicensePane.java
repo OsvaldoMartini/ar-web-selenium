@@ -463,10 +463,8 @@ public class ARLicensePane extends ARPane {
     private void defineDesktopFolder() {
         try {
             PointerByReference ppszPath = new PointerByReference();
-            if (Shell32.INSTANCE
-                            .SHGetKnownFolderPath(KnownFolders.FOLDERID_Desktop, 0, null, ppszPath)
-                            .intValue()
-                    != 0) {
+            if (Shell32.INSTANCE.SHGetKnownFolderPath(KnownFolders.FOLDERID_Desktop, 0, null, ppszPath) != 0) {
+
                 log.warn("Error reading/writing to the file! -> Desktop Folder");
                 throw new IOException("Failed to get desktop directory.");
             }

@@ -11,12 +11,10 @@ import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.util.ARConstants;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
-import javafx.geometry.HPos;
-import javafx.scene.control.Label;
-import javafx.scene.control.ListView;
-import javafx.scene.layout.*;
+import java.awt.*;
+import java.util.List;
+import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.WebDriver;
 
@@ -36,15 +34,18 @@ public class ARViewBotJobListPane extends ARPane {
         performMessage = PerformMessage.getInstance();
     }
 
-    // UI components
-    private final GridPane header = new GridPane();
-    private ListView<BotJobLoadDTO> uiBotJobList;
+    // Swing UI components
+    private JPanel mainPanel;
+    private JPanel headerPanel;
+    private JList<BotJobLoadDTO> uiBotJobList;
+
+    // External dependencies
     private ARViewBotJobScene arViewBotJobScene;
     private ARWebDriver arWebDriver;
-    private ObservableList<WebDriver> webDriverList;
+    private List<WebDriver> webDriverList;
+
     // Private constructor to prevent instantiation
     private ARViewBotJobListPane() {
-
         super();
     }
 
@@ -59,69 +60,86 @@ public class ARViewBotJobListPane extends ARPane {
         return instance;
     }
 
-    // Constructor for Dependency Injection
+    /**
+     * Initialize dependencies (replaces JavaFX-style DI).
+     */
     public void initialize(
-            ARViewBotJobScene arViewBotJobScene, ARWebDriver arWebDriver, ObservableList<WebDriver> webDriverList) {
+            ARViewBotJobScene arViewBotJobScene, ARWebDriver arWebDriver, List<WebDriver> webDriverList) {
+
         this.arViewBotJobScene = arViewBotJobScene;
         this.arWebDriver = arWebDriver;
         this.webDriverList = webDriverList;
-        initUIComponents();
     }
 
     @Override
-    public Pane getPaneReference() {
-        return new AnchorPane(header, uiBotJobList);
+    public JPanel getPaneReference() {
+        return mainPanel;
     }
 
     @Override
     public void initUIComponents() {
 
-        performDataBase.loadQuickBotJobs();
-        ObservableList<BotJobLoadDTO> botJobList =
-                FXCollections.observableArrayList(FXCollections.observableArrayList(performLists.getQuickBotJobs()));
-        uiBotJobList = new ListView<>(botJobList);
+        // Root panel
+        mainPanel = new JPanel(new BorderLayout());
+        int spaceM = (int) ARConstants.SPACE_M;
 
-        // Setting the cell factory correctly
-        uiBotJobList.setCellFactory(new ARCellFactory<>(
-                BotJobListCell.class,
+        // -----------------------------
+        // Header (equivalent to JavaFX GridPane with 4 columns)
+        // -----------------------------
+        headerPanel = new JPanel(new GridLayout(1, 4));
+        headerPanel.add(new JLabel("Name"));
+        headerPanel.add(new JLabel("Description"));
+        headerPanel.add(new JLabel("Environment"));
+        headerPanel.add(new JLabel("Actions"));
+
+        headerPanel.setBorder(new EmptyBorder(spaceM, spaceM, spaceM / 2, spaceM));
+        mainPanel.add(headerPanel, BorderLayout.NORTH);
+
+        // -----------------------------
+        // Bot Job list (Swing JList with custom renderer)
+        // -----------------------------
+
+        // Load data
+        performDataBase.loadQuickBotJobs();
+        java.util.List<BotJobLoadDTO> botJobList = performLists.getQuickBotJobs();
+
+        // Create Swing list model
+        DefaultListModel<BotJobLoadDTO> listModel = new DefaultListModel<>();
+        for (BotJobLoadDTO dto : botJobList) {
+            listModel.addElement(dto);
+        }
+
+        // Create JList
+        uiBotJobList = new JList<>(listModel);
+
+        // Optional: some basic list tuning
+        uiBotJobList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        uiBotJobList.setVisibleRowCount(-1);
+
+        // Use ARCellFactory to create the renderer instance via reflection
+        @SuppressWarnings("unchecked")
+        ARCellFactory<Object, ListCellRenderer<BotJobLoadDTO>> cellFactory = new ARCellFactory<>(
+                (Class<ListCellRenderer<BotJobLoadDTO>>) (Class<?>) BotJobListCell.class,
                 arViewBotJobScene,
                 arWebDriver,
                 performDataBase,
                 performActions,
                 performMessage,
-                (ObservableList<BotJobLoadDTO>) botJobList,
-                webDriverList)::call);
+                listModel,
+                webDriverList);
 
-        // Anchor positioning
-        AnchorPane.setTopAnchor(uiBotJobList, ARConstants.SPACE_M * 2);
-        AnchorPane.setBottomAnchor(uiBotJobList, ARConstants.SPACE_M);
-        AnchorPane.setLeftAnchor(uiBotJobList, ARConstants.SPACE_M);
-        AnchorPane.setRightAnchor(uiBotJobList, ARConstants.SPACE_M);
+        // Apply renderer to the list
+        uiBotJobList.setCellRenderer(cellFactory.create(null));
 
-        // Header setup
-        header.setMaxHeight(ARConstants.SPACE_M);
-        ColumnConstraints con = new ColumnConstraints();
-        con.setPercentWidth(25);
-        con.setHgrow(Priority.ALWAYS);
-        con.setHalignment(HPos.LEFT);
-        header.getColumnConstraints().addAll(con, con, con);
+        // Put list into a scroll pane with padding similar to AnchorPane constraints
+        JScrollPane scrollPane = new JScrollPane(uiBotJobList);
+        scrollPane.setBorder(new EmptyBorder(spaceM * 2, spaceM, spaceM, spaceM));
 
-        ColumnConstraints con2 = new ColumnConstraints();
-        con2.setPercentWidth(25);
-        con2.setHgrow(Priority.ALWAYS);
-        con2.setHalignment(HPos.CENTER);
-        header.getColumnConstraints().add(con2);
-
-        AnchorPane.setTopAnchor(header, ARConstants.SPACE_M);
-        AnchorPane.setLeftAnchor(header, ARConstants.SPACE_M);
-        AnchorPane.setRightAnchor(header, ARConstants.SPACE_M);
-
-        header.add(new Label("Name"), 0, 0);
-        header.add(new Label("Description"), 1, 0);
-        header.add(new Label("Environment"), 2, 0);
-        header.add(new Label("Actions"), 3, 0);
+        mainPanel.add(scrollPane, BorderLayout.CENTER);
     }
 
     @Override
-    public void initUIBehaviour() {}
+    public void initUIBehaviour() {
+        // Add Swing listeners here if needed later
+    }
 }
