@@ -6,10 +6,7 @@ import com.allinweb.ch.component.pane.ARViewBotJobPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.driver.ARWebDriver;
-import com.allinweb.ch.facade.PerformDBEngine;
-import com.allinweb.ch.facade.PerformDataBase;
-import com.allinweb.ch.facade.PerformLists;
-import com.allinweb.ch.facade.PerformMessage;
+import com.allinweb.ch.facade.*;
 import com.allinweb.ch.model.*;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.*;
@@ -17,18 +14,15 @@ import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import java.awt.*;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.io.IOException;
 import java.net.URI;
-import java.util.ArrayList;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.*;
-import javafx.application.Platform;
-import javafx.scene.Scene;
-import javafx.stage.Modality;
-import javafx.stage.Stage;
-import javafx.stage.WindowEvent;
+import javax.swing.*;
 import javax.websocket.*;
 import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.WebDriver;
@@ -51,13 +45,15 @@ public class ARViewBotJobScene extends ARScene {
     private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private static final CountDownLatch latch = new CountDownLatch(1);
 
-    private static final Double SCENE_HEIGHT = 600D;
-    private static final Double SCENE_WIDTH = 1100D;
+    private static final int SCENE_HEIGHT = 600;
+    private static final int SCENE_WIDTH = 1100;
     private static final String TITLE = "Bot Job Details";
+
     protected static volatile ARViewBotJobScene instance;
-    private static ARNewCommandScene arNewCommandScene = ARNewCommandScene.getInstance();
-    private Stage modalStage;
-    private Scene modalScene;
+
+    //    private static ARNewCommandScene arNewCommandScene = ARNewCommandScene.getInstance();
+
+    private JDialog modalDialog;
     private boolean isEnabledLicence;
     private int portSocketInitial = 54525;
     private boolean isConnectWebSocket = false;
@@ -68,9 +64,7 @@ public class ARViewBotJobScene extends ARScene {
     private int currentBlockId;
     private List<InstructionLoad> instructionList = new ArrayList<>();
 
-    // Private constructor to prevent instantiation
     private ARViewBotJobScene() {
-
         super();
     }
 
@@ -95,37 +89,81 @@ public class ARViewBotJobScene extends ARScene {
             portSocketInitial = Integer.parseInt(port);
         }
 
-        if (!arNewCommandScene.isConnectWebSocket) {
-            arNewCommandScene.connectWebSocketClient(portSocketInitial, "new-command-scene"); // + botJobLoad.getId());
-        }
+        //        if (!arNewCommandScene.isConnectWebSocket) {
+        //            arNewCommandScene.connectWebSocketClient(portSocketInitial, "new-command-scene");
+        //        }
 
         if (!isConnectWebSocket) {
-            connectWebSocketClient(portSocketInitial, "bot-job-scene"); // + botJobLoad.getId());
+            connectWebSocketClient(portSocketInitial, "bot-job-scene");
         }
     }
 
     @Override
-    public void setStageBehaviour(Stage stage) {
-        super.setStageBehaviour(stage); // Call the parent class method
+    public IARPane buildPane() {
+        return arViewBotJobPane;
+    }
 
-        // Only set the close request handler if it's not already set
-        if (!isCloseHandlerSet) {
-            stage.setOnCloseRequest(this::handleCloseRequest);
-            isCloseHandlerSet = true; // Update the flag to prevent setting it again
+    @Override
+    public int getSceneHeight() {
+        return SCENE_HEIGHT;
+    }
+
+    @Override
+    public int getSceneWidth() {
+        return SCENE_WIDTH;
+    }
+
+    @Override
+    public String getTitle() {
+        if (selectedBotJob.getId() != null) {
+            return TITLE + " WebSite Id: " + selectedBotJob.getHomeBankingId() + " Id: " + selectedBotJob.getId();
+        }
+        return TITLE;
+    }
+
+    public void showModal(Frame parent) {
+        arViewBotJobPane.initialize(this, selectedBotJob, isEnabledLicence);
+
+        if (modalDialog == null) {
+            modalDialog = new JDialog(parent, getTitle(), true);
+            modalDialog.setSize(getSceneWidth(), getSceneHeight());
+            modalDialog.setAlwaysOnTop(true);
+            modalDialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+
+            modalDialog.addWindowListener(new WindowAdapter() {
+                @Override
+                public void windowClosing(WindowEvent e) {
+                    handleCloseRequest();
+                }
+            });
+
+            IARPane pane = buildPane();
+            if (pane != null) {
+                modalDialog.setContentPane(pane.createPane());
+            } else {
+                log.error("Failed to build pane for modal.");
+                return;
+            }
+        }
+
+        modalDialog.setTitle(getTitle());
+
+        SwingUtilities.invokeLater(() -> modalDialog.setVisible(true));
+    }
+
+    public void closeModal() {
+        if (modalDialog != null) {
+            SwingUtilities.invokeLater(() -> modalDialog.dispose());
+            modalDialog = null;
         }
     }
 
-    private void handleCloseRequest(WindowEvent event) {
+    private void handleCloseRequest() {
         log.info("Handle Close: Exiting Threads and Quitting WebDriver");
-
-        // Interrupt running threads
         threadList.forEach(this::interruptThread);
-
-        // Close WebDriver if it's initialized
-        //        closeWebDrivers();
+        closeWebDrivers();
     }
 
-    // Method to close all WebDriver instances
     private void closeWebDrivers() {
         for (WebDriver driver : arWebDriver.getWebDriverList()) {
             try {
@@ -135,85 +173,7 @@ public class ARViewBotJobScene extends ARScene {
                 log.warn("Error closing WebDriver: " + e.getMessage());
             }
         }
-        Platform.runLater(() -> arWebDriver.getWebDriverList().clear());
-    }
-
-    @Override
-    public IARPane buildPane() {
-        //        arViewBotJobPane.initialize(this, this.botLoadJob, botJobList);
-        return arViewBotJobPane;
-    }
-
-    @Override
-    public Double getSceneHeight() {
-        return SCENE_HEIGHT;
-    }
-
-    @Override
-    public Double getSceneWidth() {
-        return SCENE_WIDTH;
-    }
-
-    @Override
-    public String getTitle() {
-        if (selectedBotJob.getId() != null) {
-            return TITLE + " WebSite Id: " + selectedBotJob.getHomeBankingId() + " Id: " + selectedBotJob.getId();
-        }
-
-        return TITLE;
-    }
-
-    public void showModal() {
-
-        arViewBotJobPane.initialize(this, selectedBotJob, isEnabledLicence);
-
-        if (modalStage == null) {
-            modalStage = new Stage();
-            arViewBotJobPane.setStage(modalStage);
-            modalStage.getIcons().add(icon);
-            IARPane pane = buildPane();
-            if (pane != null) {
-                modalScene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
-                modalStage.setScene(modalScene);
-                modalStage.setTitle(getTitle());
-                modalStage.initModality(Modality.WINDOW_MODAL);
-                modalStage.setAlwaysOnTop(true); // Set always on top
-                modalStage.toFront();
-                // Reset alwaysOnTop after showing so it behaves normally afterward
-                modalStage.setAlwaysOnTop(false);
-
-                // Once shown, reset AlwaysOnTop to false so it behaves normally
-                modalStage.setOnShown(event -> {
-                    Platform.runLater(() -> modalStage.setAlwaysOnTop(false));
-                });
-            } else {
-                // Handle the case where pane creation failed
-                log.error("Failed to build pane for modal.");
-                return;
-            }
-        }
-
-        modalStage.setTitle(getTitle());
-
-        // Check if the stage is already showing
-        if (!modalStage.isShowing()) {
-            modalStage.showAndWait(); // Show and wait only if not already showing
-        }
-    }
-
-    public void closeModal() {
-        try {
-            if (modalStage != null) { // && modalStage.isShowing()) {
-                modalStage.close();
-            }
-            modalStage = null;
-        } catch (Exception error) {
-
-        }
-    }
-
-    public void destroyPanel() {
-        arViewBotJobPane.destroy();
+        SwingUtilities.invokeLater(() -> arWebDriver.getWebDriverList().clear());
     }
 
     private void stopKeepAlivePings() {
@@ -225,45 +185,37 @@ public class ARViewBotJobScene extends ARScene {
                 () -> {
                     try {
                         if (session != null && session.isOpen()) {
-                            session.getBasicRemote().sendText("ping-bot-job-scene"); // Or a specific keep-alive message
+                            session.getBasicRemote().sendText("ping-bot-job-scene");
                         }
                     } catch (IOException e) {
                         log.error("Error sending ping: " + e.getMessage());
-                        // Handle potential disconnection
                     }
                 },
                 0,
                 15,
-                TimeUnit.SECONDS); // Adjust interval as needed
+                TimeUnit.SECONDS);
     }
 
     @OnMessage
     public void onMessage(String message) {
         log.info("Received: " + message);
         if (message == null || message.trim().isEmpty() || message.contains("CONNECT") || message.contains("ping")) {
-            // Ignore null or empty messages
-            message = message.replaceAll("ping-", "");
-            // log.info("Active : " + message);
             return;
         }
 
         String type = null;
         String body = null;
-        //        int homeBankingId = -1;
-        try {
-            // Parse the incoming message (assuming JSON format)
-            JsonObject jsonObjMSG = JsonParser.parseString(message).getAsJsonObject();
-            //            homeBankingId = jsonObjMSG.has("homeBankingId")
-            //                    ? Integer.parseInt(jsonObjMSG.get("homeBankingId").getAsString())
-            //                    : -1;
 
+        try {
+            JsonObject jsonObjMSG = JsonParser.parseString(message).getAsJsonObject();
             body = jsonObjMSG.has("body") ? jsonObjMSG.get("body").getAsString() : "unknown";
+
             if (!body.equalsIgnoreCase("unknown")) {
                 JsonObject objSecond = JsonParser.parseString(body).getAsJsonObject();
                 if (objSecond.has("type") && objSecond.get("type").getAsString().equalsIgnoreCase("CLOSE_BROWSER")) {
                     type = "CLOSE_BROWSER";
                 } else if (objSecond.has("type")) {
-                    type = objSecond.has("type") ? objSecond.get("type").getAsString() : "unknown";
+                    type = objSecond.get("type").getAsString();
                 } else {
                     type = jsonObjMSG.has("type") ? jsonObjMSG.get("type").getAsString() : "unknown";
                 }
@@ -271,53 +223,32 @@ public class ARViewBotJobScene extends ARScene {
                 type = jsonObjMSG.has("type") ? jsonObjMSG.get("type").getAsString() : "unknown";
             }
 
-            // After Decoding
             if (type == null || type.trim().isEmpty() || type.contains("CONNECT") || type.contains("ping")) {
-                // Ignore null or empty messages
-                type = type.replaceAll("ping-", "");
-                // log.info("Active : " + type);
                 return;
             }
 
-            String sessionId =
-                    jsonObjMSG.has("sessionId") ? jsonObjMSG.get("sessionId").getAsString() : "unknown";
-
             SplitDTO splitDTO = parseSplitDTO(jsonObjMSG);
 
-            // Process the message based on its type
             switch (type) {
                 case "NEW_ELEMENT_DTO":
                 case "SEND_ALL_ELEMENTS_DTO":
                     boolean isMany = "SEND_ALL_ELEMENTS_DTO".equalsIgnoreCase(type);
                     stepsInsertManyDTO(splitDTO, isMany);
-                    //                    stepsInsertOneDTO(targetSelected);
                     break;
                 default:
                     break;
             }
         } catch (Exception error) {
-            if (error.getMessage().contains("invalid session id")) {
-                log.warn("Browser is Closed");
-                performMessage.errorMessage(
-                        "Browser is Closed",
-                        "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>To perform this action, please</span> ✅",
-                        "<span style='color: #1976D2;'>reopen the browser via the Scanner:</span>",
-                        "<span style='font-weight: bold;'>Click the \"Scanner\" button in the previous window</span>",
-                        null,
-                        0);
-            }
-
-            log.error("Closed processing message: " + error.getMessage());
+            log.error("Error processing message: " + error.getMessage());
         }
     }
 
     @OnOpen
     public void onOpen(Session session) {
         this.session = session;
-        latch.countDown(); // Release the latch after connection is established
+        latch.countDown();
         log.info("Connected to WebSocket server at: " + session.getRequestURI());
-        // Sending an initial message
-        sendMessage("Hello from JavaFX WebSocket client!");
+        sendMessage("Hello from Swing WebSocket client!");
     }
 
     @OnClose
@@ -332,16 +263,15 @@ public class ARViewBotJobScene extends ARScene {
         stopKeepAlivePings();
     }
 
-    // Method to send a message
     public void sendMessage(String message) {
         executorWebSocket.submit(() -> {
-            //            if (session != null && session.isOpen()) {
-            //                try {
-            //                    session.getBasicRemote().sendText(message);
-            //                } catch (Exception e) {
-            //                    e.printStackTrace();
-            //                }
-            //            }
+            if (session != null && session.isOpen()) {
+                try {
+                    session.getBasicRemote().sendText(message);
+                } catch (Exception e) {
+                    log.error("Error sending WebSocket message: " + e.getMessage());
+                }
+            }
         });
     }
 
@@ -356,7 +286,7 @@ public class ARViewBotJobScene extends ARScene {
                 isConnectWebSocket = true;
             } catch (Exception e) {
                 isConnectWebSocket = false;
-                log.error("WebSocket connection failed sessionId: " + sessionId + " error: " + e.getMessage());
+                log.error("WebSocket connection failed: " + e.getMessage());
             }
         });
     }
@@ -366,23 +296,22 @@ public class ARViewBotJobScene extends ARScene {
             log.warn("parseSplitDTO called with null or empty JSON object");
             return null;
         }
-
         try {
-            // 🔹 Step 1: If there's a "body" key, extract its string and parse it as JSON
             if (jsonEntry.has("body")) {
                 String bodyStr = jsonEntry.get("body").getAsString();
                 JsonObject inner = gson.fromJson(bodyStr, JsonObject.class);
                 return gson.fromJson(inner, SplitDTO.class);
             }
-
-            // 🔹 Step 2: Otherwise, parse the current object directly
             return gson.fromJson(jsonEntry, SplitDTO.class);
-
         } catch (Exception error) {
             log.error("Cannot parse SplitDTO: " + error.getMessage() + " | JSON: " + jsonEntry);
             return null;
         }
     }
+
+    // All remaining methods (stepsInsertManyDTO, createBlockIfNone, validateBlockDB,
+    // prepareToInsertElementDTO, buildNewInstruction, buildAction, etc.) remain unchanged
+    // as in your original JavaFX class.
 
     private void stepsInsertManyDTO(SplitDTO processDTO, boolean isMany) {
         currentBlockId = validateBlockDB("block", this.selectedBotJob.getId(), isMany);

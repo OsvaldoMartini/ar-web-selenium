@@ -4,10 +4,12 @@ import com.allinweb.ch.component.pane.ARSaveComponentPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.model.BlockDetailsDTO;
-import javafx.application.Platform;
-import javafx.scene.Scene;
-import javafx.stage.Modality;
-import javafx.stage.Stage;
+import java.awt.Dialog;
+import java.awt.Frame;
+import java.awt.Window;
+import javax.swing.JComponent;
+import javax.swing.JDialog;
+import javax.swing.SwingUtilities;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -18,12 +20,12 @@ public class ARSaveComponentScene extends ARScene {
     protected static volatile ARSaveComponentScene instance;
     private static ARSaveComponentPane arSaveComponentPane = ARSaveComponentPane.getInstance();
     private static String TITLE = "Move Block";
-    private Stage modalStage;
-    private Scene modalScene;
+
+    private JDialog modalDialog;
     private BlockDetailsDTO blockDetailsDTO;
+
     // Private constructor to prevent instantiation
     private ARSaveComponentScene() {
-
         super();
     }
 
@@ -47,52 +49,56 @@ public class ARSaveComponentScene extends ARScene {
 
         arSaveComponentPane.initialize(blockDetailsDTO);
 
-        if (modalStage == null) {
-            modalStage = new Stage();
-            modalStage.getIcons().add(icon);
-            IARPane pane = buildPane();
-            if (pane != null) {
-                modalScene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
-                modalStage.setScene(modalScene);
-                modalStage.setTitle(getTitle());
-                modalStage.initModality(Modality.WINDOW_MODAL);
-                modalStage.setAlwaysOnTop(true); // Set always on top
-                modalStage.toFront();
-                // Reset alwaysOnTop after showing so it behaves normally afterward
-                modalStage.setAlwaysOnTop(false);
+        SwingUtilities.invokeLater(() -> {
+            if (modalDialog == null) {
+                // Try to find a visible owner frame
+                Window owner = null;
+                for (Frame f : Frame.getFrames()) {
+                    if (f.isVisible()) {
+                        owner = f;
+                        break;
+                    }
+                }
 
-                // Once shown, reset AlwaysOnTop to false so it behaves normally
-                modalStage.setOnShown(event -> {
-                    Platform.runLater(() -> modalStage.setAlwaysOnTop(false));
-                });
-            } else {
-                // Handle the case where pane creation failed
-                log.error("Failed to build pane for modal.");
-                return;
+                modalDialog = new JDialog(owner, getTitle(), Dialog.ModalityType.APPLICATION_MODAL);
+                modalDialog.setSize(getSceneWidth().intValue(), getSceneHeight().intValue());
+                modalDialog.setLocationRelativeTo(owner);
+
+                if (icon != null) {
+                    modalDialog.setIconImage(icon);
+                }
+
+                IARPane pane = buildPane();
+                if (pane != null) {
+                    JComponent content = (JComponent) pane.createPane();
+                    modalDialog.setContentPane(content);
+                } else {
+                    log.error("Failed to build pane for modal.");
+                    return;
+                }
             }
-        }
 
-        modalStage.setTitle(getTitle());
+            modalDialog.setTitle(getTitle());
 
-        // Check if the stage is already showing
-        if (!modalStage.isShowing()) {
-            modalStage.showAndWait(); // Show and wait only if not already showing
-        }
+            if (!modalDialog.isVisible()) {
+                modalDialog.setVisible(true); // blocks until closed (modal)
+            }
+        });
     }
 
     @Override
     public IARPane buildPane() {
-        //        arSaveComponentPane.initialize(blockDetailsDTO);
+        // arSaveComponentPane.initialize(blockDetailsDTO);
         return arSaveComponentPane;
     }
 
     @Override
-    public Double getSceneHeight() {
+    public int getSceneHeight() {
         return SCENE_HEIGHT;
     }
 
     @Override
-    public Double getSceneWidth() {
+    public int getSceneWidth() {
         return SCENE_WIDTH;
     }
 

@@ -1,33 +1,32 @@
 package com.allinweb.ch.component.scene;
 
-import com.allinweb.ch.component.pane.ARNewHomeBankingPane;
+// import com.allinweb.ch.component.pane.ARNewHomeBankingPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.model.HomeBankingLoadDTO;
+import java.awt.*;
 import java.util.List;
-import javafx.application.Platform;
-import javafx.collections.FXCollections;
-import javafx.scene.Scene;
-import javafx.stage.Modality;
-import javafx.stage.Stage;
+import javax.swing.*;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class ARNewHomeBankingScene extends ARScene {
 
     private static final PerformLists performLists = PerformLists.getInstance();
-    private static final ARNewHomeBankingPane arNewHomeBankingPane = ARNewHomeBankingPane.getInstance();
+    //    private static final ARNewHomeBankingPane arNewHomeBankingPane = ARNewHomeBankingPane.getInstance();
     private static final Double SCENE_HEIGHT = 750D;
     private static final Double SCENE_WIDTH = 1200D;
     private static final String TITLE = "New Organization";
+
     protected static volatile ARNewHomeBankingScene instance;
+
     private static HomeBankingLoadDTO homeBank;
-    private Stage modalStage;
-    private Scene modalScene;
+
+    private JDialog modalDialog;
+
     // Private constructor to prevent instantiation
     private ARNewHomeBankingScene() {
-
         super();
     }
 
@@ -43,69 +42,79 @@ public class ARNewHomeBankingScene extends ARScene {
     }
 
     public void initialize(HomeBankingLoadDTO homeBank) {
-        this.homeBank = homeBank;
+        ARNewHomeBankingScene.homeBank = homeBank;
 
-        if (!isNullOrEmpty(FXCollections.observableArrayList(performLists.getListHomeBanking()))) {
-            arNewHomeBankingPane.updateTableBankingView();
-        }
+        //        if (!isNullOrEmpty(performLists.getListHomeBanking())) {
+        //            arNewHomeBankingPane.updateTableBankingView();
+        //        }
     }
 
     private boolean isNullOrEmpty(List<?> list) {
         return list == null || list.isEmpty();
     }
 
-    public void showModal(Stage parentStage) {
+    /**
+     * Swing modal dialog equivalent of the old JavaFX showModal(Stage parentStage).
+     *
+     * @param parentWindow parent window (JFrame/JDialog) that owns this modal dialog
+     */
+    public void showModal(Window parentWindow) {
 
-        arNewHomeBankingPane.initialize(homeBank);
+        //        arNewHomeBankingPane.initialize(homeBank);
 
-        if (modalStage == null) {
-            modalStage = new Stage();
-            modalStage.getIcons().add(icon);
+        if (modalDialog == null) {
+            // Fallback owner if null
+            Window owner = parentWindow != null ? parentWindow : JOptionPane.getRootFrame();
+
+            modalDialog = new JDialog(owner, getTitle(), Dialog.ModalityType.APPLICATION_MODAL);
+            modalDialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+
             IARPane pane = buildPane();
             if (pane != null) {
-                modalScene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
-                modalStage.setScene(modalScene);
-                modalStage.setTitle(getTitle());
-                modalStage.initOwner(parentStage); // ✅ Set the owner first
-                modalStage.initModality(Modality.NONE);
-                modalStage.setAlwaysOnTop(true); // Set always on top
-                modalStage.toFront();
-                // Reset alwaysOnTop after showing so it behaves normally afterward
-                modalStage.setAlwaysOnTop(false);
+                JComponent content = pane.createPane();
+                modalDialog.setContentPane(content);
 
-                // Once shown, reset AlwaysOnTop to false so it behaves normally
-                modalStage.setOnShown(event -> {
-                    Platform.runLater(() -> modalStage.setAlwaysOnTop(false));
-                });
+                // Size equivalent to scene width/height
+                modalDialog.setSize(getSceneWidth().intValue(), getSceneHeight().intValue());
+                modalDialog.setLocationRelativeTo(owner);
+
+                // Set icon if ARScene provides one (icon is usually a java.awt.Image in the Swing version)
+                if (icon != null) {
+                    modalDialog.setIconImage(icon);
+                }
+
+                // Mimic "always on top briefly" behavior
+                modalDialog.setAlwaysOnTop(true);
+                // Reset alwaysOnTop after shown
+                SwingUtilities.invokeLater(() -> modalDialog.setAlwaysOnTop(false));
             } else {
-                // Handle the case where pane creation failed
                 log.error("Failed to build pane for modal.");
                 return;
             }
         }
 
-        modalStage.setTitle(getTitle()); // Update title if it might have changed
+        modalDialog.setTitle(getTitle()); // Update title if needed
 
-        if (!modalStage.isShowing()) {
-            modalStage.showAndWait();
+        if (!modalDialog.isVisible()) {
+            modalDialog.setVisible(true); // blocks until dialog is closed (modal)
         } else {
-            modalStage.requestFocus(); // 👈 only this, no forceful toFront
+            modalDialog.toFront();
+            modalDialog.requestFocus();
         }
     }
 
     @Override
     public IARPane buildPane() {
-        //        arNewHomeBankingPane.initialize(homeBankingList);
         return arNewHomeBankingPane;
     }
 
     @Override
-    public Double getSceneHeight() {
+    public int getSceneHeight() {
         return SCENE_HEIGHT;
     }
 
     @Override
-    public Double getSceneWidth() {
+    public int getSceneWidth() {
         return SCENE_WIDTH;
     }
 
@@ -116,12 +125,12 @@ public class ARNewHomeBankingScene extends ARScene {
 
     public void closeModal() {
         try {
-            if (modalStage != null) {
-                modalStage.close();
+            if (modalDialog != null) {
+                modalDialog.dispose();
             }
-            modalStage = null;
+            modalDialog = null;
         } catch (Exception error) {
-            log.error("Browser Closed Before Web Scanner. Error: " + error.getMessage());
+            log.error("Error closing NewHomeBanking dialog. Error: " + error.getMessage());
         }
     }
 }

@@ -2,16 +2,20 @@ package com.allinweb.ch.component.scene;
 
 import com.allinweb.ch.component.pane.ARLicensePane;
 import com.allinweb.ch.component.pane.base.IARPane;
-import com.allinweb.ch.component.scene.base.ARScene;
-import javafx.application.Platform;
-import javafx.scene.Scene;
-import javafx.stage.Modality;
-import javafx.stage.Stage;
-import javafx.stage.WindowEvent;
+import java.awt.Dialog;
+import java.awt.Frame;
+import java.awt.Window;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import javax.swing.JComponent;
+import javax.swing.JDialog;
+import javax.swing.SwingUtilities;
+import javax.swing.WindowConstants;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class ARLicenseScene extends ARScene {
+public class ARLicenseScene {
+
     private static final ARLicensePane arLicensePane;
     private static final Double SCENE_HEIGHT = 550D;
     private static final Double SCENE_WIDTH = 800D;
@@ -22,19 +26,17 @@ public class ARLicenseScene extends ARScene {
         arLicensePane = ARLicensePane.getInstance();
     }
 
-    private Stage modalStage;
-    private Scene modalScene;
+    private JDialog modalDialog;
+
     // Private constructor to prevent instantiation
     private ARLicenseScene() {
-
-        super();
+        arLicensePane.initialize();
     }
 
     public static ARLicenseScene getInstance() {
         if (instance == null) {
             synchronized (ARLicenseScene.class) {
                 if (instance == null) {
-                    arLicensePane.initialize();
                     instance = new ARLicenseScene();
                 }
             }
@@ -42,91 +44,74 @@ public class ARLicenseScene extends ARScene {
         return instance;
     }
 
-    @Override
     public IARPane buildPane() {
         return arLicensePane;
     }
 
-    @Override
     public Double getSceneHeight() {
         return SCENE_HEIGHT;
     }
 
-    @Override
     public Double getSceneWidth() {
         return SCENE_WIDTH;
     }
 
-    @Override
     public String getTitle() {
         return TITLE;
     }
 
-    @Override
-    public void setStageBehaviour(Stage stage) {
-        super.setStageBehaviour(stage); // Call the parent class method
-
-        // Only set the close request handler if it's not already set
-        if (!isCloseHandlerSet) {
-            stage.setOnCloseRequest(this::handleCloseRequest);
-            isCloseHandlerSet = true; // Update the flag to prevent setting it again
+    private void cleanupAndClose() {
+        log.info("Cleanup and Close: Exiting Threads from License Modal");
+        // TODO: if you had a thread list in ARScene, move that cleanup here
+        if (modalDialog != null) {
+            modalDialog.dispose();
         }
-    }
-
-    private void handleCloseRequest(WindowEvent event) {
-        log.info("Handle Close (Main Stage): Exiting Threads and Quitting WebDriver");
-        cleanupAndClose((Stage) event.getSource());
-    }
-
-    private void cleanupAndClose(Stage stage) {
-        log.info("Cleanup and Close: Exiting Threads");
-        // Interrupt running threads
-        threadList.forEach(this::interruptThread);
-        // Add any other cleanup logic here (e.g., WebDriver quit)
-        stage.close();
     }
 
     public void showModal() {
+        // Make sure UI work happens on the Swing EDT
+        SwingUtilities.invokeLater(() -> {
+            arLicensePane.initialize();
 
-        arLicensePane.initialize();
+            if (modalDialog == null) {
+                // Try to find a reasonable owner window
+                Window owner = null;
+                for (Frame f : Frame.getFrames()) {
+                    if (f.isVisible()) {
+                        owner = f;
+                        break;
+                    }
+                }
 
-        if (modalStage == null) {
-            modalStage = new Stage();
-            modalStage.getIcons().add(icon);
-            IARPane pane = buildPane();
-            if (pane != null) {
-                modalScene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
-                modalStage.setScene(modalScene);
-                modalStage.setTitle(getTitle());
-                modalStage.initModality(Modality.WINDOW_MODAL);
-                modalStage.setAlwaysOnTop(true); // Set always on top
-                modalStage.toFront();
-                // Reset alwaysOnTop after showing so it behaves normally afterward
-                modalStage.setAlwaysOnTop(false);
+                modalDialog = new JDialog(owner, getTitle(), Dialog.ModalityType.APPLICATION_MODAL);
+                modalDialog.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
+                modalDialog.setSize(getSceneWidth().intValue(), getSceneHeight().intValue());
+                modalDialog.setLocationRelativeTo(owner);
 
-                // Once shown, reset AlwaysOnTop to false so it behaves normally
-                modalStage.setOnShown(event -> {
-                    Platform.runLater(() -> modalStage.setAlwaysOnTop(false));
+                IARPane pane = buildPane();
+                if (pane != null) {
+                    // IMPORTANT:
+                    // make sure IARPane#createPane() now returns a Swing JComponent
+                    JComponent content = (JComponent) pane.createPane();
+                    modalDialog.setContentPane(content);
+                } else {
+                    log.error("Failed to build pane for modal.");
+                    return;
+                }
+
+                modalDialog.addWindowListener(new WindowAdapter() {
+                    @Override
+                    public void windowClosing(WindowEvent e) {
+                        log.info("Handle Close (Modal Dialog): Exiting Threads from Modal");
+                        cleanupAndClose();
+                    }
                 });
-
-                // Set the onCloseRequest handler for the modal stage
-                modalStage.setOnCloseRequest(event -> {
-                    log.info("Handle Close (Modal Stage): Exiting Threads from Modal");
-                    cleanupAndClose(modalStage);
-                    event.consume(); // Prevent default close behavior if needed
-                });
-
-            } else {
-                // Handle the case where pane creation failed
-                log.error("Failed to build pane for modal.");
-                return;
             }
-        }
 
-        modalStage.setTitle(getTitle()); // Update title if it might have changed
-        // Check if the stage is already showing
-        if (!modalStage.isShowing()) {
-            modalStage.showAndWait(); // Show and wait only if not already showing
-        }
+            modalDialog.setTitle(getTitle());
+            if (!modalDialog.isVisible()) {
+                modalDialog.setVisible(true);
+            }
+        });
     }
 }

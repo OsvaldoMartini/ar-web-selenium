@@ -2,13 +2,12 @@ package com.allinweb.ch.component.scene.base;
 
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.util.ARConstants;
+import java.awt.Image;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.util.ArrayList;
 import java.util.List;
-import javafx.application.Platform;
-import javafx.scene.Scene;
-import javafx.scene.image.Image;
-import javafx.stage.Stage;
-import javafx.stage.WindowEvent;
+import javax.swing.*;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -20,102 +19,111 @@ public abstract class ARScene implements IARScene, IconLoader {
     @Setter
     protected Image icon;
 
-    protected Stage stage; // Make stage protected to allow access in subclass
-    // Flag to track if the close request handler has been set
+    protected JFrame frame; // Swing frame instead of JavaFX Stage
     protected boolean isCloseHandlerSet = false;
-    private Scene scene; // Keep a reference to the scene
+    private JComponent content; // Swing content instead of JavaFX Scene
 
     public ARScene() {
-        setupStage(); // Initialize the stage and set its behavior
+        setupFrame();
         loadIcon();
     }
 
     public void loadIcon() {
-        loadAndSetIcon(ARConstants.ICON_APPLICATION); // e.g. "/images/ABR_icon.png"
+        // IconLoader should now load a java.awt.Image and call setIcon(...)
+        loadAndSetIcon(ARConstants.ICON_APPLICATION);
+        if (frame != null && icon != null) {
+            frame.setIconImage(icon);
+        }
     }
 
     public abstract IARPane buildPane();
 
-    public abstract Double getSceneHeight();
+    public abstract int getSceneHeight();
 
-    public abstract Double getSceneWidth();
+    public abstract int getSceneWidth();
 
-    public void setStageBehaviour(Stage stage) {
-        // By default, do nothing. The subclass will define behavior.
+    /**
+     * Hook for subclasses to configure the frame (size, resizability, etc.)
+     */
+    public void setFrameBehaviour(JFrame frame) {
+        // By default, do nothing. Subclasses may override.
     }
 
-    private void setupStage() {
-        try {
-            stage = new Stage(); // Create the stage here
-            setStageBehaviour(stage); // Ensure stage behavior is set at creation time
-        } catch (IllegalStateException e) {
-            handleIllegalState(e);
-        }
-    }
-
-    private void handleIllegalState(IllegalStateException e) {
-        Platform.runLater(() -> {
-            try {
-                stage = new Stage(); // Retry stage creation if failed
-                setStageBehaviour(stage); // Ensure stage behavior is set
-            } catch (IllegalStateException ex) {
-                log.error("ARScene IllegalStateException: " + ex);
-            }
-        });
+    private void setupFrame() {
+        frame = new JFrame();
+        frame.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
+        setFrameBehaviour(frame);
     }
 
     public void createScene() {
-        if (scene == null) { // Only create a new scene if one doesn't exist
+        if (content == null) {
             IARPane mainPane = buildPane();
             if (mainPane != null) {
-                scene = new Scene(mainPane.createPane(), getSceneWidth(), getSceneHeight());
+                // IMPORTANT: IARPane#createPane() must now return a Swing JComponent
+                content = (JComponent) mainPane.createPane();
             }
         }
     }
 
     @Override
     public void show() {
-        createScene(); // Create the scene before showing
-        Platform.runLater(() -> {
-            if (stage != null) {
-                stage.setTitle(getTitle());
-                stage.getIcons().add(icon);
-                stage.setScene(scene); // Use the existing or newly created scene
-                stage.setAlwaysOnTop(true);
-                stage.show(); // Show the stage
-                stage.toFront();
-                // Reset alwaysOnTop after showing so it behaves normally afterward
-                stage.setAlwaysOnTop(false);
+        createScene();
+        SwingUtilities.invokeLater(() -> {
+            if (frame != null) {
+                frame.setTitle(getTitle());
+                if (icon != null) {
+                    frame.setIconImage(icon);
+                }
+                if (content != null) {
+                    frame.setContentPane(content);
+                }
+                frame.setSize(getSceneWidth().intValue(), getSceneHeight().intValue());
+                frame.setLocationRelativeTo(null);
 
-                // Once shown, reset AlwaysOnTop to false so it behaves normally
-                stage.setOnShown(event -> {
-                    Platform.runLater(() -> stage.setAlwaysOnTop(false));
-                });
+                frame.setAlwaysOnTop(true);
+                frame.setVisible(true);
+                frame.toFront();
+                frame.setAlwaysOnTop(false);
 
-                if (stage.getTitle().equalsIgnoreCase("AR Web Scanner")) {
-                    handleCloseApp(stage);
+                if ("AR Web Scanner".equalsIgnoreCase(frame.getTitle())) {
+                    handleCloseApp();
                 } else {
-                    handleCloseThreads(); // Close threads on other scenes
+                    handleCloseThreads();
                 }
             }
         });
     }
 
-    private void handleCloseApp(Stage stage) {
-        stage.setOnCloseRequest(event -> {
-            handleCloseThreads();
-            // Notify the command prompt
-            handleWindowClose(event);
+    private void handleCloseApp() {
+        if (frame == null) return;
+
+        frame.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
+        frame.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                handleCloseThreads();
+                handleWindowClose();
+            }
         });
     }
 
+    /**
+     * Install a close handler that interrupts all registered threads.
+     * Only installed once.
+     */
     protected void handleCloseThreads() {
+        if (frame == null) return;
+
         if (!isCloseHandlerSet) {
             log.info("Setting close handler for the first time");
-            this.stage.setOnCloseRequest(event -> {
-                threadList.forEach(this::interruptThread);
+            frame.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
+            frame.addWindowListener(new WindowAdapter() {
+                @Override
+                public void windowClosing(WindowEvent e) {
+                    threadList.forEach(ARScene.this::interruptThread);
+                }
             });
-            isCloseHandlerSet = true; // Mark the flag as true after setting
+            isCloseHandlerSet = true;
         } else {
             log.info("Close handler already set, skipping...");
         }
@@ -140,21 +148,19 @@ public abstract class ARScene implements IARScene, IconLoader {
         cleanUpFinishedThreads();
         for (Thread existingThread : threadList) {
             if (existingThread.getName().equals(threadName) && existingThread.isAlive()) {
-                log.info("Thread with name '" + threadName + "' is already running.");
+                log.info("Thread with name '{}' is already running.", threadName);
                 return;
             }
         }
 
-        // Create and start a new named thread
         Thread thread = new Thread(task);
         thread.setName(threadName);
         threadList.add(thread);
         thread.start();
     }
 
-    private void handleWindowClose(WindowEvent event) {
+    private void handleWindowClose() {
         log.info("X button clicked. Window is closing.");
-        // Platform.exit();
         System.exit(0);
     }
 }

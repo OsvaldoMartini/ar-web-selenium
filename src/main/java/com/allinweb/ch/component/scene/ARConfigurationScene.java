@@ -4,23 +4,27 @@ import com.allinweb.ch.component.pane.ARConfigurationPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.model.BotJobLoadDTO;
+import java.awt.Dialog;
+import java.awt.Frame;
+import java.awt.Window;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.time.format.DateTimeFormatter;
-import javafx.application.Platform;
-import javafx.scene.Scene;
-import javafx.scene.control.ListView;
-import javafx.stage.Modality;
-import javafx.stage.Stage;
+import javax.swing.JComponent;
+import javax.swing.JDialog;
+import javax.swing.JList;
+import javax.swing.SwingUtilities;
+import javax.swing.WindowConstants;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class ARConfigurationScene extends ARScene {
 
-    // Private constructor to prevent instantiation
     private static final Double SCENE_HEIGHT = 700D;
     private static final Double SCENE_WIDTH = 800D;
     private static final String TITLE = "Configuration";
-    // Static final variable to hold the singleton instance
     private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
+
     protected static volatile ARConfigurationScene instance;
     private static ARConfigurationPane arConfigurationPane;
 
@@ -29,12 +33,10 @@ public class ARConfigurationScene extends ARScene {
     }
 
     private boolean isEnabledLicence;
-    private Stage modalStage;
-    private Scene modalScene;
-    private ListView<BotJobLoadDTO> viewBotJobListView = new ListView<>();
-    // Private constructor to prevent instantiation
-    private ARConfigurationScene() {
+    private JDialog modalDialog;
+    private JList<BotJobLoadDTO> viewBotJobListView = new JList<>();
 
+    private ARConfigurationScene() {
         super();
     }
 
@@ -51,17 +53,17 @@ public class ARConfigurationScene extends ARScene {
 
     @Override
     public IARPane buildPane() {
-        //        arConfigurationPane.initialize(modalStage);
+        // arConfigurationPane.initialize(modalDialog, viewBotJobListView, isEnabledLicence);
         return arConfigurationPane;
     }
 
     @Override
-    public Double getSceneHeight() {
+    public int getSceneHeight() {
         return SCENE_HEIGHT;
     }
 
     @Override
-    public Double getSceneWidth() {
+    public int getSceneWidth() {
         return SCENE_WIDTH;
     }
 
@@ -70,66 +72,64 @@ public class ARConfigurationScene extends ARScene {
         return TITLE;
     }
 
-    private void cleanupAndClose(Stage stage) {
+    private void cleanupAndClose() {
         log.info("Cleanup and Close: Exiting Threads");
-        // Interrupt running threads
         threadList.forEach(this::interruptThread);
-        // Add any other cleanup logic here (e.g., WebDriver quit)
-        stage.close();
+        if (modalDialog != null) {
+            modalDialog.dispose();
+        }
     }
 
     public void showModal() {
+        SwingUtilities.invokeLater(() -> {
+            // Initialize pane state with current dialog & list (adapt ARConfigurationPane to Swing types)
+            arConfigurationPane.initialize(modalDialog, viewBotJobListView, isEnabledLicence);
 
-        arConfigurationPane.initialize(modalStage, viewBotJobListView, isEnabledLicence);
+            if (modalDialog == null) {
+                // Try to find reasonable owner (e.g., main frame)
+                Window owner = null;
+                for (Frame f : Frame.getFrames()) {
+                    if (f.isVisible()) {
+                        owner = f;
+                        break;
+                    }
+                }
 
-        if (modalStage == null) {
-            modalStage = new Stage();
-            modalStage.getIcons().add(icon);
-            IARPane pane = buildPane();
-            if (pane != null) {
-                modalScene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
-                modalStage.setScene(modalScene);
-                modalStage.setTitle(getTitle());
-                modalStage.initModality(Modality.WINDOW_MODAL);
-                modalStage.setAlwaysOnTop(true); // Set always on top
-                modalStage.toFront();
-                // Reset alwaysOnTop after showing so it behaves normally afterward
-                modalStage.setAlwaysOnTop(false);
+                modalDialog = new JDialog(owner, getTitle(), Dialog.ModalityType.APPLICATION_MODAL);
+                modalDialog.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
+                modalDialog.setSize(getSceneWidth().intValue(), getSceneHeight().intValue());
+                modalDialog.setLocationRelativeTo(owner);
 
-                // Once shown, reset AlwaysOnTop to false so it behaves normally
-                modalStage.setOnShown(event -> {
-                    Platform.runLater(() -> modalStage.setAlwaysOnTop(false));
+                if (icon != null) {
+                    modalDialog.setIconImage(icon);
+                }
+
+                IARPane pane = buildPane();
+                if (pane != null) {
+                    JComponent content = (JComponent) pane.createPane();
+                    modalDialog.setContentPane(content);
+                } else {
+                    log.error("Failed to build pane for modal.");
+                    return;
+                }
+
+                modalDialog.addWindowListener(new WindowAdapter() {
+                    @Override
+                    public void windowClosing(WindowEvent e) {
+                        log.info("Handle Close (Modal Dialog): Exiting Threads from Modal");
+                        cleanupAndClose();
+                    }
                 });
-
-                // Set the onCloseRequest handler for the modal stage
-                modalStage.setOnCloseRequest(event -> {
-                    log.info("Handle Close (Modal Stage): Exiting Threads from Modal");
-                    cleanupAndClose(modalStage);
-                    event.consume(); // Prevent default close behavior if needed
-                });
-
-                //                // Set an event handler for when the window is closed (via the X button)
-                //                modalStage.setOnCloseRequest(new EventHandler<WindowEvent>() {
-                //                    @Override
-                //                    public void handle(WindowEvent event) {
-                //                        ARMainScene.setConfiguring(false); // Signal that the configuration is done
-                //                    }
-                //                });
-            } else {
-                // Handle the case where pane creation failed
-                log.error("Failed to build pane for modal.");
-                return;
             }
-        }
-        modalStage.setTitle(getTitle()); // Update title if it might have changed
 
-        // Check if the stage is already showing
-        if (!modalStage.isShowing()) {
-            modalStage.showAndWait(); // Show and wait only if not already showing
-        }
+            modalDialog.setTitle(getTitle());
+            if (!modalDialog.isVisible()) {
+                modalDialog.setVisible(true); // blocks until closed because it's modal
+            }
+        });
     }
 
-    public void initialize(ListView<BotJobLoadDTO> viewBotJobListView, boolean isEnabledLicence) {
+    public void initialize(JList<BotJobLoadDTO> viewBotJobListView, boolean isEnabledLicence) {
         this.isEnabledLicence = isEnabledLicence;
         this.viewBotJobListView = viewBotJobListView;
     }

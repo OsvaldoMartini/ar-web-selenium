@@ -1,14 +1,48 @@
 package com.allinweb.ch.component.pane;
 
-import javafx.application.Application;
-import javafx.stage.Stage;
+import javax.swing.*;
 
-public abstract class AbstractARScannedElementPane extends Application {
+public abstract class AbstractARScannedElementPane {
 
-    // Abstract methods to force subclasses to implement start and stop
-    @Override
-    public abstract void start(Stage primaryStage) throws Exception;
+    protected JFrame frame;
 
-    @Override
+    /**
+     * Abstract method to start the Swing UI.
+     * Subclasses must implement how the frame/panel is initialized and shown.
+     */
+    public abstract void start() throws Exception;
+
+    /**
+     * Abstract method to stop/cleanup resources.
+     * Subclasses must implement how to properly close/dispose the frame or other resources.
+     */
     public abstract void stop() throws Exception;
+
+    /**
+     * Helper method to initialize a basic JFrame.
+     */
+    protected void initFrame(String title, int width, int height) {
+        frame = new JFrame(title);
+        frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        frame.setSize(width, height);
+        frame.setLocationRelativeTo(null); // center on screen
+    }
+
+    /**
+     * Show the frame
+     */
+    protected void showFrame() {
+        if (frame != null) {
+            SwingUtilities.invokeLater(() -> frame.setVisible(true));
+        }
+    }
+
+    /**
+     * Close the frame
+     */
+    protected void closeFrame() {
+        if (frame != null) {
+            SwingUtilities.invokeLater(() -> frame.dispose());
+        }
+    }
 }

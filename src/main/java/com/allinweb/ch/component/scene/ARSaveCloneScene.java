@@ -4,11 +4,12 @@ import com.allinweb.ch.component.pane.ARSaveClonePane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.model.BotJobLoadDTO;
+import java.awt.Dialog;
+import java.awt.Window;
 import java.util.List;
-import javafx.application.Platform;
-import javafx.scene.Scene;
-import javafx.stage.Modality;
-import javafx.stage.Stage;
+import javax.swing.JComponent;
+import javax.swing.JDialog;
+import javax.swing.SwingUtilities;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -24,15 +25,13 @@ public class ARSaveCloneScene extends ARScene {
         arSaveClonePane = ARSaveClonePane.getInstance();
     }
 
-    private Stage modalStage;
-    private Scene modalScene;
+    private JDialog modalDialog;
     private boolean isEnabledLicence;
     private BotJobLoadDTO selecBotJobDTO;
     private List<BotJobLoadDTO> botJobList;
 
     // Private constructor to prevent instantiation
     private ARSaveCloneScene() {
-
         super();
     }
 
@@ -55,17 +54,17 @@ public class ARSaveCloneScene extends ARScene {
 
     @Override
     public IARPane buildPane() {
-        //        arSaveClonePane.initialize(selecBotJobDTO, botJobList);
+        // arSaveClonePane.initialize(selecBotJobDTO, botJobList, isEnabledLicence);
         return arSaveClonePane;
     }
 
     @Override
-    public Double getSceneHeight() {
+    public int getSceneHeight() {
         return SCENE_HEIGHT;
     }
 
     @Override
-    public Double getSceneWidth() {
+    public int getSceneWidth() {
         return SCENE_WIDTH;
     }
 
@@ -74,41 +73,40 @@ public class ARSaveCloneScene extends ARScene {
         return TITLE;
     }
 
-    public void showModal(Stage primareStage) {
+    /**
+     * Swing replacement for the old JavaFX showModal(Stage primaryStage).
+     * Pass the owning Swing window as "owner".
+     */
+    public void showModal(Window owner) {
 
         arSaveClonePane.initialize(selecBotJobDTO, botJobList, isEnabledLicence);
 
-        if (modalStage == null) {
-            modalStage = new Stage();
-            modalStage.getIcons().add(icon);
-            IARPane pane = buildPane();
-            if (pane != null) {
-                modalScene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
-                modalStage.setScene(modalScene);
-                modalStage.setTitle(getTitle());
-                modalStage.initOwner(primareStage);
-                modalStage.initModality(Modality.WINDOW_MODAL);
-                modalStage.setAlwaysOnTop(true); // Set always on top
-                modalStage.toFront();
-                // Reset alwaysOnTop after showing so it behaves normally afterward
-                modalStage.setAlwaysOnTop(false);
+        SwingUtilities.invokeLater(() -> {
+            if (modalDialog == null) {
+                modalDialog = new JDialog(owner, getTitle(), Dialog.ModalityType.APPLICATION_MODAL);
+                modalDialog.setSize(getSceneWidth().intValue(), getSceneHeight().intValue());
+                modalDialog.setLocationRelativeTo(owner);
 
-                // Once shown, reset AlwaysOnTop to false so it behaves normally
-                modalStage.setOnShown(event -> {
-                    Platform.runLater(() -> modalStage.setAlwaysOnTop(false));
-                });
-            } else {
-                // Handle the case where pane creation failed
-                log.error("Failed to build pane for modal.");
-                return;
+                if (icon != null) {
+                    modalDialog.setIconImage(icon);
+                }
+
+                IARPane pane = buildPane();
+                if (pane != null) {
+                    JComponent content = (JComponent) pane.createPane();
+                    modalDialog.setContentPane(content);
+                } else {
+                    // Handle the case where pane creation failed
+                    log.error("Failed to build pane for modal.");
+                    return;
+                }
             }
-        }
 
-        modalStage.setTitle(getTitle()); // Update title if it might have changed
+            modalDialog.setTitle(getTitle()); // Update title if it might have changed
 
-        // Check if the stage is already showing
-        if (!modalStage.isShowing()) {
-            modalStage.showAndWait(); // Show and wait only if not already showing
-        }
+            if (!modalDialog.isVisible()) {
+                modalDialog.setVisible(true); // blocks until closed
+            }
+        });
     }
 }

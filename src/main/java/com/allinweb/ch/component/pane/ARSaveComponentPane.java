@@ -14,24 +14,14 @@ import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import java.awt.*;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import javafx.animation.KeyFrame;
-import javafx.animation.Timeline;
-import javafx.application.Platform;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
-import javafx.scene.control.*;
-import javafx.scene.layout.*;
-import javafx.scene.paint.Color;
-import javafx.scene.text.Text;
-import javafx.stage.Modality;
-import javafx.stage.Stage;
+import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import javax.websocket.Session;
 import lombok.extern.slf4j.Slf4j;
 
@@ -46,27 +36,22 @@ public class ARSaveComponentPane extends ARPane {
     private static final PerformLists performLists = PerformLists.getInstance();
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
     protected static volatile ARSaveComponentPane instance;
+
+    @SuppressWarnings("unused")
     private static Map<String, Session> activeSessions;
-    TextField nameTextField;
-    TextArea descriptionTextField;
-    Text regularText;
-    Text variableText1;
-    Text variableText2;
-    Label warningLabel;
-    Button closeButton;
-    private Gson gson = new GsonBuilder().setPrettyPrinting().create();
+
+    JTextField nameTextField;
+    JTextArea descriptionTextField;
+    JLabel warningLabel;
+    JButton closeButton;
+    private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
     private BlockDetailsDTO blockDetailsDTO;
-    private int remainingSeconds = SECONDS;
-    private Timeline timeline;
-    private ExecutorService executorService;
-    private Alert alertToShow;
     private List<BlockLoadDTO> savedBlockLoadList = new ArrayList<>();
-    private Button saveNewComponentButton;
-    private AnchorPane mainPane;
+    private JButton saveNewComponentButton;
+    private JPanel mainPanel;
 
     // Private constructor to prevent instantiation
     private ARSaveComponentPane() {
-
         super();
     }
 
@@ -85,106 +70,99 @@ public class ARSaveComponentPane extends ARPane {
         this.blockDetailsDTO = blockDetailsDTO;
     }
 
+    /**
+     * Helper to convert JavaFX-style double spacing to Swing int pixels.
+     */
+    private int px(double value) {
+        return (int) Math.round(value);
+    }
+
+    /**
+     * Swing equivalent of getPaneReference.
+     * Make sure ARPane is adapted to use JComponent instead of JavaFX Pane.
+     */
     @Override
-    public Pane getPaneReference() {
-        return mainPane;
+    public JPanel getPaneReference() {
+        return mainPanel;
     }
 
     @Override
     public void initUIComponents() {
-        //  Alert Timer Components
-        // Create a label to display the countdown
-        Label countdownLabel = new Label(String.valueOf(remainingSeconds));
-        countdownLabel.setStyle("-fx-font-size: 24px;");
-        countdownLabel.setVisible(false);
-        // Create a stack pane to hold the label
-        StackPane stackPane = new StackPane(countdownLabel);
-        stackPane.setPadding(new Insets(20));
 
-        // Create a dialog for the alert
-        alertToShow = new Alert(Alert.AlertType.INFORMATION);
-        alertToShow.setTitle("Title");
-        alertToShow.setHeaderText("Header Message");
-        alertToShow.setContentText("Main Message");
-        alertToShow.initModality(Modality.WINDOW_MODAL);
-        // Set the content of the alert
-        alertToShow.getDialogPane().setContent(stackPane);
-        // Create a timeline to update the countdown
-        timeline = new Timeline(new KeyFrame(javafx.util.Duration.seconds(1), event -> {
-            remainingSeconds--;
-            countdownLabel.setText(String.valueOf(remainingSeconds));
-            if (remainingSeconds <= 0) {
-                timeline.stop(); // Stop the timeline when countdown finishes
-                alertToShow.close(); // Close the alert dialog
-            }
-        }));
+        // Main container similar to AnchorPane + VBox
+        mainPanel = new JPanel(new BorderLayout());
+        mainPanel.setBorder(new EmptyBorder(
+                px(ARConstants.SPACE_M), px(ARConstants.SPACE_M), px(ARConstants.SPACE_M), px(ARConstants.SPACE_M)));
 
-        saveNewComponentButton = builder.buildButton("Save New Component", ARConstants.SPACE_L);
-        closeButton = builder.buildButton(" Close ", ARConstants.SPACE_L);
+        // Buttons
+        saveNewComponentButton = builder.buildButton("Save New Component", px(ARConstants.SPACE_L));
+        closeButton = builder.buildButton(" Close ", px(ARConstants.SPACE_L));
 
-        HBox actionPanel = new HBox(saveNewComponentButton, closeButton);
-        actionPanel.setSpacing(ARConstants.SPACE_SM);
-        actionPanel.setAlignment(Pos.CENTER);
+        JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, px(ARConstants.SPACE_SM), 0));
+        actionPanel.add(saveNewComponentButton);
+        actionPanel.add(closeButton);
 
-        Label nameLabel = new Label("Name :         ");
+        // Name
+        JLabel nameLabel = new JLabel("Name :         ");
+        nameTextField = new JTextField(blockDetailsDTO.getBlockName());
+        nameTextField.setPreferredSize(new Dimension(300, px(ARConstants.SPACE_XL)));
 
-        nameTextField = new TextField(blockDetailsDTO.getBlockName());
-        HBox nameHBox = new HBox(nameLabel, nameTextField);
-        HBox.setHgrow(nameTextField, Priority.ALWAYS);
-        HBox.setMargin(nameLabel, new Insets(ARConstants.SPACE_XS));
+        JPanel namePanel = new JPanel(new BorderLayout());
+        namePanel.setBorder(new EmptyBorder(
+                px(ARConstants.SPACE_XS),
+                px(ARConstants.SPACE_XS),
+                px(ARConstants.SPACE_XS),
+                px(ARConstants.SPACE_XS)));
+        namePanel.add(nameLabel, BorderLayout.WEST);
+        namePanel.add(nameTextField, BorderLayout.CENTER);
 
-        Label descriptionLabel = new Label("Description : ");
-        descriptionTextField = new TextArea(blockDetailsDTO.getBlockDescription());
+        // Description
+        JLabel descriptionLabel = new JLabel("Description : ");
+        descriptionTextField = new JTextArea(blockDetailsDTO.getBlockDescription());
+        descriptionTextField.setLineWrap(true);
+        descriptionTextField.setWrapStyleWord(true);
+        descriptionTextField.setRows(4);
 
-        regularText = new Text("Excluded Special Operations: ");
-        variableText1 = new Text("Set Value" + " / " + "Get Value");
-        variableText2 = new Text("Check Value" + " / " + "Excel Save");
-        variableText1.setFill(Color.BLUE);
-        variableText2.setFill(Color.BLUE);
+        JScrollPane descriptionScrollPane = new JScrollPane(descriptionTextField);
+        descriptionScrollPane.setPreferredSize(new Dimension(300, 100));
 
-        HBox descriptionHBox = new HBox(descriptionLabel, descriptionTextField);
-        HBox.setHgrow(descriptionTextField, Priority.ALWAYS);
-        HBox.setMargin(descriptionLabel, new Insets(ARConstants.SPACE_XS));
+        JPanel descriptionPanel = new JPanel(new BorderLayout());
+        descriptionPanel.setBorder(new EmptyBorder(
+                px(ARConstants.SPACE_XS),
+                px(ARConstants.SPACE_XS),
+                px(ARConstants.SPACE_XS),
+                px(ARConstants.SPACE_XS)));
+        descriptionPanel.add(descriptionLabel, BorderLayout.WEST);
+        descriptionPanel.add(descriptionScrollPane, BorderLayout.CENTER);
 
-        nameTextField.setMaxHeight(ARConstants.SPACE_XL);
-        nameTextField.setPrefHeight(ARConstants.SPACE_XL);
+        // Warning label
+        warningLabel = new JLabel();
+        warningLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        warningLabel.setForeground(Color.RED);
 
-        descriptionTextField.setMaxHeight(100);
-        descriptionTextField.setPrefHeight(100);
-        descriptionLabel.setMaxWidth(Double.MAX_VALUE);
+        // Vertical layout similar to VBox
+        JPanel centerPanel = new JPanel();
+        centerPanel.setLayout(new BoxLayout(centerPanel, BoxLayout.Y_AXIS));
+        centerPanel.add(namePanel);
+        centerPanel.add(Box.createVerticalStrut(px(ARConstants.SPACE_SM)));
+        centerPanel.add(descriptionPanel);
+        centerPanel.add(Box.createVerticalStrut(px(ARConstants.SPACE_SM)));
+        centerPanel.add(warningLabel);
+        centerPanel.add(Box.createVerticalStrut(px(ARConstants.SPACE_SM)));
+        centerPanel.add(actionPanel);
 
-        warningLabel = new Label();
-        warningLabel.setMaxWidth(Double.MAX_VALUE);
-        warningLabel.setTextFill(Color.RED);
-        warningLabel.setAlignment(Pos.CENTER);
-
-        VBox separtorPanel = new VBox(nameHBox, descriptionHBox, warningLabel, actionPanel);
-        VBox.setVgrow(descriptionHBox, Priority.ALWAYS);
-        separtorPanel.setMaxWidth(Double.MAX_VALUE);
-        separtorPanel.setSpacing(ARConstants.SPACE_SM);
-
-        // separtorPanel.setPrefWidth(400);
-
-        AnchorPane.setTopAnchor(separtorPanel, ARConstants.SPACE_M);
-        AnchorPane.setBottomAnchor(separtorPanel, ARConstants.SPACE_M);
-        AnchorPane.setLeftAnchor(separtorPanel, ARConstants.SPACE_M);
-        AnchorPane.setRightAnchor(separtorPanel, ARConstants.SPACE_M);
-
-        mainPane = new AnchorPane(separtorPanel);
+        mainPanel.add(centerPanel, BorderLayout.CENTER);
     }
 
     @Override
     public void initUIBehaviour() {
 
-        saveNewComponentButton.setOnMouseClicked(e -> {
-            //            PerformDataBase..cacheEntitiesFromDB();
-
+        saveNewComponentButton.addActionListener(e -> {
             if (nameTextField.getText() != null
                     && !nameTextField.getText().trim().isEmpty()
                     && descriptionTextField.getText() != null
                     && !descriptionTextField.getText().trim().isEmpty()) {
                 try {
-                    // Ensure UI update happens on the JavaFX Application Thread
                     warningMSG("");
 
                     blockDetailsDTO.setBlockName(nameTextField.getText().trim());
@@ -195,15 +173,6 @@ public class ARSaveComponentPane extends ARPane {
                             blockDetailsDTO.getHomeBankingId(),
                             blockDetailsDTO.getBotJobId(),
                             blockDetailsDTO.getBotJobName());
-
-                    //                    originalLoopInstruction =
-                    // performDBSavedBlock.createSavedBlockLoopInstructionsFromBlocksDTO(
-                    //                            detailsDTO, componentBlockDTO);
-
-                    // Debugging: Ensure originalLoopInstruction has the right data
-                    //
-                    //                            log.info("originalLoopInstruction Size: " +
-                    // originalLoopInstruction.size());
 
                     boolean existName = savedBlockLoadList.stream().anyMatch(block -> block.getName()
                             .equalsIgnoreCase(nameTextField.getText().trim()));
@@ -225,14 +194,9 @@ public class ARSaveComponentPane extends ARPane {
                         return;
                     }
 
-                    // Debugging: Print statements to track data
-
                     log.info("Saving New Component Block: " + blockDetailsDTO.getBlockName());
 
                     try (Connection conn = performDataBase.getConnection()) {
-
-                        //                        performDataBase.deleteNullBlocks("component_block",
-                        // blockDetailsDTO.getHomeBankingId());
 
                         ErrorMessage errorMessage = performDataBase.createCompBlock(blockDetailsDTO);
                         if (errorMessage == null) {
@@ -274,46 +238,30 @@ public class ARSaveComponentPane extends ARPane {
                                         performLists.buildJsonViewData(performLists.getListBotJobComp());
                                 jsonData = gson.toJson(blockLoopInstructions);
                             }
-                            // simpleWebSocketServer.sendMessageJson(blockDetailsDTO.getSessionId(), jsonData,
-                            // "componentsUpdate");
+
                             webSocketSessionManager.sendMessageJson(
                                     blockDetailsDTO.getHomeBankingId(), "componentTasks", jsonData, "componentsUpdate");
                         } else {
-                            //                            performDataBase.deleteNullBlocks("component_block",
-                            // blockDetailsDTO.getHomeBankingId());
                             log.error(
                                     "Database problem : {} Title: {} Message: {}",
                                     errorMessage.getErrorHeader(),
                                     errorMessage.getErrorTitle(),
                                     errorMessage.getErrorMessage());
-                            //                            performMessage.errorMessage(
-                            //                                    "Database problem",
-                            //                                    errorMessage.getErrorTitle(),
-                            //                                    errorMessage.getErrorHeader(),
-                            //                                    "Verify  [INSERT] or [UPDATE] or [SELECT]",
-                            //                                    null,
-                            //                                    0);
                         }
+
                         log.info("ARSaveComponentPane Close()");
-                        Platform.runLater(() -> {
-                            Stage stage =
-                                    (Stage) ((Button) e.getSource()).getScene().getWindow();
-                            stage.close();
-                        });
+                        Close();
+
                     } catch (SQLException error) {
                         log.info(error.getMessage());
                     }
 
-                    // Ensure closing is done on the JavaFX Application Thread
-                    Platform.runLater(this::Close);
-
                 } catch (Exception error) {
-                    // Handle the exception and display a warning message on the JavaFX Application Thread
 
                     log.error("Error: Unable to save the block. Please try again.\nError: " + error.getMessage());
 
                     showAlertTimer(
-                            Alert.AlertType.ERROR,
+                            JOptionPane.ERROR_MESSAGE,
                             "Error Component",
                             "Unable to create new Component.",
                             "Error creating a new component",
@@ -321,107 +269,83 @@ public class ARSaveComponentPane extends ARPane {
                             null,
                             null);
 
-                    warningMSG("Error creating a new componen! Please try again.");
+                    warningMSG("Error creating a new component! Please try again.");
                 }
 
-                //                PerformDataBase..changeDbConnection(previousDB);
-
-                //                Close();
             } else {
-
-                // Ensure UI update happens on the JavaFX Application Thread
                 warningMSG("Warning: give the correct name and description");
             }
         });
 
-        closeButton.setOnAction(e -> Close());
+        closeButton.addActionListener(e -> Close());
     }
 
     private void Close() {
         log.info("ARSaveClonePane Close()");
-        Platform.runLater(() -> {
-            Stage stage = (Stage) mainPane.getScene().getWindow();
-            stage.close();
+        SwingUtilities.invokeLater(() -> {
+            Window window = SwingUtilities.getWindowAncestor(mainPanel);
+            if (window != null) {
+                window.dispose();
+            }
         });
     }
 
     private void warningMSG(String msg) {
-        Platform.runLater(() -> {
-            warningLabel.setText(msg);
-        });
+        SwingUtilities.invokeLater(() -> warningLabel.setText(msg));
     }
 
+    /**
+     * Swing replacement for JavaFX Alert + Timeline countdown.
+     */
     private void showAlertTimer(
-            Alert.AlertType alertType,
-            String title,
-            String header,
-            String msg1,
-            String msg2,
-            String msg3,
-            String msg4) {
-        executorService = Executors.newSingleThreadExecutor();
-        alertToShow.setAlertType(alertType);
-        alertToShow.setTitle(title);
-        alertToShow.setHeaderText(header);
-        //        alertToShow.setContentText(content);
+            int messageType, String title, String header, String msg1, String msg2, String msg3, String msg4) {
 
-        // Remove the border of the DialogPane
-        alertToShow.getDialogPane().setStyle("-fx-border-color: transparent; -fx-border-width: 0;");
+        int remainingSeconds = SECONDS;
 
-        // Create VBox to hold multiple Text elements
-        VBox allMsgVer = new VBox();
-        allMsgVer.setSpacing(10); // Add some spacing between texts
-        allMsgVer.setPadding(new Insets(20));
+        JLabel headerLabel = new JLabel(header);
+        headerLabel.setFont(headerLabel.getFont().deriveFont(Font.BOLD, 14f));
 
-        Text variableText1Styled = new Text(msg1);
-        Text variableText2Styled = new Text(msg2);
-        Text variableText3Styled = new Text(msg3);
-        Text variableText4Styled = new Text(msg4);
+        JPanel messagesPanel = new JPanel();
+        messagesPanel.setLayout(new BoxLayout(messagesPanel, BoxLayout.Y_AXIS));
+        messagesPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
 
-        // Set styles based on alert type
-        if (alertType.equals(Alert.AlertType.ERROR)) {
-            // Change the font color of the title to red
-            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-            variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-            variableText3Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-            variableText4Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-        } else {
-            // Change the font color of the title to red
-            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-            variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: green;");
-            variableText3Styled.setStyle("-fx-font-size: 18px; -fx-fill: green;");
-            variableText4Styled.setStyle("-fx-font-size: 18px; -fx-fill: green;");
+        if (msg1 != null) {
+            messagesPanel.add(new JLabel(msg1));
+        }
+        if (msg2 != null) {
+            messagesPanel.add(new JLabel(msg2));
+        }
+        if (msg3 != null) {
+            messagesPanel.add(new JLabel(msg3));
+        }
+        if (msg4 != null) {
+            messagesPanel.add(new JLabel(msg4));
         }
 
-        // Add Text elements to VBox
-        if (msg1 != null && msg2 == null && msg3 == null && msg4 == null) {
-            allMsgVer.getChildren().addAll(variableText1Styled);
-        } else if (msg1 != null && msg2 != null && msg3 == null && msg4 == null) {
-            allMsgVer.getChildren().addAll(variableText1Styled, variableText2Styled);
-        } else if (msg1 != null && msg2 != null && msg3 != null && msg4 == null) {
-            allMsgVer.getChildren().addAll(variableText1Styled, variableText2Styled, variableText3Styled);
-        } else {
-            allMsgVer.getChildren().addAll(variableText1Styled, variableText2Styled, variableText3Styled);
-        }
+        JLabel countdownLabel = new JLabel("Closing in " + remainingSeconds + " seconds...", SwingConstants.CENTER);
 
-        // Create a StackPane to hold the VBox
-        StackPane stackPane = new StackPane(allMsgVer);
-        stackPane.setPadding(new Insets(20));
+        JPanel contentPanel = new JPanel(new BorderLayout(0, 10));
+        contentPanel.add(headerLabel, BorderLayout.NORTH);
+        contentPanel.add(messagesPanel, BorderLayout.CENTER);
+        contentPanel.add(countdownLabel, BorderLayout.SOUTH);
 
-        // Set StackPane content to alert dialog pane
-        alertToShow.getDialogPane().setContent(stackPane);
+        JOptionPane optionPane = new JOptionPane(contentPanel, messageType, JOptionPane.DEFAULT_OPTION);
 
-        executorService.execute(() -> {
-            timeline.setCycleCount(SECONDS); // Run for seconds
-            timeline.play(); // Start the timeline
+        JDialog dialog = optionPane.createDialog(mainPanel, title);
+        dialog.setModal(true);
 
-            // Show the alert on the JavaFX Application Thread
-            javafx.application.Platform.runLater(() -> alertToShow.showAndWait());
+        // mutable holder for the remaining seconds
+        final int[] secsHolder = {remainingSeconds};
+        Timer realTimer = new Timer(1000, e -> {
+            secsHolder[0]--;
+            countdownLabel.setText("Closing in " + secsHolder[0] + " seconds...");
+            if (secsHolder[0] <= 0) {
+                ((Timer) e.getSource()).stop();
+                dialog.dispose();
+            }
         });
+        realTimer.start();
 
-        if (executorService != null) {
-            remainingSeconds = SECONDS;
-            executorService.shutdown();
-        }
+        dialog.setVisible(true);
     }
 }

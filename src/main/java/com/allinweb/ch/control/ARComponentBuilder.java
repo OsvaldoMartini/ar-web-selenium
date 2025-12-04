@@ -1,19 +1,9 @@
 package com.allinweb.ch.control;
 
 import com.allinweb.ch.util.ARConstants;
-import java.util.Objects;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
-import javafx.scene.Node;
-import javafx.scene.control.Button;
-import javafx.scene.control.ContentDisplay;
-import javafx.scene.control.Label;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
-import javafx.scene.layout.AnchorPane;
-import javafx.scene.layout.Background;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
+import java.awt.*;
+import java.net.URL;
+import javax.swing.*;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -37,128 +27,175 @@ public class ARComponentBuilder {
         return instance;
     }
 
-    public HBox createTopPanel(Double topPanelHeight, Double edgeSpace) {
-        HBox topPane = new HBox();
-        topPane.setMaxHeight(topPanelHeight);
-        AnchorPane.setTopAnchor(topPane, edgeSpace);
-        AnchorPane.setLeftAnchor(topPane, edgeSpace);
-        AnchorPane.setRightAnchor(topPane, edgeSpace);
+    /**
+     * Create a "top panel" with a preferred height and outer margin.
+     * This replaces the old JavaFX HBox + AnchorPane anchoring.
+     */
+    public JPanel createTopPanel(Double topPanelHeight, Double edgeSpace) {
+        JPanel topPane = new JPanel();
+        topPane.setLayout(new FlowLayout(FlowLayout.LEFT));
+        topPane.setBorder(
+                BorderFactory.createEmptyBorder(edgeSpace.intValue(), edgeSpace.intValue(), 0, edgeSpace.intValue()));
+        topPane.setPreferredSize(new Dimension(0, topPanelHeight.intValue()));
         return topPane;
     }
 
-    public HBox createBottomPanel(Double bottomPanelHeight, Double edgeSpace) {
-        HBox bottomPane = new HBox();
-        bottomPane.setMaxHeight(bottomPanelHeight);
-        AnchorPane.setBottomAnchor(bottomPane, edgeSpace);
-        AnchorPane.setLeftAnchor(bottomPane, edgeSpace);
-        AnchorPane.setRightAnchor(bottomPane, edgeSpace);
+    /**
+     * Create a "bottom panel" with a preferred height and outer margin.
+     */
+    public JPanel createBottomPanel(Double bottomPanelHeight, Double edgeSpace) {
+        JPanel bottomPane = new JPanel();
+        bottomPane.setLayout(new FlowLayout(FlowLayout.RIGHT));
+        bottomPane.setBorder(
+                BorderFactory.createEmptyBorder(0, edgeSpace.intValue(), edgeSpace.intValue(), edgeSpace.intValue()));
+        bottomPane.setPreferredSize(new Dimension(0, bottomPanelHeight.intValue()));
         return bottomPane;
     }
 
-    public AnchorPane createContentPanel(Double topPanelHeight, Double bottomPanelHeight, Double edgeSpace) {
-        AnchorPane contentPane = new AnchorPane();
-        AnchorPane.setTopAnchor(contentPane, edgeSpace + topPanelHeight);
-        AnchorPane.setBottomAnchor(contentPane, edgeSpace + bottomPanelHeight);
-        AnchorPane.setLeftAnchor(contentPane, edgeSpace);
-        AnchorPane.setRightAnchor(contentPane, edgeSpace);
+    /**
+     * Create a central content panel with margins.
+     * In JavaFX you used AnchorPane constraints; here we just use border / BoxLayout.
+     */
+    public JPanel createContentPanel(Double topPanelHeight, Double bottomPanelHeight, Double edgeSpace) {
+        JPanel contentPane = new JPanel();
+        contentPane.setLayout(new BorderLayout());
+        contentPane.setBorder(BorderFactory.createEmptyBorder(
+                edgeSpace.intValue(), edgeSpace.intValue(), edgeSpace.intValue(), edgeSpace.intValue()));
         return contentPane;
     }
 
-    public <T extends Node> T setAnchorPaneAnchors(T node, Double edge) {
-        return setAnchorPaneAnchors(node, edge, edge);
+    /**
+     * Anchor helpers: in Swing there is no AnchorPane, so these are no-ops that simply return the same component.
+     */
+    public <T extends JComponent> T setAnchorPaneAnchors(T component, Double edge) {
+        return component;
     }
 
-    public <T extends Node> T setAnchorPaneAnchors(T node, Double vertical, Double horizontal) {
-        return setAnchorPaneAnchors(node, vertical, vertical, horizontal, horizontal);
+    public <T extends JComponent> T setAnchorPaneAnchors(T component, Double vertical, Double horizontal) {
+        return component;
     }
 
-    public <T extends Node> T setAnchorPaneAnchors(T node, Double top, Double bottom, Double left, Double right) {
-        AnchorPane.setTopAnchor(node, top);
-        AnchorPane.setBottomAnchor(node, bottom);
-        AnchorPane.setLeftAnchor(node, left);
-        AnchorPane.setRightAnchor(node, right);
-        return node;
+    public <T extends JComponent> T setAnchorPaneAnchors(
+            T component, Double top, Double bottom, Double left, Double right) {
+        return component;
     }
 
-    public ImageView buildImageView(String source, Double size) {
+    /**
+     * Load an image as Swing ImageIcon and scale it.
+     */
+    public ImageIcon buildImageIcon(String source, Integer size) {
         try {
-            ImageView image =
-                    new ImageView(new Image(Objects.requireNonNull(getClass().getResourceAsStream(source))));
-            image.setFitHeight(size);
-            image.setFitWidth(size);
-            image.setPreserveRatio(true);
-            return image;
+            URL url = getClass().getResource(source);
+            if (url == null) {
+                throw new IllegalArgumentException("Resource not found: " + source);
+            }
+            ImageIcon icon = new ImageIcon(url);
+            if (size != null && size > 0) {
+                Image scaled = icon.getImage().getScaledInstance(size.intValue(), size.intValue(), Image.SCALE_SMOOTH);
+                return new ImageIcon(scaled);
+            }
+            return icon;
         } catch (Exception e) {
-
-            log.error(String.format("BuildImageView source: %s size %d \n%s", source, size, e.getMessage()));
+            log.error(String.format("buildImageIcon source: %s size %s \n%s", source, size, e.getMessage()));
+            return null;
         }
-        return null;
     }
 
-    public Button buildButton(String text) {
+    /* ------------------------------------------------------------------
+     * Button builders (Swing JButtons)
+     * ------------------------------------------------------------------ */
+
+    public JButton buildButton(String text) {
         return buildButton(text, ARConstants.SPACE_L);
     }
 
-    public Button buildButton(String text, Double height) {
-        return buildButton(text, height, new Insets(ARConstants.SPACE_XS));
+    public JButton buildButton(String text, int height) {
+        return buildButton(
+                text,
+                height,
+                new Insets(
+                        ARConstants.SPACE_XS, // top
+                        ARConstants.SPACE_XS, // left
+                        ARConstants.SPACE_XS, // bottom
+                        ARConstants.SPACE_XS // right
+                        ));
     }
 
-    public Button buildButton(String text, Double height, Insets padding) {
-        Button button = new Button(text);
-        button.setMaxHeight(height);
-        button.setPadding(padding);
+    public JButton buildButton(String text, Integer height, Insets padding) {
+        JButton button = new JButton(text);
+
+        if (height > 0) { // assuming 0 means "use default height"
+            Dimension d = button.getPreferredSize();
+            d.height = height;
+            button.setPreferredSize(d);
+        }
+
+        if (padding != null) {
+            button.setMargin(padding);
+        }
+
         return button;
     }
 
-    public Button buildButton(String text, Double height, String iconSource, Double iconSize, Insets padding) {
+    public JButton buildButton(String text, Integer height, String iconSource, Integer iconSize, Insets padding) {
         return buildButton(text, height, iconSource, iconSize, padding, null);
     }
 
-    public Button buildButton(
-            String text, Double height, String iconSource, Double iconSize, Insets padding, double maxTextWidth) {
-
-        return buildButton(text, height, iconSource, iconSize, padding, null, maxTextWidth);
-    }
-
-    public Button buildButton(
-            String text, Double height, String iconSource, Double iconSize, Insets padding, Background fill) {
-        ImageView image = buildImageView(iconSource, iconSize);
-        Button button = new Button(text);
-        button.setGraphic(image);
-        button.setMaxHeight(height);
-        button.setPadding(padding);
-        if (fill != null) {
-            button.setBackground(fill);
+    public JButton buildButton(
+            String text, Integer height, String iconSource, Integer iconSize, Insets padding, Color background) {
+        JButton button = buildButton(text, height, padding);
+        ImageIcon icon = buildImageIcon(iconSource, iconSize);
+        if (icon != null) {
+            button.setIcon(icon);
+            button.setHorizontalTextPosition(SwingConstants.RIGHT);
+            button.setVerticalTextPosition(SwingConstants.CENTER);
+        }
+        if (background != null) {
+            button.setOpaque(true);
+            button.setBackground(background);
         }
         return button;
     }
 
-    public Button buildButton(
+    public JButton buildButton(
             String text,
             Double height,
             String iconSource,
-            Double iconSize,
+            Integer iconSize,
             Insets padding,
-            Background fill,
+            Color background,
             double maxTextWidth) {
 
-        ImageView image = buildImageView(iconSource, iconSize);
-        Label label = new Label(text);
-        label.setWrapText(true);
-        label.setMaxWidth(maxTextWidth);
-
-        VBox vbox = new VBox(image, label);
-        vbox.setAlignment(Pos.CENTER);
-        vbox.setSpacing(2);
-
-        Button button = new Button();
-        button.setGraphic(vbox);
-        button.setMaxHeight(height);
-        button.setPadding(padding);
-        button.setContentDisplay(ContentDisplay.GRAPHIC_ONLY); // Important to avoid text outside graphic
-        if (fill != null) {
-            button.setBackground(fill);
+        ImageIcon icon = buildImageIcon(iconSource, iconSize);
+        JLabel label = new JLabel(text, icon, SwingConstants.CENTER);
+        label.setHorizontalTextPosition(SwingConstants.CENTER);
+        label.setVerticalTextPosition(SwingConstants.BOTTOM);
+        if (maxTextWidth > 0) {
+            label.setPreferredSize(new Dimension((int) maxTextWidth, label.getPreferredSize().height));
         }
+
+        JPanel graphicPanel = new JPanel();
+        graphicPanel.setOpaque(false);
+        graphicPanel.setLayout(new BoxLayout(graphicPanel, BoxLayout.Y_AXIS));
+        graphicPanel.add(label);
+
+        JButton button = new JButton();
+        button.setLayout(new BorderLayout());
+        button.add(graphicPanel, BorderLayout.CENTER);
+
+        if (height != null) {
+            Dimension d = button.getPreferredSize();
+            d.height = height.intValue();
+            button.setPreferredSize(d);
+        }
+        if (padding != null) {
+            button.setMargin(padding);
+        }
+        if (background != null) {
+            button.setOpaque(true);
+            button.setBackground(background);
+        }
+        // No text outside graphic; we only use the icon+label inside the panel
         return button;
     }
 }

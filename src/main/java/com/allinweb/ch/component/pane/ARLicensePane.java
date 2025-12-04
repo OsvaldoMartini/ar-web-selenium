@@ -14,16 +14,11 @@ import com.sun.jna.Pointer;
 import com.sun.jna.platform.win32.KnownFolders;
 import com.sun.jna.platform.win32.Shell32;
 import com.sun.jna.ptr.PointerByReference;
+import java.awt.*;
 import java.io.File;
 import java.io.IOException;
-import javafx.application.Platform;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
-import javafx.scene.control.*;
-import javafx.scene.layout.*;
-import javafx.stage.DirectoryChooser;
-import javafx.stage.FileChooser;
-import javafx.stage.Stage;
+import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -39,22 +34,20 @@ public class ARLicensePane extends ARPane {
         performMessage = PerformMessage.getInstance();
     }
 
-    private Button btnLicense; // Declare the License button
-    private Pane mainPane;
-    private CheckBox cbAgree;
-    private Button btnProceed;
-    private Button btnClose;
-    private RadioButton rbRequestLicense;
-    private RadioButton rbActivateLicense;
-    private RadioButton rbUseExistentLicense;
-    private TextField tfLicenseOwner;
-    private Button uploadButton;
-    private TextField filePathField;
+    private JPanel mainPanel;
+    private JCheckBox cbAgree;
+    private JButton btnProceed;
+    private JButton btnClose;
+    private JRadioButton rbRequestLicense;
+    private JRadioButton rbActivateLicense;
+    private JRadioButton rbUseExistentLicense;
+    private JTextField tfLicenseOwner;
+    private JButton uploadButton;
+    private JTextField filePathField;
     private String fileFolder;
 
     // Private constructor to prevent instantiation
     private ARLicensePane() {
-
         super();
     }
 
@@ -74,245 +67,237 @@ public class ARLicensePane extends ARPane {
         defineDesktopFolder();
     }
 
+    /**
+     * Swing equivalent of your FX getPaneReference.
+     * Adapt the signature in ARPane to JComponent if needed.
+     */
     @Override
-    public Pane getPaneReference() {
-        return mainPane;
+    public JComponent getPaneReference() {
+        return mainPanel;
     }
 
     @Override
     public void initUIComponents() {
-        // Initialize the License button
-        //        LicenseManager.showAlert(
-        //                Alert.AlertType.INFORMATION, LicenseManager.checkLicenseFile().getStaus() + "\n\nPress OK to
-        // proceed.");
+        // Main panel, like your AnchorPane+VBox, with padding
+        mainPanel = new JPanel(new BorderLayout());
+        mainPanel.setBorder(
+                new EmptyBorder(ARConstants.SPACE_M, ARConstants.SPACE_M, ARConstants.SPACE_M, ARConstants.SPACE_M));
 
-        // Header label for the application
-        // TextArea for the License Agreement
-        TextArea taLicenseAgreement = new TextArea(
-                """
-                        SOFTWARE LICENSE AGREEMENT
+        // Header
+        JLabel headerLabel = new JLabel("AR Web Activation software required");
+        headerLabel.setForeground(Color.WHITE);
+        headerLabel.setFont(headerLabel.getFont().deriveFont(Font.BOLD, 14f));
 
-                        Important - Read Carefully: This License Agreement ("Agreement") is a legal contract between you
-                        (an individual or a legal entity) and Allinweb SA. ("Licensor") for the software that accompanies
-                        this agreement, which includes associated software and media material, whether printed, electronic, or online ("Software").
+        JPanel headerContainer = new JPanel(new BorderLayout());
+        headerContainer.setBackground(new Color(0x00, 0x78, 0xD7));
+        headerContainer.setBorder(new EmptyBorder(10, 10, 10, 10));
+        headerContainer.add(headerLabel, BorderLayout.WEST);
 
-                        1. License Grant:
-                           Subject to the terms of this Agreement, the Licensor grants you a non-exclusive,
-                           non-transferable license to use the Software for internal purposes according to the following limitations
-                           and in compliance with the provided documentation.
+        // ToggleGroup -> ButtonGroup
+        ButtonGroup toggleGroup = new ButtonGroup();
 
-                        2. Restrictions:
-                           You are not authorized to:
-                           - Modify, translate, adapt, or create derivative works from the Software.
-                           - Reverse engineer, decompile, disassemble, or otherwise attempt to discover the Software's source code.
-                           - Resell, rent, sublicense, distribute, or otherwise transfer the Software without prior written consent from the Licensor.
-                           - Remove any copyright notices, trademarks, or other proprietary notices included in the Software.
-
-                        3. Ownership of the Software:
-                           The Software is protected by copyright laws and international treaties, as well as other intellectual
-                           property laws and treaties. The Software is licensed, not sold.
-
-                        4. Limited Warranty:
-                           The Licensor warrants that the Software will operate substantially in accordance with the documentation
-                           for a period of ninety (90) days from the date of your purchase. Any replacement Software will be
-                           warranted for the remainder of the original warranty period or for thirty (30) days, whichever is longer.
-
-                        5. Limitation of Liability:
-                           In no event shall the Licensor be liable for special, incidental, indirect, or consequential damages
-                           resulting from the use or inability to use the Software, even if the Licensor has been advised of
-                           the possibility of such damages. In no event shall the Licensor's liability for damages exceed
-                           the amount paid to purchase the Software.
-
-                        6. Termination:
-                           This Agreement remains in effect until terminated. This Agreement will automatically terminate without notice
-                           from the Licensor if you fail to comply with any term or condition of this Agreement.
-
-                        7. Miscellaneous:
-                           This Agreement constitutes the entire agreement between you and the Licensor and supersedes all prior
-                           communications, proposals, or agreements, whether verbal or written, regarding the Software.
-                        """);
-
-        Label headerLabel = new Label("AR Web Activation software required");
-        headerLabel.setStyle("-fx-text-fill: white; " + // Keep text color white
-                "-fx-font-size: 14px; "
-                + "-fx-padding: 10;");
-
-        HBox headerContainer = new HBox(headerLabel);
-        headerContainer.setStyle("-fx-background-color: #0078d7;"); // Blue background
-        headerContainer.setPadding(new Insets(10));
-        headerContainer.setAlignment(Pos.CENTER_LEFT); // Align text to the left
-
-        HBox.setHgrow(headerLabel, Priority.ALWAYS);
-        HBox.setHgrow(headerContainer, Priority.ALWAYS);
-
-        // ToggleGroup for exclusive RadioButton selection
-        ToggleGroup toggleGroup = new ToggleGroup();
-
-        rbRequestLicense = new RadioButton("Request New License");
-        rbRequestLicense.setToggleGroup(toggleGroup);
+        rbRequestLicense = new JRadioButton("Request New License");
         rbRequestLicense.setSelected(true);
 
-        rbActivateLicense = new RadioButton("Activate Response File");
-        rbActivateLicense.setToggleGroup(toggleGroup);
+        rbActivateLicense = new JRadioButton("Activate Response File");
+        rbUseExistentLicense = new JRadioButton("Use Existing License");
 
-        rbUseExistentLicense = new RadioButton("Use Existing License");
-        rbUseExistentLicense.setToggleGroup(toggleGroup);
+        toggleGroup.add(rbRequestLicense);
+        toggleGroup.add(rbActivateLicense);
+        toggleGroup.add(rbUseExistentLicense);
 
-        filePathField = new TextField();
-        HBox.setHgrow(filePathField, Priority.ALWAYS);
+        JPanel radioButtonsPanel = new JPanel();
+        radioButtonsPanel.setLayout(new BoxLayout(radioButtonsPanel, BoxLayout.Y_AXIS));
+        radioButtonsPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+        radioButtonsPanel.add(rbRequestLicense);
+        radioButtonsPanel.add(Box.createVerticalStrut(5));
+        radioButtonsPanel.add(rbActivateLicense);
+        radioButtonsPanel.add(Box.createVerticalStrut(5));
+        radioButtonsPanel.add(rbUseExistentLicense);
 
-        uploadButton = new Button("Request target Directory");
-        uploadButton.setPrefWidth(300);
-        uploadButton.setStyle(
-                "-fx-background-color: linear-gradient(#29abe2, #007bff); -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5;");
+        // File path field
+        filePathField = new JTextField();
+        filePathField.setColumns(30);
 
-        VBox radioButtonsVBox = new VBox(10, rbRequestLicense, rbActivateLicense, rbUseExistentLicense);
-        radioButtonsVBox.setPadding(new Insets(10));
-        radioButtonsVBox.setAlignment(Pos.TOP_LEFT);
+        JPanel filePathPanel = new JPanel(new BorderLayout(10, 0));
+        filePathPanel.add(filePathField, BorderLayout.CENTER);
 
-        HBox filePathBox = new HBox(10, filePathField);
-        //        filePathBox.setPadding(new Insets(10));
-        //        filePathBox.setAlignment(Pos.TOP_LEFT);
+        // Upload / Directory button
+        uploadButton = new JButton("Request target Directory");
+        uploadButton.setPreferredSize(new Dimension(300, 30));
 
-        HBox uploadButtonBox = new HBox(10, uploadButton);
-        //        uploadButtonBox.setPadding(new Insets(10));
-        //        uploadButtonBox.setAlignment(Pos.TOP_LEFT);
+        JPanel uploadButtonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        uploadButtonPanel.add(uploadButton);
 
-        VBox vertButton = new VBox(10, uploadButtonBox, filePathBox);
-        vertButton.setPadding(new Insets(10));
-        vertButton.setAlignment(Pos.TOP_LEFT);
+        JPanel verticalButtonPanel = new JPanel();
+        verticalButtonPanel.setLayout(new BoxLayout(verticalButtonPanel, BoxLayout.Y_AXIS));
+        verticalButtonPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+        verticalButtonPanel.add(uploadButtonPanel);
+        verticalButtonPanel.add(Box.createVerticalStrut(5));
+        verticalButtonPanel.add(filePathPanel);
 
-        HBox.setHgrow(filePathBox, Priority.ALWAYS); // Make the text field grow
-        HBox.setHgrow(vertButton, Priority.ALWAYS);
+        JPanel radioAndUploadPanel = new JPanel();
+        radioAndUploadPanel.setLayout(new BoxLayout(radioAndUploadPanel, BoxLayout.X_AXIS));
+        radioAndUploadPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+        radioAndUploadPanel.add(radioButtonsPanel);
+        radioAndUploadPanel.add(Box.createHorizontalStrut(30));
+        radioAndUploadPanel.add(verticalButtonPanel);
 
-        // HBox to hold both VBoxes side by side
-        HBox radioAndUploadBox = new HBox(30, radioButtonsVBox, vertButton);
-        radioAndUploadBox.setPadding(new Insets(10));
-        radioAndUploadBox.setAlignment(Pos.TOP_LEFT);
-
-        //        HBox radioButtonsBox = new HBox(10, rbRequestLicense, rbActivateLicense, rbUseExistentLicense,
-        // uploadButton, filePathField);
-        //        radioButtonsBox.setPadding(new Insets(10));
-
-        taLicenseAgreement.setWrapText(true);
+        // License agreement text area
+        JTextArea taLicenseAgreement = new JTextArea("SOFTWARE LICENSE AGREEMENT\n\n"
+                + "Important - Read Carefully: This License Agreement (\"Agreement\") is a legal contract between you\n"
+                + "(an individual or a legal entity) and Allinweb SA. (\"Licensor\") for the software that accompanies\n"
+                + "this agreement, which includes associated software and media material, whether printed, electronic, or online (\"Software\").\n\n"
+                + "1. License Grant:\n"
+                + "   Subject to the terms of this Agreement, the Licensor grants you a non-exclusive,\n"
+                + "   non-transferable license to use the Software for internal purposes according to the following limitations\n"
+                + "   and in compliance with the provided documentation.\n\n"
+                + "2. Restrictions:\n"
+                + "   You are not authorized to:\n"
+                + "   - Modify, translate, adapt, or create derivative works from the Software.\n"
+                + "   - Reverse engineer, decompile, disassemble, or otherwise attempt to discover the Software's source code.\n"
+                + "   - Resell, rent, sublicense, distribute, or otherwise transfer the Software without prior written consent from the Licensor.\n"
+                + "   - Remove any copyright notices, trademarks, or other proprietary notices included in the Software.\n\n"
+                + "3. Ownership of the Software:\n"
+                + "   The Software is protected by copyright laws and international treaties, as well as other intellectual\n"
+                + "   property laws and treaties. The Software is licensed, not sold.\n\n"
+                + "4. Limited Warranty:\n"
+                + "   The Licensor warrants that the Software will operate substantially in accordance with the documentation\n"
+                + "   for a period of ninety (90) days from the date of your purchase. Any replacement Software will be\n"
+                + "   warranted for the remainder of the original warranty period or for thirty (30) days, whichever is longer.\n\n"
+                + "5. Limitation of Liability:\n"
+                + "   In no event shall the Licensor be liable for special, incidental, indirect, or consequential damages\n"
+                + "   resulting from the use or inability to use the Software, even if the Licensor has been advised of\n"
+                + "   the possibility of such damages. In no event shall the Licensor's liability for damages exceed\n"
+                + "   the amount paid to purchase the Software.\n\n"
+                + "6. Termination:\n"
+                + "   This Agreement remains in effect until terminated. This Agreement will automatically terminate without notice\n"
+                + "   from the Licensor if you fail to comply with any term or condition of this Agreement.\n\n"
+                + "7. Miscellaneous:\n"
+                + "   This Agreement constitutes the entire agreement between you and the Licensor and supersedes all prior\n"
+                + "   communications, proposals, or agreements, whether verbal or written, regarding the Software.\n");
+        taLicenseAgreement.setLineWrap(true);
+        taLicenseAgreement.setWrapStyleWord(true);
         taLicenseAgreement.setEditable(false);
 
-        tfLicenseOwner = new TextField();
-        tfLicenseOwner.setPromptText("Licensed to (Owner of the license, min 6 chars)");
+        JScrollPane licenseScrollPane = new JScrollPane(taLicenseAgreement);
+        licenseScrollPane.setBorder(new EmptyBorder(10, 10, 10, 10));
 
-        // Checkbox to agree
-        cbAgree = new CheckBox("Agree");
-        cbAgree.setPadding(new Insets(10));
+        // License owner field
+        tfLicenseOwner = new JTextField();
+        tfLicenseOwner.setColumns(30);
+        tfLicenseOwner.setToolTipText("Licensed to (Owner of the license, min 6 chars)");
 
-        // Button to proceed
+        JPanel ownerPanel = new JPanel(new BorderLayout());
+        ownerPanel.setBorder(new EmptyBorder(0, 10, 0, 10));
+        ownerPanel.add(tfLicenseOwner, BorderLayout.CENTER);
+
+        // Agree checkbox
+        cbAgree = new JCheckBox("Agree");
+        cbAgree.setBorder(new EmptyBorder(10, 10, 10, 10));
+
+        // Buttons (use your builder if it returns Swing JButton)
         btnProceed = builder.buildButton("Proceed");
-        btnProceed.setDisable(true);
+        btnProceed.setEnabled(false);
 
         btnClose = builder.buildButton("Close");
 
-        HBox actionButtonsBox = new HBox(10, btnProceed, btnClose);
-        actionButtonsBox.setPadding(new Insets(10));
-        VBox mainLayout = new VBox(
-                10, headerContainer, radioAndUploadBox, taLicenseAgreement, tfLicenseOwner, cbAgree, actionButtonsBox);
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
+        buttonPanel.add(btnProceed);
+        buttonPanel.add(btnClose);
 
-        mainLayout.setPadding(new Insets(10));
-        mainLayout.setFillWidth(true); // Ensure components stretch horizontally
+        // Center panel to mimic VBox content
+        JPanel centerPanel = new JPanel();
+        centerPanel.setLayout(new BoxLayout(centerPanel, BoxLayout.Y_AXIS));
+        centerPanel.add(radioAndUploadPanel);
+        centerPanel.add(licenseScrollPane);
+        centerPanel.add(ownerPanel);
+        centerPanel.add(cbAgree);
+        centerPanel.add(buttonPanel);
 
-        VBox.setVgrow(taLicenseAgreement, Priority.ALWAYS);
-
-        AnchorPane.setTopAnchor(mainLayout, ARConstants.SPACE_M);
-        AnchorPane.setBottomAnchor(mainLayout, ARConstants.SPACE_M);
-        AnchorPane.setLeftAnchor(mainLayout, ARConstants.SPACE_M);
-        AnchorPane.setRightAnchor(mainLayout, ARConstants.SPACE_M);
-
-        mainPane = new AnchorPane(mainLayout);
+        mainPanel.add(headerContainer, BorderLayout.NORTH);
+        mainPanel.add(centerPanel, BorderLayout.CENTER);
     }
 
     @Override
     public void initUIBehaviour() {
-        // Add event handlers to log the state change to the console
-        rbRequestLicense.setOnAction(event -> {
+        rbRequestLicense.addActionListener(event -> {
             if (rbRequestLicense.isSelected()) {
                 uploadButton.setText("Change Destination Folder (Desktop)");
                 filePathField.setText("");
-                tfLicenseOwner.setDisable(false);
+                tfLicenseOwner.setEnabled(true);
                 defineDesktopFolder();
             }
         });
 
-        rbActivateLicense.setOnAction(event -> {
+        rbActivateLicense.addActionListener(event -> {
             if (rbActivateLicense.isSelected()) {
                 uploadButton.setText("Locate Response File (Desktop)");
                 filePathField.setText("");
-                tfLicenseOwner.setDisable(false);
+                tfLicenseOwner.setEnabled(true);
                 defineDesktopFolder();
             }
         });
 
-        rbUseExistentLicense.setOnAction(event -> {
+        rbUseExistentLicense.addActionListener(event -> {
             if (rbUseExistentLicense.isSelected()) {
                 uploadButton.setText("Locate Existing License");
                 filePathField.setText("");
-                tfLicenseOwner.setDisable(true);
+                tfLicenseOwner.setEnabled(false);
                 defineDesktopFolder();
             }
         });
 
-        uploadButton.setOnAction(e -> {
-            Stage stage = (Stage) uploadButton.getScene().getWindow();
+        uploadButton.addActionListener(e -> {
             File startingPoint = new File(fileFolder);
-            String chosenPath;
             if (rbRequestLicense.isSelected()) {
-                chosenPath = openDirectoryChooserFor(startingPoint, stage);
-                filePathField.setText(chosenPath);
+                String chosenPath = openDirectoryChooserFor(startingPoint, mainPanel);
+                filePathField.setText(chosenPath != null ? chosenPath : "");
             } else {
+                JFileChooser fileChooser =
+                        new JFileChooser(startingPoint.exists() && startingPoint.isDirectory() ? startingPoint : null);
+                fileChooser.setDialogTitle("Open Request AR Web File");
+                // Allow all files; we enforce .response manually when needed
 
-                FileChooser fileChooser = new FileChooser();
-                fileChooser.setTitle("Open Request AR Web File");
-                fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("All Files", "*.*"));
-
-                if (startingPoint.exists() && startingPoint.isDirectory()) {
-                    fileChooser.setInitialDirectory(startingPoint);
-                }
-
-                File file = fileChooser.showOpenDialog(stage);
-
-                if (file != null) {
-                    filePathField.setText(file.getAbsolutePath());
-                }
-
-                if (file != null) {
-                    if (rbActivateLicense.isSelected()) {
-                        if (file.getName().endsWith(".response")) {
-                            filePathField.setText(file.getAbsolutePath());
+                int result = fileChooser.showOpenDialog(mainPanel);
+                if (result == JFileChooser.APPROVE_OPTION) {
+                    File file = fileChooser.getSelectedFile();
+                    if (file != null) {
+                        if (rbActivateLicense.isSelected()) {
+                            if (file.getName().endsWith(".response")) {
+                                filePathField.setText(file.getAbsolutePath());
+                            } else {
+                                performMessage.errorMessage(
+                                        "Invalid file selected!",
+                                        "Must have a '.response' extension.",
+                                        "File selected:",
+                                        file.getName(),
+                                        null,
+                                        0);
+                            }
                         } else {
-                            performMessage.errorMessage(
-                                    "Invalid file selected!",
-                                    "Must have a '.response' extension.",
-                                    "File selected:",
-                                    file.getName(),
-                                    null,
-                                    0);
+                            filePathField.setText(file.getAbsolutePath());
                         }
-                    } else {
-                        filePathField.setText(file.getAbsolutePath());
                     }
                 }
             }
         });
-        // Enable the proceed button only if the checkbox is checked
-        cbAgree.setOnAction(event -> btnProceed.setDisable(!cbAgree.isSelected()));
 
-        btnClose.setOnAction(event -> {
+        // Enable the proceed button only if the checkbox is checked
+        cbAgree.addActionListener(event -> btnProceed.setEnabled(cbAgree.isSelected()));
+
+        btnClose.addActionListener(event -> {
             log.info("ARLicensePane close()");
-            Platform.runLater(() -> {
-                Stage stage = (Stage) btnClose.getScene().getWindow();
-                stage.close();
+            SwingUtilities.invokeLater(() -> {
+                Window window = SwingUtilities.getWindowAncestor(mainPanel);
+                if (window != null) {
+                    window.dispose();
+                }
             });
         });
 
         // Actions for Proceed button
-        btnProceed.setOnAction(event -> {
+        btnProceed.addActionListener(event -> {
             if (!cbAgree.isSelected()) {
                 performMessage.errorMessage(
                         "License Aggreement!",
@@ -322,7 +307,7 @@ public class ARLicensePane extends ARPane {
                         null,
                         0);
 
-            } else
+            } else {
                 try {
                     if (tfLicenseOwner.getText().isEmpty() && (!rbUseExistentLicense.isSelected())) {
                         performMessage.errorMessage(
@@ -432,6 +417,7 @@ public class ARLicensePane extends ARPane {
                             "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
                             0);
                 }
+            }
         });
     }
 
@@ -463,40 +449,28 @@ public class ARLicensePane extends ARPane {
         return true;
     }
 
-    private String openDirectoryChooserFor(File startingDirectory, Stage ownerStage) {
-        DirectoryChooser chooser = new DirectoryChooser();
-        chooser.setInitialDirectory(startingDirectory);
-
-        // Make sure the dialog is shown in front of the provided stage
-        File chosenPath = chooser.showDialog(ownerStage);
-        return chosenPath != null ? chosenPath.getAbsolutePath() : null;
+    private String openDirectoryChooserFor(File startingDirectory, Component owner) {
+        JFileChooser chooser = new JFileChooser(startingDirectory);
+        chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+        int result = chooser.showOpenDialog(owner);
+        if (result == JFileChooser.APPROVE_OPTION) {
+            File selected = chooser.getSelectedFile();
+            return selected != null ? selected.getAbsolutePath() : null;
+        }
+        return null;
     }
 
     private void defineDesktopFolder() {
         try {
-            // Use SHGetKnownFolderPath to get Desktop path
             PointerByReference ppszPath = new PointerByReference();
             if (Shell32.INSTANCE
                             .SHGetKnownFolderPath(KnownFolders.FOLDERID_Desktop, 0, null, ppszPath)
                             .intValue()
                     != 0) {
                 log.warn("Error reading/writing to the file! -> Desktop Folder");
-                //                performMessage.errorMessage(
-                //                        "Error reading/writing to the file!",
-                //                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please
-                // verify that you have the necessary permissions to read and write to the specified directory.</span>",
-                //                        "<span style='color: #E65100; font-weight: bold;'>Attempted to access the
-                // following location:</span> <span style='font-weight: bold;'>Desktop</span>",
-                //                        "<span style='color: #E65100; font-style: italic; font-weight: bold;'>The
-                // request for the License file path was defined at:</span>",
-                //                        "<span style='color: #1A237E; font-style: italic; font-weight: bold;
-                // font-size: 1.05em;'>Desktop Folder</span>",
-                //                        0);
-
                 throw new IOException("Failed to get desktop directory.");
             }
 
-            // Convert pointer to string
             String desktopPath = ppszPath.getValue().getWideString(0);
             Native.free(Pointer.nativeValue(ppszPath.getValue()));
 
@@ -512,18 +486,6 @@ public class ARLicensePane extends ARPane {
                 }
             }
             log.warn("Error reading/writing to the file: " + fileFolder);
-            //            performMessage.errorMessage(
-            //                    "Error reading/writing to the file!",
-            //                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please verify that
-            // you have the necessary permissions to read and write to the specified directory.</span>",
-            //                    "<span style='color: #E65100; font-weight: bold;'>Attempted to access the following
-            // location:</span> <span style='font-weight: bold;'>Desktop</span>",
-            //                    "<span style='color: #E65100; font-style: italic; font-weight: bold;'>The request for
-            // the License file path was defined at:</span>",
-            //                    "<span style='color: #1A237E; font-style: italic; font-weight: bold; font-size:
-            // 1.05em;'>"
-            //                            + fileFolder + "</span>",
-            //                    0);
         }
     }
 }

@@ -1,6 +1,5 @@
 package com.allinweb.ch.util;
 
-import com.allinweb.ch.component.scene.ARAlertScene;
 import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
@@ -10,13 +9,15 @@ import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.readersAndWriters.ExcelReader;
 import com.google.common.base.Strings;
-import java.awt.*;
-import java.io.*;
+import java.awt.Desktop;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.*;
 import java.util.List;
-import javafx.concurrent.Task;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonType;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
@@ -27,8 +28,10 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 @Slf4j
 public class ExcelUtils {
+
     private static final int FIRST_ROW = 0;
     private static final int SECOND_ROW = 1;
+
     private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
     private static final PerformMessage performMessage = PerformMessage.getInstance();
     private static final PerformLists performLists = PerformLists.getInstance();
@@ -39,7 +42,7 @@ public class ExcelUtils {
 
     public static void createExcelDataFile(BotJobLoadDTO selectedBotJob, String nameToDuplicate) {
         if (selectedBotJob == null) {
-            log.error("Not Able to Create an Excel File.The selected Bot Job s null");
+            log.error("Not Able to Create an Excel File. The selected Bot Job is null");
             performMessage.errorMessage(
                     "Not Able to Create an Excel File",
                     "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to create an Excel file!</span>",
@@ -74,45 +77,32 @@ public class ExcelUtils {
 
         if (!fileCheck.exists() || fileCheck.isDirectory()) {
             // File does not exist or is a directory → create normally
-            Task<Void> excelTask = new Task<>() {
-                @Override
-                protected Void call() throws Exception {
-                    new ExcelUtils()
-                            .generateExcelFiles(extractedData, selectedBotJob.getName(), nameToDuplicate, false);
-                    return null;
-                }
+            Runnable excelTask = () -> {
+                new ExcelUtils().generateExcelFiles(extractedData, selectedBotJob.getName(), nameToDuplicate, false);
             };
-            new Thread(excelTask).start();
+            new Thread(excelTask, "ExcelGen-" + selectedBotJob.getName()).start();
         } else if (fileCheck.exists() && nameToDuplicate != null && !nameToDuplicate.isBlank()) {
             // File exists, but nameToDuplicate is provided → create new Excel with new name
-            Task<Void> excelTask = new Task<>() {
-                @Override
-                protected Void call() throws Exception {
-                    new ExcelUtils().generateExcelFiles(extractedData, nameToDuplicate, null, false);
-                    return null;
-                }
+            Runnable excelTask = () -> {
+                new ExcelUtils().generateExcelFiles(extractedData, nameToDuplicate, null, false);
             };
-            new Thread(excelTask).start();
+            new Thread(excelTask, "ExcelGen-" + nameToDuplicate).start();
         }
     }
 
     public static ExtractedData isFileExists(String botJobName, List<String> allActions) {
-
         String excelFolderPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
         String fileName = String.format("%s/%s%s", excelFolderPath, botJobName, ARConstants.FILE_FORMAT_EXCEL);
 
-        // Create a File object
         File fileCheck = new File(fileName);
         if (fileCheck.exists() && !fileCheck.isDirectory()) {
 
-            File file = new File(fileName);
-
             ExcelReader excelReader = new ExcelReader();
-            ExtractedData extractedData = null;
+            ExtractedData extractedData;
             try {
                 extractedData = excelReader.extractData(fileName, allActions);
             } catch (Exception e) {
-                log.error("Excel File Error. Check All Excel Columns and Values!");
+                log.error("Excel File Error. Check All Excel Columns and Values! {}", e.getMessage());
                 performMessage.errorMessage(
                         "Excel File Error", "Check All Excel Columns and Values!", null, null, null, 0);
                 return null;
@@ -120,7 +110,7 @@ public class ExcelUtils {
 
             return extractedData;
         } else {
-            // Return false if the directory does not exist
+            // Return null if the file does not exist
             return null;
         }
     }
@@ -148,8 +138,10 @@ public class ExcelUtils {
             log.info(e.getMessage());
         } finally {
             try {
-                fileWriter.flush();
-                fileWriter.close();
+                if (fileWriter != null) {
+                    fileWriter.flush();
+                    fileWriter.close();
+                }
             } catch (IOException e) {
                 log.info("Error while flushing/closing fileWriter!");
                 log.info(e.getMessage());
@@ -162,22 +154,17 @@ public class ExcelUtils {
 
         File excelFolder = new File(arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL));
         if (!excelFolder.exists()) {
+            // noinspection ResultOfMethodCallIgnored
             excelFolder.mkdirs();
         }
-        //        generateUnfilteredCSVFile(botJob);
+
         File file = generateUnfilteredExcelFile(extractedData, newFileName, nameToDuplicate);
 
         if (openExcel) {
             try {
                 Desktop.getDesktop().open(file);
             } catch (IOException error) {
-                //                new ARAlertScene(
-                //                        Alert.AlertType.ERROR,
-                //                        "Couldn't open the file",
-                //                        "The file could not be opened. Reason: " + e,
-                //                        ButtonType.OK);
                 log.error("Error: Excel File: {} - {}", file.getAbsolutePath(), error.getMessage());
-
                 performMessage.errorMessage(
                         "Excel File Error",
                         "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Couldn't open the file!</span>",
@@ -208,14 +195,6 @@ public class ExcelUtils {
                 bufferedWriter.write(firstRow);
                 bufferedWriter.newLine();
 
-                //                List<InstructionLoad> instructionList = PerformDataBase.
-                //                        .getEntityList(
-                //                                InstructionLoad.class,
-                //
-                // Comparator.comparingInt(InstructionLoad::getInstructionOrderNumber),
-                //                                (instruction) -> instruction.getBlockId().equals(block.getId())
-                //                                        && instruction.getActions().contains(ARConstants.INSERT));
-
                 performDataBase.loadInstructions(block.getBotJobId(), block.getId(), -1, "instruction");
                 List<InstructionLoad> allInstructions = performLists.getListInstruction();
 
@@ -236,7 +215,7 @@ public class ExcelUtils {
                         String reference = action.split(ARConstants.ACTION_SPECIFICATIONS_SPLITTER)[1];
                         if (!fieldAddedSet.contains(reference)) {
                             fieldAddedSet.add(reference);
-                            bufferedWriter.write(action.split(ARConstants.ACTION_SPECIFICATIONS_SPLITTER)[1]);
+                            bufferedWriter.write(reference);
                             last--;
                             if (last > 0) {
                                 bufferedWriter.write(",");
@@ -264,11 +243,15 @@ public class ExcelUtils {
         try {
             Desktop.getDesktop().open(file);
         } catch (IOException e) {
-            new ARAlertScene(
-                    Alert.AlertType.ERROR,
+            log.error("Couldn't open the CSV file. Reason: {}", e.getMessage());
+            performMessage.errorMessage(
                     "Couldn't open the file",
-                    "The file could not be opened. Reason: " + e,
-                    ButtonType.OK);
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>The file could not be opened.</span>",
+                    "<span style='color: #E65100; font-weight: bold;'>File:</span> <span style='font-weight: bold;'>"
+                            + file.getAbsolutePath() + "</span>",
+                    "<span style='font-style: italic;'>Reason: " + e + "</span>",
+                    null,
+                    0);
         }
     }
 
@@ -278,15 +261,13 @@ public class ExcelUtils {
 
         File file = new File(fileName);
         try {
+            // noinspection ResultOfMethodCallIgnored
             file.createNewFile();
         } catch (IOException e) {
             log.info(e.getMessage());
         }
 
-        boolean duplicate = false;
-        if (!Strings.isNullOrEmpty(nameToDuplicate)) {
-            duplicate = true;
-        }
+        boolean duplicate = !Strings.isNullOrEmpty(nameToDuplicate);
 
         File fileDuplica = null;
         if (duplicate) {
@@ -294,6 +275,7 @@ public class ExcelUtils {
                     + ARConstants.FILE_FORMAT_EXCEL;
             fileDuplica = new File(fileNameDuplica);
             try {
+                // noinspection ResultOfMethodCallIgnored
                 fileDuplica.createNewFile();
             } catch (IOException e) {
                 log.info(e.getMessage());
@@ -314,15 +296,11 @@ public class ExcelUtils {
                 Cell blockNameCell = blockNameRow.createCell(currentIndex, CellType.STRING);
                 blockNameCell.setCellValue("#" + block.getName());
 
-                // List to store the filtered instructions
                 List<InstructionLoad> filteredInstructions = new ArrayList<>();
-
-                // Retrieve all instructions for the block
 
                 performDataBase.loadInstructions(block.getBotJobId(), block.getId(), -1, "instruction");
                 List<InstructionLoad> allInstructions = performLists.getListInstruction();
 
-                // Iterate over the instructions and apply filtering manually
                 for (InstructionLoad instruction : allInstructions) {
                     if (Objects.equals(instruction.getBlockId(), block.getId())
                             && instruction.getActions().contains(ARConstants.INSERT + ":")) {
@@ -330,28 +308,15 @@ public class ExcelUtils {
                     }
                 }
 
-                // Sort the filtered list by instruction order number
                 filteredInstructions.sort(Comparator.comparingInt(instruction ->
                         instruction.getInstructionOrderNumber() != null ? instruction.getInstructionOrderNumber() : 0));
-
-                //                // Filter the list based on the block ID and action condition
-                //                List<InstructionLoad> filteredInstructions = InstructionLoad.stream()
-                //                        .filter(instruction -> instruction.getBlockId() == block.getId()
-                //                                && instruction.getActions().contains(ARConstants.INSERT + ":"))
-                //
-                // .sorted(Comparator.comparingInt(InstructionLoad::getInstructionOrderNumber))
-                //                        .collect(Collectors.toList());
 
                 for (InstructionLoad instruction : filteredInstructions) {
                     String action = instruction.getActions();
                     boolean hasReference = action.contains(ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
 
                     if (hasReference) {
-                        // Split once and store the parts in an array
                         String[] parts = action.split(ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
-
-                        // Get the reference from the second part of the split action
-
                         String reference = parts[1];
 
                         if (parts[0].equals(ARConstants.INSERT) && parts[1].equals(ARConstants.ENTER)) {
@@ -361,40 +326,36 @@ public class ExcelUtils {
                         if (!fieldAddedSet.contains(reference)) {
                             fieldAddedSet.add(reference);
 
-                            // Create cell for instruction field
                             Cell instructionFieldCell = instructionFieldRow.createCell(currentIndex, CellType.STRING);
-                            instructionFieldCell.setCellValue(
-                                    reference); // Use reference directly instead of re-splitting
+                            instructionFieldCell.setCellValue(reference);
 
-                            int DYNAMIC_ROW = SECOND_ROW + 1;
+                            int dynamicRow = SECOND_ROW + 1;
 
                             if (extractedData != null) {
-                                // Loop through extracted data rows
                                 for (int i = 0; i < extractedData.getNumberOfDataRows(); i++) {
-                                    Row belowRow = spreadsheet.getRow(DYNAMIC_ROW); // Get the row below
+                                    Row belowRow = spreadsheet.getRow(dynamicRow);
                                     if (belowRow == null) {
-                                        belowRow = spreadsheet.createRow(DYNAMIC_ROW); // Create if it doesn't exist
+                                        belowRow = spreadsheet.createRow(dynamicRow);
                                     }
 
                                     Map<String, String> dataExcel = extractedData.getRowFieldValues(i);
-                                    // Search for the "reference" in ExtractedData and set it in the below cell
-                                    String valueFromExtractedData = dataExcel.get(reference); // Example row = 1
+                                    String valueFromExtractedData = dataExcel.get(reference);
+
                                     Cell belowCell = belowRow.createCell(currentIndex, CellType.STRING);
                                     if (valueFromExtractedData != null) {
                                         belowCell.setCellValue(valueFromExtractedData);
                                     } else {
-                                        belowCell.setCellValue("CHANGE ME"); // Fallback message if value is missing
+                                        belowCell.setCellValue("CHANGE ME");
                                     }
-                                    DYNAMIC_ROW++;
+                                    dynamicRow++;
                                 }
                             } else {
-                                // Fallback if extractedData is null
-                                Row belowRow = spreadsheet.getRow(DYNAMIC_ROW); // Get the row below
+                                Row belowRow = spreadsheet.getRow(dynamicRow);
                                 if (belowRow == null) {
-                                    belowRow = spreadsheet.createRow(DYNAMIC_ROW); // Create if it doesn't exist
+                                    belowRow = spreadsheet.createRow(dynamicRow);
                                 }
                                 Cell belowCell = belowRow.createCell(currentIndex, CellType.STRING);
-                                belowCell.setCellValue("CHANGE ME"); // Fallback message if value is missing
+                                belowCell.setCellValue("CHANGE ME");
                             }
 
                             currentIndex++;
@@ -421,10 +382,17 @@ public class ExcelUtils {
     }
 
     private void writeExcelWorkbookOnDisk(Workbook workbook, File file) {
-        try {
-            FileOutputStream fileOutputStream = new FileOutputStream(file);
+        try (FileOutputStream fileOutputStream = new FileOutputStream(file)) {
             workbook.write(fileOutputStream);
-            fileOutputStream.close();
+        } catch (FileNotFoundException error) {
+            log.error("Excel file generation failed. File not found: {}", error.getMessage());
+            performMessage.errorMessage(
+                    "Excel file generation failed",
+                    "There was a problem with the excel file generation.",
+                    "Reason: " + error.getMessage(),
+                    null,
+                    null,
+                    0);
         } catch (IOException error) {
             log.error("Excel file generation failed. Error: {}", error.getMessage());
             performMessage.errorMessage(

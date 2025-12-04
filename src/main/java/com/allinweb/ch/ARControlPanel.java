@@ -23,13 +23,11 @@ import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
-import javafx.application.Application;
-import javafx.application.Platform;
-import javafx.stage.Stage;
+import javax.swing.SwingUtilities;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class ARControlPanel extends Application {
+public class ARControlPanel {
 
     private static final SuppressHsqldbLogs suppressHsqldbLogs = SuppressHsqldbLogs.getInstance();
     private static final LogControl logControl = LogControl.getInstance();
@@ -42,7 +40,7 @@ public class ARControlPanel extends Application {
     private static final ARMainScene arMainScene;
     private static WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static ARWebSocketServerIP arWebSocketServerIP;
-    private static ARWebSocketServer arWebSocketServer; // Static block to initialize
+    private static ARWebSocketServer arWebSocketServer;
     private static String defaultConfigurationFileName = ARConstants.USER_PATH + ARConstants.FILE_DEFAULT_CONFIG;
     private static boolean isEnabledLicence = true;
 
@@ -88,8 +86,8 @@ public class ARControlPanel extends Application {
             try {
                 System.setProperty("ARWebConfig", configurationValue);
             } catch (Exception ignore) {
-
             }
+
             // Prevention if  System.setProperty(...) has no permission access
             arPropertyManager.setConfigurationFileName(configurationValue);
 
@@ -107,7 +105,7 @@ public class ARControlPanel extends Application {
                 if (!configurationFile.exists()) {
                     arPropertyManager.createDefaultProperties(configurationFile);
                 }
-                Platform.runLater(() -> {
+                SwingUtilities.invokeLater(() -> {
                     arConfigurationScene.initializeLicense(isEnabledLicence);
                     arConfigurationScene.showModal();
                     licenseControl();
@@ -119,8 +117,8 @@ public class ARControlPanel extends Application {
             try {
                 System.setProperty("ARWebConfig", defaultConfigurationFileName);
             } catch (Exception ignore) {
-
             }
+
             arPropertyManager.setConfigurationFileName(defaultConfigurationFileName);
             File configurationFile = new File(defaultConfigurationFileName);
             try (FileInputStream conf = new FileInputStream(configurationFile)) {
@@ -140,7 +138,7 @@ public class ARControlPanel extends Application {
                 if (!configurationFile.exists()) {
                     arPropertyManager.createDefaultProperties(configurationFile);
                 }
-                Platform.runLater(() -> {
+                SwingUtilities.invokeLater(() -> {
                     arConfigurationScene.showModal();
                     licenseControl();
                 });
@@ -150,7 +148,7 @@ public class ARControlPanel extends Application {
         }
 
         arPropertyManager.setProperty(ARPropertyEnum.VERSION.getValue(), "AR Web v4.7f Beta Test");
-        arPropertyManager.setProperty(ARPropertyEnum.BUILD.getValue(), "Build: 01/10/2025"); //
+        arPropertyManager.setProperty(ARPropertyEnum.BUILD.getValue(), "Build: 01/10/2025");
     }
 
     private static void initializeServers() {
@@ -192,24 +190,10 @@ public class ARControlPanel extends Application {
                 license.set(LicenseManager.checkLicenseFile(licensePath));
             } catch (Exception error) {
                 log.warn("Error reading/writing to the file: " + licensePath);
-                //                performMessage.errorMessage(
-                //                        "Error reading/writing to the file!",
-                //                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please
-                // verify that you have permission to read/write.!</span>",
-                //                        "<span style='color: #E65100; font-weight: bold;'>Attempted to
-                // read/write:</span> <span style='font-weight: bold;'>"
-                //                                + licensePath + "</span>",
-                //                        "<span style='font-style: italic;'>Please ensure the application has the
-                // necessary write permissions for the specified directory</span>",
-                //                        "<span style='font-style: italic;'>Details: " + error.getMessage() +
-                // "</span>",
-                //                        0);
             }
             try {
                 if (license.get().isMissing()) {
-                    // If the license is not active, launch the license activation app
-                    //                    Application.launch(LicenseActivationApp.class, args);
-                    Platform.runLater(() -> {
+                    SwingUtilities.invokeLater(() -> {
                         arLicenseScene.showModal();
                         String finalLicensePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_LICENSE);
 
@@ -217,8 +201,6 @@ public class ARControlPanel extends Application {
                             license.set(LicenseManager.checkLicenseFile(finalLicensePath));
                             if (license.get().isActive()) {
                                 databaseControl();
-                                // webSocketControl();
-
                                 arMainScene.initialize(isEnabledLicence);
                                 arMainScene.showModal();
                             } else {
@@ -226,18 +208,6 @@ public class ARControlPanel extends Application {
                             }
                         } catch (Exception error) {
                             log.warn("Error reading/writing to the file: " + finalLicensePath);
-                            //                            performMessage.errorMessage(
-                            //                                    "Error reading/writing to the file!",
-                            //                                    "<span style='color: #D32F2F; font-weight: bold;
-                            // font-size: 1.1em;'>Please verify that you have permission to read/write.!</span>",
-                            //                                    "<span style='color: #E65100; font-weight:
-                            // bold;'>Attempted to read/write:</span> <span style='font-weight: bold;'>"
-                            //                                            + finalLicensePath + "</span>",
-                            //                                    "<span style='font-style: italic;'>Please ensure the
-                            // application has the necessary write permissions for the specified directory</span>",
-                            //                                    "<span style='font-style: italic;'>Details: " +
-                            // error.getMessage() + "</span>",
-                            //                                    0);
                         }
                     });
 
@@ -245,9 +215,8 @@ public class ARControlPanel extends Application {
                     license.set(LicenseManager.checkLicenseFile(licensePath));
                     if (license.get().isActive()) {
                         databaseControl();
-                        // webSocketControl();
 
-                        Platform.runLater(() -> {
+                        SwingUtilities.invokeLater(() -> {
                             arMainScene.initialize(isEnabledLicence);
                             arMainScene.showModal();
                         });
@@ -258,35 +227,17 @@ public class ARControlPanel extends Application {
                 }
             } catch (Exception error) {
                 log.warn("Error reading/writing to the file: " + licensePath);
-                //                performMessage.errorMessage(
-                //                        "Error reading/writing to the file!",
-                //                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please
-                // verify that you have permission to read/write.!</span>",
-                //                        "<span style='color: #E65100; font-weight: bold;'>Attempted to
-                // read/write:</span> <span style='font-weight: bold;'>"
-                //                                + licensePath + "</span>",
-                //                        "<span style='font-style: italic;'>Please ensure the application has the
-                // necessary write permissions for the specified directory</span>",
-                //                        "<span style='font-style: italic;'>Details: " + error.getMessage() +
-                // "</span>",
-                //                        0);
-
                 log.info(error.getMessage());
             }
         } else {
             databaseControl();
             // If the license is disabled, directly proceed with the main application
-            // Ensure launch(args) is only called once: JavaFX does not allow calling Application.launch() twice.
-            //            launch();
-            // webSocketControl();
-            Platform.runLater(() -> {
+            SwingUtilities.invokeLater(() -> {
                 arMainScene.initialize(isEnabledLicence);
                 arMainScene.showModal();
             });
             if (!performDataBase.isConnDBWorks()) {
-                Platform.runLater(() -> {
-                    arConfigurationScene.showModal();
-                });
+                SwingUtilities.invokeLater(arConfigurationScene::showModal);
             }
         }
     }
@@ -351,8 +302,6 @@ public class ARControlPanel extends Application {
                 if (performInitializer.doesNotInstructionTableExist(performDataBase.getConnection())) {
 
                     if (performDataBase.isConnDBWorks()) {
-                        //            createTableOpenAIVector();
-                        //            createTableLLama2AIVector();
                         performInitializer.initializeMainDatabasePostgres();
                     }
                 }
@@ -360,7 +309,6 @@ public class ARControlPanel extends Application {
                 log.error("Error connection with Postgres: " + error.getMessage());
             }
 
-            //            performDataBase.dropPostGresSequences();
             try {
 
                 Connection conn = performDataBase.getConnection();
@@ -390,19 +338,13 @@ public class ARControlPanel extends Application {
                         }
                     }
                 } else {
-                    //                    performDataBase.updateColumns();
-
-                    //                performDataBase.disableForeignKeyConstraints(dbUrl);
-                    //                                    performDataBase.updateTableAccess(dbUrl, dbFile);
-                    //                                    performDataBase.updateDatabaseSchema(dbUrl, dbFile);
-
                     log.info(String.format("Database '%s' already exists!", dbFile.getName()));
                 }
 
             } catch (Exception error) {
                 log.error("Database Creation Error: " + error.getMessage());
                 performMessage.errorMessage(
-                        "Configuration Needed", // Using configurationFileName as the title
+                        "Configuration Needed",
                         "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: Set the path for the Database!</span>",
                         "<span style='color: #2E7D32; font-weight: bold;'>The Path for Database is Blank!</span>",
                         "<span style='font-weight: bold;'>Please configure the application before use.</span>.",
@@ -434,17 +376,13 @@ public class ARControlPanel extends Application {
                         performInitializer.initializeMainDatabaseSQLite(dbFile);
                     }
                 } else {
-                    //                performDataBase.disableForeignKeyConstraints(dbUrl);
-                    //                                    performDataBase.updateTableAccess(dbUrl, dbFile);
-                    //                                    performDataBase.updateDatabaseSchema(dbUrl, dbFile);
-
                     log.info(String.format("Database '%s' already exists!", dbFile.getName()));
                 }
 
             } catch (Exception error) {
                 log.error("Database Creation Error: " + error.getMessage());
                 performMessage.errorMessage(
-                        "Configuration Needed", // Using configurationFileName as the title
+                        "Configuration Needed",
                         "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: Set the path for the Database!</span>",
                         "<span style='color: #2E7D32; font-weight: bold;'>The Path for Database is Blank!</span>",
                         "<span style='font-weight: bold;'>Please configure the application before use.</span>.",
@@ -480,12 +418,6 @@ public class ARControlPanel extends Application {
         }
     }
 
-    @Override
-    public void start(Stage stage) throws Exception {
-        //        ARMainScene primaryStage = new ARMainScene();
-        //        primaryStage.show();
-    }
-
     private static int getInitialPort() {
         int defaultFixedPort = 54525; // A known default port if no ephemeral or previous setting works
         int chosenPort;
@@ -493,19 +425,11 @@ public class ARControlPanel extends Application {
         try (ServerSocket tempSocket = new ServerSocket(0)) {
             tempSocket.setReuseAddress(true); // Allow immediate reuse of the address
             chosenPort = tempSocket.getLocalPort();
-            //            loggerlog.info("Found available ephemeral port: " + chosenPort);
         } catch (IOException e) {
-            // If finding an ephemeral port fails, log the warning and fall back to the fixed default
-            //            loggerlog.warn("Could not find an ephemeral port. Falling back to default fixed port: " +
-            // defaultFixedPort + ". Error: " + e.getMessage());
             chosenPort = defaultFixedPort;
         }
 
-        // 2. Persist the chosen port to properties
         System.setProperty("ARWebChosenPort", String.valueOf(chosenPort));
-        //        arPropertyManager.setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), String.valueOf(chosenPort));
-        //        loggerlog.info("Set " + ARPropertyEnum.PORT_SOCKET.getValue() + " to: " + chosenPort + " in
-        // properties.");
 
         return chosenPort;
     }

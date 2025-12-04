@@ -68,12 +68,12 @@ public class ARNewBotJobScene extends ARScene {
     }
 
     @Override
-    public Double getSceneHeight() {
+    public int getSceneHeight() {
         return SCENE_HEIGHT;
     }
 
     @Override
-    public Double getSceneWidth() {
+    public int getSceneWidth() {
         return SCENE_WIDTH;
     }
 

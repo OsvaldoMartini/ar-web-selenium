@@ -12,22 +12,17 @@ import com.allinweb.ch.model.HomeUrlDTO;
 import com.allinweb.ch.util.ARExecution;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
+import java.awt.*;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javafx.application.Platform;
-import javafx.collections.FXCollections;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
-import javafx.scene.control.*;
-import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.scene.layout.*;
+import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -37,46 +32,61 @@ public class ARNewHomeBankingPane extends ARPane {
     private static final PerformLists performLists = PerformLists.getInstance();
     private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
+
     // Regular expression for a basic URL validation (improved)
     private static final String URL_REGEX =
-            "^((https?|ftp|file)://)?([\\da-z.-]+)\\.([a-z.]{2,6})(:\\d+)?(/\\w .-]*)?/?$";
+            "^((https?|ftp|file)://)?([\\da-z.-]+)\\.([a-z.]{2,6})(:\\d+)?(/\\w.*-*)?/?$";
     private static final Pattern URL_PATTERN = Pattern.compile(URL_REGEX, Pattern.CASE_INSENSITIVE);
+
     protected static volatile ARNewHomeBankingPane instance;
     private static HomeBankingLoadDTO homeBank;
-    private Button insertORGButton;
-    private Button updateORGButton;
-    private Button deleteORGButton;
-    private Button templateORGButton;
-    private Button insertURLButton;
-    private Button updateURLButton;
-    private Button deleteURLButton;
-    // Create labels
-    private Label idLabel;
-    private Label nameLabel;
-    private Label urlLabel;
-    private Label priorityLabel;
-    private Label jobsLabel;
-    private Label searchConfigLabel;
-    private Label optionsConfigLabel;
-    private Label organizationsLabel;
-    private Label urlEnviromentLabel;
-    private TextField idField;
-    private TextField nameField;
-    private TextField urlField;
-    private TextArea priorityField;
-    private TextField jobsField;
-    private TextArea scanConfigField;
-    private TextArea optionsConfigField;
-    private TextField homeUrlIdField;
-    private TextField homeUrlValueField;
+
+    // Buttons
+    private JButton insertORGButton;
+    private JButton updateORGButton;
+    private JButton deleteORGButton;
+    private JButton templateORGButton;
+    private JButton insertURLButton;
+    private JButton updateURLButton;
+    private JButton deleteURLButton;
+
+    // Labels
+    private JLabel idLabel;
+    private JLabel nameLabel;
+    private JLabel urlLabel;
+    private JLabel priorityLabel;
+    private JLabel jobsLabel;
+    private JLabel searchConfigLabel;
+    private JLabel optionsConfigLabel;
+    private JLabel organizationsLabel;
+    private JLabel urlEnviromentLabel;
+
+    // Fields
+    private JTextField idField;
+    private JTextField nameField;
+    private JTextField urlField;
+    private JTextArea priorityField;
+    private JTextField jobsField;
+    private JTextArea scanConfigField;
+    private JTextArea optionsConfigField;
+    private JTextField homeUrlIdField;
+    private JTextField homeUrlValueField;
+
     private Connection conn = null;
-    private TableView<HomeBankingLoadDTO> tableViewOrg;
-    private TableView<HomeUrlDTO> tableViewHomeUrl;
+
+    // Tables + models
+    private JTable tableViewOrg;
+    private DefaultTableModel orgTableModel;
+
+    private JTable tableViewHomeUrl;
+    private DefaultTableModel homeUrlTableModel;
+    private List<HomeUrlDTO> currentHomeUrls = new ArrayList<>();
+
     private List<BankingDTO> dtoList;
-    private Pane mainPane;
+    private JPanel mainPane;
+
     // Private constructor to prevent instantiation
     private ARNewHomeBankingPane() {
-
         super();
     }
 
@@ -128,301 +138,261 @@ public class ARNewHomeBankingPane extends ARPane {
     }
 
     public void initialize(HomeBankingLoadDTO homeBank) {
-        this.homeBank = homeBank;
+        ARNewHomeBankingPane.homeBank = homeBank;
     }
 
     @Override
-    public Pane getPaneReference() {
+    public JPanel getPaneReference() {
         return mainPane;
     }
 
     @Override
     public void initUIComponents() {
         // Load initial data
-
         ErrorMessage errorMessage = performDataBase.loadAllDataUsers();
-
         if (errorMessage != null) {
             performMessage.errorMessageOperationFailed(errorMessage);
         }
 
-        // Assuming getDatabaseList() and getHomeUrlList() are populated by loadAllHomeBankingBotJob()
-        // If not, you might need to call updateHomeBankList(someLoadedList) here.
-
         // --- 1. Initialize Labels ---
-        idLabel = new Label("ID:");
-        nameLabel = new Label("Organization:");
-        urlLabel = new Label("Url Baseline:");
-        priorityLabel = new Label("Priority:"); // This will be "Next Row" conceptually
-        jobsLabel = new Label("Active Jobs");
-        searchConfigLabel = new Label("Scan Config:");
-        optionsConfigLabel = new Label("WebDriver Options:");
+        idLabel = new JLabel("ID:");
+        nameLabel = new JLabel("Organization:");
+        urlLabel = new JLabel("Url Baseline:");
+        priorityLabel = new JLabel("Priority:");
+        jobsLabel = new JLabel("Active Jobs");
+        searchConfigLabel = new JLabel("Scan Config:");
+        optionsConfigLabel = new JLabel("WebDriver Options:");
 
-        organizationsLabel = new Label("Organizations");
-        urlEnviromentLabel = new Label("Environments"); // This label will be moved
+        organizationsLabel = new JLabel("Organizations", SwingConstants.CENTER);
+        urlEnviromentLabel = new JLabel("Environments", SwingConstants.CENTER);
 
-        // --- 2. Initialize Text Fields and Text Areas ---
-        // ID Field (Read-only, grey background)
-        idField = new TextField();
-        idField.setPromptText("ID");
+        // --- 2. Initialize Fields ---
+
+        // ID Field (read-only)
+        idField = new JTextField();
         idField.setEditable(false);
-        idField.setStyle("-fx-control-inner-background: #D3D3D3;");
-        idField.setPrefWidth(50); // Max 50
-        idField.setMaxWidth(50); // Max 50
-        idField.setPrefHeight(28);
+        idField.setBackground(new Color(0xD3, 0xD3, 0xD3));
+        idField.setPreferredSize(new Dimension(50, 28));
+        idField.setMaximumSize(new Dimension(50, 28));
 
-        // Name Field (Editable, yellow background)
-        nameField = new TextField();
-        nameField.setPromptText("Organization Name");
-        nameField.setStyle("-fx-control-inner-background: #FFDA33;");
-        nameField.setPrefWidth(150); // Max 150
-        nameField.setMaxWidth(150); // Max 150
-        nameField.setPrefHeight(28);
-        nameField.requestFocus(); // Keep initial focus
+        // Name Field (yellow background)
+        nameField = new JTextField();
+        nameField.setBackground(new Color(0xFF, 0xDA, 0x33));
+        nameField.setPreferredSize(new Dimension(150, 28));
+        nameField.setMaximumSize(new Dimension(150, 28));
 
-        // URL Field (Editable, yellow background)
-        urlField = new TextField();
-        urlField.setPromptText("URL Baseline of the Organization");
-        urlField.setStyle("-fx-control-inner-background: #FFDA33;");
-        urlField.setPrefHeight(28);
-        HBox.setHgrow(urlField, Priority.ALWAYS); // Allow this field to expand horizontally
+        // URL Field
+        urlField = new JTextField();
+        urlField.setBackground(new Color(0xFF, 0xDA, 0x33));
+        urlField.setPreferredSize(new Dimension(200, 28));
 
-        // Priority Field (TextArea, yellow background, multi-line)
-        priorityField = new TextArea();
-        priorityField.setStyle("-fx-control-inner-background: #FFDA33;");
-        priorityField.setPrefRowCount(6); // Suggests initial rows
-        priorityField.setWrapText(true); // Enable text wrapping
-        priorityField.setMinHeight(90);
-        priorityField.setMaxHeight(110);
-        priorityField.setPrefHeight(110);
-        HBox.setHgrow(priorityField, Priority.ALWAYS); // Allow this field to expand horizontally
+        // Priority field
+        priorityField = new JTextArea(4, 20);
+        priorityField.setLineWrap(true);
+        priorityField.setWrapStyleWord(true);
+        priorityField.setBackground(new Color(0xFF, 0xDA, 0x33));
 
-        // Jobs Field (Read-only, grey background)
-        jobsField = new TextField();
+        // Jobs (read-only)
+        jobsField = new JTextField();
         jobsField.setEditable(false);
-        jobsField.setStyle("-fx-control-inner-background: #D3D3D3;");
-        jobsField.setPrefWidth(70);
-        jobsField.setMinWidth(50);
-        jobsField.setMaxWidth(70);
+        jobsField.setBackground(new Color(0xD3, 0xD3, 0xD3));
+        jobsField.setPreferredSize(new Dimension(70, 28));
+        jobsField.setMaximumSize(new Dimension(70, 28));
 
-        // Search Config Field (TextArea, yellow background, multi-line)
-        scanConfigField = new TextArea();
-        scanConfigField.setStyle("-fx-control-inner-background: #FFDA33;");
-        scanConfigField.setPrefRowCount(6);
-        scanConfigField.setWrapText(true);
-        scanConfigField.setMinHeight(90);
-        scanConfigField.setMaxHeight(110);
-        scanConfigField.setPrefHeight(110);
-        HBox.setHgrow(scanConfigField, Priority.ALWAYS); // Allow this field to expand horizontally
+        // Scan config
+        scanConfigField = new JTextArea(4, 20);
+        scanConfigField.setLineWrap(true);
+        scanConfigField.setWrapStyleWord(true);
+        scanConfigField.setBackground(new Color(0xFF, 0xDA, 0x33));
 
-        // Options Config Field (TextArea, yellow background, multi-line)
-        optionsConfigField = new TextArea();
-        optionsConfigField.setStyle("-fx-control-inner-background: #FFDA33;");
-        optionsConfigField.setPrefRowCount(6);
-        optionsConfigField.setWrapText(true);
-        optionsConfigField.setMinHeight(90);
-        optionsConfigField.setMaxHeight(110);
-        optionsConfigField.setPrefHeight(110);
-        HBox.setHgrow(optionsConfigField, Priority.ALWAYS); // Allow this field to expand horizontally
+        // Options config
+        optionsConfigField = new JTextArea(4, 20);
+        optionsConfigField.setLineWrap(true);
+        optionsConfigField.setWrapStyleWord(true);
+        optionsConfigField.setBackground(new Color(0xFF, 0xDA, 0x33));
 
-        // Environment URL ID Field (Read-only, grey background)
-        homeUrlIdField = new TextField();
-        homeUrlIdField.setPromptText("ID");
+        // Environment fields
+        homeUrlIdField = new JTextField();
         homeUrlIdField.setEditable(false);
-        homeUrlIdField.setStyle("-fx-control-inner-background: #D3D3D3;");
-        homeUrlIdField.setPrefWidth(50); // Max 50
-        homeUrlIdField.setMaxWidth(50); // Max 50
-        homeUrlIdField.setPrefHeight(28);
+        homeUrlIdField.setBackground(new Color(0xD3, 0xD3, 0xD3));
+        homeUrlIdField.setPreferredSize(new Dimension(50, 28));
+        homeUrlIdField.setMaximumSize(new Dimension(50, 28));
 
-        // Environment URL Value Field (Editable, yellow background)
-        homeUrlValueField = new TextField();
-        homeUrlValueField.setPromptText("Environment");
-        homeUrlValueField.setStyle("-fx-control-inner-background: #FFDA33;");
-        homeUrlValueField.setPrefHeight(28);
-        HBox.setHgrow(homeUrlValueField, Priority.ALWAYS); // Allow this field to expand horizontally
+        homeUrlValueField = new JTextField();
+        homeUrlValueField.setBackground(new Color(0xFF, 0xDA, 0x33));
+        homeUrlValueField.setPreferredSize(new Dimension(200, 28));
 
         // --- 3. Initialize Buttons ---
-        insertORGButton = new Button("Insert");
-        updateORGButton = new Button("Update");
-        deleteORGButton = new Button("Delete");
-        templateORGButton = new Button("Template");
+        insertORGButton = new JButton("Insert");
+        updateORGButton = new JButton("Update");
+        deleteORGButton = new JButton("Delete");
+        templateORGButton = new JButton("Template");
 
-        insertURLButton = new Button("Insert URL");
-        updateURLButton = new Button("Update URL");
-        deleteURLButton = new Button("Delete URL");
+        insertURLButton = new JButton("Insert URL");
+        updateURLButton = new JButton("Update URL");
+        deleteURLButton = new JButton("Delete URL");
 
-        // --- 4. Layout for Organization Details Section ---
-        // Create VBoxes for each label-field pair for consistent vertical alignment
-        VBox idGroup = new VBox(2, idLabel, idField);
-        idGroup.setAlignment(Pos.TOP_LEFT); // Align label and field to top left
-        VBox nameGroup = new VBox(2, nameLabel, nameField);
-        nameGroup.setAlignment(Pos.TOP_LEFT);
-        VBox jobsGroup = new VBox(2, jobsLabel, jobsField);
-        jobsGroup.setAlignment(Pos.TOP_LEFT);
-        VBox urlGroup = new VBox(2, urlLabel, urlField); // URL group for the top row
-        urlGroup.setAlignment(Pos.TOP_LEFT);
+        // --- 4. Organization Details Layout ---
 
-        VBox priorityGroup = new VBox(2, priorityLabel, priorityField);
-        priorityGroup.setAlignment(Pos.TOP_LEFT);
-        VBox searchConfigGroup = new VBox(2, searchConfigLabel, scanConfigField);
-        searchConfigGroup.setAlignment(Pos.TOP_LEFT);
-        VBox optionsConfigGroup = new VBox(2, optionsConfigLabel, optionsConfigField);
-        optionsConfigGroup.setAlignment(Pos.TOP_LEFT);
+        // Small vertical groups (label + field)
+        JPanel idGroup = new JPanel();
+        idGroup.setLayout(new BoxLayout(idGroup, BoxLayout.Y_AXIS));
+        idGroup.add(idLabel);
+        idGroup.add(idField);
 
-        // HBox for the first row of fields (ID, Name, Total Jobs, URL)
-        HBox topFieldsRow = new HBox(15, idGroup, nameGroup, jobsGroup, urlGroup);
-        topFieldsRow.setAlignment(Pos.TOP_LEFT);
-        HBox.setHgrow(urlGroup, Priority.ALWAYS); // Ensure URL group expands
+        JPanel nameGroup = new JPanel();
+        nameGroup.setLayout(new BoxLayout(nameGroup, BoxLayout.Y_AXIS));
+        nameGroup.add(nameLabel);
+        nameGroup.add(nameField);
 
-        // HBox for the second row of fields (Priority, Scan Config, WebDriver Options)
-        HBox middleFieldsRow = new HBox(15, priorityGroup, searchConfigGroup, optionsConfigGroup);
-        middleFieldsRow.setAlignment(Pos.TOP_LEFT);
-        HBox.setHgrow(priorityGroup, Priority.ALWAYS);
-        HBox.setHgrow(searchConfigGroup, Priority.ALWAYS);
-        HBox.setHgrow(optionsConfigGroup, Priority.ALWAYS);
+        JPanel jobsGroup = new JPanel();
+        jobsGroup.setLayout(new BoxLayout(jobsGroup, BoxLayout.Y_AXIS));
+        jobsGroup.add(jobsLabel);
+        jobsGroup.add(jobsField);
 
-        // HBox for the Organization buttons
-        HBox orgButtonsBox = new HBox(10, insertORGButton, updateORGButton, deleteORGButton, templateORGButton);
-        orgButtonsBox.setAlignment(Pos.CENTER_RIGHT);
-        orgButtonsBox.setPadding(new Insets(0, 0, 2, 0)); // Padding below buttons before the grid
+        JPanel urlGroup = new JPanel();
+        urlGroup.setLayout(new BoxLayout(urlGroup, BoxLayout.Y_AXIS));
+        urlGroup.add(urlLabel);
+        urlGroup.add(urlField);
 
-        // VBox to hold the section title, field rows, and buttons
-        VBox orgDetailsContainer = new VBox(10); // Spacing between elements within this section
-        orgDetailsContainer.setPadding(new Insets(10, 10, 5, 10)); // Padding around the container
-        orgDetailsContainer.setStyle(
-                "-fx-background-color: #E8F5E9; -fx-border-color: #ccc; -fx-border-width: 1px; -fx-border-radius: 5px;"); // Very light green
+        JPanel priorityGroup = new JPanel();
+        priorityGroup.setLayout(new BoxLayout(priorityGroup, BoxLayout.Y_AXIS));
+        priorityGroup.add(priorityLabel);
+        priorityGroup.add(new JScrollPane(priorityField));
 
-        // Organizations Label at the very top of this section
-        organizationsLabel.setStyle(
-                "-fx-font-size: 1.2em; -fx-font-weight: bold; -fx-text-fill: #1565C0; -fx-padding: 0 0 10 0;");
-        organizationsLabel.setMaxWidth(Double.MAX_VALUE);
-        organizationsLabel.setAlignment(Pos.CENTER);
+        JPanel searchConfigGroup = new JPanel();
+        searchConfigGroup.setLayout(new BoxLayout(searchConfigGroup, BoxLayout.Y_AXIS));
+        searchConfigGroup.add(searchConfigLabel);
+        searchConfigGroup.add(new JScrollPane(scanConfigField));
 
-        // --- 5. TableView for Organizations ---
-        tableViewOrg = new TableView<>();
-        tableViewOrg.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY); // Columns fill available width
+        JPanel optionsConfigGroup = new JPanel();
+        optionsConfigGroup.setLayout(new BoxLayout(optionsConfigGroup, BoxLayout.Y_AXIS));
+        optionsConfigGroup.add(optionsConfigLabel);
+        optionsConfigGroup.add(new JScrollPane(optionsConfigField));
 
-        // Define columns for Organizations Table
-        TableColumn<HomeBankingLoadDTO, String> idColumn = new TableColumn<>("ID");
-        idColumn.setCellValueFactory(new PropertyValueFactory<>("id"));
-        idColumn.setPrefWidth(50);
-        idColumn.setMinWidth(30);
-        idColumn.setMaxWidth(80); // Fixed width
+        // First row: ID, Name, Jobs, URL
+        JPanel topFieldsRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 5));
+        topFieldsRow.add(idGroup);
+        topFieldsRow.add(nameGroup);
+        topFieldsRow.add(jobsGroup);
+        topFieldsRow.add(urlGroup);
 
-        TableColumn<HomeBankingLoadDTO, String> jobColumn = new TableColumn<>("Active Jobs");
-        jobColumn.setCellValueFactory(new PropertyValueFactory<>("jobs"));
-        jobColumn.setPrefWidth(90);
-        jobColumn.setMinWidth(80);
-        jobColumn.setMaxWidth(90); // Fixed width
+        // Second row: Priority, Scan Config, Options
+        JPanel middleFieldsRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 5));
+        middleFieldsRow.add(priorityGroup);
+        middleFieldsRow.add(searchConfigGroup);
+        middleFieldsRow.add(optionsConfigGroup);
 
-        TableColumn<HomeBankingLoadDTO, String> nameColumn = new TableColumn<>("Organization");
-        nameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
-        nameColumn.setPrefWidth(150);
-        nameColumn.setMinWidth(150);
-        nameColumn.setMaxWidth(150);
+        // Org buttons row
+        JPanel orgButtonsBox = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        orgButtonsBox.add(insertORGButton);
+        orgButtonsBox.add(updateORGButton);
+        orgButtonsBox.add(deleteORGButton);
+        orgButtonsBox.add(templateORGButton);
 
-        TableColumn<HomeBankingLoadDTO, String> urlColumn = new TableColumn<>("Url Baseline");
-        urlColumn.setCellValueFactory(new PropertyValueFactory<>("url"));
+        // Organizations table
+        orgTableModel = new DefaultTableModel(new Object[] {"ID", "Active Jobs", "Organization", "Url Baseline"}, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+        tableViewOrg = new JTable(orgTableModel);
+        tableViewOrg.setFillsViewportHeight(true);
+        JScrollPane orgScrollPane = new JScrollPane(tableViewOrg);
 
-        // Removed table columns for priority, search config, options config as they are now in the detail section
-        // TableColumn<DatabaseUserDTO, String> priorityColumn = new TableColumn<>("Priority Identifier");
-        // priorityColumn.setCellValueFactory(new PropertyValueFactory<>("priority"));
-        // TableColumn<DatabaseUserDTO, String> searchConfigColumn = new TableColumn<>("Search Config");
-        // searchConfigColumn.setCellValueFactory(new PropertyValueFactory<>("searchConfig"));
-        // TableColumn<DatabaseUserDTO, String> optionsConfigColumn = new TableColumn<>("WebDriver Options");
-        // optionsConfigColumn.setCellValueFactory(new PropertyValueFactory<>("optionsConfig"));
+        // Container for org section
+        JPanel orgDetailsContainer = new JPanel();
+        orgDetailsContainer.setLayout(new BoxLayout(orgDetailsContainer, BoxLayout.Y_AXIS));
+        orgDetailsContainer.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Color.LIGHT_GRAY), BorderFactory.createEmptyBorder(10, 10, 5, 10)));
+        orgDetailsContainer.setBackground(new Color(0xE8, 0xF5, 0xE9));
 
-        tableViewOrg.getColumns().addAll(idColumn, jobColumn, nameColumn, urlColumn);
-        tableViewOrg.setItems(FXCollections.observableArrayList(performLists.getListHomeBanking()));
+        organizationsLabel.setFont(organizationsLabel.getFont().deriveFont(Font.BOLD, 15f));
+        organizationsLabel.setForeground(new Color(0x15, 0x65, 0xC0));
 
-        orgDetailsContainer
-                .getChildren()
-                .addAll(organizationsLabel, topFieldsRow, middleFieldsRow, orgButtonsBox, tableViewOrg);
+        orgDetailsContainer.add(organizationsLabel);
+        orgDetailsContainer.add(Box.createVerticalStrut(10));
+        orgDetailsContainer.add(topFieldsRow);
+        orgDetailsContainer.add(middleFieldsRow);
+        orgDetailsContainer.add(orgButtonsBox);
+        orgDetailsContainer.add(Box.createVerticalStrut(5));
+        orgDetailsContainer.add(orgScrollPane);
 
-        VBox homeUrlDetailsContainer = new VBox(10); // Use VBox to stack label and then fields/buttons
-        homeUrlDetailsContainer.setPadding(new Insets(10, 10, 5, 10)); // Padding
-        homeUrlDetailsContainer.setStyle(
-                "-fx-background-color: #E8F5E9; -fx-border-color: #ccc; -fx-border-width: 1px; -fx-border-radius: 5px;"); // Very light green
+        // --- 5. Environment (HomeUrl) section ---
 
-        // Environments Label moved inside this container, above the fields
-        urlEnviromentLabel.setStyle(
-                "-fx-font-size: 1.2em; -fx-font-weight: bold; -fx-text-fill: #1565C0; -fx-padding: 0 0 10 0;");
-        urlEnviromentLabel.setMaxWidth(Double.MAX_VALUE);
-        urlEnviromentLabel.setAlignment(Pos.CENTER);
+        JPanel envFieldsRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        envFieldsRow.add(homeUrlIdField);
+        envFieldsRow.add(homeUrlValueField);
 
-        HBox fieldBox = new HBox(10, homeUrlIdField, homeUrlValueField); // Fields
-        fieldBox.setAlignment(Pos.CENTER_LEFT);
-        HBox.setHgrow(homeUrlValueField, Priority.ALWAYS); // Allow value field to take available space
+        JPanel envButtonsRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 5));
+        envButtonsRow.add(insertURLButton);
+        envButtonsRow.add(updateURLButton);
+        envButtonsRow.add(deleteURLButton);
 
-        HBox buttonBox = new HBox(10, insertURLButton, updateURLButton, deleteURLButton); // Buttons
-        buttonBox.setAlignment(Pos.CENTER_RIGHT);
+        homeUrlTableModel = new DefaultTableModel(new Object[] {"ID", "Organization", "Url Environment"}, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+        tableViewHomeUrl = new JTable(homeUrlTableModel);
+        tableViewHomeUrl.setFillsViewportHeight(true);
+        JScrollPane envScrollPane = new JScrollPane(tableViewHomeUrl);
 
-        // TableView for Environment URLs
-        tableViewHomeUrl = new TableView<>();
-        tableViewHomeUrl.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        JPanel homeUrlDetailsContainer = new JPanel();
+        homeUrlDetailsContainer.setLayout(new BoxLayout(homeUrlDetailsContainer, BoxLayout.Y_AXIS));
+        homeUrlDetailsContainer.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Color.LIGHT_GRAY), BorderFactory.createEmptyBorder(10, 10, 5, 10)));
+        homeUrlDetailsContainer.setBackground(new Color(0xE8, 0xF5, 0xE9));
 
-        // Define columns for Environment URL Table
-        TableColumn<HomeUrlDTO, Integer> homeUrlIdColumn = new TableColumn<>("ID");
-        homeUrlIdColumn.setCellValueFactory(new PropertyValueFactory<>("id"));
-        homeUrlIdColumn.setPrefWidth(50);
-        homeUrlIdColumn.setMinWidth(30);
-        homeUrlIdColumn.setMaxWidth(80);
+        urlEnviromentLabel.setFont(urlEnviromentLabel.getFont().deriveFont(Font.BOLD, 15f));
+        urlEnviromentLabel.setForeground(new Color(0x15, 0x65, 0xC0));
 
-        // Define column ORG Name
-        TableColumn<HomeUrlDTO, String> orgNameColumn = new TableColumn<>("Organization");
-        orgNameColumn.setCellValueFactory(new PropertyValueFactory<>("orgName"));
-        orgNameColumn.setPrefWidth(150);
-        orgNameColumn.setMinWidth(150);
-        orgNameColumn.setMaxWidth(150);
+        homeUrlDetailsContainer.add(urlEnviromentLabel);
+        homeUrlDetailsContainer.add(Box.createVerticalStrut(10));
+        homeUrlDetailsContainer.add(envFieldsRow);
+        homeUrlDetailsContainer.add(envButtonsRow);
+        homeUrlDetailsContainer.add(envScrollPane);
 
-        TableColumn<HomeUrlDTO, String> homeUrlColumn = new TableColumn<>("Url Environment");
-        homeUrlColumn.setCellValueFactory(new PropertyValueFactory<>("url"));
-        homeUrlColumn.setMaxWidth(Double.MAX_VALUE); // Allow URL column to grow
+        // --- 6. Root layout ---
 
-        tableViewHomeUrl.getColumns().addAll(homeUrlIdColumn, orgNameColumn, homeUrlColumn);
-        //         performDBEngine.loadHomeUrls(null);
+        JPanel rootVBox = new JPanel();
+        rootVBox.setLayout(new BoxLayout(rootVBox, BoxLayout.Y_AXIS));
+        rootVBox.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+        rootVBox.setBackground(new Color(0xF5, 0xF5, 0xF5));
 
-        List<HomeUrlDTO> filteredHomeUrl = performLists.getHomeUrlsByBankId(homeBank.getId());
-        tableViewHomeUrl.setItems(FXCollections.observableArrayList(filteredHomeUrl));
+        rootVBox.add(orgDetailsContainer);
+        rootVBox.add(Box.createVerticalStrut(20));
+        rootVBox.add(homeUrlDetailsContainer);
 
-        homeUrlDetailsContainer
-                .getChildren()
-                .addAll(
-                        urlEnviromentLabel, // Add the label first
-                        fieldBox,
-                        buttonBox,
-                        tableViewHomeUrl);
+        mainPane = new JPanel(new BorderLayout());
+        mainPane.add(rootVBox, BorderLayout.CENTER);
 
-        // --- 7. Main Layout VBox ---
-        // This VBox will hold all major sections
-        VBox rootVBox = new VBox(
-                20, // Spacing between major sections (e.g., Org Details and Org Table)
-                orgDetailsContainer,
-                homeUrlDetailsContainer);
-        rootVBox.setAlignment(Pos.TOP_CENTER); // Align content to top center of the window
-        rootVBox.setPadding(new Insets(15)); // Overall padding around the entire content
+        // Populate tables
+        reloadOrgTable();
+        if (homeBank != null) {
+            reloadHomeUrlTableForBank(homeBank.getId());
+        }
+    }
 
-        // Set vertical grow priority for tables to fill available space
-        VBox.setVgrow(tableViewOrg, Priority.ALWAYS);
-        VBox.setVgrow(tableViewHomeUrl, Priority.ALWAYS);
+    private void reloadOrgTable() {
+        orgTableModel.setRowCount(0);
+        for (HomeBankingLoadDTO dto : performLists.getListHomeBanking()) {
+            orgTableModel.addRow(new Object[] {dto.getId(), dto.getJobs(), dto.getName(), dto.getUrl()});
+        }
+    }
 
-        // --- 8. Final Setup of the Root Pane (this class) ---
-        // Add the rootVBox to the AnchorPane (this instance) and anchor it to all sides
-        mainPane = new AnchorPane(rootVBox);
-        // Set the background color for the mainPane
-        mainPane.setStyle("-fx-background-color: #f5f5f5;"); // Subtle background and border
-
-        AnchorPane.setTopAnchor(rootVBox, 0.0);
-        AnchorPane.setBottomAnchor(rootVBox, 0.0);
-        AnchorPane.setLeftAnchor(rootVBox, 0.0);
-        AnchorPane.setRightAnchor(rootVBox, 0.0);
-
-        // --- 9. Styling for Section Labels (all styling is now applied where labels are added to their containers) ---
-        // No global styling for labels needed here anymore as they are styled when added to their specific containers.
+    private void reloadHomeUrlTableForBank(int homeBankId) {
+        currentHomeUrls = performLists.getHomeUrlsByBankId(homeBankId);
+        homeUrlTableModel.setRowCount(0);
+        for (HomeUrlDTO dto : currentHomeUrls) {
+            homeUrlTableModel.addRow(new Object[] {dto.getId(), dto.getOrgName(), dto.getUrl()});
+        }
     }
 
     public void updateTableBankingView() {
-        Platform.runLater(() -> {
+        SwingUtilities.invokeLater(() -> {
             ErrorMessage errorMessage = performDataBase.loadAllDataUsers();
             if (errorMessage == null) {
                 performDBEngine.loadHomeBanking(null);
@@ -432,15 +402,14 @@ public class ARNewHomeBankingPane extends ARPane {
                 performMessage.errorMessageOperationFailed(errorMessage);
             }
 
-            if (tableViewOrg != null) {
-                tableViewOrg.setItems(FXCollections.observableArrayList(performLists.getListHomeBanking()));
-            }
+            reloadOrgTable();
         });
     }
 
     @Override
     public void initUIBehaviour() {
-        insertORGButton.setOnAction(event -> {
+        // ORG INSERT
+        insertORGButton.addActionListener(event -> {
             if (nameField.getText() == null
                     || urlField.getText() == null
                     || nameField.getText().trim().isEmpty()
@@ -521,6 +490,7 @@ public class ARNewHomeBankingPane extends ARPane {
                     performMessage.errorMessageOperationFailed(errorMessage);
                 }
             }
+
             errorMessage = performDataBase.loadAllDataUsers();
             if (errorMessage == null) {
                 performDBEngine.loadHomeBanking(null);
@@ -528,10 +498,11 @@ public class ARNewHomeBankingPane extends ARPane {
             if (errorMessage != null) {
                 performMessage.errorMessageOperationFailed(errorMessage);
             }
-            tableViewOrg.setItems(FXCollections.observableArrayList(performLists.getListHomeBanking()));
+            reloadOrgTable();
         });
 
-        updateORGButton.setOnAction(event -> {
+        // ORG UPDATE
+        updateORGButton.addActionListener(event -> {
             if (nameField.getText() == null
                     || urlField.getText() == null
                     || nameField.getText().trim().isEmpty()
@@ -565,11 +536,13 @@ public class ARNewHomeBankingPane extends ARPane {
             if (errorMessage != null) {
                 performMessage.errorMessageOperationFailed(errorMessage);
             }
-            tableViewOrg.setItems(FXCollections.observableArrayList(performLists.getListHomeBanking()));
+            reloadOrgTable();
         });
-        deleteORGButton.setOnAction(event -> {
+
+        // ORG DELETE
+        deleteORGButton.addActionListener(event -> {
             String id = idField.getText();
-            if (Integer.parseInt(jobsField.getText()) > 0) {
+            if (!jobsField.getText().trim().isEmpty() && Integer.parseInt(jobsField.getText()) > 0) {
                 performMessage.errorMessage(
                         "Attempt to Delete",
                         "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>The organization cannot be deleted:</span>",
@@ -603,44 +576,26 @@ public class ARNewHomeBankingPane extends ARPane {
                 if (errorMessage != null) {
                     performMessage.errorMessageOperationFailed(errorMessage);
                 }
-                tableViewOrg.setItems(FXCollections.observableArrayList(performLists.getListHomeBanking()));
+                reloadOrgTable();
             }
         });
-        templateORGButton.setOnAction(event -> {
+
+        // ORG TEMPLATE
+        templateORGButton.addActionListener(event -> {
             StringBuilder priorities = new StringBuilder();
-            priorities.append("#numero priorità, categoria, identificativo" + System.lineSeparator());
-            priorities.append("1,xpath,currentXPath" + System.lineSeparator());
-            priorities.append("2,attributeID,attributeID" + System.lineSeparator());
-            priorities.append("3,attributeName,attributeName" + System.lineSeparator());
-            priorities.append("4,searchAttribute,searchAttribute" + System.lineSeparator());
-            priorities.append("5,coordinates,coordinates" + System.lineSeparator());
-            priorities.append("6,attribute,test-id" + System.lineSeparator());
-            //            priorMissing.append("7,attributes,allAttributes" + System.lineSeparator());
+            priorities.append("#numero priorità, categoria, identificativo").append(System.lineSeparator());
+            priorities.append("1,xpath,currentXPath").append(System.lineSeparator());
+            priorities.append("2,attributeID,attributeID").append(System.lineSeparator());
+            priorities.append("3,attributeName,attributeName").append(System.lineSeparator());
+            priorities.append("4,searchAttribute,searchAttribute").append(System.lineSeparator());
+            priorities.append("5,coordinates,coordinates").append(System.lineSeparator());
+            priorities.append("6,attribute,test-id").append(System.lineSeparator());
             priorityField.setText(priorities.toString());
 
             StringBuilder searchCriteria = new StringBuilder();
-            //            searchCriteria.append("#numero priorità, categoria, criterioricerca" +
-            // System.lineSeparator());
-            searchCriteria.append("1,ByAttribute,test-id" + System.lineSeparator());
-            //            searchCriteria.append(
-            //                    "2,ByChained,By.tagName:input,By.className:mat-mdc-input-element" +
-            // System.lineSeparator());
-            //            searchCriteria.append(
-            //                    "3,ByChained,By.xpath://*[contains(@idCOMMA \"mat-input\")]" +
-            // System.lineSeparator());
-            //            searchCriteria.append("4,ByTagName,input" + System.lineSeparator());
-            //            searchCriteria.append("5,ByTagName,button" + System.lineSeparator());
-            //            searchCriteria.append("6,ByChained,By.cssSelector:[id^=\"mat-input\"]" +
-            // System.lineSeparator());
-
-            //            searchCriteria.append("1,ByAttribute,test-id" + System.lineSeparator());
-            //            searchCriteria.append("2,ByChained,By.tagName:input" + System.lineSeparator());
-            //            searchCriteria.append("3,ByChained,By.tagName:button" + System.lineSeparator());
-            //            searchCriteria.append("4,ByTagName,button,label,a" + System.lineSeparator());
-            //            searchCriteria.append("5,ByTagName,input" + System.lineSeparator());
+            searchCriteria.append("1,ByAttribute,test-id").append(System.lineSeparator());
             scanConfigField.setText(searchCriteria.toString());
 
-            // Proxy Example
             String argument1 = "arg:-disable-web-security";
             String argument2 = "arg:-disable-site-isolation-trials";
             String argument3 = "arg:-allow-running-insecure-content";
@@ -648,28 +603,20 @@ public class ARNewHomeBankingPane extends ARPane {
             String argument5 = "arg:-disable-infobars";
             String argument6 = "#arg:-disable-dev-shm-usage";
             String proxyAddress = "#proxy:proxy_address:proxy_port";
-            //            String browserLog = "#browser_log:active";
-            //            String systemProps1 = "#systemProps:webdriver.chrome.logfile:logFolder";
-            //            String systemProps2 = "#systemProps:webdriver.chrome.verboseLogging:true";
             StringBuilder optionsConfig = new StringBuilder();
-            optionsConfig.append(argument1 + System.lineSeparator());
-            optionsConfig.append(argument2 + System.lineSeparator());
-            optionsConfig.append(argument3 + System.lineSeparator());
-            optionsConfig.append(argument4 + System.lineSeparator());
-            optionsConfig.append(argument5 + System.lineSeparator());
-            optionsConfig.append(argument6 + System.lineSeparator());
-            optionsConfig.append(proxyAddress + System.lineSeparator());
-            //            optionsConfig.append(browserLog + System.lineSeparator());
-            //            optionsConfig.append(systemProps1 + System.lineSeparator());
-            //            optionsConfig.append(systemProps2 + System.lineSeparator());
+            optionsConfig.append(argument1).append(System.lineSeparator());
+            optionsConfig.append(argument2).append(System.lineSeparator());
+            optionsConfig.append(argument3).append(System.lineSeparator());
+            optionsConfig.append(argument4).append(System.lineSeparator());
+            optionsConfig.append(argument5).append(System.lineSeparator());
+            optionsConfig.append(argument6).append(System.lineSeparator());
+            optionsConfig.append(proxyAddress).append(System.lineSeparator());
 
             optionsConfigField.setText(optionsConfig.toString());
-
-            //            loadAllHomeBankingBotJob();
-            //            updateHomeBankList(databaseList);
         });
 
-        insertURLButton.setOnAction(event -> {
+        // URL INSERT
+        insertURLButton.addActionListener(event -> {
             if (homeUrlValueField.getText() == null
                     || homeUrlValueField.getText().trim().isEmpty()) {
                 performMessage.errorMessage(
@@ -685,7 +632,6 @@ public class ARNewHomeBankingPane extends ARPane {
             String homeBankIdStr = idField.getText().trim();
             String homeUrl = homeUrlValueField.getText().trim();
 
-            // Check if fields are empty
             if (homeBankIdStr.isEmpty() || homeUrl.isEmpty()) {
                 performMessage.errorMessage(
                         "Insert Environment Failed ❌",
@@ -704,20 +650,19 @@ public class ARNewHomeBankingPane extends ARPane {
             if (errorMessage != null) {
                 performMessage.errorMessageOperationFailed(errorMessage);
             } else {
-                // ✅ Reload the table after successful insert
                 errorMessage = performDBEngine.loadHomeUrls(null);
                 if (errorMessage != null) {
                     performMessage.errorMessageOperationFailed(errorMessage);
                 }
-                List<HomeUrlDTO> filteredHomeUrl = performLists.getHomeUrlsByBankId(homeBankId);
-                tableViewHomeUrl.setItems(FXCollections.observableArrayList(filteredHomeUrl));
+                reloadHomeUrlTableForBank(homeBankId);
 
-                homeUrlIdField.clear();
-                homeUrlValueField.clear();
+                homeUrlIdField.setText("");
+                homeUrlValueField.setText("");
             }
         });
 
-        updateURLButton.setOnAction(event -> {
+        // URL UPDATE
+        updateURLButton.addActionListener(event -> {
             if (homeUrlIdField.getText() == null
                     || homeUrlValueField.getText() == null
                     || homeUrlIdField.getText().trim().isEmpty()
@@ -736,7 +681,6 @@ public class ARNewHomeBankingPane extends ARPane {
             String homeUrlIdStr = homeUrlIdField.getText().trim();
             String homeUrl = homeUrlValueField.getText().trim();
 
-            // Validate fields
             if (homeBankIdStr.isEmpty() || homeUrl.isEmpty() || homeUrlIdStr.isEmpty()) {
                 performMessage.errorMessage(
                         "Update Environment Failed ❌",
@@ -757,19 +701,16 @@ public class ARNewHomeBankingPane extends ARPane {
                 if (errorMessage != null) {
                     performMessage.errorMessageOperationFailed(errorMessage);
                 } else {
-                    // ✅ Reload the table after successful update
                     errorMessage = performDBEngine.loadHomeUrls(null);
                     if (errorMessage != null) {
                         performMessage.errorMessageOperationFailed(errorMessage);
                     }
 
-                    List<HomeUrlDTO> filteredHomeUrl = performLists.getHomeUrlsByBankId(homeBankId);
-                    tableViewHomeUrl.setItems(FXCollections.observableArrayList(filteredHomeUrl));
-                    tableViewHomeUrl.getSelectionModel().clearSelection();
+                    reloadHomeUrlTableForBank(homeBankId);
+                    tableViewHomeUrl.clearSelection();
 
-                    // Optionally clear the fields
-                    homeUrlIdField.clear();
-                    homeUrlValueField.clear();
+                    homeUrlIdField.setText("");
+                    homeUrlValueField.setText("");
                 }
 
             } catch (SQLException | NumberFormatException e) {
@@ -784,12 +725,12 @@ public class ARNewHomeBankingPane extends ARPane {
             }
         });
 
-        deleteURLButton.setOnAction(event -> {
+        // URL DELETE
+        deleteURLButton.addActionListener(event -> {
             String homeBankIdStr = idField.getText().trim();
             String homeUrlIdStr = homeUrlIdField.getText().trim();
             String homeUrl = homeUrlValueField.getText().trim();
 
-            // Validate required fields
             if (homeBankIdStr.isEmpty() || homeUrlIdStr.isEmpty() || homeUrl.isEmpty()) {
                 performMessage.errorMessage(
                         "Delete Environment Failed ❌",
@@ -821,7 +762,6 @@ public class ARNewHomeBankingPane extends ARPane {
                 return;
             }
 
-            // Show confirmation modal
             ARExecution.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
                     "Delete Confirmation",
                     "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Are you sure you want to delete this URL?</span>",
@@ -845,13 +785,11 @@ public class ARNewHomeBankingPane extends ARPane {
                 if (errorMessage != null) {
                     performMessage.errorMessageOperationFailed(errorMessage);
                 } else {
-                    // ✅ Refresh list
                     performDBEngine.loadHomeUrls(null);
-                    filteredHomeUrl = performLists.getHomeUrlsByBankId(homeBankId);
-                    tableViewHomeUrl.setItems(FXCollections.observableArrayList(filteredHomeUrl));
+                    reloadHomeUrlTableForBank(homeBankId);
 
-                    homeUrlIdField.clear();
-                    homeUrlValueField.clear();
+                    homeUrlIdField.setText("");
+                    homeUrlValueField.setText("");
                 }
 
             } catch (SQLException | NumberFormatException e) {
@@ -866,104 +804,78 @@ public class ARNewHomeBankingPane extends ARPane {
             }
         });
 
-        tableViewOrg.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
-            if (newSelection != null) {
-                // Get the selected UserDTO object
-                HomeBankingLoadDTO selectedUser =
-                        tableViewOrg.getSelectionModel().getSelectedItem();
+        // ORG table selection
+        tableViewOrg.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                int row = tableViewOrg.getSelectedRow();
+                if (row >= 0 && row < performLists.getListHomeBanking().size()) {
+                    HomeBankingLoadDTO selectedUser =
+                            performLists.getListHomeBanking().get(row);
 
-                // Set the values of the selected row to the text fields
-                idField.setText(String.valueOf(selectedUser.getId()));
-                nameField.setText(selectedUser.getName());
-                urlField.setText(selectedUser.getUrl());
-                priorityField.setText(selectedUser.getPriority());
-                jobsField.setText(String.valueOf(selectedUser.getJobs())); // Update the hidden field
-                scanConfigField.setText(selectedUser.getSearchConfig()); // Update the hidden field
-                optionsConfigField.setText(selectedUser.getOptionsConfig()); // Update the hidden field
-            } else {
-                // If no row is selected, clear the text fields
-                idField.clear();
-                nameField.clear();
-                urlField.clear();
-                priorityField.clear();
-                jobsField.clear();
-                scanConfigField.clear();
-                optionsConfigField.clear();
-                // Clear other fields as needed
+                    idField.setText(String.valueOf(selectedUser.getId()));
+                    nameField.setText(selectedUser.getName());
+                    urlField.setText(selectedUser.getUrl());
+                    priorityField.setText(selectedUser.getPriority());
+                    jobsField.setText(String.valueOf(selectedUser.getJobs()));
+                    scanConfigField.setText(selectedUser.getSearchConfig());
+                    optionsConfigField.setText(selectedUser.getOptionsConfig());
+
+                    // Load URLs for this bank
+                    performDBEngine.loadHomeUrls(null);
+                    reloadHomeUrlTableForBank(selectedUser.getId());
+                } else {
+                    idField.setText("");
+                    nameField.setText("");
+                    urlField.setText("");
+                    priorityField.setText("");
+                    jobsField.setText("");
+                    scanConfigField.setText("");
+                    optionsConfigField.setText("");
+                    homeUrlTableModel.setRowCount(0);
+                }
             }
         });
 
-        tableViewOrg.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
-            if (newSelection != null) {
-                HomeBankingLoadDTO selectedUser =
-                        tableViewOrg.getSelectionModel().getSelectedItem();
-                // ... populate form fields
-
-                // Load URLs related to the selected home banking ID
-                performDBEngine.loadHomeUrls(null);
-                List<HomeUrlDTO> filteredHomeUrl = performLists.getHomeUrlsByBankId(selectedUser.getId());
-                tableViewHomeUrl.setItems(FXCollections.observableArrayList(filteredHomeUrl));
-            } else {
-                tableViewHomeUrl.getItems().clear();
-            }
-        });
-
-        tableViewHomeUrl.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
-            if (newSelection != null) {
-                homeUrlIdField.setText(String.valueOf(newSelection.getId()));
-                homeUrlValueField.setText(newSelection.getUrl());
-                nameField.setText(String.valueOf(newSelection.getOrgName()));
-                idField.setText(String.valueOf(newSelection.getHomeBankingId()));
-            } else {
-                homeUrlIdField.clear();
-                homeUrlValueField.clear();
+        // HOME URL table selection
+        tableViewHomeUrl.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                int row = tableViewHomeUrl.getSelectedRow();
+                if (row >= 0 && row < currentHomeUrls.size()) {
+                    HomeUrlDTO dto = currentHomeUrls.get(row);
+                    homeUrlIdField.setText(String.valueOf(dto.getId()));
+                    homeUrlValueField.setText(dto.getUrl());
+                    nameField.setText(dto.getOrgName());
+                    idField.setText(String.valueOf(dto.getHomeBankingId()));
+                } else {
+                    homeUrlIdField.setText("");
+                    homeUrlValueField.setText("");
+                }
             }
         });
     }
 
     private String fillUpTemplatePriority() {
         StringBuilder priorities = new StringBuilder();
-        priorities.append("#numero priorità, categoria, identificativo" + System.lineSeparator());
-        priorities.append("1,xpath,currentXPath" + System.lineSeparator());
-        priorities.append("2,attributeID,attributeID" + System.lineSeparator());
-        priorities.append("3,attributeName,attributeName" + System.lineSeparator());
-        priorities.append("4,searchAttribute,searchAttribute" + System.lineSeparator());
-        priorities.append("5,coordinates,coordinates" + System.lineSeparator());
-        priorities.append("6,attribute,test-id" + System.lineSeparator());
-        //            priorMissing.append("7,attributes,allAttributes" + System.lineSeparator());
-        Platform.runLater(() -> priorityField.setText(priorities.toString()));
+        priorities.append("#numero priorità, categoria, identificativo").append(System.lineSeparator());
+        priorities.append("1,xpath,currentXPath").append(System.lineSeparator());
+        priorities.append("2,attributeID,attributeID").append(System.lineSeparator());
+        priorities.append("3,attributeName,attributeName").append(System.lineSeparator());
+        priorities.append("4,searchAttribute,searchAttribute").append(System.lineSeparator());
+        priorities.append("5,coordinates,coordinates").append(System.lineSeparator());
+        priorities.append("6,attribute,test-id").append(System.lineSeparator());
 
+        SwingUtilities.invokeLater(() -> priorityField.setText(priorities.toString()));
         return priorities.toString();
     }
 
     private String fillUpTemplateScanConfig() {
         StringBuilder searchCriteria = new StringBuilder();
-        //            searchCriteria.append("#numero priorità, categoria, criterioricerca" +
-        // System.lineSeparator());
-        searchCriteria.append("1,ByAttribute,test-id" + System.lineSeparator());
-        //            searchCriteria.append(
-        //                    "2,ByChained,By.tagName:input,By.className:mat-mdc-input-element" +
-        // System.lineSeparator());
-        //            searchCriteria.append(
-        //                    "3,ByChained,By.xpath://*[contains(@idCOMMA \"mat-input\")]" +
-        // System.lineSeparator());
-        //            searchCriteria.append("4,ByTagName,input" + System.lineSeparator());
-        //            searchCriteria.append("5,ByTagName,button" + System.lineSeparator());
-        //            searchCriteria.append("6,ByChained,By.cssSelector:[id^=\"mat-input\"]" +
-        // System.lineSeparator());
-
-        //            searchCriteria.append("1,ByAttribute,test-id" + System.lineSeparator());
-        //            searchCriteria.append("2,ByChained,By.tagName:input" + System.lineSeparator());
-        //            searchCriteria.append("3,ByChained,By.tagName:button" + System.lineSeparator());
-        //            searchCriteria.append("4,ByTagName,button,label,a" + System.lineSeparator());
-        //            searchCriteria.append("5,ByTagName,input" + System.lineSeparator());
-        Platform.runLater(() -> scanConfigField.setText(searchCriteria.toString()));
-
+        searchCriteria.append("1,ByAttribute,test-id").append(System.lineSeparator());
+        SwingUtilities.invokeLater(() -> scanConfigField.setText(searchCriteria.toString()));
         return searchCriteria.toString();
     }
 
     private String fillUpTemplateWebDriver() {
-        // Proxy Example
         String argument1 = "arg:-disable-web-security";
         String argument2 = "arg:-disable-site-isolation-trials";
         String argument3 = "arg:-allow-running-insecure-content";
@@ -971,46 +883,18 @@ public class ARNewHomeBankingPane extends ARPane {
         String argument5 = "arg:-disable-infobars";
         String argument6 = "#arg:-disable-dev-shm-usage";
         String proxyAddress = "#proxy:proxy_address:proxy_port";
-        //            String browserLog = "#browser_log:active";
-        //            String systemProps1 = "#systemProps:webdriver.chrome.logfile:logFolder";
-        //            String systemProps2 = "#systemProps:webdriver.chrome.verboseLogging:true";
+
         StringBuilder optionsConfig = new StringBuilder();
-        optionsConfig.append(argument1 + System.lineSeparator());
-        optionsConfig.append(argument2 + System.lineSeparator());
-        optionsConfig.append(argument3 + System.lineSeparator());
-        optionsConfig.append(argument4 + System.lineSeparator());
-        optionsConfig.append(argument5 + System.lineSeparator());
-        optionsConfig.append(argument6 + System.lineSeparator());
-        optionsConfig.append(proxyAddress + System.lineSeparator());
-        //            optionsConfig.append(browserLog + System.lineSeparator());
-        //            optionsConfig.append(systemProps1 + System.lineSeparator());
-        //            optionsConfig.append(systemProps2 + System.lineSeparator());
+        optionsConfig.append(argument1).append(System.lineSeparator());
+        optionsConfig.append(argument2).append(System.lineSeparator());
+        optionsConfig.append(argument3).append(System.lineSeparator());
+        optionsConfig.append(argument4).append(System.lineSeparator());
+        optionsConfig.append(argument5).append(System.lineSeparator());
+        optionsConfig.append(argument6).append(System.lineSeparator());
+        optionsConfig.append(proxyAddress).append(System.lineSeparator());
 
-        Platform.runLater(() -> optionsConfigField.setText(optionsConfig.toString()));
-
+        SwingUtilities.invokeLater(() -> optionsConfigField.setText(optionsConfig.toString()));
         return optionsConfig.toString();
-    }
-
-    private void updateFields() {}
-
-    private void clearFields() {}
-
-    private boolean showConfirmationDialog(String name) {
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-        alert.setTitle("Confirmation Dialog");
-        alert.setHeaderText("Delete Confirmation");
-        alert.setContentText("Are you sure you want to delete the record for '" + name + "'?");
-
-        Optional<ButtonType> result = alert.showAndWait();
-        return result.isPresent() && result.get() == ButtonType.OK;
-    }
-
-    private void showAlert(Alert.AlertType type, String title, String header, String content) {
-        Alert alert = new Alert(type);
-        alert.setTitle(title);
-        alert.setHeaderText(header);
-        alert.setContentText(content);
-        alert.showAndWait();
     }
 
     private boolean nameExists(String name) {
@@ -1022,9 +906,9 @@ public class ARNewHomeBankingPane extends ARPane {
         return false;
     }
 
+    @SuppressWarnings("unused")
     private List<BankingDTO> createSampleData() {
         List<BankingDTO> dataList = new ArrayList<>();
-        // Assuming you have a constructor in BankingDT0
         for (int i = 0; i < 10; i++) {
             dataList.add(new BankingDTO(i + 1, "Name " + i, "URL " + i, "Priority " + i, 5, new ArrayList<>()));
         }
@@ -1032,13 +916,18 @@ public class ARNewHomeBankingPane extends ARPane {
     }
 
     @Override
-    public void clearPane(Pane panel) {
+    public void clearPane(JPanel panel) {
         if (conn != null) {
             try {
                 conn.close();
             } catch (SQLException e) {
                 log.info(e.getMessage());
             }
+        }
+        if (panel != null) {
+            panel.removeAll();
+            panel.revalidate();
+            panel.repaint();
         }
     }
 }

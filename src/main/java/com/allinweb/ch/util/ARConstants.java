@@ -18,14 +18,14 @@ public class ARConstants {
     // DEFAULT VALUES
     public static final String VALUE_NO_IDENTIFICATION = "No significant identification found";
     // DIMENSIONS
-    public static final Double SPACE_ZERO = 0D;
-    public static final Double SPACE_XS = 5D;
-    public static final Double SPACE_SM = 10D;
-    public static final Double SPACE_S = 24D;
-    public static final Double SPACE_M = 20D;
-    public static final Double SPACE_L = 30D;
-    public static final Double SPACE_XL = 40D;
-    public static final Double SPACE_XXS = 2.5D;
+    public static final int SPACE_ZERO = 0;
+    public static final int SPACE_XXS = 2; // truncated from 2.5
+    public static final int SPACE_XS = 5;
+    public static final int SPACE_SM = 10;
+    public static final int SPACE_S = 24;
+    public static final int SPACE_M = 20;
+    public static final int SPACE_L = 30;
+    public static final int SPACE_XL = 40;
     // IMPORTANT FILE NAMES
     public static final String FILE_DEFAULT_CONFIG = "\\config\\configuration.properties";
     public static final String FILE_AR_WEB_CONFIG = "\\config\\ARWeb.config";

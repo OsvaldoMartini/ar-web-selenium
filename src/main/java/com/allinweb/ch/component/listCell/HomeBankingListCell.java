@@ -1,38 +1,52 @@
 package com.allinweb.ch.component.listCell;
 
 import com.allinweb.ch.model.HomeBankingLoadDTO;
-import javafx.application.Platform;
-import javafx.geometry.Pos;
-import javafx.scene.Node;
-import javafx.scene.control.Label;
-import javafx.scene.control.ListCell;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
+import java.awt.*;
+import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 
-public class HomeBankingListCell extends ListCell<HomeBankingLoadDTO> {
+public class HomeBankingListCell extends JPanel implements ListCellRenderer<HomeBankingLoadDTO> {
+
+    public HomeBankingListCell() {
+        setLayout(new BoxLayout(this, BoxLayout.X_AXIS));
+        setBorder(new EmptyBorder(5, 5, 5, 5));
+    }
+
     @Override
-    protected void updateItem(HomeBankingLoadDTO item, boolean empty) {
-        super.updateItem(item, empty);
-        Node graphic = null;
+    public Component getListCellRendererComponent(
+            JList<? extends HomeBankingLoadDTO> list,
+            HomeBankingLoadDTO item,
+            int index,
+            boolean isSelected,
+            boolean cellHasFocus) {
 
-        if (!empty && item != null && item.getUrl() != null) {
-            Label name = new Label(item.getName());
-            Label url = new Label(item.getUrl());
+        removeAll(); // clear previous components
 
-            name.setPrefWidth(100); // fixed width for name
-            name.setMinWidth(100); // avoid shrinking too much
-            name.setMaxWidth(100); // avoid expanding
+        if (item != null && item.getUrl() != null) {
+            JLabel nameLabel = new JLabel(item.getName());
+            nameLabel.setPreferredSize(new Dimension(100, 20));
+            nameLabel.setMinimumSize(new Dimension(100, 20));
+            nameLabel.setMaximumSize(new Dimension(100, 20));
 
-            url.setWrapText(true); // allow wrapping if needed
-            HBox.setHgrow(url, Priority.ALWAYS); // make url expand
+            JLabel urlLabel = new JLabel(item.getUrl());
+            urlLabel.setPreferredSize(new Dimension(200, 20)); // initial size
+            urlLabel.setMinimumSize(new Dimension(50, 20));
+            urlLabel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
 
-            HBox hbox = new HBox(10, name, url); // 10 is the spacing
-            hbox.setAlignment(Pos.CENTER_LEFT);
-
-            graphic = hbox;
+            // Add spacing between name and URL
+            add(nameLabel);
+            add(Box.createHorizontalStrut(10));
+            add(urlLabel);
         }
 
-        Node finalGraphic = graphic;
-        Platform.runLater(() -> setGraphic(finalGraphic));
+        if (isSelected) {
+            setBackground(list.getSelectionBackground());
+            setForeground(list.getSelectionForeground());
+        } else {
+            setBackground(list.getBackground());
+            setForeground(list.getForeground());
+        }
+
+        return this;
     }
 }
