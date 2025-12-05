@@ -10,11 +10,21 @@
     <finalName>${project.artifactId}-${project.version}</finalName>
     <plugins>
       <plugin>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.13.0</version>
+        <configuration>
+          <annotationProcessorPaths>
+            <path>
+              <groupId>org.projectlombok</groupId>
+              <artifactId>lombok</artifactId>
+              <version>1.18.36</version>
+            </path>
+          </annotationProcessorPaths>
+        </configuration>
+      </plugin>
+      <plugin>
         <artifactId>maven-surefire-plugin</artifactId>
         <version>3.1.2</version>
-        <configuration>
-          <useModulePath>false</useModulePath>
-        </configuration>
       </plugin>
       <plugin>
         <artifactId>maven-shade-plugin</artifactId>
@@ -26,7 +36,6 @@
               <goal>shade</goal>
             </goals>
             <configuration>
-              <minimizeJar>false</minimizeJar>
               <transformers>
                 <transformer>
                   <mainClass>com.allinweb.ch.ARControlPanel</mainClass>
@@ -41,26 +50,13 @@
         <artifactId>spotless-maven-plugin</artifactId>
         <version>2.44.3</version>
       </plugin>
-      <plugin>
-        <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.13.0</version>
-        <configuration>
-          <annotationProcessorPaths>
-            <path>
-              <groupId>org.projectlombok</groupId>
-              <artifactId>lombok</artifactId>
-              <version>1.18.32</version>
-            </path>
-          </annotationProcessorPaths>
-        </configuration>
-      </plugin>
     </plugins>
   </build>
   <dependencies>
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
-      <version>1.18.32</version>
+      <version>1.18.36</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -106,11 +102,6 @@
         <groupId>commons-io</groupId>
         <artifactId>commons-io</artifactId>
         <version>2.15.1</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.commons</groupId>
-        <artifactId>commons-compress</artifactId>
-        <version>1.27.1</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

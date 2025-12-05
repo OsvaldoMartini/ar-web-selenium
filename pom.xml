@@ -18,48 +18,39 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
-    <!-- ========================================================= -->
-    <!-- Force CORRECT versions for JCEF (critical!) -->
-    <!-- ========================================================= -->
     <dependencyManagement>
         <dependencies>
-
-            <!-- Required for commons-compress 1.27.x -->
             <dependency>
                 <groupId>commons-io</groupId>
                 <artifactId>commons-io</artifactId>
                 <version>2.15.1</version>
             </dependency>
-
-            <!-- Required by JCEF to avoid NoSuchMethodError -->
-            <dependency>
-                <groupId>org.apache.commons</groupId>
-                <artifactId>commons-compress</artifactId>
-                <version>1.27.1</version>
-            </dependency>
-
         </dependencies>
     </dependencyManagement>
 
     <dependencies>
 
-        <!-- JCEF Webview -->
+        <!-- JCEF (same as AR Mobile, REQUIRED) -->
         <dependency>
             <groupId>me.friwi</groupId>
             <artifactId>jcefmaven</artifactId>
             <version>135.0.20</version>
         </dependency>
 
-        <!-- Explicitly add correct commons-io + commons-compress -->
+        <dependency>
+            <groupId>me.friwi</groupId>
+            <artifactId>jcef-api</artifactId>
+            <version>jcef-ca49ada+cef-135.0.20+ge7de5c3+chromium-135.0.7049.85</version>
+        </dependency>
+
+        <!-- commons-io (same as AR Mobile) -->
         <dependency>
             <groupId>commons-io</groupId>
             <artifactId>commons-io</artifactId>
         </dependency>
 
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-compress</artifactId>
-        </dependency>
+        <!-- NO commons-compress override -->
+        <!-- REMOVE ALL commons-compress or you WILL break JCEF -->
 
         <!-- Jetty Server -->
         <dependency>
@@ -68,7 +59,6 @@
             <version>9.4.44.v20210927</version>
         </dependency>
 
-        <!-- Jetty Websocket -->
         <dependency>
             <groupId>org.eclipse.jetty.websocket</groupId>
             <artifactId>websocket-server</artifactId>
@@ -92,24 +82,6 @@
             <groupId>org.seleniumhq.selenium</groupId>
             <artifactId>selenium-java</artifactId>
             <version>4.18.0</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>commons-logging</groupId>
-                    <artifactId>commons-logging</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>slf4j-api</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.apache.logging.log4j</groupId>
-                    <artifactId>log4j-api</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.apache.logging.log4j</groupId>
-                    <artifactId>log4j-core</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
 
         <!-- Jsoup -->
@@ -216,11 +188,11 @@
             <version>0.30.0</version>
         </dependency>
 
-        <!-- Lombok (ONLY minimal change requested) -->
+        <!-- Lombok (minimal change requested) -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.18.32</version>
+            <version>1.18.36</version>
             <scope>provided</scope>
         </dependency>
 
@@ -238,7 +210,6 @@
             <version>5.5.0</version>
             <scope>test</scope>
         </dependency>
-
     </dependencies>
 
     <build>
@@ -246,17 +217,27 @@
 
         <plugins>
 
-            <!-- Surefire -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>1.18.36</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.1.2</version>
-                <configuration>
-                    <useModulePath>false</useModulePath>
-                </configuration>
             </plugin>
 
-            <!-- Shade -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
@@ -266,7 +247,6 @@
                         <phase>package</phase>
                         <goals><goal>shade</goal></goals>
                         <configuration>
-                            <minimizeJar>false</minimizeJar>
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                                     <mainClass>com.allinweb.ch.ARControlPanel</mainClass>
@@ -277,27 +257,10 @@
                 </executions>
             </plugin>
 
-            <!-- Spotless -->
             <plugin>
                 <groupId>com.diffplug.spotless</groupId>
                 <artifactId>spotless-maven-plugin</artifactId>
                 <version>2.44.3</version>
-            </plugin>
-
-            <!-- Minimal required for Lombok (DO NOT change anything else) -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.13.0</version>
-                <configuration>
-                    <annotationProcessorPaths>
-                        <path>
-                            <groupId>org.projectlombok</groupId>
-                            <artifactId>lombok</artifactId>
-                            <version>1.18.32</version>
-                        </path>
-                    </annotationProcessorPaths>
-                </configuration>
             </plugin>
 
         </plugins>

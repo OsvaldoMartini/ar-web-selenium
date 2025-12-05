@@ -25,7 +25,6 @@ import java.util.List;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import lombok.extern.slf4j.Slf4j;
-import me.friwi.jcefmaven.CefAppBuilder;
 import org.cef.CefApp;
 import org.cef.CefClient;
 import org.cef.browser.CefBrowser;
@@ -48,13 +47,29 @@ public class ARViewBotJobPane extends ARPane {
     // JCEF singletons
     private static CefApp cefApp;
     private static CefClient cefClient;
+    private static boolean cefStarted = false;
 
     static {
         try {
-            CefAppBuilder cefAppBuilder = new CefAppBuilder();
-            // Optionally configure install dir, args, handlers, etc.
-            cefApp = cefAppBuilder.build();
-            cefClient = cefApp.createClient();
+            if (!cefStarted) {
+                // Same style as JcefTest
+                CefApp.startup(new String[0]);
+                cefStarted = true;
+
+                Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                    try {
+                        CefApp instance = CefApp.getInstance();
+                        if (instance != null) {
+                            instance.dispose();
+                        }
+                    } catch (Throwable ignored) {}
+                }));
+            }
+
+            cefApp = CefApp.getInstance();
+            if (cefApp != null) {
+                cefClient = cefApp.createClient();
+            }
         } catch (Exception e) {
             log.error("Error initializing JCEF", e);
         }
@@ -347,18 +362,34 @@ public class ARViewBotJobPane extends ARPane {
             int botJobId,
             String botJobName) {
 
-        String url = getClass().getResource("/build/index.html").toExternalForm();
+        // 1) Use local HTTP server instead of file
+        //    Example: React/SPA served on http://localhost:<finalPort>
+        //    If your dev server is *always* 3000, you can hardcode 3000 here.
+        String url = "http://localhost:" + finalPort;
+
+        // Load the web app
         browser.loadURL(url);
 
+        // 2) Inject the JSON payload as before
         String safeBotJobName = botJobName.replace("'", "\\'");
 
-        String js = "setTimeout(function() { " + "window.receiveDataFromJava(JSON.stringify("
-                + jsonData + "), " + finalPort
-                + ", '" + sessionIdFromJava + "', " + homeBanking
-                + ", " + botJobId + ", '" + safeBotJobName + "');" + "}, 1000);";
+        String js =
+                "setTimeout(function() { " +
+                        "  if (window.receiveDataFromJava) {" +
+                        "    window.receiveDataFromJava(" +
+                        "      JSON.stringify(" + jsonData + ")," +
+                        "      " + finalPort + "," +
+                        "      '" + sessionIdFromJava + "'," +
+                        "      " + homeBanking + "," +
+                        "      " + botJobId + "," +
+                        "      '" + safeBotJobName + "'" +
+                        "    );" +
+                        "  }" +
+                        "}, 1000);";
 
         browser.executeJavaScript(js, url, 0);
     }
+
 
     // ==== ARPane overrides ==================================================
 
