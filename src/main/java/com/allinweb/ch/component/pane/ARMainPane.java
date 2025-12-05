@@ -1,19 +1,38 @@
 package com.allinweb.ch.component.pane;
 
+import com.allinweb.ch.component.listCell.BotJobListCell;
 import com.allinweb.ch.component.pane.base.ARPane;
-import com.allinweb.ch.component.scene.*;
+import com.allinweb.ch.component.scene.ARConfigurationScene;
+import com.allinweb.ch.component.scene.ARInfoScene;
+import com.allinweb.ch.component.scene.ARNewBotJobScene;
+import com.allinweb.ch.component.scene.ARSaveCloneScene;
+import com.allinweb.ch.component.scene.ARViewBotJobScene;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
+import com.allinweb.ch.license.LicenceVal;
+import com.allinweb.ch.license.LicenseManager;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.util.ARConstants;
+import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ErrorMessage;
-import java.awt.*;
-import java.awt.event.*;
+import com.google.common.base.Strings;
+import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.Frame;
+import java.awt.Insets;
+import java.awt.Window;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.io.File;
+import java.io.IOException;
+import java.sql.Connection;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import javax.swing.*;
@@ -25,6 +44,7 @@ import org.openqa.selenium.WebDriver;
 public class ARMainPane extends ARPane {
 
     private static final String OPENAI_ENDPOINT = "https://api.openai.com/v1/chat/completions";
+
     private static final ARInfoScene arInfoScene;
     private static final ARPropertyManager arPropertyManager;
     private static final PerformLists performLists;
@@ -37,6 +57,7 @@ public class ARMainPane extends ARPane {
     private static final ARNewBotJobScene arNewBotJobScene;
     private static final ARWebDriver arWebDriver;
     private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
+
     protected static volatile ARMainPane instance;
 
     static {
@@ -55,23 +76,26 @@ public class ARMainPane extends ARPane {
 
     public final String CONNECTION_TYPE = "jdbc:ucanaccess://";
     public final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
-    public final String CONNECTION_TYPE_SQLITE = "jdbc:sqlite:";
+    public final String CONNECTION_TYPE_SQLITE = "jdbc:sqlite:"; // no parameters needed
 
-    // UI components
-    JButton newBotJobButton;
-    JButton cloneBotJobButton;
-    JButton configureButton;
-    JButton infoButton;
-    JButton editBotJobButton;
-    JButton launchBotJobButton;
-    JButton exitButton;
-    JButton aiButton;
-    JTextArea aiTextArea;
-    JPanel buttonPane;
-    JPanel panelPane;
-    JPanel header = new JPanel();
-    JList<BotJobLoadDTO> viewBotJobListView = new JList<>();
-    DefaultListModel<BotJobLoadDTO> botJobListModel = new DefaultListModel<>();
+    // UI components (Swing)
+    private JButton newBotJobButton;
+    private JButton cloneBotJobButton;
+    private JButton configureButton;
+    private JButton infoButton;
+    private JButton editBotJobButton;
+    private JButton launchBotJobButton;
+    private JButton exitButton;
+    private JButton aiButton;
+    private JTextArea aiTextArea;
+
+    private JPanel buttonPane;
+    private JPanel headerPanel;
+    private JPanel panelPane;
+
+    private JList<BotJobLoadDTO> viewBotJobListView;
+    private DefaultListModel<BotJobLoadDTO> botJobListModel = new DefaultListModel<>();
+
     private boolean isEnabledLicence;
 
     @Getter
@@ -116,27 +140,26 @@ public class ARMainPane extends ARPane {
         for (BotJobLoadDTO dto : performLists.getQuickBotJobs()) {
             botJobListModel.addElement(dto);
         }
-        viewBotJobListView.setModel(botJobListModel);
     }
 
     @Override
     public void initUIComponents() {
-        int buttonWidth = 100;
+        int smallHeight = ARConstants.SPACE_S;
+        int smallIconSize = ARConstants.SPACE_S;
+        Insets smallPadding = new Insets(4, 6, 4, 6);
 
-        newBotJobButton = builder.buildButton(
-                "New", ARConstants.SPACE_S, ARConstants.ICON_NEW, ARConstants.SPACE_S, new Insets(4, 6, 4, 6));
-        cloneBotJobButton = builder.buildButton(
-                "Clone Job", ARConstants.SPACE_S, ARConstants.ICON_SAVE, ARConstants.SPACE_S, new Insets(4, 6, 4, 6));
-        configureButton = builder.buildButton(
-                "Config", ARConstants.SPACE_S, ARConstants.ICON_CONFIG, ARConstants.SPACE_S, new Insets(4, 6, 4, 6));
-        infoButton = builder.buildButton(
-                "Info", ARConstants.SPACE_S, ARConstants.ICON_INFO, ARConstants.SPACE_S, new Insets(4, 6, 4, 6));
-        editBotJobButton = builder.buildButton(
-                "Open Job", ARConstants.SPACE_S, ARConstants.ICON_EDIT, ARConstants.SPACE_S, new Insets(4, 6, 4, 6));
-        launchBotJobButton = builder.buildButton(
-                "Launch", ARConstants.SPACE_S, ARConstants.ICON_PLAY, ARConstants.SPACE_S, new Insets(4, 6, 4, 6));
-        exitButton = builder.buildButton(
-                "Exit", ARConstants.SPACE_S, ARConstants.ICON_CROSS, ARConstants.SPACE_S, new Insets(4, 6, 4, 6));
+        // Assuming builder was adapted to return JButton in Swing version
+        newBotJobButton = builder.buildButton("New", smallHeight, ARConstants.ICON_NEW, smallIconSize, smallPadding);
+        cloneBotJobButton =
+                builder.buildButton("Clone Job", smallHeight, ARConstants.ICON_SAVE, smallIconSize, smallPadding);
+        configureButton =
+                builder.buildButton("Config", smallHeight, ARConstants.ICON_CONFIG, smallIconSize, smallPadding);
+        infoButton = builder.buildButton("Info", smallHeight, ARConstants.ICON_INFO, smallIconSize, smallPadding);
+        editBotJobButton =
+                builder.buildButton("Open Job", smallHeight, ARConstants.ICON_EDIT, smallIconSize, smallPadding);
+        launchBotJobButton =
+                builder.buildButton("Launch", smallHeight, ARConstants.ICON_PLAY, smallIconSize, smallPadding);
+        exitButton = builder.buildButton("Exit", smallHeight, ARConstants.ICON_CROSS, smallIconSize, smallPadding);
 
         aiButton = builder.buildButton(
                 "AI", ARConstants.SPACE_L, ARConstants.ICON_AI, ARConstants.SPACE_M, new Insets(8, 10, 8, 10));
@@ -146,47 +169,324 @@ public class ARMainPane extends ARPane {
         aiTextArea.setText("AI Tool: Upgrade your version to access this premium feature.");
         aiTextArea.setEditable(false);
         aiTextArea.setLineWrap(true);
+        aiTextArea.setWrapStyleWord(true);
         aiTextArea.setVisible(false);
+        aiTextArea.setRows(4);
 
-        Dimension dim = new Dimension(buttonWidth, 25);
-        for (JButton btn : new JButton[] {
-            newBotJobButton,
-            cloneBotJobButton,
-            configureButton,
-            infoButton,
-            editBotJobButton,
-            launchBotJobButton,
-            exitButton,
-            aiButton
-        }) {
-            btn.setPreferredSize(dim);
-        }
+        int buttonWidth = 100;
+        newBotJobButton.setPreferredSize(new Dimension(buttonWidth, (int) smallHeight));
+        cloneBotJobButton.setPreferredSize(new Dimension(buttonWidth, (int) smallHeight));
+        configureButton.setPreferredSize(new Dimension(buttonWidth, (int) smallHeight));
+        infoButton.setPreferredSize(new Dimension(buttonWidth, (int) smallHeight));
+        launchBotJobButton.setPreferredSize(new Dimension(buttonWidth, (int) smallHeight));
+        editBotJobButton.setPreferredSize(new Dimension(buttonWidth, (int) smallHeight));
+        exitButton.setPreferredSize(new Dimension(buttonWidth, (int) smallHeight));
+        aiButton.setPreferredSize(new Dimension(buttonWidth, (int) ARConstants.SPACE_L));
 
-        buttonPane = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 0));
+        buttonPane = new JPanel();
+        buttonPane.setLayout(new BoxLayout(buttonPane, BoxLayout.X_AXIS));
         buttonPane.add(newBotJobButton);
+        buttonPane.add(Box.createHorizontalStrut(5));
         buttonPane.add(cloneBotJobButton);
+        buttonPane.add(Box.createHorizontalStrut(5));
         buttonPane.add(configureButton);
+        buttonPane.add(Box.createHorizontalStrut(5));
         buttonPane.add(infoButton);
+        buttonPane.add(Box.createHorizontalStrut(5));
         buttonPane.add(launchBotJobButton);
+        buttonPane.add(Box.createHorizontalStrut(5));
         buttonPane.add(editBotJobButton);
+        buttonPane.add(Box.createHorizontalStrut(5));
         buttonPane.add(exitButton);
 
         initHeader();
 
-        viewBotJobListView.setCellRenderer(new BotJobListCell());
+        viewBotJobListView = new JList<>(botJobListModel);
+        viewBotJobListView.setCellRenderer(new BotJobListCell(arViewBotJobScene, arWebDriver, isEnabledLicence));
+
+        // Double-click to open Bot Job scene (applied suggestion from BotJobListCell)
+        viewBotJobListView.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2 && SwingUtilities.isLeftMouseButton(e)) {
+                    int index = viewBotJobListView.locationToIndex(e.getPoint());
+                    if (index >= 0) {
+                        BotJobLoadDTO value = viewBotJobListView.getModel().getElementAt(index);
+
+                        Window parentWindow = SwingUtilities.getWindowAncestor(panelPane);
+                        Frame parentFrame = (parentWindow instanceof Frame) ? (Frame) parentWindow : null;
+
+                        arViewBotJobScene.initialize(arWebDriver, value, isEnabledLicence);
+                        arViewBotJobScene.showModal(parentFrame);
+                    }
+                }
+            }
+        });
+
+        arConfigurationScene.initialize(viewBotJobListView, isEnabledLicence);
+        arNewBotJobScene.initialize(arViewBotJobScene, arWebDriver, webDriverList, isEnabledLicence);
+        arWebDriver.initialize(webDriverList);
+
+        JPanel topSection = new JPanel();
+        topSection.setLayout(new BorderLayout());
+        topSection.add(buttonPane, BorderLayout.NORTH);
+        topSection.add(new JScrollPane(aiTextArea), BorderLayout.CENTER);
 
         panelPane = new JPanel();
         panelPane.setLayout(new BorderLayout());
-        panelPane.add(buttonPane, BorderLayout.NORTH);
-        panelPane.add(aiTextArea, BorderLayout.CENTER);
-        panelPane.add(header, BorderLayout.SOUTH);
+        panelPane.add(topSection, BorderLayout.NORTH);
+        panelPane.add(headerPanel, BorderLayout.CENTER);
+        panelPane.add(new JScrollPane(viewBotJobListView), BorderLayout.SOUTH);
     }
 
     @Override
     public void initUIBehaviour() {
-        aiButton.addActionListener(e -> aiTextArea.setVisible(!aiTextArea.isVisible()));
+        aiButton.addActionListener(e -> {
+            boolean visible = aiTextArea.isVisible();
+            aiTextArea.setVisible(!visible);
+            panelPane.revalidate();
+            panelPane.repaint();
+        });
+
+        newBotJobButton.addActionListener(e -> {
+            if (performLists.getListHomeUrl().isEmpty()) {
+                performDBEngine.loadHomeUrls(null);
+            }
+
+            if (!performLists.getListHomeUrl().isEmpty()) {
+                arNewBotJobScene.initialize(arViewBotJobScene, arWebDriver, webDriverList, isEnabledLicence);
+
+                Window parentWindow = SwingUtilities.getWindowAncestor(panelPane);
+                Frame parentFrame = (parentWindow instanceof Frame) ? (Frame) parentWindow : null;
+
+                arNewBotJobScene.showModal(parentFrame);
+
+                botJobListModel.clear();
+                performDataBase.loadQuickBotJobs();
+                for (BotJobLoadDTO dto : performLists.getQuickBotJobs()) {
+                    botJobListModel.addElement(dto);
+                }
+            } else {
+                performMessage.showCustomModalDialogDragWin11(
+                        "Environments Are Empty",
+                        "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>Please add at least one Organization Environment.</span>",
+                        "<span style='font-style: italic;'>Go to the Configuration and add Organizations.</span>",
+                        "<span style='color: #E65100; font-weight: bold;'>Select an Organization and add an </span><span style='font-weight: bold;'>Environment</span>.",
+                        null,
+                        false,
+                        "OK",
+                        null,
+                        0);
+            }
+        });
+
+        cloneBotJobButton.addActionListener(e -> {
+            if (isEnabledLicence && !checkLicense()) {
+                return;
+            }
+
+            String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
+
+            try {
+                Connection conn = performDataBase.getConnection();
+                if (conn != null) {
+                    log.error(dataBaseType + " Database connected!");
+                } else {
+                    log.error(dataBaseType + " Database NOT connected!");
+                }
+            } catch (Exception error) {
+                log.error(dataBaseType + " Database error!" + error.getMessage());
+            }
+
+            BotJobLoadDTO selecBotJobDTO = viewBotJobListView.getSelectedValue();
+            if (selecBotJobDTO != null) {
+                if (performDataBase.isConnDBWorks()) {
+                    arSaveCloneScene.initialize(selecBotJobDTO, botJobListModel, isEnabledLicence);
+
+                    Window parentWindow = SwingUtilities.getWindowAncestor(panelPane);
+                    Frame parentFrame = (parentWindow instanceof Frame) ? (Frame) parentWindow : null;
+
+                    arSaveCloneScene.showModal(parentFrame);
+
+                    performDataBase.loadQuickBotJobs();
+                    botJobListModel.clear();
+                    for (BotJobLoadDTO dto : performLists.getQuickBotJobs()) {
+                        botJobListModel.addElement(dto);
+                    }
+                }
+            } else {
+                performMessage.errorMessage("Select a Bot Job", "There is NOT a Job Selected", null, null, null, 0);
+            }
+        });
+
+        configureButton.addActionListener(e -> {
+            arConfigurationScene.initialize(viewBotJobListView, isEnabledLicence);
+            arConfigurationScene.showModal();
+
+            String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
+            try {
+                Connection conn = performDataBase.getConnection();
+                if (conn != null) {
+                    log.info(dataBaseType + " Database connected!");
+                }
+            } catch (Exception error) {
+                log.error(dataBaseType + " Database Connection failed : " + error.getMessage());
+            }
+
+            if (performDataBase.isConnDBWorks()) {
+                try {
+                    if (performLists.getQuickBotJobs().isEmpty()) {
+                        performDataBase.loadQuickBotJobs();
+                        botJobListModel.clear();
+                        for (BotJobLoadDTO dto : performLists.getQuickBotJobs()) {
+                            botJobListModel.addElement(dto);
+                        }
+                    }
+                } catch (Exception error) {
+                    throw new RuntimeException(error);
+                }
+            }
+        });
+
+        infoButton.addActionListener(e -> arInfoScene.showModal());
 
         exitButton.addActionListener(e -> closeWebDrivers());
+
+        editBotJobButton.addActionListener(e -> {
+            if (isEnabledLicence && !checkLicense()) {
+                return;
+            }
+
+            selecBotJobDTO = viewBotJobListView.getSelectedValue();
+
+            if (selecBotJobDTO != null) {
+                try {
+                    reloadList();
+
+                    Window parentWindow = SwingUtilities.getWindowAncestor(panelPane);
+                    Frame parentFrame = (parentWindow instanceof Frame) ? (Frame) parentWindow : null;
+
+                    arViewBotJobScene.initialize(arWebDriver, selecBotJobDTO, isEnabledLicence);
+                    arViewBotJobScene.showModal(parentFrame);
+
+                } catch (Exception e2) {
+                    JOptionPane.showMessageDialog(
+                            panelPane,
+                            "Error " + selecBotJobDTO.getName() + "  " + e2.getMessage(),
+                            "Warning",
+                            JOptionPane.WARNING_MESSAGE);
+                }
+            } else {
+                performMessage.errorMessage("Select a Bot Job", "There is NOT a Job Selected", null, null, null, 0);
+            }
+        });
+
+        launchBotJobButton.addActionListener(e -> {
+            if (isEnabledLicence && !checkLicense()) {
+                return;
+            }
+
+            BotJobLoadDTO selecBotJobDTO = viewBotJobListView.getSelectedValue();
+            if (selecBotJobDTO != null) {
+
+                if (!selecBotJobDTO.getPriority().equalsIgnoreCase("Web App")) {
+                    performMessage.errorMessage(
+                            "Mobile Bot Job Selected",
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Mobile Bot Jobs can only be executed from AR Mobile!</span>",
+                            "<span style='color: #2E7D32; font-weight: bold;'>Please run \"AR Mobile\" to launch the Bot Job tests.</span>",
+                            null,
+                            null,
+                            0);
+                    return;
+                }
+
+                String enginePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_ENGINE);
+                String excelPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
+                excelPath = excelPath + "\\" + selecBotJobDTO.getName() + ".xlsx";
+                if (!new File(excelPath).exists()) {
+                    performMessage.errorMessage(
+                            "Action Required: Prepare Excel Data",
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Crucial Step: Prepare Excel Data Before Launch!</span>",
+                            "<span style='color: #2E7D32; font-weight: bold;'>To successfully initiate the bot job, the Excel data file must be generated and compiled *first*.</span>",
+                            "<span style='font-style: italic;'>Ensure this preparation is complete before attempting to launch the automation process.</span>",
+                            null,
+                            0);
+
+                    return;
+                }
+
+                String version = System.getProperty("java.version");
+                log.info("Detected Java Version: " + version);
+
+                int majorVersion = getMajorJavaVersion(version);
+                if (majorVersion >= 17) {
+                    log.info("✅ Java 17 or higher is installed.");
+                } else {
+                    performMessage.errorMessage(
+                            "Compatibility Issue: Incompatible Java Version",
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: Your Java version is lower than the required 17!</span>",
+                            "<span style='color: #2E7D32; font-weight: bold;'>Attempting to execute the Engine with this older version may lead to unexpected behavior or failures.</span>",
+                            "<span style='font-style: italic;'>Please upgrade your Java installation to version 17 or higher for optimal performance and stability.</span>",
+                            null,
+                            0);
+                }
+                String webDriverPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
+                if (!(new File(webDriverPath)).exists()) {
+                    performMessage.errorMessage(
+                            "Action Required: Missing WebDriver",
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: The WebDriver file is missing!</span>",
+                            "<span style='color: #2E7D32; font-weight: bold;'>To execute automated browser interactions, the WebDriver is absolutely essential.</span>",
+                            "<span style='font-style: italic;'>Please download the correct WebDriver for your browser and ensure it is accessible by the application.</span>",
+                            null,
+                            0);
+                    return;
+                }
+
+                String[] command = new String[] {
+                        "cmd.exe",
+                        "/c",
+                        "java.exe",
+                        "-jar",
+                        "\"" + enginePath + "\"",
+                        "execute/j",
+                        String.valueOf(selecBotJobDTO.getHomeBankingLoadDTO().getId()),
+                        String.valueOf(selecBotJobDTO.getId()),
+                        String.valueOf(1), // block execution
+                        "\"" + excelPath + "\"",
+                        "-c",
+                        arPropertyManager.getConfigurationFileName()
+                };
+                ProcessBuilder processBuilder = new ProcessBuilder(command);
+                processBuilder.directory(new File(ARConstants.USER_PATH));
+                String logPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG);
+                File output = new File(logPath + "\\engine_debug_log_output.log");
+                File error = new File(logPath + "\\engine_debug_log_error.log");
+                File input = new File(logPath + "\\engine_debug_log_input.log");
+                List<File> files = new ArrayList<>();
+                files.add(output);
+                files.add(error);
+                files.add(input);
+                for (File file : files) {
+                    if (!file.exists()) {
+                        try {
+                            file.createNewFile();
+                        } catch (IOException ex) {
+                            log.info("Error : " + ex);
+                        }
+                    }
+                }
+                processBuilder.redirectOutput(output);
+                processBuilder.redirectError(error);
+                processBuilder.redirectInput(input);
+                try {
+                    processBuilder.start();
+                } catch (IOException ex) {
+                    log.info("Error : " + ex);
+                }
+            } else {
+                performMessage.errorMessage("Select a Bot Job", "There is NOT a Job Selected", null, null, null, 0);
+            }
+        });
     }
 
     private void closeWebDrivers() {
@@ -203,17 +503,34 @@ public class ARMainPane extends ARPane {
     }
 
     private void initHeader() {
-        header.setLayout(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        headerPanel = new JPanel();
+        headerPanel.setLayout(new BoxLayout(headerPanel, BoxLayout.X_AXIS));
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 20));
+
         JLabel nameLabel = new JLabel("Name");
+        nameLabel.setPreferredSize(new Dimension(150, 20));
+
         JLabel descriptionLabel = new JLabel("Description");
+        descriptionLabel.setPreferredSize(new Dimension(150, 20));
+
         JLabel environmentLabel = new JLabel("Organization");
+        environmentLabel.setPreferredSize(new Dimension(100, 20));
+
         JLabel statusLabel = new JLabel("Status");
+        statusLabel.setPreferredSize(new Dimension(50, 20));
+
         JLabel actionsLabel = new JLabel("Actions");
-        header.add(nameLabel);
-        header.add(descriptionLabel);
-        header.add(environmentLabel);
-        header.add(statusLabel);
-        header.add(actionsLabel);
+        actionsLabel.setPreferredSize(new Dimension(50, 20));
+
+        headerPanel.add(nameLabel);
+        headerPanel.add(Box.createHorizontalStrut(10));
+        headerPanel.add(descriptionLabel);
+        headerPanel.add(Box.createHorizontalStrut(10));
+        headerPanel.add(environmentLabel);
+        headerPanel.add(Box.createHorizontalStrut(10));
+        headerPanel.add(statusLabel);
+        headerPanel.add(Box.createHorizontalStrut(10));
+        headerPanel.add(actionsLabel);
     }
 
     public void setProperty(String propertyName, String value) {
@@ -223,5 +540,80 @@ public class ARMainPane extends ARPane {
     @Override
     public JPanel getPaneReference() {
         return panelPane;
+    }
+
+    private boolean checkLicense() {
+        try {
+            String licensePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_LICENSE);
+            if (Strings.isNullOrEmpty(licensePath)) {
+                licensePath = System.getProperty("user.dir");
+            }
+
+            LicenceVal licenseStatus = LicenseManager.checkLicenseFile(licensePath);
+
+            String msgValid = "The license file is valid and the application is authorized for use.";
+            String msgNextStep = "You can now proceed with normal application usage.";
+
+            String msgColor = "#0277BD";
+            if (!licenseStatus.equals(LicenceVal.VALID)) {
+                msgValid = "The license file is not valid and the application is not authorized for use.";
+                msgNextStep = "Application access is restricted. Please obtain a valid license to continue.";
+                msgColor = "#C62828";
+
+                performMessage.showCustomModalDialogDragWin11(
+                        "License Status Verification",
+                        "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>License status has been successfully verified.</span>",
+                        "<span style='color: " + msgColor + "; font-weight: bold;'>" + msgValid + "</span>",
+                        "<span style='font-style: italic;'>" + msgNextStep + "</span>",
+                        "<span style='color: #E65100; font-weight: bold;'>Current license status:</span> <span style='font-weight: bold;'>"
+                                + licenseStatus.getStaus() + "</span>",
+                        false,
+                        "OK",
+                        null,
+                        0);
+                return false;
+            }
+            return true;
+        } catch (Exception error) {
+            log.error("Cannot read/validate the License path/file. Error: " + error.getMessage());
+            return false;
+        }
+    }
+
+    private void reloadList() {
+        if (performLists.getListHomeUrl().isEmpty()) {
+            performDBEngine.loadHomeUrls(null);
+        }
+
+        if (performLists.getQuickBotJobs().isEmpty()) {
+            performDataBase.loadQuickBotJobs();
+        }
+
+        ErrorMessage errorMessage =
+                performDataBase.loadBlocks(selecBotJobDTO.getId(), selecBotJobDTO.getName(), "block");
+        if (errorMessage == null) {
+            performDataBase.loadBlocks(selecBotJobDTO.getHomeBankingId(), selecBotJobDTO.getName(), "component_block");
+        }
+
+        if (errorMessage != null) {
+            performMessage.errorMessageOperationFailed(errorMessage);
+        }
+
+        BotJobLoadDTO botJobLoad = performLists.getQuickBotJobById(selecBotJobDTO.getId());
+
+        if (botJobLoad != null && botJobLoad.getBlockLoadDTOList() == null) {
+            botJobLoad.setBlockLoadDTOList(performLists.getListBlock());
+        }
+
+        if (performLists.getListBlock().isEmpty()) {
+            errorMessage = performDataBase.initiateNewBlock(
+                    "block", selecBotJobDTO.getId(), "Default Block", "Default Block", 1, false);
+
+            if (errorMessage == null) {
+                log.info(String.format("A new Block was created for bot job Id %d", selecBotJobDTO.getId()));
+            } else {
+                performMessage.errorMessageOperationFailed(errorMessage);
+            }
+        }
     }
 }
