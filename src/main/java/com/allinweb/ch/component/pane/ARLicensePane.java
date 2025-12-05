@@ -337,7 +337,7 @@ public class ARLicensePane extends ARPane {
                             if (!Strings.isNullOrEmpty(filePathField.getText().trim())) {
                                 fileFolder = filePathField.getText().trim();
                             } else {
-                                fileFolder += "\\ARWeb 1.1.0.response";
+                                fileFolder += "/ARWeb 1.1.0.response";
                             }
 
                             if (LicenseManager.importResponseFile(fileFolder)) {

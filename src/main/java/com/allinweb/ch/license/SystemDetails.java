@@ -26,9 +26,14 @@ public class SystemDetails {
             String domainName = System.getenv("USERDOMAIN");
             if (domainName == null || domainName.isEmpty()) {
                 // Linux fallback
+
                 domainName = System.getenv("DOMAIN"); // sometimes set
                 if (domainName == null) {
+                    domainName = SystemDetails.getSystemDomainName();
+
+                    if (domainName == null) {
                     domainName = "local"; // default if no domain
+                    }
                 }
             }
 
