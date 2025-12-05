@@ -154,9 +154,9 @@ public class LicenseManager {
         arPropertyManager.setProperty(ARPropertyEnum.EXPIRATION.getValue(), formatted);
 
         if (LocalDate.now().isAfter(expiryDate)) return LicenceVal.EXPIRED;        // date has expired
-        if (!SystemDetails.getSystemComputerName().equals(pcID)) return LicenceVal.PCNOTMATCH;
-        if (!SystemDetails.getSystemDomainName().equals(domainName)) return LicenceVal.DOMAINNOTMATCH;
-        if (!SystemDetails.getSystemUserName().equals(userName)) return LicenceVal.USRNOTMATCH;
+        if (!SystemDetails.getSystemComputerName().equalsIgnoreCase(pcID)) return LicenceVal.PCNOTMATCH;
+        if (!SystemDetails.getSystemDomainName().equalsIgnoreCase(domainName)) return LicenceVal.DOMAINNOTMATCH;
+        if (!SystemDetails.getSystemUserName().equalsIgnoreCase(userName)) return LicenceVal.USRNOTMATCH;
 
         return LicenceVal.VALID; // License is valid
     }
