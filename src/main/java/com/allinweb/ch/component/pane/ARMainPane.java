@@ -22,7 +22,6 @@ import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
 import java.awt.BorderLayout;
-import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Frame;
 import java.awt.Insets;
@@ -443,18 +442,18 @@ public class ARMainPane extends ARPane {
                 }
 
                 String[] command = new String[] {
-                        "cmd.exe",
-                        "/c",
-                        "java.exe",
-                        "-jar",
-                        "\"" + enginePath + "\"",
-                        "execute/j",
-                        String.valueOf(selecBotJobDTO.getHomeBankingLoadDTO().getId()),
-                        String.valueOf(selecBotJobDTO.getId()),
-                        String.valueOf(1), // block execution
-                        "\"" + excelPath + "\"",
-                        "-c",
-                        arPropertyManager.getConfigurationFileName()
+                    "cmd.exe",
+                    "/c",
+                    "java.exe",
+                    "-jar",
+                    "\"" + enginePath + "\"",
+                    "execute/j",
+                    String.valueOf(selecBotJobDTO.getHomeBankingLoadDTO().getId()),
+                    String.valueOf(selecBotJobDTO.getId()),
+                    String.valueOf(1), // block execution
+                    "\"" + excelPath + "\"",
+                    "-c",
+                    arPropertyManager.getConfigurationFileName()
                 };
                 ProcessBuilder processBuilder = new ProcessBuilder(command);
                 processBuilder.directory(new File(ARConstants.USER_PATH));

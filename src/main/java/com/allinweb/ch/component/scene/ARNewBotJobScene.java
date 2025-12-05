@@ -5,12 +5,11 @@ import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.driver.ARWebDriver;
 import java.awt.Dialog;
+import java.awt.Frame;
 import java.awt.Window;
 import java.util.List;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
-import javax.swing.JFrame;
-import javax.swing.SwingUtilities;
 import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.WebDriver;
 
@@ -85,16 +84,16 @@ public class ARNewBotJobScene extends ARScene {
     /**
      * Swing version of showModal.
      *
-     * @param parentFrame The parent JFrame for modality/centering (can be null).
+     * @param parentFrame The parent Frame for modality/centering (can be null).
      */
-    public void showModal(JFrame parentFrame) {
+    public void showModal(Frame parentFrame) {
 
         // Initialize pane with dependencies
         arNewBotJobPane.initialize(arViewBotJobScene, arWebDriver, isEnabledLicence);
 
         if (modalDialog == null) {
-            // Determine owner window (if parentFrame is null, we'll let Swing decide)
-            Window owner = parentFrame != null ? parentFrame : SwingUtilities.getWindowAncestor(parentFrame);
+            // Owner is simply the frame we received (can be null)
+            Window owner = parentFrame;
 
             modalDialog = new JDialog(owner, getTitle(), Dialog.ModalityType.APPLICATION_MODAL);
 
@@ -108,20 +107,28 @@ public class ARNewBotJobScene extends ARScene {
                 JComponent content = pane.createPane();
                 modalDialog.setContentPane(content);
                 modalDialog.setSize(getSceneWidth(), getSceneHeight());
-                modalDialog.setLocationRelativeTo(parentFrame);
+
+                // Center relative to parent frame if available
+                if (parentFrame != null) {
+                    modalDialog.setLocationRelativeTo(parentFrame);
+                } else {
+                    // Fallback: center on screen
+                    modalDialog.setLocationRelativeTo(null);
+                }
             } else {
-                // Handle the case where pane creation failed
                 log.error("Failed to build pane for modal.");
                 return;
             }
         }
 
-        // Update title if it might have changed
         modalDialog.setTitle(getTitle());
 
-        // Show dialog (modal); if already visible, just bring to front
         if (!modalDialog.isVisible()) {
-            modalDialog.setLocationRelativeTo(parentFrame);
+            if (parentFrame != null) {
+                modalDialog.setLocationRelativeTo(parentFrame);
+            } else {
+                modalDialog.setLocationRelativeTo(null);
+            }
             modalDialog.setVisible(true);
         } else {
             modalDialog.toFront();

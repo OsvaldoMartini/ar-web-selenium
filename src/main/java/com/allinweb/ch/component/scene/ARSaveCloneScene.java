@@ -48,9 +48,7 @@ public class ARSaveCloneScene extends ARScene {
      * Swing version: receives DefaultListModel instead of List<BotJobLoadDTO>
      */
     public void initialize(
-            BotJobLoadDTO selecBotJobDTO,
-            DefaultListModel<BotJobLoadDTO> botJobListModel,
-            boolean isEnabledLicence) {
+            BotJobLoadDTO selecBotJobDTO, DefaultListModel<BotJobLoadDTO> botJobListModel, boolean isEnabledLicence) {
 
         this.isEnabledLicence = isEnabledLicence;
         this.selecBotJobDTO = selecBotJobDTO;
