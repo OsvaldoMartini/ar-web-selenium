@@ -4,10 +4,8 @@ import com.allinweb.ch.component.pane.ARSaveClonePane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.model.BotJobLoadDTO;
-import java.awt.Dialog;
-import java.awt.Window;
-import java.util.List;
-import javax.swing.JComponent;
+import java.awt.Frame;
+import javax.swing.DefaultListModel;
 import javax.swing.JDialog;
 import javax.swing.SwingUtilities;
 import lombok.extern.slf4j.Slf4j;
@@ -28,7 +26,7 @@ public class ARSaveCloneScene extends ARScene {
     private JDialog modalDialog;
     private boolean isEnabledLicence;
     private BotJobLoadDTO selecBotJobDTO;
-    private List<BotJobLoadDTO> botJobList;
+    private DefaultListModel<BotJobLoadDTO> botJobListModel;
 
     // Private constructor to prevent instantiation
     private ARSaveCloneScene() {
@@ -46,15 +44,21 @@ public class ARSaveCloneScene extends ARScene {
         return instance;
     }
 
-    public void initialize(BotJobLoadDTO selecBotJobDTO, List<BotJobLoadDTO> botJobList, boolean isEnabledLicence) {
+    /**
+     * Swing version: receives DefaultListModel instead of List<BotJobLoadDTO>
+     */
+    public void initialize(
+            BotJobLoadDTO selecBotJobDTO,
+            DefaultListModel<BotJobLoadDTO> botJobListModel,
+            boolean isEnabledLicence) {
+
         this.isEnabledLicence = isEnabledLicence;
         this.selecBotJobDTO = selecBotJobDTO;
-        this.botJobList = botJobList;
+        this.botJobListModel = botJobListModel;
     }
 
     @Override
     public IARPane buildPane() {
-        // arSaveClonePane.initialize(selecBotJobDTO, botJobList, isEnabledLicence);
         return arSaveClonePane;
     }
 
@@ -74,39 +78,30 @@ public class ARSaveCloneScene extends ARScene {
     }
 
     /**
-     * Swing replacement for the old JavaFX showModal(Stage primaryStage).
-     * Pass the owning Swing window as "owner".
+     * Swing modal dialog instead of JavaFX Stage.
      */
-    public void showModal(Window owner) {
+    public void showModal(Frame parent) {
 
-        arSaveClonePane.initialize(selecBotJobDTO, botJobList, isEnabledLicence);
+        // Initialize pane with current context (note: ARSaveClonePane must be updated accordingly)
+        arSaveClonePane.initialize(selecBotJobDTO, botJobListModel, isEnabledLicence);
 
-        SwingUtilities.invokeLater(() -> {
-            if (modalDialog == null) {
-                modalDialog = new JDialog(owner, getTitle(), Dialog.ModalityType.APPLICATION_MODAL);
-                modalDialog.setSize(getSceneWidth(), getSceneHeight());
-                modalDialog.setLocationRelativeTo(owner);
+        if (modalDialog == null) {
+            modalDialog = new JDialog(parent, getTitle(), true);
+            modalDialog.setSize(getSceneWidth(), getSceneHeight());
+            modalDialog.setAlwaysOnTop(true);
+            modalDialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
 
-                if (icon != null) {
-                    modalDialog.setIconImage(icon);
-                }
-
-                IARPane pane = buildPane();
-                if (pane != null) {
-                    JComponent content = (JComponent) pane.createPane();
-                    modalDialog.setContentPane(content);
-                } else {
-                    // Handle the case where pane creation failed
-                    log.error("Failed to build pane for modal.");
-                    return;
-                }
+            IARPane pane = buildPane();
+            if (pane != null) {
+                modalDialog.setContentPane(pane.createPane());
+            } else {
+                log.error("Failed to build pane for modal.");
+                return;
             }
+        }
 
-            modalDialog.setTitle(getTitle()); // Update title if it might have changed
+        modalDialog.setTitle(getTitle());
 
-            if (!modalDialog.isVisible()) {
-                modalDialog.setVisible(true); // blocks until closed
-            }
-        });
+        SwingUtilities.invokeLater(() -> modalDialog.setVisible(true));
     }
 }
