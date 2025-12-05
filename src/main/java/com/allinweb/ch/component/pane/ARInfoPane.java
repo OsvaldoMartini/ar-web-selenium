@@ -11,7 +11,6 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import javax.swing.JButton;
-import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
@@ -61,7 +60,7 @@ public class ARInfoPane extends ARPane {
     }
 
     @Override
-    public JComponent getPaneReference() {
+    public JPanel getPaneReference() {
         return mainPane;
     }
 

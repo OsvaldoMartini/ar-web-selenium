@@ -1,6 +1,5 @@
 package com.allinweb.ch.component.pane;
 
-import com.allinweb.ch.component.listCell.BotJobListCell;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.*;
 import com.allinweb.ch.control.ARComponentBuilder;

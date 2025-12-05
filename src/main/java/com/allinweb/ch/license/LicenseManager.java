@@ -4,10 +4,12 @@ import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
-import com.sun.jna.Native;
 import com.sun.jna.Pointer;
+import com.sun.jna.platform.win32.COM.COMUtils;
 import com.sun.jna.platform.win32.KnownFolders;
+import com.sun.jna.platform.win32.Ole32;
 import com.sun.jna.platform.win32.Shell32;
+import com.sun.jna.platform.win32.WinNT;
 import com.sun.jna.ptr.PointerByReference;
 import java.io.File;
 import java.io.FileWriter;
@@ -172,14 +174,12 @@ public class LicenseManager {
     }
 
     public String genereteResponseFile(String decryptedContent, int numDays) {
-        // Suppose the decrypted content is formatted as "PCID|expiryDate" (e.g., "PC12345|2025-12-31")
         try {
             String[] parts = decryptedContent.split("\\|");
 
             String pcID = parts[1];
             String domainName = parts[2];
             String userName = parts[3];
-            // LocalDate expiryDate = LocalDate.parse(parts[4], DateTimeFormatter.ISO_LOCAL_DATE);
 
             LocalDate expiryDate = LocalDate.parse(parts[4], DateTimeFormatter.ISO_LOCAL_DATE);
             expiryDate = expiryDate.plusDays(numDays);
@@ -188,14 +188,18 @@ public class LicenseManager {
 
             // Use SHGetKnownFolderPath to get Desktop path
             PointerByReference ppszPath = new PointerByReference();
-            if (Shell32.INSTANCE.SHGetKnownFolderPath(KnownFolders.FOLDERID_Desktop, 0, null, ppszPath) != 0) {
+            WinNT.HRESULT hr = Shell32.INSTANCE.SHGetKnownFolderPath(KnownFolders.FOLDERID_Desktop, 0, null, ppszPath);
 
-                throw new IOException("Failed to get desktop directory.");
+            if (COMUtils.FAILED(hr)) {
+                throw new IOException("Failed to get desktop directory. HRESULT=" + hr.intValue());
             }
 
             // Convert pointer to string
-            String desktopPath = ppszPath.getValue().getWideString(0);
-            Native.free(Pointer.nativeValue(ppszPath.getValue()));
+            Pointer pPath = ppszPath.getValue();
+            String desktopPath = pPath.getWideString(0);
+
+            // Free memory allocated by SHGetKnownFolderPath
+            Ole32.INSTANCE.CoTaskMemFree(pPath);
 
             // Create the file in the desktop directory
             File newFile = new File(desktopPath, "ARWeb 1.1.0.response");
@@ -218,6 +222,7 @@ public class LicenseManager {
             }
 
         } catch (Exception error) {
+            log.error("Error generating response file", error);
             performMessage.errorMessage(
                     "Error generating Response  file!",
                     "Please verify that you have permission to read/write to the Desktop.",

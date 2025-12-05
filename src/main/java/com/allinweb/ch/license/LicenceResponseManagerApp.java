@@ -2,10 +2,12 @@ package com.allinweb.ch.license;
 
 import com.allinweb.ch.facade.PerformMessage;
 import com.google.common.base.Strings;
-import com.sun.jna.Native;
 import com.sun.jna.Pointer;
+import com.sun.jna.platform.win32.COM.COMUtils;
 import com.sun.jna.platform.win32.KnownFolders;
+import com.sun.jna.platform.win32.Ole32;
 import com.sun.jna.platform.win32.Shell32;
+import com.sun.jna.platform.win32.WinNT;
 import com.sun.jna.ptr.PointerByReference;
 import java.awt.*;
 import java.io.File;
@@ -66,11 +68,18 @@ public class LicenceResponseManagerApp {
             // Set initial directory to Desktop
             try {
                 PointerByReference ppszPath = new PointerByReference();
-                if (Shell32.INSTANCE.SHGetKnownFolderPath(KnownFolders.FOLDERID_Desktop, 0, null, ppszPath) == 0) {
+                WinNT.HRESULT hr =
+                        Shell32.INSTANCE.SHGetKnownFolderPath(KnownFolders.FOLDERID_Desktop, 0, null, ppszPath);
 
-                    String desktopPath = ppszPath.getValue().getWideString(0);
-                    Native.free(Pointer.nativeValue(ppszPath.getValue()));
+                if (!COMUtils.FAILED(hr)) { // success
+                    Pointer pPath = ppszPath.getValue();
+                    String desktopPath = pPath.getWideString(0);
+                    Ole32.INSTANCE.CoTaskMemFree(pPath);
+
                     fileChooser.setCurrentDirectory(new File(desktopPath));
+                } else {
+                    // optional: log or ignore, JFileChooser will just use default dir
+                    // log.warn("Failed to get Desktop folder. HRESULT=" + hr.intValue());
                 }
             } catch (Exception ex) {
                 ex.printStackTrace();

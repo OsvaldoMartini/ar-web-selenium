@@ -1,10 +1,12 @@
 package com.allinweb.ch.license;
 
 import com.allinweb.ch.facade.PerformMessage;
-import com.sun.jna.Native;
 import com.sun.jna.Pointer;
+import com.sun.jna.platform.win32.COM.COMUtils;
 import com.sun.jna.platform.win32.KnownFolders;
+import com.sun.jna.platform.win32.Ole32;
 import com.sun.jna.platform.win32.Shell32;
+import com.sun.jna.platform.win32.WinNT;
 import com.sun.jna.ptr.PointerByReference;
 import java.awt.*;
 import java.io.IOException;
@@ -48,14 +50,22 @@ public class LicenseActivationApp {
      */
     private static String getDesktopDir() throws IOException {
         PointerByReference ppszPath = new PointerByReference();
-        if (Shell32.INSTANCE.SHGetKnownFolderPath(KnownFolders.FOLDERID_Desktop, 0, null, ppszPath) != 0) {
 
-            log.warn("Error reading/writing to the file! -> Desktop Folder");
+        // SHGetKnownFolderPath now returns an HRESULT, not an int
+        WinNT.HRESULT hr = Shell32.INSTANCE.SHGetKnownFolderPath(KnownFolders.FOLDERID_Desktop, 0, null, ppszPath);
+
+        if (COMUtils.FAILED(hr)) {
+            log.warn("Error reading/writing to the Desktop Folder. HRESULT=" + hr.intValue());
             return null;
         }
 
-        String desktopPath = ppszPath.getValue().getWideString(0);
-        Native.free(Pointer.nativeValue(ppszPath.getValue()));
+        // Read the resulting path
+        Pointer pPath = ppszPath.getValue();
+        String desktopPath = pPath.getWideString(0);
+
+        // MUST free using CoTaskMemFree
+        Ole32.INSTANCE.CoTaskMemFree(pPath);
+
         return desktopPath;
     }
 

@@ -16,7 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ARSaveComponentScene extends ARScene {
 
     private static final int SCENE_HEIGHT = 250;
-    private static final int SCENE_WIDTH = 600D;
+    private static final int SCENE_WIDTH = 600;
     protected static volatile ARSaveComponentScene instance;
     private static ARSaveComponentPane arSaveComponentPane = ARSaveComponentPane.getInstance();
     private static String TITLE = "Move Block";

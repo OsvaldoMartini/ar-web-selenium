@@ -1,6 +1,7 @@
 package com.allinweb.ch.component.scene;
 
 // import com.allinweb.ch.component.pane.ARNewHomeBankingPane;
+import com.allinweb.ch.component.pane.ARNewHomeBankingPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.facade.PerformLists;
@@ -14,7 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ARNewHomeBankingScene extends ARScene {
 
     private static final PerformLists performLists = PerformLists.getInstance();
-    //    private static final ARNewHomeBankingPane arNewHomeBankingPane = ARNewHomeBankingPane.getInstance();
+    private static final ARNewHomeBankingPane arNewHomeBankingPane = ARNewHomeBankingPane.getInstance();
     private static final int SCENE_HEIGHT = 750;
     private static final int SCENE_WIDTH = 1200;
     private static final String TITLE = "New Organization";
@@ -44,9 +45,9 @@ public class ARNewHomeBankingScene extends ARScene {
     public void initialize(HomeBankingLoadDTO homeBank) {
         ARNewHomeBankingScene.homeBank = homeBank;
 
-        //        if (!isNullOrEmpty(performLists.getListHomeBanking())) {
-        //            arNewHomeBankingPane.updateTableBankingView();
-        //        }
+        if (!isNullOrEmpty(performLists.getListHomeBanking())) {
+            arNewHomeBankingPane.updateTableBankingView();
+        }
     }
 
     private boolean isNullOrEmpty(List<?> list) {
@@ -60,7 +61,7 @@ public class ARNewHomeBankingScene extends ARScene {
      */
     public void showModal(Window parentWindow) {
 
-        //        arNewHomeBankingPane.initialize(homeBank);
+        arNewHomeBankingPane.initialize(homeBank);
 
         if (modalDialog == null) {
             // Fallback owner if null

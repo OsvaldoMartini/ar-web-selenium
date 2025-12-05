@@ -388,13 +388,14 @@ public class ARNewBotJobPane extends ARPane {
 
             arViewBotJobScene.initialize(arWebDriver, createdBotJob, isEnabledLicence);
 
-            Window parent = SwingUtilities.getWindowAncestor(mainPane);
-            arViewBotJobScene.showModal(parent);
+            Window parentWindow = SwingUtilities.getWindowAncestor(mainPane);
+            Frame parentFrame = (parentWindow instanceof Frame) ? (Frame) parentWindow : null;
+            arViewBotJobScene.showModal(parentFrame);
 
             log.info("Success creating new Bot Job ID: {}", newBotJobId);
 
-            if (parent != null) {
-                parent.dispose();
+            if (parentWindow != null) {
+                parentWindow.dispose();
             }
         } else {
             log.error("Error creating BotJobDTO. Check the Block Creation!");

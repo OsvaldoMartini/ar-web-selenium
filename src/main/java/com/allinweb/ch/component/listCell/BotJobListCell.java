@@ -8,8 +8,6 @@ import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ErrorMessage;
 import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 
@@ -82,16 +80,8 @@ public class BotJobListCell extends JPanel implements ListCellRenderer<BotJobLoa
             setForeground(list.getForeground());
         }
 
-        // Double click listener for opening bot job scene
-        addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                if (e.getClickCount() == 2) {
-                    arViewBotJobScene.initialize(arWebDriver, value, isEnabledLicence);
-                    arViewBotJobScene.showModal();
-                }
-            }
-        });
+        // ⚠️ Double-click handling is intentionally NOT here anymore.
+        // Add a MouseListener on the JList itself where you create it.
 
         return this;
     }
