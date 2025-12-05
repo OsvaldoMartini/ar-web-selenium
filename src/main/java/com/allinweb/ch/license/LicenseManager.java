@@ -4,13 +4,7 @@ import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
-import com.sun.jna.Pointer;
-import com.sun.jna.platform.win32.COM.COMUtils;
-import com.sun.jna.platform.win32.KnownFolders;
-import com.sun.jna.platform.win32.Ole32;
-import com.sun.jna.platform.win32.Shell32;
-import com.sun.jna.platform.win32.WinNT;
-import com.sun.jna.ptr.PointerByReference;
+
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -23,6 +17,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
+import javax.swing.filechooser.FileSystemView;
+
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -39,9 +35,7 @@ public class LicenseManager {
     public static void generateRequestFile(String fileFolder, String ownerLicence) throws Exception {
         String encryptedRequest = encrypt(ownerLicence + "|" + SystemDetails.getSystemDetails(), KEY);
         String fileName = "ARWeb 1.1.0.request";
-        File newFile;
-
-        newFile = new File(fileFolder, fileName);
+        File newFile = new File(fileFolder, fileName);
 
         // Write the encrypted data to the file
         try (FileWriter writer = new FileWriter(newFile)) {
@@ -49,24 +43,11 @@ public class LicenseManager {
             log.info("File saved to: " + newFile.getAbsolutePath());
         } catch (IOException error) {
             log.warn("Error reading/writing to the file: " + error.getMessage());
-            //            performMessage.errorMessage(
-            //                    "Error reading/writing to the file!",
-            //                    "<span style='font-style: italic;'>Please ensure the application has the necessary
-            // write permissions for the specified directory</span>",
-            //                    "<span style='color: #E65100; font-weight: bold;'>Attempted to read/write:</span>
-            // <span style='font-weight: bold;'>"
-            //                            + fileFolder + "</span>",
-            //                    "<span style='color: #E65100; font-weight: bold;'>File name:</span> <span
-            // style='color: #6A1B9A; font-weight: bold;'>"
-            //                            + fileName + "</span>",
-            //                    "<span style='font-style: italic;'>Details: " + "error.getMessage()" + "</span>",
-            //                    0);
+            // You already handle errors from the caller UI
         }
     }
 
     public static boolean importResponseFile(String filePath) throws Exception {
-        // Use SHGetKnownFolderPath to get Desktop path
-        String desktopPath;
         File responseFile = new File(filePath);
 
         if (responseFile.exists()) {
@@ -85,8 +66,10 @@ public class LicenseManager {
             licensePath = System.getProperty("user.dir");
         }
 
-        licensePath += "\\ARWeb.lic";
-        Files.writeString(Paths.get(licensePath), encrypt(data, KEY));
+        // Cross-platform path
+        Path licPath = Paths.get(licensePath, "ARWeb.lic");
+        Files.writeString(licPath, encrypt(data, KEY));
+        log.info("License file written to: {}", licPath.toAbsolutePath());
     }
 
     public static String encrypt(String data, String key) throws Exception {
@@ -99,14 +82,13 @@ public class LicenseManager {
 
     public static String decrypt(String encryptedData, String key) throws Exception {
         try {
-
             Key aesKey = new SecretKeySpec(key.getBytes(), "AES");
             Cipher cipher = Cipher.getInstance("AES");
             cipher.init(Cipher.DECRYPT_MODE, aesKey);
             byte[] decrypted = cipher.doFinal(Base64.getDecoder().decode(encryptedData));
             return new String(decrypted);
         } catch (Exception error) {
-            log.error("An error occurred while decrypting the license file.");
+            log.error("An error occurred while decrypting the license file.", error);
             performMessage.errorMessage(
                     "An error occurred while decrypting the license file.",
                     "File Name:",
@@ -119,7 +101,8 @@ public class LicenseManager {
     }
 
     public static LicenceVal checkLicenseFile(String licensePath) throws Exception {
-        Path licPath = Paths.get(licensePath + "/ARWeb.lic");
+        // licensePath is the folder; file is ARWeb.lic inside it
+        Path licPath = Paths.get(licensePath, "ARWeb.lic");
         if (!Files.exists(licPath)) {
             return LicenceVal.MISSING; // File is absent
         } else {
@@ -132,11 +115,16 @@ public class LicenseManager {
     public static String getDecryptedResponseFile(String requestFile) throws Exception {
         Path licPath = Paths.get(requestFile);
 
-        String fileName = licPath.getFileName().toString(); //
+        String fileName = licPath.getFileName().toString();
 
         if (!fileName.endsWith(".request")) {
             performMessage.errorMessage(
-                    "Invalid file selected!", "Must have a '.request' extension.", "File selected:", fileName, null, 0);
+                    "Invalid file selected!",
+                    "Must have a '.request' extension.",
+                    "File selected:",
+                    fileName,
+                    null,
+                    0);
             return "Invalid file selected";
         }
 
@@ -150,11 +138,13 @@ public class LicenseManager {
     }
 
     private static LicenceVal validateLicense(String decryptedContent) {
-        // Suppose the decrypted content is formatted as "PCID|expiryDate" (e.g., "PC12345|2025-12-31")
+        if (decryptedContent == null) {
+            return LicenceVal.MISSING;
+        }
+
+        // Suppose the decrypted content is formatted as "PCID|domain|userName|expiryDate"
         String[] parts = decryptedContent.split("\\|");
         if (parts.length != 4) return LicenceVal.MISSING; // Invalid data format
-
-        //        log.info("License:" + parts);
 
         String pcID = parts[0];
         String domainName = parts[1];
@@ -163,14 +153,36 @@ public class LicenseManager {
         String formatted = expiryDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
         arPropertyManager.setProperty(ARPropertyEnum.EXPIRATION.getValue(), formatted);
 
-        // log.info(" expiryDate is " + expiryDate);
-        // Check if the PC ID matches and the current date is before the expiry date
-        if (LocalDate.now().isAfter(expiryDate)) return LicenceVal.EXPIRED; // date has expired
-
+        if (LocalDate.now().isAfter(expiryDate)) return LicenceVal.EXPIRED;        // date has expired
         if (!SystemDetails.getSystemComputerName().equals(pcID)) return LicenceVal.PCNOTMATCH;
         if (!SystemDetails.getSystemDomainName().equals(domainName)) return LicenceVal.DOMAINNOTMATCH;
-        if (!SystemDetails.getSystemUserName().equals(userName)) return LicenceVal.USRNOTMATCH; // PC ID does not match
+        if (!SystemDetails.getSystemUserName().equals(userName)) return LicenceVal.USRNOTMATCH;
+
         return LicenceVal.VALID; // License is valid
+    }
+
+    /**
+     * Cross-platform Desktop directory resolution.
+     * Tries <user.home>/Desktop, then OS home dir, finally current working dir.
+     */
+    private static String getDesktopDir() {
+        // 1) Try <user.home>/Desktop
+        String userHome = System.getProperty("user.home");
+        if (userHome != null) {
+            File desktop = new File(userHome, "Desktop");
+            if (desktop.exists() && desktop.isDirectory()) {
+                return desktop.getAbsolutePath();
+            }
+        }
+
+        // 2) Fallback: OS "home" / user root via FileSystemView
+        File home = FileSystemView.getFileSystemView().getHomeDirectory();
+        if (home != null && home.exists()) {
+            return home.getAbsolutePath();
+        }
+
+        // 3) Final fallback: current working directory
+        return System.getProperty("user.dir");
     }
 
     public String genereteResponseFile(String decryptedContent, int numDays) {
@@ -186,25 +198,10 @@ public class LicenseManager {
 
             String encryptedResponse = encrypt(pcID + "|" + domainName + "|" + userName + "|" + expiryDate, KEY);
 
-            // Use SHGetKnownFolderPath to get Desktop path
-            PointerByReference ppszPath = new PointerByReference();
-            WinNT.HRESULT hr = Shell32.INSTANCE.SHGetKnownFolderPath(KnownFolders.FOLDERID_Desktop, 0, null, ppszPath);
-
-            if (COMUtils.FAILED(hr)) {
-                throw new IOException("Failed to get desktop directory. HRESULT=" + hr.intValue());
-            }
-
-            // Convert pointer to string
-            Pointer pPath = ppszPath.getValue();
-            String desktopPath = pPath.getWideString(0);
-
-            // Free memory allocated by SHGetKnownFolderPath
-            Ole32.INSTANCE.CoTaskMemFree(pPath);
-
-            // Create the file in the desktop directory
+            // Cross-platform: write response file to Desktop / home / working dir
+            String desktopPath = getDesktopDir();
             File newFile = new File(desktopPath, "ARWeb 1.1.0.response");
 
-            // Write the encrypted data to the file
             try (FileWriter writer = new FileWriter(newFile)) {
                 writer.write(encryptedResponse);
                 log.info("File saved to: " + newFile.getAbsolutePath());
@@ -215,7 +212,7 @@ public class LicenseManager {
                         "Error writing to the file!",
                         "File Name:",
                         "ARWeb 1.1.0.response",
-                        "Please verify that you have permission to read/write to the Desktop.",
+                        "Please verify that you have permission to read/write to the Desktop or selected folder.",
                         null,
                         0);
                 return "Denied permission to read/write";
@@ -225,7 +222,7 @@ public class LicenseManager {
             log.error("Error generating response file", error);
             performMessage.errorMessage(
                     "Error generating Response  file!",
-                    "Please verify that you have permission to read/write to the Desktop.",
+                    "Please verify that you have permission to read/write to the Desktop or selected folder.",
                     "Please verify if the file is corrupted or tampered.",
                     null,
                     null,

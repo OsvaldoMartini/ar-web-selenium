@@ -1,16 +1,10 @@
 package com.allinweb.ch.license;
 
 import com.allinweb.ch.facade.PerformMessage;
-import com.sun.jna.Pointer;
-import com.sun.jna.platform.win32.COM.COMUtils;
-import com.sun.jna.platform.win32.KnownFolders;
-import com.sun.jna.platform.win32.Ole32;
-import com.sun.jna.platform.win32.Shell32;
-import com.sun.jna.platform.win32.WinNT;
-import com.sun.jna.ptr.PointerByReference;
 import java.awt.*;
-import java.io.IOException;
+import java.io.File;
 import javax.swing.*;
+import javax.swing.filechooser.FileSystemView;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -46,27 +40,27 @@ public class LicenseActivationApp {
     }
 
     /**
-     * Windows Desktop directory via JNA (unchanged logic, only used in Swing now).
+     * Cross-platform Desktop directory resolution.
+     * Tries <user.home>/Desktop, then OS home dir, finally current working dir.
      */
-    private static String getDesktopDir() throws IOException {
-        PointerByReference ppszPath = new PointerByReference();
-
-        // SHGetKnownFolderPath now returns an HRESULT, not an int
-        WinNT.HRESULT hr = Shell32.INSTANCE.SHGetKnownFolderPath(KnownFolders.FOLDERID_Desktop, 0, null, ppszPath);
-
-        if (COMUtils.FAILED(hr)) {
-            log.warn("Error reading/writing to the Desktop Folder. HRESULT=" + hr.intValue());
-            return null;
+    private static String getDesktopDir() {
+        // 1) Try <user.home>/Desktop
+        String userHome = System.getProperty("user.home");
+        if (userHome != null) {
+            File desktop = new File(userHome, "Desktop");
+            if (desktop.exists() && desktop.isDirectory()) {
+                return desktop.getAbsolutePath();
+            }
         }
 
-        // Read the resulting path
-        Pointer pPath = ppszPath.getValue();
-        String desktopPath = pPath.getWideString(0);
+        // 2) Fallback: OS "home" / user root via FileSystemView
+        File home = FileSystemView.getFileSystemView().getHomeDirectory();
+        if (home != null && home.exists()) {
+            return home.getAbsolutePath();
+        }
 
-        // MUST free using CoTaskMemFree
-        Ole32.INSTANCE.CoTaskMemFree(pPath);
-
-        return desktopPath;
+        // 3) Final fallback: current working directory
+        return System.getProperty("user.dir");
     }
 
     /**

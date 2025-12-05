@@ -2,17 +2,12 @@ package com.allinweb.ch.license;
 
 import com.allinweb.ch.facade.PerformMessage;
 import com.google.common.base.Strings;
-import com.sun.jna.Pointer;
-import com.sun.jna.platform.win32.COM.COMUtils;
-import com.sun.jna.platform.win32.KnownFolders;
-import com.sun.jna.platform.win32.Ole32;
-import com.sun.jna.platform.win32.Shell32;
-import com.sun.jna.platform.win32.WinNT;
-import com.sun.jna.ptr.PointerByReference;
+
 import java.awt.*;
 import java.io.File;
 import java.text.NumberFormat;
 import javax.swing.*;
+import javax.swing.filechooser.FileSystemView;
 import javax.swing.text.NumberFormatter;
 
 public class LicenceResponseManagerApp {
@@ -65,24 +60,15 @@ public class LicenceResponseManagerApp {
             JFileChooser fileChooser = new JFileChooser();
             fileChooser.setDialogTitle("Open Request AR Web File");
 
-            // Set initial directory to Desktop
+            // Cross-platform: try Desktop, then home directory
             try {
-                PointerByReference ppszPath = new PointerByReference();
-                WinNT.HRESULT hr =
-                        Shell32.INSTANCE.SHGetKnownFolderPath(KnownFolders.FOLDERID_Desktop, 0, null, ppszPath);
-
-                if (!COMUtils.FAILED(hr)) { // success
-                    Pointer pPath = ppszPath.getValue();
-                    String desktopPath = pPath.getWideString(0);
-                    Ole32.INSTANCE.CoTaskMemFree(pPath);
-
-                    fileChooser.setCurrentDirectory(new File(desktopPath));
-                } else {
-                    // optional: log or ignore, JFileChooser will just use default dir
-                    // log.warn("Failed to get Desktop folder. HRESULT=" + hr.intValue());
+                File desktop = getDesktopDirectory();
+                if (desktop != null && desktop.exists()) {
+                    fileChooser.setCurrentDirectory(desktop);
                 }
             } catch (Exception ex) {
                 ex.printStackTrace();
+                // If this fails, JFileChooser will use its default directory
             }
 
             int result = fileChooser.showOpenDialog(frame);
@@ -173,5 +159,26 @@ public class LicenceResponseManagerApp {
         frame.add(grid, BorderLayout.CENTER);
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
+    }
+
+    // ---- Helper: cross-platform Desktop directory -------------------------
+    private static File getDesktopDirectory() {
+        // 1) Try <user.home>/Desktop (common on Windows, Linux, macOS)
+        String userHome = System.getProperty("user.home");
+        if (userHome != null) {
+            File desktop = new File(userHome, "Desktop");
+            if (desktop.exists() && desktop.isDirectory()) {
+                return desktop;
+            }
+        }
+
+        // 2) Fallback: OS "home" directory via FileSystemView
+        File home = FileSystemView.getFileSystemView().getHomeDirectory();
+        if (home != null && home.exists()) {
+            return home;
+        }
+
+        // 3) Let JFileChooser decide its default
+        return null;
     }
 }

@@ -255,7 +255,7 @@ public class ARControlPanel {
             msgColorExp = "#C62828";
         }
 
-        performMessage.showCustomModalDialogDragWin11(
+        performMessage.showCustomModalDialogDragWin11TimerAuto(
                 "License Status Verification",
                 "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>License status has been successfully verified.</span>",
                 "<span style='color: " + msgColor + "; font-weight: bold;'>" + msgValid + "</span>",
@@ -266,7 +266,8 @@ public class ARControlPanel {
                 false,
                 "OK",
                 null,
-                0);
+                0,
+                5);
         System.exit(0);
     }
 

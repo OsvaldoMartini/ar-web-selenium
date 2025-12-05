@@ -9,18 +9,12 @@ import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
-import com.sun.jna.Pointer;
-import com.sun.jna.platform.win32.COM.COMUtils;
-import com.sun.jna.platform.win32.KnownFolders;
-import com.sun.jna.platform.win32.Ole32;
-import com.sun.jna.platform.win32.Shell32;
-import com.sun.jna.platform.win32.WinNT;
-import com.sun.jna.ptr.PointerByReference;
 import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.filechooser.FileSystemView;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -464,25 +458,29 @@ public class ARLicensePane extends ARPane {
 
     private void defineDesktopFolder() {
         try {
-            PointerByReference ppszPath = new PointerByReference();
-
-            // SHGetKnownFolderPath now returns an HRESULT
-            WinNT.HRESULT hr = Shell32.INSTANCE.SHGetKnownFolderPath(KnownFolders.FOLDERID_Desktop, 0, null, ppszPath);
-
-            if (COMUtils.FAILED(hr)) {
-                log.warn("Error reading/writing to the file! -> Desktop Folder. HRESULT=" + hr.intValue());
-                throw new IOException("Failed to get desktop directory.");
+            // 1) Try user home Desktop
+            String userHome = System.getProperty("user.home");
+            if (userHome != null) {
+                File desktop = new File(userHome, "Desktop");
+                if (desktop.exists() && desktop.isDirectory()) {
+                    fileFolder = desktop.getAbsolutePath();
+                    return;
+                }
             }
 
-            Pointer pPath = ppszPath.getValue();
-            String desktopPath = pPath.getWideString(0);
+            // 2) Fallback: OS home / default folder
+            File home = FileSystemView.getFileSystemView().getHomeDirectory();
+            if (home != null && home.exists() && home.isDirectory()) {
+                fileFolder = home.getAbsolutePath();
+                return;
+            }
 
-            // Free memory allocated by SHGetKnownFolderPath
-            Ole32.INSTANCE.CoTaskMemFree(pPath);
-
-            File desktopDir = new File(desktopPath);
-            if (desktopDir.exists() && desktopDir.isDirectory()) {
-                fileFolder = desktopDir.getAbsolutePath();
+            // 3) Final fallback: PATH_LICENSE or working dir
+            if (Strings.isNullOrEmpty(fileFolder)) {
+                fileFolder = arPropertyManager.getProperty(ARPropertyEnum.PATH_LICENSE);
+                if (Strings.isNullOrEmpty(fileFolder)) {
+                    fileFolder = System.getProperty("user.dir");
+                }
             }
         } catch (Exception ex) {
             if (Strings.isNullOrEmpty(fileFolder)) {
@@ -491,7 +489,7 @@ public class ARLicensePane extends ARPane {
                     fileFolder = System.getProperty("user.dir");
                 }
             }
-            log.warn("Error reading/writing to the file: " + fileFolder, ex);
+            log.warn("Error determining Desktop folder, using: " + fileFolder, ex);
         }
     }
 }
