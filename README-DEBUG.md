@@ -5,10 +5,24 @@
 
 
     // VM Option  For Web Scann and Others 
+    WINDOW
     --module-path "C:/Projects/Full-Backup/ProgramFiles/javaFX/lib" --add-modules javafx.controls,javafx.web,javafx.fxml
-
+    
+    LINUX
+    --module-path "/opt/ARWeb/ARWeb-Scanner/javaFX/lib/" --add-modules javafx.controls,javafx.web,javafx.fxml
+    
+    WINDOW
     // Param Config for Debugging
-    -c "C:/ARWeb/ARWeb.config"
+    -c "C:/ARWeb/Config-4.7/ARWeb.config"
+    
+    LINUX
+    -c "/opt/ARWeb/Config-4.7/ARWeb.config"
+    
+    
+    // VM Option  For Web JCEF Maven
+    -Djava.library.path="/opt/ARWeb/ARWeb-Scanner/javaJCE/" 
+    
+    
 ```
 
 ##  CSS Selectors
