@@ -30,8 +30,8 @@ public class ARConstants {
     public static final String FILE_DEFAULT_CONFIG = "\\config\\configuration.properties";
     public static final String FILE_AR_WEB_CONFIG = "\\config\\ARWeb.config";
     public static final String FILE_NAME_PRIORITIES = "\\priorities.properties";
-    public static final String FILE_NAME_ACCESS = "\\database.mdb";
-    public static final String FILE_NAME_SQLITE = "\\database.db";
+    public static final String FILE_NAME_ACCESS = "/database.mdb";
+    public static final String FILE_NAME_SQLITE = "/database.db";
     public static final String USER_PATH = System.getProperty("user.dir");
     // ICON FILE NAMES
     public static final String ICON_APPLICATION = "/AR_icon.png";

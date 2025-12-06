@@ -17,8 +17,8 @@ public class ARConstantsEngine {
     // IMPORTANT FILE NAMES
     public static final String FILE_NAME_CONFIGURATION = "\\config\\configuration.properties";
     public static final String FILE_NAME_PRIORITIES = "\\priorities.properties";
-    public static final String FILE_NAME_ACCESS = "\\database.mdb";
-    public static final String FILE_NAME_SQLITE = "\\database.db";
+    public static final String FILE_NAME_ACCESS = "/database.mdb";
+    public static final String FILE_NAME_SQLITE = "/database.db";
     public static final String USER_PATH = System.getProperty("user.dir");
 
     // ACTION CODES
