@@ -36,41 +36,29 @@ public class BotJobListCell extends JPanel implements ListCellRenderer<BotJobLoa
             boolean isSelected,
             boolean cellHasFocus) {
 
-        removeAll(); // clear previous components
+        removeAll();
 
-        if (value == null) {
-            return this;
-        }
+        if (value == null) return this;
 
-        // Labels
-        JLabel botJobName = new JLabel(value.getName());
-        botJobName.setPreferredSize(new Dimension(150, 20));
+        int colName = 150;
+        int colDesc = 150;
+        int colOrg = 100;
+        int colStatus = 50;
+        int colAction = 50;
 
-        JLabel botJobDescription = new JLabel(value.getDescription());
-        botJobDescription.setPreferredSize(new Dimension(150, 20));
+        JLabel botJobName        = buildColumnLabel(value.getName(), 150);
+        JLabel botJobDescription = buildColumnLabel(value.getDescription(), 150);
+        JLabel homeBankingName   = buildColumnLabel(value.getHomeBankingLoadDTO().getName(), 100);
+        JLabel statusLabel       = buildColumnLabel(value.isActive() ? "Active" : "Inactive", 50);
+        JButton deleteButton     = buildColumnButton("X", 50);
 
-        JLabel homeBankingName = new JLabel(value.getHomeBankingLoadDTO().getName());
-        homeBankingName.setPreferredSize(new Dimension(100, 20));
+        deleteButton.addActionListener(e -> handleDelete(value, list));
 
-        JLabel statusLabel = new JLabel(value.isActive() ? "Active" : "Inactive");
-        statusLabel.setForeground(value.isActive() ? Color.BLACK : Color.GRAY);
-        statusLabel.setPreferredSize(new Dimension(50, 20));
-
-        // Delete button
-        JButton deleteBotJobButton = new JButton("X");
-        deleteBotJobButton.setPreferredSize(new Dimension(20, 20));
-        deleteBotJobButton.addActionListener(e -> handleDelete(value, list));
-
-        // Add components with spacing
         add(botJobName);
-        add(Box.createHorizontalStrut(ARConstants.SPACE_SM));
         add(botJobDescription);
-        add(Box.createHorizontalStrut(ARConstants.SPACE_SM));
         add(homeBankingName);
-        add(Box.createHorizontalStrut(ARConstants.SPACE_SM));
         add(statusLabel);
-        add(Box.createHorizontalStrut(ARConstants.SPACE_SM));
-        add(deleteBotJobButton);
+        add(deleteButton);
 
         if (isSelected) {
             setBackground(list.getSelectionBackground());
@@ -80,11 +68,9 @@ public class BotJobListCell extends JPanel implements ListCellRenderer<BotJobLoa
             setForeground(list.getForeground());
         }
 
-        // ⚠️ Double-click handling is intentionally NOT here anymore.
-        // Add a MouseListener on the JList itself where you create it.
-
         return this;
     }
+
 
     private void handleDelete(BotJobLoadDTO item, JList<? extends BotJobLoadDTO> list) {
         int response = JOptionPane.showConfirmDialog(
@@ -113,4 +99,29 @@ public class BotJobListCell extends JPanel implements ListCellRenderer<BotJobLoa
             performMessage.errorMessageOperationFailed(errorMessage);
         }
     }
+
+    private JLabel buildColumnLabel(String text, int width) {
+        JLabel label = new JLabel(text);
+        int height = 20;                     // fixed row height
+
+        Dimension d = new Dimension(width, height);
+        label.setPreferredSize(d);
+        label.setMinimumSize(d);
+        label.setMaximumSize(d);
+
+        return label;
+    }
+
+    private JButton buildColumnButton(String text, int width) {
+        JButton button = new JButton(text);
+        int height = 20;
+
+        Dimension d = new Dimension(width, height);
+        button.setPreferredSize(d);
+        button.setMinimumSize(d);
+        button.setMaximumSize(d);
+
+        return button;
+    }
+
 }

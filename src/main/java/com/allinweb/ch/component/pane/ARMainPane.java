@@ -508,6 +508,8 @@ public class ARMainPane extends ARPane {
 
         JLabel nameLabel = new JLabel("Name");
         nameLabel.setPreferredSize(new Dimension(150, 20));
+        nameLabel.setMinimumSize(new Dimension(150, 20));
+        nameLabel.setMaximumSize(new Dimension(150, 20));
 
         JLabel descriptionLabel = new JLabel("Description");
         descriptionLabel.setPreferredSize(new Dimension(150, 20));

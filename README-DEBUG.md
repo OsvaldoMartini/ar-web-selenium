@@ -144,5 +144,4 @@ Example:
         options.setProxy(proxy);
 
         // Initialize the WebDriver with the options
-        WebDriver driver = new EdgeDriver(options);
 ```
