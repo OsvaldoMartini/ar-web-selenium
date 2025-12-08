@@ -21,11 +21,7 @@ import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
-import java.awt.BorderLayout;
-import java.awt.Dimension;
-import java.awt.Frame;
-import java.awt.Insets;
-import java.awt.Window;
+import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
@@ -38,6 +34,8 @@ import javax.swing.*;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.WebDriver;
+
+import static java.awt.Component.LEFT_ALIGNMENT;
 
 @Slf4j
 public class ARMainPane extends ARPane {
@@ -147,7 +145,6 @@ public class ARMainPane extends ARPane {
         int smallIconSize = ARConstants.SPACE_S;
         Insets smallPadding = new Insets(4, 6, 4, 6);
 
-        // Assuming builder was adapted to return JButton in Swing version
         newBotJobButton = builder.buildButton("New", smallHeight, ARConstants.ICON_NEW, smallIconSize, smallPadding);
         cloneBotJobButton =
                 builder.buildButton("Clone Job", smallHeight, ARConstants.ICON_SAVE, smallIconSize, smallPadding);
@@ -203,39 +200,47 @@ public class ARMainPane extends ARPane {
         viewBotJobListView = new JList<>(botJobListModel);
         viewBotJobListView.setCellRenderer(new BotJobListCell(arViewBotJobScene, arWebDriver, isEnabledLicence));
 
-        // Double-click to open Bot Job scene (applied suggestion from BotJobListCell)
+        // Double-click to open Bot Job scene
         viewBotJobListView.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                if (e.getClickCount() == 2 && SwingUtilities.isLeftMouseButton(e)) {
-                    int index = viewBotJobListView.locationToIndex(e.getPoint());
-                    if (index >= 0) {
-                        BotJobLoadDTO value = viewBotJobListView.getModel().getElementAt(index);
 
-                        Window parentWindow = SwingUtilities.getWindowAncestor(panelPane);
-                        Frame parentFrame = (parentWindow instanceof Frame) ? (Frame) parentWindow : null;
+                int index = viewBotJobListView.locationToIndex(e.getPoint());
+                if (index < 0) return;
 
-                        arViewBotJobScene.initialize(arWebDriver, value, isEnabledLicence);
-                        arViewBotJobScene.showModal(parentFrame);
-                    }
+                Rectangle cellBounds = viewBotJobListView.getCellBounds(index, index);
+                BotJobLoadDTO item = viewBotJobListView.getModel().getElementAt(index);
+
+                // ---- detect if click is on delete column ----
+                int clickX = e.getX();
+                int listWidth = viewBotJobListView.getWidth();
+                int deleteColWidth = BotJobListCell.ColumnWidths.ACTION;
+
+                if (clickX > listWidth - deleteColWidth - 10) { // last column
+                    handleDelete(item);
                 }
             }
         });
+
 
         arConfigurationScene.initialize(viewBotJobListView, isEnabledLicence);
         arNewBotJobScene.initialize(arViewBotJobScene, arWebDriver, webDriverList, isEnabledLicence);
         arWebDriver.initialize(webDriverList);
 
-        JPanel topSection = new JPanel();
-        topSection.setLayout(new BorderLayout());
+        JPanel topSection = new JPanel(new BorderLayout());
         topSection.add(buttonPane, BorderLayout.NORTH);
         topSection.add(new JScrollPane(aiTextArea), BorderLayout.CENTER);
 
-        panelPane = new JPanel();
-        panelPane.setLayout(new BorderLayout());
+        // --- NEW: put header + list into a single container in CENTER ---
+        JScrollPane listScrollPane = new JScrollPane(viewBotJobListView);
+
+        JPanel listContainer = new JPanel(new BorderLayout());
+        listContainer.add(headerPanel, BorderLayout.NORTH);
+        listContainer.add(listScrollPane, BorderLayout.CENTER);
+
+        panelPane = new JPanel(new BorderLayout());
         panelPane.add(topSection, BorderLayout.NORTH);
-        panelPane.add(headerPanel, BorderLayout.CENTER);
-        panelPane.add(new JScrollPane(viewBotJobListView), BorderLayout.SOUTH);
+        panelPane.add(listContainer, BorderLayout.CENTER);
     }
 
     @Override
@@ -442,18 +447,18 @@ public class ARMainPane extends ARPane {
                 }
 
                 String[] command = new String[] {
-                    "cmd.exe",
-                    "/c",
-                    "java.exe",
-                    "-jar",
-                    "\"" + enginePath + "\"",
-                    "execute/j",
-                    String.valueOf(selecBotJobDTO.getHomeBankingLoadDTO().getId()),
-                    String.valueOf(selecBotJobDTO.getId()),
-                    String.valueOf(1), // block execution
-                    "\"" + excelPath + "\"",
-                    "-c",
-                    arPropertyManager.getConfigurationFileName()
+                        "cmd.exe",
+                        "/c",
+                        "java.exe",
+                        "-jar",
+                        "\"" + enginePath + "\"",
+                        "execute/j",
+                        String.valueOf(selecBotJobDTO.getHomeBankingLoadDTO().getId()),
+                        String.valueOf(selecBotJobDTO.getId()),
+                        String.valueOf(1), // block execution
+                        "\"" + excelPath + "\"",
+                        "-c",
+                        arPropertyManager.getConfigurationFileName()
                 };
                 ProcessBuilder processBuilder = new ProcessBuilder(command);
                 processBuilder.directory(new File(ARConstants.USER_PATH));
@@ -504,34 +509,57 @@ public class ARMainPane extends ARPane {
     private void initHeader() {
         headerPanel = new JPanel();
         headerPanel.setLayout(new BoxLayout(headerPanel, BoxLayout.X_AXIS));
-        headerPanel.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 20));
+        headerPanel.setOpaque(true);
+        headerPanel.setBackground(new Color(235, 235, 235)); // light gray like JTable header
+        headerPanel.setAlignmentX(LEFT_ALIGNMENT);
+
+        Font headerFont = headerPanel.getFont().deriveFont(Font.BOLD);
 
         JLabel nameLabel = new JLabel("Name");
-        nameLabel.setPreferredSize(new Dimension(150, 20));
-        nameLabel.setMinimumSize(new Dimension(150, 20));
-        nameLabel.setMaximumSize(new Dimension(150, 20));
+        nameLabel.setFont(headerFont);
+        fixColumnSize(nameLabel, BotJobListCell.ColumnWidths.NAME);
 
         JLabel descriptionLabel = new JLabel("Description");
-        descriptionLabel.setPreferredSize(new Dimension(150, 20));
+        descriptionLabel.setFont(headerFont);
+        fixColumnSize(descriptionLabel, BotJobListCell.ColumnWidths.DESCRIPTION);
 
         JLabel environmentLabel = new JLabel("Organization");
-        environmentLabel.setPreferredSize(new Dimension(100, 20));
+        environmentLabel.setFont(headerFont);
+        fixColumnSize(environmentLabel, BotJobListCell.ColumnWidths.ORGANIZATION);
 
         JLabel statusLabel = new JLabel("Status");
-        statusLabel.setPreferredSize(new Dimension(50, 20));
+        statusLabel.setFont(headerFont);
+        fixColumnSize(statusLabel, BotJobListCell.ColumnWidths.STATUS);
 
         JLabel actionsLabel = new JLabel("Actions");
-        actionsLabel.setPreferredSize(new Dimension(50, 20));
+        actionsLabel.setFont(headerFont);
+        fixColumnSize(actionsLabel, BotJobListCell.ColumnWidths.ACTION);
 
+        headerPanel.add(Box.createHorizontalStrut(10));
         headerPanel.add(nameLabel);
-        headerPanel.add(Box.createHorizontalStrut(10));
+        headerPanel.add(Box.createHorizontalStrut(BotJobListCell.ColumnWidths.GAP));
         headerPanel.add(descriptionLabel);
-        headerPanel.add(Box.createHorizontalStrut(10));
+        headerPanel.add(Box.createHorizontalStrut(BotJobListCell.ColumnWidths.GAP));
         headerPanel.add(environmentLabel);
-        headerPanel.add(Box.createHorizontalStrut(10));
+        headerPanel.add(Box.createHorizontalStrut(BotJobListCell.ColumnWidths.GAP));
         headerPanel.add(statusLabel);
-        headerPanel.add(Box.createHorizontalStrut(10));
+
+        headerPanel.add(Box.createHorizontalGlue()); // align Actions with delete button
         headerPanel.add(actionsLabel);
+        headerPanel.add(Box.createHorizontalStrut(10));
+
+        // subtle bottom line separator + padding
+        headerPanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 0, 1, 0, Color.LIGHT_GRAY),
+                BorderFactory.createEmptyBorder(3, 0, 3, 0)
+        ));
+    }
+
+    private void fixColumnSize(JComponent comp, int width) {
+        Dimension d = new Dimension(width, BotJobListCell.ColumnWidths.ROW_HEIGHT);
+        comp.setPreferredSize(d);
+        comp.setMinimumSize(d);
+        comp.setMaximumSize(d);
     }
 
     public void setProperty(String propertyName, String value) {
@@ -617,4 +645,20 @@ public class ARMainPane extends ARPane {
             }
         }
     }
+
+    private void handleDelete(BotJobLoadDTO item) {
+        int result = JOptionPane.showConfirmDialog(
+                panelPane,
+                "Delete Bot Job: " + item.getName() + "?",
+                "Confirm Delete",
+                JOptionPane.OK_CANCEL_OPTION
+        );
+
+        if (result == JOptionPane.OK_OPTION) {
+            performDataBase.deleteBotJobData(item.getId());
+            botJobListModel.removeElement(item);
+        }
+    }
+
+
 }
