@@ -8,8 +8,6 @@ import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.util.ErrorMessage;
 
 import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 
@@ -21,6 +19,9 @@ public class BotJobListCell extends JPanel implements ListCellRenderer<BotJobLoa
     private final ARViewBotJobScene arViewBotJobScene;
     private final ARWebDriver arWebDriver;
     private final boolean isEnabledLicence;
+
+    // index of row where mouse is hovering over delete column (-1 = none)
+    private int hoverDeleteIndex = -1;
 
     public BotJobListCell(ARViewBotJobScene arViewBotJobScene, ARWebDriver arWebDriver, boolean isEnabledLicence) {
         this.arViewBotJobScene = arViewBotJobScene;
@@ -57,6 +58,9 @@ public class BotJobListCell extends JPanel implements ListCellRenderer<BotJobLoa
             statusLabel.setForeground(Color.GRAY);
         }
 
+        boolean deleteHover = (index == hoverDeleteIndex);
+        styleDeleteButton(deleteButton, isSelected, deleteHover);
+
         // layout with gaps and delete button on the right
         add(botJobName);
         add(Box.createHorizontalStrut(ColumnWidths.GAP));
@@ -78,9 +82,9 @@ public class BotJobListCell extends JPanel implements ListCellRenderer<BotJobLoa
             setBackground(list.getSelectionBackground());
             setForeground(list.getSelectionForeground());
         } else {
-            // simple zebra striping (light brown)
+            // simple zebra striping (tweak to your brownish color if you want)
             Color bg = (index % 2 == 0)
-                    ? new Color(245, 236, 220)  // light brown/beige
+                    ? new Color(245, 236, 220)  // light brown / beige
                     : Color.WHITE;
             setBackground(bg);
             setForeground(list.getForeground());
@@ -94,6 +98,18 @@ public class BotJobListCell extends JPanel implements ListCellRenderer<BotJobLoa
         }
 
         return this;
+    }
+
+    // ---------- Public API for ARMainPane ----------
+
+    /** Called from ARMainPane to update which row is hovered over the delete column. */
+    public void setHoverDeleteIndex(int index) {
+        this.hoverDeleteIndex = index;
+    }
+
+    /** Called from ARMainPane when user clicked in delete column. */
+    public void performDelete(BotJobLoadDTO item, JList<? extends BotJobLoadDTO> list) {
+        handleDelete(item, list);
     }
 
     // ---------- Delete handling ----------
@@ -168,27 +184,21 @@ public class BotJobListCell extends JPanel implements ListCellRenderer<BotJobLoa
         button.setMaximumSize(d);
 
         button.setToolTipText("Delete this Bot Job");
-
-        // hover effect: subtle highlight
-        button.setFocusPainted(false);
-        button.setFocusable(false);
         button.setMargin(new Insets(0, 0, 0, 0));
+        button.setFocusPainted(false);
 
-        button.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                button.setBorderPainted(true);
-                button.setContentAreaFilled(true);
-            }
-
-            @Override
-            public void mouseExited(MouseEvent e) {
-                button.setBorderPainted(false);
-                button.setContentAreaFilled(false);
-            }
-        });
-
+        // IMPORTANT: no ActionListener here – renderer is non-interactive
         return button;
+    }
+
+    private void styleDeleteButton(JButton button, boolean isSelected, boolean hover) {
+        if (hover || isSelected) {
+            button.setBorderPainted(true);
+            button.setContentAreaFilled(true);
+        } else {
+            button.setBorderPainted(true);
+            button.setContentAreaFilled(false);
+        }
     }
 
     // ---------- Ellipsis helper ----------

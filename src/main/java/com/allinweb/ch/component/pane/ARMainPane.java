@@ -55,6 +55,8 @@ public class ARMainPane extends ARPane {
     private static final ARWebDriver arWebDriver;
     private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
 
+    private BotJobListCell botJobListCellRenderer;
+
     protected static volatile ARMainPane instance;
 
     static {
@@ -198,27 +200,50 @@ public class ARMainPane extends ARPane {
         initHeader();
 
         viewBotJobListView = new JList<>(botJobListModel);
-        viewBotJobListView.setCellRenderer(new BotJobListCell(arViewBotJobScene, arWebDriver, isEnabledLicence));
+        botJobListCellRenderer = new BotJobListCell(arViewBotJobScene, arWebDriver, isEnabledLicence);
+        viewBotJobListView.setCellRenderer(botJobListCellRenderer);
 
         // Double-click to open Bot Job scene
         viewBotJobListView.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-
                 int index = viewBotJobListView.locationToIndex(e.getPoint());
                 if (index < 0) return;
 
-                Rectangle cellBounds = viewBotJobListView.getCellBounds(index, index);
-                BotJobLoadDTO item = viewBotJobListView.getModel().getElementAt(index);
+                BotJobLoadDTO value = viewBotJobListView.getModel().getElementAt(index);
 
-                // ---- detect if click is on delete column ----
-                int clickX = e.getX();
-                int listWidth = viewBotJobListView.getWidth();
-                int deleteColWidth = BotJobListCell.ColumnWidths.ACTION;
-
-                if (clickX > listWidth - deleteColWidth - 10) { // last column
-                    handleDelete(item);
+                if (!SwingUtilities.isLeftMouseButton(e)) {
+                    return;
                 }
+
+                // 1) Click on delete column → delete
+                if (isInDeleteColumn(e)) {
+                    botJobListCellRenderer.performDelete(value, viewBotJobListView);
+                    return;
+                }
+
+                // 2) Double-click elsewhere → open job
+                if (e.getClickCount() == 2) {
+                    Window parentWindow = SwingUtilities.getWindowAncestor(panelPane);
+                    Frame parentFrame = (parentWindow instanceof Frame) ? (Frame) parentWindow : null;
+
+                    arViewBotJobScene.initialize(arWebDriver, value, isEnabledLicence);
+                    arViewBotJobScene.showModal(parentFrame);
+                }
+            }
+        });
+
+// Hover for delete button styling
+        viewBotJobListView.addMouseMotionListener(new java.awt.event.MouseMotionAdapter() {
+            @Override
+            public void mouseMoved(MouseEvent e) {
+                int index = viewBotJobListView.locationToIndex(e.getPoint());
+                if (index < 0 || !isInDeleteColumn(e)) {
+                    botJobListCellRenderer.setHoverDeleteIndex(-1);
+                } else {
+                    botJobListCellRenderer.setHoverDeleteIndex(index);
+                }
+                viewBotJobListView.repaint();
             }
         });
 
@@ -658,6 +683,16 @@ public class ARMainPane extends ARPane {
             performDataBase.deleteBotJobData(item.getId());
             botJobListModel.removeElement(item);
         }
+    }
+
+    private boolean isInDeleteColumn(MouseEvent e) {
+        int listWidth = viewBotJobListView.getWidth();
+        int x = e.getX();
+        int margin = 10; // same as header side padding
+        int deleteWidth = BotJobListCell.ColumnWidths.ACTION;
+
+        // last (ACTION + margin) pixels on the right are treated as delete column
+        return x >= listWidth - deleteWidth - margin;
     }
 
 
