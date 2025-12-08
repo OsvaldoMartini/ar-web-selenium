@@ -40,12 +40,6 @@ public class BotJobListCell extends JPanel implements ListCellRenderer<BotJobLoa
 
         if (value == null) return this;
 
-        int colName = 150;
-        int colDesc = 150;
-        int colOrg = 100;
-        int colStatus = 50;
-        int colAction = 50;
-
         JLabel botJobName        = buildColumnLabel(value.getName(), 150);
         JLabel botJobDescription = buildColumnLabel(value.getDescription(), 150);
         JLabel homeBankingName   = buildColumnLabel(value.getHomeBankingLoadDTO().getName(), 100);
@@ -54,10 +48,21 @@ public class BotJobListCell extends JPanel implements ListCellRenderer<BotJobLoa
 
         deleteButton.addActionListener(e -> handleDelete(value, list));
 
+        // Add components WITH gaps
         add(botJobName);
+        add(Box.createHorizontalStrut(20));
+
         add(botJobDescription);
+        add(Box.createHorizontalStrut(20));
+
         add(homeBankingName);
+        add(Box.createHorizontalStrut(20));
+
         add(statusLabel);
+
+        // Push delete button to the RIGHT
+        add(Box.createHorizontalGlue());
+
         add(deleteButton);
 
         if (isSelected) {
@@ -70,7 +75,6 @@ public class BotJobListCell extends JPanel implements ListCellRenderer<BotJobLoa
 
         return this;
     }
-
 
     private void handleDelete(BotJobLoadDTO item, JList<? extends BotJobLoadDTO> list) {
         int response = JOptionPane.showConfirmDialog(
