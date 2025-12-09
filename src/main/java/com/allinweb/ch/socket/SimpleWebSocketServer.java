@@ -336,7 +336,6 @@ public class SimpleWebSocketServer {
                 case "ATTACHED_DEVICE":
                 case "DISCOVERY_APP":
                 case "SCANNER_APP":
-                case "SCANNER_APP_VISION":
                     if (sessionIdToSend.equals("mobile-return-server")) {
                         splitDTO.setOperationId(type);
                         String jsonData = gson.toJson(splitDTO);

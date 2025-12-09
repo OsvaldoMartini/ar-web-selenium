@@ -58,6 +58,8 @@ public class SplitDTO {
     // Optional fields for BlockOrderDetail
     private List<BlockOrderDetailDTO> updatedBlocks;
 
+    private String scannerType;
+
     public static InstructionLoad mapSplitToInstruction(SplitDTO split) {
         if (split == null) return null;
 
