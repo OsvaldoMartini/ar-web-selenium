@@ -345,6 +345,8 @@ public class SimpleWebSocketServer {
                     break;
                 case "REACTIVATE_BUTTONS":
                     if (sessionId.equals("mobile-return-server")) {
+                        splitDTO.setElementDetails(null);
+
                         // Convert your JsonObject to a proper JSON string
                         sendStatusButton(
                                 splitDTO.getHomeBankingId(),
