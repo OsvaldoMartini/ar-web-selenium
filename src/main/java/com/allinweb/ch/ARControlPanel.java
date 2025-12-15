@@ -77,8 +77,8 @@ public class ARControlPanel extends Application {
         log.info("Application started - all console output is now redirected to logback.");
 
         List<String> arguments = Arrays.asList(args);
-        int chosenPort = getInitialPort();
-        int chosenPortIP = getInitialPort();
+        int chosenPort = 54525; // getInitialPort();
+        int chosenPortIP = 54526; // getInitialPort();
         System.setProperty("ARWebChosenPort", String.valueOf(chosenPort));
         System.setProperty("ARWebChosenPortIP", String.valueOf(chosenPortIP));
 
