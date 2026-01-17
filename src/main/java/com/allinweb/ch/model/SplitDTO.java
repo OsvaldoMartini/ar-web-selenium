@@ -60,6 +60,9 @@ public class SplitDTO {
 
     private String scannerType;
 
+    private String sourceImage;
+    private Map<String, FieldsToValidate> fieldsToValidate;
+
     public static InstructionLoad mapSplitToInstruction(SplitDTO split) {
         if (split == null) return null;
 

@@ -377,6 +377,18 @@ public class SimpleWebSocketServer {
                     }
                     alreadySentMgsSocket = true;
                     break;
+                case "MOBILE_VALIDATE_FIELDS": //  DATA CONTROL FOR THE MOBILE mobileScannerGrid
+                    if (sessionId.equals("mobile-return-server")) {
+                        splitDTO.setOperationId("validateFields");
+
+                        performDataBase.setMobileDevices(true);
+                        String jsonData = gson.toJson(splitDTO.getFieldsToValidate());
+                        webSocketSessionManager.sendMessageJson(
+                                homeBankingId, "mobileScannerGrid", jsonData, "validateFields");
+                        performDataBase.setMobileDevices(false);
+                    }
+                    alreadySentMgsSocket = true;
+                    break;
                 case "CLOSE_BROWSER":
                     if (sessionIdToSend.equals("scanner-element-pane")) {
                         splitDTO.setOperationId("closeBrowser");
