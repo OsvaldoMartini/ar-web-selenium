@@ -1174,6 +1174,22 @@ public class ARNewCommandPane extends ARPane {
                         comboBoxVars.getValue().getVarId(),
                         comboBoxVars.getValue().getParentId(),
                         null);
+            } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("CheckValue")) {
+                String checkValueFor =
+                        Strings.isNullOrEmpty(comboBoxVars.getValue().getValue())
+                                ? "EMPTY"
+                                : comboBoxVars.getValue().getValue();
+
+                insertNewInstruction(
+                        "PDFCheck",
+                        "PDF Check",
+                        ARConstants.PDF_CHECK,
+                        1,
+                        comboBoxVars.getValue().getText().toUpperCase() + ":"
+                                + comboBoxOperator.getValue().getOperator() + ":" + checkValueFor,
+                        comboBoxVars.getValue().getVarId(),
+                        comboBoxVars.getValue().getParentId(),
+                        null);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("excelWrite")) {
                 insertNewInstruction(
                         "ExcelWrite",
@@ -2300,6 +2316,12 @@ public class ARNewCommandPane extends ARPane {
     }
 
     public void reloadComboVars(String varTable, int whereId, int instructionId, boolean selectLast, int variableId) {
+
+        // Make sure the ComboBox is always bound to the SAME list instance
+        if (comboBoxVars.getItems() != variablesItems) {
+            comboBoxVars.setItems(variablesItems);
+        }
+
         variablesItems.clear();
 
         String instrTable = varTable.equals("variable") ? "instruction" : "component_instruction";
@@ -2326,35 +2348,27 @@ public class ARNewCommandPane extends ARPane {
                             -1,
                             variable.getLocalFormat()))
                     .collect(Collectors.toList());
+
             variablesItems.addAll(variablesNames);
 
             if (selectLast && variableId == -1) {
                 comboBoxVars.getSelectionModel().selectLast();
             } else if (selectLast && variableId > -1) {
-                int indexGeneric = -1;
+                int index = -1;
                 for (int i = 0; i < variablesItems.size(); i++) {
                     if (variablesItems.get(i).getVarId().equals(variableId)) {
-                        comboBoxVars.getSelectionModel().select(i);
-                        indexGeneric = i;
+                        index = i;
                         break;
                     }
                 }
-
-                if (indexGeneric == -1) {
-                    comboBoxVars.getSelectionModel().selectFirst();
-                }
+                comboBoxVars.getSelectionModel().select(index >= 0 ? index : 0);
             } else {
                 comboBoxVars.getSelectionModel().selectFirst();
             }
 
         } else {
             variablesItems.add(new ComboBoxVars("no variables added", "", -1, -1, -1, -1, null, -1, null));
-            if (comboBoxVars.getItems().isEmpty()) {
-                comboBoxVars.setItems(FXCollections.observableArrayList(variablesItems));
-            }
-            if (selectLast) {
-                comboBoxVars.getSelectionModel().selectFirst();
-            }
+            comboBoxVars.getSelectionModel().selectFirst();
         }
     }
 

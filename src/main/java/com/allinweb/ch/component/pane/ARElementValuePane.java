@@ -50,6 +50,7 @@ public class ARElementValuePane extends ARPane {
     Button deleteButton;
     // Postgres
     private Connection conn = null;
+    private final ObservableList<VariableUserDTO> tableItems = FXCollections.observableArrayList();
     private TableView<VariableUserDTO> tableView = new TableView<>();
     private SplitDTO splitDTO;
     private int varId;
@@ -107,8 +108,9 @@ public class ARElementValuePane extends ARPane {
         }
 
         if (tableView != null) {
-            tableView.setItems(FXCollections.observableArrayList(performLists.getListVariablesUser()));
+            tableItems.setAll(performLists.getListVariablesUser());
         }
+
         // }
 
         if (idField != null) {
@@ -355,7 +357,8 @@ public class ARElementValuePane extends ARPane {
         List<TableColumn<VariableUserDTO, String>> columns =
                 List.of(idColumn, typeColumn, nameColumn, valueColumn, localFormatColumn, delimiterColumn);
         tableView.getColumns().addAll(columns);
-        tableView.setItems(FXCollections.observableArrayList(performLists.getListVariablesUser()));
+        tableView.setItems(tableItems);
+        tableItems.setAll(performLists.getListVariablesUser());
 
         // Wrap the TableView in a VBox for more control
         VBox tableViewContainer = new VBox(tableView);
@@ -502,6 +505,7 @@ public class ARElementValuePane extends ARPane {
             performDataBase.createVariable(user);
 
             arNewCommandPane.reloadComboVars(varTable, whereId, instructionId, true, -1);
+            tableItems.setAll(performLists.getListVariablesUser());
         });
 
         updateButton.setOnAction(event -> {
@@ -539,6 +543,11 @@ public class ARElementValuePane extends ARPane {
                     : splitDTO.getBotJobId();
 
             performDataBase.updateUserData(varTable, whereId, selectedUser);
+            // Force TableView to repaint updated values (DTO is not JavaFX properties)
+            int idx = tableView.getSelectionModel().getSelectedIndex();
+            if (idx >= 0) {
+                tableItems.set(idx, selectedUser); // triggers update of that row
+            }
 
             ErrorMessage errorMessage = performDataBase.loadAllParents(instrTable, whereId, instructionId);
 
@@ -600,6 +609,7 @@ public class ARElementValuePane extends ARPane {
             }
 
             arNewCommandPane.reloadComboVars(varTable, whereId, instructionId, true, varId);
+            tableItems.setAll(performLists.getListVariablesUser());
         });
 
         deleteButton.setOnAction(event -> {
@@ -631,6 +641,7 @@ public class ARElementValuePane extends ARPane {
                 performMessage.errorMessageOperationFailed(errorMessage);
             }
             arNewCommandPane.reloadComboVars(varTable, whereId, instructionId, true, -1);
+            tableItems.setAll(performLists.getListVariablesUser());
         });
 
         // Add listener to TableView selection
