@@ -10,6 +10,7 @@ public enum WebElementIcon {
     SET_VALUE("SetValue"),
     GET_VALUE("GetValue"),
     CHECK_VALUE("CheckValue"),
+    PDF_CHECK("PDF CHECK"),
     COPY_VAR("CopyVar"),
     IFRAME("iframe"),
     GOTO("GOTO"),

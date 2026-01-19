@@ -116,6 +116,7 @@ public class ARNewCommandPane extends ARPane {
             WebElementIcon.SET_VALUE.getValue().toUpperCase(),
             WebElementIcon.GET_VALUE.getValue().toUpperCase(),
             WebElementIcon.CHECK_VALUE.getValue().toUpperCase(),
+            WebElementIcon.PDF_CHECK.getValue().toUpperCase(),
             WebElementIcon.GOTO.getValue().toUpperCase(),
             WebElementIcon.EXCEL_GOTO.getValue().toUpperCase(),
             WebElementIcon.EXTRACT_FIELD.getValue().toUpperCase(),
@@ -235,6 +236,8 @@ public class ARNewCommandPane extends ARPane {
                     "GetValue", new Image(ARConstants.ICON_GET_VALUE_BTN), ARConstants.GET_VALUE, -1, -1, -1));
             itemsInstructions.add(new ComboBoxImage(
                     "CheckValue", new Image(ARConstants.ICON_CHECK), ARConstants.CHECK_VALUE, -1, -1, -1));
+            itemsInstructions.add(new ComboBoxImage(
+                    "PDF Check", new Image(ARConstants.ICON_CHECK), ARConstants.PDF_CHECK, -1, -1, -1));
 
             // Add "IF" only if it does not meet the exclusion conditions
             //            if (splitDTO.getIsBetween() != null && !splitDTO.getIsBetween()) {
@@ -1181,8 +1184,8 @@ public class ARNewCommandPane extends ARPane {
                                 : comboBoxVars.getValue().getValue();
 
                 insertNewInstruction(
-                        "PDFCheck",
-                        "PDF Check",
+                        "PDF CHECK",
+                        "PDF CHECK",
                         ARConstants.PDF_CHECK,
                         1,
                         comboBoxVars.getValue().getText().toUpperCase() + ":"
@@ -1526,7 +1529,7 @@ public class ARNewCommandPane extends ARPane {
 
     private void recallMessages(String valueEdit) {
         // Set the visibility of comboBoxOperator based on the selected value
-        if (ARConstants.CHECK_VALUE.equalsIgnoreCase(valueEdit)) {
+        if (ARConstants.CHECK_VALUE.equalsIgnoreCase(valueEdit) || ARConstants.PDF_CHECK.equalsIgnoreCase(valueEdit)) {
             defineTextFlow(comboBoxInstruc.getValue().getValue());
 
             textFlow.setVisible(true);
@@ -2259,6 +2262,33 @@ public class ARNewCommandPane extends ARPane {
                     break;
                 case ARConstants.CHECK_VALUE:
                     regularText1.setText("CHECK Variable: ");
+                    regularText1.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+
+                    variableText1.setText(variableName);
+                    variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
+
+                    regularText2.setText(" " + comboBoxOperator.getValue().getText() + " ");
+                    regularText2.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+
+                    variableText2.setText(variableValue);
+                    variableText2.setStyle("-fx-font-size: 14px; -fx-fill: red;");
+
+                    regularText1.setVisible(true);
+                    regularText2.setVisible(true);
+                    regularText3.setVisible(false);
+                    regularText4.setVisible(false);
+
+                    variableText1.setVisible(true);
+                    variableText2.setVisible(true);
+                    variableText3.setVisible(false);
+
+                    textFlow.getChildren().clear();
+                    textFlow.getChildren().addAll(regularText1, variableText1, regularText2, variableText2);
+                    textFlow.requestLayout();
+
+                    break;
+                case ARConstants.PDF_CHECK:
+                    regularText1.setText("PDF CHECK Variable: ");
                     regularText1.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
                     variableText1.setText(variableName);

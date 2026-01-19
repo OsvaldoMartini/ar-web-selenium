@@ -134,6 +134,7 @@ public class ARConstants {
     public static final String SET_VALUE = "SET";
     public static final String GET_VALUE = "GET";
     public static final String CHECK_VALUE = "CK";
+    public static final String PDF_CHECK = "PDF CHECK";
     public static final String IF = "IF";
     public static final String ELSEIF = "ELSEIF";
     public static final String ELSE = "ELSE";
