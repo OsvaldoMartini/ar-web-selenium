@@ -4657,7 +4657,9 @@ public class ARScannedElementPane extends ARPane {
                     //
                     //                    writerExport.insertFieldNameAndValueLastColumn(mapExportRows, exportIndex -
                     // 1);
-                    writerExport.insertCSVContentIntoExcel(columnsCSV, rowsCSV, exportIndex - 1);
+                    if (writerExport != null) {
+                        writerExport.insertCSVContentIntoExcel(columnsCSV, rowsCSV, exportIndex - 1);
+                    }
                 }
             }
         }
