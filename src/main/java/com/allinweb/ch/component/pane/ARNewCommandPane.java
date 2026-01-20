@@ -117,6 +117,7 @@ public class ARNewCommandPane extends ARPane {
             WebElementIcon.GET_VALUE.getValue().toUpperCase(),
             WebElementIcon.CHECK_VALUE.getValue().toUpperCase(),
             WebElementIcon.PDF_CHECK.getValue().toUpperCase(),
+            WebElementIcon.CSV_CHECK.getValue().toUpperCase(),
             WebElementIcon.GOTO.getValue().toUpperCase(),
             WebElementIcon.EXCEL_GOTO.getValue().toUpperCase(),
             WebElementIcon.EXTRACT_FIELD.getValue().toUpperCase(),
@@ -238,6 +239,8 @@ public class ARNewCommandPane extends ARPane {
                     "CheckValue", new Image(ARConstants.ICON_CHECK), ARConstants.CHECK_VALUE, -1, -1, -1));
             itemsInstructions.add(new ComboBoxImage(
                     "PDF Check", new Image(ARConstants.ICON_CHECK), ARConstants.PDF_CHECK, -1, -1, -1));
+            itemsInstructions.add(new ComboBoxImage(
+                    "CSV Check", new Image(ARConstants.ICON_CHECK), ARConstants.CSV_CHECK, -1, -1, -1));
 
             // Add "IF" only if it does not meet the exclusion conditions
             //            if (splitDTO.getIsBetween() != null && !splitDTO.getIsBetween()) {
@@ -1193,6 +1196,22 @@ public class ARNewCommandPane extends ARPane {
                         comboBoxVars.getValue().getVarId(),
                         comboBoxVars.getValue().getParentId(),
                         null);
+            } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("CSV CHECK")) {
+                String checkValueFor =
+                        Strings.isNullOrEmpty(comboBoxVars.getValue().getValue())
+                                ? "EMPTY"
+                                : comboBoxVars.getValue().getValue();
+
+                insertNewInstruction(
+                        "CSV CHECK",
+                        "CSV CHECK",
+                        ARConstants.CSV_CHECK,
+                        1,
+                        comboBoxVars.getValue().getText().toUpperCase() + ":"
+                                + comboBoxOperator.getValue().getOperator() + ":" + checkValueFor,
+                        comboBoxVars.getValue().getVarId(),
+                        comboBoxVars.getValue().getParentId(),
+                        null);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("excelWrite")) {
                 insertNewInstruction(
                         "ExcelWrite",
@@ -1529,7 +1548,9 @@ public class ARNewCommandPane extends ARPane {
 
     private void recallMessages(String valueEdit) {
         // Set the visibility of comboBoxOperator based on the selected value
-        if (ARConstants.CHECK_VALUE.equalsIgnoreCase(valueEdit) || ARConstants.PDF_CHECK.equalsIgnoreCase(valueEdit)) {
+        if (ARConstants.CHECK_VALUE.equalsIgnoreCase(valueEdit)
+                || ARConstants.PDF_CHECK.equalsIgnoreCase(valueEdit)
+                || ARConstants.CSV_CHECK.equalsIgnoreCase(valueEdit)) {
             defineTextFlow(comboBoxInstruc.getValue().getValue());
 
             textFlow.setVisible(true);
@@ -2289,6 +2310,33 @@ public class ARNewCommandPane extends ARPane {
                     break;
                 case ARConstants.PDF_CHECK:
                     regularText1.setText("PDF CHECK Variable: ");
+                    regularText1.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+
+                    variableText1.setText(variableName);
+                    variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
+
+                    regularText2.setText(" " + comboBoxOperator.getValue().getText() + " ");
+                    regularText2.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+
+                    variableText2.setText(variableValue);
+                    variableText2.setStyle("-fx-font-size: 14px; -fx-fill: red;");
+
+                    regularText1.setVisible(true);
+                    regularText2.setVisible(true);
+                    regularText3.setVisible(false);
+                    regularText4.setVisible(false);
+
+                    variableText1.setVisible(true);
+                    variableText2.setVisible(true);
+                    variableText3.setVisible(false);
+
+                    textFlow.getChildren().clear();
+                    textFlow.getChildren().addAll(regularText1, variableText1, regularText2, variableText2);
+                    textFlow.requestLayout();
+
+                    break;
+                case ARConstants.CSV_CHECK:
+                    regularText1.setText("CSV CHECK Variable: ");
                     regularText1.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
                     variableText1.setText(variableName);

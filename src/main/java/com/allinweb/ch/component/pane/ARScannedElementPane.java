@@ -3393,6 +3393,7 @@ public class ARScannedElementPane extends ARPane {
                             boolean execGetOrSet = false;
                             boolean execCheckValue = false;
                             boolean execPDFCheck = false;
+                            boolean execCSVCheck = false;
                             boolean execOutPut = false;
                             boolean excelWriteOperation = false;
                             boolean pauseOperation = false;
@@ -3749,6 +3750,14 @@ public class ARScannedElementPane extends ARPane {
                                 if (variableField == null) {
                                     variableField = "Not Variable defined";
                                 }
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.CSV_CHECK)) {
+                                execCSVCheck = true;
+                                parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
+                                variableField =
+                                        performActions.getInstructionVariableField(currentInstruction, variablesLoaded);
+                                if (variableField == null) {
+                                    variableField = "Not Variable defined";
+                                }
                             } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.EXTRACT_FIELD)) {
                                 excelWriteOperation = true;
                                 parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
@@ -3991,6 +4000,7 @@ public class ARScannedElementPane extends ARPane {
                                         && !execGetOrSet
                                         && !execCheckValue
                                         && !execPDFCheck
+                                        && !execCSVCheck
                                         && !excelWriteOperation
                                         && !pauseOperation) {
 
@@ -4231,6 +4241,90 @@ public class ARScannedElementPane extends ARPane {
                                         //                                    fieldName = parentField;
 
                                         resultActions = "PDF Check Value for " + String.join(" ", operations);
+                                        boolean isOperationValid = false;
+                                        String invalidValues = null;
+
+                                        if (operations[1].equalsIgnoreCase("=")) {
+                                            isOperationValid = mapOperators
+                                                    .get(variableField)
+                                                    .trim()
+                                                    .equalsIgnoreCase(operations[2].trim());
+
+                                        } else if (operations[1].equalsIgnoreCase(">")) {
+                                            int resp = handleGreaterThan(
+                                                    mapOperators
+                                                            .get(variableField)
+                                                            .trim(),
+                                                    operations[2].trim());
+                                            if (resp == 1) {
+                                                isOperationValid = true;
+                                            } else if (resp == 0) {
+                                                isOperationValid = false;
+                                            } else {
+                                                isOperationValid = false;
+                                                invalidValues = "Invalid Numbers";
+                                            }
+                                        } else if (operations[1].equalsIgnoreCase("!=")) {
+                                            isOperationValid = !mapOperators
+                                                    .get(variableField)
+                                                    .trim()
+                                                    .equalsIgnoreCase(operations[2].trim());
+                                        } else if (operations[1].equalsIgnoreCase("<")) {
+                                            int resp = handleLessThan(
+                                                    mapOperators
+                                                            .get(variableField)
+                                                            .trim(),
+                                                    operations[2].trim());
+                                            if (resp == 1) {
+                                                isOperationValid = true;
+                                            } else if (resp == 0) {
+                                                isOperationValid = false;
+                                            } else {
+                                                isOperationValid = false;
+                                                invalidValues = "Invalid Numbers";
+                                            }
+                                        }
+
+                                        if (isOperationValid) {
+                                            currentInstruction.setExecuted(true);
+                                            failedMessage = "";
+                                            success = true;
+                                        } else {
+                                            failedMessage = "Failed: Check Validation ";
+                                            msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
+                                            resultActions = performActions.checkValidationFailed(
+                                                    invalidValues,
+                                                    parentField,
+                                                    mapOperators.get(variableField),
+                                                    resultActions,
+                                                    operations,
+                                                    currentCondition,
+                                                    byPassNotFound);
+
+                                            success = false;
+                                        }
+                                    }
+
+                                } else if (execCSVCheck) {
+                                    // Check Validation Operator
+
+                                    if (!mapOperators.containsKey(variableField)) {
+                                        failedMessage = "Get Value Is Not Defined ";
+                                        msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
+                                        resultActions = performActions.getValueIsNotDefined(
+                                                actions[0],
+                                                currentInstruction,
+                                                resultActions,
+                                                ARExecution.ConditionStatus
+                                                        .NONE, // NOT  currentCondition to Force Message,
+                                                parentField,
+                                                variableField);
+
+                                        success = false;
+                                    } else {
+                                        //                                    fieldName = parentField;
+
+                                        resultActions = "CSV Check Value for " + String.join(" ", operations);
                                         boolean isOperationValid = false;
                                         String invalidValues = null;
 

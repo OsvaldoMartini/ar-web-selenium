@@ -11,6 +11,7 @@ public enum WebElementIcon {
     GET_VALUE("GetValue"),
     CHECK_VALUE("CheckValue"),
     PDF_CHECK("PDF CHECK"),
+    CSV_CHECK("CSV CHECK"),
     COPY_VAR("CopyVar"),
     IFRAME("iframe"),
     GOTO("GOTO"),

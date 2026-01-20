@@ -2808,6 +2808,7 @@ public class PerformDataBase {
                         || actions.equalsIgnoreCase(ARConstants.SET_VALUE)
                         || actions.equalsIgnoreCase(ARConstants.CHECK_VALUE)
                         || actions.equalsIgnoreCase(ARConstants.PDF_CHECK)
+                        || actions.equalsIgnoreCase(ARConstants.CSV_CHECK)
                         || actions.equalsIgnoreCase(ARConstants.EXTRACT_FIELD)
                         || actions.equalsIgnoreCase(ARConstants.LOOP)
                         || actions.equalsIgnoreCase(ARConstants.REFRESH_LOOP))) {
@@ -3027,6 +3028,7 @@ public class PerformDataBase {
                             || actions.equalsIgnoreCase(ARConstants.GET_VALUE)
                             || actions.equalsIgnoreCase(ARConstants.CHECK_VALUE)
                             || actions.equalsIgnoreCase(ARConstants.PDF_CHECK)
+                            || actions.equalsIgnoreCase(ARConstants.CSV_CHECK)
                             || actions.equalsIgnoreCase(ARConstants.HOLD)
                             || actions.equalsIgnoreCase(ARConstants.PAUSE)
                             || actions.equalsIgnoreCase(ARConstants.EXCEL_GOTO)
@@ -3154,6 +3156,7 @@ public class PerformDataBase {
                         && !ARConstants.GET_VALUE.equals(instruction.getActions())
                         && !ARConstants.CHECK_VALUE.equals(instruction.getActions())
                         && !ARConstants.PDF_CHECK.equals(instruction.getActions())
+                        && !ARConstants.CSV_CHECK.equals(instruction.getActions())
                         && !ARConstants.GOTO.equals(instruction.getActions())
                         && !ARConstants.IF.equals(instruction.getActions())
                         && !ARConstants.ELSE.equals(instruction.getActions())

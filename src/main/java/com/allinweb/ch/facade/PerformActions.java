@@ -1844,7 +1844,8 @@ public class PerformActions {
 
             if (action.equals(ARConstantsEngine.EXTRACT_FIELD)
                     || action.equals(ARConstantsEngine.CHECK_VALUE)
-                    || action.equals(ARConstantsEngine.PDF_CHECK)) {
+                    || action.equals(ARConstantsEngine.PDF_CHECK)
+                    || action.equals(ARConstantsEngine.CSV_CHECK)) {
                 msg1 = "The variable \"" + variableField + "\" has not been assigned.";
                 msg2 = "Please add a <span style='color: #000080; font-weight: bold;'>GET</span> step for \""
                         + currentInstruction.getName() + "\" to assign this variable.";
@@ -2331,6 +2332,7 @@ public class PerformActions {
                         + msgInstruction.getValue();
             case ARConstantsEngine.CHECK_VALUE:
             case ARConstantsEngine.PDF_CHECK:
+            case ARConstantsEngine.CSV_CHECK:
                 return actions[0]
                         + ARConstantsEngine.BLANK_STRING
                         + msgInstruction.getValue()
