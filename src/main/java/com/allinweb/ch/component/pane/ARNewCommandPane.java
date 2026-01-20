@@ -1177,7 +1177,7 @@ public class ARNewCommandPane extends ARPane {
                         comboBoxVars.getValue().getVarId(),
                         comboBoxVars.getValue().getParentId(),
                         null);
-            } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("CheckValue")) {
+            } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("PDF CHECK")) {
                 String checkValueFor =
                         Strings.isNullOrEmpty(comboBoxVars.getValue().getValue())
                                 ? "EMPTY"
