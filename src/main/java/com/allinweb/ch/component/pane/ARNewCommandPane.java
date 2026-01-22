@@ -2395,14 +2395,15 @@ public class ARNewCommandPane extends ARPane {
 
     public void reloadComboVars(String varTable, int whereId, int instructionId, boolean selectLast, int variableId) {
 
-        // Make sure the ComboBox is always bound to the SAME list instance
+        // Always bind to the same observable list instance
         if (comboBoxVars.getItems() != variablesItems) {
             comboBoxVars.setItems(variablesItems);
         }
 
         variablesItems.clear();
 
-        String instrTable = varTable.equals("variable") ? "instruction" : "component_instruction";
+        // Load variables for the instruction
+        String instrTable = "variable".equals(varTable) ? "instruction" : "component_instruction";
         InstructionLoad instructionLoad = performLists.getInstructionById(instrTable, whereId, instructionId);
 
         if (instructionLoad != null) {
@@ -2413,41 +2414,44 @@ public class ARNewCommandPane extends ARPane {
             }
         }
 
-        if (!performLists.getListVariablesUser().isEmpty()) {
-            List<ComboBoxVars> variablesNames = performLists.getListVariablesUser().stream()
-                    .map(variable -> new ComboBoxVars(
-                            variable.getType().substring(0, 1) + variable.getName(),
-                            variable.getValue(),
-                            -1,
-                            -1,
-                            variable.getParentId(),
-                            variable.getId(),
-                            null,
-                            -1,
-                            variable.getLocalFormat()))
-                    .collect(Collectors.toList());
+        List<VariableUserDTO> vars = performLists.getListVariablesUser();
 
-            variablesItems.addAll(variablesNames);
-
-            if (selectLast && variableId == -1) {
-                comboBoxVars.getSelectionModel().selectLast();
-            } else if (selectLast && variableId > -1) {
-                int index = -1;
-                for (int i = 0; i < variablesItems.size(); i++) {
-                    if (variablesItems.get(i).getVarId().equals(variableId)) {
-                        index = i;
-                        break;
-                    }
-                }
-                comboBoxVars.getSelectionModel().select(index >= 0 ? index : 0);
-            } else {
-                comboBoxVars.getSelectionModel().selectFirst();
-            }
-
-        } else {
+        // ✅ If no variables, ALWAYS show the placeholder and select it
+        if (vars == null || vars.isEmpty()) {
             variablesItems.add(new ComboBoxVars("no variables added", "", -1, -1, -1, -1, null, -1, null));
             comboBoxVars.getSelectionModel().selectFirst();
+            return; // important: stop here
         }
+
+        // Populate the combobox items
+        for (VariableUserDTO v : vars) {
+            String type = v.getType();
+            String prefix = (type != null && !type.isEmpty()) ? type.substring(0, 1) : "";
+            String displayName = prefix + v.getName();
+
+            variablesItems.add(new ComboBoxVars(
+                    displayName, v.getValue(), -1, -1, v.getParentId(), v.getId(), null, -1, v.getLocalFormat()));
+        }
+
+        // Selection logic
+        if (selectLast && variableId == -1) {
+            comboBoxVars.getSelectionModel().selectLast();
+            return;
+        }
+
+        if (selectLast && variableId > -1) {
+            for (int i = 0; i < variablesItems.size(); i++) {
+                Integer id = variablesItems.get(i).getVarId();
+                if (id != null && id == variableId) {
+                    comboBoxVars.getSelectionModel().select(i);
+                    return;
+                }
+            }
+            comboBoxVars.getSelectionModel().selectFirst();
+            return;
+        }
+
+        comboBoxVars.getSelectionModel().selectFirst();
     }
 
     private void updateFields(String tableName, int whereId) {
