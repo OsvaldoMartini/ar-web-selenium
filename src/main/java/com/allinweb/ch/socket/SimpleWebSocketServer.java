@@ -522,7 +522,7 @@ public class SimpleWebSocketServer {
                             if (sessionBotJob == null) {
                                 performMessage.errorMessage(
                                         "Bot Job Details Not Open",
-                                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span>",
                                         "<span style='color: #1565C0; font-weight: bold;'>" + splitDTO.getBotJobName()
                                                 + "</span>.",
                                         "<span style='color: #E65100; font-weight: bold;'>The Integration AR Mobile is waiting for the Bot Job to be open.</span>",
