@@ -813,14 +813,14 @@ public class ARScannedElementScene extends ARScene {
         }
 
         try {
-            // 🔹 Step 1: If there's a "body" key, extract its string and parse it as JSON
+            // Step 1: If there's a "body" key, extract its string and parse it as JSON
             if (jsonEntry.has("body")) {
                 String bodyStr = jsonEntry.get("body").getAsString();
                 JsonObject inner = gson.fromJson(bodyStr, JsonObject.class);
                 return gson.fromJson(inner, SplitDTO.class);
             }
 
-            // 🔹 Step 2: Otherwise, parse the current object directly
+            // Step 2: Otherwise, parse the current object directly
             return gson.fromJson(jsonEntry, SplitDTO.class);
 
         } catch (Exception error) {
