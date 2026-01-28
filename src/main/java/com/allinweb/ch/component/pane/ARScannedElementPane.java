@@ -4251,7 +4251,7 @@ public class ARScannedElementPane extends ARPane {
                                                 currentInstruction.getId(),
                                                 false);
 
-                                        // appendLog("[TEST]" + reason, "error");
+                                        appendLog("[TEST]" + reason, "error");
                                         alreadyLogged = true;
 
                                         logOperations.error("{}", reason);
@@ -4323,7 +4323,7 @@ public class ARScannedElementPane extends ARPane {
                                                     currentInstruction.getId(),
                                                     isOperationValid);
 
-                                            // appendLog("[TEST]" + resultActions, "info");
+                                            appendLog("[TEST]" + resultActions, "info");
                                             alreadyLogged = true;
 
                                             success = true;
@@ -4355,7 +4355,7 @@ public class ARScannedElementPane extends ARPane {
                                                     currentInstruction.getId(),
                                                     isOperationValid);
 
-                                            // appendLog("[TEST]" + resultActions, "error");
+                                            appendLog("[TEST]" + resultActions, "error");
                                             alreadyLogged = true;
 
                                             logOperations.error("Validation failed: {}", resultActions);
@@ -4393,7 +4393,7 @@ public class ARScannedElementPane extends ARPane {
                                                 currentInstruction.getId(),
                                                 false);
 
-                                        // appendLog("[TEST]" + reason, "error");
+                                        appendLog("[TEST]" + reason, "error");
                                         alreadyLogged = true;
 
                                         logOperations.error("{}", reason);
@@ -4558,7 +4558,7 @@ public class ARScannedElementPane extends ARPane {
                                                                 currentInstruction.getId(),
                                                                 false);
 
-                                                        // appendLog("[TEST]" + reason, "error");
+                                                        appendLog("[TEST]" + reason, "error");
                                                         alreadyLogged = true;
 
                                                         logOperations.error("{}", reason);
@@ -4598,7 +4598,7 @@ public class ARScannedElementPane extends ARPane {
                                                                     currentInstruction.getId(),
                                                                     true);
 
-                                                            // appendLog("[TEST]" + resultActions, "info");
+                                                            appendLog("[TEST]" + resultActions, "info");
                                                             alreadyLogged = true;
 
                                                             logOperations.info(
@@ -4627,7 +4627,7 @@ public class ARScannedElementPane extends ARPane {
                                                                     currentInstruction.getId(),
                                                                     false);
 
-                                                            // appendLog("[TEST]" + resultActions, "error");
+                                                            appendLog("[TEST]" + resultActions, "error");
                                                             alreadyLogged = true;
 
                                                             logOperations.error(
@@ -4682,7 +4682,7 @@ public class ARScannedElementPane extends ARPane {
                                                 currentInstruction.getId(),
                                                 false);
 
-                                        // appendLog("[TEST]" + reason, "error");
+                                        appendLog("[TEST]" + reason, "error");
                                         alreadyLogged = true;
 
                                         logOperations.error("{}", reason);
@@ -4805,9 +4805,9 @@ public class ARScannedElementPane extends ARPane {
                             }
 
                             if (success && !alreadyLogged) {
-                                // appendLog("[TEST]" + resultActions, "info");
+                                appendLog("[TEST]" + resultActions, "info");
                             } else if (!alreadyLogged) {
-                                // appendLog("[TEST]" + resultActions, "error");
+                                appendLog("[TEST]" + resultActions, "error");
                                 anyFailure = true;
                             }
 
@@ -5164,4 +5164,6 @@ public class ARScannedElementPane extends ARPane {
                 return new ValidationResult(false, "Unknown operator: " + operator);
         }
     }
+
+    private void appendLog(String message, String style) {}
 }
