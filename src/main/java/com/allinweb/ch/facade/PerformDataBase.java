@@ -24,6 +24,8 @@ public class PerformDataBase {
     public static final PerformMessage performMessage = PerformMessage.getInstance();
     public static final PerformInitializer performInitializer = PerformInitializer.getInstance();
     public static final PerformLists performLists = PerformLists.getInstance();
+    //    public static final MobileReturnServer mobileReturnServer = MobileReturnServer.getInstance();
+
     // Static final variable to hold the singleton instance
     protected static volatile PerformDataBase instance;
     public final String CONNECTION_TYPE = "jdbc:ucanaccess://";
@@ -7059,7 +7061,8 @@ public class PerformDataBase {
         return errorMessage;
     }
 
-    public void callSocketLists(String sessionId) {
-        performLists.initialize(sessionId);
+    public void callSocketLists(String sessionLists, String sessionMobile) {
+        performLists.initialize(sessionLists);
+        // mobileReturnServer.initialize(sessionMobile);
     }
 }

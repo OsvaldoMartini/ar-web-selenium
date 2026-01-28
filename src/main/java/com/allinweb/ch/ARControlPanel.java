@@ -156,7 +156,7 @@ public class ARControlPanel extends Application {
     private static void initializeServers() {
         arWebSocketServerIP = ARWebSocketServerIP.getInstance();
         arWebSocketServer = ARWebSocketServer.getInstance();
-        performDataBase.callSocketLists("perform-list-data");
+        performDataBase.callSocketLists("perform-list-data", "non-negotiable");
     }
 
     private static void setLogPath() {

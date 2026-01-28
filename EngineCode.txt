@@ -4,18 +4,22 @@ boolean byPassFlagLoop = false;
 boolean success = true;
 boolean stopAll = false;
 boolean lastRecall = false;
+boolean anyFailure = false;
+boolean alreadyLogged = false;
 long botJobStartTime = System.nanoTime();
 long totalExecutionTime = 0;
 String resultActions = "No instruction executed yet";
 String failedMessage = "";
 Map<String, String> dataExcel = null;
 
-sessionRowStatus = "mobile-return-server"; // + botJobId;
+sessionRowStatus = "engine-perform-bot-job"; // + botJobId;
 
 variablesLoaded = performLists.getListVariable();
 Map<String, String> mapSavedLocators = new HashMap<>();
 
 Set<Integer> parentIdsForLoop = null;
+Set<Integer> allOutPuts = null;
+
 Map<String, List<Integer>> mapConditional = new HashMap<>(); // <parentId:Limit Loops> -> <1|5 Times>
 Map<String, Integer> mapLoops = new HashMap<>(); // <parentId:Limit Loops> -> <1|5 Times>
 Map<String, Integer> mapRefresh = new HashMap<>(); // <parentId:Limit Loops> -> <1|5 Times>
@@ -54,6 +58,9 @@ if (extractedData.getNumberOfDataRows() > 0) {
 		// Clear's Up Any Loop as Per New Line
 		mapLoops.clear();
 		mapRefresh.clear();
+
+		lastRecall = false;
+		currentBlockOrder = blockInitial; // start blocks from initial for this row
 
 		blockLoop:
 		while (currentBlockOrder <= blocksLoaded.size() - 1 && !blocksLoaded.isEmpty() && !stopAll) {
@@ -214,6 +221,9 @@ if (extractedData.getNumberOfDataRows() > 0) {
 				logOperations.error(String.format("Error Wait Block for :\"%s\"", blockLoad.getName()));
 			}
 
+			allOutPuts = performActions.getAllOutputsPerBlock(
+					blocksLoaded.get(currentBlockOrder).getInstructionLoad());
+
 			// Step 1: Get all ParentIds For LOOPs Filter rows where actions = "REFRESH_LOOP" or "LOOP" on
 			// current
 			// Block
@@ -243,7 +253,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 			boolean refreshLoop = false;
 			boolean refreshOnly = false;
 
-			while (success && xExcelCurrentRow < extractedData.getNumberOfDataRows() && !stopAll) {
+			while (xExcelCurrentRow < extractedData.getNumberOfDataRows() && !stopAll) {
 				failedMessage = "";
 				//                        mapExportRows.clear();
 
@@ -320,6 +330,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 					boolean execGetOrSet = false;
 					boolean execCheckValue = false;
 					boolean execPDFCheck = false;
+					boolean execCSVCheck = false;
 					boolean execOutPut = false;
 					boolean excelWriteOperation = false;
 					boolean pauseOperation = false;
@@ -451,7 +462,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 						// <currentId:blockId:blockOrderNumber:bockName>
 						xExcelCurrentRow++;
 
-						String bodyMsg = "Excel Data Calling Next Row: " + xExcelCurrentRow + 1;
+						String bodyMsg = "Excel Data Calling Next Row: " + (xExcelCurrentRow + 1);
 
 						if (xExcelCurrentRow >= xExcelDataSize - 1) {
 							xExcelCurrentRow = xExcelDataSize - 1;
@@ -670,6 +681,14 @@ if (extractedData.getNumberOfDataRows() > 0) {
 						}
 					} else if (actions[0].equalsIgnoreCase(ARConstantsEngine.PDF_CHECK)) {
 						execPDFCheck = true;
+						parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
+						variableField =
+								performActions.getInstructionVariableField(currentInstruction, variablesLoaded);
+						if (variableField == null) {
+							variableField = "Not Variable defined";
+						}
+					} else if (actions[0].equalsIgnoreCase(ARConstantsEngine.CSV_CHECK)) {
+						execCSVCheck = true;
 						parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
 						variableField =
 								performActions.getInstructionVariableField(currentInstruction, variablesLoaded);
@@ -918,17 +937,23 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								&& !execGetOrSet
 								&& !execCheckValue
 								&& !execPDFCheck
+								&& !execCSVCheck
 								&& !excelWriteOperation
 								&& !pauseOperation) {
 
 							webElementWork = true;
 
 							// Extract dataFieldName and dataFieldValue using a separate method
+							// AR Mobile Work Around for Not creating a new DB column
+							String defaultValue = currentInstruction.getDefaultValue() != null
+											&& !currentInstruction
+													.getDefaultValue()
+													.contains("scroll-active")
+									? currentInstruction.getDefaultValue()
+									: null;
+
 							FieldData fieldData = performActions.extractFieldData(
-									dataExcel,
-									actions,
-									currentInstruction.getDefaultValue(),
-									currentInstruction.getCodified());
+									dataExcel, actions, defaultValue, currentInstruction.getCodified());
 
 							WebElement webElementFound = null;
 							boolean forceCoordinates = currentInstruction.getForceCoordinates() != null
@@ -977,6 +1002,9 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								webElementFound = androidDevice.searchElement(splitDTO);
 
 								if (webElementFound == null) {
+									appendLog(
+											currentInstruction.getName() + "- Not Found- using coordinates",
+											"warn");
 									androidDevice.executeAction(webElementFound, splitDTO);
 								}
 							}
@@ -1030,7 +1058,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 							}
 							// Special Cases for Select Responses
 							// It could be Improved the case
-							if (resultActions.contains("Error:")
+							if (resultActions.contains("FAIL")
 									|| (webElementFound == null && !forceCoordinates)) {
 								failedMessage = "Failed execution Web Element ";
 								msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
@@ -1091,7 +1119,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 										mapOperators,
 										webElementFound);
 
-								if (resultActions.contains("Error:")) {
+								if (resultActions.contains("FAIL")) {
 									failedMessage = "Failed: Operation (GetValue / SetValue) ";
 									msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 									success = false;
@@ -1113,14 +1141,33 @@ if (extractedData.getNumberOfDataRows() > 0) {
 							if (!mapOperators.containsKey(variableField)) {
 								failedMessage = "Get Value Is Not Defined ";
 								msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
-								resultActions = performActions.getValueIsNotDefined(
+								//                                        resultActions =
+								// performActions.getValueIsNotDefined(
+								//                                                actions[0],
+								//                                                currentInstruction,
+								//                                                resultActions,
+								//                                                ARExecution.ConditionStatus
+								//                                                        .NONE, // NOT
+								// currentCondition to Force Message,
+								//                                                parentField,
+								//                                                variableField);
+
+								String reason = performActions.buildGetVariableReason(
 										actions[0],
 										currentInstruction,
 										resultActions,
-										ARExecution.ConditionStatus
-												.NONE, // NOT  currentCondition to Force Message,
+										currentCondition,
 										parentField,
-										variableField);
+										variableField,
+										byPassNotFound, // or your bypass flag
+										blockName,
+										currentInstruction.getId(),
+										false);
+
+								appendLog("[TEST]" + reason, "error");
+								alreadyLogged = true;
+
+								logOperations.error("{}", reason);
 
 								success = false;
 							} else {
@@ -1174,18 +1221,57 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								if (isOperationValid) {
 									currentInstruction.setExecuted(true);
 									failedMessage = "";
+
+									resultActions = performActions.buildValidationReason(
+											invalidValues,
+											parentField,
+											mapOperators.get(variableField), // actual/current web value
+											operations[2].trim(),
+											resultActions, // lastInstructionExecuted
+											operations,
+											currentCondition,
+											byPassNotFound,
+											true,
+											blockName,
+											currentInstruction.getId(),
+											isOperationValid);
+
+									appendLog("[TEST]" + resultActions, "info");
+									alreadyLogged = true;
+
 									success = true;
 								} else {
 									failedMessage = "Failed: Check Validation ";
 									msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
-									resultActions = performActions.checkValidationFailed(
+									//                                            resultActions =
+									// performActions.checkValidationFailed(
+									//                                                    invalidValues,
+									//                                                    parentField,
+									//
+									// mapOperators.get(variableField),
+									//                                                    resultActions,
+									//                                                    operations,
+									//                                                    currentCondition,
+									//                                                    byPassNotFound);
+
+									resultActions = performActions.buildValidationReason(
 											invalidValues,
 											parentField,
-											mapOperators.get(variableField),
-											resultActions,
+											mapOperators.get(variableField), // actual/current web value
+											operations[2].trim(),
+											resultActions, // lastInstructionExecuted
 											operations,
 											currentCondition,
-											byPassNotFound);
+											byPassNotFound,
+											true,
+											blockName,
+											currentInstruction.getId(),
+											isOperationValid);
+
+									appendLog("[TEST]" + resultActions, "error");
+									alreadyLogged = true;
+
+									logOperations.error("Validation failed: {}", resultActions);
 
 									success = false;
 								}
@@ -1197,14 +1283,33 @@ if (extractedData.getNumberOfDataRows() > 0) {
 							if (!mapOperators.containsKey(variableField)) {
 								failedMessage = "Get Value Is Not Defined ";
 								msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
-								resultActions = performActions.getValueIsNotDefined(
+								//                                        resultActions =
+								// performActions.getValueIsNotDefined(
+								//                                                actions[0],
+								//                                                currentInstruction,
+								//                                                resultActions,
+								//                                                ARExecution.ConditionStatus
+								//                                                        .NONE, // NOT
+								// currentCondition to Force Message,
+								//                                                parentField,
+								//                                                variableField);
+
+								String reason = performActions.buildGetVariableReason(
 										actions[0],
 										currentInstruction,
 										resultActions,
-										ARExecution.ConditionStatus
-												.NONE, // NOT  currentCondition to Force Message,
+										currentCondition,
 										parentField,
-										variableField);
+										variableField,
+										byPassNotFound, // or your bypass flag
+										blockName,
+										currentInstruction.getId(),
+										false);
+
+								appendLog("[TEST]" + reason, "error");
+								alreadyLogged = true;
+
+								logOperations.error("{}", reason);
 
 								success = false;
 							} else {
@@ -1262,19 +1367,197 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								} else {
 									failedMessage = "Failed: Check Validation ";
 									msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
-									resultActions = performActions.checkValidationFailed(
+									//                                            resultActions =
+									// performActions.checkValidationFailed(
+									//                                                    invalidValues,
+									//                                                    parentField,
+									//
+									// mapOperators.get(variableField),
+									//                                                    resultActions,
+									//                                                    operations,
+									//                                                    currentCondition,
+									//                                                    byPassNotFound);
+
+									resultActions = performActions.buildValidationReason(
 											invalidValues,
 											parentField,
-											mapOperators.get(variableField),
-											resultActions,
+											mapOperators.get(variableField), // actual/current web value
+											"expectedValue",
+											resultActions, // lastInstructionExecuted
 											operations,
 											currentCondition,
-											byPassNotFound);
+											byPassNotFound,
+											true,
+											blockName,
+											currentInstruction.getId(),
+											false);
+
+									logOperations.error("Validation failed: {}", resultActions);
 
 									success = false;
 								}
 							}
 
+						} else if (execCSVCheck) {
+
+							// If fieldsToValidate is null/empty => ignore (no log)
+							Map<String, FieldsToValidate> fMap = splitDTO.getFieldsToValidate();
+							if (fMap == null || fMap.isEmpty()) {
+								// ignore
+							} else {
+
+								for (Map.Entry<String, FieldsToValidate> entry : fMap.entrySet()) {
+
+									FieldsToValidate expectedField = entry.getValue();
+
+									// Only run if parentField exists as a key. If not found => ignore (no log).
+									if (expectedField == null || expectedField.getValue() == null) {
+										// ignore
+									} else {
+
+										String parentFieldCSV = entry.getKey();
+
+										String foundKey = null;
+										if (allOutPuts != null && !allOutPuts.isEmpty()) {
+											for (Integer outId : allOutPuts) {
+												String k = outId + "-" + parentFieldCSV;
+												if (mapOperators.containsKey(k)) {
+													foundKey = k;
+													break;
+												}
+											}
+										}
+
+										if (foundKey == null) {
+											// ignore
+										} else {
+
+											String actualValue = mapOperators.get(foundKey);
+
+											// You still keep your "Get Value Is Not Defined" behavior
+											if (actualValue == null
+													|| actualValue
+															.trim()
+															.isEmpty()) {
+												failedMessage = "Get Value Is Not Defined ";
+												msgInstruction =
+														updateMSGInstruction(msgInstruction, failedMessage);
+
+												//                                                resultActions
+												// =
+												// performActions.getValueIsNotDefined(
+												//
+												// actions[0],
+												//
+												// currentInstruction,
+												//
+												// resultActions,
+												//
+												// ARExecution.ConditionStatus.NONE,
+												//
+												// parentField,
+												//
+												// variableField);
+
+												String reason = performActions.buildGetVariableReason(
+														actions[0],
+														currentInstruction,
+														resultActions,
+														currentCondition,
+														parentField,
+														variableField,
+														byPassNotFound, // or your bypass flag
+														blockName,
+														currentInstruction.getId(),
+														false);
+
+												appendLog("[TEST]" + reason, "error");
+												alreadyLogged = true;
+
+												logOperations.error("{}", reason);
+
+												success = false;
+
+											} else {
+												// actual/current value on the web/app side
+
+												// expected value comes from
+												// splitDTO.fieldsToValidate[parentField].value
+												String expectedValue = expectedField.getValue();
+
+												// operator comes from your parsed operations array
+												String operator = operations[1];
+
+												resultActions = "CSV Check Value for " + parentFieldCSV;
+												ValidationResult vr =
+														evaluateOperation(actualValue, operator, expectedValue);
+
+												if (vr.valid) {
+													currentInstruction.setExecuted(true);
+													failedMessage = "";
+													success = true;
+
+													resultActions = performActions.buildValidationReason(
+															vr.invalidReason,
+															parentFieldCSV,
+															actualValue, // actual/current web value
+															expectedValue,
+															resultActions,
+															operations,
+															currentCondition,
+															byPassNotFound,
+															true,
+															blockName,
+															currentInstruction.getId(),
+															true);
+
+													appendLog("[TEST]" + resultActions, "info");
+													alreadyLogged = true;
+
+													logOperations.info(
+															"Validation SUCCESS for field '{}': actual='{}' {} expected='{}'",
+															parentFieldCSV,
+															actualValue,
+															operator,
+															expectedValue);
+
+												} else {
+													failedMessage = "Failed: Check Validation ";
+													msgInstruction =
+															updateMSGInstruction(msgInstruction, failedMessage);
+
+													resultActions = performActions.buildValidationReason(
+															vr.invalidReason,
+															parentFieldCSV,
+															actualValue, // actual/current web value
+															expectedValue,
+															resultActions,
+															operations,
+															currentCondition,
+															byPassNotFound,
+															true,
+															blockName,
+															currentInstruction.getId(),
+															false);
+
+													appendLog("[TEST]" + resultActions, "error");
+													alreadyLogged = true;
+
+													logOperations.error(
+															"CSV Values Validation FAILED for field '{}': actual='{}' {} expected='{}'. Reason: {}",
+															parentFieldCSV,
+															actualValue,
+															operator,
+															expectedValue,
+															resultActions);
+
+													success = false;
+												}
+											}
+										}
+									}
+								}
+							}
 						} else if (excelWriteOperation) {
 							// Excel Write Operator
 
@@ -1289,14 +1572,33 @@ if (extractedData.getNumberOfDataRows() > 0) {
 							} else if (!mapOperators.containsKey(variableField)) {
 								failedMessage = "Get Value Is Not Defined ";
 								msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
-								resultActions = performActions.getValueIsNotDefined(
+								//                                        resultActions =
+								// performActions.getValueIsNotDefined(
+								//                                                actions[0],
+								//                                                currentInstruction,
+								//                                                resultActions,
+								//                                                ARExecution.ConditionStatus
+								//                                                        .NONE, // NOT
+								// currentCondition to Force Message,
+								//                                                parentField,
+								//                                                variableField);
+
+								String reason = performActions.buildGetVariableReason(
 										actions[0],
 										currentInstruction,
 										resultActions,
-										ARExecution.ConditionStatus
-												.NONE, // NOT  currentCondition to Force Message,
+										currentCondition,
 										parentField,
-										variableField);
+										variableField,
+										byPassNotFound, // or your bypass flag
+										blockName,
+										currentInstruction.getId(),
+										false);
+
+								appendLog("[TEST]" + reason, "error");
+								alreadyLogged = true;
+
+								logOperations.error("{}", reason);
 
 								success = false;
 							} else {
@@ -1313,14 +1615,25 @@ if (extractedData.getNumberOfDataRows() > 0) {
 											.withPurpose("export");
 								}
 
-								if (writerExport != null) {
+								resultActions = performActions.messageExcel(
+										"Excel Write",
+										currentInstruction,
+										parentField,
+										variableField,
+										mapOperators.get(variableField),
+										blockName,
+										currentInstruction.getId(),
+										(writerExport != null));
 
-									resultActions = "insertValueFieldNameInExcel -> " + variableField + "-"
-											+ mapOperators.get(variableField);
-								} else {
-									resultActions = "NO Export Excel File defined -> " + variableField + "-"
-											+ mapOperators.get(variableField);
-								}
+								performActions.messageExcel(
+										actions[0],
+										currentInstruction,
+										parentField,
+										variableField,
+										mapOperators.get(variableField),
+										blockName,
+										currentInstruction.getId(),
+										false);
 
 								if (mapExportRows.size() == 0) {
 									//
@@ -1404,11 +1717,14 @@ if (extractedData.getNumberOfDataRows() > 0) {
 						//                            throw new RuntimeException(t);
 					}
 
-					if (success) {
-						appendLog("[TEST] Success: " + resultActions, "info");
-					} else {
-						appendLog("[TEST] Failed:  " + resultActions, "error");
+					if (success && !alreadyLogged) {
+						appendLog("[TEST]" + resultActions, "info");
+					} else if (!alreadyLogged) {
+						appendLog("[TEST]" + resultActions, "error");
+						anyFailure = true;
 					}
+
+					alreadyLogged = false;
 
 					printLog(finalLogMessage(failedMessage, resultActions), success);
 
@@ -1475,58 +1791,15 @@ if (extractedData.getNumberOfDataRows() > 0) {
 					if (!success
 							&& !byPassFlagLoop
 							&& currentCondition.equals(ARExecution.ConditionStatus.NONE)) {
-						if (lastRecall) {
-							stopAll = true;
-						} else {
 
-							//                                    if
-							// (blocksLoaded.get(currentBlockOrder).isHasAnyInput()) {
+						// Record failure but do NOT alter execution flow
+						anyFailure = true;
 
-							xExcelCurrentRow++;
+						// Reset success so execution can continue
+						success = true;
 
-							//                                    String bodyMsg = "Excel Data Calling Next Row:
-							// " + xExcelCurrentRow + 1;
-
-							if (xExcelCurrentRow >= xExcelDataSize - 1) {
-								xExcelCurrentRow = xExcelDataSize - 1;
-								//                                        msgInstruction = new FieldData(
-								//                                                "Excel Data (limit reached)
-								// keeping last row",
-								//
-								// String.valueOf(xExcelCurrentRow + 1));
-								//                                        bodyMsg =
-								//                                                "Excel Data (limit reached)
-								// keeping last row: " + xExcelCurrentRow + 1;
-								lastRecall = true;
-							} else {
-								//                                        msgInstruction = new FieldData(
-								//                                                "Excel Data next row",
-								// String.valueOf(xExcelCurrentRow + 1));
-							}
-
-							// Excel Report and Log
-							//                                    performActions.logAndReport(
-							//                                            currentCondition,
-							//                                            true,
-							//                                            true,
-							//                                            blockStartTime,
-							//                                            blockReportName,
-							//                                            success,
-							//                                            new String[]
-							// {ARConstantsEngine.NEXT_ROW},
-							//                                            msgInstruction,
-							//                                            dataExcel,
-							//                                            writerReport,
-							//                                            "Excel Data Calling Next Row",
-							//                                            bodyMsg);
-							//                                    }
-
-							//                                currentIndex++;
-							currentBlockOrder = blockInitial; // BLOCK DEFINED BY "DEFAULT" OR "EXCEL GOTO"
-							currentIndex = 0; // INITIAL INDEX FOR ANY BLOCK LOADED
-							success = true; // TO ALLOW OTHER FUNCTIONS TO BE EXECUTED
-							continue blockLoop;
-						}
+						// Continue with next instruction
+						continue instructionLoop;
 					}
 
 					// It decides Here if ByPass as per Loop or Per IF-ELSEIF-ELSE-ENDIF blocks

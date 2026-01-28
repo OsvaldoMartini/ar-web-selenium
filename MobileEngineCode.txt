@@ -12,7 +12,7 @@ String resultActions = "No instruction executed yet";
 String failedMessage = "";
 Map<String, String> dataExcel = null;
 
-sessionRowStatus = "botJobTasks"; // + botJobId;
+sessionRowStatus = "mobile-return-server"; // + botJobId;
 
 variablesLoaded = performLists.getListVariable();
 Map<String, String> mapSavedLocators = new HashMap<>();

@@ -109,6 +109,8 @@ public class ARScannedElementPane extends ARPane {
     private int currentBlockId;
     private int currentBlockOrder;
     private int executeSpecificBlock;
+    private boolean isMobileApp = false;
+    private SplitDTO splitDTO;
     private ExtractedData extractedData = null;
     private List<BlockLoadDTO> blocksLoaded;
     private List<InstructionLoad> excelDataGoto = new ArrayList<>();
@@ -3077,6 +3079,8 @@ public class ARScannedElementPane extends ARPane {
         boolean success = true;
         boolean stopAll = false;
         boolean lastRecall = false;
+        boolean anyFailure = false;
+        boolean alreadyLogged = false;
         long botJobStartTime = System.nanoTime();
         long totalExecutionTime = 0;
         String resultActions = "No instruction executed yet";
@@ -3089,6 +3093,8 @@ public class ARScannedElementPane extends ARPane {
         Map<String, String> mapSavedLocators = new HashMap<>();
 
         Set<Integer> parentIdsForLoop = null;
+        Set<Integer> allOutPuts = null;
+
         Map<String, List<Integer>> mapConditional = new HashMap<>(); // <parentId:Limit Loops> -> <1|5 Times>
         Map<String, Integer> mapLoops = new HashMap<>(); // <parentId:Limit Loops> -> <1|5 Times>
         Map<String, Integer> mapRefresh = new HashMap<>(); // <parentId:Limit Loops> -> <1|5 Times>
@@ -3127,6 +3133,9 @@ public class ARScannedElementPane extends ARPane {
                 // Clear's Up Any Loop as Per New Line
                 mapLoops.clear();
                 mapRefresh.clear();
+
+                lastRecall = false;
+                currentBlockOrder = blockInitial; // start blocks from initial for this row
 
                 blockLoop:
                 while (currentBlockOrder <= blocksLoaded.size() - 1 && !blocksLoaded.isEmpty() && !stopAll) {
@@ -3287,6 +3296,9 @@ public class ARScannedElementPane extends ARPane {
                         logOperations.error(String.format("Error Wait Block for :\"%s\"", blockLoad.getName()));
                     }
 
+                    allOutPuts = performActions.getAllOutputsPerBlock(
+                            blocksLoaded.get(currentBlockOrder).getInstructionLoad());
+
                     // Step 1: Get all ParentIds For LOOPs Filter rows where actions = "REFRESH_LOOP" or "LOOP" on
                     // current
                     // Block
@@ -3316,7 +3328,7 @@ public class ARScannedElementPane extends ARPane {
                     boolean refreshLoop = false;
                     boolean refreshOnly = false;
 
-                    while (success && xExcelCurrentRow < extractedData.getNumberOfDataRows() && !stopAll) {
+                    while (xExcelCurrentRow < extractedData.getNumberOfDataRows() && !stopAll) {
                         failedMessage = "";
                         //                        mapExportRows.clear();
 
@@ -3525,7 +3537,7 @@ public class ARScannedElementPane extends ARPane {
                                 // <currentId:blockId:blockOrderNumber:bockName>
                                 xExcelCurrentRow++;
 
-                                String bodyMsg = "Excel Data Calling Next Row: " + xExcelCurrentRow + 1;
+                                String bodyMsg = "Excel Data Calling Next Row: " + (xExcelCurrentRow + 1);
 
                                 if (xExcelCurrentRow >= xExcelDataSize - 1) {
                                     xExcelCurrentRow = xExcelDataSize - 1;
@@ -3647,7 +3659,7 @@ public class ARScannedElementPane extends ARPane {
                                         null,
                                         false,
                                         "Continue",
-                                        "Stop all",
+                                        "Stop Run",
                                         0);
                             }
 
@@ -4021,17 +4033,64 @@ public class ARScannedElementPane extends ARPane {
                                     WebElement webElementFound = null;
                                     boolean forceCoordinates = currentInstruction.getForceCoordinates() != null
                                             && currentInstruction.getForceCoordinates();
-                                    try {
-                                        webElementFound = performActions.searchElement(
-                                                currentInstruction,
-                                                this.currentBotJob.getId(),
-                                                forceCoordinates,
-                                                byPassFlagLoop);
-                                    } catch (Exception ex) {
-                                        success = false;
+
+                                    if (!isMobileApp) {
+                                        try {
+                                            webElementFound = performActions.searchElement(
+                                                    currentInstruction,
+                                                    this.currentBotJob.getId(),
+                                                    forceCoordinates,
+                                                    byPassFlagLoop);
+                                        } catch (Exception ex) {
+                                            success = false;
+                                        }
+                                    } else {
+                                        // Safely extract the first element ID (if present)
+                                        //                                        Integer elementId =
+                                        // Optional.ofNullable(splitDTO.getElementDetails())
+                                        //                                                .filter(arr -> arr.length > 0)
+                                        //                                                .map(arr -> arr[0])
+                                        //                                                .map(ElementDTO::getId)
+                                        //                                                .orElse(null);
+
+                                        // Find matching instruction by variableId
+                                        //                                        InstructionLoad matchingInstruction =
+                                        // Optional.ofNullable(
+                                        //
+                                        // performLists.getListInstruction())
+                                        //
+                                        // .orElse(Collections.emptyList())
+                                        //                                                .stream()
+                                        //                                                .filter(i ->
+                                        // Objects.equals(i.getId(), elementId))
+                                        //                                                .findFirst()
+                                        //                                                .orElse(null);
+
+                                        // 2) Apply only non-empty values into splitDTO and elementDetails[0]
+                                        //                                        if (matchingInstruction != null) {
+                                        // >>> Add AttrData:* references into elementDetails.attributesData
+                                        //
+                                        // SplitDTO.applyAttrDataFromReferences(splitDTO, currentInstruction);
+                                        //
+                                        //
+                                        // SplitDTO.applyInstructionToSplit(splitDTO, currentInstruction);
+                                        //                                        //
+                                        //    }
+                                        //
+                                        //                                        webElementFound =
+                                        // androidDevice.searchElement(splitDTO);
+                                        //
+                                        //                                        if (webElementFound == null) {
+                                        //                                            appendLog(
+                                        //
+                                        // currentInstruction.getName() + "- Not Found- using coordinates",
+                                        //                                                    "warn");
+                                        //
+                                        // androidDevice.executeAction(webElementFound, splitDTO);
+                                        //                                        }
                                     }
 
-                                    if (webElementFound == null && forceCoordinates) {
+                                    if (webElementFound == null && forceCoordinates && !isMobileApp) {
 
                                         Boolean pressEnterAfter = false;
                                         if (actions[0].equals(ARConstantsEngine.INSERT)
@@ -4066,7 +4125,9 @@ public class ARScannedElementPane extends ARPane {
                                                 currentInstruction,
                                                 mapOperators,
                                                 webElementFound,
-                                                actions);
+                                                actions,
+                                                isMobileApp,
+                                                splitDTO);
 
                                         if (execOutPut) {
                                             if (mapOperators.containsKey(fieldName)) {
@@ -4078,7 +4139,7 @@ public class ARScannedElementPane extends ARPane {
                                     }
                                     // Special Cases for Select Responses
                                     // It could be Improved the case
-                                    if (resultActions.contains("Error:")
+                                    if (resultActions.contains("FAIL")
                                             || (webElementFound == null && !forceCoordinates)) {
                                         failedMessage = "Failed execution Web Element ";
                                         msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
@@ -4110,6 +4171,29 @@ public class ARScannedElementPane extends ARPane {
                                         success = false;
                                     } else {
 
+                                        WebElement webElementFound = null;
+                                        if (isMobileApp) {
+                                            //                                            int index = IntStream.range(0,
+                                            // instructionIds.length)
+                                            //                                                    .filter(i ->
+                                            // instructionIds[i] == parentId)
+                                            //                                                    .findFirst()
+                                            //                                                    .orElse(-1);
+                                            //
+                                            //                                            InstructionLoad refInstruction
+                                            // = blockLoad
+                                            //                                                    .getInstructionLoad()
+                                            //                                                    .get(index);
+                                            //
+                                            //
+                                            // SplitDTO.applyAttrDataFromReferences(splitDTO, refInstruction);
+                                            //
+                                            // SplitDTO.applyInstructionToSplit(splitDTO, refInstruction);
+                                            //
+                                            //                                            webElementFound =
+                                            // androidDevice.searchElement(splitDTO);
+                                        }
+
                                         resultActions = performActions.performOperatorActions(
                                                 byPassNotFound,
                                                 currentInstruction,
@@ -4119,9 +4203,10 @@ public class ARScannedElementPane extends ARPane {
                                                 operations,
                                                 parentField,
                                                 variableField,
-                                                mapOperators);
+                                                mapOperators,
+                                                webElementFound);
 
-                                        if (resultActions.contains("Error:")) {
+                                        if (resultActions.contains("FAIL")) {
                                             failedMessage = "Failed: Operation (GetValue / SetValue) ";
                                             msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                             success = false;
@@ -4143,14 +4228,33 @@ public class ARScannedElementPane extends ARPane {
                                     if (!mapOperators.containsKey(variableField)) {
                                         failedMessage = "Get Value Is Not Defined ";
                                         msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
-                                        resultActions = performActions.getValueIsNotDefined(
+                                        //                                        resultActions =
+                                        // performActions.getValueIsNotDefined(
+                                        //                                                actions[0],
+                                        //                                                currentInstruction,
+                                        //                                                resultActions,
+                                        //                                                ARExecution.ConditionStatus
+                                        //                                                        .NONE, // NOT
+                                        // currentCondition to Force Message,
+                                        //                                                parentField,
+                                        //                                                variableField);
+
+                                        String reason = performActions.buildGetVariableReason(
                                                 actions[0],
                                                 currentInstruction,
                                                 resultActions,
-                                                ARExecution.ConditionStatus
-                                                        .NONE, // NOT  currentCondition to Force Message,
+                                                currentCondition,
                                                 parentField,
-                                                variableField);
+                                                variableField,
+                                                byPassNotFound, // or your bypass flag
+                                                blockName,
+                                                currentInstruction.getId(),
+                                                false);
+
+                                        // appendLog("[TEST]" + reason, "error");
+                                        alreadyLogged = true;
+
+                                        logOperations.error("{}", reason);
 
                                         success = false;
                                     } else {
@@ -4204,18 +4308,57 @@ public class ARScannedElementPane extends ARPane {
                                         if (isOperationValid) {
                                             currentInstruction.setExecuted(true);
                                             failedMessage = "";
+
+                                            resultActions = performActions.buildValidationReason(
+                                                    invalidValues,
+                                                    parentField,
+                                                    mapOperators.get(variableField), // actual/current web value
+                                                    operations[2].trim(),
+                                                    resultActions, // lastInstructionExecuted
+                                                    operations,
+                                                    currentCondition,
+                                                    byPassNotFound,
+                                                    true,
+                                                    blockName,
+                                                    currentInstruction.getId(),
+                                                    isOperationValid);
+
+                                            // appendLog("[TEST]" + resultActions, "info");
+                                            alreadyLogged = true;
+
                                             success = true;
                                         } else {
                                             failedMessage = "Failed: Check Validation ";
                                             msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
-                                            resultActions = performActions.checkValidationFailed(
+                                            //                                            resultActions =
+                                            // performActions.checkValidationFailed(
+                                            //                                                    invalidValues,
+                                            //                                                    parentField,
+                                            //
+                                            // mapOperators.get(variableField),
+                                            //                                                    resultActions,
+                                            //                                                    operations,
+                                            //                                                    currentCondition,
+                                            //                                                    byPassNotFound);
+
+                                            resultActions = performActions.buildValidationReason(
                                                     invalidValues,
                                                     parentField,
-                                                    mapOperators.get(variableField),
-                                                    resultActions,
+                                                    mapOperators.get(variableField), // actual/current web value
+                                                    operations[2].trim(),
+                                                    resultActions, // lastInstructionExecuted
                                                     operations,
                                                     currentCondition,
-                                                    byPassNotFound);
+                                                    byPassNotFound,
+                                                    true,
+                                                    blockName,
+                                                    currentInstruction.getId(),
+                                                    isOperationValid);
+
+                                            // appendLog("[TEST]" + resultActions, "error");
+                                            alreadyLogged = true;
+
+                                            logOperations.error("Validation failed: {}", resultActions);
 
                                             success = false;
                                         }
@@ -4227,14 +4370,33 @@ public class ARScannedElementPane extends ARPane {
                                     if (!mapOperators.containsKey(variableField)) {
                                         failedMessage = "Get Value Is Not Defined ";
                                         msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
-                                        resultActions = performActions.getValueIsNotDefined(
+                                        //                                        resultActions =
+                                        // performActions.getValueIsNotDefined(
+                                        //                                                actions[0],
+                                        //                                                currentInstruction,
+                                        //                                                resultActions,
+                                        //                                                ARExecution.ConditionStatus
+                                        //                                                        .NONE, // NOT
+                                        // currentCondition to Force Message,
+                                        //                                                parentField,
+                                        //                                                variableField);
+
+                                        String reason = performActions.buildGetVariableReason(
                                                 actions[0],
                                                 currentInstruction,
                                                 resultActions,
-                                                ARExecution.ConditionStatus
-                                                        .NONE, // NOT  currentCondition to Force Message,
+                                                currentCondition,
                                                 parentField,
-                                                variableField);
+                                                variableField,
+                                                byPassNotFound, // or your bypass flag
+                                                blockName,
+                                                currentInstruction.getId(),
+                                                false);
+
+                                        // appendLog("[TEST]" + reason, "error");
+                                        alreadyLogged = true;
+
+                                        logOperations.error("{}", reason);
 
                                         success = false;
                                     } else {
@@ -4292,103 +4454,197 @@ public class ARScannedElementPane extends ARPane {
                                         } else {
                                             failedMessage = "Failed: Check Validation ";
                                             msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
-                                            resultActions = performActions.checkValidationFailed(
+                                            //                                            resultActions =
+                                            // performActions.checkValidationFailed(
+                                            //                                                    invalidValues,
+                                            //                                                    parentField,
+                                            //
+                                            // mapOperators.get(variableField),
+                                            //                                                    resultActions,
+                                            //                                                    operations,
+                                            //                                                    currentCondition,
+                                            //                                                    byPassNotFound);
+
+                                            resultActions = performActions.buildValidationReason(
                                                     invalidValues,
                                                     parentField,
-                                                    mapOperators.get(variableField),
-                                                    resultActions,
+                                                    mapOperators.get(variableField), // actual/current web value
+                                                    "expectedValue",
+                                                    resultActions, // lastInstructionExecuted
                                                     operations,
                                                     currentCondition,
-                                                    byPassNotFound);
+                                                    byPassNotFound,
+                                                    true,
+                                                    blockName,
+                                                    currentInstruction.getId(),
+                                                    false);
+
+                                            logOperations.error("Validation failed: {}", resultActions);
 
                                             success = false;
                                         }
                                     }
 
                                 } else if (execCSVCheck) {
-                                    // Check Validation Operator
 
-                                    if (!mapOperators.containsKey(variableField)) {
-                                        failedMessage = "Get Value Is Not Defined ";
-                                        msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
-                                        resultActions = performActions.getValueIsNotDefined(
-                                                actions[0],
-                                                currentInstruction,
-                                                resultActions,
-                                                ARExecution.ConditionStatus
-                                                        .NONE, // NOT  currentCondition to Force Message,
-                                                parentField,
-                                                variableField);
-
-                                        success = false;
+                                    // If fieldsToValidate is null/empty => ignore (no log)
+                                    Map<String, FieldsToValidate> fMap = splitDTO.getFieldsToValidate();
+                                    if (fMap == null || fMap.isEmpty()) {
+                                        // ignore
                                     } else {
-                                        //                                    fieldName = parentField;
 
-                                        resultActions = "CSV Check Value for " + String.join(" ", operations);
-                                        boolean isOperationValid = false;
-                                        String invalidValues = null;
+                                        for (Map.Entry<String, FieldsToValidate> entry : fMap.entrySet()) {
 
-                                        if (operations[1].equalsIgnoreCase("=")) {
-                                            isOperationValid = mapOperators
-                                                    .get(variableField)
-                                                    .trim()
-                                                    .equalsIgnoreCase(operations[2].trim());
+                                            FieldsToValidate expectedField = entry.getValue();
 
-                                        } else if (operations[1].equalsIgnoreCase(">")) {
-                                            int resp = handleGreaterThan(
-                                                    mapOperators
-                                                            .get(variableField)
-                                                            .trim(),
-                                                    operations[2].trim());
-                                            if (resp == 1) {
-                                                isOperationValid = true;
-                                            } else if (resp == 0) {
-                                                isOperationValid = false;
+                                            // Only run if parentField exists as a key. If not found => ignore (no log).
+                                            if (expectedField == null || expectedField.getValue() == null) {
+                                                // ignore
                                             } else {
-                                                isOperationValid = false;
-                                                invalidValues = "Invalid Numbers";
-                                            }
-                                        } else if (operations[1].equalsIgnoreCase("!=")) {
-                                            isOperationValid = !mapOperators
-                                                    .get(variableField)
-                                                    .trim()
-                                                    .equalsIgnoreCase(operations[2].trim());
-                                        } else if (operations[1].equalsIgnoreCase("<")) {
-                                            int resp = handleLessThan(
-                                                    mapOperators
-                                                            .get(variableField)
-                                                            .trim(),
-                                                    operations[2].trim());
-                                            if (resp == 1) {
-                                                isOperationValid = true;
-                                            } else if (resp == 0) {
-                                                isOperationValid = false;
-                                            } else {
-                                                isOperationValid = false;
-                                                invalidValues = "Invalid Numbers";
-                                            }
-                                        }
 
-                                        if (isOperationValid) {
-                                            currentInstruction.setExecuted(true);
-                                            failedMessage = "";
-                                            success = true;
-                                        } else {
-                                            failedMessage = "Failed: Check Validation ";
-                                            msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
-                                            resultActions = performActions.checkValidationFailed(
-                                                    invalidValues,
-                                                    parentField,
-                                                    mapOperators.get(variableField),
-                                                    resultActions,
-                                                    operations,
-                                                    currentCondition,
-                                                    byPassNotFound);
+                                                String parentFieldCSV = entry.getKey();
 
-                                            success = false;
+                                                String foundKey = null;
+                                                if (allOutPuts != null && !allOutPuts.isEmpty()) {
+                                                    for (Integer outId : allOutPuts) {
+                                                        String k = outId + "-" + parentFieldCSV;
+                                                        if (mapOperators.containsKey(k)) {
+                                                            foundKey = k;
+                                                            break;
+                                                        }
+                                                    }
+                                                }
+
+                                                if (foundKey == null) {
+                                                    // ignore
+                                                } else {
+
+                                                    String actualValue = mapOperators.get(foundKey);
+
+                                                    // You still keep your "Get Value Is Not Defined" behavior
+                                                    if (actualValue == null
+                                                            || actualValue
+                                                                    .trim()
+                                                                    .isEmpty()) {
+                                                        failedMessage = "Get Value Is Not Defined ";
+                                                        msgInstruction =
+                                                                updateMSGInstruction(msgInstruction, failedMessage);
+
+                                                        //                                                resultActions
+                                                        // =
+                                                        // performActions.getValueIsNotDefined(
+                                                        //
+                                                        // actions[0],
+                                                        //
+                                                        // currentInstruction,
+                                                        //
+                                                        // resultActions,
+                                                        //
+                                                        // ARExecution.ConditionStatus.NONE,
+                                                        //
+                                                        // parentField,
+                                                        //
+                                                        // variableField);
+
+                                                        String reason = performActions.buildGetVariableReason(
+                                                                actions[0],
+                                                                currentInstruction,
+                                                                resultActions,
+                                                                currentCondition,
+                                                                parentField,
+                                                                variableField,
+                                                                byPassNotFound, // or your bypass flag
+                                                                blockName,
+                                                                currentInstruction.getId(),
+                                                                false);
+
+                                                        // appendLog("[TEST]" + reason, "error");
+                                                        alreadyLogged = true;
+
+                                                        logOperations.error("{}", reason);
+
+                                                        success = false;
+
+                                                    } else {
+                                                        // actual/current value on the web/app side
+
+                                                        // expected value comes from
+                                                        // splitDTO.fieldsToValidate[parentField].value
+                                                        String expectedValue = expectedField.getValue();
+
+                                                        // operator comes from your parsed operations array
+                                                        String operator = operations[1];
+
+                                                        resultActions = "CSV Check Value for " + parentFieldCSV;
+                                                        ValidationResult vr =
+                                                                evaluateOperation(actualValue, operator, expectedValue);
+
+                                                        if (vr.valid) {
+                                                            currentInstruction.setExecuted(true);
+                                                            failedMessage = "";
+                                                            success = true;
+
+                                                            resultActions = performActions.buildValidationReason(
+                                                                    vr.invalidReason,
+                                                                    parentFieldCSV,
+                                                                    actualValue, // actual/current web value
+                                                                    expectedValue,
+                                                                    resultActions,
+                                                                    operations,
+                                                                    currentCondition,
+                                                                    byPassNotFound,
+                                                                    true,
+                                                                    blockName,
+                                                                    currentInstruction.getId(),
+                                                                    true);
+
+                                                            // appendLog("[TEST]" + resultActions, "info");
+                                                            alreadyLogged = true;
+
+                                                            logOperations.info(
+                                                                    "Validation SUCCESS for field '{}': actual='{}' {} expected='{}'",
+                                                                    parentFieldCSV,
+                                                                    actualValue,
+                                                                    operator,
+                                                                    expectedValue);
+
+                                                        } else {
+                                                            failedMessage = "Failed: Check Validation ";
+                                                            msgInstruction =
+                                                                    updateMSGInstruction(msgInstruction, failedMessage);
+
+                                                            resultActions = performActions.buildValidationReason(
+                                                                    vr.invalidReason,
+                                                                    parentFieldCSV,
+                                                                    actualValue, // actual/current web value
+                                                                    expectedValue,
+                                                                    resultActions,
+                                                                    operations,
+                                                                    currentCondition,
+                                                                    byPassNotFound,
+                                                                    true,
+                                                                    blockName,
+                                                                    currentInstruction.getId(),
+                                                                    false);
+
+                                                            // appendLog("[TEST]" + resultActions, "error");
+                                                            alreadyLogged = true;
+
+                                                            logOperations.error(
+                                                                    "CSV Values Validation FAILED for field '{}': actual='{}' {} expected='{}'. Reason: {}",
+                                                                    parentFieldCSV,
+                                                                    actualValue,
+                                                                    operator,
+                                                                    expectedValue,
+                                                                    resultActions);
+
+                                                            success = false;
+                                                        }
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
-
                                 } else if (excelWriteOperation) {
                                     // Excel Write Operator
 
@@ -4403,14 +4659,33 @@ public class ARScannedElementPane extends ARPane {
                                     } else if (!mapOperators.containsKey(variableField)) {
                                         failedMessage = "Get Value Is Not Defined ";
                                         msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
-                                        resultActions = performActions.getValueIsNotDefined(
+                                        //                                        resultActions =
+                                        // performActions.getValueIsNotDefined(
+                                        //                                                actions[0],
+                                        //                                                currentInstruction,
+                                        //                                                resultActions,
+                                        //                                                ARExecution.ConditionStatus
+                                        //                                                        .NONE, // NOT
+                                        // currentCondition to Force Message,
+                                        //                                                parentField,
+                                        //                                                variableField);
+
+                                        String reason = performActions.buildGetVariableReason(
                                                 actions[0],
                                                 currentInstruction,
                                                 resultActions,
-                                                ARExecution.ConditionStatus
-                                                        .NONE, // NOT  currentCondition to Force Message,
+                                                currentCondition,
                                                 parentField,
-                                                variableField);
+                                                variableField,
+                                                byPassNotFound, // or your bypass flag
+                                                blockName,
+                                                currentInstruction.getId(),
+                                                false);
+
+                                        // appendLog("[TEST]" + reason, "error");
+                                        alreadyLogged = true;
+
+                                        logOperations.error("{}", reason);
 
                                         success = false;
                                     } else {
@@ -4427,14 +4702,25 @@ public class ARScannedElementPane extends ARPane {
                                                     .withPurpose("export");
                                         }
 
-                                        if (writerExport != null) {
+                                        resultActions = performActions.messageExcel(
+                                                "Excel Write",
+                                                currentInstruction,
+                                                parentField,
+                                                variableField,
+                                                mapOperators.get(variableField),
+                                                blockName,
+                                                currentInstruction.getId(),
+                                                (writerExport != null));
 
-                                            resultActions = "insertValueFieldNameInExcel -> " + variableField + "-"
-                                                    + mapOperators.get(variableField);
-                                        } else {
-                                            resultActions = "NO Export Excel File defined -> " + variableField + "-"
-                                                    + mapOperators.get(variableField);
-                                        }
+                                        performActions.messageExcel(
+                                                actions[0],
+                                                currentInstruction,
+                                                parentField,
+                                                variableField,
+                                                mapOperators.get(variableField),
+                                                blockName,
+                                                currentInstruction.getId(),
+                                                false);
 
                                         if (mapExportRows.size() == 0) {
                                             //
@@ -4518,6 +4804,15 @@ public class ARScannedElementPane extends ARPane {
                                 //                            throw new RuntimeException(t);
                             }
 
+                            if (success && !alreadyLogged) {
+                                // appendLog("[TEST]" + resultActions, "info");
+                            } else if (!alreadyLogged) {
+                                // appendLog("[TEST]" + resultActions, "error");
+                                anyFailure = true;
+                            }
+
+                            alreadyLogged = false;
+
                             printLog(finalLogMessage(failedMessage, resultActions), success);
 
                             // Here mark the Status of a progress Condition Fail or Success at the end of each Kind
@@ -4583,58 +4878,15 @@ public class ARScannedElementPane extends ARPane {
                             if (!success
                                     && !byPassFlagLoop
                                     && currentCondition.equals(ARExecution.ConditionStatus.NONE)) {
-                                if (lastRecall) {
-                                    stopAll = true;
-                                } else {
 
-                                    //                                    if
-                                    // (blocksLoaded.get(currentBlockOrder).isHasAnyInput()) {
+                                // Record failure but do NOT alter execution flow
+                                anyFailure = true;
 
-                                    xExcelCurrentRow++;
+                                // Reset success so execution can continue
+                                success = true;
 
-                                    //                                    String bodyMsg = "Excel Data Calling Next Row:
-                                    // " + xExcelCurrentRow + 1;
-
-                                    if (xExcelCurrentRow >= xExcelDataSize - 1) {
-                                        xExcelCurrentRow = xExcelDataSize - 1;
-                                        //                                        msgInstruction = new FieldData(
-                                        //                                                "Excel Data (limit reached)
-                                        // keeping last row",
-                                        //
-                                        // String.valueOf(xExcelCurrentRow + 1));
-                                        //                                        bodyMsg =
-                                        //                                                "Excel Data (limit reached)
-                                        // keeping last row: " + xExcelCurrentRow + 1;
-                                        lastRecall = true;
-                                    } else {
-                                        //                                        msgInstruction = new FieldData(
-                                        //                                                "Excel Data next row",
-                                        // String.valueOf(xExcelCurrentRow + 1));
-                                    }
-
-                                    //                                    // Excel Report and Log
-                                    //                                    performActions.logAndReport(
-                                    //                                            currentCondition,
-                                    //                                            true,
-                                    //                                            true,
-                                    //                                            blockStartTime,
-                                    //                                            blockReportName,
-                                    //                                            success,
-                                    //                                            new String[]
-                                    // {ARConstantsEngine.NEXT_ROW},
-                                    //                                            msgInstruction,
-                                    //                                            dataExcel,
-                                    //                                            writerReport,
-                                    //                                            "Excel Data Calling Next Row",
-                                    //                                            bodyMsg);
-                                    //                                    }
-
-                                    //                                currentIndex++;
-                                    currentBlockOrder = blockInitial; // BLOCK DEFINED BY "DEFAULT" OR "EXCEL GOTO"
-                                    currentIndex = 0; // INITIAL INDEX FOR ANY BLOCK LOADED
-                                    success = true; // TO ALLOW OTHER FUNCTIONS TO BE EXECUTED
-                                    continue blockLoop;
-                                }
+                                // Continue with next instruction
+                                continue instructionLoop;
                             }
 
                             // It decides Here if ByPass as per Loop or Per IF-ELSEIF-ELSE-ENDIF blocks
@@ -4867,5 +5119,49 @@ public class ARScannedElementPane extends ARPane {
         setInterceptBotJob(false);
         isJobRunning.set(false);
         return true;
+    }
+
+    private static class ValidationResult {
+        final boolean valid;
+        final String invalidReason; // null if none
+
+        ValidationResult(boolean valid, String invalidReason) {
+            this.valid = valid;
+            this.invalidReason = invalidReason;
+        }
+    }
+
+    private ValidationResult evaluateOperation(String actualRaw, String operator, String expectedRaw) {
+        if (actualRaw == null || expectedRaw == null || operator == null) {
+            return new ValidationResult(false, "Null values");
+        }
+
+        String actual = actualRaw.trim();
+        String expected = expectedRaw.trim();
+
+        switch (operator.trim()) {
+            case "=":
+                return new ValidationResult(actual.equalsIgnoreCase(expected), null);
+
+            case "!=":
+                return new ValidationResult(!actual.equalsIgnoreCase(expected), null);
+
+            case ">": {
+                int resp = handleGreaterThan(actual, expected);
+                if (resp == 1) return new ValidationResult(true, null);
+                if (resp == 0) return new ValidationResult(false, null);
+                return new ValidationResult(false, "Invalid Numbers");
+            }
+
+            case "<": {
+                int resp = handleLessThan(actual, expected);
+                if (resp == 1) return new ValidationResult(true, null);
+                if (resp == 0) return new ValidationResult(false, null);
+                return new ValidationResult(false, "Invalid Numbers");
+            }
+
+            default:
+                return new ValidationResult(false, "Unknown operator: " + operator);
+        }
     }
 }
