@@ -81,7 +81,7 @@ public class ARMainPane extends ARPane {
     // Button viewBotJobButton;
     Button configureButton;
     Button infoButton;
-    Button editBotJobButton;
+    Button openBotJobButton;
     Button launchBotJobButton;
     Button exitButton;
     Button aiButton;
@@ -151,7 +151,7 @@ public class ARMainPane extends ARPane {
         configureButton =
                 builder.buildButton("Config", smallHeight, ARConstants.ICON_CONFIG, smallIconSize, smallPadding);
         infoButton = builder.buildButton("Info", smallHeight, ARConstants.ICON_INFO, smallIconSize, smallPadding);
-        editBotJobButton =
+        openBotJobButton =
                 builder.buildButton("Open Job", smallHeight, ARConstants.ICON_EDIT, smallIconSize, smallPadding);
         launchBotJobButton =
                 builder.buildButton("Launch", smallHeight, ARConstants.ICON_PLAY, smallIconSize, smallPadding);
@@ -178,7 +178,7 @@ public class ARMainPane extends ARPane {
         configureButton.setPrefWidth(buttonWidth);
         infoButton.setPrefWidth(buttonWidth);
         launchBotJobButton.setPrefWidth(buttonWidth);
-        editBotJobButton.setPrefWidth(buttonWidth);
+        openBotJobButton.setPrefWidth(buttonWidth);
         exitButton.setPrefWidth(buttonWidth);
 
         buttonPane = new HBox(
@@ -188,7 +188,7 @@ public class ARMainPane extends ARPane {
                 configureButton,
                 infoButton,
                 launchBotJobButton,
-                editBotJobButton,
+                openBotJobButton,
                 exitButton);
 
         buttonPane.setAlignment(Pos.CENTER);
@@ -351,7 +351,7 @@ public class ARMainPane extends ARPane {
             closeWebDrivers();
         });
 
-        editBotJobButton.setOnMouseClicked(e -> {
+        openBotJobButton.setOnMouseClicked(e -> {
             if (isEnabledLicence && !checkLicense()) {
                 return;
             }
