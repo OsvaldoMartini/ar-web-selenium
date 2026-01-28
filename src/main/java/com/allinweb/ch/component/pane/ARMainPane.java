@@ -155,6 +155,10 @@ public class ARMainPane extends ARPane {
                 builder.buildButton("Open Job", smallHeight, ARConstants.ICON_EDIT, smallIconSize, smallPadding);
         launchBotJobButton =
                 builder.buildButton("Launch", smallHeight, ARConstants.ICON_PLAY, smallIconSize, smallPadding);
+
+        launchBotJobButton.setDisable(true);
+        launchBotJobButton.setTooltip(new Tooltip("Mobile Bot Jobs can only be executed from AR Mobile"));
+
         exitButton = builder.buildButton("Exit", smallHeight, ARConstants.ICON_CROSS, smallIconSize, smallPadding);
 
         // 🔹 AI Button and TextArea
@@ -233,6 +237,17 @@ public class ARMainPane extends ARPane {
 
     @Override
     public void initUIBehaviour() {
+        viewBotJobListView.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
+            if (newSelection == null) {
+                launchBotJobButton.setDisable(true);
+                return;
+            }
+
+            boolean isMobile = !newSelection.getPriority().equalsIgnoreCase("Web App");
+
+            launchBotJobButton.setDisable(isMobile);
+        });
+
         aiButton.setOnAction(e -> {
             boolean visible = aiTextArea.isVisible();
             aiTextArea.setVisible(!visible);

@@ -191,6 +191,12 @@ public class ARViewBotJobPane extends ARPane {
             }
         }
 
+        boolean isMobile = !selectedBotJob.getPriority().equalsIgnoreCase("Web App");
+        if (launchBotJobButton != null && openScannerButton != null) {
+            launchBotJobButton.setDisable(isMobile);
+            openScannerButton.setDisable(isMobile);
+        }
+
         updateHomeUrlLabels();
 
         if (!webSocketSessionManager.getAllSessions().isEmpty()) {
@@ -365,6 +371,12 @@ public class ARViewBotJobPane extends ARPane {
                 "Generate", ARConstants.SPACE_ZERO, ARConstants.ICON_EXCEL, ARConstants.SPACE_M, new Insets(5.0D));
         this.closeBotJobButton = builder.buildButton(
                 "Close", ARConstants.SPACE_ZERO, ARConstants.ICON_CROSS, ARConstants.SPACE_M, new Insets(5.0D));
+
+        boolean isMobile = !selectedBotJob.getPriority().equalsIgnoreCase("Web App");
+        if (launchBotJobButton != null && openScannerButton != null) {
+            launchBotJobButton.setDisable(isMobile);
+            openScannerButton.setDisable(isMobile);
+        }
 
         // Create a GridPane for the left side buttons
         GridPane leftGridPane = new GridPane();
