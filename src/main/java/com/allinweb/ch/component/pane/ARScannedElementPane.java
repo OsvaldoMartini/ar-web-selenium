@@ -2832,35 +2832,34 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private void searchTermsBtn(String searchTerms) {
-        readAllElementsWithWebDriver();
+        //        readAllElementsWithWebDriver();
 
         if (!lastBrowserTab()) {
             return;
         }
 
-        //        String[] dataArray;
-        //
-        //        //        String[] dataArray = {"with id"};
-        //        //        String[] dataArray = {"with name"};
-        //        //        String[] dataArray = {"with text"};
-        //        //        String[] dataArray = {"button"};
-        //        //        String[] dataArray = {"input"};
-        //
-        //        if (searchTerms != null && !searchTerms.trim().isEmpty()) {
-        //            dataArray = searchTerms.split("\\s*,\\s*"); // Splitting by comma, allowing spaces around it
-        //        } else {
-        //            dataArray = new String[] {"input", "textarea", "button", "a", "select", "label"}; // Default
-        // values
-        //        }
-        //
-        //        handleSearchTermClick(dataArray);
-        //
-        //        try {
-        //            Thread.sleep(2000);
-        //            revertSearchTermsInjections(performActions.getCurrentDriver());
-        //        } catch (Exception e) {
-        //
-        //        }
+        String[] dataArray;
+
+        //        String[] dataArray = {"with id"};
+        //        String[] dataArray = {"with name"};
+        //        String[] dataArray = {"with text"};
+        //        String[] dataArray = {"button"};
+        //        String[] dataArray = {"input"};
+
+        if (searchTerms != null && !searchTerms.trim().isEmpty()) {
+            dataArray = searchTerms.split("\\s*,\\s*"); // Splitting by comma, allowing spaces around it
+        } else {
+            dataArray = new String[] {"input", "textarea", "button", "a", "select", "label"}; // Default values
+        }
+
+        handleSearchTermClick(dataArray);
+
+        try {
+            Thread.sleep(2000);
+            revertSearchTermsInjections(performActions.getCurrentDriver());
+        } catch (Exception e) {
+
+        }
     }
 
     private void handleSearchTermClick(String[] dataArray) {
