@@ -14,11 +14,16 @@ import com.allinweb.ch.readersAndWriters.ExcelReader;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.*;
+import com.allinweb.ch.vision.VisionElementMapper;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import io.opentelemetry.api.internal.StringUtils;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.util.*;
@@ -49,6 +54,7 @@ import javafx.scene.text.Text;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import javafx.stage.Stage;
+import javax.swing.*;
 import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
@@ -57,6 +63,7 @@ import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.w3c.dom.Element;
 
 @Slf4j
 public class ARScannedElementPane extends ARPane {
@@ -110,7 +117,7 @@ public class ARScannedElementPane extends ARPane {
     private int currentBlockOrder;
     private int executeSpecificBlock;
     private boolean isMobileApp = false;
-    private SplitDTO splitDTO;
+    private SplitDTO splitDTO = new SplitDTO();
     private ExtractedData extractedData = null;
     private List<BlockLoadDTO> blocksLoaded;
     private List<InstructionLoad> excelDataGoto = new ArrayList<>();
@@ -2825,33 +2832,35 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private void searchTermsBtn(String searchTerms) {
+        readAllElementsWithWebDriver();
 
         if (!lastBrowserTab()) {
             return;
         }
 
-        String[] dataArray;
-
-        //        String[] dataArray = {"with id"};
-        //        String[] dataArray = {"with name"};
-        //        String[] dataArray = {"with text"};
-        //        String[] dataArray = {"button"};
-        //        String[] dataArray = {"input"};
-
-        if (searchTerms != null && !searchTerms.trim().isEmpty()) {
-            dataArray = searchTerms.split("\\s*,\\s*"); // Splitting by comma, allowing spaces around it
-        } else {
-            dataArray = new String[] {"input", "textarea", "button", "a", "select", "label"}; // Default values
-        }
-
-        handleSearchTermClick(dataArray);
-
-        try {
-            Thread.sleep(2000);
-            revertSearchTermsInjections(performActions.getCurrentDriver());
-        } catch (Exception e) {
-
-        }
+        //        String[] dataArray;
+        //
+        //        //        String[] dataArray = {"with id"};
+        //        //        String[] dataArray = {"with name"};
+        //        //        String[] dataArray = {"with text"};
+        //        //        String[] dataArray = {"button"};
+        //        //        String[] dataArray = {"input"};
+        //
+        //        if (searchTerms != null && !searchTerms.trim().isEmpty()) {
+        //            dataArray = searchTerms.split("\\s*,\\s*"); // Splitting by comma, allowing spaces around it
+        //        } else {
+        //            dataArray = new String[] {"input", "textarea", "button", "a", "select", "label"}; // Default
+        // values
+        //        }
+        //
+        //        handleSearchTermClick(dataArray);
+        //
+        //        try {
+        //            Thread.sleep(2000);
+        //            revertSearchTermsInjections(performActions.getCurrentDriver());
+        //        } catch (Exception e) {
+        //
+        //        }
     }
 
     private void handleSearchTermClick(String[] dataArray) {
@@ -5166,4 +5175,1326 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private void appendLog(String message, String style) {}
+
+    public void readAllElementsWithWebDriver() {
+        WebDriver driver = performActions.getCurrentDriver();
+
+        if (driver == null) {
+            appendLog("Please connect to device first", "warn");
+            return;
+        }
+
+        appendLog("Starting XML-based deep scan (pageSource)...", "info");
+
+        boolean activateSent = false;
+
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+        }
+
+        try {
+            List<ElementDTO> results = new ArrayList<>();
+            List<RenameEntry> renameReport = new ArrayList<>();
+
+            String canonicalXml;
+            try {
+                String rawPageSource = driver.getPageSource();
+
+                if (isMobileApp) {
+                    canonicalXml = CanonicalXmlNormalizer.normalize(rawPageSource);
+                } else {
+                    // HTML -> XHTML so DocumentBuilder can parse it
+                    canonicalXml = CanonicalXmlNormalizer.normalizeHtmlToXhtml(rawPageSource);
+                }
+            } catch (Exception ex) {
+                appendLog("driver.getPageSource() failed: " + ex.getMessage(), "error");
+                return;
+            }
+
+            if (canonicalXml == null || canonicalXml.isBlank()) {
+                appendLog("Empty pageSource XML; stopping.", "warn");
+                return;
+            }
+
+            // Keep dedup structure if your traverse uses it
+            Set<String> seenKeys = new HashSet<>(50_000);
+
+            saveCanonicalXmlToAppFolder(canonicalXml);
+
+            extractAllTextElementsFromCanonicalXml(canonicalXml, results);
+
+            parseAppiumPageSourceXml(canonicalXml, results, renameReport, seenKeys);
+            if (isMobileApp) {
+                parseAppiumPageSourceXml(canonicalXml, results, renameReport, seenKeys);
+            } else {
+                parseWebPageSourceXhtml(canonicalXml, results, seenKeys);
+            }
+
+            appendLog("XML deep scan complete. Elements kept: " + results.size(), "info");
+
+            // ---- Wrap in SplitDTO and send as before ----
+            splitDTO.setType("SEARCH_TOOL");
+            splitDTO.setSessionId("mobileScannerGrid");
+            splitDTO.setOperationId("addPickOne");
+            splitDTO.setElementDetails(results.toArray(new ElementDTO[0]));
+
+            sendChunks(results, 25, splitDTO, webSocketSessionManager, "scannerTool", "scannerGrid");
+
+            List<String> excludeList = List.of("optional", "blockMarked", "editMode");
+            String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+            performMessage.outputJsonElementDTO(splitDTO.getElementDetails(), excludeList, "elementDTO-PG", jsonPath);
+
+            excludeList = List.of(
+                    "optional",
+                    "blockMarked",
+                    "editMode",
+                    "id",
+                    "attributeData",
+                    "typeElement",
+                    "customXPath",
+                    "shadowRoot",
+                    "nestedShadow",
+                    "searchAttributeValue",
+                    "attributeType",
+                    "attributeValue");
+            performMessage.outputJsonElementDTO(
+                    splitDTO.getElementDetails(), excludeList, "AI-ElementDTO-PG", jsonPath);
+
+            appendLog("Payload sent. Elements in payload: " + results.size(), "info");
+
+            //            SwingUtilities.invokeLater(() -> {
+            //                arObjectsLabel.setText("Objects detected: " + results.size() + ".                    ");
+            //            });
+
+            //            splitDTO.setType("REACTIVATE_BUTTONS");
+            //            splitDTO.setSessionId("mobileScannerVision");
+            //            splitDTO.setOperationId("activate-scanner-app");
+            //            splitDTO.setElementDetails(null);
+            //
+            //            String jsonData = gson.toJson(splitDTO);
+            //            webSocketSessionManager.sendMessageJson(
+            //                    splitDTO.getHomeBankingId(), "mobile-return-server", jsonData,
+            // "activate-scanner-app");
+
+            activateSent = true;
+
+        } catch (Exception e) {
+            appendLog("XML deep scan failed: " + e.getMessage(), "error");
+        } finally {
+            //            if (!activateSent) {
+            //                splitDTO.setType("REACTIVATE_BUTTONS");
+            //                splitDTO.setSessionId("mobileScannerGrid");
+            //                splitDTO.setOperationId("activate-scanner-app");
+            //                splitDTO.setElementDetails(null);
+            //
+            //                String jsonData = gson.toJson(splitDTO);
+            //                webSocketSessionManager.sendMessageJson(
+            //                        splitDTO.getHomeBankingId(), "mobile-return-server", jsonData,
+            // "activate-scanner-app");
+            //            }
+        }
+    }
+
+    // Optional: small struct to track renames (for logs/inspection)
+    private static final class RenameEntry {
+        final int id;
+        final String originalTag;
+        final String newTag;
+        final String reason;
+
+        RenameEntry(int id, String originalTag, String newTag, String reason) {
+            this.id = id;
+            this.originalTag = originalTag;
+            this.newTag = newTag;
+            this.reason = reason;
+        }
+    }
+
+    private void saveCanonicalXmlToAppFolder(String canonicalXml) {
+        if (canonicalXml == null || canonicalXml.isBlank()) {
+            appendLog("canonicalXml is empty, nothing to save.", "warn");
+            return;
+        }
+
+        try {
+            String base = arPropertyManager.getProperty(ARPropertyEnum.PATH_APPIUM);
+            Path baseDir = Paths.get(base, "appium-xml-dumps");
+            Files.createDirectories(baseDir);
+
+            // Timestamped filename
+            String fileName = "pageSource_"
+                    + java.time.LocalDateTime.now()
+                            .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss_SSS"))
+                    + ".xml";
+
+            Path filePath = baseDir.resolve(fileName);
+
+            Files.writeString(
+                    filePath,
+                    canonicalXml,
+                    StandardCharsets.UTF_8,
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.TRUNCATE_EXISTING);
+
+            appendLog("Canonical XML saved to: " + filePath.toAbsolutePath(), "info");
+
+        } catch (Exception ex) {
+            appendLog("Failed to save canonical XML: " + ex.getMessage(), "error");
+        }
+    }
+
+    // =======================================================
+    // 2) PARSER: Appium pageSource XML -> ElementDTOs
+    //    - Dedup via "seenKeys"
+    //    - Generates: id (sequential), typeElement, xPath, someText, attribId, attribName, coordinates, attributeData
+    // =======================================================
+    private void parseAppiumPageSourceXml(
+            String xml, List<ElementDTO> results, List<RenameEntry> renameReport, Set<String> seenKeys) {
+        org.w3c.dom.Document doc;
+        try {
+            javax.xml.parsers.DocumentBuilderFactory dbf = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+            dbf.setNamespaceAware(false);
+            dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+            javax.xml.parsers.DocumentBuilder db = dbf.newDocumentBuilder();
+            doc = db.parse(new org.xml.sax.InputSource(new java.io.StringReader(xml)));
+        } catch (Exception ex) {
+            appendLog("Failed to parse pageSource XML: " + ex.getMessage(), "warn");
+            return;
+        }
+
+        org.w3c.dom.Element root = doc.getDocumentElement();
+        if (root == null) return;
+
+        // We want all UI nodes under <hierarchy> (skip the hierarchy node itself)
+        org.w3c.dom.NodeList children = root.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            org.w3c.dom.Node n = children.item(i);
+            if (n.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE) {
+                traverseUiNode((org.w3c.dom.Element) n, results, renameReport, seenKeys);
+            }
+        }
+    }
+
+    private void parseWebPageSourceXhtml(String xhtml, List<ElementDTO> results, Set<String> seenKeys) {
+
+        org.w3c.dom.Document doc;
+        try {
+            javax.xml.parsers.DocumentBuilderFactory dbf = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+            dbf.setNamespaceAware(false);
+            dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+
+            javax.xml.parsers.DocumentBuilder db = dbf.newDocumentBuilder();
+            doc = db.parse(new org.xml.sax.InputSource(new java.io.StringReader(xhtml)));
+        } catch (Exception ex) {
+            appendLog("Failed to parse WEB XHTML: " + ex.getMessage(), "warn");
+            return;
+        }
+
+        org.w3c.dom.Element root = doc.getDocumentElement();
+        if (root == null) return;
+
+        traverseWebNode(root, results, seenKeys);
+    }
+
+    private void traverseWebNode(org.w3c.dom.Element el, List<ElementDTO> results, Set<String> seenKeys) {
+
+        String tag = nz(el.getTagName()).toLowerCase(java.util.Locale.ROOT);
+
+        // Skip non-UI / noisy tags
+        if (tag.equals("head")
+                || tag.equals("script")
+                || tag.equals("style")
+                || tag.equals("meta")
+                || tag.equals("link")) {
+            recurseWebChildren(el, results, seenKeys);
+            return;
+        }
+
+        String id = nz(el.getAttribute("id"));
+        String name = nz(el.getAttribute("name"));
+        String cls = nz(el.getAttribute("class"));
+        String role = nz(el.getAttribute("role"));
+        String aria = nz(el.getAttribute("aria-label"));
+        String title = nz(el.getAttribute("title"));
+        String href = nz(el.getAttribute("href"));
+        String type = nz(el.getAttribute("type"));
+        String value = nz(el.getAttribute("value"));
+        String onclick = nz(el.getAttribute("onclick"));
+
+        boolean isClickable = tag.equals("a")
+                || tag.equals("button")
+                || tag.equals("select")
+                || tag.equals("textarea")
+                || tag.equals("label")
+                || (tag.equals("input") && !type.equalsIgnoreCase("hidden"))
+                || !href.isEmpty()
+                || !onclick.isEmpty()
+                || role.equalsIgnoreCase("button")
+                || role.equalsIgnoreCase("link");
+
+        // Display text: prefer visible-ish sources
+        String text = nz(el.getTextContent()).trim();
+        String someText = firstNonEmpty(text, aria, title, value, name, id);
+        if (isNullishText(someText)) someText = "";
+
+        // Dedup key (WEB)
+        String dedupeKey = tag + "|" + id + "|" + name + "|" + aria + "|" + title + "|" + href + "|" + someText;
+        if (!seenKeys.add(dedupeKey)) {
+            recurseWebChildren(el, results, seenKeys);
+            return;
+        }
+
+        // Build WEB XPath (prefer id/name/aria, else structural)
+        String xPath = buildWebXPath(el, tag, id, name, aria, someText);
+
+        // attribId (WEB) - keep simple but stable
+        String attribId = buildWebAttribId(tag, id, name, aria);
+
+        // coords not available from pageSource -> leave 0
+        String coords = "0.00,0.00";
+
+        // attributeData for WEB
+        java.util.List<AttributeData> attrs = new java.util.ArrayList<>();
+        attrs.add(new AttributeData("tag", tag));
+        if (!id.isEmpty()) attrs.add(new AttributeData("id", id));
+        if (!name.isEmpty()) attrs.add(new AttributeData("name", name));
+        if (!cls.isEmpty()) attrs.add(new AttributeData("class", cls));
+        if (!role.isEmpty()) attrs.add(new AttributeData("role", role));
+        if (!aria.isEmpty()) attrs.add(new AttributeData("aria-label", aria));
+        if (!title.isEmpty()) attrs.add(new AttributeData("title", title));
+        if (!href.isEmpty()) attrs.add(new AttributeData("href", href));
+        if (!type.isEmpty()) attrs.add(new AttributeData("type", type));
+        if (!value.isEmpty()) attrs.add(new AttributeData("value", value));
+        attrs.add(new AttributeData("clickable", isClickable ? "true" : "false"));
+
+        ElementDTO dto = new ElementDTO();
+        dto.setId(results.size() + 1);
+        dto.setTypeElement("tagName-Found");
+        dto.setTagName(tag); // WEB tagName = real HTML tag
+        dto.setXPath(xPath);
+        dto.setAttribId(attribId);
+        dto.setSomeText(someText);
+        dto.setAttribName("");
+        dto.setCoordinates(coords);
+        dto.setAttributeData(attrs.toArray(new AttributeData[0]));
+
+        // WEB: clear Android-specific fields
+        dto.setAndroidData(null);
+
+        dto.setCustomXPath("");
+        dto.setIFrameXPath("");
+        dto.setShadowHost("");
+        dto.setShadowRoot("false");
+        dto.setNestedShadow("false");
+        dto.setCssSelector(""); // optional: you can add later
+        dto.setAttributeValue("");
+        dto.setAttributeType("");
+        dto.setSearchAttributeValue("");
+
+        results.add(dto);
+
+        // IMPORTANT: do NOT call addVariantsLikeSecret() for web.
+        // It creates fake tagName "link" which collides with real <link> and is also not needed.
+
+        recurseWebChildren(el, results, seenKeys);
+    }
+
+    private void recurseWebChildren(org.w3c.dom.Element el, List<ElementDTO> results, Set<String> seenKeys) {
+        org.w3c.dom.NodeList kids = el.getChildNodes();
+        for (int i = 0; i < kids.getLength(); i++) {
+            org.w3c.dom.Node n = kids.item(i);
+            if (n.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE) {
+                traverseWebNode((org.w3c.dom.Element) n, results, seenKeys);
+            }
+        }
+    }
+
+    private String firstNonEmpty(String... vals) {
+        for (String v : vals) {
+            if (v != null && !v.trim().isEmpty() && !isNullishText(v)) return v.trim();
+        }
+        return "";
+    }
+
+    private String buildWebAttribId(String tag, String id, String name, String aria) {
+        if (id != null && !id.isEmpty()) return "//*[@id=\"" + id.replace("\"", "") + "\"]";
+        if (name != null && !name.isEmpty()) return "//" + tag + "[@name=\"" + name.replace("\"", "") + "\"]";
+        if (aria != null && !aria.isEmpty()) return "//" + tag + "[@aria-label=\"" + aria.replace("\"", "") + "\"]";
+        return "//" + tag;
+    }
+
+    private String buildWebXPath(org.w3c.dom.Element el, String tag, String id, String name, String aria, String text) {
+        if (id != null && !id.isEmpty()) {
+            return "//*[@id='" + escapeXPathSQ(id) + "']";
+        }
+        if (name != null && !name.isEmpty()) {
+            return "//" + tag + "[@name='" + escapeXPathSQ(name) + "']";
+        }
+        if (aria != null && !aria.isEmpty()) {
+            return "//" + tag + "[@aria-label='" + escapeXPathSQ(aria) + "']";
+        }
+        // optional: text match if short
+        if (text != null && !text.isEmpty() && text.length() <= 60 && !isNullishText(text)) {
+            return "//" + tag + "[normalize-space(.)='" + escapeXPathSQ(text) + "']";
+        }
+        return buildWebStructuralPathWithIndex(el);
+    }
+
+    private String buildWebStructuralPathWithIndex(org.w3c.dom.Element el) {
+        java.util.ArrayDeque<String> parts = new java.util.ArrayDeque<>();
+        org.w3c.dom.Node cur = el;
+
+        while (cur != null && cur.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE) {
+            org.w3c.dom.Element ce = (org.w3c.dom.Element) cur;
+            String tag = nz(ce.getTagName()).toLowerCase(java.util.Locale.ROOT);
+
+            int idx = computeSiblingIndexSameTag(ce, tag);
+            parts.addFirst("/" + tag + "[" + idx + "]");
+
+            cur = cur.getParentNode();
+            // stop at html root
+            if (cur != null
+                    && cur.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE
+                    && "html".equalsIgnoreCase(((org.w3c.dom.Element) cur).getTagName())) {
+                parts.addFirst("/html[1]");
+                break;
+            }
+        }
+
+        StringBuilder sb = new StringBuilder();
+        for (String p : parts) sb.append(p);
+        return sb.length() > 0 ? sb.toString() : "/";
+    }
+
+    private int computeSiblingIndexSameTag(org.w3c.dom.Element el, String tag) {
+        org.w3c.dom.Node parent = el.getParentNode();
+        if (parent == null) return 1;
+
+        org.w3c.dom.NodeList siblings = parent.getChildNodes();
+        int count = 0;
+
+        for (int i = 0; i < siblings.getLength(); i++) {
+            org.w3c.dom.Node n = siblings.item(i);
+            if (n.getNodeType() != org.w3c.dom.Node.ELEMENT_NODE) continue;
+
+            org.w3c.dom.Element sib = (org.w3c.dom.Element) n;
+            String sibTag = nz(sib.getTagName()).toLowerCase(java.util.Locale.ROOT);
+
+            if (tag.equals(sibTag)) count++;
+            if (sib == el) return Math.max(1, count);
+        }
+        return 1;
+    }
+
+    private void addVariantsLikeSecret(ElementDTO dto, List<ElementDTO> results) {
+        try {
+            ElementDTO dtoInput = gson.fromJson(gson.toJson(dto), ElementDTO.class);
+            dtoInput.setId(results.size() + 1);
+            dtoInput.setTagName("input");
+            VisionElementMapper.overrideClassAttribute(dtoInput, "android.widget.EditText");
+            results.add(dtoInput);
+
+            ElementDTO dtoButton = gson.fromJson(gson.toJson(dto), ElementDTO.class);
+            dtoButton.setId(results.size() + 1);
+            dtoButton.setTagName("button");
+            VisionElementMapper.overrideClassAttribute(dtoButton, "android.widget.Button");
+            results.add(dtoButton);
+
+            ElementDTO dtoLabel = gson.fromJson(gson.toJson(dto), ElementDTO.class);
+            dtoLabel.setId(results.size() + 1);
+            dtoLabel.setTagName("label");
+            VisionElementMapper.overrideClassAttribute(dtoLabel, "android.widget.TextView");
+            results.add(dtoLabel);
+
+            ElementDTO dtoLink = gson.fromJson(gson.toJson(dto), ElementDTO.class);
+            dtoLink.setId(results.size() + 1);
+            dtoLink.setTagName("link");
+            VisionElementMapper.overrideClassAttribute(dtoLink, "android.widget.ImageView");
+            results.add(dtoLink);
+
+        } catch (Exception cloneEx) {
+            appendLog("Variant clone failed for XML element #" + dto.getId() + ": " + cloneEx.getMessage(), "warn");
+        }
+    }
+
+    // =======================================================
+    // traverseUiNode (ONLY clickables, but steals nested TextView text/desc)
+    // Ready to copy/paste
+    // =======================================================
+    // =======================================================
+    // traverseUiNode (ONLY clickables, steals nested TextView text/desc)
+    // Uses recurseChildren(...) consistently
+    // =======================================================
+    private void traverseUiNode(
+            org.w3c.dom.Element el, List<ElementDTO> results, List<RenameEntry> renameReport, Set<String> seenKeys) {
+
+        // Resolve class
+        String cls = nz(el.getAttribute("class"));
+        if (cls.isEmpty()) cls = nz(el.getTagName());
+        if (cls.isEmpty()) cls = "android.view.View";
+
+        // Ignore ProgressBar as in secret/scanContext
+        if ("android.widget.ProgressBar".equals(cls)) {
+            recurseChildren(el, results, renameReport, seenKeys);
+            return;
+        }
+
+        // RAW attributes (ONLY these are allowed for XPath/attribId)
+        String resId = nz(el.getAttribute("resource-id"));
+        String rawText = nz(el.getAttribute("text"));
+        String rawDesc = nz(el.getAttribute("content-desc"));
+        String clickableStr = nz(el.getAttribute("clickable"));
+        String enabled = nz(el.getAttribute("enabled"));
+        String password = nz(el.getAttribute("password"));
+        String bounds = nz(el.getAttribute("bounds"));
+        String focused = nz(el.getAttribute("focused"));
+
+        boolean isClickable = "true".equalsIgnoreCase(clickableStr);
+
+        // ✅ ALSO include drawer group rows even if clickable="false"
+        boolean includeAsAction = isClickable || isDrawerGroupContainer(el, resId);
+
+        if (includeAsAction) {
+
+            // -----------------------------
+            // 1) DISPLAY TEXT (frontend only)
+            // -----------------------------
+            String effectiveText = rawText;
+            String effectiveDesc = rawDesc;
+
+            boolean localTextNullish = effectiveText.isEmpty() || isNullishText(effectiveText);
+            boolean localDescNullish = effectiveDesc.isEmpty() || isNullishText(effectiveDesc);
+
+            // If container has no text/desc, steal from nested children (TextView preferred)
+            if (localTextNullish && localDescNullish) {
+                NestedText nt = extractNestedText(el);
+                if (!nt.text.isEmpty()) effectiveText = nt.text;
+                if (!nt.desc.isEmpty()) effectiveDesc = nt.desc;
+            }
+
+            // someText (frontend-only)
+            String someText = !effectiveText.isEmpty() ? effectiveText : effectiveDesc;
+            if (isNullishText(someText)) {
+                someText = "";
+            }
+
+            // Semantic fallbacks for toolbar icons (DISPLAY only)
+            if (someText.isEmpty()) {
+                if (isBackElement(cls, resId, rawDesc)) {
+                    someText = "back";
+                } else if (isMenuElement(cls, resId)) {
+                    someText = "menu";
+                }
+            }
+
+            // Menu fallback for empty labels (hamburger)
+            if (someText.isEmpty() && isClickable && isMenuElement(cls, resId)) {
+                someText = "menu";
+            }
+
+            // ✅ Prefix menu context (DO NOT affect XPath / attribId)
+            boolean inMenu = isInDrawerMenu(el);
+            if (inMenu && !someText.isEmpty()) {
+                someText = "MENU -> " + someText;
+            }
+
+            // -----------------------------
+            // 2) DEDUPE KEY (RAW only)
+            // -----------------------------
+            // Important for drawer: many items share resource-id="...:id/container".
+            // Bounds disambiguates; if bounds missing, structural XPath will.
+            String dedupeKey = cls + "|" + resId + "|" + rawText + "|" + rawDesc + "|" + bounds;
+            if (seenKeys.add(dedupeKey)) {
+
+                // -----------------------------
+                // 3) XPATH + attribId (RAW only)
+                // -----------------------------
+                String xPath = buildSafeXPathWithIndex(el, cls, resId, rawText, rawDesc, bounds);
+
+                String attribId = buildAttribId(cls, resId, rawText);
+                if ((bounds == null || bounds.isEmpty()) && (resId == null || resId.isEmpty())) {
+                    attribId = xPath; // last fallback uniqueness
+                }
+
+                String coords = computeCoordinatesFromBounds(bounds);
+
+                // Tag mapping should use RAW text/desc too (not stolen)
+                String mappedTag = mapTagName(cls, xPath, includeAsAction, rawText, rawDesc);
+
+                // attributeData should store RAW values (so locators stay honest)
+                List<AttributeData> attrs = new ArrayList<>();
+                attrs.add(new AttributeData("class", cls));
+                attrs.add(new AttributeData("resource-id", resId.isEmpty() ? "null" : resId));
+                attrs.add(new AttributeData("text", rawText.isEmpty() ? "null" : rawText));
+                attrs.add(new AttributeData("content-desc", rawDesc.isEmpty() ? "null" : rawDesc));
+                attrs.add(new AttributeData("clickable", boolString(clickableStr)));
+                attrs.add(new AttributeData("enabled", boolString(enabled)));
+                attrs.add(new AttributeData("focused", boolString(focused)));
+                if (!password.isEmpty()) attrs.add(new AttributeData("password", boolString(password)));
+                attrs.add(new AttributeData("bounds", bounds.isEmpty() ? "null" : bounds));
+
+                ElementDTO dto = new ElementDTO();
+                dto.setId(results.size() + 1);
+                dto.setTypeElement("tagName-Found");
+                dto.setTagName(mappedTag.toLowerCase());
+
+                dto.setXPath(xPath);
+                dto.setAttribId(attribId);
+
+                // ✅ DISPLAY ONLY
+                dto.setSomeText(someText);
+
+                dto.setAttribName("");
+                dto.setCoordinates(coords);
+                dto.setAttributeData(attrs.toArray(new AttributeData[0]));
+
+                dto.setCustomXPath("");
+                dto.setIFrameXPath("");
+                dto.setShadowHost("");
+                dto.setShadowRoot("false");
+                dto.setNestedShadow("false");
+                dto.setCssSelector("");
+                dto.setAttributeValue("");
+                dto.setAttributeType("");
+                dto.setSearchAttributeValue("");
+
+                results.add(dto);
+
+                // ⚠️ If you want ONLY clickables, consider disabling variants here.
+                addVariantsLikeSecret(dto, results);
+            }
+        }
+
+        recurseChildren(el, results, renameReport, seenKeys);
+    }
+
+    private void recurseChildren(
+            org.w3c.dom.Element el, List<ElementDTO> results, List<RenameEntry> renameReport, Set<String> seenKeys) {
+        org.w3c.dom.NodeList kids = el.getChildNodes();
+        for (int i = 0; i < kids.getLength(); i++) {
+            org.w3c.dom.Node n = kids.item(i);
+            if (n.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE) {
+                traverseUiNode((org.w3c.dom.Element) n, results, renameReport, seenKeys);
+            }
+        }
+    }
+
+    private boolean isDrawerGroupContainer(org.w3c.dom.Element el, String resId) {
+        if (resId == null) return false;
+
+        // Your drawer rows all share resource-id "...:id/container"
+        if (!resId.toLowerCase(java.util.Locale.ROOT).endsWith(":id/container")) {
+            return false;
+        }
+
+        // If it contains a drawer_group_title with non-empty text => treat as a menu group item
+        java.util.ArrayDeque<org.w3c.dom.Element> q = new java.util.ArrayDeque<>();
+        q.add(el);
+
+        while (!q.isEmpty()) {
+            org.w3c.dom.Element cur = q.removeFirst();
+
+            String childResId = nz(cur.getAttribute("resource-id"));
+            String childText = nz(cur.getAttribute("text"));
+
+            if (!childResId.isEmpty()
+                    && childResId.toLowerCase(java.util.Locale.ROOT).contains("drawer_group_title")
+                    && !childText.isEmpty()
+                    && !isNullishText(childText)) {
+                return true;
+            }
+
+            org.w3c.dom.NodeList kids = cur.getChildNodes();
+            for (int i = 0; i < kids.getLength(); i++) {
+                org.w3c.dom.Node n = kids.item(i);
+                if (n.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE) {
+                    q.add((org.w3c.dom.Element) n);
+                }
+            }
+        }
+        return false;
+    }
+
+    private boolean isBackElement(String cls, String resId, String desc) {
+        String id = (resId == null) ? "" : resId.toLowerCase(java.util.Locale.ROOT);
+        String cd = (desc == null) ? "" : desc.toLowerCase(java.util.Locale.ROOT);
+
+        // resource-id patterns
+        if (id.contains("back")
+                || id.contains("up")
+                || id.contains("navigate_up")
+                || id.contains("nav_up")
+                || id.contains("action_back")
+                || id.contains("drawer_back")) {
+            return true;
+        }
+
+        // content-desc patterns (common for toolbar icons)
+        if (cd.contains("back") || cd.contains("navigate up") || cd.contains("up")) {
+            return true;
+        }
+
+        // Often used as icon button (optional heuristic)
+        if ((cls.endsWith("ImageView") || cls.endsWith("ImageButton") || cls.endsWith("FrameLayout"))
+                && (id.contains("arrow") || id.contains("chevron"))) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private boolean isMenuElement(String cls, String resId) {
+        if (resId == null) return false;
+
+        String id = resId.toLowerCase(java.util.Locale.ROOT);
+
+        // Common menu identifiers
+        if (id.contains("menu") || id.contains("drawer") || id.contains("hamburger") || id.contains("nav")) {
+            return true;
+        }
+
+        // Clickable FrameLayout/ImageView used as toolbar menu
+        if ((cls.endsWith("FrameLayout") || cls.endsWith("ImageView")) && id.contains("drawer")) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private boolean isInDrawerMenu(org.w3c.dom.Element el) {
+        if (el == null) return false;
+
+        // First: identify if THIS element is itself a drawer structural node
+        String selfResId = nz(el.getAttribute("resource-id")).toLowerCase(java.util.Locale.ROOT);
+
+        if (isDrawerRootId(selfResId)) {
+            return false; // drawer root itself is NOT "in menu"
+        }
+
+        // Now: walk ancestors ONLY
+        org.w3c.dom.Node parent = el.getParentNode();
+
+        while (parent != null && parent.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE) {
+            org.w3c.dom.Element pe = (org.w3c.dom.Element) parent;
+
+            String resId = nz(pe.getAttribute("resource-id")).toLowerCase(java.util.Locale.ROOT);
+
+            if (isDrawerRootId(resId)) {
+                return true; // element is a child of drawer
+            }
+
+            parent = parent.getParentNode();
+
+            // stop at hierarchy root
+            if (parent != null
+                    && parent.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE
+                    && "hierarchy".equalsIgnoreCase(((org.w3c.dom.Element) parent).getTagName())) {
+                break;
+            }
+        }
+        return false;
+    }
+
+    private boolean isDrawerRootId(String resId) {
+        if (resId == null || resId.isEmpty()) return false;
+
+        return resId.endsWith(":id/drawer") || resId.endsWith(":id/drawer_recyclerview");
+    }
+
+    // =======================================================
+    // 3) SMALL HELPERS (copy/paste)
+    // =======================================================
+
+    // =======================================================
+    // Nested text extractor (required by traverseUiNode)
+    // Prefers TextView[@text], falls back to any @text, then @content-desc
+    // =======================================================
+    private static final class NestedText {
+        final String text;
+        final String desc;
+
+        NestedText(String text, String desc) {
+            this.text = text == null ? "" : text;
+            this.desc = desc == null ? "" : desc;
+        }
+    }
+
+    private NestedText extractNestedText(org.w3c.dom.Element container) {
+        java.util.ArrayDeque<org.w3c.dom.Element> q = new java.util.ArrayDeque<>();
+        q.add(container);
+
+        String bestTextViewText = "";
+        String bestAnyText = "";
+        String bestAnyDesc = "";
+
+        while (!q.isEmpty()) {
+            org.w3c.dom.Element cur = q.removeFirst();
+
+            String cls = nz(cur.getAttribute("class"));
+            String t = nz(cur.getAttribute("text"));
+            String d = nz(cur.getAttribute("content-desc"));
+
+            if (!t.isEmpty() && !isNullishText(t)) {
+                if ("android.widget.TextView".equals(cls) && bestTextViewText.isEmpty()) {
+                    bestTextViewText = t;
+                } else if (bestAnyText.isEmpty()) {
+                    bestAnyText = t;
+                }
+            }
+
+            if (!d.isEmpty() && !isNullishText(d) && bestAnyDesc.isEmpty()) {
+                bestAnyDesc = d;
+            }
+
+            // Early exit: we found best possible (TextView text)
+            if (!bestTextViewText.isEmpty()) break;
+
+            org.w3c.dom.NodeList kids = cur.getChildNodes();
+            for (int i = 0; i < kids.getLength(); i++) {
+                org.w3c.dom.Node n = kids.item(i);
+                if (n.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE) {
+                    q.add((org.w3c.dom.Element) n);
+                }
+            }
+        }
+
+        String chosenText = !bestTextViewText.isEmpty() ? bestTextViewText : bestAnyText;
+        return new NestedText(chosenText, bestAnyDesc);
+    }
+
+    private String nz(String s) {
+        return (s == null) ? "" : s;
+    }
+
+    private String boolString(String v) {
+        if (v == null || v.isBlank()) return "false";
+        return "true".equalsIgnoreCase(v) ? "true" : "false";
+    }
+
+    private String buildSafeXPathWithIndex(
+            org.w3c.dom.Element el, String cls, String resId, String text, String desc, String bounds) {
+
+        String safeClass = (cls == null || cls.isEmpty()) ? "android.view.View" : cls;
+
+        boolean hasResId = resId != null && !resId.isEmpty();
+        boolean hasBounds = bounds != null && !bounds.isEmpty();
+
+        String predicate = null;
+        if (hasResId) {
+            predicate = "@resource-id='" + escapeXPathSQ(resId) + "'";
+        } else if (desc != null && !desc.isEmpty() && !isNullishText(desc)) {
+            predicate = "@content-desc='" + escapeXPathSQ(desc) + "'";
+        } else if (text != null && !text.isEmpty() && !isNullishText(text)) {
+            predicate = "@text='" + escapeXPathSQ(text) + "'";
+        }
+
+        // 1) If we have predicate + bounds, return immediately
+        if (predicate != null && hasBounds) {
+            return "//" + safeClass + "[" + predicate + " and @bounds='" + escapeXPathSQ(bounds) + "']";
+        }
+
+        // 2) If we have bounds only, return immediately
+        if (predicate == null && hasBounds) {
+            return "//" + safeClass + "[@bounds='" + escapeXPathSQ(bounds) + "']";
+        }
+
+        // 3) If we have predicate only, return (short & stable)
+        if (predicate != null) {
+            return "//" + safeClass + "[" + predicate + "]";
+        }
+
+        // 4) Otherwise fallback to structural (only here)
+        return buildStructuralPathWithIndex(el);
+    }
+
+    private String buildStructuralPathWithIndex(org.w3c.dom.Element el) {
+        // Build absolute-ish (but stable) path from root element downwards,
+        // using class names + sibling index among same-class siblings.
+        java.util.ArrayDeque<String> parts = new java.util.ArrayDeque<>();
+
+        org.w3c.dom.Node cur = el;
+
+        while (cur != null && cur.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE) {
+            org.w3c.dom.Element ce = (org.w3c.dom.Element) cur;
+
+            String cls = nz(ce.getAttribute("class"));
+            if (cls.isEmpty()) cls = nz(ce.getTagName());
+            if (cls.isEmpty()) cls = "android.view.View";
+
+            int index = computeSiblingIndexSameClass(ce, cls);
+
+            // Use /<class>[<idx>] style
+            parts.addFirst("/" + cls + "[" + index + "]");
+
+            cur = cur.getParentNode();
+
+            // Stop once we reach <hierarchy> (the document root)
+            if (cur != null
+                    && cur.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE
+                    && "hierarchy".equalsIgnoreCase(((org.w3c.dom.Element) cur).getTagName())) {
+                break;
+            }
+        }
+
+        // Start at //hierarchy (Appium root) then append
+        StringBuilder sb = new StringBuilder("//hierarchy");
+        for (String p : parts) sb.append(p);
+
+        return sb.toString();
+    }
+
+    private int computeSiblingIndexSameClass(org.w3c.dom.Element el, String cls) {
+        org.w3c.dom.Node parent = el.getParentNode();
+        if (parent == null) return 1;
+
+        org.w3c.dom.NodeList siblings = parent.getChildNodes();
+        int count = 0;
+
+        for (int i = 0; i < siblings.getLength(); i++) {
+            org.w3c.dom.Node n = siblings.item(i);
+            if (n.getNodeType() != org.w3c.dom.Node.ELEMENT_NODE) continue;
+
+            org.w3c.dom.Element sib = (org.w3c.dom.Element) n;
+            String sibCls = nz(sib.getAttribute("class"));
+            if (sibCls.isEmpty()) sibCls = nz(sib.getTagName());
+            if (sibCls.isEmpty()) sibCls = "android.view.View";
+
+            if (cls.equals(sibCls)) {
+                count++;
+            }
+
+            // Once we reach the current element, that count is its 1-based index
+            if (sib == el) {
+                return Math.max(1, count);
+            }
+        }
+        return 1;
+    }
+
+    // XPath escaping for single quotes
+    private String escapeXPathSQ(String s) {
+        if (s == null) return "";
+        return s.replace("'", "&apos;");
+    }
+
+    // Helper: text considered "nullish" if null, empty, whitespace or literal "null"
+    private static boolean isNullishText(String s) {
+        if (s == null) return true;
+        String t = s.trim();
+        return t.isEmpty() || t.equalsIgnoreCase("null") || t.equalsIgnoreCase("(null)");
+    }
+
+    public void sendChunks(
+            List<ElementDTO> elements,
+            int chunkSize,
+            SplitDTO splitDTO,
+            WebSocketSessionManager webSocketSessionManager,
+            String server,
+            String routingKey) {
+        if (elements == null || elements.isEmpty()) {
+            appendLog("No elements to send.", "warn");
+            return;
+        }
+
+        appendLog("Sending " + elements.size() + " elements in chunks of " + chunkSize, "info");
+
+        for (int i = 0; i < elements.size(); i += chunkSize) {
+
+            int end = Math.min(i + chunkSize, elements.size());
+            List<ElementDTO> chunk = elements.subList(i, end);
+
+            // update DTO
+            splitDTO.setElementDetails(chunk.toArray(new ElementDTO[0]));
+
+            // serialize
+            String jsonData = new Gson().toJson(splitDTO);
+
+            // log
+            appendLog("Sending chunk " + (i / chunkSize + 1) + " containing " + chunk.size() + " elements", "info");
+
+            // send
+            webSocketSessionManager.sendMessageJson(0, server, jsonData, routingKey);
+        }
+    }
+
+    private String buildAttribId(String cls, String resId, String text) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("//").append(cls);
+
+        boolean first = true;
+
+        if (resId != null && !resId.isEmpty()) {
+            sb.append(first ? "[@" : " and @")
+                    .append("resource-id=\"")
+                    .append(resId.replace("\"", ""))
+                    .append("\"");
+            first = false;
+        }
+        if (text != null && !text.isEmpty()) {
+            sb.append(first ? "[@" : " and @")
+                    .append("text=\"")
+                    .append(text.replace("\"", ""))
+                    .append("\"");
+            first = false;
+        }
+
+        if (!first) sb.append("]");
+        return sb.toString();
+    }
+
+    // =======================================================
+    // Tag mapping (clickable-aware, closer to secret rules)
+    // Now: ✅ if clickable (and not input), default is "button"
+    // =======================================================
+    private String mapTagName(String cls, String xPath, boolean isClickable, String text, String desc) {
+        boolean xpathSaysButton = xPath != null && xPath.contains("android.widget.Button");
+
+        String someText = (text != null && !text.isEmpty()) ? text : (desc == null ? "" : desc);
+        boolean nullish = isNullishText(someText);
+
+        // ---- Strong class rules ----
+        // input always stays input even if clickable
+        if ("android.widget.EditText".equals(cls) || cls.endsWith("EditText")) {
+            return "input";
+        }
+
+        // Buttons
+        if ("android.widget.Button".equals(cls) || xpathSaysButton) {
+            return "button";
+        }
+        if ("android.widget.ImageButton".equals(cls) || cls.endsWith("ImageButton")) {
+            return "button";
+        }
+
+        // ImageView: many are icon-buttons when clickable
+        if ("android.widget.ImageView".equals(cls) || cls.endsWith("ImageView")) {
+            return isClickable ? "button" : "label";
+        }
+
+        // TextView: clickable -> button, else label
+        if ("android.widget.TextView".equals(cls) || cls.endsWith("TextView")) {
+            return isClickable ? "button" : "label";
+        }
+
+        // Spinner-like: clickable -> button, else label
+        if ("android.widget.Spinner".equals(cls) || cls.endsWith("Spinner")) {
+            return isClickable ? "button" : "label";
+        }
+
+        // ---- Containers / generic views ----
+        // If container is clickable, treat it as a button (your requirement),
+        // otherwise label. (nullish not needed anymore for the decision)
+        if (cls.endsWith("LinearLayout")
+                || cls.endsWith("FrameLayout")
+                || cls.endsWith("RelativeLayout")
+                || cls.endsWith("ConstraintLayout")
+                || cls.endsWith("ViewGroup")
+                || cls.endsWith("ScrollView")
+                || "android.view.View".equals(cls)
+                || cls.endsWith("View")) {
+            return isClickable ? "button" : "label";
+        }
+
+        // ---- Final fallback ----
+        return isClickable ? "button" : "label";
+    }
+
+    private String computeCoordinatesFromBounds(String bounds) {
+        int[] b = parseBounds(bounds);
+        if (b == null) return "0.00,0.00";
+        int w = b[2] - b[0];
+        int h = b[3] - b[1];
+        if (w <= 0 || h <= 0) return "0.00,0.00";
+        int cx = b[0] + w / 2;
+        int cy = b[1] + h / 2;
+        return String.format(java.util.Locale.US, "%.2f,%.2f", (double) cx, (double) cy);
+    }
+
+    private static int[] parseBounds(String bounds) {
+        // format: [x1,y1][x2,y2]
+        // returns {x1,y1,x2,y2} or null if invalid
+        try {
+            if (bounds == null || bounds.isEmpty()) return null;
+            String cleaned = bounds.replace("[", "").replace("]", ",");
+            String[] parts = cleaned.split(",");
+            if (parts.length < 4) return null;
+            int x1 = Integer.parseInt(parts[0].trim());
+            int y1 = Integer.parseInt(parts[1].trim());
+            int x2 = Integer.parseInt(parts[2].trim());
+            int y2 = Integer.parseInt(parts[3].trim());
+            return new int[] {x1, y1, x2, y2};
+        } catch (Exception ignore) {
+            return null;
+        }
+    }
+
+    public List<ElementDTO> extractAllTextElementsFromCanonicalXml(String canonicalXml, List<ElementDTO> results) {
+        if (canonicalXml == null || canonicalXml.isBlank()) {
+            appendLog("Canonical XML is empty", "warn");
+            return results;
+        }
+
+        org.w3c.dom.Document doc;
+        try {
+            javax.xml.parsers.DocumentBuilderFactory dbf = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+            dbf.setNamespaceAware(false);
+            dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+            javax.xml.parsers.DocumentBuilder db = dbf.newDocumentBuilder();
+            doc = db.parse(new org.xml.sax.InputSource(new java.io.StringReader(canonicalXml)));
+        } catch (Exception ex) {
+            appendLog("Failed to parse canonical XML: " + ex.getMessage(), "error");
+            return results;
+        }
+
+        org.w3c.dom.Element root = doc.getDocumentElement();
+        if (root == null) return results;
+
+        org.w3c.dom.NodeList children = root.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            org.w3c.dom.Node n = children.item(i);
+            if (n.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE) {
+                traverseForTextOnly((org.w3c.dom.Element) n, results);
+            }
+        }
+
+        appendLog("Text-only extraction complete. Elements found: " + results.size(), "info");
+        return results;
+    }
+
+    private void traverseForTextOnly(org.w3c.dom.Element el, List<ElementDTO> results) {
+
+        String tag = nz(el.getTagName()).toLowerCase();
+
+        // Skip non-visible-content tags (DOM-only heuristic)
+        if (tag.equals("script") || tag.equals("style") || tag.equals("noscript")) return;
+
+        // HTML "text": for inputs use value/placeholder; otherwise textContent
+        String rawText = extractHtmlText(el);
+
+        // Keep ONLY elements with meaningful text
+        if (!rawText.isEmpty() && !isNullishText(rawText)) {
+
+            String cls = nz(el.getAttribute("class"));
+            if (cls.isEmpty()) cls = tag;
+
+            String id = nz(el.getAttribute("id"));
+            String name = nz(el.getAttribute("name"));
+            String ariaLabel = nz(el.getAttribute("aria-label"));
+            String title = nz(el.getAttribute("title"));
+            String alt = nz(el.getAttribute("alt"));
+            String href = nz(el.getAttribute("href"));
+            String role = nz(el.getAttribute("role"));
+            String onclick = nz(el.getAttribute("onclick"));
+            String tabindex = nz(el.getAttribute("tabindex"));
+
+            boolean clickable = isHtmlClickable(tag, href, onclick, role, tabindex);
+
+            // Build XPath for HTML (prefer id, then stable attributes)
+            String xPath = buildSafeHtmlXPathWithIndex(el, tag, id, cls, rawText, ariaLabel);
+
+            // attribId: use id if exists; otherwise XPath
+            String attribId = !id.isEmpty() ? id : xPath;
+
+            // No bounds in DOM-only parsing
+            String coords = "null";
+
+            List<AttributeData> attrs = new ArrayList<>();
+            attrs.add(new AttributeData("tag", tag));
+            attrs.add(new AttributeData("id", id.isEmpty() ? "null" : id));
+            attrs.add(new AttributeData("class", cls.isEmpty() ? "null" : cls));
+            attrs.add(new AttributeData("name", name.isEmpty() ? "null" : name));
+            attrs.add(new AttributeData("aria-label", ariaLabel.isEmpty() ? "null" : ariaLabel));
+            attrs.add(new AttributeData("title", title.isEmpty() ? "null" : title));
+            attrs.add(new AttributeData("alt", alt.isEmpty() ? "null" : alt));
+            attrs.add(new AttributeData("href", href.isEmpty() ? "null" : href));
+            attrs.add(new AttributeData("role", role.isEmpty() ? "null" : role));
+            attrs.add(new AttributeData("clickable", String.valueOf(clickable)));
+            attrs.add(new AttributeData("text", rawText));
+
+            ElementDTO dto = new ElementDTO();
+            dto.setId(results.size() + 1);
+            dto.setTypeElement("tagName-Found");
+            dto.setTagName(mapTagName(tag, xPath, clickable, rawText, ariaLabel));
+            dto.setXPath(xPath);
+            dto.setAttribId(attribId);
+            dto.setSomeText(rawText);
+
+            dto.setAttribName("");
+            dto.setCoordinates(coords);
+            dto.setAttributeData(attrs.toArray(new AttributeData[0]));
+
+            dto.setCustomXPath("");
+            dto.setIFrameXPath("");
+            dto.setShadowHost("");
+            dto.setShadowRoot("false");
+            dto.setNestedShadow("false");
+            dto.setCssSelector(""); // optional: you can build from id/class if you want
+            dto.setAttributeValue("");
+            dto.setAttributeType("");
+            dto.setSearchAttributeValue("");
+
+            results.add(dto);
+        }
+
+        // Continue traversal
+        org.w3c.dom.Node child = el.getFirstChild();
+        while (child != null) {
+            if (child.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE) {
+                traverseForTextOnly((org.w3c.dom.Element) child, results);
+            }
+            child = child.getNextSibling();
+        }
+    }
+
+    private String extractHtmlText(org.w3c.dom.Element el) {
+        String tag = nz(el.getTagName()).toLowerCase();
+
+        // For inputs, text is in value/placeholder
+        if (tag.equals("input") || tag.equals("textarea")) {
+            String v = nz(el.getAttribute("value"));
+            if (!v.isEmpty()) return normalizeSpace(v);
+            String ph = nz(el.getAttribute("placeholder"));
+            if (!ph.isEmpty()) return normalizeSpace(ph);
+            // fallback
+        }
+        String txt = nz(el.getTextContent());
+        return normalizeSpace(txt);
+    }
+
+    private boolean isHtmlClickable(String tag, String href, String onclick, String role, String tabindex) {
+        if (tag == null) return false;
+        tag = tag.toLowerCase();
+
+        // Native clickable HTML elements
+        if (tag.equals("a") && !href.isEmpty()) return true;
+        if (tag.equals("button")) return true;
+        if (tag.equals("input")) return true;
+        if (tag.equals("select")) return true;
+        if (tag.equals("textarea")) return true;
+
+        // JS or accessibility-based clickability
+        if (!onclick.isEmpty()) return true;
+        if ("button".equalsIgnoreCase(role)) return true;
+        if ("link".equalsIgnoreCase(role)) return true;
+
+        // Focusable elements are often interactive
+        if (!tabindex.isEmpty()) return true;
+
+        return false;
+    }
+
+    private String normalizeSpace(String s) {
+        s = nz(s);
+        s = s.replace('\u00A0', ' ');
+        s = s.replaceAll("\\s+", " ").trim();
+        return s;
+    }
+
+    private String buildSafeHtmlXPathWithIndex(
+            org.w3c.dom.Element el, String tag, String id, String cls, String text, String ariaLabel) {
+        // Strong preference: //*[@id='...']
+        if (!id.isEmpty()) {
+            return "//*[@" + "id='" + escapeXPathLiteral(id) + "']";
+        }
+
+        // Next: aria-label / title / name / class + index
+        // Use your existing buildSafeXPathWithIndex pattern but with HTML attributes.
+        // Minimal example (you likely already have an index builder):
+        return buildXPathByTagAndIndex(el, tag);
+    }
+
+    private String escapeXPathLiteral(String s) {
+        s = nz(s);
+        // If it contains no single quotes, simplest form:
+        if (!s.contains("'")) {
+            return "'" + s + "'";
+        }
+        // If it contains no double quotes, use double quotes:
+        if (!s.contains("\"")) {
+            return "\"" + s + "\"";
+        }
+        // Contains both ' and " -> use concat('a', "\"", 'b', ...)
+        StringBuilder sb = new StringBuilder("concat(");
+        boolean first = true;
+        for (int i = 0; i < s.length(); i++) {
+            String part;
+            char c = s.charAt(i);
+            if (c == '\'') {
+                part = "\"'\""; // a single quote character
+            } else if (c == '"') {
+                part = "'\"'"; // a double quote character
+            } else {
+                // collect a run of normal chars for efficiency
+                int j = i;
+                while (j < s.length()) {
+                    char cj = s.charAt(j);
+                    if (cj == '\'' || cj == '"') break;
+                    j++;
+                }
+                String run = s.substring(i, j);
+                part = "'" + run + "'";
+                i = j - 1;
+            }
+
+            if (!first) sb.append(", ");
+            sb.append(part);
+            first = false;
+        }
+        sb.append(")");
+        return sb.toString();
+    }
+
+    /**
+     * Builds an XPath like:
+     * /html[1]/body[1]/div[2]/span[1]
+     *
+     * It uses tag names + 1-based index among same-tag siblings.
+     * Works on an org.w3c.dom.Element tree.
+     */
+    private String buildXPathByTagAndIndex(Element el, String tagIgnored) {
+        if (el == null) return "";
+
+        StringBuilder path = new StringBuilder();
+        org.w3c.dom.Node current = el;
+
+        while (current != null && current.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE) {
+            Element curEl = (Element) current;
+
+            String tag = nz(curEl.getTagName());
+            if (tag.isEmpty()) tag = "*";
+
+            int index = getIndexAmongSameTagSiblings(curEl);
+
+            // prepend segment
+            String segment = "/" + tag + "[" + index + "]";
+            path.insert(0, segment);
+
+            current = current.getParentNode();
+            if (current != null && current.getNodeType() == org.w3c.dom.Node.DOCUMENT_NODE) break;
+        }
+        return path.toString();
+    }
+
+    private int getIndexAmongSameTagSiblings(Element el) {
+        org.w3c.dom.Node parent = el.getParentNode();
+        if (parent == null) return 1;
+
+        String tag = nz(el.getTagName());
+        int idx = 0;
+
+        org.w3c.dom.Node child = parent.getFirstChild();
+        while (child != null) {
+            if (child.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE) {
+                Element ce = (Element) child;
+                if (tag.equals(nz(ce.getTagName()))) {
+                    idx++;
+                    if (ce == el) return idx; // identity match in same DOM
+                }
+            }
+            child = child.getNextSibling();
+        }
+        return 1;
+    }
 }
