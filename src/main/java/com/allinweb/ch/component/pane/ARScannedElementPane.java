@@ -19,6 +19,7 @@ import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import io.opentelemetry.api.internal.StringUtils;
 import java.io.*;
+import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -55,6 +56,9 @@ import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import javafx.stage.Stage;
 import javax.swing.*;
+import javax.xml.XMLConstants;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
@@ -63,7 +67,9 @@ import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.xml.sax.InputSource;
 
 @Slf4j
 public class ARScannedElementPane extends ARPane {
@@ -5206,6 +5212,21 @@ public class ARScannedElementPane extends ARPane {
                 } else {
                     // HTML -> XHTML so DocumentBuilder can parse it
                     canonicalXml = CanonicalXmlNormalizer.normalizeHtmlToXhtml(rawPageSource);
+
+                    // ✅ WEB: parse XHTML -> Document -> extract labels/inputs/buttons/links
+                    org.w3c.dom.Document doc = parseXhtmlToDocument(canonicalXml);
+
+                    // If you want, keep dedup using attribId/xpath
+                    List<ElementDTO> webControls = extractWebControls(doc);
+
+                    // Optional dedup guard (recommended if your page repeats nodes)
+                    Set<String> seenKeys = new HashSet<>();
+                    for (ElementDTO dto : webControls) {
+                        String key = nz(dto.getAttribId()) + "||" + nz(dto.getXPath());
+                        if (seenKeys.add(key)) {
+                            results.add(dto);
+                        }
+                    }
                 }
             } catch (Exception ex) {
                 appendLog("driver.getPageSource() failed: " + ex.getMessage(), "error");
@@ -5508,13 +5529,6 @@ public class ARScannedElementPane extends ARPane {
                 traverseWebNode((org.w3c.dom.Element) n, results, seenKeys);
             }
         }
-    }
-
-    private String firstNonEmpty(String... vals) {
-        for (String v : vals) {
-            if (v != null && !v.trim().isEmpty() && !isNullishText(v)) return v.trim();
-        }
-        return "";
     }
 
     private String buildWebAttribId(String tag, String id, String name, String aria) {
@@ -5963,10 +5977,6 @@ public class ARScannedElementPane extends ARPane {
         return new NestedText(chosenText, bestAnyDesc);
     }
 
-    private String nz(String s) {
-        return (s == null) ? "" : s;
-    }
-
     private String boolString(String v) {
         if (v == null || v.isBlank()) return "false";
         return "true".equalsIgnoreCase(v) ? "true" : "false";
@@ -6384,13 +6394,6 @@ public class ARScannedElementPane extends ARPane {
         return false;
     }
 
-    private String normalizeSpace(String s) {
-        s = nz(s);
-        s = s.replace('\u00A0', ' ');
-        s = s.replaceAll("\\s+", " ").trim();
-        return s;
-    }
-
     private String buildSafeHtmlXPathWithIndex(
             org.w3c.dom.Element el, String tag, String id, String cls, String text, String ariaLabel) {
         // Strong preference: //*[@id='...']
@@ -6402,47 +6405,6 @@ public class ARScannedElementPane extends ARPane {
         // Use your existing buildSafeXPathWithIndex pattern but with HTML attributes.
         // Minimal example (you likely already have an index builder):
         return buildXPathByTagAndIndex(el, tag);
-    }
-
-    private String escapeXPathLiteral(String s) {
-        s = nz(s);
-        // If it contains no single quotes, simplest form:
-        if (!s.contains("'")) {
-            return "'" + s + "'";
-        }
-        // If it contains no double quotes, use double quotes:
-        if (!s.contains("\"")) {
-            return "\"" + s + "\"";
-        }
-        // Contains both ' and " -> use concat('a', "\"", 'b', ...)
-        StringBuilder sb = new StringBuilder("concat(");
-        boolean first = true;
-        for (int i = 0; i < s.length(); i++) {
-            String part;
-            char c = s.charAt(i);
-            if (c == '\'') {
-                part = "\"'\""; // a single quote character
-            } else if (c == '"') {
-                part = "'\"'"; // a double quote character
-            } else {
-                // collect a run of normal chars for efficiency
-                int j = i;
-                while (j < s.length()) {
-                    char cj = s.charAt(j);
-                    if (cj == '\'' || cj == '"') break;
-                    j++;
-                }
-                String run = s.substring(i, j);
-                part = "'" + run + "'";
-                i = j - 1;
-            }
-
-            if (!first) sb.append(", ");
-            sb.append(part);
-            first = false;
-        }
-        sb.append(")");
-        return sb.toString();
     }
 
     /**
@@ -6476,6 +6438,236 @@ public class ARScannedElementPane extends ARPane {
         return path.toString();
     }
 
+    public List<ElementDTO> extractWebControls(org.w3c.dom.Document doc) {
+        List<ElementDTO> results = new ArrayList<>();
+        Element root = doc.getDocumentElement();
+        traverseWebControls(root, results);
+        return results;
+    }
+
+    private void traverseWebControls(org.w3c.dom.Element el, List<ElementDTO> results) {
+        String tag = nz(el.getTagName()).toLowerCase();
+
+        // skip non-content tags
+        if (tag.equals("script") || tag.equals("style") || tag.equals("noscript")) {
+            return;
+        }
+
+        if (isWantedWebElement(tag, el)) {
+            ElementDTO dto = buildWebElementDTO(el, tag, results.size() + 1);
+            if (dto != null) {
+                results.add(dto);
+            }
+        }
+
+        // DFS traversal
+        org.w3c.dom.Node child = el.getFirstChild();
+        while (child != null) {
+            if (child.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE) {
+                traverseWebControls((Element) child, results);
+            }
+            child = child.getNextSibling();
+        }
+    }
+
+    private boolean isWantedWebElement(String tag, Element el) {
+        if (tag.equals("label")) return true;
+        if (tag.equals("input") || tag.equals("textarea") || tag.equals("select")) return true;
+        if (tag.equals("button")) return true;
+        if (tag.equals("a")) return true;
+        // optional: include elements that act like buttons
+        String role = nz(el.getAttribute("role"));
+        String onclick = nz(el.getAttribute("onclick"));
+        if ("button".equalsIgnoreCase(role) || "link".equalsIgnoreCase(role)) return true;
+        if (!onclick.isEmpty()) return true;
+        return false;
+    }
+
+    private ElementDTO buildWebElementDTO(Element el, String tag, int idSeq) {
+
+        // Common attributes
+        String id = nz(el.getAttribute("id"));
+        String name = nz(el.getAttribute("name"));
+        String cls = nz(el.getAttribute("class"));
+        String role = nz(el.getAttribute("role"));
+        String tabindex = nz(el.getAttribute("tabindex"));
+        String ariaLabel = nz(el.getAttribute("aria-label"));
+        String title = nz(el.getAttribute("title"));
+        String disabled = nz(el.getAttribute("disabled"));
+
+        // Element text (labels/buttons/links)
+        String text = normalizeSpace(el.getTextContent());
+
+        // Input specific
+        String type = "";
+        String value = "";
+        String placeholder = "";
+        if (tag.equals("input")) {
+            type = nz(el.getAttribute("type")).toLowerCase();
+            value = nz(el.getAttribute("value"));
+            placeholder = nz(el.getAttribute("placeholder"));
+        } else if (tag.equals("textarea")) {
+            value = normalizeSpace(el.getTextContent());
+            placeholder = nz(el.getAttribute("placeholder"));
+        }
+
+        // Link specific
+        String href = "";
+        if (tag.equals("a")) {
+            href = nz(el.getAttribute("href"));
+        }
+
+        // Label specific (for="...")
+        String forId = "";
+        if (tag.equals("label")) {
+            forId = nz(el.getAttribute("for"));
+        }
+
+        // For inputs: try to find label text by matching <label for="id">
+        String linkedLabel = "";
+        if ((tag.equals("input") || tag.equals("textarea") || tag.equals("select")) && !id.isEmpty()) {
+            linkedLabel = findLabelForInput(el.getOwnerDocument(), id);
+        }
+
+        // Decide "someText" (what you display)
+        String someText;
+        if (tag.equals("label")) someText = text;
+        else if (tag.equals("button")) someText = text;
+        else if (tag.equals("a")) someText = !text.isEmpty() ? text : href;
+        else { // input/select/textarea
+            // prefer label, then aria-label/title/placeholder/value
+            someText = firstNonEmpty(linkedLabel, ariaLabel, title, placeholder, value, name, id);
+        }
+        someText = nz(someText);
+
+        // If still empty, skip it (you said you want exactly labels/inputs/buttons but "nice" list)
+        if (someText.isEmpty()) {
+            // If you truly want EVERYTHING regardless of text, comment this out
+            // return null;
+        }
+
+        // XPath
+        String xPath = !id.isEmpty() ? "//*[@" + "id=" + escapeXPathLiteral(id) + "]" : buildXPathByTagAndIndex(el);
+
+        // Build AttributeData list
+        List<AttributeData> attrs = new ArrayList<>();
+        attrs.add(new AttributeData("tag", tag));
+        attrs.add(new AttributeData("id", id.isEmpty() ? "null" : id));
+        attrs.add(new AttributeData("name", name.isEmpty() ? "null" : name));
+        attrs.add(new AttributeData("class", cls.isEmpty() ? "null" : cls));
+        attrs.add(new AttributeData("type", type.isEmpty() ? "null" : type));
+        attrs.add(new AttributeData("value", value.isEmpty() ? "null" : value));
+        attrs.add(new AttributeData("placeholder", placeholder.isEmpty() ? "null" : placeholder));
+        attrs.add(new AttributeData("for", forId.isEmpty() ? "null" : forId));
+        attrs.add(new AttributeData("href", href.isEmpty() ? "null" : href));
+        attrs.add(new AttributeData("role", role.isEmpty() ? "null" : role));
+        attrs.add(new AttributeData("tabindex", tabindex.isEmpty() ? "null" : tabindex));
+        attrs.add(new AttributeData("aria-label", ariaLabel.isEmpty() ? "null" : ariaLabel));
+        attrs.add(new AttributeData("title", title.isEmpty() ? "null" : title));
+        attrs.add(new AttributeData("disabled", disabled.isEmpty() ? "false" : "true"));
+
+        // Create DTO (kept close to your original shape)
+        ElementDTO dto = new ElementDTO();
+        dto.setId(idSeq);
+        dto.setTypeElement("web-control");
+        dto.setTagName(tag);
+        dto.setXPath(xPath);
+        dto.setAttribId(!id.isEmpty() ? id : xPath);
+        dto.setSomeText(someText);
+        dto.setAttributeData(attrs.toArray(new AttributeData[0]));
+
+        // Not available in pure DOM parsing
+        dto.setCoordinates("null");
+        dto.setCustomXPath("");
+        dto.setIFrameXPath("");
+        dto.setShadowHost("");
+        dto.setShadowRoot("false");
+        dto.setNestedShadow("false");
+        dto.setCssSelector("");
+        dto.setAttribName("");
+        dto.setAttributeValue("");
+        dto.setAttributeType("");
+        dto.setSearchAttributeValue("");
+
+        return dto;
+    }
+
+    private String findLabelForInput(org.w3c.dom.Document doc, String inputId) {
+        if (doc == null || inputId == null || inputId.isEmpty()) return "";
+
+        Element root = doc.getDocumentElement();
+        return findLabelForInputRec(root, inputId);
+    }
+
+    private String findLabelForInputRec(Element el, String inputId) {
+        String tag = nz(el.getTagName()).toLowerCase();
+        if (tag.equals("label")) {
+            String f = nz(el.getAttribute("for"));
+            if (inputId.equals(f)) {
+                return normalizeSpace(el.getTextContent());
+            }
+        }
+
+        org.w3c.dom.Node child = el.getFirstChild();
+        while (child != null) {
+            if (child.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE) {
+                String found = findLabelForInputRec((Element) child, inputId);
+                if (!found.isEmpty()) return found;
+            }
+            child = child.getNextSibling();
+        }
+        return "";
+    }
+
+    private String escapeXPathLiteral(String s) {
+        s = nz(s);
+        if (!s.contains("'")) return "'" + s + "'";
+        if (!s.contains("\"")) return "\"" + s + "\"";
+
+        StringBuilder sb = new StringBuilder("concat(");
+        boolean first = true;
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            String part;
+            if (c == '\'') part = "\"'\"";
+            else if (c == '"') part = "'\"'";
+            else {
+                int j = i;
+                while (j < s.length()) {
+                    char cj = s.charAt(j);
+                    if (cj == '\'' || cj == '"') break;
+                    j++;
+                }
+                part = "'" + s.substring(i, j) + "'";
+                i = j - 1;
+            }
+            if (!first) sb.append(", ");
+            sb.append(part);
+            first = false;
+        }
+        sb.append(")");
+        return sb.toString();
+    }
+
+    private String buildXPathByTagAndIndex(Element el) {
+        if (el == null) return "";
+        StringBuilder path = new StringBuilder();
+        org.w3c.dom.Node current = el;
+
+        while (current != null && current.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE) {
+            Element curEl = (Element) current;
+            String tag = nz(curEl.getTagName());
+            if (tag.isEmpty()) tag = "*";
+
+            int index = getIndexAmongSameTagSiblings(curEl);
+            path.insert(0, "/" + tag + "[" + index + "]");
+
+            current = current.getParentNode();
+            if (current != null && current.getNodeType() == org.w3c.dom.Node.DOCUMENT_NODE) break;
+        }
+        return path.toString();
+    }
+
     private int getIndexAmongSameTagSiblings(Element el) {
         org.w3c.dom.Node parent = el.getParentNode();
         if (parent == null) return 1;
@@ -6489,11 +6681,50 @@ public class ARScannedElementPane extends ARPane {
                 Element ce = (Element) child;
                 if (tag.equals(nz(ce.getTagName()))) {
                     idx++;
-                    if (ce == el) return idx; // identity match in same DOM
+                    if (ce == el) return idx;
                 }
             }
             child = child.getNextSibling();
         }
         return 1;
+    }
+
+    private String firstNonEmpty(String... vals) {
+        if (vals == null) return "";
+        for (String v : vals) {
+            v = nz(v);
+            if (!v.isEmpty()) return v;
+        }
+        return "";
+    }
+
+    private String normalizeSpace(String s) {
+        s = nz(s).replace('\u00A0', ' ');
+        return s.replaceAll("\\s+", " ").trim();
+    }
+
+    private String nz(String s) {
+        return s == null ? "" : s;
+    }
+
+    private Document parseXhtmlToDocument(String xhtml) {
+        try {
+            DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+
+            // security hardening
+            dbf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+            dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+            dbf.setFeature("http://xml.org/sax/features/external-general-entities", false);
+            dbf.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+            dbf.setXIncludeAware(false);
+            dbf.setExpandEntityReferences(false);
+
+            dbf.setNamespaceAware(false);
+
+            DocumentBuilder db = dbf.newDocumentBuilder();
+            return db.parse(new InputSource(new StringReader(xhtml)));
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to parse XHTML into Document: " + e.getMessage(), e);
+        }
     }
 }
