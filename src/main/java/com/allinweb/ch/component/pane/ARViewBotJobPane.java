@@ -1197,6 +1197,11 @@ public class ARViewBotJobPane extends ARPane {
     private void handleExceptionScan(Exception error) {
         // Log the exception
 
+        if (error.getMessage().contains("null")) {
+            log.error("Error: " + error.getMessage());
+            return;
+        }
+
         log.error("ERROR Calling openScannerButton -> Cause: " + error.getMessage());
 
         // Display the error message to the user
