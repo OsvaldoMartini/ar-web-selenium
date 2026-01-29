@@ -105,6 +105,11 @@ public class ARScannedElementScene extends ARScene {
         if (!isConnectWebSocket) {
             connectWebSocketClient(portSocketInitial, "scanner-element-pane");
         }
+
+        ErrorMessage errorMessage = performDataBase.loadBlocks(currentBotJob.getBotJobId(), "", "block");
+        if (errorMessage == null) {
+            arScannedElementPane.refreshBlocks(false);
+        }
     }
     //    private static final ScheduledExecutorService pingScheduler = Executors.newScheduledThreadPool(1);
 
