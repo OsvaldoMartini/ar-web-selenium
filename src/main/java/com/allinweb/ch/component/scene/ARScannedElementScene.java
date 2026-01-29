@@ -106,7 +106,7 @@ public class ARScannedElementScene extends ARScene {
             connectWebSocketClient(portSocketInitial, "scanner-element-pane");
         }
 
-        ErrorMessage errorMessage = performDataBase.loadBlocks(currentBotJob.getBotJobId(), "", "block");
+        ErrorMessage errorMessage = performDataBase.loadBlocks(currentBotJob.getId(), "", "block");
         if (errorMessage == null) {
             arScannedElementPane.refreshBlocks(false);
         }
