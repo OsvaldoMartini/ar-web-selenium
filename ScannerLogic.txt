@@ -994,19 +994,25 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								// 2) Apply only non-empty values into splitDTO and elementDetails[0]
 								//                                        if (matchingInstruction != null) {
 								// >>> Add AttrData:* references into elementDetails.attributesData
-								SplitDTO.applyAttrDataFromReferences(splitDTO, currentInstruction);
-
-								SplitDTO.applyInstructionToSplit(splitDTO, currentInstruction);
+								//
+								// SplitDTO.applyAttrDataFromReferences(splitDTO, currentInstruction);
+								//
+								//
+								// SplitDTO.applyInstructionToSplit(splitDTO, currentInstruction);
+								//                                        //
+								//    }
+								//
+								//                                        webElementFound =
+								// androidDevice.searchElement(splitDTO);
+								//
+								//                                        if (webElementFound == null) {
+								//                                            appendLog(
+								//
+								// currentInstruction.getName() + "- Not Found- using coordinates",
+								//                                                    "warn");
+								//
+								// androidDevice.executeAction(webElementFound, splitDTO);
 								//                                        }
-
-								webElementFound = androidDevice.searchElement(splitDTO);
-
-								if (webElementFound == null) {
-									appendLog(
-											currentInstruction.getName() + "- Not Found- using coordinates",
-											"warn");
-									androidDevice.executeAction(webElementFound, splitDTO);
-								}
 							}
 
 							if (webElementFound == null && forceCoordinates && !isMobileApp) {
@@ -1092,19 +1098,25 @@ if (extractedData.getNumberOfDataRows() > 0) {
 
 								WebElement webElementFound = null;
 								if (isMobileApp) {
-									int index = IntStream.range(0, instructionIds.length)
-											.filter(i -> instructionIds[i] == parentId)
-											.findFirst()
-											.orElse(-1);
-
-									InstructionLoad refInstruction = blockLoad
-											.getInstructionLoad()
-											.get(index);
-
-									SplitDTO.applyAttrDataFromReferences(splitDTO, refInstruction);
-									SplitDTO.applyInstructionToSplit(splitDTO, refInstruction);
-
-									webElementFound = androidDevice.searchElement(splitDTO);
+									//                                            int index = IntStream.range(0,
+									// instructionIds.length)
+									//                                                    .filter(i ->
+									// instructionIds[i] == parentId)
+									//                                                    .findFirst()
+									//                                                    .orElse(-1);
+									//
+									//                                            InstructionLoad refInstruction
+									// = blockLoad
+									//                                                    .getInstructionLoad()
+									//                                                    .get(index);
+									//
+									//
+									// SplitDTO.applyAttrDataFromReferences(splitDTO, refInstruction);
+									//
+									// SplitDTO.applyInstructionToSplit(splitDTO, refInstruction);
+									//
+									//                                            webElementFound =
+									// androidDevice.searchElement(splitDTO);
 								}
 
 								resultActions = performActions.performOperatorActions(

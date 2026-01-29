@@ -149,8 +149,8 @@ public class ARControlPanel extends Application {
             log.info("Configuration file path: " + defaultConfigurationFileName);
         }
 
-        arPropertyManager.setProperty(ARPropertyEnum.VERSION.getValue(), "AR Web v4.7f Beta Test");
-        arPropertyManager.setProperty(ARPropertyEnum.BUILD.getValue(), "Build: 01/10/2025"); //
+        arPropertyManager.setProperty(ARPropertyEnum.VERSION.getValue(), "AR Web v4.2g Beta Test");
+        arPropertyManager.setProperty(ARPropertyEnum.BUILD.getValue(), "Build: 29/01/2026"); //
     }
 
     private static void initializeServers() {
@@ -335,10 +335,7 @@ public class ARControlPanel extends Application {
             log.error("Error Database Connections: " + error.getMessage());
         }
 
-        if ("Postgres".equalsIgnoreCase(dataBaseType)) {
-            // Postgres-specific logic
-            performDataBase.POSTGRES_DB = true;
-        } else if ("TEXT".equalsIgnoreCase(dataBaseType)) {
+        if ("TEXT".equalsIgnoreCase(dataBaseType)) {
             // SQLite-specific logic
             performDataBase.SQLITE_DB = true;
         } else if ("Access".equalsIgnoreCase(dataBaseType)) {

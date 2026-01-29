@@ -364,7 +364,7 @@ public class ARConfigurationPane extends ARPane {
 
         browserChoiceBox.setItems(browserList);
         databaseChoiceBox.setItems(databaseList);
-        databaseChoiceBox.setDisable(false);
+        databaseChoiceBox.setDisable(true);
 
         HBox buttonRow = new HBox(10); // spacing between columns
         buttonRow.setAlignment(Pos.CENTER);
@@ -455,10 +455,10 @@ public class ARConfigurationPane extends ARPane {
         pathWebDriverButton = createPathButton();
         AnchorPane driverGroup = new AnchorPane(pathWebDriver, pathWebDriverButton);
 
-        pathAppiumLabel = new Label("Appium Path:");
-        pathAppium = createPathTextField(ARPropertyEnum.PATH_APPIUM);
-        pathAppiumButton = createPathButton();
-        AnchorPane appiumGroup = new AnchorPane(pathAppium, pathAppiumButton);
+        //        pathAppiumLabel = new Label("Appium Path:");
+        //        pathAppium = createPathTextField(ARPropertyEnum.PATH_APPIUM);
+        //        pathAppiumButton = createPathButton();
+        //        AnchorPane appiumGroup = new AnchorPane(pathAppium, pathAppiumButton);
 
         Label organizationsLabel = new Label("Organizations");
         organizationsLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #1565C0;");
@@ -481,8 +481,8 @@ public class ARConfigurationPane extends ARPane {
                 engineGroup,
                 pathWebDriverLabel,
                 driverGroup,
-                pathAppiumLabel,
-                appiumGroup,
+                //                pathAppiumLabel,
+                //                appiumGroup,
                 dbUrlLabel,
                 dbUrl,
                 dbUserPwdGroup,
@@ -583,14 +583,15 @@ public class ARConfigurationPane extends ARPane {
 
         pathEngineButton.setOnMouseClicked(e -> openChooserFor(pathEngine, modalStage, false));
         pathWebDriverButton.setOnMouseClicked(e -> openChooserFor(pathWebDriver, modalStage, false));
-        pathAppiumButton.setOnMouseClicked(e -> openChooserFor(pathAppium, modalStage, true));
+        //        pathAppiumButton.setOnMouseClicked(e -> openChooserFor(pathAppium, modalStage, true));
 
         browserChoiceBox.setValue(arPropertyManager.getProperty(ARPropertyEnum.BROWSER));
 
-        if (arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE) == null) {
-            databaseChoiceBox.setValue("Access");
-        } else {
+        if (arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE) != null) {
             databaseChoiceBox.setValue(arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE));
+        } else {
+            databaseChoiceBox.setValue("Access");
+            //            databaseChoiceBox.setValue(arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE));
         }
 
         reloadDBButton.setOnMouseClicked(e -> {
@@ -662,7 +663,7 @@ public class ARConfigurationPane extends ARPane {
         }
 
         Label newInstruction = new Label(
-                "DB BACKUP\nDatabase Selected: \"" + dataBaseType + "\" \nDatabase Folder : \"v4.7f Beta Test\"");
+                "DB BACKUP\nDatabase Selected: \"" + dataBaseType + "\" \nDatabase Folder : \"v4.2g Beta Test\"");
         newInstruction.setStyle("-fx-font-size: 18px; -fx-text-fill: red;");
 
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION, null, ButtonType.YES, ButtonType.NO);
@@ -812,7 +813,7 @@ public class ARConfigurationPane extends ARPane {
         }
 
         Label newInstruction = new Label(
-                "DB RESTORE\nDatabase Selected: \"" + dataBaseType + "\" \nDatabase Folder : \"v4.7f Beta Test\"");
+                "DB RESTORE\nDatabase Selected: \"" + dataBaseType + "\" \nDatabase Folder : \"v4.2g Beta Test\"");
         newInstruction.setStyle("-fx-font-size: 18px; -fx-text-fill: red;");
 
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION, null, ButtonType.YES, ButtonType.NO);
@@ -1022,10 +1023,11 @@ public class ARConfigurationPane extends ARPane {
             validfields = false;
         }
 
-        if (Strings.isNullOrEmpty(pathAppium.getText())) {
-            new ARAlertScene(Alert.AlertType.ERROR, "Field Blank", "Appium Path must be filed!", ButtonType.OK);
-            validfields = false;
-        }
+        //        if (Strings.isNullOrEmpty(pathAppium.getText())) {
+        //            new ARAlertScene(Alert.AlertType.ERROR, "Field Blank", "Appium Path must be filed!",
+        // ButtonType.OK);
+        //            validfields = false;
+        //        }
 
         if (validfields) {
 
@@ -1050,8 +1052,8 @@ public class ARConfigurationPane extends ARPane {
             arPropertyManager.setProperty(
                     ARPropertyEnum.PATH_WEBDRIVER.getValue(),
                     pathWebDriver.getText().trim());
-            arPropertyManager.setProperty(
-                    ARPropertyEnum.PATH_APPIUM.getValue(), pathAppium.getText().trim());
+            //            arPropertyManager.setProperty(
+            //                    ARPropertyEnum.PATH_APPIUM.getValue(), pathAppium.getText().trim());
 
             try {
                 performInitializer.testConnection(

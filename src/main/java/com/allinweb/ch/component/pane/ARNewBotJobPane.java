@@ -187,7 +187,8 @@ public class ARNewBotJobPane extends ARPane {
         rbAndroid.setStyle("-fx-font-size: 13;");
         rbIos.setStyle("-fx-font-size: 13;");
 
-        groupOptions = new HBox(15, rbWeb, rbAndroid, rbIos);
+        //        groupOptions = new HBox(15, rbWeb, rbAndroid, rbIos);
+        groupOptions = new HBox(15, rbWeb);
         groupOptions.setAlignment(Pos.CENTER);
         groupOptions.setPadding(new Insets(0, 0, 10, 0));
 

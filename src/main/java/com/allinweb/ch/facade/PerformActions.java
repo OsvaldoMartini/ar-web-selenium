@@ -562,20 +562,20 @@ public class PerformActions {
                 break;
             case ARConstantsEngine.QUIT:
                 // Minimal confirmation using your custom modal
-                //                ARExecution.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
-                //                        "Confirmation",
-                //                        "Do you want to continue?",
-                //                        "This Action Closes the Browser and Scanner!",
-                //                        null,
-                //                        null,
-                //                        true,
-                //                        "OK",
-                //                        "Close Browser",
-                //                        350);
-                //
-                //                if (respModal.equals(ARExecution.DialogModal.STOP)) {
-                //                    quit(1);
-                //                }
+                ARExecution.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
+                        "Confirmation",
+                        "Do you want to continue?",
+                        "This Action Closes the Browser and Scanner!",
+                        null,
+                        null,
+                        true,
+                        "OK",
+                        "Close Browser",
+                        350);
+
+                if (respModal.equals(ARExecution.DialogModal.STOP)) {
+                    quit(1);
+                }
 
                 break;
                 //                    case ARConstants.EXTRACT:

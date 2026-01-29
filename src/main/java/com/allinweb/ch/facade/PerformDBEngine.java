@@ -593,7 +593,7 @@ public class PerformDBEngine {
         return InstructionLoadList;
     }
 
-    public void callSocketLists() {
-        performLists.initialize("engine-perform-bot-job");
+    public void callSocketLists(String sessionId) {
+        performLists.initialize(sessionId);
     }
 }
