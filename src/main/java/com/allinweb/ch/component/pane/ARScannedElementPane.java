@@ -505,7 +505,7 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    public int validateBlockDB(String blockTable, int whereId, boolean isMany) {
+    public int validateBlockDB(String blockTable, int whereId, String message) {
         int newBlockID = createBlockIfNone(blockTable, whereId);
         if (newBlockID > 0) {
             ErrorMessage errorMessage = performDataBase.loadBlocks(whereId, "", blockTable);
@@ -528,9 +528,8 @@ public class ARScannedElementPane extends ARPane {
             }
 
             if (currentBlockId < 0) {
-                String insertOne = isMany ? "Insert ALL" : "Insert one Element";
                 performMessage.errorMessage(
-                        "Operation \"" + insertOne + "\" No Block Selected",
+                        "Operation \"" + message + "\" No Block Selected",
                         "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>No Block Selected ❌</span>",
                         "<span style='color: #E65100; font-weight: bold;'>You must select a Block from the dropdown list</span> before adding a new command.",
                         "<span style='font-style: italic;'>Context:</span> Bot Job: <b>" + currentBotJob.getName()
@@ -5033,6 +5032,16 @@ public class ARScannedElementPane extends ARPane {
         }
 
         // PRINT END BASE LOG//
+
+        String[] parts = resultActions.split("\\|", -1);
+
+        String firstFour = String.join(
+                "|",
+                parts.length > 0 ? parts[0] : "",
+                parts.length > 1 ? parts[1] : "",
+                parts.length > 2 ? parts[2] : "",
+                parts.length > 3 ? parts[3] : "");
+
         if (success) {
             baseLogString = blocksLoaded.get(0).getName()
                     + ARConstantsEngine.FIELDS_SEPARATOR
@@ -5042,23 +5051,24 @@ public class ARScannedElementPane extends ARPane {
 
             if (isInterceptBotJob()) {
                 updateRowStatusAndNotify("yellow"); // #fcba03 deep carmine yellow
-                performMessage.showCustomModalDialogDragWin11(
+                performMessage.showCustomModalDialogDragWin11TimerAuto(
                         "Bot-Job Interrupted successfully",
                         currentBotJobName,
                         "Last Execution:",
-                        resultActions,
+                        firstFour,
                         null,
                         false,
                         "OK",
                         null,
-                        300);
+                        300,
+                        10);
             } else {
                 updateRowStatusAndNotify("green"); // #1d9c06 deep carmine green
                 respModal = performMessage.showCustomModalDialogDragWin11(
                         "Bot-Job Finished - successfully",
                         currentBotJobName,
                         "Last Execution:",
-                        resultActions,
+                        firstFour,
                         null,
                         false,
                         "OK",
@@ -5083,16 +5093,17 @@ public class ARScannedElementPane extends ARPane {
 
             if (isInterceptBotJob()) {
                 updateRowStatusAndNotify("yellow"); // #fcba03 deep carmine yellow
-                performMessage.showCustomModalDialogDragWin11(
+                performMessage.showCustomModalDialogDragWin11TimerAuto(
                         "Bot-Job Interrupted successfully",
                         currentBotJobName,
                         "Last Execution:",
-                        resultActions,
+                        firstFour,
                         null,
                         false,
                         "OK",
                         null,
-                        300);
+                        300,
+                        10);
 
             } else {
                 updateRowStatusAndNotify("red"); // #FF3131 deep carmine red
@@ -5101,7 +5112,7 @@ public class ARScannedElementPane extends ARPane {
                             "Bot-Job Finished - successfully",
                             currentBotJobName,
                             "Last Execution:",
-                            resultActions,
+                            firstFour,
                             null,
                             false,
                             "OK",
@@ -5112,7 +5123,7 @@ public class ARScannedElementPane extends ARPane {
                             "Process Execution Terminated",
                             !Strings.isNullOrEmpty(failedMessage) ? failedMessage : "Failed:",
                             "Last Execution:",
-                            resultActions,
+                            firstFour,
                             null,
                             true,
                             "OK",

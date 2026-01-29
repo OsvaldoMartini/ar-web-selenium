@@ -385,7 +385,8 @@ public class ARViewBotJobScene extends ARScene {
     }
 
     private void stepsInsertManyDTO(SplitDTO processDTO, boolean isMany) {
-        currentBlockId = validateBlockDB("block", this.selectedBotJob.getId(), isMany);
+        String insertMsg = isMany ? "Insert ALL" : "Insert one Element";
+        currentBlockId = validateBlockDB("block", this.selectedBotJob.getId(), insertMsg);
         if (currentBlockId > 0) {
             performDataBase.loadInstructions(selectedBotJob.getId(), currentBlockId, -1, "instruction");
             List<InstructionLoad> instruc = performLists.getListInstruction();
@@ -542,7 +543,7 @@ public class ARViewBotJobScene extends ARScene {
         return -1;
     }
 
-    public int validateBlockDB(String blockTable, int whereId, boolean isMany) {
+    public int validateBlockDB(String blockTable, int whereId, String message) {
         int newBlockID = createBlockIfNone(blockTable, whereId);
         if (newBlockID > 0) {
             ErrorMessage errorMessage = performDataBase.loadBlocks(whereId, "", blockTable);
@@ -561,9 +562,8 @@ public class ARViewBotJobScene extends ARScene {
         } else {
             currentBlockId = -1;
             if (currentBlockId < 0) {
-                String insertOne = isMany ? "Insert ALL" : "Insert one Element";
                 performMessage.errorMessage(
-                        "Operation \"" + insertOne + "\" No Block Selected",
+                        "Operation \"" + message + "\" No Block Selected",
                         "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>No Block Selected ❌</span>",
                         "<span style='color: #E65100; font-weight: bold;'>You must select a Block from the dropdown list</span> before adding a new command.",
                         "<span style='font-style: italic;'>Context:</span> Bot Job: <b>" + "Default Block" + "</b>",

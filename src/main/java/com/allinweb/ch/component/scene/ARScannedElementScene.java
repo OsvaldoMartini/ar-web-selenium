@@ -315,6 +315,23 @@ public class ARScannedElementScene extends ARScene {
                     stepsInsertManyDTO(splitDTO, isMany);
                     //                    stepsInsertOneDTO(targetSelected);
                     break;
+                case "UPDATE_ALL_ELEMENTS_DTO":
+                    arScannedElementPane.checkRunningProcess();
+                    // Extract the "body" field from the JsonObject
+
+                    blockUpdate =
+                            splitDTO.getSessionId().equals("componentTasks") ? "UPDATE_BLOCKS_COMP" : "UPDATE_BLOCKS";
+
+                    if (previousBlock != null && !previousBlock.equals(blockUpdate)) {
+                        arNewCommandPane.closePane();
+                        previousBlock = blockUpdate;
+                    } else if (previousBlock == null) {
+                        previousBlock = blockUpdate;
+                    }
+
+                    stepsUpdateManyDTO(splitDTO);
+                    //                    stepsInsertOneDTO(targetSelected);
+                    break;
                 case "TEST_CLICK_DTO":
                 case "TEST_INPUT_DTO":
                     if (!performLists.getListBotJob().isEmpty() && splitDTO.getBotJobId() != null) {
@@ -668,7 +685,8 @@ public class ARScannedElementScene extends ARScene {
     }
 
     private void stepsInsertManyDTO(SplitDTO processDTO, boolean isMany) {
-        currentBlockId = arScannedElementPane.validateBlockDB("block", this.currentBotJob.getId(), isMany);
+        String insertMsg = isMany ? "Insert ALL" : "Insert one Element";
+        currentBlockId = arScannedElementPane.validateBlockDB("block", this.currentBotJob.getId(), insertMsg);
         if (currentBlockId > 0) {
             performDataBase.loadInstructions(currentBotJob.getId(), currentBlockId, -1, "instruction");
             List<InstructionLoad> instruc = performLists.getListInstruction();
@@ -768,6 +786,62 @@ public class ARScannedElementScene extends ARScene {
             }
         } else {
             sendStatusButton("scannerGrid", "activate-insert-all", "Insert All Elements button activated");
+        }
+    }
+
+    private void stepsUpdateManyDTO(SplitDTO processDTO) {
+        currentBlockId = arScannedElementPane.validateBlockDB("block", this.currentBotJob.getId(), "Update All");
+        if (currentBlockId > 0) {
+            performDataBase.loadInstructions(currentBotJob.getId(), currentBlockId, -1, "instruction");
+            List<InstructionLoad> instruc = performLists.getListInstruction();
+
+            int nextOrder = instruc.size() + 1;
+
+            instructionList.clear();
+            targetElementHelper.initialize(performActions, arScannedElementPane);
+
+            for (ElementDTO elementDTO : processDTO.getElementDetails()) {
+                TargetElement targetEach = targetElementHelper.extractPickClone(elementDTO);
+
+                WebElement elementFound = performActions.findWebElement(targetEach);
+                if (targetEach.getElement() == null && elementFound != null) {
+                    targetEach.setElement(elementFound);
+                }
+                // 3 Different Coordinates
+                // Original from JavaScript
+                // WebDriver Selenium ElementFound
+                // FallBack React Computed
+                //                performActions.defineSavedReferenced(targetEach);
+
+                arScannedElementPane.prepareToInsertElementDTO(
+                        instructionList, currentBlockId, nextOrder, targetEach, true);
+                nextOrder++;
+            }
+
+            if (instructionList.size() > 0) {
+
+                ErrorMessage errorMessage = performDataBase.updateInstructionsBatchByNameAndBlockId(
+                        "botJobTasks",
+                        instructionList,
+                        currentBotJob.getId(),
+                        currentBlockId,
+                        currentBotJob.getHomeBankingId());
+
+                log.info("Total:" + performDataBase.getIdsInstrucAfter().size());
+                instructionList.removeIf(instruction -> instruction.getId() == null);
+
+                if (errorMessage == null) {
+                    errorMessage = performDataBase.upsertReferencesBatch("botJobTasks", instructionList);
+                }
+
+                updateBotJobTasks(this.currentBotJob.getId());
+                sendStatusButton("scannerGrid", "activate-update-all", "Update All Elements button activated");
+                if (errorMessage != null) {
+                    performMessage.errorMessageOperationFailed(errorMessage);
+                }
+            }
+        } else {
+            sendStatusButton("scannerGrid", "activate-update-all", "Update All Elements button activated");
         }
     }
 

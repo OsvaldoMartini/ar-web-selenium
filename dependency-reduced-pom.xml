@@ -45,6 +45,7 @@
             <configuration>
               <minimizeJar>false</minimizeJar>
               <transformers>
+                <transformer />
                 <transformer>
                   <mainClass>com.allinweb.ch.ARControlPanel</mainClass>
                 </transformer>

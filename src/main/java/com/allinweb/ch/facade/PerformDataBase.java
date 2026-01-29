@@ -2352,6 +2352,163 @@ public class PerformDataBase {
         }
     }
 
+    public ErrorMessage updateInstructionsBatchByNameAndBlockId(
+            String typeTask,
+            List<InstructionLoad> instructions,
+            Integer currentBotJobId,
+            Integer currentBlockId,
+            Integer homeBankingId) {
+
+        String tableName = "instruction";
+        if ("componentTasks".equals(typeTask)) {
+            tableName = "component_instruction";
+        }
+
+        int count = 0;
+
+        // collect updated IDs (reuse your existing list name if you want)
+        idsInstrucAfter.clear();
+
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false);
+
+            boolean isComponent = "componentTasks".equals(typeTask);
+
+            // Prepared once (faster + cleaner)
+            StringBuilder countSql = new StringBuilder(
+                    "SELECT COUNT(*) FROM " + tableName + " WHERE name = ? AND tag_name = ? AND block_id = ?");
+            StringBuilder idSql = new StringBuilder(
+                    "SELECT id FROM " + tableName + " WHERE name = ? AND tag_name = ? AND block_id = ?");
+
+            if (isComponent) {
+                countSql.append(" AND home_banking_id = ?");
+                idSql.append(" AND home_banking_id = ?");
+            } else {
+                countSql.append(" AND bot_job_id = ?");
+                idSql.append(" AND bot_job_id = ?");
+            }
+
+            try (PreparedStatement psCount = conn.prepareStatement(countSql.toString());
+                    PreparedStatement psId = conn.prepareStatement(idSql.toString())) {
+
+                for (InstructionLoad instructionLoad : instructions) {
+
+                    String filterName = instructionLoad.getName();
+                    String filterTagName = instructionLoad.getTagName();
+
+                    if (filterName == null || filterTagName == null || currentBlockId == null) {
+                        continue;
+                    }
+
+                    if (isComponent && homeBankingId == null) continue;
+                    if (!isComponent && currentBotJobId == null) continue;
+
+                    Object ownerValue = isComponent ? homeBankingId : currentBotJobId;
+
+                    // -----------------------------
+                    // 1) PRE-SELECT COUNT(*)
+                    // -----------------------------
+                    psCount.setString(1, filterName);
+                    psCount.setString(2, filterTagName);
+                    psCount.setInt(3, currentBlockId);
+                    psCount.setObject(4, ownerValue);
+
+                    int matchCount;
+                    try (ResultSet rs = psCount.executeQuery()) {
+                        rs.next();
+                        matchCount = rs.getInt(1);
+                    }
+
+                    // Duplicate → ERROR
+                    if (matchCount > 1) {
+                        String errMsg = String.format("%s: %s", filterTagName, filterName);
+                        logDB.error("Batch update error for " + tableName + ": " + errMsg);
+                        return new ErrorMessage("Instruction Update Error", "Duplicate in block.", errMsg);
+                    }
+
+                    // No match → SKIP
+                    if (matchCount == 0) {
+                        continue;
+                    }
+
+                    // -----------------------------
+                    // 2) Get ID (since matchCount == 1)
+                    // -----------------------------
+                    Integer instructionId = null;
+
+                    psId.setString(1, filterName);
+                    psId.setString(2, filterTagName);
+                    psId.setInt(3, currentBlockId);
+                    psId.setObject(4, ownerValue);
+
+                    try (ResultSet rsId = psId.executeQuery()) {
+                        if (rsId.next()) {
+                            instructionId = rsId.getInt("id");
+                        }
+                    }
+
+                    // Safety: if somehow no id returned, skip (or treat as error if you prefer)
+                    if (instructionId == null) {
+                        continue;
+                    }
+
+                    // ✅ attach DB id to the instruction object
+                    instructionLoad.setId(instructionId);
+
+                    // -----------------------------
+                    // 3) UPDATE ONLY coordinates, xpath
+                    // -----------------------------
+                    Object coordinates = instructionLoad.getCoordinates();
+                    Object xpath = instructionLoad.getXpath();
+
+                    if (coordinates == null && xpath == null) {
+                        continue; // nothing updated, so don't add id
+                    }
+
+                    StringBuilder sql =
+                            new StringBuilder("UPDATE ").append(tableName).append(" SET ");
+                    List<Object> params = new ArrayList<>();
+
+                    if (coordinates != null) {
+                        sql.append("coordinates = ?");
+                        params.add(coordinates);
+                    }
+
+                    if (xpath != null) {
+                        if (!params.isEmpty()) sql.append(", ");
+                        sql.append("xpath = ?");
+                        params.add(xpath);
+                    }
+
+                    sql.append(" WHERE id = ?");
+                    params.add(instructionId);
+
+                    try (PreparedStatement psUpdate = conn.prepareStatement(sql.toString())) {
+                        for (int i = 0; i < params.size(); i++) {
+                            psUpdate.setObject(i + 1, params.get(i));
+                        }
+                        psUpdate.executeUpdate();
+                        count++;
+                        idsInstrucAfter.add(instructionId); // collect updated id
+                    }
+                }
+            }
+
+            conn.commit();
+
+            logDB.info(String.format(
+                    "Batch update completed for %d %s records. Updated IDs: %s",
+                    count, tableName.toUpperCase(), idsInstrucAfter));
+
+            return null;
+
+        } catch (SQLException error) {
+            logDB.error("Batch update error for " + tableName + ": " + error.getMessage());
+            return new ErrorMessage(
+                    "Instruction Update Error", "Error updating batch instructions.", error.getMessage());
+        }
+    }
+
     public ErrorMessage insertInstruction(
             String typeTask,
             List<InstructionOperationDTO> instructions,
@@ -3279,6 +3436,146 @@ public class PerformDataBase {
             return new ErrorMessage(
                     "Reference Insertion Error",
                     "An unexpected error occurred during reference insertion.",
+                    error.getMessage());
+        }
+    }
+
+    public ErrorMessage upsertReferencesBatch(String typeTask, List<InstructionLoad> instructionList) {
+
+        boolean isComponent = "componentTasks".equals(typeTask);
+
+        String tableName = isComponent ? "component_reference" : "reference";
+
+        // Existence check
+        String selectSql = "SELECT id FROM " + tableName + " WHERE reference_type = ? AND instruction_id = ? AND "
+                + (isComponent ? "home_banking_id" : "bot_job_id") + " = ?";
+
+        // Update if exists
+        String updateSql = "UPDATE " + tableName + " SET value = ? WHERE id = ?";
+
+        // Insert if not exists
+        String insertSql = "INSERT INTO " + tableName + " (reference_type, value, instruction_id, "
+                + (isComponent ? "home_banking_id" : "bot_job_id") + ") VALUES (?, ?, ?, ?)";
+
+        final int BATCH_SIZE = 100;
+        int updateCount = 0;
+        int insertCount = 0;
+
+        try (Connection conn = getConnection();
+                PreparedStatement psSelect = conn.prepareStatement(selectSql);
+                PreparedStatement psUpdate = conn.prepareStatement(updateSql);
+                PreparedStatement psInsert = conn.prepareStatement(insertSql)) {
+
+            conn.setAutoCommit(false);
+
+            for (InstructionLoad instruction : instructionList) {
+
+                Integer instructionId = instruction.getId();
+                if (instructionId == null) {
+                    // you said you already remove null ids, but this keeps it safe
+                    continue;
+                }
+
+                // owner filter value depends on table
+                Integer ownerId = isComponent ? instruction.getHomeBankingId() : instruction.getBotJobId();
+                if (ownerId == null) {
+                    continue;
+                }
+
+                if (instruction.getReferenceLoadDTOList() == null) continue;
+
+                for (ReferenceLoadDTO ref : instruction.getReferenceLoadDTOList()) {
+
+                    if (ref == null) continue;
+
+                    // Skip this type
+                    if (ref.getReferenceType() != null && "customXPath".equalsIgnoreCase(ref.getReferenceType())) {
+                        continue;
+                    }
+
+                    String referenceType = ref.getReferenceType();
+                    String value = ref.getValue();
+
+                    if (referenceType == null) {
+                        continue; // cannot filter without reference_type
+                    }
+
+                    // --- 1) Check if exists ---
+                    Integer existingId = null;
+
+                    psSelect.setString(1, referenceType);
+                    psSelect.setInt(2, instructionId);
+                    psSelect.setInt(3, ownerId);
+
+                    try (ResultSet rs = psSelect.executeQuery()) {
+                        if (rs.next()) {
+                            existingId = rs.getInt("id");
+                            // If your table is not unique and returns > 1 row, you can detect it:
+                            if (rs.next()) {
+                                String errMsg = String.format(
+                                        "Duplicate reference row for reference_type='%s', instruction_id=%d, %s=%d",
+                                        referenceType,
+                                        instructionId,
+                                        isComponent ? "home_banking_id" : "bot_job_id",
+                                        ownerId);
+                                logDB.error(errMsg);
+                                conn.commit(); // no rollback per your preference
+                                return new ErrorMessage("Reference Update Error", "Duplicate reference.", errMsg);
+                            }
+                        }
+                    }
+
+                    // --- 2) UPDATE if exists, else INSERT ---
+                    if (existingId != null) {
+                        psUpdate.setString(1, value);
+                        psUpdate.setInt(2, existingId);
+                        psUpdate.addBatch();
+                        updateCount++;
+
+                        if (updateCount % BATCH_SIZE == 0) {
+                            psUpdate.executeBatch();
+                            psUpdate.clearBatch();
+                        }
+                    } else {
+                        psInsert.setString(1, referenceType);
+                        psInsert.setString(2, value);
+                        psInsert.setInt(3, instructionId);
+                        psInsert.setInt(4, ownerId);
+                        psInsert.addBatch();
+                        insertCount++;
+
+                        if (insertCount % BATCH_SIZE == 0) {
+                            psInsert.executeBatch();
+                            psInsert.clearBatch();
+                        }
+                    }
+                }
+            }
+
+            // flush remaining
+            psUpdate.executeBatch();
+            psUpdate.clearBatch();
+
+            psInsert.executeBatch();
+            psInsert.clearBatch();
+
+            conn.commit();
+
+            logDB.info(String.format(
+                    "Reference upsert completed. Inserted: %d, Updated: %d, Table: %s",
+                    insertCount, updateCount, tableName.toUpperCase()));
+
+            return null;
+
+        } catch (SQLException error) {
+            logDB.error("Failed to upsert references into database: " + error.getMessage());
+            return new ErrorMessage(
+                    "Reference Update Error", "An error occurred during reference upsert.", error.getMessage());
+        } catch (Exception error) {
+            logDB.error("Unexpected error upserting references: " + error.getMessage());
+            return new ErrorMessage(
+                    "Reference Update Error",
+                    "An unexpected error occurred during reference upsert.",
                     error.getMessage());
         }
     }

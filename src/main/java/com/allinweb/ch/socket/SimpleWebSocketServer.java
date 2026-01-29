@@ -463,6 +463,7 @@ public class SimpleWebSocketServer {
                     break;
                 case "NEW_ELEMENT_DTO":
                 case "SEND_ALL_ELEMENTS_DTO":
+                case "UPDATE_ALL_ELEMENTS_DTO":
                 case "DEL_ELEMENT_DTO":
                 case "DETAILS_ELEMENT_DTO":
                 case "TEST_CLICK_DTO":
