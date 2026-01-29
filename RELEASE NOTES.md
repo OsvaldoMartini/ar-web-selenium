@@ -134,8 +134,121 @@ It avoids unnecessary long waits while still handling common Selenium edge cases
 
 ---
 
+Perfect 👍
+Below is **another append-only section** you can paste **after the last appendix**, without touching or rewriting anything that already exists.
+
+✅ Original content preserved
+✅ Clearly labeled as **PREVIOUS locateElement snippet**
+✅ Code included **verbatim (unchanged)**
+✅ No refactoring, no normalization
+
+---
+
+# APPENDIX – PREVIOUS `locateElement` SNIPPET (LEGACY LOGIC)
+
+The following code block was part of the **previous `locateElement` implementation**.  
+It is included here **for historical reference and comparison purposes only**.
+
+This snippet shows the **legacy fallback-heavy locator resolution logic**, including:
+- Attribute-based fallbacks
+- CSS selector conversion
+- ID / name / custom attribute recovery
+- Multiple element verification
+
+---
+
+## Previous Locator Resolution Snippet (As-Is)
+
+```java
+if (criterias != null) {
+    for (By criteria : criterias) {
+
+        List<WebElement> foundElementList = new ArrayList<>();
+        try {
+            foundElementList = getCurrentDriver().findElements(criteria);
+        } catch (Exception ignore) {
+        }
+
+        if ((isAttributeID || isAttributeName || isSearchAttribute)
+                && foundElementList.size() == 0) {
+            try {
+                String cssCriteria = convertToCssSelector(
+                        tagName,
+                        priority.getName(),
+                        instructionReference.get().getValue());
+                WebElement byCriteria = findElementByCssSelector(cssCriteria);
+                foundElementList.add(byCriteria);
+            } catch (Exception ignore) {
+            }
+        }
+
+        if (foundElementList.size() == 0) {
+            if (isAttributeID) {
+                WebElement element = findElementByID(getCurrentDriver(), searchAttributeValue);
+                if (element != null) {
+                    foundElementList.add(element);
+                }
+            } else if (isAttributeName) {
+                WebElement element = findElementsByName(getCurrentDriver(), searchAttributeValue);
+                if (element != null) {
+                    foundElementList.add(element);
+                }
+            } else if (isSearchAttribute) {
+                String[] parts = searchAttributeValue.split("=");
+                WebElement element =
+                        findElementByAttributeParams(getCurrentDriver(), parts[0], parts[1]);
+                if (element != null) {
+                    foundElementList.add(element);
+                }
+            }
+        }
+
+        if (foundElementList != null && foundElementList.size() > 0 && iframeElement == null) {
+
+            // If multiple elements found, verify each
+            if (foundElementList.size() > 1) {
+                int k = 0;
+                while (elementFound == null && k < foundElementList.size()) {
+                    String xpath = ARWebUtil.extractXPath(
+                            foundElementList.get(k).toString());
+
+                    // Second verification for XPath found
+                    if (xpath.equals(
+                            instructionReference.get().getValue())) {
+                        elementFound = foundElementList.get(k);
+                        break;
+                    }
+                    k++;
+                }
+            } else {
+                elementFound = foundElementList.get(0);
+            }
+        } else {
+            elementFound = iframeElement;
+        }
+
+        // Switch back to main content after interacting with iframe (if applicable)
+        if (instructionPath.contains("iframe")) {
+            getCurrentDriver().switchTo().defaultContent();
+        }
+    }
+}
+```
+
+---
+
+## Context Notes
+
+* This logic relied on **multiple layered fallbacks**
+* CSS selector conversion and attribute recovery were embedded inline
+* XPath re-validation was required when multiple elements were found
+* The flow mixed **discovery, validation, and recovery** in a single block
+
+---
+
 
 ## NEW `locateElement` Code
+
 
 ```java
 private WebElement locateElement(
