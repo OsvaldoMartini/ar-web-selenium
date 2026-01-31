@@ -76,48 +76,143 @@ public class DomIntrospectionUtil {
         return new ArrayList<>(unique);
     }
 
-    /** Inputs-only list enriched with label text (generic: works on any page) */
+    /**
+     * Editable / selectable controls list (generic for any page).
+     *
+     * Includes:
+     * - native: input, textarea, select (and select's options)
+     * - ARIA/W3C patterns: role=combobox, textbox, searchbox, spinbutton,
+     *                      listbox, option, tree, treeitem, grid, row, gridcell,
+     *                      menu, menuitem, menuitemcheckbox, menuitemradio
+     * - common framework hints: contenteditable, tabindex, data-testid, etc.
+     *
+     * Label inference:
+     * 1) label[for=id]
+     * 2) aria-labelledby -> referenced element text
+     * 3) aria-label
+     * 4) placeholder
+     * 5) nearest preceding label/div/span/p text (prev siblings + parent prev siblings)
+     *
+     * Guardrails to avoid junk (scripts/footer/legal blobs/etc.)
+     */
     public static List<InputInfo> listInputsWithLabelsFromPageSource(WebDriver driver) {
         Document doc = Jsoup.parse(driver.getPageSource());
 
-        // Build quick lookups for label[for] and id -> element text
         Map<String, String> labelForMap = buildLabelForMap(doc);
         Map<String, String> idToTextMap = buildIdToTextMap(doc);
 
-        Elements inputs = doc.select("input, textarea, select");
+        // ✅ minimal change: we now collect "editable/selectable" controls (not only input/textarea/select)
+        Elements controls = collectEditableControls(doc);
 
         LinkedHashMap<String, InputInfo> unique = new LinkedHashMap<>();
 
-        for (Element el : inputs) {
+        for (Element el : controls) {
             String tag = safeLower(el.tagName());
 
-            // skip hidden inputs unless you want them
-            if (tag.equals("input")) {
+            // Ignore obvious noise
+            if (ALWAYS_IGNORE_TAGS.contains(tag)) continue;
+
+            // Skip hidden inputs unless you want them
+            if ("input".equals(tag)) {
                 String type = normalize(el.attr("type")).toLowerCase(Locale.ROOT);
-                if (type.equals("hidden")) continue;
+                if ("hidden".equals(type)) continue;
             }
+
+            // Determine "type" for record (native type OR role-based type)
+            String type = inferControlType(el);
 
             String id = normalize(el.id());
             String name = normalize(el.attr("name"));
-            String type = normalize(el.attr("type"));
 
             String labelText = inferLabelText(el, labelForMap, idToTextMap);
 
-            String identifier = bestLocatorForInput(el);
-            String printable = tag + " - " + identifier + (labelText.isBlank() ? "" : " - label=" + labelText);
+            String identifier = bestLocatorForControl(el);
+            String printable = tag + " - " + identifier
+                    + (type.isBlank() ? "" : " - type=" + type)
+                    + (labelText.isBlank() ? "" : " - label=" + labelText);
 
-            // Dedup key: prefer id, else name, else tag+placeholder+aria-label
-            String dedupKey = !id.isBlank()
-                    ? tag + "#id=" + id
-                    : (!name.isBlank()
-                            ? tag + "#name=" + name
-                            : tag + "#fallback=" + normalize(el.attr("placeholder")) + "|"
-                                    + normalize(el.attr("aria-label")));
+            String dedupKey = buildControlDedupKey(el, tag, id, name, type);
 
             unique.putIfAbsent(dedupKey, new InputInfo(tag, id, name, type, labelText, identifier, printable));
         }
 
         return new ArrayList<>(unique.values());
+    }
+
+    // ----------------- NEW: collect controls -----------------
+
+    private static Elements collectEditableControls(Document doc) {
+        // Native form controls
+        String nativeSelector = "input, textarea, select, option";
+
+        // WAI-ARIA patterns for editable/selectable UI
+        // (covers React/Angular custom dropdowns, comboboxes, listboxes, etc.)
+        String ariaSelector = "[role=textbox], [role=searchbox], [role=combobox], [role=listbox], [role=option], "
+                + "[role=spinbutton], [role=tree], [role=treeitem], "
+                + "[role=grid], [role=row], [role=gridcell], [role=cell], "
+                + "[role=menu], [role=menuitem], [role=menuitemcheckbox], [role=menuitemradio]";
+
+        // Contenteditable fields (common in editors)
+        String editableSelector = "[contenteditable=true], [contenteditable=''], [contenteditable=yes]";
+
+        // A few common framework “input-like” cases:
+        // - elements with aria-haspopup=listbox often behave as dropdown triggers
+        // - elements with aria-expanded + aria-controls sometimes indicate menus / combobox popups
+        String frameworkHints = "[aria-haspopup=listbox], [aria-haspopup=menu], [aria-controls][aria-expanded]";
+
+        // Compose selector
+        Elements controls = new Elements();
+        controls.addAll(doc.select(nativeSelector));
+        controls.addAll(doc.select(ariaSelector));
+        controls.addAll(doc.select(editableSelector));
+        controls.addAll(doc.select(frameworkHints));
+
+        // Optional: de-dup while preserving order
+        LinkedHashSet<Element> ordered = new LinkedHashSet<>(controls);
+        return new Elements(ordered);
+    }
+
+    private static String inferControlType(Element el) {
+        String tag = safeLower(el.tagName());
+
+        if ("input".equals(tag)) return normalize(el.attr("type"));
+        if ("textarea".equals(tag)) return "textarea";
+        if ("select".equals(tag)) return "select";
+        if ("option".equals(tag)) return "option";
+
+        String role = normalize(el.attr("role")).toLowerCase(Locale.ROOT);
+        if (!role.isBlank()) return role;
+
+        if (isContentEditable(el)) return "contenteditable";
+
+        // fallback: hint for dropdown triggers etc.
+        if (!normalize(el.attr("aria-haspopup")).isBlank())
+            return "aria-haspopup=" + normalize(el.attr("aria-haspopup"));
+
+        return "";
+    }
+
+    private static boolean isContentEditable(Element el) {
+        String ce = normalize(el.attr("contenteditable")).toLowerCase(Locale.ROOT);
+        return "true".equals(ce) || "yes".equals(ce) || ce.isBlank() && el.hasAttr("contenteditable");
+    }
+
+    private static String buildControlDedupKey(Element el, String tag, String id, String name, String type) {
+        if (!id.isBlank()) return tag + "#id=" + id;
+
+        if (!name.isBlank()) return tag + "#name=" + name;
+
+        String role = normalize(el.attr("role"));
+        if (!role.isBlank()) return tag + "#role=" + role + "#type=" + type;
+
+        String testId = normalize(el.attr("data-testid"));
+        if (!testId.isBlank()) return tag + "#data-testid=" + testId;
+
+        String ariaLabel = normalize(el.attr("aria-label"));
+        String placeholder = normalize(el.attr("placeholder"));
+        String text = normalize(el.ownText());
+
+        return tag + "#fallback=" + type + "|" + placeholder + "|" + ariaLabel + "|" + text;
     }
 
     // ----------------- label inference -----------------
@@ -141,7 +236,6 @@ public class DomIntrospectionUtil {
             String id = normalize(el.id());
             if (id.isBlank()) continue;
 
-            // prefer ownText() to avoid huge nested blobs; fallback to text()
             String text = normalize(el.ownText());
             if (!isGoodLabel(text)) {
                 text = normalize(el.text());
@@ -157,13 +251,11 @@ public class DomIntrospectionUtil {
     /**
      * Generic priority:
      * 1) label[for=id]
-     * 2) aria-labelledby -> referenced element text (first meaningful token)
+     * 2) aria-labelledby -> referenced element text
      * 3) aria-label
      * 4) placeholder
      * 5) nearest preceding label/div/span/p text (prev siblings + parent prev siblings)
      * 6) name (last fallback)
-     *
-     * Guardrails: avoid junk (scripts/footer/legal-like blobs)
      */
     private static String inferLabelText(
             Element inputEl, Map<String, String> labelForMap, Map<String, String> idToTextMap) {
@@ -176,7 +268,6 @@ public class DomIntrospectionUtil {
 
         String ariaLabelledBy = normalize(inputEl.attr("aria-labelledby"));
         if (!ariaLabelledBy.isBlank()) {
-            // aria-labelledby can be "id1 id2"
             for (String token : ariaLabelledBy.split("\\s+")) {
                 String refText = idToTextMap.get(token.trim());
                 if (isGoodLabel(refText)) return shorten(refText, 80);
@@ -189,7 +280,6 @@ public class DomIntrospectionUtil {
         String placeholder = normalize(inputEl.attr("placeholder"));
         if (isGoodLabel(placeholder)) return shorten(placeholder, 80);
 
-        // ✅ New heuristic: nearest preceding label/div/span/p text (generic)
         String nearest = findNearestPrecedingLabelLikeText(inputEl);
         if (isGoodLabel(nearest)) return shorten(nearest, 80);
 
@@ -199,14 +289,6 @@ public class DomIntrospectionUtil {
         return "";
     }
 
-    /**
-     * Heuristic:
-     * - scan previous siblings of the input:
-     *   - if <label>, use its text
-     *   - else if <div>/<span>/<p>, use ownText (then fallback to text)
-     * - if not found, go up to parent and scan the parent's previous siblings similarly
-     * - limited scan to reduce false positives + time
-     */
     private static String findNearestPrecedingLabelLikeText(Element inputEl) {
         Element cursor = inputEl;
 
@@ -229,13 +311,11 @@ public class DomIntrospectionUtil {
         while (sib != null && scanned < maxScan) {
             String tag = safeLower(sib.tagName());
 
-            // best case: explicit label
             if ("label".equals(tag)) {
                 String t = normalize(sib.text());
                 if (isGoodLabel(t)) return t;
             }
 
-            // common text wrappers near inputs
             if (tag.equals("div")
                     || tag.equals("span")
                     || tag.equals("p")
@@ -251,7 +331,6 @@ public class DomIntrospectionUtil {
                 if (isGoodLabel(full)) return full;
             }
 
-            // wrapper case: try to find a label-like text inside
             String nested = findLastLabelLikeTextInside(sib);
             if (isGoodLabel(nested)) return nested;
 
@@ -263,14 +342,12 @@ public class DomIntrospectionUtil {
     }
 
     private static String findLastLabelLikeTextInside(Element container) {
-        // labels inside wrapper
         Elements labels = container.select("label");
         for (int i = labels.size() - 1; i >= 0; i--) {
             String t = normalize(labels.get(i).text());
             if (isGoodLabel(t)) return t;
         }
 
-        // common textish nodes inside wrapper
         Elements nodes = container.select("span, div, p, strong, em, small, legend");
         for (int i = nodes.size() - 1; i >= 0; i--) {
             Element e = nodes.get(i);
@@ -285,42 +362,30 @@ public class DomIntrospectionUtil {
         return "";
     }
 
-    /**
-     * Guardrails to avoid junk/boilerplate:
-     * - not empty
-     * - not too long (likely paragraphs/legal)
-     * - not JS/CSS/JSON-ish
-     * - not typical footer/legal phrases
-     */
     private static boolean isGoodLabel(String s) {
         String t = normalize(s);
         if (t.isBlank()) return false;
-
-        // too long = probably a paragraph/legal blob
         if (t.length() > 90) return false;
-
-        // looks like code/CSS/JSON
         if (t.contains("{") || t.contains("}") || t.contains(";")) return false;
-
-        // very low signal
         if (t.replaceAll("[\\p{Punct}\\s]+", "").length() < 2) return false;
 
         String low = t.toLowerCase(Locale.ROOT);
-
         if (low.equals("javascript")) return false;
         if (low.contains("all rights reserved")) return false;
-        if (low.contains("cookie")) return false; // comment out if you want cookie labels
-        if (low.contains("privacy")) return false; // comment out if you want privacy labels
-        if (low.contains("terms")) return false; // comment out if you want terms labels
         if (low.contains("©")) return false;
+
+        // keep these as “soft” guardrails; comment out if you want those labels
+        if (low.contains("cookie")) return false;
+        if (low.contains("privacy")) return false;
+        if (low.contains("terms")) return false;
 
         return true;
     }
 
     // ----------------- locator / formatting -----------------
 
-    private static String bestLocatorForInput(Element el) {
-        // For inputs, id/name are usually the best automation locators.
+    // ✅ minimal addition: best locator for ANY editable control (not only native inputs)
+    private static String bestLocatorForControl(Element el) {
         String id = normalize(el.id());
         if (!id.isBlank()) return "id=" + shorten(id, 90);
 
@@ -330,17 +395,33 @@ public class DomIntrospectionUtil {
         String testId = normalize(el.attr("data-testid"));
         if (!testId.isBlank()) return "data-testid=" + shorten(testId, 90);
 
+        String role = normalize(el.attr("role"));
+        if (!role.isBlank()) return "role=" + shorten(role, 90);
+
         String aria = normalize(el.attr("aria-label"));
         if (!aria.isBlank()) return "aria-label=" + shorten(aria, 90);
 
+        String labelledBy = normalize(el.attr("aria-labelledby"));
+        if (!labelledBy.isBlank()) return "aria-labelledby=" + shorten(labelledBy, 90);
+
         String placeholder = normalize(el.attr("placeholder"));
         if (!placeholder.isBlank()) return "placeholder=" + shorten(placeholder, 90);
+
+        // option-like identification
+        if ("option".equalsIgnoreCase(el.tagName())) {
+            String val = normalize(el.attr("value"));
+            if (!val.isBlank()) return "value=" + shorten(val, 90);
+            String txt = normalize(el.text());
+            if (!txt.isBlank()) return "text=" + shorten(txt, 60);
+        }
+
+        String text = normalize(el.ownText());
+        if (!text.isBlank()) return "text=" + shorten(text, 60);
 
         return "(no-id)";
     }
 
     private static String bestIdentifierForAny(Element el, String tag) {
-        // General-purpose best identifier
         List<String> keys = List.of(
                 "id",
                 "name",
