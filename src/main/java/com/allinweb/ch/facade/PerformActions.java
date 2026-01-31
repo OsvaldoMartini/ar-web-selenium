@@ -75,7 +75,7 @@ public class PerformActions {
 
     private static final String DEFAULT_LOCATOR_PRIORITIES =
             "1,xpath,currentXPath" + System.lineSeparator() + "2,xpath,xpath"
-                    + System.lineSeparator() + "3,xpath,customXPath"
+                    + System.lineSeparator() + "3,xpath"
                     + System.lineSeparator() + "4,ById,locator.best.byId"
                     + System.lineSeparator() + "5,ByName,locator.best.byName"
                     + System.lineSeparator() + "6,ByCssSelector,locator.css.id"
@@ -815,6 +815,10 @@ public class PerformActions {
 
         waitPage();
 
+        List<String> important = DomIntrospectionUtil.listImportantElementNamesFromPageSource(getCurrentDriver());
+
+        important.forEach(logOperations::info);
+
         //        if (arPriorities.getJobId() == null || !arPriorities.getJobId().equals(botJobId)) {
         //            arPriorities.setJobId(botJobId);
         //            if (currentInstruction.getPriority() != null) {
@@ -903,7 +907,7 @@ public class PerformActions {
 
                     if (criterias == null) continue;
 
-                    WebDriverWait wait = new WebDriverWait(getCurrentDriver(), Duration.ofSeconds(5));
+                    WebDriverWait wait = new WebDriverWait(getCurrentDriver(), Duration.ofSeconds(2));
 
                     for (By criteria : criterias) {
 
@@ -929,7 +933,7 @@ public class PerformActions {
                     if (isInterceptBotJob()) {
                         break;
                     }
-                    onHoldInSeconds(1);
+                    //                    onHoldInSeconds(1);
 
                     logOperations.warn(String.format(
                             "Re-try %d Locate Web Element TagName \"%s\"", attempts, currentInstruction.getName()));
