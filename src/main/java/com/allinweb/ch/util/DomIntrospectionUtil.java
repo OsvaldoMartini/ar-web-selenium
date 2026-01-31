@@ -56,6 +56,11 @@ public class DomIntrospectionUtil {
             "use",
             "title");
 
+    // enum-like values for InputInfo.controlKind
+    private static final String CK_TYPE = "TYPE";
+    private static final String CK_OPEN_DROPDOWN = "OPEN_DROPDOWN";
+    private static final String CK_SELECT_OPTION = "SELECT_OPTION";
+
     public static List<String> listImportantElementsFromPageSource(WebDriver driver) {
         Document doc = Jsoup.parse(driver.getPageSource());
         Elements all = doc.getAllElements();
@@ -78,22 +83,7 @@ public class DomIntrospectionUtil {
 
     /**
      * Editable / selectable controls list (generic for any page).
-     *
-     * Includes:
-     * - native: input, textarea, select (and select's options)
-     * - ARIA/W3C patterns: role=combobox, textbox, searchbox, spinbutton,
-     *                      listbox, option, tree, treeitem, grid, row, gridcell,
-     *                      menu, menuitem, menuitemcheckbox, menuitemradio
-     * - common framework hints: contenteditable, tabindex, data-testid, etc.
-     *
-     * Label inference:
-     * 1) label[for=id]
-     * 2) aria-labelledby -> referenced element text
-     * 3) aria-label
-     * 4) placeholder
-     * 5) nearest preceding label/div/span/p text (prev siblings + parent prev siblings)
-     *
-     * Guardrails to avoid junk (scripts/footer/legal blobs/etc.)
+     * Includes native + ARIA pattern controls + common framework hints.
      */
     public static List<InputInfo> listInputsWithLabelsFromPageSource(WebDriver driver) {
         Document doc = Jsoup.parse(driver.getPageSource());
@@ -101,24 +91,21 @@ public class DomIntrospectionUtil {
         Map<String, String> labelForMap = buildLabelForMap(doc);
         Map<String, String> idToTextMap = buildIdToTextMap(doc);
 
-        // ✅ minimal change: we now collect "editable/selectable" controls (not only input/textarea/select)
         Elements controls = collectEditableControls(doc);
 
         LinkedHashMap<String, InputInfo> unique = new LinkedHashMap<>();
 
         for (Element el : controls) {
             String tag = safeLower(el.tagName());
-
-            // Ignore obvious noise
+            if (tag.isBlank()) continue;
             if (ALWAYS_IGNORE_TAGS.contains(tag)) continue;
 
             // Skip hidden inputs unless you want them
             if ("input".equals(tag)) {
-                String type = normalize(el.attr("type")).toLowerCase(Locale.ROOT);
-                if ("hidden".equals(type)) continue;
+                String inputType = normalize(el.attr("type")).toLowerCase(Locale.ROOT);
+                if ("hidden".equals(inputType)) continue;
             }
 
-            // Determine "type" for record (native type OR role-based type)
             String type = inferControlType(el);
 
             String id = normalize(el.id());
@@ -127,47 +114,127 @@ public class DomIntrospectionUtil {
             String labelText = inferLabelText(el, labelForMap, idToTextMap);
 
             String identifier = bestLocatorForControl(el);
+
+            ControlMeta meta = inferControlKindAndEditable(el);
+
             String printable = tag + " - " + identifier
                     + (type.isBlank() ? "" : " - type=" + type)
-                    + (labelText.isBlank() ? "" : " - label=" + labelText);
+                    + (labelText.isBlank() ? "" : " - label=" + labelText)
+                    + " - kind=" + meta.controlKind
+                    + " - editable=" + meta.isEditable;
 
             String dedupKey = buildControlDedupKey(el, tag, id, name, type);
 
-            unique.putIfAbsent(dedupKey, new InputInfo(tag, id, name, type, labelText, identifier, printable));
+            unique.putIfAbsent(
+                    dedupKey,
+                    new InputInfo(
+                            tag, id, name, type, labelText, identifier, printable, meta.controlKind, meta.isEditable));
         }
 
         return new ArrayList<>(unique.values());
     }
 
+    // ----------------- NEW: control classification -----------------
+
+    private static final class ControlMeta {
+        final String controlKind;
+        final boolean isEditable;
+
+        ControlMeta(String controlKind, boolean isEditable) {
+            this.controlKind = controlKind;
+            this.isEditable = isEditable;
+        }
+    }
+
+    private static ControlMeta inferControlKindAndEditable(Element el) {
+        String tag = safeLower(el.tagName());
+        String role = normalize(el.attr("role")).toLowerCase(Locale.ROOT);
+        String type = normalize(el.attr("type")).toLowerCase(Locale.ROOT);
+
+        // --- SELECT OPTION targets ---
+        if ("option".equals(tag)) {
+            return new ControlMeta(CK_SELECT_OPTION, false);
+        }
+        if ("option".equals(role)) {
+            return new ControlMeta(CK_SELECT_OPTION, false);
+        }
+        // common listbox option patterns (React/Angular)
+        if ("li".equals(tag) && ("option".equals(role) || "treeitem".equals(role) || "menuitem".equals(role))) {
+            return new ControlMeta(CK_SELECT_OPTION, false);
+        }
+
+        // --- TYPE targets (typing) ---
+        if ("textarea".equals(tag)) {
+            return new ControlMeta(CK_TYPE, true);
+        }
+        if ("input".equals(tag)) {
+            // treat these as typing targets
+            if (type.isBlank()
+                    || Set.of("text", "email", "password", "search", "tel", "url", "number")
+                            .contains(type)) {
+                return new ControlMeta(CK_TYPE, true);
+            }
+            // input that behaves like dropdown opener
+            if (Set.of("button", "submit", "reset").contains(type)) {
+                return new ControlMeta(CK_OPEN_DROPDOWN, false);
+            }
+            // default: not editable (e.g. checkbox/radio/date etc.) -> could still be actionable, but not "typing"
+            return new ControlMeta(CK_OPEN_DROPDOWN, false);
+        }
+        if (isContentEditable(el)) {
+            return new ControlMeta(CK_TYPE, true);
+        }
+        if (Set.of("textbox", "searchbox").contains(role)) {
+            return new ControlMeta(CK_TYPE, true);
+        }
+
+        // --- OPEN DROPDOWN targets ---
+        if ("select".equals(tag)) {
+            return new ControlMeta(CK_OPEN_DROPDOWN, false);
+        }
+        if (Set.of("combobox", "listbox", "menu").contains(role)) {
+            return new ControlMeta(CK_OPEN_DROPDOWN, false);
+        }
+        if (!normalize(el.attr("aria-haspopup")).isBlank()) {
+            // buttons/divs acting as dropdown triggers
+            return new ControlMeta(CK_OPEN_DROPDOWN, false);
+        }
+
+        // Fallback: treat as dropdown opener if it has aria-controls+aria-expanded
+        if (el.hasAttr("aria-controls") && el.hasAttr("aria-expanded")) {
+            return new ControlMeta(CK_OPEN_DROPDOWN, false);
+        }
+
+        // Otherwise: if it has tabindex and role, it's often interactive (open/click)
+        String tabindex = normalize(el.attr("tabindex"));
+        if (!tabindex.isBlank() && !role.isBlank()) {
+            return new ControlMeta(CK_OPEN_DROPDOWN, false);
+        }
+
+        // Default: OPEN_DROPDOWN (safer than TYPE)
+        return new ControlMeta(CK_OPEN_DROPDOWN, false);
+    }
+
     // ----------------- NEW: collect controls -----------------
 
     private static Elements collectEditableControls(Document doc) {
-        // Native form controls
         String nativeSelector = "input, textarea, select, option";
 
-        // WAI-ARIA patterns for editable/selectable UI
-        // (covers React/Angular custom dropdowns, comboboxes, listboxes, etc.)
         String ariaSelector = "[role=textbox], [role=searchbox], [role=combobox], [role=listbox], [role=option], "
                 + "[role=spinbutton], [role=tree], [role=treeitem], "
                 + "[role=grid], [role=row], [role=gridcell], [role=cell], "
                 + "[role=menu], [role=menuitem], [role=menuitemcheckbox], [role=menuitemradio]";
 
-        // Contenteditable fields (common in editors)
         String editableSelector = "[contenteditable=true], [contenteditable=''], [contenteditable=yes]";
 
-        // A few common framework “input-like” cases:
-        // - elements with aria-haspopup=listbox often behave as dropdown triggers
-        // - elements with aria-expanded + aria-controls sometimes indicate menus / combobox popups
         String frameworkHints = "[aria-haspopup=listbox], [aria-haspopup=menu], [aria-controls][aria-expanded]";
 
-        // Compose selector
         Elements controls = new Elements();
         controls.addAll(doc.select(nativeSelector));
         controls.addAll(doc.select(ariaSelector));
         controls.addAll(doc.select(editableSelector));
         controls.addAll(doc.select(frameworkHints));
 
-        // Optional: de-dup while preserving order
         LinkedHashSet<Element> ordered = new LinkedHashSet<>(controls);
         return new Elements(ordered);
     }
@@ -185,7 +252,6 @@ public class DomIntrospectionUtil {
 
         if (isContentEditable(el)) return "contenteditable";
 
-        // fallback: hint for dropdown triggers etc.
         if (!normalize(el.attr("aria-haspopup")).isBlank())
             return "aria-haspopup=" + normalize(el.attr("aria-haspopup"));
 
@@ -194,7 +260,7 @@ public class DomIntrospectionUtil {
 
     private static boolean isContentEditable(Element el) {
         String ce = normalize(el.attr("contenteditable")).toLowerCase(Locale.ROOT);
-        return "true".equals(ce) || "yes".equals(ce) || ce.isBlank() && el.hasAttr("contenteditable");
+        return "true".equals(ce) || "yes".equals(ce) || (el.hasAttr("contenteditable") && ce.isBlank());
     }
 
     private static String buildControlDedupKey(Element el, String tag, String id, String name, String type) {
@@ -229,7 +295,6 @@ public class DomIntrospectionUtil {
         return map;
     }
 
-    /** id -> element.text()/ownText() (used for aria-labelledby="someId") */
     private static Map<String, String> buildIdToTextMap(Document doc) {
         Map<String, String> map = new HashMap<>();
         for (Element el : doc.select("[id]")) {
@@ -248,15 +313,6 @@ public class DomIntrospectionUtil {
         return map;
     }
 
-    /**
-     * Generic priority:
-     * 1) label[for=id]
-     * 2) aria-labelledby -> referenced element text
-     * 3) aria-label
-     * 4) placeholder
-     * 5) nearest preceding label/div/span/p text (prev siblings + parent prev siblings)
-     * 6) name (last fallback)
-     */
     private static String inferLabelText(
             Element inputEl, Map<String, String> labelForMap, Map<String, String> idToTextMap) {
 
@@ -374,7 +430,6 @@ public class DomIntrospectionUtil {
         if (low.contains("all rights reserved")) return false;
         if (low.contains("©")) return false;
 
-        // keep these as “soft” guardrails; comment out if you want those labels
         if (low.contains("cookie")) return false;
         if (low.contains("privacy")) return false;
         if (low.contains("terms")) return false;
@@ -384,7 +439,6 @@ public class DomIntrospectionUtil {
 
     // ----------------- locator / formatting -----------------
 
-    // ✅ minimal addition: best locator for ANY editable control (not only native inputs)
     private static String bestLocatorForControl(Element el) {
         String id = normalize(el.id());
         if (!id.isBlank()) return "id=" + shorten(id, 90);
@@ -407,7 +461,6 @@ public class DomIntrospectionUtil {
         String placeholder = normalize(el.attr("placeholder"));
         if (!placeholder.isBlank()) return "placeholder=" + shorten(placeholder, 90);
 
-        // option-like identification
         if ("option".equalsIgnoreCase(el.tagName())) {
             String val = normalize(el.attr("value"));
             if (!val.isBlank()) return "value=" + shorten(val, 90);
