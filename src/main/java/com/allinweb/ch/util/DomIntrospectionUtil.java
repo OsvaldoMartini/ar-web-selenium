@@ -117,11 +117,13 @@ public class DomIntrospectionUtil {
 
             ControlMeta meta = inferControlKindAndEditable(el);
 
-            String printable = tag + " - " + identifier
-                    + (type.isBlank() ? "" : " - type=" + type)
-                    + (labelText.isBlank() ? "" : " - label=" + labelText)
-                    + " - kind=" + meta.controlKind
-                    + " - editable=" + meta.isEditable;
+            String safeLabel = labelText.replace("|", "\\|");
+            String printable = tag + "|"
+                    + identifier
+                    + (type.isBlank() ? "" : "|type=" + type)
+                    + (safeLabel.isBlank() ? "" : "|label=" + safeLabel)
+                    + "|kind=" + meta.controlKind
+                    + "|editable=" + meta.isEditable;
 
             String dedupKey = buildControlDedupKey(el, tag, id, name, type);
 
