@@ -9,7 +9,6 @@ import org.openqa.selenium.WebDriver;
 
 public class DomIntrospectionUtil {
 
-    // Tags we consider "important" for UI automation / interaction / visible content
     private static final Set<String> IMPORTANT_TAGS = Set.of(
             "a",
             "button",
@@ -20,12 +19,6 @@ public class DomIntrospectionUtil {
             "label",
             "form",
             "img",
-            "table",
-            "thead",
-            "tbody",
-            "tr",
-            "td",
-            "th",
             "ul",
             "ol",
             "li",
@@ -45,7 +38,6 @@ public class DomIntrospectionUtil {
             "aside",
             "footer");
 
-    // Tags to always ignore (noise / infra)
     private static final Set<String> ALWAYS_IGNORE_TAGS = Set.of(
             "html",
             "head",
@@ -64,17 +56,8 @@ public class DomIntrospectionUtil {
             "use",
             "title");
 
-    /**
-     * Returns unique element names from current page source, keeping only "important" elements.
-     * Output: tagName - id=... / name=... / data-testid=... / aria-label=... / text=...
-     */
-    public static List<String> listImportantElementNamesFromPageSource(WebDriver driver) {
-        String html = driver.getPageSource();
-        if (html == null || html.isBlank()) return Collections.emptyList();
-
-        Document doc = Jsoup.parse(html);
-
-        // Option A: iterate over all and filter
+    public static List<String> listImportantElementsFromPageSource(WebDriver driver) {
+        Document doc = Jsoup.parse(driver.getPageSource());
         Elements all = doc.getAllElements();
 
         LinkedHashSet<String> unique = new LinkedHashSet<>();
@@ -82,26 +65,176 @@ public class DomIntrospectionUtil {
         for (Element el : all) {
             String tag = safeLower(el.tagName());
             if (tag.isBlank()) continue;
-
-            // hard ignore
             if (ALWAYS_IGNORE_TAGS.contains(tag)) continue;
-
-            // keep only relevant tags
             if (!IMPORTANT_TAGS.contains(tag)) continue;
-
-            // ignore structural containers that have no identity and no text (reduces div/span spam)
             if (isNoisyContainer(el, tag)) continue;
 
-            String idPart = bestIdentifier(el, tag);
+            String idPart = bestIdentifierForAny(el, tag);
             unique.add(tag + " - " + idPart);
         }
 
         return new ArrayList<>(unique);
     }
 
+    /** Main request: inputs-only list enriched with label text */
+    public static List<InputInfo> listInputsWithLabelsFromPageSource(WebDriver driver) {
+        Document doc = Jsoup.parse(driver.getPageSource());
+
+        // Build quick lookups for label[for] and id -> element text
+        Map<String, String> labelForMap = buildLabelForMap(doc);
+        Map<String, String> idToTextMap = buildIdToTextMap(doc);
+
+        Elements inputs = doc.select("input, textarea, select");
+
+        LinkedHashMap<String, InputInfo> unique = new LinkedHashMap<>();
+
+        for (Element el : inputs) {
+            String tag = safeLower(el.tagName());
+
+            // skip hidden inputs unless you want them
+            if (tag.equals("input")) {
+                String type = normalize(el.attr("type")).toLowerCase(Locale.ROOT);
+                if (type.equals("hidden")) continue;
+            }
+
+            String id = normalize(el.id());
+            String name = normalize(el.attr("name"));
+            String type = normalize(el.attr("type"));
+
+            String labelText = inferLabelText(el, labelForMap, idToTextMap);
+
+            String identifier = bestLocatorForInput(el);
+            String printable = tag + " - " + identifier + (labelText.isBlank() ? "" : " - label=" + labelText);
+
+            // Dedup key: prefer id, else name, else tag+placeholder+aria-label
+            String dedupKey = !id.isBlank()
+                    ? tag + "#id=" + id
+                    : (!name.isBlank()
+                            ? tag + "#name=" + name
+                            : tag + "#fallback=" + normalize(el.attr("placeholder")) + "|"
+                                    + normalize(el.attr("aria-label")));
+
+            unique.putIfAbsent(dedupKey, new InputInfo(tag, id, name, type, labelText, identifier, printable));
+        }
+
+        return new ArrayList<>(unique.values());
+    }
+
+    // ----------------- label inference -----------------
+
+    private static Map<String, String> buildLabelForMap(Document doc) {
+        Map<String, String> map = new HashMap<>();
+        for (Element label : doc.select("label[for]")) {
+            String key = normalize(label.attr("for"));
+            String val = normalize(label.text());
+            if (!key.isBlank() && !val.isBlank()) {
+                map.putIfAbsent(key, val);
+            }
+        }
+        return map;
+    }
+
+    /** id -> element.text() (used for aria-labelledby="someId") */
+    private static Map<String, String> buildIdToTextMap(Document doc) {
+        Map<String, String> map = new HashMap<>();
+        for (Element el : doc.select("[id]")) {
+            String id = normalize(el.id());
+            if (id.isBlank()) continue;
+            String text = normalize(el.text());
+            if (!text.isBlank()) {
+                map.putIfAbsent(id, text);
+            }
+        }
+        return map;
+    }
+
     /**
-     * Helps reduce spam from div/span/nav/etc with no attributes and no useful text.
+     * Priority similar to your JS:
+     * 1) label[for=id]
+     * 2) aria-labelledby -> id text (first token)
+     * 3) aria-label
+     * 4) placeholder
+     * 5) name (as last fallback)
      */
+    private static String inferLabelText(
+            Element inputEl, Map<String, String> labelForMap, Map<String, String> idToTextMap) {
+
+        String id = normalize(inputEl.id());
+        if (!id.isBlank()) {
+            String label = labelForMap.get(id);
+            if (label != null && !label.isBlank()) return shorten(label, 80);
+        }
+
+        String ariaLabelledBy = normalize(inputEl.attr("aria-labelledby"));
+        if (!ariaLabelledBy.isBlank()) {
+            // aria-labelledby can be "id1 id2"
+            String firstId = ariaLabelledBy.split("\\s+")[0].trim();
+            String refText = idToTextMap.get(firstId);
+            if (refText != null && !refText.isBlank()) return shorten(refText, 80);
+        }
+
+        String ariaLabel = normalize(inputEl.attr("aria-label"));
+        if (!ariaLabel.isBlank()) return shorten(ariaLabel, 80);
+
+        String placeholder = normalize(inputEl.attr("placeholder"));
+        if (!placeholder.isBlank()) return shorten(placeholder, 80);
+
+        String name = normalize(inputEl.attr("name"));
+        if (!name.isBlank()) return shorten(name, 80);
+
+        return "";
+    }
+
+    // ----------------- locator / formatting -----------------
+
+    private static String bestLocatorForInput(Element el) {
+        // For inputs, id/name are usually the best automation locators.
+        String id = normalize(el.id());
+        if (!id.isBlank()) return "id=" + shorten(id, 90);
+
+        String name = normalize(el.attr("name"));
+        if (!name.isBlank()) return "name=" + shorten(name, 90);
+
+        String testId = normalize(el.attr("data-testid"));
+        if (!testId.isBlank()) return "data-testid=" + shorten(testId, 90);
+
+        String aria = normalize(el.attr("aria-label"));
+        if (!aria.isBlank()) return "aria-label=" + shorten(aria, 90);
+
+        String placeholder = normalize(el.attr("placeholder"));
+        if (!placeholder.isBlank()) return "placeholder=" + shorten(placeholder, 90);
+
+        return "(no-id)";
+    }
+
+    private static String bestIdentifierForAny(Element el, String tag) {
+        // General-purpose best identifier
+        List<String> keys = List.of(
+                "id",
+                "name",
+                "data-testid",
+                "data-test",
+                "data-test-id",
+                "aria-label",
+                "aria-labelledby",
+                "role",
+                "title",
+                "href",
+                "src",
+                "placeholder",
+                "alt");
+
+        for (String k : keys) {
+            String v = normalize(el.attr(k));
+            if (!v.isBlank()) return k + "=" + shorten(v, 90);
+        }
+
+        String text = normalize(el.ownText());
+        if (!text.isBlank()) return "text=" + shorten(text, 60);
+
+        return "(no-id)";
+    }
+
     private static boolean isNoisyContainer(Element el, String tag) {
         boolean isContainer = tag.equals("div")
                 || tag.equals("span")
@@ -115,17 +248,12 @@ public class DomIntrospectionUtil {
 
         if (!isContainer) return false;
 
-        // If container has a strong identifier, keep it
         if (hasAnyAttr(el, "id", "name", "data-testid", "data-test", "aria-label", "role", "href")) {
             return false;
         }
 
-        // If it has meaningful text, keep it
         String text = normalize(el.ownText());
-        if (!text.isBlank() && text.length() >= 3) return false;
-
-        // otherwise ignore
-        return true;
+        return text.isBlank() || text.length() < 3;
     }
 
     private static boolean hasAnyAttr(Element el, String... attrs) {
@@ -133,60 +261,6 @@ public class DomIntrospectionUtil {
             if (!normalize(el.attr(a)).isBlank()) return true;
         }
         return false;
-    }
-
-    /**
-     * Chooses the best identification depending on tag.
-     * - inputs: prefer id/name/placeholder
-     * - links: prefer id/aria-label/href/text
-     * - buttons: prefer id/aria-label/text
-     * - images: prefer alt/title/src
-     */
-    private static String bestIdentifier(Element el, String tag) {
-        List<String> keys;
-
-        switch (tag) {
-            case "input", "textarea", "select" -> keys = List.of(
-                    "id",
-                    "name",
-                    "aria-label",
-                    "aria-labelledby",
-                    "placeholder",
-                    "data-testid",
-                    "data-test",
-                    "data-test-id",
-                    "role");
-
-            case "button" -> keys = List.of(
-                    "id", "aria-label", "aria-labelledby", "data-testid", "data-test", "data-test-id", "name", "role");
-
-            case "a" -> keys = List.of(
-                    "id", "aria-label", "aria-labelledby", "data-testid", "data-test", "data-test-id", "href", "role");
-
-            case "img" -> keys = List.of("id", "alt", "title", "data-testid", "src");
-
-            default -> keys = List.of(
-                    "id",
-                    "data-testid",
-                    "data-test",
-                    "data-test-id",
-                    "name",
-                    "aria-label",
-                    "aria-labelledby",
-                    "role",
-                    "title");
-        }
-
-        for (String k : keys) {
-            String v = normalize(el.attr(k));
-            if (!v.isBlank()) return k + "=" + shorten(v, 90);
-        }
-
-        // fallback: text for visible elements
-        String ownText = normalize(el.ownText());
-        if (!ownText.isBlank()) return "text=" + shorten(ownText, 60);
-
-        return "(no-id)";
     }
 
     private static String normalize(String s) {

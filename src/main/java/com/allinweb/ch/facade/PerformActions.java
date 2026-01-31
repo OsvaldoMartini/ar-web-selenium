@@ -815,9 +815,15 @@ public class PerformActions {
 
         waitPage();
 
-        List<String> important = DomIntrospectionUtil.listImportantElementNamesFromPageSource(getCurrentDriver());
+        waitPage();
 
+        // Full important list (like your log)
+        List<String> important = DomIntrospectionUtil.listImportantElementsFromPageSource(getCurrentDriver());
         important.forEach(logOperations::info);
+
+        // Inputs-only list with inferred labels
+        List<InputInfo> inputs = DomIntrospectionUtil.listInputsWithLabelsFromPageSource(getCurrentDriver());
+        inputs.forEach(i -> logOperations.info(i.printable()));
 
         //        if (arPriorities.getJobId() == null || !arPriorities.getJobId().equals(botJobId)) {
         //            arPriorities.setJobId(botJobId);
