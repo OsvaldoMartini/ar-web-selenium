@@ -76,7 +76,7 @@ public class DomIntrospectionUtil {
         return new ArrayList<>(unique);
     }
 
-    /** Main request: inputs-only list enriched with label text */
+    /** Inputs-only list enriched with label text (generic: works on any page) */
     public static List<InputInfo> listInputsWithLabelsFromPageSource(WebDriver driver) {
         Document doc = Jsoup.parse(driver.getPageSource());
 
@@ -134,14 +134,20 @@ public class DomIntrospectionUtil {
         return map;
     }
 
-    /** id -> element.text() (used for aria-labelledby="someId") */
+    /** id -> element.text()/ownText() (used for aria-labelledby="someId") */
     private static Map<String, String> buildIdToTextMap(Document doc) {
         Map<String, String> map = new HashMap<>();
         for (Element el : doc.select("[id]")) {
             String id = normalize(el.id());
             if (id.isBlank()) continue;
-            String text = normalize(el.text());
-            if (!text.isBlank()) {
+
+            // prefer ownText() to avoid huge nested blobs; fallback to text()
+            String text = normalize(el.ownText());
+            if (!isGoodLabel(text)) {
+                text = normalize(el.text());
+            }
+
+            if (isGoodLabel(text)) {
                 map.putIfAbsent(id, text);
             }
         }
@@ -149,12 +155,15 @@ public class DomIntrospectionUtil {
     }
 
     /**
-     * Priority similar to your JS:
+     * Generic priority:
      * 1) label[for=id]
-     * 2) aria-labelledby -> id text (first token)
+     * 2) aria-labelledby -> referenced element text (first meaningful token)
      * 3) aria-label
      * 4) placeholder
-     * 5) name (as last fallback)
+     * 5) nearest preceding label/div/span/p text (prev siblings + parent prev siblings)
+     * 6) name (last fallback)
+     *
+     * Guardrails: avoid junk (scripts/footer/legal-like blobs)
      */
     private static String inferLabelText(
             Element inputEl, Map<String, String> labelForMap, Map<String, String> idToTextMap) {
@@ -162,27 +171,150 @@ public class DomIntrospectionUtil {
         String id = normalize(inputEl.id());
         if (!id.isBlank()) {
             String label = labelForMap.get(id);
-            if (label != null && !label.isBlank()) return shorten(label, 80);
+            if (isGoodLabel(label)) return shorten(label, 80);
         }
 
         String ariaLabelledBy = normalize(inputEl.attr("aria-labelledby"));
         if (!ariaLabelledBy.isBlank()) {
             // aria-labelledby can be "id1 id2"
-            String firstId = ariaLabelledBy.split("\\s+")[0].trim();
-            String refText = idToTextMap.get(firstId);
-            if (refText != null && !refText.isBlank()) return shorten(refText, 80);
+            for (String token : ariaLabelledBy.split("\\s+")) {
+                String refText = idToTextMap.get(token.trim());
+                if (isGoodLabel(refText)) return shorten(refText, 80);
+            }
         }
 
         String ariaLabel = normalize(inputEl.attr("aria-label"));
-        if (!ariaLabel.isBlank()) return shorten(ariaLabel, 80);
+        if (isGoodLabel(ariaLabel)) return shorten(ariaLabel, 80);
 
         String placeholder = normalize(inputEl.attr("placeholder"));
-        if (!placeholder.isBlank()) return shorten(placeholder, 80);
+        if (isGoodLabel(placeholder)) return shorten(placeholder, 80);
+
+        // ✅ New heuristic: nearest preceding label/div/span/p text (generic)
+        String nearest = findNearestPrecedingLabelLikeText(inputEl);
+        if (isGoodLabel(nearest)) return shorten(nearest, 80);
 
         String name = normalize(inputEl.attr("name"));
-        if (!name.isBlank()) return shorten(name, 80);
+        if (isGoodLabel(name)) return shorten(name, 80);
 
         return "";
+    }
+
+    /**
+     * Heuristic:
+     * - scan previous siblings of the input:
+     *   - if <label>, use its text
+     *   - else if <div>/<span>/<p>, use ownText (then fallback to text)
+     * - if not found, go up to parent and scan the parent's previous siblings similarly
+     * - limited scan to reduce false positives + time
+     */
+    private static String findNearestPrecedingLabelLikeText(Element inputEl) {
+        Element cursor = inputEl;
+
+        final int maxParentHops = 5;
+        final int maxSiblingScan = 8;
+
+        for (int hop = 0; hop <= maxParentHops && cursor != null; hop++) {
+            String fromSiblings = scanPreviousSiblingsForText(cursor, maxSiblingScan);
+            if (isGoodLabel(fromSiblings)) return fromSiblings;
+
+            cursor = cursor.parent();
+        }
+        return "";
+    }
+
+    private static String scanPreviousSiblingsForText(Element start, int maxScan) {
+        Element sib = start.previousElementSibling();
+        int scanned = 0;
+
+        while (sib != null && scanned < maxScan) {
+            String tag = safeLower(sib.tagName());
+
+            // best case: explicit label
+            if ("label".equals(tag)) {
+                String t = normalize(sib.text());
+                if (isGoodLabel(t)) return t;
+            }
+
+            // common text wrappers near inputs
+            if (tag.equals("div")
+                    || tag.equals("span")
+                    || tag.equals("p")
+                    || tag.equals("strong")
+                    || tag.equals("em")
+                    || tag.equals("small")
+                    || tag.equals("legend")) {
+
+                String own = normalize(sib.ownText());
+                if (isGoodLabel(own)) return own;
+
+                String full = normalize(sib.text());
+                if (isGoodLabel(full)) return full;
+            }
+
+            // wrapper case: try to find a label-like text inside
+            String nested = findLastLabelLikeTextInside(sib);
+            if (isGoodLabel(nested)) return nested;
+
+            sib = sib.previousElementSibling();
+            scanned++;
+        }
+
+        return "";
+    }
+
+    private static String findLastLabelLikeTextInside(Element container) {
+        // labels inside wrapper
+        Elements labels = container.select("label");
+        for (int i = labels.size() - 1; i >= 0; i--) {
+            String t = normalize(labels.get(i).text());
+            if (isGoodLabel(t)) return t;
+        }
+
+        // common textish nodes inside wrapper
+        Elements nodes = container.select("span, div, p, strong, em, small, legend");
+        for (int i = nodes.size() - 1; i >= 0; i--) {
+            Element e = nodes.get(i);
+
+            String t = normalize(e.ownText());
+            if (!isGoodLabel(t)) {
+                t = normalize(e.text());
+            }
+            if (isGoodLabel(t)) return t;
+        }
+
+        return "";
+    }
+
+    /**
+     * Guardrails to avoid junk/boilerplate:
+     * - not empty
+     * - not too long (likely paragraphs/legal)
+     * - not JS/CSS/JSON-ish
+     * - not typical footer/legal phrases
+     */
+    private static boolean isGoodLabel(String s) {
+        String t = normalize(s);
+        if (t.isBlank()) return false;
+
+        // too long = probably a paragraph/legal blob
+        if (t.length() > 90) return false;
+
+        // looks like code/CSS/JSON
+        if (t.contains("{") || t.contains("}") || t.contains(";")) return false;
+
+        // very low signal
+        if (t.replaceAll("[\\p{Punct}\\s]+", "").length() < 2) return false;
+
+        String low = t.toLowerCase(Locale.ROOT);
+
+        if (low.equals("javascript")) return false;
+        if (low.contains("all rights reserved")) return false;
+        if (low.contains("cookie")) return false; // comment out if you want cookie labels
+        if (low.contains("privacy")) return false; // comment out if you want privacy labels
+        if (low.contains("terms")) return false; // comment out if you want terms labels
+        if (low.contains("©")) return false;
+
+        return true;
     }
 
     // ----------------- locator / formatting -----------------
