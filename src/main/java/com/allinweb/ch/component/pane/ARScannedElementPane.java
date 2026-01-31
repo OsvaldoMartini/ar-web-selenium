@@ -4056,11 +4056,34 @@ public class ARScannedElementPane extends ARPane {
 
                                     if (!isMobileApp) {
                                         try {
-                                            webElementFound = performActions.searchElement(
-                                                    currentInstruction,
-                                                    this.currentBotJob.getId(),
-                                                    forceCoordinates,
-                                                    byPassFlagLoop);
+                                            performActions.waitPage();
+
+                                            // Full important list (like your log)
+                                            List<String> important =
+                                                    DomIntrospectionUtil.listImportantElementsFromPageSource(
+                                                            performActions.getCurrentDriver());
+                                            important.forEach(logOperations::info);
+
+                                            // Inputs-only list with inferred labels
+                                            List<InputInfo> inputs =
+                                                    DomIntrospectionUtil.listInputsWithLabelsFromPageSource(
+                                                            performActions.getCurrentDriver());
+                                            //                                            inputs.forEach(i ->
+                                            // logOperations.info(i.printable()));
+
+                                            InputInfo match = findMatchingInput(inputs, currentInstruction);
+
+                                            // VERY IMPORTANT TO VALIDAE IF THE ELEMENT IS ON TEH PAGE FIRST
+                                            if (match != null) {
+                                                webElementFound = performActions.searchElement(
+                                                        currentInstruction,
+                                                        this.currentBotJob.getId(),
+                                                        forceCoordinates,
+                                                        byPassFlagLoop);
+                                            } else {
+                                                webElementFound = null;
+                                                forceCoordinates = false;
+                                            }
                                         } catch (Exception ex) {
                                             success = false;
                                         }
@@ -6750,5 +6773,31 @@ public class ARScannedElementPane extends ARPane {
         } catch (Exception e) {
             throw new RuntimeException("Failed to parse XHTML into Document: " + e.getMessage(), e);
         }
+    }
+
+    public static InputInfo findMatchingInput(List<InputInfo> inputs, InstructionLoad currentInstruction) {
+        if (inputs == null || inputs.isEmpty() || currentInstruction == null) {
+            return null;
+        }
+
+        String instrName = normalize(currentInstruction.getName());
+        String instrTag = normalize(currentInstruction.getTagName());
+
+        for (InputInfo info : inputs) {
+            if (info == null) continue;
+
+            String inputName = normalize(info.name());
+            String inputTag = normalize(info.tag());
+
+            if (instrName.equalsIgnoreCase(inputName) && instrTag.equalsIgnoreCase(inputTag)) {
+                return info;
+            }
+        }
+
+        return null;
+    }
+
+    private static String normalize(String s) {
+        return s == null ? "" : s.trim();
     }
 }

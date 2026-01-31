@@ -813,17 +813,7 @@ public class PerformActions {
             return null;
         }
 
-        waitPage();
-
-        waitPage();
-
-        // Full important list (like your log)
-        List<String> important = DomIntrospectionUtil.listImportantElementsFromPageSource(getCurrentDriver());
-        important.forEach(logOperations::info);
-
-        // Inputs-only list with inferred labels
-        List<InputInfo> inputs = DomIntrospectionUtil.listInputsWithLabelsFromPageSource(getCurrentDriver());
-        inputs.forEach(i -> logOperations.info(i.printable()));
+        //        waitPage();
 
         //        if (arPriorities.getJobId() == null || !arPriorities.getJobId().equals(botJobId)) {
         //            arPriorities.setJobId(botJobId);
@@ -1050,7 +1040,7 @@ public class PerformActions {
         return milliseconds;
     }
 
-    private void waitPage() {
+    public void waitPage() {
         WebDriver driver = this.currentDriver;
         if (driver != null) {
             try {

@@ -461,6 +461,16 @@ public class SimpleWebSocketServer {
                     }
                     alreadySentMgsSocket = true;
                     break;
+                case "UPDATE_LIST_ELEMENTS":
+                    // calls perform list block update
+                    if (sessionIdToSend.equals("perform-list-data")) {
+                        splitDTO.setType("UPDATE_LIST_ELEMENTS");
+                        String jsonData = gson.toJson(splitDTO);
+                        webSocketSessionManager.sendMessageJson(
+                                homeBankingId, "perform-list-data", jsonData, "UPDATE_LIST_ELEMENTS");
+                    }
+                    alreadySentMgsSocket = true;
+                    break;
                 case "NEW_ELEMENT_DTO":
                 case "SEND_ALL_ELEMENTS_DTO":
                 case "UPDATE_ALL_ELEMENTS_DTO":

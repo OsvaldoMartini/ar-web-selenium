@@ -280,6 +280,11 @@ public class PerformLists {
 
             // Process the message based on its type
             switch (type) {
+                case "UPDATE_LIST_ELEMENTS":
+                    SplitDTO splitDTO = gson.fromJson(body, SplitDTO.class);
+                    splitDTO.setType("UPDATE_LIST_ELEMENTS");
+
+                    break;
                 case "UPDATE_BLOCKS":
                     BlockMoveDTO blockMoveDTO = gson.fromJson(body, BlockMoveDTO.class);
                     blockMoveDTO.setType("UPDATE_BLOCKS");
