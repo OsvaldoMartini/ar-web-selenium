@@ -66,6 +66,8 @@ public class PerformLists {
     private List<VariableUserDTO> listVariablesUser = new ArrayList<>();
     private List<ComboBoxVars> listWebPageItems = new ArrayList<>();
     private List<ParentOperations> listParentOperations = new ArrayList<>();
+    private final List<ElementDTO> listElementDTOs = new ArrayList<>();
+    private final Set<String> elementKeys = new HashSet<>();
 
     // Private constructor to prevent instantiation
     private PerformLists() {}
@@ -283,6 +285,8 @@ public class PerformLists {
                 case "UPDATE_LIST_ELEMENTS":
                     SplitDTO splitDTO = gson.fromJson(body, SplitDTO.class);
                     splitDTO.setType("UPDATE_LIST_ELEMENTS");
+
+                    addElementsFromSplit(splitDTO);
 
                     break;
                 case "UPDATE_BLOCKS":
@@ -1411,5 +1415,42 @@ public class PerformLists {
         }
 
         return new ArrayList<>();
+    }
+
+    public void addElementsFromSplit(SplitDTO splitDTO) {
+        if (splitDTO == null || splitDTO.getElementDetails() == null) return;
+
+        for (ElementDTO el : splitDTO.getElementDetails()) {
+            if (el == null) continue;
+
+            ElementDTO copy = el.deepCopy();
+            String key = buildKey(copy);
+
+            // add only if new (dedupe by tagName + xPath)
+            if (elementKeys.add(key)) {
+                listElementDTOs.add(copy);
+            }
+        }
+    }
+
+    private static String buildKey(ElementDTO el) {
+        String tag = norm(el.getTagName());
+        String xp = norm(el.getXPath());
+
+        // If xpath is missing, treat as unique every time
+        if (xp.isEmpty()) {
+            return "";
+        }
+
+        return tag + "|" + xp;
+    }
+
+    private static String norm(String s) {
+        return s == null ? "" : s.trim();
+    }
+
+    public void resetListElements() {
+        listElementDTOs.clear();
+        elementKeys.clear();
     }
 }

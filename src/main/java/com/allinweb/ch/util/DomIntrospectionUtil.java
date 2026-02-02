@@ -136,7 +136,7 @@ public class DomIntrospectionUtil {
         return new ArrayList<>(unique.values());
     }
 
-    // ----------------- NEW: control classification -----------------
+    // ----------------- control classification -----------------
 
     private static final class ControlMeta {
         final String controlKind;
@@ -217,7 +217,7 @@ public class DomIntrospectionUtil {
         return new ControlMeta(CK_OPEN_DROPDOWN, false);
     }
 
-    // ----------------- NEW: collect controls -----------------
+    // ----------------- collect controls -----------------
 
     private static Elements collectEditableControls(Document doc) {
         String nativeSelector = "input, textarea, select, option";
@@ -544,5 +544,43 @@ public class DomIntrospectionUtil {
 
     private static String safeLower(String s) {
         return s == null ? "" : s.toLowerCase(Locale.ROOT).trim();
+    }
+
+    // ----------------- NEW: merged list -----------------
+
+    public static List<InputInfo> listAllRelevantElements(WebDriver driver) {
+        LinkedHashMap<String, InputInfo> result = new LinkedHashMap<>();
+
+        // 1) Real inputs / controls
+        List<InputInfo> inputs = listInputsWithLabelsFromPageSource(driver);
+        for (InputInfo in : inputs) {
+            String key = "input:" + safeLower(in.tag()) + ":" + normalize(in.identifier());
+            result.putIfAbsent(key, in);
+        }
+
+        // 2) Important non-input elements -> mapped to InputInfo
+        List<String> important = listImportantElementsFromPageSource(driver);
+        for (String s : important) {
+            int sep = s.indexOf(" - ");
+            String tag = sep > 0 ? s.substring(0, sep) : "";
+            String ident = sep > 0 ? s.substring(sep + 3) : s;
+
+            InputInfo pseudo = new InputInfo(
+                    tag,
+                    "", // id
+                    "", // name
+                    "", // type
+                    "", // labelText
+                    ident, // identifier
+                    "", // printable (unused)
+                    CK_OPEN_DROPDOWN, // default
+                    false // isEditable
+                    );
+
+            String key = "important:" + safeLower(tag) + ":" + normalize(ident);
+            result.putIfAbsent(key, pseudo);
+        }
+
+        return new ArrayList<>(result.values());
     }
 }

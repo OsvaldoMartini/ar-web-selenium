@@ -2030,22 +2030,6 @@ public class ARScannedElementPane extends ARPane {
                         .flatMap(block -> block.getInstructionLoad().stream())
                         .forEach(instruction -> instruction.setExecuted(false));
 
-                int finalPort = portSocketInitial;
-                String socketSessionId = "UPDATE_LIST_ELEMENTS";
-                String destinationId = "perform-list-data";
-                String[] dataArray =
-                        new String[] {"input", "textarea", "button", "a", "select", "label"}; // Default values
-
-                updateListElements(
-                        performActions.getCurrentDriver(),
-                        dataArray,
-                        finalPort,
-                        socketSessionId,
-                        destinationId,
-                        "searchTerms",
-                        this.currentBotJob.getHomeBankingId(),
-                        this.currentBotJob.getId());
-
                 recallJob();
             }
         });
@@ -3139,6 +3123,8 @@ public class ARScannedElementPane extends ARPane {
         String resultActions = "No instruction executed yet";
         String failedMessage = "";
         Map<String, String> dataExcel = null;
+        Integer lastBlockOrderPushed = null;
+        List<InputInfo> inputs = new ArrayList<>();
 
         sessionRowStatus = "botJobTasks"; // + botJobId;
 
@@ -3221,6 +3207,20 @@ public class ARScannedElementPane extends ARPane {
                     boolean blockActive = blocksLoaded.get(currentBlockOrder).getActive();
 
                     if (blockActive) {
+
+                        // Fire only when the block CHANGES, and only for ACTIVE blocks
+                        if (blockActive) {
+                            if (lastBlockOrderPushed == null || !lastBlockOrderPushed.equals(currentBlockOrder)) {
+                                lastBlockOrderPushed = currentBlockOrder;
+                                performLists.resetListElements();
+                                pushUpdateListElements();
+                                // Inputs-only list with inferred labels
+                                inputs.clear();
+                                inputs =
+                                        DomIntrospectionUtil.listAllRelevantElements(performActions.getCurrentDriver());
+                            }
+                        }
+
                         excelFieldName = blockLoad.getExportFile();
 
                         if (!Strings.isNullOrEmpty(excelFieldName)) {
@@ -4096,23 +4096,13 @@ public class ARScannedElementPane extends ARPane {
                                         try {
                                             performActions.waitPage();
 
-                                            // Full important list (like your log)
-                                            List<String> important =
-                                                    DomIntrospectionUtil.listImportantElementsFromPageSource(
-                                                            performActions.getCurrentDriver());
-                                            important.forEach(logOperations::info);
-
-                                            // Inputs-only list with inferred labels
-                                            List<InputInfo> inputs =
-                                                    DomIntrospectionUtil.listInputsWithLabelsFromPageSource(
-                                                            performActions.getCurrentDriver());
-                                            //                                            inputs.forEach(i ->
-                                            // logOperations.info(i.printable()));
-
                                             InputInfo match = findMatchingInput(inputs, currentInstruction);
 
+                                            ElementDTO matchElemDTO = ElementDetailsMatcher.findMatchingElement(
+                                                    performLists.getListElementDTOs(), currentInstruction);
+
                                             // VERY IMPORTANT TO VALIDAE IF THE ELEMENT IS ON TEH PAGE FIRST
-                                            if (match != null) {
+                                            if (match != null || matchElemDTO != null) {
                                                 webElementFound = performActions.searchElement(
                                                         currentInstruction,
                                                         this.currentBotJob.getId(),
@@ -6837,5 +6827,24 @@ public class ARScannedElementPane extends ARPane {
 
     private static String normalize(String s) {
         return s == null ? "" : s.trim();
+    }
+
+    private void pushUpdateListElements() {
+        if (performActions == null || performActions.getCurrentDriver() == null) return;
+
+        int finalPort = portSocketInitial;
+        String socketSessionId = "UPDATE_LIST_ELEMENTS";
+        String destinationId = "perform-list-data";
+        String[] dataArray = new String[] {"input", "textarea", "button", "a", "select", "label"};
+
+        updateListElements(
+                performActions.getCurrentDriver(),
+                dataArray,
+                finalPort,
+                socketSessionId,
+                destinationId,
+                "searchTerms",
+                this.currentBotJob.getHomeBankingId(),
+                this.currentBotJob.getId());
     }
 }
