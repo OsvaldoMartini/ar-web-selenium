@@ -3,7 +3,6 @@ package com.allinweb.ch.util;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.model.ReferenceLoadDTO;
 import com.allinweb.ch.model.TargetElement;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -72,7 +71,7 @@ public final class InstructionLoadUpdater {
         // Pick ONE source, in your preferred priority order:
         if (!isBlank(t.getCustomXPath())) return t.getCustomXPath();
         if (!isBlank(t.getCurrentXPath())) return t.getCurrentXPath();
-        if (!isBlank(t.getXPath())) return t.getXPath();          // field name is "XPath" in your class
+        if (!isBlank(t.getXPath())) return t.getXPath(); // field name is "XPath" in your class
         if (!isBlank(t.getXPathWorkedFirst())) return t.getXPathWorkedFirst();
         return null;
     }

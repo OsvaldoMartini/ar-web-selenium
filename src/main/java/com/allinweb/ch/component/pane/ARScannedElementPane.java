@@ -4102,7 +4102,8 @@ public class ARScannedElementPane extends ARPane {
                                                             performLists.getListTargetElements(), currentInstruction);
 
                                             if (matchScanned != null) {
-                                                InstructionLoadUpdater.applyMatchToInstruction(currentInstruction, matchScanned);
+                                                InstructionLoadUpdater.applyMatchToInstruction(
+                                                        currentInstruction, matchScanned);
                                             }
 
                                             // VERY IMPORTANT TO VALIDAE IF THE ELEMENT IS ON TEH PAGE FIRST
