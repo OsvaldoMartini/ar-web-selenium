@@ -1,5 +1,6 @@
 package com.allinweb.ch.facade;
 
+import com.allinweb.ch.component.TargetElementHelper;
 import com.allinweb.ch.executors.AppExecutors;
 import com.allinweb.ch.executors.ExecutorsManager;
 import com.allinweb.ch.model.*;
@@ -19,6 +20,7 @@ import javax.websocket.*;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.openqa.selenium.WebElement;
 
 @Getter
 @Setter
@@ -40,6 +42,8 @@ public class PerformLists {
 
     private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
     private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
+    private static final TargetElementHelper targetElementHelper = TargetElementHelper.getInstance();
+    private PerformActions performActions = PerformActions.getInstance();
     // Static final variable to hold the singleton instance
     protected static volatile PerformLists instance;
     private final Gson gson = new Gson();
@@ -66,8 +70,7 @@ public class PerformLists {
     private List<VariableUserDTO> listVariablesUser = new ArrayList<>();
     private List<ComboBoxVars> listWebPageItems = new ArrayList<>();
     private List<ParentOperations> listParentOperations = new ArrayList<>();
-    private final List<ElementDTO> listElementDTOs = new ArrayList<>();
-    private final Set<String> elementKeys = new HashSet<>();
+    private final List<TargetElement> listTargetElements = new ArrayList<>();
 
     // Private constructor to prevent instantiation
     private PerformLists() {}
@@ -1420,37 +1423,20 @@ public class PerformLists {
     public void addElementsFromSplit(SplitDTO splitDTO) {
         if (splitDTO == null || splitDTO.getElementDetails() == null) return;
 
-        for (ElementDTO el : splitDTO.getElementDetails()) {
-            if (el == null) continue;
+        targetElementHelper.initialize(performActions);
+        for (ElementDTO elementDTO : splitDTO.getElementDetails()) {
+            TargetElement targetEach = targetElementHelper.extractPickClone(elementDTO, null);
 
-            ElementDTO copy = el.deepCopy();
-            String key = buildKey(copy);
-
-            // add only if new (dedupe by tagName + xPath)
-            if (elementKeys.add(key)) {
-                listElementDTOs.add(copy);
+            WebElement elementFound = performActions.findWebElement(targetEach);
+            if (targetEach.getElement() == null && elementFound != null) {
+                targetEach.setElement(elementFound);
             }
+
+            listTargetElements.add(targetEach);
         }
-    }
-
-    private static String buildKey(ElementDTO el) {
-        String tag = norm(el.getTagName());
-        String xp = norm(el.getXPath());
-
-        // If xpath is missing, treat as unique every time
-        if (xp.isEmpty()) {
-            return "";
-        }
-
-        return tag + "|" + xp;
-    }
-
-    private static String norm(String s) {
-        return s == null ? "" : s.trim();
     }
 
     public void resetListElements() {
-        listElementDTOs.clear();
-        elementKeys.clear();
+        listTargetElements.clear();
     }
 }

@@ -480,6 +480,11 @@ public class ARScannedElementScene extends ARScene {
                         arScannedElementPane.targetSelected =
                                 targetElementHelper.extractPickClone(splitDTO.getElementDetails()[0]);
                         arScannedElementPane.itPrintsElementDTO();
+                    } else {
+                        targetElementHelper.initialize(performActions, arScannedElementPane);
+                        arScannedElementPane.targetSelected =
+                                targetElementHelper.extractPickClone(splitDTO.getElementDetails()[0]);
+                        arScannedElementPane.itPrintsElementDTO();
                     }
                     break;
                 default:

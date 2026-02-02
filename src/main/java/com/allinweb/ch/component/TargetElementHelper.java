@@ -54,6 +54,10 @@ public class TargetElementHelper {
         this.arScannedElementPane = arScannedElementPane;
     }
 
+    public void initialize(PerformActions performActions) {
+        this.performActions = performActions;
+    }
+
     /**
      * Initialize the helper with the necessary dependencies.
      */
@@ -627,5 +631,37 @@ public class TargetElementHelper {
         // Fields without a clear mapping from InstructionLoad are left untouched:
         // someText, attribId, attribName, attributeData, customXPath, nestedShadow,
         // attributeValue, attributeType, searchAttributeValue.
+    }
+
+    /**
+     * Extracts and defines a cloned TargetElement from the given ElementDTO from performList.
+     */
+    public TargetElement extractPickClone(ElementDTO elementDTO, String ignore) {
+        TargetElement targetLocal = defineSearchReturn(elementDTO, null);
+
+        WebElement elementFound = performActions.findWebElement(targetLocal);
+        if (targetLocal.getElement() == null && elementFound != null) {
+            targetLocal.setElement(elementFound);
+        }
+
+        // Save references for different coordinate strategies
+        // 3 Different Coordinates // Original from JavaScript  // WebDriver Selenium ElementFound
+        // FallBack React Computed
+        // TO DO:   KEEP THE ORIGINALS  FROM ANDROID
+        performActions.defineSavedReferenced(targetLocal);
+
+        // Define tag name/title
+        targetLocal = defineNameTitles(targetLocal);
+
+        // Validate Shadow DOM or regular CSS selectors
+        if (Strings.isNullOrEmpty(targetLocal.getShadowHost()) && Strings.isNullOrEmpty(targetLocal.getCssSelector())) {
+
+        } else if (!Strings.isNullOrEmpty(targetLocal.getCssSelector())) {
+            targetLocal.setXPathWorkedFirst(ARConstants.REGULAR_XPATH);
+        } else {
+            targetLocal.setXPathWorkedFirst(ARConstants.SHADOW_DOM);
+        }
+
+        return targetLocal;
     }
 }

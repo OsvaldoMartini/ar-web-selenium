@@ -55,7 +55,6 @@ import javafx.scene.text.Text;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import javafx.stage.Stage;
-import javax.swing.*;
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -2160,7 +2159,7 @@ public class ARScannedElementPane extends ARPane {
 
             var processDTO = new SplitDTO();
             processDTO.setHomeBankingId(this.currentBotJob.getHomeBankingId());
-            processDTO.setBotJobId(this.currentBotJob.getBotJobId());
+            processDTO.setBotJobId(this.currentBotJob.getId());
             processDTO.setBotJobName(this.currentBotJob.getName());
             processDTO.setSessionId("scannerGrid");
             processDTO.setOperationId("clonedElement");
@@ -4098,11 +4097,16 @@ public class ARScannedElementPane extends ARPane {
 
                                             InputInfo match = findMatchingInput(inputs, currentInstruction);
 
-                                            ElementDTO matchElemDTO = ElementDetailsMatcher.findMatchingElement(
-                                                    performLists.getListElementDTOs(), currentInstruction);
+                                            TargetElement matchScanned =
+                                                    InstructionLoadMatcher.findMatchingTargetElement(
+                                                            performLists.getListTargetElements(), currentInstruction);
+
+                                            if (matchScanned != null) {
+                                                InstructionLoadUpdater.applyMatchToInstruction(currentInstruction, matchScanned);
+                                            }
 
                                             // VERY IMPORTANT TO VALIDAE IF THE ELEMENT IS ON TEH PAGE FIRST
-                                            if (match != null || matchElemDTO != null) {
+                                            if (match != null || matchScanned != null) {
                                                 webElementFound = performActions.searchElement(
                                                         currentInstruction,
                                                         this.currentBotJob.getId(),
