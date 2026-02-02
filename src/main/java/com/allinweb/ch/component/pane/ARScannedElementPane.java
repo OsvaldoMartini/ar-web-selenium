@@ -3216,8 +3216,9 @@ public class ARScannedElementPane extends ARPane {
                                 pushUpdateListElements();
                                 // Inputs-only list with inferred labels
                                 inputs.clear();
-                                inputs =
-                                        DomIntrospectionUtil.listAllRelevantElements(performActions.getCurrentDriver());
+                                //                                inputs =
+                                //
+                                // DomIntrospectionUtil.listAllRelevantElements(performActions.getCurrentDriver());
                             }
                         }
 
