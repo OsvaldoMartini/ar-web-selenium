@@ -91,6 +91,7 @@ public class ARScannedElementPane extends ARPane {
     private static final PerformActions performActions = PerformActions.getInstance();
     private static final PerformMessage performMessage = PerformMessage.getInstance();
     private static final PerformPreLoad performPreLoad = PerformPreLoad.getInstance();
+    private static final PerformListElements performListElements = PerformListElements.getInstance();
     private static final ARNewHomeBankingScene arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
     public static TargetElement targetSelected = new TargetElement();
     protected static volatile ARScannedElementPane instance;
@@ -2029,6 +2030,22 @@ public class ARScannedElementPane extends ARPane {
                         .flatMap(block -> block.getInstructionLoad().stream())
                         .forEach(instruction -> instruction.setExecuted(false));
 
+                int finalPort = portSocketInitial;
+                String socketSessionId = "UPDATE_LIST_ELEMENTS";
+                String destinationId = "perform-list-data";
+                String[] dataArray =
+                        new String[] {"input", "textarea", "button", "a", "select", "label"}; // Default values
+
+                updateListElements(
+                        performActions.getCurrentDriver(),
+                        dataArray,
+                        finalPort,
+                        socketSessionId,
+                        destinationId,
+                        "searchTerms",
+                        this.currentBotJob.getHomeBankingId(),
+                        this.currentBotJob.getId());
+
                 recallJob();
             }
         });
@@ -2415,20 +2432,41 @@ public class ARScannedElementPane extends ARPane {
                 botJobId);
 
         if (errorMessage != null) {
-            String[] lines = errorMessage.getErrorMessage().split("\n");
-
             logOperations.error(
                     "Error: Dynamic Pick One Clone ElementsDTO - {} - {} - {}",
                     errorMessage.getErrorTitle(),
                     errorMessage.getErrorHeader(),
                     errorMessage.getErrorMessage());
-            //            performMessage.errorMessage(
-            //                    errorMessage.getErrorTitle(),
-            //                    errorMessage.getErrorHeader(),
-            //                    (!Strings.isNullOrEmpty(lines[0]) ? lines[0] : null),
-            //                    (!Strings.isNullOrEmpty(lines[0]) ? lines[1] : null),
-            //                    null,
-            //                    0);
+        }
+    }
+
+    public void updateListElements(
+            WebDriver driver,
+            String[] dataArray,
+            int port,
+            String sessionId,
+            String destinationId,
+            String operationId,
+            int homeBankingId,
+            int botJobId) {
+        // "UPDATE_LIST_ELEMENTS", "perform-list-data", "searchTerms"
+        ErrorMessage errorMessage = performListElements.dynamicLoadElementsDTO(
+                driver,
+                dataArray,
+                searchHiddenFields,
+                port,
+                sessionId,
+                destinationId,
+                operationId,
+                homeBankingId,
+                botJobId);
+
+        if (errorMessage != null) {
+            logOperations.error(
+                    "Error: Dynamic Pick One Clone ElementsDTO - {} - {} - {}",
+                    errorMessage.getErrorTitle(),
+                    errorMessage.getErrorHeader(),
+                    errorMessage.getErrorMessage());
         }
     }
 
