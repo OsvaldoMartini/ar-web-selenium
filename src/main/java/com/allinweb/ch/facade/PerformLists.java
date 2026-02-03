@@ -1,12 +1,12 @@
 package com.allinweb.ch.facade;
 
-import com.allinweb.ch.component.TargetElementHelper;
 import com.allinweb.ch.executors.AppExecutors;
 import com.allinweb.ch.executors.ExecutorsManager;
 import com.allinweb.ch.model.*;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ComboBoxVars;
+import com.allinweb.ch.util.TargetElementHelper;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;

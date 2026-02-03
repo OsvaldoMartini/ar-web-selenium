@@ -1,7 +1,6 @@
 package com.allinweb.ch.component.scene;
 
 import com.allinweb.ch.builder.WebElementTagNameEnum;
-import com.allinweb.ch.component.TargetElementHelper;
 import com.allinweb.ch.component.pane.ARViewBotJobPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
@@ -13,6 +12,7 @@ import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.model.*;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.*;
+import com.allinweb.ch.util.TargetElementHelper;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;

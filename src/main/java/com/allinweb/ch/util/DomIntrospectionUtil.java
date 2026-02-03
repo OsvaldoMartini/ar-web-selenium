@@ -1,8 +1,7 @@
 package com.allinweb.ch.util;
 
-import java.util.*;
-
 import com.allinweb.ch.model.InputInfo;
+import java.util.*;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;

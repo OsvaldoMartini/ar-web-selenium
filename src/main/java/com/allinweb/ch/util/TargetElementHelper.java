@@ -1,4 +1,4 @@
-package com.allinweb.ch.component;
+package com.allinweb.ch.util;
 
 import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
@@ -9,8 +9,6 @@ import com.allinweb.ch.component.scene.ARViewBotJobScene;
 import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.model.*;
-import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARConstantsEngine;
 import com.google.common.base.Strings;
 import java.util.Arrays;
 import java.util.List;
