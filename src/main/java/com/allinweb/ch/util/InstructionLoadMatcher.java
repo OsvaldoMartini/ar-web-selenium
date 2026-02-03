@@ -10,6 +10,30 @@ public final class InstructionLoadMatcher {
         // utility class
     }
 
+    public static TargetElement findMatchingTargetElementByXPath(
+            List<TargetElement> currentElements, InstructionLoad currentInstruction) {
+
+        if (currentElements == null || currentElements.isEmpty() || currentInstruction == null) {
+            return null;
+        }
+
+        String targetXPath = normalize(currentInstruction.getXpath());
+
+        if (isBlank(targetXPath)) {
+            return null;
+        }
+
+        for (TargetElement el : currentElements) {
+            if (el == null) continue;
+
+            if (equalsIgnoreIgnoreBlank(targetXPath, el.getXPath())) {
+                return el;
+            }
+        }
+
+        return null;
+    }
+
     /** ✅ Overload: accept List<TargetElement> */
     public static TargetElement findMatchingTargetElement(
             List<TargetElement> currentElements, InstructionLoad currentInstruction) {

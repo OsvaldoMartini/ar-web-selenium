@@ -4095,19 +4095,23 @@ public class ARScannedElementPane extends ARPane {
                                         try {
                                             performActions.waitPage();
 
+                                            TargetElement matchXPath =
+                                                    InstructionLoadMatcher.findMatchingTargetElementByXPath(
+                                                            performLists.getListTargetElements(), currentInstruction);
+                                            TargetElement matchScanned = null;
                                             InputInfo match = findMatchingInput(inputs, currentInstruction);
 
-                                            TargetElement matchScanned =
-                                                    InstructionLoadMatcher.findMatchingTargetElement(
-                                                            performLists.getListTargetElements(), currentInstruction);
+                                            if (matchXPath == null) {
+                                                matchScanned = InstructionLoadMatcher.findMatchingTargetElement(
+                                                        performLists.getListTargetElements(), currentInstruction);
 
-                                            if (matchScanned != null) {
-                                                InstructionLoadUpdater.applyMatchToInstruction(
-                                                        currentInstruction, matchScanned);
+                                                if (matchScanned != null) {
+                                                    InstructionLoadUpdater.applyMatchToInstruction(
+                                                            currentInstruction, matchScanned);
+                                                }
                                             }
-
                                             // VERY IMPORTANT TO VALIDAE IF THE ELEMENT IS ON TEH PAGE FIRST
-                                            if (match != null || matchScanned != null) {
+                                            if (matchXPath != null || matchScanned != null || match != null) {
                                                 webElementFound = performActions.searchElement(
                                                         currentInstruction,
                                                         this.currentBotJob.getId(),

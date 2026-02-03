@@ -17,11 +17,11 @@ import org.openqa.selenium.WebElement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class TargetElementHelper {
+public class TargetElementHelperWeb {
 
-    private static volatile TargetElementHelper instance;
+    private static volatile TargetElementHelperWeb instance;
 
-    private static final Logger log = LoggerFactory.getLogger(TargetElementHelper.class);
+    private static final Logger log = LoggerFactory.getLogger(TargetElementHelperWeb.class);
     private static final Logger logOperations = LoggerFactory.getLogger("com.allinweb.operations");
 
     private static final PerformMessage performMessage = PerformMessage.getInstance();
@@ -29,15 +29,15 @@ public class TargetElementHelper {
     private ARViewBotJobScene arViewBotJobScene;
     private ARScannedElementPane arScannedElementPane;
 
-    private TargetElementHelper() {
+    private TargetElementHelperWeb() {
         // private constructor to enforce singleton
     }
 
-    public static TargetElementHelper getInstance() {
+    public static TargetElementHelperWeb getInstance() {
         if (instance == null) {
-            synchronized (TargetElementHelper.class) {
+            synchronized (TargetElementHelperWeb.class) {
                 if (instance == null) {
-                    instance = new TargetElementHelper();
+                    instance = new TargetElementHelperWeb();
                 }
             }
         }
@@ -655,9 +655,9 @@ public class TargetElementHelper {
         if (Strings.isNullOrEmpty(targetLocal.getShadowHost()) && Strings.isNullOrEmpty(targetLocal.getCssSelector())) {
 
         } else if (!Strings.isNullOrEmpty(targetLocal.getCssSelector())) {
-            targetLocal.setXPathWorkedFirst(ARConstants.REGULAR_XPATH);
+            targetLocal.setXPathWorkedFirst(ARConstantsEngine.REGULAR_XPATH);
         } else {
-            targetLocal.setXPathWorkedFirst(ARConstants.SHADOW_DOM);
+            targetLocal.setXPathWorkedFirst(ARConstantsEngine.SHADOW_DOM);
         }
 
         return targetLocal;

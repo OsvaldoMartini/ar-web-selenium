@@ -11,7 +11,7 @@ import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ErrorMessage;
-import com.allinweb.ch.util.TargetElementHelper;
+import com.allinweb.ch.util.TargetElementHelperWeb;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -45,7 +45,7 @@ public class ARScannedElementScene extends ARScene {
     private static final PerformLists performLists = PerformLists.getInstance();
     private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
-    private static final TargetElementHelper targetElementHelper = TargetElementHelper.getInstance();
+    private static final TargetElementHelperWeb targetElementHelper = TargetElementHelperWeb.getInstance();
     private static final ARScannedElementPane arScannedElementPane = ARScannedElementPane.getInstance();
     private static final ARWebDriver arWebDriver = ARWebDriver.getInstance();
     private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
