@@ -1,4 +1,4 @@
-package com.allinweb.ch.util;
+package com.allinweb.ch.model;
 
 public record InputInfo(
         String tag,

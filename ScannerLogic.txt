@@ -11,6 +11,8 @@ long totalExecutionTime = 0;
 String resultActions = "No instruction executed yet";
 String failedMessage = "";
 Map<String, String> dataExcel = null;
+Integer lastBlockOrderPushed = null;
+List<InputInfo> inputs = new ArrayList<>();
 
 sessionRowStatus = "botJobTasks"; // + botJobId;
 
@@ -93,6 +95,20 @@ if (extractedData.getNumberOfDataRows() > 0) {
 			boolean blockActive = blocksLoaded.get(currentBlockOrder).getActive();
 
 			if (blockActive) {
+
+				// Fire only when the block CHANGES, and only for ACTIVE blocks
+				if (blockActive) {
+					if (lastBlockOrderPushed == null || !lastBlockOrderPushed.equals(currentBlockOrder)) {
+						lastBlockOrderPushed = currentBlockOrder;
+						performLists.resetListElements();
+						pushUpdateListElements();
+						// Inputs-only list with inferred labels
+						inputs.clear();
+						inputs =
+								DomIntrospectionUtil.listAllRelevantElements(performActions.getCurrentDriver());
+					}
+				}
+
 				excelFieldName = blockLoad.getExportFile();
 
 				if (!Strings.isNullOrEmpty(excelFieldName)) {
@@ -966,11 +982,30 @@ if (extractedData.getNumberOfDataRows() > 0) {
 
 							if (!isMobileApp) {
 								try {
-									webElementFound = performActions.searchElement(
-											currentInstruction,
-											this.currentBotJob.getId(),
-											forceCoordinates,
-											byPassFlagLoop);
+									performActions.waitPage();
+
+									InputInfo match = findMatchingInput(inputs, currentInstruction);
+
+									TargetElement matchScanned =
+											InstructionLoadMatcher.findMatchingTargetElement(
+													performLists.getListTargetElements(), currentInstruction);
+
+									if (matchScanned != null) {
+										InstructionLoadUpdater.applyMatchToInstruction(
+												currentInstruction, matchScanned);
+									}
+
+									// VERY IMPORTANT TO VALIDAE IF THE ELEMENT IS ON TEH PAGE FIRST
+									if (match != null || matchScanned != null) {
+										webElementFound = performActions.searchElement(
+												currentInstruction,
+												this.currentBotJob.getId(),
+												forceCoordinates,
+												byPassFlagLoop);
+									} else {
+										webElementFound = null;
+										forceCoordinates = false;
+									}
 								} catch (Exception ex) {
 									success = false;
 								}
