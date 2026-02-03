@@ -3208,17 +3208,17 @@ public class ARScannedElementPane extends ARPane {
                     if (blockActive) {
 
                         // Fire only when the block CHANGES, and only for ACTIVE blocks
-                        if (blockActive) {
-                            if (lastBlockOrderPushed == null || !lastBlockOrderPushed.equals(currentBlockOrder)) {
-                                performActions.waitPage();
-                                lastBlockOrderPushed = currentBlockOrder;
-                                performLists.resetListElements();
-                                pushUpdateListElements();
-                                // Inputs-only list with inferred labels
-                                inputs.clear();
-                                inputs =
-                                        DomIntrospectionUtil.listAllRelevantElements(performActions.getCurrentDriver());
-                            }
+                        if (lastBlockOrderPushed == null || !lastBlockOrderPushed.equals(currentBlockOrder)) {
+                            performActions.waitPage();
+                            lastBlockOrderPushed = currentBlockOrder;
+                            performLists.resetListElements();
+                            pushUpdateListElements();
+                            logOperations.info("Total Taget Elements: "
+                                    + performLists.getListTargetElements().size());
+
+                            // Inputs-only list with inferred labels
+                            inputs.clear();
+                            inputs = DomIntrospectionUtil.listAllRelevantElements(performActions.getCurrentDriver());
                         }
 
                         excelFieldName = blockLoad.getExportFile();

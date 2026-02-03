@@ -81,9 +81,12 @@ terser input.js -o output.min.js -c -m --format wrap_iife=false,semicolons=true
 
 terser script-search-in-use.js -o script-search-in-use.min.js -c -m --format wrap_iife=false,semicolons=true
 
+terser script-hover-pick-in-use.js -o script-hover-pick-in-use.min.js -c -m --format wrap_iife=false,semicolons=true
+
 terser script-search-in-use-list.js -o script-search-in-use-list.min.js -c -m --format wrap_iife=false,semicolons=true
 
-terser script-hover-pick-in-use.js -o script-hover-pick-in-use.min.js -c -m --format wrap_iife=false,semicolons=true
+terser script-search-in-use-list-async.js -o script-search-in-use-list-async.min.js -c -m --format wrap_iife=false,semicolons=true
+
 ```
 
 (Usually not needed; output is already minimal.)
