@@ -3210,6 +3210,7 @@ public class ARScannedElementPane extends ARPane {
                         // Fire only when the block CHANGES, and only for ACTIVE blocks
                         if (blockActive) {
                             if (lastBlockOrderPushed == null || !lastBlockOrderPushed.equals(currentBlockOrder)) {
+                                performActions.waitPage();
                                 lastBlockOrderPushed = currentBlockOrder;
                                 performLists.resetListElements();
                                 pushUpdateListElements();
