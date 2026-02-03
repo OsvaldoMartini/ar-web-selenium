@@ -3104,7 +3104,12 @@ public class ARScannedElementPane extends ARPane {
         ExcelWriter.ExcelChain writerExport = null;
         //                new ExcelWriter(blocksLoaded.get(0).getName(),
         // performActions.getCurrentDriver()).withPurpose("export");
-        boolean excelExportOnceCreation =         String mainMsg = "";
+        boolean excelExportOnceCreation = true;
+        //        writerExport.insertReportHead();
+
+        Set<String> mapIgnore = new HashSet<>();
+
+        String mainMsg = "";
         boolean byPassNotFound = false;
         boolean byPassFlagLoop = false;
         boolean success = true;
@@ -3521,8 +3526,8 @@ public class ARScannedElementPane extends ARPane {
                                     .split(ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER);
                             String[] operations = currentInstruction.getOperation() != null
                                     ? currentInstruction
-                                    .getOperation()
-                                    .split(ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER)
+                                            .getOperation()
+                                            .split(ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER)
                                     : null;
 
                             if (actions[0].equalsIgnoreCase(ARConstantsEngine.IF)
@@ -3688,16 +3693,16 @@ public class ARScannedElementPane extends ARPane {
                                         (currentInstruction.getOperation() != null
                                                 ? "(" + parentId + ")-" + operations[0] + ":" + operations[1]
                                                 : (actions[0].equalsIgnoreCase(ARConstantsEngine.INSERT))
-                                                ? valueInsert
-                                                : ""));
+                                                        ? valueInsert
+                                                        : ""));
                             } else {
                                 msgInstruction = new FieldData(
                                         "(" + currentInstruction.getId() + ")-" + currentInstruction.getName(),
                                         (currentInstruction.getOperation() != null
                                                 ? currentInstruction.getOperation()
                                                 : (actions[0].equalsIgnoreCase(ARConstantsEngine.INSERT))
-                                                ? valueInsert
-                                                : ""));
+                                                        ? valueInsert
+                                                        : ""));
                             }
 
                             resultActions = performActions.actionResultMessage(blockName, actions, msgInstruction);
@@ -4075,9 +4080,9 @@ public class ARScannedElementPane extends ARPane {
                                     // Extract dataFieldName and dataFieldValue using a separate method
                                     // AR Mobile Work Around for Not creating a new DB column
                                     String defaultValue = currentInstruction.getDefaultValue() != null
-                                            && !currentInstruction
-                                            .getDefaultValue()
-                                            .contains("scroll-active")
+                                                    && !currentInstruction
+                                                            .getDefaultValue()
+                                                            .contains("scroll-active")
                                             ? currentInstruction.getDefaultValue()
                                             : null;
 
@@ -4609,8 +4614,8 @@ public class ARScannedElementPane extends ARPane {
                                                     // You still keep your "Get Value Is Not Defined" behavior
                                                     if (actualValue == null
                                                             || actualValue
-                                                            .trim()
-                                                            .isEmpty()) {
+                                                                    .trim()
+                                                                    .isEmpty()) {
                                                         failedMessage = "Get Value Is Not Defined ";
                                                         msgInstruction =
                                                                 updateMSGInstruction(msgInstruction, failedMessage);
@@ -4783,7 +4788,7 @@ public class ARScannedElementPane extends ARPane {
 
                                         if (!Strings.isNullOrEmpty(excelFieldName)) {
                                             writerExport = new ExcelWriter(
-                                                    excelFieldName, performActions.getCurrentDriver(), true)
+                                                            excelFieldName, performActions.getCurrentDriver(), true)
                                                     .withPurpose("export");
                                         }
 
@@ -4826,8 +4831,8 @@ public class ARScannedElementPane extends ARPane {
                                             // addRowFromMap(mapExportRows);
                                             if (excelFieldName != null
                                                     && excelFieldName
-                                                    .toLowerCase()
-                                                    .endsWith(".csv")) {
+                                                            .toLowerCase()
+                                                            .endsWith(".csv")) {
                                                 if (Strings.isNullOrEmpty(delimiterCSV)) {
                                                     delimiterCSV = ",";
                                                 }
@@ -5095,12 +5100,7 @@ public class ARScannedElementPane extends ARPane {
             }
         }
 
-        totalExecutionTime = performActions.getTotalExecutionTime();true;
-        //        writerExport.insertReportHead();
-
-        Set<String> mapIgnore = new HashSet<>();
-
-
+        totalExecutionTime = performActions.getTotalExecutionTime();
 
         if (totalExecutionTime == 0) {
             writerReport.insertTotalExecutionTimes(botJobStartTime, botJobStartTime);
