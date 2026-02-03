@@ -3123,7 +3123,7 @@ public class ARScannedElementPane extends ARPane {
         String failedMessage = "";
         Map<String, String> dataExcel = null;
         Integer lastBlockOrderPushed = null;
-        List<InputInfo> inputs = new ArrayList<>();
+        //        List<InputInfo> inputs = new ArrayList<>();
 
         sessionRowStatus = "botJobTasks"; // + botJobId;
 
@@ -3217,8 +3217,9 @@ public class ARScannedElementPane extends ARPane {
                                     + performLists.getListTargetElements().size());
 
                             // Inputs-only list with inferred labels
-                            inputs.clear();
-                            inputs = DomIntrospectionUtil.listAllRelevantElements(performActions.getCurrentDriver());
+                            //                            inputs.clear();
+                            //                            inputs =
+                            // DomIntrospectionUtil.listAllRelevantElements(performActions.getCurrentDriver());
                         }
 
                         excelFieldName = blockLoad.getExportFile();
@@ -4100,7 +4101,8 @@ public class ARScannedElementPane extends ARPane {
                                                     InstructionLoadMatcher.findMatchingTargetElementByXPath(
                                                             performLists.getListTargetElements(), currentInstruction);
                                             TargetElement matchScanned = null;
-                                            InputInfo match = findMatchingInput(inputs, currentInstruction);
+                                            //                                            InputInfo match =
+                                            // findMatchingInput(inputs, currentInstruction);
 
                                             if (matchXPath == null) {
                                                 matchScanned = InstructionLoadMatcher.findMatchingTargetElement(
@@ -4112,16 +4114,17 @@ public class ARScannedElementPane extends ARPane {
                                                 }
                                             }
                                             // VERY IMPORTANT TO VALIDAE IF THE ELEMENT IS ON TEH PAGE FIRST
-                                            if (matchXPath != null || matchScanned != null || match != null) {
-                                                webElementFound = performActions.searchElement(
-                                                        currentInstruction,
-                                                        this.currentBotJob.getId(),
-                                                        forceCoordinates,
-                                                        byPassFlagLoop);
-                                            } else {
-                                                webElementFound = null;
-                                                forceCoordinates = false;
-                                            }
+                                            //                                            if (matchXPath != null ||
+                                            // matchScanned != null || match != null) {
+                                            webElementFound = performActions.searchElement(
+                                                    currentInstruction,
+                                                    this.currentBotJob.getId(),
+                                                    forceCoordinates,
+                                                    byPassFlagLoop);
+                                            //                                            } else {
+                                            //                                                webElementFound = null;
+                                            //                                                forceCoordinates = false;
+                                            //                                            }
                                         } catch (Exception ex) {
                                             success = false;
                                         }
