@@ -278,10 +278,14 @@ public class TargetElementHelperWeb {
                 targetDefine = new TargetElement();
             }
 
+            targetDefine.setTagName(elemenDTO.getTagName());
+            targetDefine.setNameLabel(elemenDTO.getNameLabel());
+            targetDefine.setNameField(elemenDTO.getNameField());
+            targetDefine.setDefinedName(elemenDTO.getDefinedName());
+
             // Reset Previous Values
             targetDefine.setAttribId(elemenDTO.getAttribId());
             targetDefine.setAttribName(elemenDTO.getAttribName());
-            targetDefine.setTagName(elemenDTO.getTagName());
             targetDefine.setSomeText(elemenDTO.getSomeText());
             targetDefine.setCoordinates(elemenDTO.getCoordinates());
 

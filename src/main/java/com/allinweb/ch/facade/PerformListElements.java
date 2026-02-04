@@ -1,7 +1,5 @@
 package com.allinweb.ch.facade;
 
-import com.allinweb.ch.model.ElementDTO;
-import com.allinweb.ch.model.SplitDTO;
 import com.allinweb.ch.util.ErrorMessage;
 import com.allinweb.ch.util.JsScanResultDTO;
 import com.google.gson.Gson;
@@ -88,13 +86,9 @@ const __done=arguments[arguments.length-1];!function(t,e,n,a,o,i,r,l){let s=!1;f
 
             JsScanResultDTO dto = gson.fromJson(jsonScript, JsScanResultDTO.class);
 
-            // Convert List<ElementDTO> -> ElementDTO[]
-            SplitDTO splitDTO = new SplitDTO();
-            splitDTO.setElementDetails(dto.getElements().toArray(new ElementDTO[0]));
-
             // Replace current list and load new one
             performLists.resetListElements();
-            performLists.addElementsFromSplit(splitDTO);
+            performLists.addElementsFromSplit(dto.getElements());
 
             return null;
         } catch (Exception error) {
