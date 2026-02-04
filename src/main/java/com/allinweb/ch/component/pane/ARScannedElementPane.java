@@ -27,6 +27,8 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -68,6 +70,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 
 @Slf4j
@@ -3124,6 +3127,7 @@ public class ARScannedElementPane extends ARPane {
         Map<String, String> dataExcel = null;
         Integer lastBlockOrderPushed = null;
         TargetElement matchScanned = null;
+        TargetElement matchXPath = null;
         //        List<InputInfo> inputs = new ArrayList<>();
 
         sessionRowStatus = "botJobTasks"; // + botJobId;
@@ -4098,9 +4102,8 @@ public class ARScannedElementPane extends ARPane {
                                         try {
                                             performActions.waitPage();
 
-                                            TargetElement matchXPath =
-                                                    InstructionLoadMatcher.findMatchingTargetElementByXPath(
-                                                            performLists.getListTargetElements(), currentInstruction);
+                                            matchXPath = InstructionLoadMatcher.findMatchingTargetElementByXPath(
+                                                    performLists.getListTargetElements(), currentInstruction);
                                             matchScanned = null;
                                             //                                            InputInfo match =
                                             // findMatchingInput(inputs, currentInstruction);
@@ -4237,8 +4240,8 @@ public class ARScannedElementPane extends ARPane {
                                     }
                                     // Special Cases for Select Responses
                                     // It could be Improved the case
-                                    if (matchScanned == null
-                                            || resultActions.contains("FAIL")
+                                    if (resultActions.contains("FAIL")
+                                            || (matchXPath == null && matchScanned == null && webElementFound == null)
                                             || (webElementFound == null && !forceCoordinates)) {
                                         failedMessage = "Failed execution Web Element ";
                                         msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
@@ -5317,7 +5320,7 @@ public class ARScannedElementPane extends ARPane {
                     canonicalXml = CanonicalXmlNormalizer.normalizeHtmlToXhtml(rawPageSource);
 
                     // ✅ WEB: parse XHTML -> Document -> extract labels/inputs/buttons/links
-                    org.w3c.dom.Document doc = parseXhtmlToDocument(canonicalXml);
+                    Document doc = parseXhtmlToDocument(canonicalXml);
 
                     // If you want, keep dedup using attribId/xpath
                     List<ElementDTO> webControls = extractWebControls(doc);
@@ -5448,8 +5451,7 @@ public class ARScannedElementPane extends ARPane {
 
             // Timestamped filename
             String fileName = "pageSource_"
-                    + java.time.LocalDateTime.now()
-                            .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss_SSS"))
+                    + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss_SSS"))
                     + ".xml";
 
             Path filePath = baseDir.resolve(fileName);
@@ -5475,55 +5477,55 @@ public class ARScannedElementPane extends ARPane {
     // =======================================================
     private void parseAppiumPageSourceXml(
             String xml, List<ElementDTO> results, List<RenameEntry> renameReport, Set<String> seenKeys) {
-        org.w3c.dom.Document doc;
+        Document doc;
         try {
-            javax.xml.parsers.DocumentBuilderFactory dbf = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+            DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
             dbf.setNamespaceAware(false);
             dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-            javax.xml.parsers.DocumentBuilder db = dbf.newDocumentBuilder();
-            doc = db.parse(new org.xml.sax.InputSource(new java.io.StringReader(xml)));
+            DocumentBuilder db = dbf.newDocumentBuilder();
+            doc = db.parse(new InputSource(new StringReader(xml)));
         } catch (Exception ex) {
             appendLog("Failed to parse pageSource XML: " + ex.getMessage(), "warn");
             return;
         }
 
-        org.w3c.dom.Element root = doc.getDocumentElement();
+        Element root = doc.getDocumentElement();
         if (root == null) return;
 
         // We want all UI nodes under <hierarchy> (skip the hierarchy node itself)
-        org.w3c.dom.NodeList children = root.getChildNodes();
+        NodeList children = root.getChildNodes();
         for (int i = 0; i < children.getLength(); i++) {
             org.w3c.dom.Node n = children.item(i);
             if (n.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE) {
-                traverseUiNode((org.w3c.dom.Element) n, results, renameReport, seenKeys);
+                traverseUiNode((Element) n, results, renameReport, seenKeys);
             }
         }
     }
 
     private void parseWebPageSourceXhtml(String xhtml, List<ElementDTO> results, Set<String> seenKeys) {
 
-        org.w3c.dom.Document doc;
+        Document doc;
         try {
-            javax.xml.parsers.DocumentBuilderFactory dbf = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+            DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
             dbf.setNamespaceAware(false);
             dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
 
-            javax.xml.parsers.DocumentBuilder db = dbf.newDocumentBuilder();
-            doc = db.parse(new org.xml.sax.InputSource(new java.io.StringReader(xhtml)));
+            DocumentBuilder db = dbf.newDocumentBuilder();
+            doc = db.parse(new InputSource(new StringReader(xhtml)));
         } catch (Exception ex) {
             appendLog("Failed to parse WEB XHTML: " + ex.getMessage(), "warn");
             return;
         }
 
-        org.w3c.dom.Element root = doc.getDocumentElement();
+        Element root = doc.getDocumentElement();
         if (root == null) return;
 
         traverseWebNode(root, results, seenKeys);
     }
 
-    private void traverseWebNode(org.w3c.dom.Element el, List<ElementDTO> results, Set<String> seenKeys) {
+    private void traverseWebNode(Element el, List<ElementDTO> results, Set<String> seenKeys) {
 
-        String tag = nz(el.getTagName()).toLowerCase(java.util.Locale.ROOT);
+        String tag = nz(el.getTagName()).toLowerCase(Locale.ROOT);
 
         // Skip non-UI / noisy tags
         if (tag.equals("head")
@@ -5579,7 +5581,7 @@ public class ARScannedElementPane extends ARPane {
         String coords = "0.00,0.00";
 
         // attributeData for WEB
-        java.util.List<AttributeData> attrs = new java.util.ArrayList<>();
+        List<AttributeData> attrs = new ArrayList<>();
         attrs.add(new AttributeData("tag", tag));
         if (!id.isEmpty()) attrs.add(new AttributeData("id", id));
         if (!name.isEmpty()) attrs.add(new AttributeData("name", name));
@@ -5624,12 +5626,12 @@ public class ARScannedElementPane extends ARPane {
         recurseWebChildren(el, results, seenKeys);
     }
 
-    private void recurseWebChildren(org.w3c.dom.Element el, List<ElementDTO> results, Set<String> seenKeys) {
-        org.w3c.dom.NodeList kids = el.getChildNodes();
+    private void recurseWebChildren(Element el, List<ElementDTO> results, Set<String> seenKeys) {
+        NodeList kids = el.getChildNodes();
         for (int i = 0; i < kids.getLength(); i++) {
             org.w3c.dom.Node n = kids.item(i);
             if (n.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE) {
-                traverseWebNode((org.w3c.dom.Element) n, results, seenKeys);
+                traverseWebNode((Element) n, results, seenKeys);
             }
         }
     }
@@ -5641,7 +5643,7 @@ public class ARScannedElementPane extends ARPane {
         return "//" + tag;
     }
 
-    private String buildWebXPath(org.w3c.dom.Element el, String tag, String id, String name, String aria, String text) {
+    private String buildWebXPath(Element el, String tag, String id, String name, String aria, String text) {
         if (id != null && !id.isEmpty()) {
             return "//*[@id='" + escapeXPathSQ(id) + "']";
         }
@@ -5658,13 +5660,13 @@ public class ARScannedElementPane extends ARPane {
         return buildWebStructuralPathWithIndex(el);
     }
 
-    private String buildWebStructuralPathWithIndex(org.w3c.dom.Element el) {
-        java.util.ArrayDeque<String> parts = new java.util.ArrayDeque<>();
+    private String buildWebStructuralPathWithIndex(Element el) {
+        ArrayDeque<String> parts = new ArrayDeque<>();
         org.w3c.dom.Node cur = el;
 
         while (cur != null && cur.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE) {
-            org.w3c.dom.Element ce = (org.w3c.dom.Element) cur;
-            String tag = nz(ce.getTagName()).toLowerCase(java.util.Locale.ROOT);
+            Element ce = (Element) cur;
+            String tag = nz(ce.getTagName()).toLowerCase(Locale.ROOT);
 
             int idx = computeSiblingIndexSameTag(ce, tag);
             parts.addFirst("/" + tag + "[" + idx + "]");
@@ -5673,7 +5675,7 @@ public class ARScannedElementPane extends ARPane {
             // stop at html root
             if (cur != null
                     && cur.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE
-                    && "html".equalsIgnoreCase(((org.w3c.dom.Element) cur).getTagName())) {
+                    && "html".equalsIgnoreCase(((Element) cur).getTagName())) {
                 parts.addFirst("/html[1]");
                 break;
             }
@@ -5684,19 +5686,19 @@ public class ARScannedElementPane extends ARPane {
         return sb.length() > 0 ? sb.toString() : "/";
     }
 
-    private int computeSiblingIndexSameTag(org.w3c.dom.Element el, String tag) {
+    private int computeSiblingIndexSameTag(Element el, String tag) {
         org.w3c.dom.Node parent = el.getParentNode();
         if (parent == null) return 1;
 
-        org.w3c.dom.NodeList siblings = parent.getChildNodes();
+        NodeList siblings = parent.getChildNodes();
         int count = 0;
 
         for (int i = 0; i < siblings.getLength(); i++) {
             org.w3c.dom.Node n = siblings.item(i);
             if (n.getNodeType() != org.w3c.dom.Node.ELEMENT_NODE) continue;
 
-            org.w3c.dom.Element sib = (org.w3c.dom.Element) n;
-            String sibTag = nz(sib.getTagName()).toLowerCase(java.util.Locale.ROOT);
+            Element sib = (Element) n;
+            String sibTag = nz(sib.getTagName()).toLowerCase(Locale.ROOT);
 
             if (tag.equals(sibTag)) count++;
             if (sib == el) return Math.max(1, count);
@@ -5744,7 +5746,7 @@ public class ARScannedElementPane extends ARPane {
     // Uses recurseChildren(...) consistently
     // =======================================================
     private void traverseUiNode(
-            org.w3c.dom.Element el, List<ElementDTO> results, List<RenameEntry> renameReport, Set<String> seenKeys) {
+            Element el, List<ElementDTO> results, List<RenameEntry> renameReport, Set<String> seenKeys) {
 
         // Resolve class
         String cls = nz(el.getAttribute("class"));
@@ -5887,46 +5889,46 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private void recurseChildren(
-            org.w3c.dom.Element el, List<ElementDTO> results, List<RenameEntry> renameReport, Set<String> seenKeys) {
-        org.w3c.dom.NodeList kids = el.getChildNodes();
+            Element el, List<ElementDTO> results, List<RenameEntry> renameReport, Set<String> seenKeys) {
+        NodeList kids = el.getChildNodes();
         for (int i = 0; i < kids.getLength(); i++) {
             org.w3c.dom.Node n = kids.item(i);
             if (n.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE) {
-                traverseUiNode((org.w3c.dom.Element) n, results, renameReport, seenKeys);
+                traverseUiNode((Element) n, results, renameReport, seenKeys);
             }
         }
     }
 
-    private boolean isDrawerGroupContainer(org.w3c.dom.Element el, String resId) {
+    private boolean isDrawerGroupContainer(Element el, String resId) {
         if (resId == null) return false;
 
         // Your drawer rows all share resource-id "...:id/container"
-        if (!resId.toLowerCase(java.util.Locale.ROOT).endsWith(":id/container")) {
+        if (!resId.toLowerCase(Locale.ROOT).endsWith(":id/container")) {
             return false;
         }
 
         // If it contains a drawer_group_title with non-empty text => treat as a menu group item
-        java.util.ArrayDeque<org.w3c.dom.Element> q = new java.util.ArrayDeque<>();
+        ArrayDeque<Element> q = new ArrayDeque<>();
         q.add(el);
 
         while (!q.isEmpty()) {
-            org.w3c.dom.Element cur = q.removeFirst();
+            Element cur = q.removeFirst();
 
             String childResId = nz(cur.getAttribute("resource-id"));
             String childText = nz(cur.getAttribute("text"));
 
             if (!childResId.isEmpty()
-                    && childResId.toLowerCase(java.util.Locale.ROOT).contains("drawer_group_title")
+                    && childResId.toLowerCase(Locale.ROOT).contains("drawer_group_title")
                     && !childText.isEmpty()
                     && !isNullishText(childText)) {
                 return true;
             }
 
-            org.w3c.dom.NodeList kids = cur.getChildNodes();
+            NodeList kids = cur.getChildNodes();
             for (int i = 0; i < kids.getLength(); i++) {
                 org.w3c.dom.Node n = kids.item(i);
                 if (n.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE) {
-                    q.add((org.w3c.dom.Element) n);
+                    q.add((Element) n);
                 }
             }
         }
@@ -5934,8 +5936,8 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private boolean isBackElement(String cls, String resId, String desc) {
-        String id = (resId == null) ? "" : resId.toLowerCase(java.util.Locale.ROOT);
-        String cd = (desc == null) ? "" : desc.toLowerCase(java.util.Locale.ROOT);
+        String id = (resId == null) ? "" : resId.toLowerCase(Locale.ROOT);
+        String cd = (desc == null) ? "" : desc.toLowerCase(Locale.ROOT);
 
         // resource-id patterns
         if (id.contains("back")
@@ -5964,7 +5966,7 @@ public class ARScannedElementPane extends ARPane {
     private boolean isMenuElement(String cls, String resId) {
         if (resId == null) return false;
 
-        String id = resId.toLowerCase(java.util.Locale.ROOT);
+        String id = resId.toLowerCase(Locale.ROOT);
 
         // Common menu identifiers
         if (id.contains("menu") || id.contains("drawer") || id.contains("hamburger") || id.contains("nav")) {
@@ -5979,11 +5981,11 @@ public class ARScannedElementPane extends ARPane {
         return false;
     }
 
-    private boolean isInDrawerMenu(org.w3c.dom.Element el) {
+    private boolean isInDrawerMenu(Element el) {
         if (el == null) return false;
 
         // First: identify if THIS element is itself a drawer structural node
-        String selfResId = nz(el.getAttribute("resource-id")).toLowerCase(java.util.Locale.ROOT);
+        String selfResId = nz(el.getAttribute("resource-id")).toLowerCase(Locale.ROOT);
 
         if (isDrawerRootId(selfResId)) {
             return false; // drawer root itself is NOT "in menu"
@@ -5993,9 +5995,9 @@ public class ARScannedElementPane extends ARPane {
         org.w3c.dom.Node parent = el.getParentNode();
 
         while (parent != null && parent.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE) {
-            org.w3c.dom.Element pe = (org.w3c.dom.Element) parent;
+            Element pe = (Element) parent;
 
-            String resId = nz(pe.getAttribute("resource-id")).toLowerCase(java.util.Locale.ROOT);
+            String resId = nz(pe.getAttribute("resource-id")).toLowerCase(Locale.ROOT);
 
             if (isDrawerRootId(resId)) {
                 return true; // element is a child of drawer
@@ -6006,7 +6008,7 @@ public class ARScannedElementPane extends ARPane {
             // stop at hierarchy root
             if (parent != null
                     && parent.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE
-                    && "hierarchy".equalsIgnoreCase(((org.w3c.dom.Element) parent).getTagName())) {
+                    && "hierarchy".equalsIgnoreCase(((Element) parent).getTagName())) {
                 break;
             }
         }
@@ -6037,8 +6039,8 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private NestedText extractNestedText(org.w3c.dom.Element container) {
-        java.util.ArrayDeque<org.w3c.dom.Element> q = new java.util.ArrayDeque<>();
+    private NestedText extractNestedText(Element container) {
+        ArrayDeque<Element> q = new ArrayDeque<>();
         q.add(container);
 
         String bestTextViewText = "";
@@ -6046,7 +6048,7 @@ public class ARScannedElementPane extends ARPane {
         String bestAnyDesc = "";
 
         while (!q.isEmpty()) {
-            org.w3c.dom.Element cur = q.removeFirst();
+            Element cur = q.removeFirst();
 
             String cls = nz(cur.getAttribute("class"));
             String t = nz(cur.getAttribute("text"));
@@ -6067,11 +6069,11 @@ public class ARScannedElementPane extends ARPane {
             // Early exit: we found best possible (TextView text)
             if (!bestTextViewText.isEmpty()) break;
 
-            org.w3c.dom.NodeList kids = cur.getChildNodes();
+            NodeList kids = cur.getChildNodes();
             for (int i = 0; i < kids.getLength(); i++) {
                 org.w3c.dom.Node n = kids.item(i);
                 if (n.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE) {
-                    q.add((org.w3c.dom.Element) n);
+                    q.add((Element) n);
                 }
             }
         }
@@ -6086,7 +6088,7 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private String buildSafeXPathWithIndex(
-            org.w3c.dom.Element el, String cls, String resId, String text, String desc, String bounds) {
+            Element el, String cls, String resId, String text, String desc, String bounds) {
 
         String safeClass = (cls == null || cls.isEmpty()) ? "android.view.View" : cls;
 
@@ -6121,15 +6123,15 @@ public class ARScannedElementPane extends ARPane {
         return buildStructuralPathWithIndex(el);
     }
 
-    private String buildStructuralPathWithIndex(org.w3c.dom.Element el) {
+    private String buildStructuralPathWithIndex(Element el) {
         // Build absolute-ish (but stable) path from root element downwards,
         // using class names + sibling index among same-class siblings.
-        java.util.ArrayDeque<String> parts = new java.util.ArrayDeque<>();
+        ArrayDeque<String> parts = new ArrayDeque<>();
 
         org.w3c.dom.Node cur = el;
 
         while (cur != null && cur.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE) {
-            org.w3c.dom.Element ce = (org.w3c.dom.Element) cur;
+            Element ce = (Element) cur;
 
             String cls = nz(ce.getAttribute("class"));
             if (cls.isEmpty()) cls = nz(ce.getTagName());
@@ -6145,7 +6147,7 @@ public class ARScannedElementPane extends ARPane {
             // Stop once we reach <hierarchy> (the document root)
             if (cur != null
                     && cur.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE
-                    && "hierarchy".equalsIgnoreCase(((org.w3c.dom.Element) cur).getTagName())) {
+                    && "hierarchy".equalsIgnoreCase(((Element) cur).getTagName())) {
                 break;
             }
         }
@@ -6157,18 +6159,18 @@ public class ARScannedElementPane extends ARPane {
         return sb.toString();
     }
 
-    private int computeSiblingIndexSameClass(org.w3c.dom.Element el, String cls) {
+    private int computeSiblingIndexSameClass(Element el, String cls) {
         org.w3c.dom.Node parent = el.getParentNode();
         if (parent == null) return 1;
 
-        org.w3c.dom.NodeList siblings = parent.getChildNodes();
+        NodeList siblings = parent.getChildNodes();
         int count = 0;
 
         for (int i = 0; i < siblings.getLength(); i++) {
             org.w3c.dom.Node n = siblings.item(i);
             if (n.getNodeType() != org.w3c.dom.Node.ELEMENT_NODE) continue;
 
-            org.w3c.dom.Element sib = (org.w3c.dom.Element) n;
+            Element sib = (Element) n;
             String sibCls = nz(sib.getAttribute("class"));
             if (sibCls.isEmpty()) sibCls = nz(sib.getTagName());
             if (sibCls.isEmpty()) sibCls = "android.view.View";
@@ -6321,7 +6323,7 @@ public class ARScannedElementPane extends ARPane {
         if (w <= 0 || h <= 0) return "0.00,0.00";
         int cx = b[0] + w / 2;
         int cy = b[1] + h / 2;
-        return String.format(java.util.Locale.US, "%.2f,%.2f", (double) cx, (double) cy);
+        return String.format(Locale.US, "%.2f,%.2f", (double) cx, (double) cy);
     }
 
     private static int[] parseBounds(String bounds) {
@@ -6348,26 +6350,26 @@ public class ARScannedElementPane extends ARPane {
             return results;
         }
 
-        org.w3c.dom.Document doc;
+        Document doc;
         try {
-            javax.xml.parsers.DocumentBuilderFactory dbf = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+            DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
             dbf.setNamespaceAware(false);
             dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-            javax.xml.parsers.DocumentBuilder db = dbf.newDocumentBuilder();
-            doc = db.parse(new org.xml.sax.InputSource(new java.io.StringReader(canonicalXml)));
+            DocumentBuilder db = dbf.newDocumentBuilder();
+            doc = db.parse(new InputSource(new StringReader(canonicalXml)));
         } catch (Exception ex) {
             appendLog("Failed to parse canonical XML: " + ex.getMessage(), "error");
             return results;
         }
 
-        org.w3c.dom.Element root = doc.getDocumentElement();
+        Element root = doc.getDocumentElement();
         if (root == null) return results;
 
-        org.w3c.dom.NodeList children = root.getChildNodes();
+        NodeList children = root.getChildNodes();
         for (int i = 0; i < children.getLength(); i++) {
             org.w3c.dom.Node n = children.item(i);
             if (n.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE) {
-                traverseForTextOnly((org.w3c.dom.Element) n, results);
+                traverseForTextOnly((Element) n, results);
             }
         }
 
@@ -6375,7 +6377,7 @@ public class ARScannedElementPane extends ARPane {
         return results;
     }
 
-    private void traverseForTextOnly(org.w3c.dom.Element el, List<ElementDTO> results) {
+    private void traverseForTextOnly(Element el, List<ElementDTO> results) {
 
         String tag = nz(el.getTagName()).toLowerCase();
 
@@ -6454,13 +6456,13 @@ public class ARScannedElementPane extends ARPane {
         org.w3c.dom.Node child = el.getFirstChild();
         while (child != null) {
             if (child.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE) {
-                traverseForTextOnly((org.w3c.dom.Element) child, results);
+                traverseForTextOnly((Element) child, results);
             }
             child = child.getNextSibling();
         }
     }
 
-    private String extractHtmlText(org.w3c.dom.Element el) {
+    private String extractHtmlText(Element el) {
         String tag = nz(el.getTagName()).toLowerCase();
 
         // For inputs, text is in value/placeholder
@@ -6498,7 +6500,7 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private String buildSafeHtmlXPathWithIndex(
-            org.w3c.dom.Element el, String tag, String id, String cls, String text, String ariaLabel) {
+            Element el, String tag, String id, String cls, String text, String ariaLabel) {
         // Strong preference: //*[@id='...']
         if (!id.isEmpty()) {
             return "//*[@" + "id='" + escapeXPathLiteral(id) + "']";
@@ -6541,14 +6543,14 @@ public class ARScannedElementPane extends ARPane {
         return path.toString();
     }
 
-    public List<ElementDTO> extractWebControls(org.w3c.dom.Document doc) {
+    public List<ElementDTO> extractWebControls(Document doc) {
         List<ElementDTO> results = new ArrayList<>();
         Element root = doc.getDocumentElement();
         traverseWebControls(root, results);
         return results;
     }
 
-    private void traverseWebControls(org.w3c.dom.Element el, List<ElementDTO> results) {
+    private void traverseWebControls(Element el, List<ElementDTO> results) {
         String tag = nz(el.getTagName()).toLowerCase();
 
         // skip non-content tags
@@ -6695,7 +6697,7 @@ public class ARScannedElementPane extends ARPane {
         return dto;
     }
 
-    private String findLabelForInput(org.w3c.dom.Document doc, String inputId) {
+    private String findLabelForInput(Document doc, String inputId) {
         if (doc == null || inputId == null || inputId.isEmpty()) return "";
 
         Element root = doc.getDocumentElement();
