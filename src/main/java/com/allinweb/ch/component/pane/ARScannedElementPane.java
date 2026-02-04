@@ -4177,28 +4177,39 @@ public class ARScannedElementPane extends ARPane {
                                     }
 
                                     // VERY IMPORTANT FORCE COORDINATES
-                                    if (webElementFound == null && forceCoordinates && !isMobileApp) {
-
-                                        Boolean pressEnterAfter = false;
-                                        if (actions[0].equals(ARConstantsEngine.INSERT)
-                                                && actions[1].equals(ARConstantsEngine.ENTER)) {
-                                            pressEnterAfter = true;
-                                        }
-                                        if (actions[0].equalsIgnoreCase(ARConstantsEngine.VISUALIZE)
-                                                || actions[0].equalsIgnoreCase(ARConstantsEngine.CLICK)
-                                                || actions[0].equalsIgnoreCase(ARConstantsEngine.INSERT)) {
-
-                                            List<WebElement> smartSearch = performActions.findBySmartLocator(
-                                                    currentInstruction.getCssSelector());
-                                            if (!smartSearch.isEmpty()) {
-                                                success = performActions.executeActionsAtCoordinates(
-                                                        mapSavedLocators.get("coordinates"),
-                                                        fieldData,
-                                                        actions[0],
-                                                        pressEnterAfter);
-                                            }
-                                        }
-                                    }
+                                    // FORCE COORDINATES COMMENTED
+                                    //                                    if (webElementFound == null &&
+                                    // forceCoordinates && !isMobileApp) {
+                                    //
+                                    //                                        Boolean pressEnterAfter = false;
+                                    //                                        if
+                                    // (actions[0].equals(ARConstantsEngine.INSERT)
+                                    //                                                &&
+                                    // actions[1].equals(ARConstantsEngine.ENTER)) {
+                                    //                                            pressEnterAfter = true;
+                                    //                                        }
+                                    //                                        if
+                                    // (actions[0].equalsIgnoreCase(ARConstantsEngine.VISUALIZE)
+                                    //                                                ||
+                                    // actions[0].equalsIgnoreCase(ARConstantsEngine.CLICK)
+                                    //                                                ||
+                                    // actions[0].equalsIgnoreCase(ARConstantsEngine.INSERT)) {
+                                    //
+                                    //                                            List<WebElement> smartSearch =
+                                    // performActions.findBySmartLocator(
+                                    //
+                                    // currentInstruction.getCssSelector());
+                                    //                                            if (!smartSearch.isEmpty()) {
+                                    //                                                success =
+                                    // performActions.executeActionsAtCoordinates(
+                                    //
+                                    // mapSavedLocators.get("coordinates"),
+                                    //                                                        fieldData,
+                                    //                                                        actions[0],
+                                    //                                                        pressEnterAfter);
+                                    //                                            }
+                                    //                                        }
+                                    //                                    }
 
                                     byPassNotFound = byPassFlagLoop
                                             || !currentCondition.equals(ARExecution.ConditionStatus.NONE);
