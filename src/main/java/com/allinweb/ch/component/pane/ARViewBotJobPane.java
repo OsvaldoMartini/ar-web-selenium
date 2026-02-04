@@ -78,7 +78,6 @@ public class ARViewBotJobPane extends ARPane {
     Label webSiteInfoLabel;
     Label botJobNameLabel;
     Label botJobDescriptionLabel;
-    ListView<ComponentBlockDTO> componentList;
     Button componentButton;
     boolean isComponentBoxVisible;
     private Stage stage;
