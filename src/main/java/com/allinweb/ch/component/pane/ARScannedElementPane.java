@@ -3123,6 +3123,7 @@ public class ARScannedElementPane extends ARPane {
         String failedMessage = "";
         Map<String, String> dataExcel = null;
         Integer lastBlockOrderPushed = null;
+        TargetElement matchScanned = null;
         //        List<InputInfo> inputs = new ArrayList<>();
 
         sessionRowStatus = "botJobTasks"; // + botJobId;
@@ -4100,7 +4101,7 @@ public class ARScannedElementPane extends ARPane {
                                             TargetElement matchXPath =
                                                     InstructionLoadMatcher.findMatchingTargetElementByXPath(
                                                             performLists.getListTargetElements(), currentInstruction);
-                                            TargetElement matchScanned = null;
+                                            matchScanned = null;
                                             //                                            InputInfo match =
                                             // findMatchingInput(inputs, currentInstruction);
 
@@ -4113,6 +4114,7 @@ public class ARScannedElementPane extends ARPane {
                                                             currentInstruction, matchScanned);
                                                 }
                                             }
+
                                             // VERY IMPORTANT TO VALIDAE IF THE ELEMENT IS ON TEH PAGE FIRST
                                             //                                            if (matchXPath != null ||
                                             // matchScanned != null || match != null) {
@@ -4174,6 +4176,7 @@ public class ARScannedElementPane extends ARPane {
                                         //                                        }
                                     }
 
+                                    // VERY IMPORTANT FORCE COORDINATES
                                     if (webElementFound == null && forceCoordinates && !isMobileApp) {
 
                                         Boolean pressEnterAfter = false;
@@ -4223,7 +4226,8 @@ public class ARScannedElementPane extends ARPane {
                                     }
                                     // Special Cases for Select Responses
                                     // It could be Improved the case
-                                    if (resultActions.contains("FAIL")
+                                    if (matchScanned == null
+                                            || resultActions.contains("FAIL")
                                             || (webElementFound == null && !forceCoordinates)) {
                                         failedMessage = "Failed execution Web Element ";
                                         msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
