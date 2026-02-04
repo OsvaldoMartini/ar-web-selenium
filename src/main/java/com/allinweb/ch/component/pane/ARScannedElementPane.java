@@ -637,6 +637,16 @@ public class ARScannedElementPane extends ARPane {
 
         TargetElement targetDeepCopy = originTarget.deepCopy();
         try {
+
+            if (targetDeepCopy.getElement() == null) {
+                if (!Strings.isNullOrEmpty(targetDeepCopy.getCssSelector())) {
+                    WebElement elementFound = performActions.findShadowElementByCssSelector(
+                            targetDeepCopy.getShadowHost(), targetDeepCopy.getCssSelector());
+
+                    targetDeepCopy.setElement(elementFound);
+                }
+            }
+
             if (targetDeepCopy.getElement() != null) {
 
                 //                            arWebDriver.dehighlightElement(targetDeepCopy.getElement());
