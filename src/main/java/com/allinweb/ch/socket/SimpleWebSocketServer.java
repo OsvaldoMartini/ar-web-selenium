@@ -716,6 +716,11 @@ public class SimpleWebSocketServer {
 
                     if (type.equals("INSERT_AFTER_ELSEIF") || type.equals("INSERT_BEFORE_ELSEIF")) {
                         alreadySentMgsSocket = false;
+                        if (sessionIdToSend.matches(".*botJobTasks.*")) {
+                            performLists.getListBotJob().clear();
+                        } else if (sessionIdToSend.matches(".*componentTasks.*")) {
+                            performLists.getListBotJob().clear();
+                        }
                     } else {
                         alreadySentMgsSocket = true;
                     }
@@ -777,23 +782,35 @@ public class SimpleWebSocketServer {
                     webSocketSessionManager.sendMessageJson(homeBankingId, "perform-list-data", jsonData, updteBlocks);
                     alreadySentMgsSocket = false;
                     break;
-                case "DELETE_INSTRUCTION":
+                case "DELETE_INSTRUCTION": {
                     ARExecution.DialogModal respModal = ARExecution.DialogModal.NONE;
 
-                    errorMessage = performDataBase.loadAllParents(instrTable, whereId, instructionId);
+                    boolean isElseIf = actions.equalsIgnoreCase("ELSEIF");
+
+                    boolean isIfFamily = actions.equalsIgnoreCase("IF")
+                            || actions.equalsIgnoreCase("ELSE")
+                            || actions.equalsIgnoreCase("ENDIF")
+                            || actions.equalsIgnoreCase("ELSEIF");
+
+                    // only IF/ELSE/ENDIF delete the whole group (root IF)
+                    boolean isIfFamilyRootDelete = actions.equalsIgnoreCase("IF")
+                            || actions.equalsIgnoreCase("ELSE")
+                            || actions.equalsIgnoreCase("ENDIF");
+
+                    int ifRootId = actions.equalsIgnoreCase("IF") ? instructionId : splitDTO.getParentId();
+
+                    // ELSEIF must load for itself (doesn't matter much now, but keep correct)
+                    int parentsRootId = (isIfFamilyRootDelete ? ifRootId : instructionId);
+                    errorMessage = performDataBase.loadAllParents(instrTable, whereId, parentsRootId);
 
                     boolean continueDelete = true;
                     boolean deleteParents = false;
 
-                    if (errorMessage == null
-                            && !performLists.getListParentOperations().isEmpty()) {
+                    if (errorMessage == null) {
 
-                        boolean isIF = actions.equalsIgnoreCase("IF")
-                                || actions.equalsIgnoreCase("ELSE")
-                                || actions.equalsIgnoreCase("ENDIF")
-                                || actions.equalsIgnoreCase("ELSEIF");
+                        // If there are linked steps, show dialog only for NON-IF-family
+                        if (!performLists.getListParentOperations().isEmpty() && !isIfFamily) {
 
-                        if (!isIF) {
                             List<String> lstMsg =
                                     performMessage.distributeMsg(performLists.getListParentOperations().stream()
                                             .map(p -> p.getName() + " --> (" + p.getInstructionId() + ")-"
@@ -813,90 +830,125 @@ public class SimpleWebSocketServer {
 
                             continueDelete = respModal.equals(ARExecution.DialogModal.OK);
                             deleteParents = continueDelete;
+
+                        } else {
+                            // IF-family OR no children -> proceed
+                            continueDelete = true;
+                            deleteParents = true;
                         }
 
+                        // ✅ IMPORTANT: delete children OUTSIDE the "list not empty" check
                         if (continueDelete && deleteParents) {
-                            errorMessage =
-                                    performDataBase.deleteRowParents(instrTable, whereId, splitDTO.getInstructionId());
-                            if (errorMessage == null) {
-                                for (ParentOperations parent : performLists.getListParentOperations()) {
-                                    performLists.updateMemoryRemoveInstructionId(instrTable, whereId, parent.getId());
+
+                            // ELSEIF deletes only itself (no children)
+                            if (!isElseIf) {
+
+                                int deleteChildrenOf = isIfFamilyRootDelete ? ifRootId : splitDTO.getInstructionId();
+                                errorMessage = performDataBase.deleteRowParents(instrTable, whereId, deleteChildrenOf);
+
+                                if (errorMessage == null) {
+                                    for (ParentOperations parent : performLists.getListParentOperations()) {
+                                        performLists.updateMemoryRemoveInstructionId(
+                                                instrTable, whereId, parent.getId());
+                                    }
                                 }
                             }
                         }
-                    } else {
-                        continueDelete = true;
-                        deleteParents = true;
                     }
 
-                    if (continueDelete && deleteParents) {
+                    if (continueDelete && deleteParents && errorMessage == null) {
 
-                        InstructionLoad instrDelete = SplitDTO.mapSplitToInstruction(splitDTO);
+                        InstructionLoad instrDelete;
 
-                        errorMessage = performDataBase.deleteInstruction(instrTable, whereId, instrDelete, false);
-                        if (errorMessage == null) {
-                            performLists.updateMemoryRemoveInstructionId(
-                                    instrTable, whereId, splitDTO.getInstructionId());
+                        // delete root IF only for ELSE/ENDIF (NOT for ELSEIF)
+                        if (isIfFamilyRootDelete && !actions.equalsIgnoreCase("IF")) {
+                            instrDelete = findInstructionInMemory(instrTable, whereId, ifRootId);
+
+                            if (instrDelete == null) {
+                                instrDelete = performDataBase.loadInstructionById(instrTable, whereId, ifRootId);
+                            }
+
+                            if (instrDelete == null) {
+                                errorMessage = new ErrorMessage(
+                                        "Delete Instruction Error",
+                                        "Could not find root IF instruction to delete (ID: " + ifRootId + ")",
+                                        "Root IF not found in memory or DB");
+                            }
+                        } else {
+                            instrDelete = SplitDTO.mapSplitToInstruction(splitDTO);
                         }
 
                         if (errorMessage == null) {
-                            errorMessage = performDataBase.loadInstructions(whereId, -1, -1, instrTable);
+
+                            errorMessage = performDataBase.deleteInstruction(instrTable, whereId, instrDelete, false);
+
+                            if (errorMessage == null) {
+                                int removedId = (isIfFamilyRootDelete && !actions.equalsIgnoreCase("IF"))
+                                        ? ifRootId
+                                        : splitDTO.getInstructionId();
+
+                                performLists.updateMemoryRemoveInstructionId(instrTable, whereId, removedId);
+                            }
+
+                            if (errorMessage == null) {
+                                errorMessage = performDataBase.loadInstructions(whereId, -1, -1, instrTable);
+                            }
+
+                            rowsList = instrTable.equals("instruction")
+                                    ? performLists.getListInstruction()
+                                    : performLists.getListInstructionComp();
+
+                            hasExcelGotoOneBlock = hasOnlyExcelGoto(rowsList, instrTable);
+
+                            if (hasExcelGotoOneBlock != null) {
+                                errorMessage = performDataBase.deleteInstruction(
+                                        instrTable, whereId, hasExcelGotoOneBlock, false);
+                            }
+
+                            if (errorMessage == null) {
+                                errorMessage =
+                                        deleteNullsAndMemoryReload(instrTable, blockTable, whereId, previousBlockIds);
+                            }
+
+                            if (errorMessage == null) {
+                                performDataBase.updateBlockOrderNumber(blockTable, whereId, true);
+                            }
+
+                            if (errorMessage == null) {
+                                final int finalWhereId = whereId;
+
+                                List<BlockLoadDTO> blockLoad = instrTable.equals("instruction")
+                                        ? performLists.getListBotJob().stream()
+                                                .filter(b -> Objects.equals(b.getId(), finalWhereId))
+                                                .findFirst()
+                                                .map(b -> b.getBlockLoadDTOList().stream()
+                                                        .filter(block ->
+                                                                Objects.equals(block.getId(), splitDTO.getBlockId()))
+                                                        .toList())
+                                                .orElse(Collections.emptyList())
+                                        : performLists.getListBotJobComp().stream()
+                                                .filter(b -> Objects.equals(b.getHomeBankingId(), finalWhereId))
+                                                .findFirst()
+                                                .map(b -> b.getBlockLoadDTOList().stream()
+                                                        .filter(block ->
+                                                                Objects.equals(block.getId(), splitDTO.getBlockId()))
+                                                        .toList())
+                                                .orElse(Collections.emptyList());
+
+                                errorMessage =
+                                        performDataBase.reorderInstructionsListBlock(blockLoad, instrTable, true);
+                            }
+
+                            splitDTO.setType(updteBlocks);
+                            jsonData = gson.toJson(splitDTO);
+                            webSocketSessionManager.sendMessageJson(
+                                    homeBankingId, "perform-list-data", jsonData, updteBlocks);
                         }
-
-                        rowsList = instrTable.equals("instruction")
-                                ? performLists.getListInstruction()
-                                : performLists.getListInstructionComp();
-
-                        hasExcelGotoOneBlock = hasOnlyExcelGoto(rowsList, instrTable);
-
-                        if (hasExcelGotoOneBlock != null) {
-                            errorMessage =
-                                    performDataBase.deleteInstruction(instrTable, whereId, hasExcelGotoOneBlock, false);
-                        }
-
-                        if (errorMessage == null) {
-                            errorMessage =
-                                    deleteNullsAndMemoryReload(instrTable, blockTable, whereId, previousBlockIds);
-                        }
-                        // updateBlockOrderNumber  ALREADY UPDATE MEMORY LIST
-                        if (errorMessage == null) {
-                            performDataBase.updateBlockOrderNumber(blockTable, whereId, true);
-                        }
-
-                        if (errorMessage == null) {
-                            final int finalWhereId = whereId;
-
-                            List<BlockLoadDTO> blockLoad = instrTable.equals("instruction")
-                                    ? performLists.getListBotJob().stream()
-                                            .filter(b -> Objects.equals(b.getId(), finalWhereId))
-                                            .findFirst()
-                                            .map(b -> b.getBlockLoadDTOList().stream()
-                                                    .filter(block ->
-                                                            Objects.equals(block.getId(), splitDTO.getBlockId()))
-                                                    .toList())
-                                            .orElse(Collections.emptyList())
-                                    : performLists.getListBotJobComp().stream()
-                                            .filter(b -> Objects.equals(b.getHomeBankingId(), finalWhereId))
-                                            .findFirst()
-                                            .map(b -> b.getBlockLoadDTOList().stream()
-                                                    .filter(block ->
-                                                            Objects.equals(block.getId(), splitDTO.getBlockId()))
-                                                    .toList())
-                                            .orElse(Collections.emptyList());
-
-                            // Only Need the Block I am Current Working
-                            errorMessage = performDataBase.reorderInstructionsListBlock(blockLoad, instrTable, true);
-                        }
-
-                        // calls perform list block update
-                        splitDTO.setType(updteBlocks);
-                        jsonData = gson.toJson(splitDTO);
-                        webSocketSessionManager.sendMessageJson(
-                                homeBankingId, "perform-list-data", jsonData, updteBlocks);
                     }
 
                     alreadySentMgsSocket = false;
                     break;
+                }
                 case "DELETE_BLOCK":
                     errorMessage = performDataBase.deleteBlockDirect(blockTable, whereId, splitDTO.getBlockId());
                     // UPDATE REMOVAL MEMORY LIST
@@ -989,6 +1041,18 @@ public class SimpleWebSocketServer {
             //            broadcastMessageToAll(homeBankingId, "componentTasks", jsonData, "componentsUpdate");
             //            sendMessageJson(sessionIdToSend, jsonData, "componentsUpdate");
         }
+    }
+
+    private InstructionLoad findInstructionInMemory(String instrTable, int whereId, int instructionId) {
+
+        List<InstructionLoad> rowsList = instrTable.equals("instruction")
+                ? performLists.getListInstruction()
+                : performLists.getListInstructionComp();
+
+        return rowsList.stream()
+                .filter(i -> Objects.equals(i.getId(), instructionId))
+                .findFirst()
+                .orElse(null);
     }
 
     private ErrorMessage deleteNullsAndMemoryReload(

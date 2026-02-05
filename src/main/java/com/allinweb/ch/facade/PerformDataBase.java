@@ -2871,6 +2871,7 @@ public class PerformDataBase {
 
         boolean updateRow = splitDTO.getType().equals("EDIT_OPERATION");
         boolean isIF = actions.equalsIgnoreCase(ARConstants.IF);
+        boolean isELSEIF = actions.equalsIgnoreCase(ARConstants.ELSEIF);
 
         if (performLists.getQuickBotJobs().isEmpty()) {
             loadQuickBotJobs();
@@ -3029,6 +3030,11 @@ public class PerformDataBase {
                 currentBlockId = instruction.getBlockId();
             }
             if (!updateRow) {
+
+                if (isELSEIF) {
+                    instruction.setParentId(splitDTO.getParentId());
+                }
+
                 performLists.getInstrucOperList().clear();
                 performLists.getInstrucOperList().add(instruction);
 
@@ -3625,6 +3631,35 @@ public class PerformDataBase {
             logDB.error("Failed to insert references into database: " + error.getMessage());
             return new ErrorMessage(
                     "Reference Insertion Error", "An error occurred during reference insertion.", error.getMessage());
+        }
+    }
+
+    public InstructionLoad loadInstructionById(String tableName, int whereId, int instructionId) {
+        String foreignKeyColumn = "instruction".equalsIgnoreCase(tableName) ? "bot_job_id" : "home_banking_id";
+
+        String sql = "SELECT * FROM " + tableName + " WHERE instruction_id = ? AND " + foreignKeyColumn + " = ?";
+
+        try (Connection conn = getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, instructionId);
+            ps.setInt(2, whereId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    InstructionLoad i = new InstructionLoad();
+                    // map fields you need (at least instructionId + action/type + blockId etc.)
+                    i.setId(rs.getInt("instruction_id"));
+                    i.setParentId(rs.getInt("parent_id"));
+                    i.setActions(rs.getString("action"));
+                    // ... map other required columns
+                    return i;
+                }
+            }
+            return null;
+        } catch (SQLException e) {
+            logDB.error("loadInstructionById error: " + e.getMessage());
+            return null;
         }
     }
 
