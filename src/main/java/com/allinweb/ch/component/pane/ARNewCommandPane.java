@@ -141,7 +141,7 @@ public class ARNewCommandPane extends ARPane {
     private HBox instructionButtonsRow;
     private VBox vboxAll;
     private Button variableButton;
-    private Button addExcelNextRowButton;
+    //    private Button addExcelNextRowButton;
     private Button addPauseButton;
     private Button addWaitButton30;
     private Button addWaitButton15;
@@ -356,8 +356,9 @@ public class ARNewCommandPane extends ARPane {
 
         variableButton.setDisable(variablesDisable);
 
-        addExcelNextRowButton = builder.buildButton(
-                "Data Next Row", ARConstants.SPACE_L, ARConstants.ICON_EXCEL2, ARConstants.SPACE_M, new Insets(5));
+        //        addExcelNextRowButton = builder.buildButton(
+        //                "Data Next Row", ARConstants.SPACE_L, ARConstants.ICON_EXCEL2, ARConstants.SPACE_M, new
+        // Insets(5));
         addPauseButton = builder.buildButton(
                 "", ARConstants.SPACE_L, ARConstants.ICON_PAUSE, ARConstants.SPACE_M, new Insets(5));
         addWaitButton30 = builder.buildButton(
@@ -756,7 +757,7 @@ public class ARNewCommandPane extends ARPane {
         buttonBox
                 .getChildren()
                 .addAll(
-                        addExcelNextRowButton,
+                        //                        addExcelNextRowButton,
                         addPauseButton,
                         addWaitButton30,
                         addWaitButton15,
@@ -1001,8 +1002,9 @@ public class ARNewCommandPane extends ARPane {
 
     @Override
     public void initUIBehaviour() {
-        addExcelNextRowButton.setOnAction(
-                e -> insertNewInstruction("NEXT ROW", "EXCEL NEXT ROW", ARConstants.NEXT_ROW, 0, "", null, null, null));
+        //        addExcelNextRowButton.setOnAction(
+        //                e -> insertNewInstruction("NEXT ROW", "EXCEL NEXT ROW", ARConstants.NEXT_ROW, 0, "", null,
+        // null, null));
         addPauseButton.setOnAction(
                 e -> insertNewInstruction("PAUSE", "PAUSE Action", ARConstants.PAUSE, 0, "", null, null, null));
         addWaitButton30.setOnAction(e ->
