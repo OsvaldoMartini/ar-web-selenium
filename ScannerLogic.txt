@@ -100,16 +100,24 @@ if (extractedData.getNumberOfDataRows() > 0) {
 
 				// Fire only when the block CHANGES, and only for ACTIVE blocks
 				if (lastBlockOrderPushed == null || !lastBlockOrderPushed.equals(currentBlockOrder)) {
+
+					// 🔁 RESET instruction-level first-load flag
+					firstPageLoadDone = false;
+
 					performActions.waitPage();
 					lastBlockOrderPushed = currentBlockOrder;
+
 					performLists.resetListElements();
 					pushUpdateListElements();
-					logOperations.info("Total Taget Elements: "
+
+					logOperations.info("Total Target Elements: "
 							+ performLists.getListTargetElements().size());
 
 					// Inputs-only list with inferred labels
 					//                            inputs.clear();
 					//                            inputs =
+					//
+					//
 					// DomIntrospectionUtil.listAllRelevantElements(performActions.getCurrentDriver());
 				}
 
@@ -304,6 +312,32 @@ if (extractedData.getNumberOfDataRows() > 0) {
 
 					InstructionLoad currentInstruction =
 							blockLoad.getInstructionLoad().get(currentIndex);
+
+					// Fire on FIRST page load OR when the INSTRUCTION changes
+					// and only for web-element work (INPUT / OUTPUT / CLICK)
+					if (isWebElementInstruction(currentInstruction)) {
+
+						Integer currentInstructionId = currentInstruction.getId();
+
+						if (!firstPageLoadDone
+								|| lastInstructionIdPushed == null
+								|| !lastInstructionIdPushed.equals(currentInstructionId)) {
+
+							performActions.waitPage();
+							firstPageLoadDone = true;
+							lastInstructionIdPushed = currentInstructionId;
+
+							performLists.resetListElements();
+							pushUpdateListElements();
+
+							logOperations.info("Total Target Elements: "
+									+ performLists
+											.getListTargetElements()
+											.size());
+
+							// runYourScript(currentInstructionId);
+						}
+					}
 
 					byPassFlagLoop = parentIdsForLoop.contains(currentInstruction.getId());
 
