@@ -1,5 +1,6 @@
 package com.allinweb.ch.util;
 
+import com.allinweb.ch.model.AttributeData;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.model.TargetElement;
 import com.google.common.base.Strings;
@@ -75,7 +76,76 @@ public final class InstructionLoadMatcher {
             }
         }
 
+        // Searches as Field "someText"
+        for (TargetElement el : currentElements) {
+            if (el == null) continue;
+
+            if (equalsIgnoreIgnoreBlank(targetName, el.getSomeText())) {
+                return el;
+            }
+        }
+
+        // Searches  someText in AttributeData
+        for (TargetElement el : currentElements) {
+            if (el == null) continue;
+
+            if (hasSomeTextAttribute(el, targetName)) {
+                return el;
+            }
+        }
+
+        // Searches  At Least Parts of someText in AttributeData
+        for (TargetElement el : currentElements) {
+            if (el == null) continue;
+
+            if (hasSomeTextContainsAttribute(el, targetName)) {
+                return el;
+            }
+        }
+
         return null;
+    }
+
+    private static boolean hasSomeTextAttribute(TargetElement el, String targetName) {
+        if (el == null || isBlank(targetName)) return false;
+
+        AttributeData[] attrs = el.getAttributeData();
+        if (attrs == null || attrs.length == 0) return false;
+
+        String target = normalize(targetName);
+
+        for (AttributeData ad : attrs) {
+            if (ad == null) continue;
+
+            if ("someText".equalsIgnoreCase(normalize(ad.getName()))
+                    && equalsIgnoreIgnoreBlank(target, ad.getValue())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasSomeTextContainsAttribute(TargetElement el, String targetName) {
+        if (el == null || isBlank(targetName)) return false;
+
+        AttributeData[] attrs = el.getAttributeData();
+        if (attrs == null || attrs.length == 0) return false;
+
+        String target = normalize(targetName);
+
+        for (AttributeData ad : attrs) {
+            if (ad == null) continue;
+
+            if ("sometext".equalsIgnoreCase(normalize(ad.getName())) && containsIgnoreCase(ad.getValue(), target)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean containsIgnoreCase(String source, String part) {
+        if (isBlank(source) || isBlank(part)) return false;
+        return normalize(source).contains(normalize(part));
     }
 
     /**

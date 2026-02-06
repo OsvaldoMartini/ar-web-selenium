@@ -3470,8 +3470,6 @@ public class ARScannedElementPane extends ARPane {
                             InstructionLoad currentInstruction =
                                     blockLoad.getInstructionLoad().get(currentIndex);
 
-                            performActions.waitPage();
-
                             // Fire on FIRST page load OR when the INSTRUCTION changes
                             // and only for web-element work (INPUT / OUTPUT / CLICK)
                             if (isWebElementInstruction(currentInstruction)) {
