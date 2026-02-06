@@ -125,6 +125,8 @@ public class ARScannedElementPane extends ARPane {
     private int currentBlockId;
     private int currentBlockOrder;
     private int executeSpecificBlock;
+    private Integer lastInstructionIdPushed = null;
+    private boolean firstPageLoadDone = false;
     private boolean isMobileApp = false;
     private SplitDTO splitDTO = new SplitDTO();
     private ExtractedData extractedData = null;
@@ -3255,16 +3257,24 @@ public class ARScannedElementPane extends ARPane {
 
                         // Fire only when the block CHANGES, and only for ACTIVE blocks
                         if (lastBlockOrderPushed == null || !lastBlockOrderPushed.equals(currentBlockOrder)) {
+
+                            // 🔁 RESET instruction-level first-load flag
+                            firstPageLoadDone = false;
+
                             performActions.waitPage();
                             lastBlockOrderPushed = currentBlockOrder;
+
                             performLists.resetListElements();
                             pushUpdateListElements();
-                            logOperations.info("Total Taget Elements: "
+
+                            logOperations.info("Total Target Elements: "
                                     + performLists.getListTargetElements().size());
 
                             // Inputs-only list with inferred labels
                             //                            inputs.clear();
                             //                            inputs =
+                            //
+                            //
                             // DomIntrospectionUtil.listAllRelevantElements(performActions.getCurrentDriver());
                         }
 
@@ -3459,6 +3469,34 @@ public class ARScannedElementPane extends ARPane {
 
                             InstructionLoad currentInstruction =
                                     blockLoad.getInstructionLoad().get(currentIndex);
+
+                            performActions.waitPage();
+
+                            // Fire on FIRST page load OR when the INSTRUCTION changes
+                            // and only for web-element work (INPUT / OUTPUT / CLICK)
+                            if (isWebElementInstruction(currentInstruction)) {
+
+                                Integer currentInstructionId = currentInstruction.getId();
+
+                                if (!firstPageLoadDone
+                                        || lastInstructionIdPushed == null
+                                        || !lastInstructionIdPushed.equals(currentInstructionId)) {
+
+                                    performActions.waitPage();
+                                    firstPageLoadDone = true;
+                                    lastInstructionIdPushed = currentInstructionId;
+
+                                    performLists.resetListElements();
+                                    pushUpdateListElements();
+
+                                    logOperations.info("Total Target Elements: "
+                                            + performLists
+                                                    .getListTargetElements()
+                                                    .size());
+
+                                    // runYourScript(currentInstructionId);
+                                }
+                            }
 
                             byPassFlagLoop = parentIdsForLoop.contains(currentInstruction.getId());
 
@@ -6917,5 +6955,23 @@ public class ARScannedElementPane extends ARPane {
                 "searchTerms",
                 this.currentBotJob.getHomeBankingId(),
                 this.currentBotJob.getId());
+    }
+
+    private static boolean isWebElementInstruction(InstructionLoad instr) {
+        if (instr == null || instr.getActions() == null) return false;
+
+        String raw = instr.getActions().trim();
+        if (raw.isEmpty()) return false;
+
+        // If actions are split by your splitter, check the first token (most important)
+        String first = raw.split(ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER)[0].trim();
+
+        // Prefix-based forms like "C:..." or "I:..."
+        String upper = first.toUpperCase();
+        if (upper.startsWith("C:") || upper.startsWith("I:")) return true;
+
+        // If you also have plain "C" or "SET"/"GET" etc, map them here
+        // Based on your UI switch, "C" = click, "SET"/"GET" are web-field operations.
+        return upper.equals("C") || upper.equals("SET") || upper.equals("GET");
     }
 }

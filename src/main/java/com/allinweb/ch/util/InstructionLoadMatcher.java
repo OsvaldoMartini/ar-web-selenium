@@ -55,23 +55,22 @@ public final class InstructionLoadMatcher {
     /** ✅ Overload: accept List<TargetElement> */
     public static TargetElement findMatchingTargetElement(
             List<TargetElement> currentElements, InstructionLoad currentInstruction) {
+
         if (currentElements == null || currentElements.isEmpty() || currentInstruction == null) {
             return null;
         }
 
-        String targetTag = normalize(currentInstruction.getTagName());
         String targetName = normalize(currentInstruction.getName());
 
         // Nothing meaningful to match
-        if (isBlank(targetTag) && isBlank(targetName)) {
+        if (isBlank(targetName)) {
             return null;
         }
 
         for (TargetElement el : currentElements) {
             if (el == null) continue;
 
-            if (equalsIgnoreIgnoreBlank(targetTag, el.getTagName())
-                    && equalsIgnoreIgnoreBlank(targetName, el.getDefinedName())) {
+            if (equalsIgnoreIgnoreBlank(targetName, el.getDefinedName())) {
                 return el;
             }
         }
