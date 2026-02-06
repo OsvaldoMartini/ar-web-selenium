@@ -17,11 +17,11 @@ import org.openqa.selenium.WebElement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class TargetElementHelperWeb {
+public class TargetElementHelper {
 
-    private static volatile TargetElementHelperWeb instance;
+    private static volatile TargetElementHelper instance;
 
-    private static final Logger log = LoggerFactory.getLogger(TargetElementHelperWeb.class);
+    private static final Logger log = LoggerFactory.getLogger(TargetElementHelper.class);
     private static final Logger logOperations = LoggerFactory.getLogger("com.allinweb.operations");
 
     private static final PerformMessage performMessage = PerformMessage.getInstance();
@@ -29,15 +29,15 @@ public class TargetElementHelperWeb {
     private ARViewBotJobScene arViewBotJobScene;
     private ARScannedElementPane arScannedElementPane;
 
-    private TargetElementHelperWeb() {
+    private TargetElementHelper() {
         // private constructor to enforce singleton
     }
 
-    public static TargetElementHelperWeb getInstance() {
+    public static TargetElementHelper getInstance() {
         if (instance == null) {
-            synchronized (TargetElementHelperWeb.class) {
+            synchronized (TargetElementHelper.class) {
                 if (instance == null) {
-                    instance = new TargetElementHelperWeb();
+                    instance = new TargetElementHelper();
                 }
             }
         }

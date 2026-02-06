@@ -6,7 +6,7 @@ import com.allinweb.ch.model.*;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ComboBoxVars;
-import com.allinweb.ch.util.TargetElementHelperWeb;
+import com.allinweb.ch.util.TargetElementHelper;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -41,7 +41,7 @@ public class PerformLists {
 
     private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
     private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
-    private static final TargetElementHelperWeb targetElementHelper = TargetElementHelperWeb.getInstance();
+    private static final TargetElementHelper targetElementHelper = TargetElementHelper.getInstance();
     private PerformActions performActions = PerformActions.getInstance();
     // Static final variable to hold the singleton instance
     protected static volatile PerformLists instance;
