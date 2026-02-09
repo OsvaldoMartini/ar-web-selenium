@@ -2664,8 +2664,8 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private int handleGreaterThan(String value1, String value2) {
-        double num1 = parseValueGreaterThan(value1, true);
-        double num2 = parseValueGreaterThan(value2, false);
+        double num1 = parseValueGreaterThan(clean(value1), true);
+        double num2 = parseValueGreaterThan(clean(value2), false);
 
         return num1 > num2 ? 1 : 0;
     }
@@ -2709,8 +2709,8 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private int handleLessThan(String value1, String value2) {
-        double num1 = parseValueForLessThan(value1, true);
-        double num2 = parseValueForLessThan(value2, false);
+        double num1 = parseValueForLessThan(clean(value1), true);
+        double num2 = parseValueForLessThan(clean(value2), false);
 
         return num1 < num2 ? 1 : 0;
     }
@@ -3211,6 +3211,7 @@ public class ARScannedElementPane extends ARPane {
 
             int xExcelCurrentRow = 0;
             int xExcelDataSize = extractedData.getNumberOfDataRows();
+            mapOperators.clear();
             mapExportRows = new LinkedHashMap<>();
             headersExport.clear();
             columnsCSV.clear();
@@ -6971,5 +6972,12 @@ public class ARScannedElementPane extends ARPane {
         // If you also have plain "C" or "SET"/"GET" etc, map them here
         // Based on your UI switch, "C" = click, "SET"/"GET" are web-field operations.
         return upper.equals("C") || upper.equals("SET") || upper.equals("GET");
+    }
+
+    private String clean(String value) {
+        if (value == null) {
+            return null;
+        }
+        return value.replace(".", "").replace(",", "");
     }
 }
