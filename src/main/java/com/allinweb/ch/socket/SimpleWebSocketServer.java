@@ -342,6 +342,8 @@ public class SimpleWebSocketServer {
                 case "MOBILE_HOME":
                 case "MOBILE_RECENTS":
                 case "MOBILE_CLOSE_ALL":
+                case "MOBILE_NEXT_DONE":
+                case "MOBILE_CLOSE_KEYBOARD":
                     if (sessionIdToSend.equals("mobile-return-server")) {
                         splitDTO.setOperationId(type);
                         String jsonData = gson.toJson(splitDTO);
