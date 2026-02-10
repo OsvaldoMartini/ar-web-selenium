@@ -273,7 +273,7 @@ public class ARPropertyManager {
             setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), "54525");
             setProperty(ARPropertyEnum.PATH_ENGINE.getValue(), ARConstantsEngine.USER_PATH);
             setProperty(ARPropertyEnum.PATH_WEBDRIVER.getValue(), ARConstantsEngine.USER_PATH + "\\driver");
-            //            setProperty(ARPropertyEnum.PATH_APPIUM.getValue(), ARConstantsEngine.USER_PATH + "\\appium");
+            setProperty(ARPropertyEnum.PATH_APPIUM.getValue(), ARConstantsEngine.USER_PATH + "\\appium");
             setProperty(ARPropertyEnum.LOG_LEVEL.getValue(), Level.INFO.getName());
             setProperty(ARPropertyEnum.BROWSER.getValue(), ARConstantsEngine.EDGE);
             setProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC.getValue(), "60");
@@ -366,8 +366,7 @@ public class ARPropertyManager {
 
             for (String prop : missingProperties) {
                 if ("path_appium".equals(prop)) {
-                    //                    setProperty(ARPropertyEnum.PATH_APPIUM.getValue(), ARConstantsEngine.USER_PATH
-                    // + "\\appium");
+                    setProperty(ARPropertyEnum.PATH_APPIUM.getValue(), ARConstantsEngine.USER_PATH + "\\appium");
                 }
             }
 

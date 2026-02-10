@@ -455,10 +455,10 @@ public class ARConfigurationPane extends ARPane {
         pathWebDriverButton = createPathButton();
         AnchorPane driverGroup = new AnchorPane(pathWebDriver, pathWebDriverButton);
 
-        //        pathAppiumLabel = new Label("Appium Path:");
-        //        pathAppium = createPathTextField(ARPropertyEnum.PATH_APPIUM);
-        //        pathAppiumButton = createPathButton();
-        //        AnchorPane appiumGroup = new AnchorPane(pathAppium, pathAppiumButton);
+        pathAppiumLabel = new Label("Appium Path:");
+        pathAppium = createPathTextField(ARPropertyEnum.PATH_APPIUM);
+        pathAppiumButton = createPathButton();
+        AnchorPane appiumGroup = new AnchorPane(pathAppium, pathAppiumButton);
 
         Label organizationsLabel = new Label("Organizations");
         organizationsLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #1565C0;");
@@ -481,8 +481,8 @@ public class ARConfigurationPane extends ARPane {
                 engineGroup,
                 pathWebDriverLabel,
                 driverGroup,
-                //                pathAppiumLabel,
-                //                appiumGroup,
+                pathAppiumLabel,
+                appiumGroup,
                 dbUrlLabel,
                 dbUrl,
                 dbUserPwdGroup,
@@ -583,7 +583,7 @@ public class ARConfigurationPane extends ARPane {
 
         pathEngineButton.setOnMouseClicked(e -> openChooserFor(pathEngine, modalStage, false));
         pathWebDriverButton.setOnMouseClicked(e -> openChooserFor(pathWebDriver, modalStage, false));
-        //        pathAppiumButton.setOnMouseClicked(e -> openChooserFor(pathAppium, modalStage, true));
+        pathAppiumButton.setOnMouseClicked(e -> openChooserFor(pathAppium, modalStage, true));
 
         browserChoiceBox.setValue(arPropertyManager.getProperty(ARPropertyEnum.BROWSER));
 
@@ -1052,8 +1052,8 @@ public class ARConfigurationPane extends ARPane {
             arPropertyManager.setProperty(
                     ARPropertyEnum.PATH_WEBDRIVER.getValue(),
                     pathWebDriver.getText().trim());
-            //            arPropertyManager.setProperty(
-            //                    ARPropertyEnum.PATH_APPIUM.getValue(), pathAppium.getText().trim());
+            arPropertyManager.setProperty(
+                    ARPropertyEnum.PATH_APPIUM.getValue(), pathAppium.getText().trim());
 
             try {
                 performInitializer.testConnection(
