@@ -1090,14 +1090,20 @@ public class PerformActions {
         UtilsMethods.exceptionIfNullWebElement(element);
 
         try {
+            // A quick check
+            if (element != null && (!element.isEnabled() || !element.isDisplayed())) {
+                logOperations.error(
+                        "Step Failed - Web Field is not Visible. Verify the rules and behavior of your web page.");
+                return false;
+            }
             waitForAction.until(ExpectedConditions.visibilityOf(element).andThen(e -> {
                 ((JavascriptExecutor) this.currentDriver).executeScript("arguments[0].scrollIntoView(true);", element);
                 return waitForAction.until(ExpectedConditions.elementToBeClickable(element));
             }));
         } catch (Exception e) {
 
-            logOperations.warn(
-                    String.format("Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
+            logOperations.error(
+                    "Step Failed - Web Field is not Visible. Verify the rules and behavior of your web page.");
 
             if (!byPassNotFound) {
                 performMessage.couldNotFindElement(element.getTagName());
@@ -1108,7 +1114,7 @@ public class PerformActions {
         // Custom visibility and enabled checks
         if (!element.isDisplayed()) {
             logOperations.error(
-                    "BOT JOB STOP - Web Field is not Visible. Verify the rules and behavior of your web page.");
+                    "Step Failed - Web Field is not Visible. Verify the rules and behavior of your web page.");
             //            performMessage.errorMessage(
             //                    "BOT JOB STOP - Web Field is not Visible",
             //                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Verify the rules
@@ -1126,7 +1132,7 @@ public class PerformActions {
         if (!element.isEnabled()) {
             //        callErrorMessageNotEnabled(element.getTagName());
             logOperations.error(
-                    "BOT JOB STOP - Web Field is not Visible. Verify the rules and behavior of your web page.");
+                    "Step Failed - Web Field is not Visible. Verify the rules and behavior of your web page.");
             //            performMessage.errorMessage(
             //                    "BOT JOB STOP - Web Field is not Enabled",
             //                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Verify the rules
@@ -1155,6 +1161,8 @@ public class PerformActions {
             //                    "<span style='color: #D32F2F; font-style: italic;'>Example: Invalid IBAN may block
             // branch autofill.</span>",
             //                    0);
+            logOperations.error(
+                    "Step Failed - Web Field is not Visible. Verify the rules and behavior of your web page.");
 
             return false;
         }
@@ -1169,8 +1177,8 @@ public class PerformActions {
                 return true;
             } catch (Exception ex) {
 
-                logOperations.warn(
-                        String.format("Could Not Click on  \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
+                logOperations.error(
+                        "Step Failed - Web Field is not Visible. Verify the rules and behavior of your web page.");
                 return false;
             }
         }
