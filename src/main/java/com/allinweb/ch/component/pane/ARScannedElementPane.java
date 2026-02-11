@@ -3208,6 +3208,14 @@ public class ARScannedElementPane extends ARPane {
                 Integer parentBlockId =
                         excelDataGoto.get(excelDataGoto.size() - 1).getParentBlockId();
                 blockExcelGoto = performActions.getBlockOrderNumber(blocksLoaded, parentBlockId) - 1;
+
+                if (blockExcelGoto < 0) {
+                    performDBEngine.fixExcelGoto(
+                            "instruction",
+                            currentBotJob.getId(),
+                            excelDataGoto.get(0).getId(),
+                            excelDataGoto.get(0).getBlockId());
+                }
             }
 
             int xExcelCurrentRow = 0;
@@ -3472,37 +3480,6 @@ public class ARScannedElementPane extends ARPane {
                             InstructionLoad currentInstruction =
                                     blockLoad.getInstructionLoad().get(currentIndex);
 
-                            // FIRST IMMEDIATE ATTEMPT TO LOCATE
-                            if (isWebElementInstruction(currentInstruction)) {
-                                webElementFound = immediatXPath(currentInstruction.getXpath());
-                            }
-
-                            // Fire on FIRST page load OR when the INSTRUCTION changes
-                            // and only for web-element work (INPUT / OUTPUT / CLICK / GET / SET)
-                            if (isWebElementInstruction(currentInstruction) && webElementFound == null) {
-
-                                Integer currentInstructionId = currentInstruction.getId();
-
-                                if (!firstPageLoadDone
-                                        || lastInstructionIdPushed == null
-                                        || !lastInstructionIdPushed.equals(currentInstructionId)) {
-
-                                    performActions.waitPage();
-                                    firstPageLoadDone = true;
-                                    lastInstructionIdPushed = currentInstructionId;
-
-                                    performLists.resetListElements();
-                                    pushUpdateListElements();
-
-                                    logOperations.info("Total Target Elements: "
-                                            + performLists
-                                                    .getListTargetElements()
-                                                    .size());
-
-                                    // runYourScript(currentInstructionId);
-                                }
-                            }
-
                             byPassFlagLoop = parentIdsForLoop.contains(currentInstruction.getId());
 
                             mainMsg =
@@ -3533,6 +3510,37 @@ public class ARScannedElementPane extends ARPane {
                                 currentIndex++;
 
                                 continue;
+                            }
+
+                            // FIRST IMMEDIATE ATTEMPT TO LOCATE
+                            if (isWebElementInstruction(currentInstruction)) {
+                                webElementFound = immediateXPath(currentInstruction.getXpath());
+                            }
+
+                            // Fire on FIRST page load OR when the INSTRUCTION changes
+                            // and only for web-element work (INPUT / OUTPUT / CLICK / GET / SET)
+                            if (isWebElementInstruction(currentInstruction) && webElementFound == null) {
+
+                                Integer currentInstructionId = currentInstruction.getId();
+
+                                if (!firstPageLoadDone
+                                        || lastInstructionIdPushed == null
+                                        || !lastInstructionIdPushed.equals(currentInstructionId)) {
+
+                                    performActions.waitPage();
+                                    firstPageLoadDone = true;
+                                    lastInstructionIdPushed = currentInstructionId;
+
+                                    performLists.resetListElements();
+                                    pushUpdateListElements();
+
+                                    logOperations.info("Total Target Elements: "
+                                            + performLists
+                                                    .getListTargetElements()
+                                                    .size());
+
+                                    // runYourScript(currentInstructionId);
+                                }
                             }
 
                             //                            mapSavedLocators.clear();
@@ -4206,7 +4214,7 @@ public class ARScannedElementPane extends ARPane {
                                                                 currentInstruction, matchScanned);
 
                                                         // SECOND IMMEDIATE ATTEMPT TO LOCATE
-                                                        webElementFound = immediatXPath(matchScanned.getXPath());
+                                                        webElementFound = immediateXPath(matchScanned.getXPath());
                                                     }
                                                 }
 
@@ -5338,7 +5346,7 @@ public class ARScannedElementPane extends ARPane {
         return true;
     }
 
-    private WebElement immediatXPath(String xPath) {
+    private WebElement immediateXPath(String xPath) {
         try {
             if (waitXPath == null && performActions.getCurrentDriver() != null) {
                 waitXPath = new WebDriverWait(performActions.getCurrentDriver(), Duration.ofSeconds(0));

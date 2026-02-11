@@ -1470,6 +1470,13 @@ public class PerformDataBase {
                     instruction.setOperation(rs.getString("operation"));
                     instruction.setBlockId(rs.getInt("block_id"));
                     instruction.setParentBlockId(rs.getInt("parent_block_id"));
+
+                    if (instruction.getName().equals("EXCEL GOTO")
+                            && ((instruction.getParentBlockId() != null && instruction.getParentBlockId() == 0)
+                                    || instruction.getParentBlockId() == null)) {
+                        instruction.setParentBlockId(instruction.getBlockId());
+                    }
+
                     instruction.setParentId(rs.getInt("parent_id"));
                     instruction.setVariableId(rs.getInt("variable_id"));
 

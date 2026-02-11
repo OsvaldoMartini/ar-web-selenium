@@ -389,6 +389,15 @@ public class PerformDBEngine {
                     instruction.setOperation(rs.getString("operation"));
                     instruction.setBlockId(rs.getInt("block_id"));
                     instruction.setParentBlockId(rs.getInt("parent_block_id"));
+
+                    instruction.setParentBlockId(rs.getInt("parent_block_id"));
+
+                    if (instruction.getName().equals("EXCEL GOTO")
+                            && ((instruction.getParentBlockId() != null && instruction.getParentBlockId() == 0)
+                                    || instruction.getParentBlockId() == null)) {
+                        instruction.setParentBlockId(instruction.getBlockId());
+                    }
+
                     instruction.setParentId(rs.getInt("parent_id"));
                     instruction.setVariableId(rs.getInt("variable_id"));
 
@@ -572,6 +581,7 @@ public class PerformDBEngine {
                     InstructionLoad.setParentBlockId(rs.getInt("parent_block_id"));
                     InstructionLoad.setParentId(rs.getInt("parent_id"));
                     InstructionLoad.setBlockId(rs.getInt("block_id"));
+                    InstructionLoad.setBlockOrderNumber(rs.getInt("block_order_number"));
 
                     // Conditional mapping for IDs
                     if ("instruction".equalsIgnoreCase(tableName)) {
@@ -595,5 +605,68 @@ public class PerformDBEngine {
 
     public void callSocketLists(String sessionId) {
         performLists.initialize(sessionId);
+    }
+
+    public ErrorMessage fixExcelGoto(String tableName, int whereId, int instructionId, int newParentBlockId) {
+
+        // Scope key (same logic as your updateUserData)
+        String foreignKeyColumn = "instruction".equalsIgnoreCase(tableName) ? "bot_job_id" : "home_banking_id";
+
+        String updateSQL = "UPDATE " + tableName + " SET "
+                + "parent_block_id = ? "
+                + "WHERE id = ? "
+                + "AND " + foreignKeyColumn + " = ?";
+
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false);
+
+            try (PreparedStatement pstmt = conn.prepareStatement(updateSQL)) {
+                pstmt.setInt(1, newParentBlockId);
+                pstmt.setInt(2, instructionId);
+                pstmt.setInt(3, whereId);
+
+                int rowsAffected = pstmt.executeUpdate();
+                conn.commit();
+
+                if (rowsAffected > 0) {
+                    logDB.info(String.format(
+                            "Updated parent_block_id=%d in %s where id=%d and %s=%d",
+                            newParentBlockId, tableName, instructionId, foreignKeyColumn, whereId));
+                    return null; // success
+                } else {
+                    logDB.warn(String.format(
+                            "No matching row found in %s where id=%d and %s=%d (no update)",
+                            tableName, instructionId, foreignKeyColumn, whereId));
+                    return new ErrorMessage(
+                            "Update Warning",
+                            "No matching row found to update parent_block_id in " + tableName,
+                            "No rows affected");
+                }
+
+            } catch (SQLException e) {
+                try {
+                    conn.rollback();
+                } catch (SQLException ignore) {
+                }
+
+                logDB.error(String.format(
+                        "Error updating parent_block_id in %s where id=%d and %s=%d. Error: %s",
+                        tableName, instructionId, foreignKeyColumn, whereId, e.getMessage()));
+
+                return new ErrorMessage(
+                        "Update Error",
+                        "Failed to update parent_block_id in " + tableName
+                                + " where id=" + instructionId
+                                + " and " + foreignKeyColumn + "=" + whereId,
+                        e.getMessage());
+            }
+
+        } catch (SQLException ex) {
+            logDB.error(String.format(
+                    "Connection error while updating parent_block_id in %s where id=%d and %s=%d. Error: %s",
+                    tableName, instructionId, foreignKeyColumn, whereId, ex.getMessage()));
+
+            return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
+        }
     }
 }
