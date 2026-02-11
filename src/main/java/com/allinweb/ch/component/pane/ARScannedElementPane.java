@@ -5382,14 +5382,6 @@ public class ARScannedElementPane extends ARPane {
         return null;
     }
 
-    private boolean isWebElement(String action) {
-        if (action == null || action.isEmpty()) {
-            return false;
-        }
-
-        return action.startsWith("C") || action.startsWith("I:") || action.startsWith("O:");
-    }
-
     private static class ValidationResult {
         final boolean valid;
         final String invalidReason; // null if none
