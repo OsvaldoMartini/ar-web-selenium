@@ -790,6 +790,8 @@ public class PerformActions {
         String instructionPath = currentInstruction.getXpath();
         String tagName = null;
 
+        WebDriverWait waitLocator = new WebDriverWait(getCurrentDriver(), Duration.ofSeconds(0));
+
         this.currentDriver.switchTo().defaultContent();
         if (this.currentDriver.getWindowHandles().size() > 1) {
             try {
@@ -849,7 +851,7 @@ public class PerformActions {
         }
 
         int attempts = 0;
-        int maxAttempts = forceCoordinates || byPassFlagLoop ? 2 : 5;
+        int maxAttempts = forceCoordinates || byPassFlagLoop ? 2 : 4;
 
         while (elementFound == null && attempts < maxAttempts) {
 
@@ -903,13 +905,11 @@ public class PerformActions {
 
                     if (criterias == null) continue;
 
-                    WebDriverWait wait = new WebDriverWait(getCurrentDriver(), Duration.ofSeconds(2));
-
                     for (By criteria : criterias) {
 
                         List<WebElement> foundElementList = new ArrayList<>();
                         try {
-                            wait.until(ExpectedConditions.presenceOfElementLocated(criteria));
+                            waitLocator.until(ExpectedConditions.presenceOfElementLocated(criteria));
                             foundElementList = getCurrentDriver().findElements(criteria);
 
                             if (!foundElementList.isEmpty()) {

@@ -50,6 +50,7 @@ import javafx.geometry.Pos;
 import javafx.geometry.VPos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
+import javafx.scene.control.Alert;
 import javafx.scene.layout.*;
 import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
@@ -61,10 +62,8 @@ import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import lombok.extern.slf4j.Slf4j;
-import org.openqa.selenium.By;
-import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebElement;
+import org.openqa.selenium.*;
+import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -179,6 +178,7 @@ public class ARScannedElementPane extends ARPane {
     private RowStatus rowStatus = new RowStatus();
     private PayloadJson payloadEmpty;
     private ARWebDriver currentARWebDriver;
+    WebDriverWait waitXPath = null;
 
     // Private constructor to prevent instantiation
     private ARScannedElementPane() {}
@@ -3171,12 +3171,13 @@ public class ARScannedElementPane extends ARPane {
         Integer lastBlockOrderPushed = null;
         TargetElement matchScanned = null;
         TargetElement matchXPath = null;
+        WebElement webElementFound = null;
         //        List<InputInfo> inputs = new ArrayList<>();
 
         sessionRowStatus = "botJobTasks"; // + botJobId;
 
         variablesLoaded = performLists.getListVariable();
-        Map<String, String> mapSavedLocators = new HashMap<>();
+        //        Map<String, String> mapSavedLocators = new HashMap<>();
 
         Set<Integer> parentIdsForLoop = null;
         Set<Integer> allOutPuts = null;
@@ -3471,9 +3472,14 @@ public class ARScannedElementPane extends ARPane {
                             InstructionLoad currentInstruction =
                                     blockLoad.getInstructionLoad().get(currentIndex);
 
-                            // Fire on FIRST page load OR when the INSTRUCTION changes
-                            // and only for web-element work (INPUT / OUTPUT / CLICK)
+                            // FIRST IMMEDIATE ATTEMPT TO LOCATE
                             if (isWebElementInstruction(currentInstruction)) {
+                                webElementFound = immediatXPath(currentInstruction.getXpath());
+                            }
+
+                            // Fire on FIRST page load OR when the INSTRUCTION changes
+                            // and only for web-element work (INPUT / OUTPUT / CLICK / GET / SET)
+                            if (isWebElementInstruction(currentInstruction) && webElementFound == null) {
 
                                 Integer currentInstructionId = currentInstruction.getId();
 
@@ -3529,15 +3535,18 @@ public class ARScannedElementPane extends ARPane {
                                 continue;
                             }
 
-                            mapSavedLocators.clear();
-
-                            // Loop through the instructionReferenceLoadDTOList
-                            if (currentInstruction.getReferenceLoadDTOList() != null) {
-                                for (ReferenceLoadDTO reference : currentInstruction.getReferenceLoadDTOList()) {
-                                    // Populate the map with referenceType as the key and value as the value
-                                    mapSavedLocators.put(reference.getReferenceType(), reference.getValue());
-                                }
-                            }
+                            //                            mapSavedLocators.clear();
+                            //
+                            //                            // Loop through the instructionReferenceLoadDTOList
+                            //                            if (currentInstruction.getReferenceLoadDTOList() != null) {
+                            //                                for (ReferenceLoadDTO reference :
+                            // currentInstruction.getReferenceLoadDTOList()) {
+                            //                                    // Populate the map with referenceType as the key and
+                            // value as the value
+                            //                                    mapSavedLocators.put(reference.getReferenceType(),
+                            // reference.getValue());
+                            //                                }
+                            //                            }
 
                             currentIndex++;
 
@@ -4172,44 +4181,54 @@ public class ARScannedElementPane extends ARPane {
                                     FieldData fieldData = performActions.extractFieldData(
                                             dataExcel, actions, defaultValue, currentInstruction.getCodified());
 
-                                    WebElement webElementFound = null;
+                                    //                                    webElementFound = null;
                                     boolean forceCoordinates = currentInstruction.getForceCoordinates() != null
                                             && currentInstruction.getForceCoordinates();
 
                                     if (!isMobileApp) {
-                                        try {
-                                            performActions.waitPage();
 
-                                            matchXPath = InstructionLoadMatcher.findMatchingTargetElementByXPath(
-                                                    performLists.getListTargetElements(), currentInstruction);
-                                            matchScanned = null;
-                                            //                                            InputInfo match =
-                                            // findMatchingInput(inputs, currentInstruction);
+                                        if (isWebElementInstruction(currentInstruction) && webElementFound == null) {
+                                            try {
+                                                performActions.waitPage();
 
-                                            if (matchXPath == null) {
-                                                matchScanned = InstructionLoadMatcher.findMatchingTargetElement(
+                                                matchXPath = InstructionLoadMatcher.findMatchingTargetElementByXPath(
                                                         performLists.getListTargetElements(), currentInstruction);
+                                                matchScanned = null;
+                                                //                                            InputInfo match =
+                                                // findMatchingInput(inputs, currentInstruction);
 
-                                                if (matchScanned != null) {
-                                                    InstructionLoadUpdater.applyMatchToInstruction(
-                                                            currentInstruction, matchScanned);
+                                                if (matchXPath == null) {
+                                                    matchScanned = InstructionLoadMatcher.findMatchingTargetElement(
+                                                            performLists.getListTargetElements(), currentInstruction);
+
+                                                    if (matchScanned != null) {
+                                                        InstructionLoadUpdater.applyMatchToInstruction(
+                                                                currentInstruction, matchScanned);
+
+                                                        // SECOND IMMEDIATE ATTEMPT TO LOCATE
+                                                        webElementFound = immediatXPath(matchScanned.getXPath());
+                                                    }
                                                 }
-                                            }
 
-                                            // VERY IMPORTANT TO VALIDAE IF THE ELEMENT IS ON TEH PAGE FIRST
-                                            //                                            if (matchXPath != null ||
-                                            // matchScanned != null || match != null) {
-                                            webElementFound = performActions.searchElement(
-                                                    currentInstruction,
-                                                    this.currentBotJob.getId(),
-                                                    forceCoordinates,
-                                                    byPassFlagLoop);
-                                            //                                            } else {
-                                            //                                                webElementFound = null;
-                                            //                                                forceCoordinates = false;
-                                            //                                            }
-                                        } catch (Exception ex) {
-                                            success = false;
+                                                // VERY IMPORTANT TO VALIDAE IF THE ELEMENT IS ON TEH PAGE FIRST
+                                                //                                            if (matchXPath != null ||
+                                                // matchScanned != null || match != null) {
+                                                if (webElementFound == null) {
+                                                    webElementFound = performActions.searchElement(
+                                                            currentInstruction,
+                                                            this.currentBotJob.getId(),
+                                                            forceCoordinates,
+                                                            byPassFlagLoop);
+                                                }
+                                                //                                            } else {
+                                                //                                                webElementFound =
+                                                // null;
+                                                //                                                forceCoordinates =
+                                                // false;
+                                                //                                            }
+                                            } catch (Exception ex) {
+                                                success = false;
+                                            }
                                         }
                                     } else {
                                         // Safely extract the first element ID (if present)
@@ -4299,7 +4318,7 @@ public class ARScannedElementPane extends ARPane {
 
                                         success = performActions.performWebActions(
                                                 byPassNotFound,
-                                                mapSavedLocators.get("coordinates"),
+                                                "coordinates",
                                                 fieldData,
                                                 currentInstruction,
                                                 mapOperators,
@@ -4354,7 +4373,7 @@ public class ARScannedElementPane extends ARPane {
                                         success = false;
                                     } else {
 
-                                        WebElement webElementFound = null;
+                                        webElementFound = null;
                                         if (isMobileApp) {
                                             //                                            int index = IntStream.range(0,
                                             // instructionIds.length)
@@ -5317,6 +5336,31 @@ public class ARScannedElementPane extends ARPane {
         setInterceptBotJob(false);
         isJobRunning.set(false);
         return true;
+    }
+
+    private WebElement immediatXPath(String xPath) {
+        try {
+            if (waitXPath == null && performActions.getCurrentDriver() != null) {
+                waitXPath = new WebDriverWait(performActions.getCurrentDriver(), Duration.ofSeconds(0));
+            }
+            waitXPath.until(ExpectedConditions.presenceOfElementLocated(By.xpath(xPath)));
+            List<WebElement> foundElementList =
+                    performActions.getCurrentDriver().findElements(By.xpath(xPath));
+            if (foundElementList.size() > 0) {
+                return foundElementList.get(0);
+            }
+        } catch (TimeoutException ignored) {
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+
+    private boolean isWebElement(String action) {
+        if (action == null || action.isEmpty()) {
+            return false;
+        }
+
+        return action.startsWith("C") || action.startsWith("I:") || action.startsWith("O:");
     }
 
     private static class ValidationResult {
@@ -6957,21 +7001,28 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private static boolean isWebElementInstruction(InstructionLoad instr) {
-        if (instr == null || instr.getActions() == null) return false;
+        if (instr == null) return false;
 
-        String raw = instr.getActions().trim();
+        String actions = instr.getActions();
+        if (actions == null) return false;
+
+        String raw = actions.trim();
         if (raw.isEmpty()) return false;
 
-        // If actions are split by your splitter, check the first token (most important)
-        String first = raw.split(ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER)[0].trim();
+        // split() takes a regex, so quote the splitter to treat it literally
+        String[] parts = raw.split(Pattern.quote(ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER), 2);
+        String first = parts[0].trim();
+        if (first.isEmpty()) return false;
 
-        // Prefix-based forms like "C:..." or "I:..."
-        String upper = first.toUpperCase();
-        if (upper.startsWith("C:") || upper.startsWith("I:")) return true;
+        String upper = first.toUpperCase(Locale.ROOT);
 
-        // If you also have plain "C" or "SET"/"GET" etc, map them here
-        // Based on your UI switch, "C" = click, "SET"/"GET" are web-field operations.
-        return upper.equals("C") || upper.equals("SET") || upper.equals("GET");
+        // Required prefixes: "C" (including "C:"), "I:", "O:"
+        if (upper.startsWith("C") || upper.startsWith("I") || upper.startsWith("O")) {
+            return true;
+        }
+
+        // Optional: support plain operation tokens
+        return upper.equals("SET") || upper.equals("GET");
     }
 
     private String clean(String value) {
