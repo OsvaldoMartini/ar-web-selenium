@@ -149,7 +149,7 @@ public class ARControlPanel extends Application {
             log.info("Configuration file path: " + defaultConfigurationFileName);
         }
 
-        arPropertyManager.setProperty(ARPropertyEnum.VERSION.getValue(), "AR Web v4.2g Beta Test");
+        arPropertyManager.setProperty(ARPropertyEnum.VERSION.getValue(), "AR Web v4.7g Beta Test");
         arPropertyManager.setProperty(ARPropertyEnum.BUILD.getValue(), "Build: 29/01/2026"); //
     }
 
