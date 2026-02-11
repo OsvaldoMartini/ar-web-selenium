@@ -1945,11 +1945,26 @@ public class ARScannedElementPane extends ARPane {
             ErrorMessage errorMessage = performDBEngine.loadHomeBanking(null);
             if (errorMessage == null)
                 errorMessage = performDBEngine.loadHomeUrls(this.currentBotJob.getHomeBankingId());
+
+            if (errorMessage == null) {
+                excelDataGoto = performDBEngine.loadExcelGotoBlock(this.currentBotJob.getId(), "instruction");
+
+                if (excelDataGoto.get(0).getParentBlockId() == null
+                        || excelDataGoto.get(0).getParentBlockId() <= 0) {
+                    performDBEngine.fixExcelGoto(
+                            "instruction",
+                            currentBotJob.getId(),
+                            excelDataGoto.get(0).getId(),
+                            excelDataGoto.get(0).getBlockId());
+
+                    excelDataGoto = performDBEngine.loadExcelGotoBlock(this.currentBotJob.getId(), "instruction");
+                }
+            }
+
             if (errorMessage == null) errorMessage = performDBEngine.loadCompleteJobs(this.currentBotJob.getId());
+
             if (errorMessage == null)
                 errorMessage = performDBEngine.loadAllVariables("variable", this.currentBotJob.getId());
-            if (errorMessage == null)
-                excelDataGoto = performDBEngine.loadExcelGotoBlock(this.currentBotJob.getId(), "instruction");
 
             if (errorMessage == null && !performLists.getListBotJob().isEmpty()) {
                 blocksLoaded = performLists.getListBotJob().get(0).getBlockLoadDTOList();
@@ -3207,14 +3222,18 @@ public class ARScannedElementPane extends ARPane {
             if (!excelDataGoto.isEmpty() && !blocksLoaded.isEmpty()) {
                 Integer parentBlockId =
                         excelDataGoto.get(excelDataGoto.size() - 1).getParentBlockId();
+                excelDataGoto
+                        .get(0)
+                        .setParentBlockId(excelDataGoto.get(0).getBlockId()); // overwrite/fix using block table
+
                 blockExcelGoto = performActions.getBlockOrderNumber(blocksLoaded, parentBlockId) - 1;
 
+                // PREVENTID  LATGER DELETION
                 if (blockExcelGoto < 0) {
-                    performDBEngine.fixExcelGoto(
-                            "instruction",
-                            currentBotJob.getId(),
-                            excelDataGoto.get(0).getId(),
-                            excelDataGoto.get(0).getBlockId());
+                    blockExcelGoto = (excelDataGoto.get(0).getBlockOrderNumber() == null
+                                    || excelDataGoto.get(0).getBlockOrderNumber() <= 0)
+                            ? 1
+                            : excelDataGoto.get(0).getBlockOrderNumber();
                 }
             }
 
