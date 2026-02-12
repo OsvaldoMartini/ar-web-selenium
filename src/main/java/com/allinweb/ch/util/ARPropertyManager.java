@@ -366,9 +366,12 @@ public class ARPropertyManager {
             //                    0);
 
             for (String prop : missingProperties) {
+                //appium
                 if ("path_appium".equals(prop)) {
                     setProperty(ARPropertyEnum.PATH_APPIUM.getValue(), ARConstantsEngine.USER_PATH + "\\appium");
                 }
+
+                // navigation time
                 if ("navigation_time".equals(prop)) {
                     setProperty(ARPropertyEnum.NAVIGATION_TIME.getValue(), "2");
                 }
