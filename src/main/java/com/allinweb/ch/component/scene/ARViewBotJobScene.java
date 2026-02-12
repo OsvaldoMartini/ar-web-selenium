@@ -648,21 +648,16 @@ public class ARViewBotJobScene extends ARScene {
             instruction.setName(targetInsert.getNameLabel());
         }
 
-        // Fix action string
-        String actions = instruction.getActions();
-        String[] parts = actions.split(",");
-        if (actions.startsWith("I:")) {
-            for (int i = 0; i < parts.length; i++) {
-                parts[i] = parts[i].trim();
-                if (parts[i].startsWith("I:")) {
-                    parts[i] = parts[i].contains(":E:")
-                            ? "I:E:" + targetInsert.getDefinedName()
-                            : "I:" + targetInsert.getDefinedName();
-                    break;
-                }
-            }
-            instruction.setActions(parts[0]);
+        if (Strings.isNullOrEmpty(instruction.getName())) {
+            instruction.setName(targetInsert.getTagName());
         }
+
+        // Normalize actions string
+        String actions = instruction.getActions();
+        boolean enter = "active".equals(targetInsert.getAutoEnter());
+        boolean scroll = "active".equals(targetInsert.getAutoScroll());
+
+        instruction.setActions(normalizeActions(actions, enter, scroll));
 
         // Set references
         List<ReferenceLoadDTO> referenceList = new ArrayList<>();
@@ -676,6 +671,33 @@ public class ARViewBotJobScene extends ARScene {
 
         instruction.setReferenceLoadDTOList(referenceList);
         instructionList.add(instruction);
+    }
+
+    private static String normalizeActions(String actions, boolean autoEnter, boolean autoScroll) {
+        // If null → return original value (do nothing)
+        if (actions == null) {
+            return null;
+        }
+
+        // If blank, keep it blank (optional — remove if you want blank normalized)
+        if (actions.isBlank()) {
+            return actions;
+        }
+
+        // Extract base (I / C / O)
+        String base = actions.split(":", 2)[0].trim();
+
+        StringBuilder sb = new StringBuilder(base);
+
+        if (autoEnter) {
+            sb.append(":E");
+        }
+
+        if (autoScroll) {
+            sb.append(":S");
+        }
+
+        return sb.toString();
     }
 
     public InstructionLoad buildNewInstruction(
