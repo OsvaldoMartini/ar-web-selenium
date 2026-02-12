@@ -151,7 +151,7 @@ public class ARViewBotJobPane extends ARPane {
     private void updateNavigationTimeButtonLabel() {
         if (navigationTimeButton != null) {
             int v = getNavigationTimeValue();
-            navigationTimeButton.setText("Navigation Time: " + v);
+            navigationTimeButton.setText("Navigation Time: " + v + "s");
             updateNavigationTimeButtonColor(v);
         }
     }
@@ -401,7 +401,7 @@ public class ARViewBotJobPane extends ARPane {
 
         // Navigation time button (0..10)
         int navTimeInitial = getNavigationTimeValue();
-        this.navigationTimeButton = new Button("Navigation Time: " + navTimeInitial);
+        this.navigationTimeButton = new Button("Navigation Time: " + navTimeInitial + "s");
         this.navigationTimeButton.setPadding(new Insets(5.0D));
         this.navigationTimeButton.setFocusTraversable(false);
         updateNavigationTimeButtonColor(navTimeInitial);
@@ -929,7 +929,7 @@ public class ARViewBotJobPane extends ARPane {
             int current = getNavigationTimeValue();
             int next = (current + 1) % 11; // 0..10
             setNavigationTimeValue(next);
-            navigationTimeButton.setText("Navigation Time: " + next);
+            navigationTimeButton.setText("Navigation Time: " + next + "s");
             updateNavigationTimeButtonColor(next);
         });
 
