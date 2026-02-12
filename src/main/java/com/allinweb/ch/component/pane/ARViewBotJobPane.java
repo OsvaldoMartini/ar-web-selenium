@@ -151,7 +151,7 @@ public class ARViewBotJobPane extends ARPane {
     private void updateNavigationTimeButtonLabel() {
         if (navigationTimeButton != null) {
             int v = getNavigationTimeValue();
-            navigationTimeButton.setText("Time: " + v);
+            navigationTimeButton.setText("Navigation Time: " + v);
             updateNavigationTimeButtonColor(v);
         }
     }
@@ -401,7 +401,7 @@ public class ARViewBotJobPane extends ARPane {
 
         // Navigation time button (0..10)
         int navTimeInitial = getNavigationTimeValue();
-        this.navigationTimeButton = new Button("Time: " + navTimeInitial);
+        this.navigationTimeButton = new Button("Navigation Time: " + navTimeInitial);
         this.navigationTimeButton.setPadding(new Insets(5.0D));
         this.navigationTimeButton.setFocusTraversable(false);
         updateNavigationTimeButtonColor(navTimeInitial);
@@ -446,20 +446,20 @@ public class ARViewBotJobPane extends ARPane {
         editBotJobButton.setPrefWidth(buttonWidth);
         leftGridPane.add(editBotJobButton, 3, 0);
 
-        navigationTimeButton.setPrefWidth(buttonWidth);
-        leftGridPane.add(navigationTimeButton, 4, 0);
-
         launchBotJobButton.setPrefWidth(buttonWidth);
-        leftGridPane.add(launchBotJobButton, 5, 0);
+        leftGridPane.add(launchBotJobButton, 4, 0);
+
+        navigationTimeButton.setPrefWidth(buttonWidth * 2); // or 220
+        leftGridPane.add(navigationTimeButton, 0, 1, 2, 1); // span 2 columns
 
         openExcelFileButton.setPrefWidth(buttonWidth);
         leftGridPane.add(openExcelFileButton, 3, 1);
 
         generateExcelButton.setPrefWidth(buttonWidth);
-        leftGridPane.add(generateExcelButton, 4, 1);
+        leftGridPane.add(generateExcelButton, 3, 1);
 
         closeBotJobButton.setPrefWidth(buttonWidth);
-        leftGridPane.add(closeBotJobButton, 5, 1);
+        leftGridPane.add(closeBotJobButton, 4, 1);
 
         // Center the buttons
         for (Node node : leftGridPane.getChildren()) {
@@ -929,7 +929,7 @@ public class ARViewBotJobPane extends ARPane {
             int current = getNavigationTimeValue();
             int next = (current + 1) % 11; // 0..10
             setNavigationTimeValue(next);
-            navigationTimeButton.setText("Time: " + next);
+            navigationTimeButton.setText("Navigation Time: " + next);
             updateNavigationTimeButtonColor(next);
         });
 
