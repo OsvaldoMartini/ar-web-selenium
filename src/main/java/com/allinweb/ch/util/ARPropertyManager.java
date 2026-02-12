@@ -302,7 +302,8 @@ public class ARPropertyManager {
             //            "db_url",
             //            "db_user",
             //            "db_pwd",
-            //            "path_appium",
+            "path_appium",
+            "navigation_time",
             "path_excel",
             "path_log",
             "path_db",
@@ -367,6 +368,9 @@ public class ARPropertyManager {
             for (String prop : missingProperties) {
                 if ("path_appium".equals(prop)) {
                     setProperty(ARPropertyEnum.PATH_APPIUM.getValue(), ARConstantsEngine.USER_PATH + "\\appium");
+                }
+                if ("navigation_time".equals(prop)) {
+                    setProperty(ARPropertyEnum.NAVIGATION_TIME.getValue(), "2");
                 }
             }
 

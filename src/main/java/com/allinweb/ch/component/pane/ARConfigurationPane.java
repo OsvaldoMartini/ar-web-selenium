@@ -1023,11 +1023,10 @@ public class ARConfigurationPane extends ARPane {
             validfields = false;
         }
 
-        //        if (Strings.isNullOrEmpty(pathAppium.getText())) {
-        //            new ARAlertScene(Alert.AlertType.ERROR, "Field Blank", "Appium Path must be filed!",
-        // ButtonType.OK);
-        //            validfields = false;
-        //        }
+        if (Strings.isNullOrEmpty(pathAppium.getText())) {
+            new ARAlertScene(Alert.AlertType.ERROR, "Field Blank", "Appium Path must be filed!", ButtonType.OK);
+            validfields = false;
+        }
 
         if (validfields) {
 

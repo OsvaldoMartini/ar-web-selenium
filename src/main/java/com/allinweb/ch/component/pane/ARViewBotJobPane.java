@@ -48,6 +48,7 @@ import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
+import javax.swing.*;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -68,6 +69,7 @@ public class ARViewBotJobPane extends ARPane {
     Button refreshButton;
     Button openScannerButton;
     Button editBotJobButton;
+    Button navigationTimeButton;
     Button launchBotJobButton;
     Button saveBotJobButton;
     //    Button saveAsBotJobButton;
@@ -116,6 +118,42 @@ public class ARViewBotJobPane extends ARPane {
     private ARViewBotJobPane() {
 
         super();
+    }
+
+    private int getNavigationTimeValue() {
+        try {
+            String v = arPropertyManager.getProperty(ARPropertyEnum.NAVIGATION_TIME);
+            if (Strings.isNullOrEmpty(v)) {
+                return 0;
+            }
+            return Integer.parseInt(v.trim());
+        } catch (Exception ex) {
+            return 0;
+        }
+    }
+
+    private void setNavigationTimeValue(int value) {
+        // Clamp to 0..10
+        int v = value % 11;
+        if (v < 0) {
+            v += 11;
+        }
+        try {
+            // ARPropertyManager behaves like java.util.Properties in many places
+            // (user requirement: setProperty(ARPropertyEnum.NAVIGATION_TIME.getValue(), ...))
+            arPropertyManager.setProperty(ARPropertyEnum.NAVIGATION_TIME.getValue(), String.valueOf(v));
+        } catch (Exception ex) {
+            // Fallback: if setProperty(String,String) is not available, keep UI consistent anyway.
+            log.warn("Unable to persist NAVIGATION_TIME property. Value will only be reflected in UI.", ex);
+        }
+    }
+
+    private void updateNavigationTimeButtonLabel() {
+        if (navigationTimeButton != null) {
+            int v = getNavigationTimeValue();
+            navigationTimeButton.setText("Time: " + v);
+            updateNavigationTimeButtonColor(v);
+        }
     }
 
     public static ARViewBotJobPane getInstance() {
@@ -197,6 +235,9 @@ public class ARViewBotJobPane extends ARPane {
         }
 
         updateHomeUrlLabels();
+
+        // Keep the Time button in sync with the persisted property
+        updateNavigationTimeButtonLabel();
 
         if (!webSocketSessionManager.getAllSessions().isEmpty()) {
             refreshGrids();
@@ -358,6 +399,13 @@ public class ARViewBotJobPane extends ARPane {
         this.editBotJobButton = builder.buildButton(
                 "Edit Job", ARConstants.SPACE_ZERO, ARConstants.ICON_EDIT, ARConstants.SPACE_M, new Insets(5.0D));
 
+        // Navigation time button (0..10)
+        int navTimeInitial = getNavigationTimeValue();
+        this.navigationTimeButton = new Button("Time: " + navTimeInitial);
+        this.navigationTimeButton.setPadding(new Insets(5.0D));
+        this.navigationTimeButton.setFocusTraversable(false);
+        updateNavigationTimeButtonColor(navTimeInitial);
+
         this.launchBotJobButton = builder.buildButton(
                 "Launch", ARConstants.SPACE_ZERO, ARConstants.ICON_PLAY, ARConstants.SPACE_M, new Insets(5.0D));
         saveBotJobButton = builder.buildButton(
@@ -398,17 +446,20 @@ public class ARViewBotJobPane extends ARPane {
         editBotJobButton.setPrefWidth(buttonWidth);
         leftGridPane.add(editBotJobButton, 3, 0);
 
+        navigationTimeButton.setPrefWidth(buttonWidth);
+        leftGridPane.add(navigationTimeButton, 4, 0);
+
         launchBotJobButton.setPrefWidth(buttonWidth);
-        leftGridPane.add(launchBotJobButton, 4, 0);
+        leftGridPane.add(launchBotJobButton, 5, 0);
 
         openExcelFileButton.setPrefWidth(buttonWidth);
-        leftGridPane.add(openExcelFileButton, 2, 1);
+        leftGridPane.add(openExcelFileButton, 3, 1);
 
         generateExcelButton.setPrefWidth(buttonWidth);
-        leftGridPane.add(generateExcelButton, 3, 1);
+        leftGridPane.add(generateExcelButton, 4, 1);
 
         closeBotJobButton.setPrefWidth(buttonWidth);
-        leftGridPane.add(closeBotJobButton, 4, 1);
+        leftGridPane.add(closeBotJobButton, 5, 1);
 
         // Center the buttons
         for (Node node : leftGridPane.getChildren()) {
@@ -874,6 +925,14 @@ public class ARViewBotJobPane extends ARPane {
                 }
             }
         });
+        this.navigationTimeButton.setOnMouseClicked((e) -> {
+            int current = getNavigationTimeValue();
+            int next = (current + 1) % 11; // 0..10
+            setNavigationTimeValue(next);
+            navigationTimeButton.setText("Time: " + next);
+            updateNavigationTimeButtonColor(next);
+        });
+
         this.launchBotJobButton.setOnMouseClicked((e) -> {
             ARPropertyManager managerProps = arPropertyManager;
             String enginePath = managerProps.getProperty(ARPropertyEnum.PATH_ENGINE); // + "\\AR_Web_Engine.jar";
@@ -1480,5 +1539,19 @@ public class ARViewBotJobPane extends ARPane {
             safeFileName = safeFileName.substring(0, 100);
         }
         return safeFileName;
+    }
+
+    private void updateNavigationTimeButtonColor(int value) {
+        String bg;
+        if (value == 0) {
+            bg = "#00B400"; // green
+        } else if (value >= 1 && value <= 5) {
+            bg = "#FFFF99"; // light yellow
+        } else {
+            bg = "#FF8C00"; // orange (6-10)
+        }
+
+        // JavaFX styling
+        navigationTimeButton.setStyle("-fx-background-color: " + bg + "; -fx-text-fill: black;");
     }
 }
