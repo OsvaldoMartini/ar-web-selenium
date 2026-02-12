@@ -767,6 +767,76 @@ public class PerformLists {
         }
     }
 
+    public void updateMemoryInstructionActionsUpdate(
+            String tableName, Integer whereId, Integer instructionId, String actions) {
+        try {
+            if ("instruction".equalsIgnoreCase(tableName)) {
+
+                // Update global instruction list
+                for (InstructionLoad instr : getListInstruction()) {
+                    if (Objects.equals(instr.getId(), instructionId) && Objects.equals(instr.getBotJobId(), whereId)) {
+                        instr.setActions(actions);
+                        break; // only one instruction matches
+                    }
+                }
+
+                // Update inside BotJob -> Block -> Instruction
+                for (BotJobLoadDTO botJob : getListBotJob()) {
+                    if (Objects.equals(botJob.getId(), whereId)) {
+                        if (botJob.getBlockLoadDTOList() != null) {
+                            for (BlockLoadDTO block : botJob.getBlockLoadDTOList()) {
+                                if (block.getInstructionLoad() != null) {
+                                    for (InstructionLoad instr : block.getInstructionLoad()) {
+                                        if (Objects.equals(instr.getId(), instructionId)) {
+                                            instr.setActions(actions);
+                                            break; // only one instruction matches
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+            } else if ("component_instruction".equalsIgnoreCase(tableName)) {
+
+                // Update global component instruction list
+                for (InstructionLoad instr : getListInstructionComp()) {
+                    if (Objects.equals(instr.getId(), instructionId)
+                            && Objects.equals(instr.getHomeBankingId(), whereId)) {
+                        instr.setActions(actions);
+                        break; // only one instruction matches
+                    }
+                }
+
+                // Update inside BotJobComp -> Block -> Instruction
+                for (BotJobLoadDTO botJob : getListBotJobComp()) {
+                    if (Objects.equals(botJob.getHomeBankingId(), whereId)) {
+                        if (botJob.getBlockLoadDTOList() != null) {
+                            for (BlockLoadDTO block : botJob.getBlockLoadDTOList()) {
+                                if (block.getInstructionLoad() != null) {
+                                    for (InstructionLoad instr : block.getInstructionLoad()) {
+                                        if (Objects.equals(instr.getId(), instructionId)) {
+                                            instr.setActions(actions);
+                                            break; // only one instruction matches
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+            } else {
+                throw new IllegalArgumentException("Invalid tableName: " + tableName);
+            }
+
+        } catch (Exception error) {
+
+            log.error("Error: Memory Update failed for 'updateMemoryInstructionStatusUpdate': " + error.getMessage());
+        }
+    }
+
     public void updateMemoryBlockExcelExport(String tableName, Integer whereId, Integer blockId, String exportFile) {
         try {
             if ("block".equalsIgnoreCase(tableName)) {

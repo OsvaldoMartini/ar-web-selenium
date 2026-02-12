@@ -760,6 +760,23 @@ public class SimpleWebSocketServer {
                     }
                     alreadySentMgsSocket = false;
                     break;
+                case "ACTIONS_UPDATE":
+                    errorMessage = performDataBase.updateInstructionActions(
+                            instrTable, whereId, instructionId, blockId, actions);
+
+                    // MEMORY UPDATE
+                    if (errorMessage == null) {
+                        performLists.updateMemoryInstructionActionsUpdate(instrTable, whereId, instructionId, actions);
+                    }
+
+                    if (instrTable.equals("instruction")) {
+                        performLists.getListBotJob().clear();
+                    } else {
+                        performLists.getListBotJobComp().clear();
+                    }
+
+                    alreadySentMgsSocket = false;
+                    break;
                 case "BLOCK_STATUS":
                     errorMessage = performDataBase.updateBlockStatus(blockTable, whereId, blockId, blockActive);
 

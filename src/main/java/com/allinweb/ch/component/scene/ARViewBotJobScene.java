@@ -674,28 +674,42 @@ public class ARViewBotJobScene extends ARScene {
     }
 
     private static String normalizeActions(String actions, boolean autoEnter, boolean autoScroll) {
-        // If null → return original value (do nothing)
-        if (actions == null) {
-            return null;
+        if (actions == null) return null;
+        if (actions.isBlank()) return actions;
+
+        String[] parts = actions.trim().split(":");
+        if (parts.length == 0) return actions;
+
+        String base = parts[0].trim();
+
+        // Detect tail (the "XXXX..." you want to keep last).
+        // If the string has more than one token, we treat the last token as tail unless it's a known flag.
+        String last = (parts.length > 1) ? parts[parts.length - 1].trim() : null;
+        boolean lastIsFlag = "E".equalsIgnoreCase(last) || "S".equalsIgnoreCase(last);
+
+        String tail = (!lastIsFlag && last != null) ? last : null;
+
+        // Collect existing flags from the middle tokens (and also from last if it was a flag)
+        boolean hasE = false, hasS = false;
+        for (int i = 1; i < parts.length; i++) {
+            String t = parts[i].trim();
+            if ("E".equalsIgnoreCase(t)) hasE = true;
+            if ("S".equalsIgnoreCase(t)) hasS = true;
         }
 
-        // If blank, keep it blank (optional — remove if you want blank normalized)
-        if (actions.isBlank()) {
-            return actions;
-        }
+        // Add auto flags
+        hasE = hasE || autoEnter;
+        hasS = hasS || autoScroll;
 
-        // Extract base (I / C / O)
-        String base = actions.split(":", 2)[0].trim();
-
+        // Build output. Choose a fixed order so results are stable (no UI flicker / diff noise).
         StringBuilder sb = new StringBuilder(base);
 
-        if (autoEnter) {
-            sb.append(":E");
-        }
+        // Example fixed order: S then E (pick the one you prefer and keep it consistent)
+        if (hasS) sb.append(":S");
+        if (hasE) sb.append(":E");
 
-        if (autoScroll) {
-            sb.append(":S");
-        }
+        // Append tail last (only if it exists)
+        if (tail != null && !tail.isBlank()) sb.append(":").append(tail);
 
         return sb.toString();
     }
