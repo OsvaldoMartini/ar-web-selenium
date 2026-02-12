@@ -453,7 +453,7 @@ public class ARViewBotJobPane extends ARPane {
         leftGridPane.add(navigationTimeButton, 0, 1, 2, 1); // span 2 columns
 
         openExcelFileButton.setPrefWidth(buttonWidth);
-        leftGridPane.add(openExcelFileButton, 3, 1);
+        leftGridPane.add(openExcelFileButton, 2, 1);
 
         generateExcelButton.setPrefWidth(buttonWidth);
         leftGridPane.add(generateExcelButton, 3, 1);
