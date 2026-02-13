@@ -1949,8 +1949,8 @@ public class ARScannedElementPane extends ARPane {
             if (errorMessage == null) {
                 excelDataGoto = performDBEngine.loadExcelGotoBlock(this.currentBotJob.getId(), "instruction");
 
-                if (excelDataGoto.get(0).getParentBlockId() == null
-                        || excelDataGoto.get(0).getParentBlockId() <= 0) {
+                if ((!excelDataGoto.isEmpty() && excelDataGoto.get(0).getParentBlockId() == null)
+                        || (!excelDataGoto.isEmpty() && excelDataGoto.get(0).getParentBlockId() <= 0)) {
                     performDBEngine.fixExcelGoto(
                             "instruction",
                             currentBotJob.getId(),
@@ -3232,10 +3232,12 @@ public class ARScannedElementPane extends ARPane {
 
                 // PREVENTID  LATGER DELETION
                 if (blockExcelGoto < 0) {
-                    blockExcelGoto = (excelDataGoto.get(0).getBlockOrderNumber() == null
-                                    || excelDataGoto.get(0).getBlockOrderNumber() <= 0)
-                            ? 1
-                            : excelDataGoto.get(0).getBlockOrderNumber();
+                    blockExcelGoto =
+                            ((!excelDataGoto.isEmpty() && excelDataGoto.get(0).getBlockOrderNumber() == null)
+                                            || (!excelDataGoto.isEmpty()
+                                                    && excelDataGoto.get(0).getBlockOrderNumber() <= 0))
+                                    ? 1
+                                    : excelDataGoto.get(0).getBlockOrderNumber();
                 }
             }
 

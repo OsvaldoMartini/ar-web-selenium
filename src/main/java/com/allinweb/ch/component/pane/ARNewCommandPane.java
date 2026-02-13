@@ -107,7 +107,7 @@ public class ARNewCommandPane extends ARPane {
     double comboOperatorWidth = 50;
     double comboTimesWidth = 70;
     double comboLoopsWidth = 80;
-    boolean variablesDisable = false;
+    //    boolean variablesDisable = false;
     boolean blockIdChanged = false;
     Button addNewInstructionButton;
     Button cancelButton;
@@ -228,10 +228,6 @@ public class ARNewCommandPane extends ARPane {
                         item.getInstructionId(),
                         item.getOrderNumber()))
                 .toList());
-
-        if (filteredPageItems.isEmpty()) {
-            variablesDisable = true;
-        }
 
         // Initialize itemsInstructions list conditionally
         try {
@@ -367,7 +363,7 @@ public class ARNewCommandPane extends ARPane {
         variableButton = builder.buildButton(
                 "Variables", ARConstants.SPACE_L, ARConstants.ICON_VARIABLES, ARConstants.SPACE_M, Insets.EMPTY);
 
-        variableButton.setDisable(variablesDisable);
+        //        variableButton.setDisable(variablesDisable);
 
         //        addExcelNextRowButton = builder.buildButton(
         //                "Data Next Row", ARConstants.SPACE_L, ARConstants.ICON_EXCEL2, ARConstants.SPACE_M, new
@@ -1592,9 +1588,6 @@ public class ARNewCommandPane extends ARPane {
     }
 
     private void recallMessages(String valueEdit) {
-        // Prevention
-        if (comboBoxWebFields.getValue() == null) {}
-
         // Set the visibility of comboBoxOperator based on the selected value
         if (ARConstants.CHECK_VALUE.equalsIgnoreCase(valueEdit)
                 || ARConstants.PDF_CHECK.equalsIgnoreCase(valueEdit)
