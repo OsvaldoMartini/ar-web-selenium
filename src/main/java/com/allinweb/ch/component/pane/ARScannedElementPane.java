@@ -3597,6 +3597,9 @@ public class ARScannedElementPane extends ARPane {
                             boolean execOutPut = false;
                             boolean excelWriteOperation = false;
                             boolean pauseOperation = false;
+                            boolean nextEnter = false;
+                            boolean swipeUp = false;
+                            boolean swipeDown = false;
 
                             String xPathOperation = null;
                             String[] parentActions = null;
@@ -3849,6 +3852,12 @@ public class ARScannedElementPane extends ARPane {
                                         "Continue",
                                         "Stop Run",
                                         0);
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.NEXT_ENTER)) {
+                                nextEnter = true;
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.SWIPE_UP)) {
+                                swipeUp = true;
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.SWIPE_DOWN)) {
+                                swipeDown = true;
                             }
 
                             if (actions[0].equalsIgnoreCase(ARConstantsEngine.LOOP)) {
@@ -4202,21 +4211,18 @@ public class ARScannedElementPane extends ARPane {
                                         && !execPDFCheck
                                         && !execCSVCheck
                                         && !excelWriteOperation
-                                        && !pauseOperation) {
+                                        && !pauseOperation
+                                        && !nextEnter
+                                        && !swipeUp
+                                        && !swipeDown) {
 
                                     webElementWork = true;
 
-                                    // Extract dataFieldName and dataFieldValue using a separate method
-                                    // AR Mobile Work Around for Not creating a new DB column
-                                    String defaultValue = currentInstruction.getDefaultValue() != null
-                                                    && !currentInstruction
-                                                            .getDefaultValue()
-                                                            .contains("scroll-active")
-                                            ? currentInstruction.getDefaultValue()
-                                            : null;
-
                                     FieldData fieldData = performActions.extractFieldData(
-                                            dataExcel, actions, defaultValue, currentInstruction.getCodified());
+                                            dataExcel,
+                                            actions,
+                                            currentInstruction.getDefaultValue(),
+                                            currentInstruction.getCodified());
 
                                     //                                    webElementFound = null;
                                     boolean forceCoordinates = currentInstruction.getForceCoordinates() != null
@@ -4340,7 +4346,7 @@ public class ARScannedElementPane extends ARPane {
                                     //                                                success =
                                     // performActions.executeActionsAtCoordinates(
                                     //
-                                    // mapSavedLocators.get("coordinates"),
+                                    // "coordinates",
                                     //                                                        fieldData,
                                     //                                                        actions[0],
                                     //                                                        pressEnterAfter);
@@ -5111,6 +5117,86 @@ public class ARScannedElementPane extends ARPane {
 
                                 respModal = ARExecution.DialogModal.NONE;
                                 stopAll = true;
+                                break;
+                            }
+
+                            if (nextEnter) {
+
+                                String nameInstruc =
+                                        "(" + currentInstruction.getId() + ") " + currentInstruction.getName();
+
+                                resultActions = String.format("Device : \"%s\"", nameInstruc);
+
+                                FieldData msgBlock = new FieldData(resultActions, ARConstantsEngine.NEXT_ENTER);
+
+                                // Excel Report and Log
+                                performActions.logAndReport(
+                                        currentCondition,
+                                        true,
+                                        true,
+                                        blockStartTime,
+                                        blockReportName,
+                                        success,
+                                        new String[] {ARConstantsEngine.NEXT_ENTER},
+                                        msgBlock,
+                                        dataExcel,
+                                        writerReport,
+                                        "DEVICE -> NEXT/ENTER",
+                                        String.format("NEXT/ENTER CALLED AT: \"%s\" : ", nameInstruc));
+
+                                respModal = ARExecution.DialogModal.NONE;
+                                break;
+                            } else if (swipeUp) {
+
+                                String nameInstruc =
+                                        "(" + currentInstruction.getId() + ") " + currentInstruction.getName();
+
+                                resultActions = String.format("Device : \"%s\"", nameInstruc);
+
+                                FieldData msgBlock = new FieldData(resultActions, ARConstantsEngine.SWIPE_UP);
+
+                                // Excel Report and Log
+                                performActions.logAndReport(
+                                        currentCondition,
+                                        true,
+                                        true,
+                                        blockStartTime,
+                                        blockReportName,
+                                        success,
+                                        new String[] {ARConstantsEngine.SWIPE_UP},
+                                        msgBlock,
+                                        dataExcel,
+                                        writerReport,
+                                        "DEVICE -> SWIPE UP",
+                                        String.format("SWIPE UP CALLED AT: \"%s\" : ", nameInstruc));
+
+                                respModal = ARExecution.DialogModal.NONE;
+                                break;
+                            } else if (swipeDown) {
+
+                                String nameInstruc =
+                                        "(" + currentInstruction.getId() + ") " + currentInstruction.getName();
+
+                                resultActions = String.format("Device : \"%s\"", nameInstruc);
+
+                                FieldData msgBlock = new FieldData(resultActions, ARConstantsEngine.SWIPE_DOWN);
+
+                                // Excel Report and Log
+                                performActions.logAndReport(
+                                        currentCondition,
+                                        true,
+                                        true,
+                                        blockStartTime,
+                                        blockReportName,
+                                        success,
+                                        new String[] {ARConstantsEngine.SWIPE_DOWN},
+                                        msgBlock,
+                                        dataExcel,
+                                        writerReport,
+                                        "DEVICE -> SWIPE DOWN",
+                                        String.format("SWIPE DOWN CALLED AT: \"%s\" : ", nameInstruc));
+
+                                respModal = ARExecution.DialogModal.NONE;
                                 break;
                             }
 

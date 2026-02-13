@@ -118,6 +118,9 @@ public class ARNewCommandPane extends ARPane {
             WebElementIcon.CHECK_VALUE.getValue().toUpperCase(),
             WebElementIcon.PDF_CHECK.getValue().toUpperCase(),
             WebElementIcon.CSV_CHECK.getValue().toUpperCase(),
+            WebElementIcon.NEXT_ENTER.getValue().toUpperCase(),
+            WebElementIcon.SWIPE_UP.getValue().toUpperCase(),
+            WebElementIcon.SWIPE_DOWN.getValue().toUpperCase(),
             WebElementIcon.GOTO.getValue().toUpperCase(),
             WebElementIcon.EXCEL_GOTO.getValue().toUpperCase(),
             WebElementIcon.EXTRACT_FIELD.getValue().toUpperCase(),
@@ -202,9 +205,13 @@ public class ARNewCommandPane extends ARPane {
 
         String tableName = this.splitDTO.getSessionId().equals("componentTasks") ? "home_banking" : "bot_job";
         String blockTable = this.splitDTO.getSessionId().equals("componentTasks") ? "component_block" : "block";
-        int whereId = this.splitDTO.getSessionId().equals("componentTasks")
-                ? splitDTO.getHomeBankingId()
-                : splitDTO.getBotJobId();
+        int whereId = -1;
+        if (this.splitDTO.getSessionId().equals("componentTasks")) {
+            whereId = splitDTO.getHomeBankingId() != null ? splitDTO.getHomeBankingId() : -1;
+        } else {
+            whereId = splitDTO.getBotJobId() != null ? splitDTO.getBotJobId() : -1;
+        }
+
         ErrorMessage errorMessage = performDataBase.loadWebPageFields(whereId, tableName);
         if (errorMessage != null) {
             performMessage.errorMessageOperationFailed(errorMessage);
@@ -241,6 +248,12 @@ public class ARNewCommandPane extends ARPane {
                     "PDF Check", new Image(ARConstants.ICON_CHECK), ARConstants.PDF_CHECK, -1, -1, -1));
             itemsInstructions.add(new ComboBoxImage(
                     "CSV Check", new Image(ARConstants.ICON_CHECK), ARConstants.CSV_CHECK, -1, -1, -1));
+            itemsInstructions.add(new ComboBoxImage(
+                    "NEXT/ENTER", new Image(ARConstants.ICON_NEXT_ENTER), ARConstants.NEXT_ENTER, -1, -1, -1));
+            itemsInstructions.add(new ComboBoxImage(
+                    "SWIPE UP", new Image(ARConstants.ICON_SWIPE_UP), ARConstants.SWIPE_UP, -1, -1, -1));
+            itemsInstructions.add(new ComboBoxImage(
+                    "SWIPE DOWN", new Image(ARConstants.ICON_SWIPE_DOWN), ARConstants.SWIPE_DOWN, -1, -1, -1));
 
             // Add "IF" only if it does not meet the exclusion conditions
             //            if (splitDTO.getIsBetween() != null && !splitDTO.getIsBetween()) {
@@ -464,7 +477,7 @@ public class ARNewCommandPane extends ARPane {
         TextFormatter<String> textFormatter = new TextFormatter<>(filter);
         gotoField = new TextField();
         gotoField.setTextFormatter(textFormatter);
-        gotoField.setPromptText("50");
+        gotoField.setPromptText("10");
         gotoField.setPrefWidth(50D);
         gotoField.setVisible(false); // hidden by default
         gotoField.setManaged(false); // Ensure it does not t
@@ -1042,6 +1055,9 @@ public class ARNewCommandPane extends ARPane {
                     && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.REFRESH_ONLY)
                     && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.REFRESH_LOOP)
                     && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.LOOP)
+                    && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.NEXT_ENTER)
+                    && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.SWIPE_UP)
+                    && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.SWIPE_DOWN)
                     && comboBoxVars.getValue() != null
                     && comboBoxVars.getValue().getVarId() < 0) {
                 performMessage.errorMessage(
@@ -1074,6 +1090,9 @@ public class ARNewCommandPane extends ARPane {
             if (!comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.IF)
                     && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.GOTO)
                     && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.EXCEL_GOTO)
+                    && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.NEXT_ENTER)
+                    && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.SWIPE_UP)
+                    && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.SWIPE_DOWN)
                     && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.REFRESH_ONLY)) {
                 if (comboBoxAllBlocks.getValue() != null
                         && comboBoxWebFields.getValue() != null
@@ -1280,6 +1299,30 @@ public class ARNewCommandPane extends ARPane {
                         null,
                         comboBoxBlocksGoto.getValue().getBlockId() // BLOCK ID as Parent Block Id
                         );
+            } else if (comboBoxInstruc.getValue().getValue().equalsIgnoreCase("NEXT_ENTER")) {
+
+                insertNewInstruction("NEXT_ENTER", "NEXT_ENTER", ARConstants.NEXT_ENTER, 1, null, null, null, null);
+            } else if (comboBoxInstruc.getValue().getValue().equalsIgnoreCase("SWIPE_UP")) {
+
+                String swipeTimes =
+                        "other".equalsIgnoreCase(comboBoxLoops.getValue().getValue())
+                                ? (Strings.isNullOrEmpty(gotoField.getText())
+                                        ? "10"
+                                        : gotoField.getText().trim())
+                                : comboBoxLoops.getValue().getValue();
+
+                insertNewInstruction("SWIPE_UP", "SWIPE_UP", ARConstants.SWIPE_UP, 1, swipeTimes, null, null, null);
+            } else if (comboBoxInstruc.getValue().getValue().equalsIgnoreCase("SWIPE_DOWN")) {
+
+                String swipeTimes =
+                        "other".equalsIgnoreCase(comboBoxLoops.getValue().getValue())
+                                ? (Strings.isNullOrEmpty(gotoField.getText())
+                                        ? "10"
+                                        : gotoField.getText().trim())
+                                : comboBoxLoops.getValue().getValue();
+
+                insertNewInstruction(
+                        "SWIPE_DOWN", "SWIPE_DOWN", ARConstants.SWIPE_DOWN, 1, swipeTimes, null, null, null);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("EXCEL GOTO")) {
                 insertNewInstruction(
                         "EXCEL GOTO",
@@ -1373,7 +1416,7 @@ public class ARNewCommandPane extends ARPane {
 
         // Add a listener to print the ID when the selection changes
         comboBoxWebFields.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-            if (newValue != null) {
+            if (newValue != null && !newValue.equals("No Web Fields")) {
                 if (!firstLoad) {
                     String varTable = "variable";
                     int whereId = splitDTO.getBotJobId();
@@ -1549,6 +1592,9 @@ public class ARNewCommandPane extends ARPane {
     }
 
     private void recallMessages(String valueEdit) {
+        // Prevention
+        if (comboBoxWebFields.getValue() == null) {}
+
         // Set the visibility of comboBoxOperator based on the selected value
         if (ARConstants.CHECK_VALUE.equalsIgnoreCase(valueEdit)
                 || ARConstants.PDF_CHECK.equalsIgnoreCase(valueEdit)
@@ -1695,6 +1741,165 @@ public class ARNewCommandPane extends ARPane {
                 comboBoxesRow.getChildren().addAll(commandBox, blocksBox);
 
                 variableButtonRow = new HBox(10, blankText, textFlow);
+
+                vboxAll.getChildren()
+                        .addAll(
+                                operationSelected,
+                                // labelRow, // Web Page Label row
+                                comboBoxesRow, // ComboBoxes row
+                                variableButtonRow, // Variable Button row
+                                buttonBox,
+                                addNewsBox,
+                                instructionButtonsRow // Add Instruction and Cancel Buttons row
+                                );
+
+                // labelRow.requestLayout();
+                vboxAll.requestLayout();
+                mainPane.requestLayout();
+
+            } catch (Exception ex) {
+                log.info(ex.getMessage());
+            }
+
+        } else if (ARConstants.NEXT_ENTER.equalsIgnoreCase(valueEdit)) {
+            defineTextFlow(comboBoxInstruc.getValue().getValue());
+
+            textFlow.setVisible(true);
+            //                    textFlow.setPrefWidth(buttonWidth + 100);
+
+            //                    botJobVarsLabel.setText("Block Destination");
+            botJobVarsLabel.setVisible(false);
+            webPageLabel.setVisible(false);
+            comboBoxBlocksGoto.setVisible(false);
+            comboBoxOperator.setVisible(false);
+            comboBoxWebFields.setVisible(false);
+            webBoxWebFields.setVisible(false);
+            comboBoxAllBlocks.setVisible(true);
+            variableButton.setVisible(false);
+            comboBoxVars.setVisible(false);
+            comboBoxTimes.setVisible(false);
+            comboBoxLoops.setVisible(false);
+
+            try {
+                variableButtonRow.getChildren().clear();
+                vboxAll.getChildren().clear();
+
+                // labelRow.getChildren().clear();
+                // labelRow.getChildren().addAll(commandLabel);
+                // labelRow.setAlignment(Pos.BASELINE_LEFT);
+
+                comboBoxesRow.getChildren().clear();
+                comboBoxesRow.getChildren().addAll(commandBox);
+
+                variableButtonRow = new HBox(10, blankText, textFlow);
+
+                vboxAll.getChildren()
+                        .addAll(
+                                operationSelected,
+                                // labelRow, // Web Page Label row
+                                comboBoxesRow, // ComboBoxes row
+                                variableButtonRow, // Variable Button row
+                                buttonBox,
+                                addNewsBox,
+                                instructionButtonsRow // Add Instruction and Cancel Buttons row
+                                );
+
+                // labelRow.requestLayout();
+                vboxAll.requestLayout();
+                mainPane.requestLayout();
+
+            } catch (Exception ex) {
+                log.info(ex.getMessage());
+            }
+
+        } else if (ARConstants.SWIPE_UP.equalsIgnoreCase(valueEdit)) {
+            defineTextFlow(comboBoxInstruc.getValue().getValue());
+
+            textFlow.setVisible(true);
+            //                    textFlow.setPrefWidth(buttonWidth + 100);
+
+            //                    botJobVarsLabel.setText("Block Destination");
+            botJobVarsLabel.setVisible(false);
+            webPageLabel.setVisible(false);
+            comboBoxOperator.setVisible(false);
+            comboBoxWebFields.setVisible(false);
+            webBoxWebFields.setVisible(false);
+            comboBoxAllBlocks.setVisible(true);
+
+            variableButton.setVisible(false);
+
+            comboBoxVars.setVisible(false);
+            comboBoxBlocksGoto.setVisible(false);
+            comboBoxBlocksGoto.setPrefWidth(buttonWidth);
+            comboBoxTimes.setVisible(false);
+            comboBoxLoops.setVisible(true);
+
+            try {
+                variableButtonRow.getChildren().clear();
+                vboxAll.getChildren().clear();
+
+                // labelRow.getChildren().clear();
+                // labelRow.getChildren().addAll(commandLabel);
+                // labelRow.setAlignment(Pos.BASELINE_LEFT);
+
+                comboBoxesRow.getChildren().clear();
+                comboBoxesRow.getChildren().addAll(commandBox);
+
+                variableButtonRow = new HBox(10, blankText, timesText, comboBoxLoops, gotoField, textFlow);
+
+                vboxAll.getChildren()
+                        .addAll(
+                                operationSelected,
+                                // labelRow, // Web Page Label row
+                                comboBoxesRow, // ComboBoxes row
+                                variableButtonRow, // Variable Button row
+                                buttonBox,
+                                addNewsBox,
+                                instructionButtonsRow // Add Instruction and Cancel Buttons row
+                                );
+
+                // labelRow.requestLayout();
+                vboxAll.requestLayout();
+                mainPane.requestLayout();
+
+            } catch (Exception ex) {
+                log.info(ex.getMessage());
+            }
+
+        } else if (ARConstants.SWIPE_DOWN.equalsIgnoreCase(valueEdit)) {
+            defineTextFlow(comboBoxInstruc.getValue().getValue());
+
+            textFlow.setVisible(true);
+            //                    textFlow.setPrefWidth(buttonWidth + 100);
+
+            //                    botJobVarsLabel.setText("Block Destination");
+            botJobVarsLabel.setVisible(false);
+            webPageLabel.setVisible(false);
+            comboBoxOperator.setVisible(false);
+            comboBoxWebFields.setVisible(false);
+            webBoxWebFields.setVisible(false);
+            comboBoxAllBlocks.setVisible(true);
+
+            variableButton.setVisible(false);
+
+            comboBoxVars.setVisible(false);
+            comboBoxBlocksGoto.setVisible(false);
+            comboBoxBlocksGoto.setPrefWidth(buttonWidth);
+            comboBoxTimes.setVisible(false);
+            comboBoxLoops.setVisible(true);
+
+            try {
+                variableButtonRow.getChildren().clear();
+                vboxAll.getChildren().clear();
+
+                // labelRow.getChildren().clear();
+                // labelRow.getChildren().addAll(commandLabel);
+                // labelRow.setAlignment(Pos.BASELINE_LEFT);
+
+                comboBoxesRow.getChildren().clear();
+                comboBoxesRow.getChildren().addAll(commandBox);
+
+                variableButtonRow = new HBox(10, blankText, timesText, comboBoxLoops, gotoField, textFlow);
 
                 vboxAll.getChildren()
                         .addAll(
@@ -2148,6 +2353,118 @@ public class ARNewCommandPane extends ARPane {
                     textFlow.requestLayout();
 
                     break;
+                case ARConstants.NEXT_ENTER:
+                    regularText1.setText("Device NEXT/ENTER command");
+                    regularText1.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+
+                    //                    variableText1.setText(comboBoxBlocksGoto.getValue().getText());
+                    //                    variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
+                    //
+                    //                    regularText2.setText(" Limit: ");
+                    //                    regularText2.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+                    //
+                    //                    String gotoValue =
+                    //                            "other".equalsIgnoreCase(comboBoxLoops.getValue().getValue())
+                    //                                    ? Strings.isNullOrEmpty(gotoField.getText())
+                    //                                    ? "50"
+                    //                                    : gotoField.getText().trim()
+                    //                                    : comboBoxLoops.getValue().getText();
+
+                    //                    variableText2.setText(gotoValue);
+                    //                    variableText2.setStyle("-fx-font-size: 14px; -fx-fill: red;");
+
+                    //                    regularText3.setText(" Times");
+                    //                    regularText3.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+
+                    regularText1.setVisible(true);
+                    regularText2.setVisible(false);
+                    regularText3.setVisible(false);
+                    regularText4.setVisible(false);
+
+                    variableText1.setVisible(false);
+                    variableText2.setVisible(false);
+                    variableText3.setVisible(false);
+
+                    textFlow.getChildren().clear();
+                    textFlow.getChildren()
+                            .addAll(regularText1, variableText1, regularText2, variableText2, regularText3);
+                    textFlow.requestLayout();
+
+                    break;
+                case ARConstants.SWIPE_UP:
+                    regularText1.setText("Device SWIPE UP : ");
+                    regularText1.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+
+                    //                    variableText1.setText(comboBoxBlocksGoto.getValue().getText());
+                    //                    variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
+
+                    //                    regularText2.setText(" Times: ");
+                    //                    regularText2.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+
+                    String swipeTimes =
+                            "other".equalsIgnoreCase(comboBoxLoops.getValue().getValue())
+                                    ? Strings.isNullOrEmpty(gotoField.getText())
+                                            ? "10"
+                                            : gotoField.getText().trim()
+                                    : comboBoxLoops.getValue().getText();
+
+                    variableText2.setText(swipeTimes);
+                    variableText2.setStyle("-fx-font-size: 14px; -fx-fill: red;");
+
+                    regularText3.setText(" Times");
+                    regularText3.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+
+                    regularText1.setVisible(true);
+                    regularText2.setVisible(false);
+                    regularText3.setVisible(true);
+                    regularText4.setVisible(false);
+
+                    variableText1.setVisible(false);
+                    variableText2.setVisible(true);
+                    variableText3.setVisible(false);
+
+                    textFlow.getChildren().clear();
+                    textFlow.getChildren().addAll(regularText1, variableText2, regularText3);
+                    textFlow.requestLayout();
+
+                    break;
+                case ARConstants.SWIPE_DOWN:
+                    regularText1.setText("Device SWIPE UP : ");
+                    regularText1.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+
+                    //                    variableText1.setText(comboBoxBlocksGoto.getValue().getText());
+                    //                    variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
+
+                    //                    regularText2.setText(" Times: ");
+                    //                    regularText2.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+
+                    swipeTimes =
+                            "other".equalsIgnoreCase(comboBoxLoops.getValue().getValue())
+                                    ? Strings.isNullOrEmpty(gotoField.getText())
+                                            ? "10"
+                                            : gotoField.getText().trim()
+                                    : comboBoxLoops.getValue().getText();
+
+                    variableText2.setText(swipeTimes);
+                    variableText2.setStyle("-fx-font-size: 14px; -fx-fill: red;");
+
+                    regularText3.setText(" Times");
+                    regularText3.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+
+                    regularText1.setVisible(true);
+                    regularText2.setVisible(false);
+                    regularText3.setVisible(true);
+                    regularText4.setVisible(false);
+
+                    variableText1.setVisible(false);
+                    variableText2.setVisible(true);
+                    variableText3.setVisible(false);
+
+                    textFlow.getChildren().clear();
+                    textFlow.getChildren().addAll(regularText1, variableText2, regularText3);
+                    textFlow.requestLayout();
+
+                    break;
                 case ARConstants.REFRESH_ONLY:
                     regularText1.setText("Refresh: ");
                     regularText1.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
@@ -2473,6 +2790,12 @@ public class ARNewCommandPane extends ARPane {
                         item.getInstructionId(),
                         item.getOrderNumber()))
                 .toList());
+
+        if (filteredPageItems.isEmpty()) {
+            filteredPageItems.add(new ComboBoxImage(
+                    "No Web Fields", new Image(ARConstants.ICON_BLANK), ARConstants.NO_VALUE, -1, -1, -1));
+        }
+
         comboBoxWebFields.getSelectionModel().selectFirst();
     }
 

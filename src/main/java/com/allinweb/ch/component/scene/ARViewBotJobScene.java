@@ -286,6 +286,25 @@ public class ARViewBotJobScene extends ARScene {
 
             // Process the message based on its type
             switch (type) {
+                case "INSERT_BEFORE":
+                case "INSERT_AFTER":
+                case "INSERT_NEW":
+                case "INSERT_AFTER_ELSEIF":
+                case "INSERT_BEFORE_ELSEIF":
+                case "EDIT_OPERATION":
+                    // prevent nulls  it gets  BOT JOB ID /  HOME BANK ID
+                    if ((splitDTO.getBotJobId() == null || splitDTO.getBotJobId() < 0)
+                            && selectedBotJob.getId() != null
+                            && selectedBotJob.getId() > 0) {
+                        splitDTO.setBotJobId(selectedBotJob.getId());
+                    }
+                    if ((splitDTO.getHomeBankingId() == null || splitDTO.getHomeBankingId() < 0)
+                            && selectedBotJob.getHomeBankingId() != null
+                            && selectedBotJob.getHomeBankingId() > 0) {
+                        splitDTO.setHomeBankingId(selectedBotJob.getHomeBankingId());
+                    }
+                    webSocketSessionManager.sendMessageJson("new-command-scene", gson.toJson(splitDTO));
+                    break;
                 case "NEW_ELEMENT_DTO":
                 case "SEND_ALL_ELEMENTS_DTO":
                     boolean isMany = "SEND_ALL_ELEMENTS_DTO".equalsIgnoreCase(type);

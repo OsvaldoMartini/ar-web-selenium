@@ -297,8 +297,7 @@ public class PerformLists {
 
                     String jsonData = gson.toJson(blockMoveDTO);
                     // Just a Signal to update the combos
-                    webSocketSessionManager.sendMessageJson(
-                            homeBankingId, "new-command-scene", jsonData, "UPDATE_BLOCKS");
+                    webSocketSessionManager.sendMessageJson(homeBankingId, "bot-job-scene", jsonData, "UPDATE_BLOCKS");
 
                     webSocketSessionManager.sendMessageJson(
                             homeBankingId, "scanner-element-pane", jsonData, "UPDATE_BLOCKS");
@@ -311,7 +310,7 @@ public class PerformLists {
                     jsonData = gson.toJson(blockMoveDTO);
                     // Just a Signal to update the combos
                     webSocketSessionManager.sendMessageJson(
-                            homeBankingId, "new-command-scene", jsonData, "UPDATE_BLOCKS_COMP");
+                            homeBankingId, "bot-job-scene", jsonData, "UPDATE_BLOCKS_COMP");
 
                     break;
                 case "UPDATE_BOT_JOBS":
@@ -408,17 +407,24 @@ public class PerformLists {
     // Get BlockLoadDTO by homeBankingId and id
     // Get BlockLoadDTO by homeBankingId and id
     public BlockLoadDTO getBlockLoadByBankId(String blockTable, Integer whereId, Integer blockId) {
+        // IT ALLOWS TO FIND ANY BLOCK FOR THE BOTJOB
+        if (blockId < 0) {
+            blockId = null;
+        }
+        Integer finalBlockId = blockId;
+
         if ("block".equalsIgnoreCase(blockTable)) {
+
             return getListBlock().stream()
                     .filter(block -> Objects.equals(block.getBotJobId(), whereId))
-                    .filter(block -> blockId == null || Objects.equals(block.getId(), blockId))
+                    .filter(block -> finalBlockId == null || Objects.equals(block.getId(), finalBlockId))
                     .findFirst()
                     .orElse(null);
 
         } else if ("component_block".equalsIgnoreCase(blockTable)) {
             return getListBlockComp().stream()
                     .filter(block -> Objects.equals(block.getHomeBankingId(), whereId))
-                    .filter(block -> blockId == null || Objects.equals(block.getId(), blockId))
+                    .filter(block -> finalBlockId == null || Objects.equals(block.getId(), finalBlockId))
                     .findFirst()
                     .orElse(null);
         }

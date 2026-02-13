@@ -210,6 +210,9 @@ public class ExcelWriter {
                             case ARConstantsEngine.ENDIF -> "ENDIF";
                             case ARConstantsEngine.SCREEN -> "SCREENSHOT";
                             case ARConstantsEngine.PAUSE -> "PAUSE";
+                            case ARConstantsEngine.NEXT_ENTER -> "NEXT_ENTER";
+                            case ARConstantsEngine.SWIPE_UP -> "SWIPE_UP";
+                            case ARConstantsEngine.SWIPE_DOWN -> "SWIPE_DOWN";
                             case ARConstantsEngine.IGNORE -> "IGNORE";
                             case ARConstantsEngine.EXIT -> "EXIT";
                             case ARConstantsEngine.BY_PASS -> "BY_PASS";
