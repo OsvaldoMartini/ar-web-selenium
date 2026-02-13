@@ -286,6 +286,25 @@ public class ARViewBotJobScene extends ARScene {
 
             // Process the message based on its type
             switch (type) {
+                case "INSERT_BEFORE":
+                case "INSERT_AFTER":
+                case "INSERT_NEW":
+                case "INSERT_AFTER_ELSEIF":
+                case "INSERT_BEFORE_ELSEIF":
+                case "EDIT_OPERATION":
+                    // prevent nulls  it gets  BOT JOB ID /  HOME BANK ID
+                    if ((splitDTO.getBotJobId() == null || splitDTO.getBotJobId() < 0)
+                            && selectedBotJob.getId() != null
+                            && selectedBotJob.getId() > 0) {
+                        splitDTO.setBotJobId(selectedBotJob.getId());
+                    }
+                    if ((splitDTO.getHomeBankingId() == null || splitDTO.getHomeBankingId() < 0)
+                            && selectedBotJob.getHomeBankingId() != null
+                            && selectedBotJob.getHomeBankingId() > 0) {
+                        splitDTO.setHomeBankingId(selectedBotJob.getHomeBankingId());
+                    }
+                    webSocketSessionManager.sendMessageJson("new-command-scene", gson.toJson(splitDTO));
+                    break;
                 case "NEW_ELEMENT_DTO":
                 case "SEND_ALL_ELEMENTS_DTO":
                     boolean isMany = "SEND_ALL_ELEMENTS_DTO".equalsIgnoreCase(type);
@@ -648,21 +667,16 @@ public class ARViewBotJobScene extends ARScene {
             instruction.setName(targetInsert.getNameLabel());
         }
 
-        // Fix action string
-        String actions = instruction.getActions();
-        String[] parts = actions.split(",");
-        if (actions.startsWith("I:")) {
-            for (int i = 0; i < parts.length; i++) {
-                parts[i] = parts[i].trim();
-                if (parts[i].startsWith("I:")) {
-                    parts[i] = parts[i].contains(":E:")
-                            ? "I:E:" + targetInsert.getDefinedName()
-                            : "I:" + targetInsert.getDefinedName();
-                    break;
-                }
-            }
-            instruction.setActions(parts[0]);
+        if (Strings.isNullOrEmpty(instruction.getName())) {
+            instruction.setName(targetInsert.getTagName());
         }
+
+        // Normalize actions string
+        String actions = instruction.getActions();
+        boolean enter = "active".equals(targetInsert.getAutoEnter());
+        boolean scroll = "active".equals(targetInsert.getAutoScroll());
+
+        instruction.setActions(normalizeActions(actions, enter, scroll));
 
         // Set references
         List<ReferenceLoadDTO> referenceList = new ArrayList<>();
@@ -676,6 +690,47 @@ public class ARViewBotJobScene extends ARScene {
 
         instruction.setReferenceLoadDTOList(referenceList);
         instructionList.add(instruction);
+    }
+
+    private static String normalizeActions(String actions, boolean autoEnter, boolean autoScroll) {
+        if (actions == null) return null;
+        if (actions.isBlank()) return actions;
+
+        String[] parts = actions.trim().split(":");
+        if (parts.length == 0) return actions;
+
+        String base = parts[0].trim();
+
+        // Detect tail (the "XXXX..." you want to keep last).
+        // If the string has more than one token, we treat the last token as tail unless it's a known flag.
+        String last = (parts.length > 1) ? parts[parts.length - 1].trim() : null;
+        boolean lastIsFlag = "E".equalsIgnoreCase(last) || "S".equalsIgnoreCase(last);
+
+        String tail = (!lastIsFlag && last != null) ? last : null;
+
+        // Collect existing flags from the middle tokens (and also from last if it was a flag)
+        boolean hasE = false, hasS = false;
+        for (int i = 1; i < parts.length; i++) {
+            String t = parts[i].trim();
+            if ("E".equalsIgnoreCase(t)) hasE = true;
+            if ("S".equalsIgnoreCase(t)) hasS = true;
+        }
+
+        // Add auto flags
+        hasE = hasE || autoEnter;
+        hasS = hasS || autoScroll;
+
+        // Build output. Choose a fixed order so results are stable (no UI flicker / diff noise).
+        StringBuilder sb = new StringBuilder(base);
+
+        // Example fixed order: S then E (pick the one you prefer and keep it consistent)
+        if (hasS) sb.append(":S");
+        if (hasE) sb.append(":E");
+
+        // Append tail last (only if it exists)
+        if (tail != null && !tail.isBlank()) sb.append(":").append(tail);
+
+        return sb.toString();
     }
 
     public InstructionLoad buildNewInstruction(

@@ -1979,6 +1979,49 @@ public class PerformDataBase {
         return null; // Success
     }
 
+    public ErrorMessage updateInstructionActions(
+            String tableName, // "instruction" or "component_instruction"
+            int whereId, // bot_job_id or home_banking_id
+            int instructionId,
+            int blockId,
+            String actions) {
+
+        // Basic safety check
+        if (!"instruction".equalsIgnoreCase(tableName) && !"component_instruction".equalsIgnoreCase(tableName)) {
+            return new ErrorMessage("Invalid table", "Unsupported tableName", tableName);
+        }
+
+        String idColumn = tableName.equalsIgnoreCase("instruction") ? "bot_job_id" : "home_banking_id";
+
+        String sql = "UPDATE " + tableName + " SET actions = ? WHERE id = ? AND block_id = ? AND " + idColumn + " = ?";
+
+        try (Connection conn = getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, actions);
+            pstmt.setInt(2, instructionId);
+            pstmt.setInt(3, blockId);
+            pstmt.setInt(4, whereId);
+
+            int rowsAffected = pstmt.executeUpdate();
+
+            if (rowsAffected == 0) {
+                logDB.warn("No instruction updated. InstructionId: " + instructionId);
+            } else {
+                logDB.info("Instruction actions updated. InstructionId: " + instructionId + ", Actions: " + actions);
+            }
+
+            return null;
+
+        } catch (SQLException e) {
+            logDB.error("Error updating instruction actions. InstructionId: " + instructionId + ", Error: "
+                    + e.getMessage());
+
+            return new ErrorMessage(
+                    "Update Instruction Actions Error", "Failed to update instruction actions", e.getMessage());
+        }
+    }
+
     public ErrorMessage updateBlockStatus(
             String tableName, // "block" or "component_block"
             int whereId, // bot_job_id or home_banking_id

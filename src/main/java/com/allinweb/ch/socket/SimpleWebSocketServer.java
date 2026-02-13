@@ -282,14 +282,14 @@ public class SimpleWebSocketServer {
                 instrTable = "instruction";
                 blockTable = "block";
                 variableTable = "variable";
-                whereId = splitDTO.getBotJobId();
+                whereId = splitDTO.getBotJobId() != null ? splitDTO.getBotJobId() : -1;
                 updteBlocks = "UPDATE_BLOCKS";
                 updateAction = "updateInstructions";
             } else if (sessionIdToSend.matches(".*componentTasks.*")) {
                 instrTable = "component_instruction";
                 blockTable = "component_block";
                 variableTable = "component_variable";
-                whereId = splitDTO.getHomeBankingId();
+                whereId = splitDTO.getHomeBankingId() != null ? splitDTO.getHomeBankingId() : -1;
                 updteBlocks = "UPDATE_BLOCKS_COMP";
                 updateAction = "componentsUpdate";
             }
@@ -714,6 +714,7 @@ public class SimpleWebSocketServer {
                 case "INSERT_AFTER_ELSEIF":
                 case "INSERT_BEFORE_ELSEIF":
                 case "EDIT_OPERATION":
+                    performDataBase.loadBlocks(whereId, "", blockTable);
                     injectStepAfterOrBefore(blockTable, whereId, splitDTO);
 
                     if (type.equals("INSERT_AFTER_ELSEIF") || type.equals("INSERT_BEFORE_ELSEIF")) {
@@ -758,6 +759,23 @@ public class SimpleWebSocketServer {
                         performLists.updateMemoryInstructionStatusUpdate(
                                 instrTable, whereId, instructionId, instrucionActive);
                     }
+                    alreadySentMgsSocket = false;
+                    break;
+                case "ACTIONS_UPDATE":
+                    errorMessage = performDataBase.updateInstructionActions(
+                            instrTable, whereId, instructionId, blockId, actions);
+
+                    // MEMORY UPDATE
+                    if (errorMessage == null) {
+                        performLists.updateMemoryInstructionActionsUpdate(instrTable, whereId, instructionId, actions);
+                    }
+
+                    if (instrTable.equals("instruction")) {
+                        performLists.getListBotJob().clear();
+                    } else {
+                        performLists.getListBotJobComp().clear();
+                    }
+
                     alreadySentMgsSocket = false;
                     break;
                 case "BLOCK_STATUS":
@@ -1235,32 +1253,40 @@ public class SimpleWebSocketServer {
 
     private void injectStepAfterOrBefore(String blockTable, int whereId, SplitDTO splitDTO) {
 
-        BlockLoadDTO blockLoadFound = performLists.getBlockLoadByBankId(blockTable, whereId, splitDTO.getBlockId());
+        if (whereId > 0) {
+            BlockLoadDTO blockLoadFound = performLists.getBlockLoadByBankId(blockTable, whereId, splitDTO.getBlockId());
 
-        ErrorMessage errorMessage = null;
-        if (blockLoadFound == null) {
-            errorMessage =
-                    performDataBase.initiateNewBlock(blockTable, whereId, "Default Block", "Default Block", 1, false);
-        }
-
-        if (errorMessage == null && blockLoadFound == null) {
-            int newBlockId = -9999;
-            if (!performDataBase.getIdsBlockAfter().isEmpty()
-                    && performDataBase.getIdsBlockAfter().get(0) > 0) {
-                newBlockId = performDataBase.getIdsBlockAfter().get(0);
+            if (blockLoadFound != null) {
+                splitDTO.setBlockId(blockLoadFound.getId());
+            } else {
+                splitDTO.setBlockId(-1);
             }
-            // IT SETS THE NEW TARGET IN CASE TO ADD MORE INSTRUCTIONS
-            splitDTO.setBlockId(newBlockId);
-        }
 
-        if (errorMessage != null) {
-            performMessage.errorMessageOperationFailed(errorMessage);
+            ErrorMessage errorMessage = null;
+            if (blockLoadFound == null) {
+                errorMessage = performDataBase.initiateNewBlock(
+                        blockTable, whereId, "Default Block", "Default Block", 1, false);
+            }
+
+            if (errorMessage == null && blockLoadFound == null) {
+                int newBlockId = -9999;
+                if (!performDataBase.getIdsBlockAfter().isEmpty()
+                        && performDataBase.getIdsBlockAfter().get(0) > 0) {
+                    newBlockId = performDataBase.getIdsBlockAfter().get(0);
+                }
+                // IT SETS THE NEW TARGET IN CASE TO ADD MORE INSTRUCTIONS
+                splitDTO.setBlockId(newBlockId);
+            }
+
+            if (errorMessage != null) {
+                performMessage.errorMessageOperationFailed(errorMessage);
+            }
         }
 
         if (!splitDTO.getType().equals("INSERT_BEFORE_ELSEIF")
                 && !splitDTO.getType().equals("INSERT_AFTER_ELSEIF")) {
 
-            webSocketSessionManager.sendMessageJson("new-command-scene", gson.toJson(splitDTO));
+            webSocketSessionManager.sendMessageJson("bot-job-scene", gson.toJson(splitDTO));
 
         } else {
 

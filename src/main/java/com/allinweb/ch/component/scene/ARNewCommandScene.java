@@ -224,9 +224,14 @@ public class ARNewCommandScene extends ARScene {
                                 : "instruction";
                         String blockTable =
                                 splitDTO.getSessionId().equals("componentTasks") ? "component_block" : "block";
-                        int whereId = splitDTO.getSessionId().equals("componentTasks")
-                                ? splitDTO.getHomeBankingId()
-                                : splitDTO.getBotJobId();
+
+                        int whereId = -1;
+                        if (splitDTO.getSessionId().equals("componentTasks")) {
+                            whereId = splitDTO.getHomeBankingId() != null ? splitDTO.getHomeBankingId() : -1;
+                        } else {
+                            whereId = splitDTO.getBotJobId() != null ? splitDTO.getBotJobId() : -1;
+                        }
+
                         String blockUpdate = splitDTO.getSessionId().equals("componentTasks")
                                 ? "UPDATE_BLOCKS_COMP"
                                 : "UPDATE_BLOCKS";

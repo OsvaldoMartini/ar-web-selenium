@@ -303,6 +303,9 @@ public class TargetElementHelper {
 
             targetDefine.setSearchAttributeValue(elemenDTO.getSearchAttributeValue());
 
+            targetDefine.setAutoScroll(elemenDTO.getAutoScroll());
+            targetDefine.setAutoEnter(elemenDTO.getAutoEnter());
+
             targetDefine.setAttributeData(elemenDTO.getAttributeData());
             targetDefine.setCustomXPath(elemenDTO.getCustomXPath());
 

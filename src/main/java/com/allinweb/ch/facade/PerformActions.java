@@ -426,7 +426,7 @@ public class PerformActions {
             InstructionLoad currentInstruction,
             Map<String, String> mapOperators,
             WebElement instructionElement,
-            String actions[],
+            String[] actions,
             boolean isMobileApp,
             SplitDTO splitDTO)
             throws Exception {
@@ -544,7 +544,7 @@ public class PerformActions {
         }
     }
 
-    public void performOtherActions(boolean byPassNotFound, InstructionLoad instruction, String actions[])
+    public void performOtherActions(boolean byPassNotFound, InstructionLoad instruction, String[] actions)
             throws Exception {
 
         switch (actions[0]) {
@@ -2361,7 +2361,7 @@ public class PerformActions {
         alert.accept();
     }
 
-    public String actionResultMessage(String blockJobName, String actions[], FieldData msgInstruction) {
+    public String actionResultMessage(String blockJobName, String[] actions, FieldData msgInstruction) {
 
         // ✅ existing message becomes "conditionText"
         String conditionText;
@@ -3452,7 +3452,10 @@ public class PerformActions {
 
         elementDTO.setAttributeValue(targetElement.getAttributeValue());
         elementDTO.setAttributeType(targetElement.getAttributeType());
-        elementDTO.setSearchAttributeValue(null); // Assuming this is not directly available in TargetElement
+        elementDTO.setSearchAttributeValue(
+                targetElement.getSearchAttributeValue()); // Assuming this is not directly available in TargetElement
+        elementDTO.setAutoScroll(targetElement.getAutoScroll());
+        elementDTO.setAutoEnter(targetElement.getAutoEnter());
 
         // Determine typeElement based on tagType
         if (targetElement.getTagType() != null) {

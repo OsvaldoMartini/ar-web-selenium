@@ -107,7 +107,7 @@ public class ARNewCommandPane extends ARPane {
     double comboOperatorWidth = 50;
     double comboTimesWidth = 70;
     double comboLoopsWidth = 80;
-    boolean variablesDisable = false;
+    //    boolean variablesDisable = false;
     boolean blockIdChanged = false;
     Button addNewInstructionButton;
     Button cancelButton;
@@ -118,6 +118,9 @@ public class ARNewCommandPane extends ARPane {
             WebElementIcon.CHECK_VALUE.getValue().toUpperCase(),
             WebElementIcon.PDF_CHECK.getValue().toUpperCase(),
             WebElementIcon.CSV_CHECK.getValue().toUpperCase(),
+            WebElementIcon.NEXT_ENTER.getValue().toUpperCase(),
+            WebElementIcon.SWIPE_UP.getValue().toUpperCase(),
+            WebElementIcon.SWIPE_DOWN.getValue().toUpperCase(),
             WebElementIcon.GOTO.getValue().toUpperCase(),
             WebElementIcon.EXCEL_GOTO.getValue().toUpperCase(),
             WebElementIcon.EXTRACT_FIELD.getValue().toUpperCase(),
@@ -202,9 +205,13 @@ public class ARNewCommandPane extends ARPane {
 
         String tableName = this.splitDTO.getSessionId().equals("componentTasks") ? "home_banking" : "bot_job";
         String blockTable = this.splitDTO.getSessionId().equals("componentTasks") ? "component_block" : "block";
-        int whereId = this.splitDTO.getSessionId().equals("componentTasks")
-                ? splitDTO.getHomeBankingId()
-                : splitDTO.getBotJobId();
+        int whereId = -1;
+        if (this.splitDTO.getSessionId().equals("componentTasks")) {
+            whereId = splitDTO.getHomeBankingId() != null ? splitDTO.getHomeBankingId() : -1;
+        } else {
+            whereId = splitDTO.getBotJobId() != null ? splitDTO.getBotJobId() : -1;
+        }
+
         ErrorMessage errorMessage = performDataBase.loadWebPageFields(whereId, tableName);
         if (errorMessage != null) {
             performMessage.errorMessageOperationFailed(errorMessage);
@@ -221,10 +228,6 @@ public class ARNewCommandPane extends ARPane {
                         item.getInstructionId(),
                         item.getOrderNumber()))
                 .toList());
-
-        if (filteredPageItems.isEmpty()) {
-            variablesDisable = true;
-        }
 
         // Initialize itemsInstructions list conditionally
         try {
@@ -354,7 +357,7 @@ public class ARNewCommandPane extends ARPane {
         variableButton = builder.buildButton(
                 "Variables", ARConstants.SPACE_L, ARConstants.ICON_VARIABLES, ARConstants.SPACE_M, Insets.EMPTY);
 
-        variableButton.setDisable(variablesDisable);
+        //        variableButton.setDisable(variablesDisable);
 
         //        addExcelNextRowButton = builder.buildButton(
         //                "Data Next Row", ARConstants.SPACE_L, ARConstants.ICON_EXCEL2, ARConstants.SPACE_M, new
@@ -464,7 +467,7 @@ public class ARNewCommandPane extends ARPane {
         TextFormatter<String> textFormatter = new TextFormatter<>(filter);
         gotoField = new TextField();
         gotoField.setTextFormatter(textFormatter);
-        gotoField.setPromptText("50");
+        gotoField.setPromptText("10");
         gotoField.setPrefWidth(50D);
         gotoField.setVisible(false); // hidden by default
         gotoField.setManaged(false); // Ensure it does not t
@@ -1230,7 +1233,7 @@ public class ARNewCommandPane extends ARPane {
                 String loopValue =
                         "other".equalsIgnoreCase(comboBoxLoops.getValue().getValue())
                                 ? (Strings.isNullOrEmpty(gotoField.getText())
-                                        ? "50"
+                                        ? "10"
                                         : gotoField.getText().trim())
                                 : comboBoxLoops.getValue().getValue();
 
@@ -1248,7 +1251,7 @@ public class ARNewCommandPane extends ARPane {
                 String loopValue =
                         "other".equalsIgnoreCase(comboBoxLoops.getValue().getValue())
                                 ? (Strings.isNullOrEmpty(gotoField.getText())
-                                        ? "50"
+                                        ? "10"
                                         : gotoField.getText().trim())
                                 : comboBoxLoops.getValue().getValue();
 
@@ -1266,7 +1269,7 @@ public class ARNewCommandPane extends ARPane {
                 String gotoValue =
                         "other".equalsIgnoreCase(comboBoxLoops.getValue().getValue())
                                 ? (Strings.isNullOrEmpty(gotoField.getText())
-                                        ? "50"
+                                        ? "10"
                                         : gotoField.getText().trim())
                                 : comboBoxLoops.getValue().getValue();
 
@@ -1373,7 +1376,7 @@ public class ARNewCommandPane extends ARPane {
 
         // Add a listener to print the ID when the selection changes
         comboBoxWebFields.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-            if (newValue != null) {
+            if (newValue != null && !newValue.equals("No Web Fields")) {
                 if (!firstLoad) {
                     String varTable = "variable";
                     int whereId = splitDTO.getBotJobId();
@@ -1488,7 +1491,7 @@ public class ARNewCommandPane extends ARPane {
                 gotoField.setManaged(isOther);
 
                 if (isOther) {
-                    gotoField.setText("50"); // reset when selecting "other"
+                    gotoField.setText("10"); // reset when selecting "other"
                     gotoField.requestFocus(); // optional: auto-focus for typing
                 }
 
@@ -2092,7 +2095,7 @@ public class ARNewCommandPane extends ARPane {
                     String gotoValue =
                             "other".equalsIgnoreCase(comboBoxLoops.getValue().getValue())
                                     ? Strings.isNullOrEmpty(gotoField.getText())
-                                            ? "50"
+                                            ? "10"
                                             : gotoField.getText().trim()
                                     : comboBoxLoops.getValue().getText();
 
@@ -2473,6 +2476,12 @@ public class ARNewCommandPane extends ARPane {
                         item.getInstructionId(),
                         item.getOrderNumber()))
                 .toList());
+
+        if (filteredPageItems.isEmpty()) {
+            filteredPageItems.add(new ComboBoxImage(
+                    "No Web Fields", new Image(ARConstants.ICON_BLANK), ARConstants.NO_VALUE, -1, -1, -1));
+        }
+
         comboBoxWebFields.getSelectionModel().selectFirst();
     }
 
@@ -2865,7 +2874,7 @@ public class ARNewCommandPane extends ARPane {
                     } catch (NumberFormatException e) {
                         // Not an integer → select first item
                         comboBoxLoops.getSelectionModel().selectFirst();
-                        gotoField.setText("50");
+                        gotoField.setText("10");
                     }
                 }
             }
@@ -2903,7 +2912,7 @@ public class ARNewCommandPane extends ARPane {
                     } catch (NumberFormatException e) {
                         // Not an integer → select first item
                         comboBoxLoops.getSelectionModel().selectFirst();
-                        gotoField.setText("50");
+                        gotoField.setText("10");
                     }
                 }
             }

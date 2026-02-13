@@ -395,12 +395,15 @@ public class ARScannedElementScene extends ARScene {
                         //                    splitDTO = gson.fromJson(jsonObjMSG, SplitDTO.class);
 
                         String tableName = "instruction";
-                        whereId = splitDTO.getBotJobId() != null ? splitDTO.getBotJobId() : currentBotJob.getId();
+                        whereId = splitDTO.getBotJobId() != null
+                                ? splitDTO.getBotJobId()
+                                : currentBotJob.getId() != null ? currentBotJob.getId() : -1;
+
                         if (splitDTO.getSessionId().equals("componentTasks")) {
                             tableName = "component_instruction";
                             whereId = splitDTO.getHomeBankingId() != null
                                     ? splitDTO.getHomeBankingId()
-                                    : currentBotJob.getHomeBankingId();
+                                    : currentBotJob.getHomeBankingId() != null ? currentBotJob.getHomeBankingId() : -1;
                         }
 
                         blockUpdate = splitDTO.getSessionId().equals("componentTasks")

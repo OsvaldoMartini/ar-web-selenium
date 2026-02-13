@@ -15,6 +15,7 @@ Integer lastBlockOrderPushed = null;
 TargetElement matchScanned = null;
 TargetElement matchXPath = null;
 WebElement webElementFound = null;
+int navTime = getNavigationTimeSeconds();
 //        List<InputInfo> inputs = new ArrayList<>();
 
 sessionRowStatus = "engine-perform-bot-job"; // + botJobId;
@@ -58,10 +59,12 @@ if (extractedData.getNumberOfDataRows() > 0) {
 
 		// PREVENTID  LATGER DELETION
 		if (blockExcelGoto < 0) {
-			blockExcelGoto = (excelDataGoto.get(0).getBlockOrderNumber() == null
-							|| excelDataGoto.get(0).getBlockOrderNumber() <= 0)
-					? 1
-					: excelDataGoto.get(0).getBlockOrderNumber();
+			blockExcelGoto =
+					((!excelDataGoto.isEmpty() && excelDataGoto.get(0).getBlockOrderNumber() == null)
+									|| (!excelDataGoto.isEmpty()
+											&& excelDataGoto.get(0).getBlockOrderNumber() <= 0))
+							? 1
+							: excelDataGoto.get(0).getBlockOrderNumber();
 		}
 	}
 
@@ -115,7 +118,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 				// Fire only when the block CHANGES, and only for ACTIVE blocks
 				if (lastBlockOrderPushed == null || !lastBlockOrderPushed.equals(currentBlockOrder)) {
 
-					// ?? RESET instruction-level first-load flag
+					// RESET instruction-level first-load flag
 					firstPageLoadDone = false;
 
 					performActions.waitPage();
@@ -364,6 +367,15 @@ if (extractedData.getNumberOfDataRows() > 0) {
 						webElementFound = immediateXPath(currentInstruction.getXpath());
 					}
 
+					performActions.waitPage();
+					try {
+						if (navTime > 0) {
+							performActions.onHoldInSeconds(navTime);
+							logOperations.info("Navigation Time : {}", navTime);
+						}
+					} catch (Exception ignore) {
+					}
+
 					// Fire on FIRST page load OR when the INSTRUCTION changes
 					// and only for web-element work (INPUT / OUTPUT / CLICK / GET / SET)
 					if (isWebElementInstruction(currentInstruction) && webElementFound == null) {
@@ -374,7 +386,6 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								|| lastInstructionIdPushed == null
 								|| !lastInstructionIdPushed.equals(currentInstructionId)) {
 
-							performActions.waitPage();
 							firstPageLoadDone = true;
 							lastInstructionIdPushed = currentInstructionId;
 
@@ -415,6 +426,9 @@ if (extractedData.getNumberOfDataRows() > 0) {
 					boolean execOutPut = false;
 					boolean excelWriteOperation = false;
 					boolean pauseOperation = false;
+					boolean nextEnter = false;
+					boolean swipeUp = false;
+					boolean swipeDown = false;
 
 					String xPathOperation = null;
 					String[] parentActions = null;
@@ -1020,21 +1034,18 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								&& !execPDFCheck
 								&& !execCSVCheck
 								&& !excelWriteOperation
-								&& !pauseOperation) {
+								&& !pauseOperation
+								&& !nextEnter
+								&& !swipeUp
+								&& !swipeDown) {
 
 							webElementWork = true;
 
-							// Extract dataFieldName and dataFieldValue using a separate method
-							// AR Mobile Work Around for Not creating a new DB column
-							String defaultValue = currentInstruction.getDefaultValue() != null
-											&& !currentInstruction
-													.getDefaultValue()
-													.contains("scroll-active")
-									? currentInstruction.getDefaultValue()
-									: null;
-
 							FieldData fieldData = performActions.extractFieldData(
-									dataExcel, actions, defaultValue, currentInstruction.getCodified());
+									dataExcel,
+									actions,
+									currentInstruction.getDefaultValue(),
+									currentInstruction.getCodified());
 
 							//                                    webElementFound = null;
 							boolean forceCoordinates = currentInstruction.getForceCoordinates() != null
@@ -1158,7 +1169,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 							//                                                success =
 							// performActions.executeActionsAtCoordinates(
 							//
-							// mapSavedLocators.get("coordinates"),
+							// "coordinates",
 							//                                                        fieldData,
 							//                                                        actions[0],
 							//                                                        pressEnterAfter);

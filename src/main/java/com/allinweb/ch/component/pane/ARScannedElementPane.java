@@ -1949,8 +1949,8 @@ public class ARScannedElementPane extends ARPane {
             if (errorMessage == null) {
                 excelDataGoto = performDBEngine.loadExcelGotoBlock(this.currentBotJob.getId(), "instruction");
 
-                if (excelDataGoto.get(0).getParentBlockId() == null
-                        || excelDataGoto.get(0).getParentBlockId() <= 0) {
+                if ((!excelDataGoto.isEmpty() && excelDataGoto.get(0).getParentBlockId() == null)
+                        || (!excelDataGoto.isEmpty() && excelDataGoto.get(0).getParentBlockId() <= 0)) {
                     performDBEngine.fixExcelGoto(
                             "instruction",
                             currentBotJob.getId(),
@@ -3232,10 +3232,12 @@ public class ARScannedElementPane extends ARPane {
 
                 // PREVENTID  LATGER DELETION
                 if (blockExcelGoto < 0) {
-                    blockExcelGoto = (excelDataGoto.get(0).getBlockOrderNumber() == null
-                                    || excelDataGoto.get(0).getBlockOrderNumber() <= 0)
-                            ? 1
-                            : excelDataGoto.get(0).getBlockOrderNumber();
+                    blockExcelGoto =
+                            ((!excelDataGoto.isEmpty() && excelDataGoto.get(0).getBlockOrderNumber() == null)
+                                            || (!excelDataGoto.isEmpty()
+                                                    && excelDataGoto.get(0).getBlockOrderNumber() <= 0))
+                                    ? 1
+                                    : excelDataGoto.get(0).getBlockOrderNumber();
                 }
             }
 
@@ -3597,6 +3599,9 @@ public class ARScannedElementPane extends ARPane {
                             boolean execOutPut = false;
                             boolean excelWriteOperation = false;
                             boolean pauseOperation = false;
+                            boolean nextEnter = false;
+                            boolean swipeUp = false;
+                            boolean swipeDown = false;
 
                             String xPathOperation = null;
                             String[] parentActions = null;
@@ -4202,21 +4207,18 @@ public class ARScannedElementPane extends ARPane {
                                         && !execPDFCheck
                                         && !execCSVCheck
                                         && !excelWriteOperation
-                                        && !pauseOperation) {
+                                        && !pauseOperation
+                                        && !nextEnter
+                                        && !swipeUp
+                                        && !swipeDown) {
 
                                     webElementWork = true;
 
-                                    // Extract dataFieldName and dataFieldValue using a separate method
-                                    // AR Mobile Work Around for Not creating a new DB column
-                                    String defaultValue = currentInstruction.getDefaultValue() != null
-                                                    && !currentInstruction
-                                                            .getDefaultValue()
-                                                            .contains("scroll-active")
-                                            ? currentInstruction.getDefaultValue()
-                                            : null;
-
                                     FieldData fieldData = performActions.extractFieldData(
-                                            dataExcel, actions, defaultValue, currentInstruction.getCodified());
+                                            dataExcel,
+                                            actions,
+                                            currentInstruction.getDefaultValue(),
+                                            currentInstruction.getCodified());
 
                                     //                                    webElementFound = null;
                                     boolean forceCoordinates = currentInstruction.getForceCoordinates() != null
@@ -4340,7 +4342,7 @@ public class ARScannedElementPane extends ARPane {
                                     //                                                success =
                                     // performActions.executeActionsAtCoordinates(
                                     //
-                                    // mapSavedLocators.get("coordinates"),
+                                    // "coordinates",
                                     //                                                        fieldData,
                                     //                                                        actions[0],
                                     //                                                        pressEnterAfter);

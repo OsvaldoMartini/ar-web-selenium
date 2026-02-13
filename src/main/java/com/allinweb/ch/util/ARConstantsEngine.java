@@ -56,6 +56,9 @@ public class ARConstantsEngine {
     public static final String QUIT = "Q";
     public static final String SCREEN = "P";
     public static final String PAUSE = "PAUSE";
+    public static final String NEXT_ENTER = "NEXT_ENTER";
+    public static final String SWIPE_UP = "SWIPE_UP";
+    public static final String SWIPE_DOWN = "SWIPE_DOWN";
     public static final String EXTRACT_FIELD = "E";
     public static final String SET_VALUE = "SET";
     public static final String GET_VALUE = "GET";
