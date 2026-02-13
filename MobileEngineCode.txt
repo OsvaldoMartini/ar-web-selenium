@@ -3,7 +3,7 @@ boolean byPassNotFound = false;
 boolean byPassFlagLoop = false;
 boolean success = true;
 boolean stopAll = false;
-boolean lastRecall = false;
+boolean firstRound = true;
 boolean anyFailure = false;
 boolean alreadyLogged = false;
 long botJobStartTime = System.nanoTime();
@@ -11,11 +11,17 @@ long totalExecutionTime = 0;
 String resultActions = "No instruction executed yet";
 String failedMessage = "";
 Map<String, String> dataExcel = null;
+Integer lastBlockOrderPushed = null;
+TargetElement matchScanned = null;
+TargetElement matchXPath = null;
+WebElement webElementFound = null;
+int navTime = getNavigationTimeSeconds();
+//        List<InputInfo> inputs = new ArrayList<>();
 
 sessionRowStatus = "mobile-return-server"; // + botJobId;
 
 variablesLoaded = performLists.getListVariable();
-Map<String, String> mapSavedLocators = new HashMap<>();
+//        Map<String, String> mapSavedLocators = new HashMap<>();
 
 Set<Integer> parentIdsForLoop = null;
 Set<Integer> allOutPuts = null;
@@ -38,17 +44,31 @@ if (extractedData.getNumberOfDataRows() > 0) {
 
 	// Execute All Blocks starting from executeSpecificBlock if Defined
 	currentBlockOrder = (executeSpecificBlock > -1) ? executeSpecificBlock : 0;
-	int blockInitial = currentBlockOrder;
+	int blockRecall = currentBlockOrder;
+	int blockExcelGoto = blockRecall;
 
 	// BLOCK DEFINED BY "DEFAULT" OR "EXCEL GOTO"
 	if (!excelDataGoto.isEmpty() && !blocksLoaded.isEmpty()) {
 		Integer parentBlockId =
 				excelDataGoto.get(excelDataGoto.size() - 1).getParentBlockId();
-		blockInitial = performActions.getBlockOrderNumber(blocksLoaded, parentBlockId) - 1;
+		excelDataGoto
+				.get(0)
+				.setParentBlockId(excelDataGoto.get(0).getBlockId()); // overwrite/fix using block table
+
+		blockExcelGoto = performActions.getBlockOrderNumber(blocksLoaded, parentBlockId) - 1;
+
+		// PREVENTID  LATGER DELETION
+		if (blockExcelGoto < 0) {
+			blockExcelGoto = (excelDataGoto.get(0).getBlockOrderNumber() == null
+							|| excelDataGoto.get(0).getBlockOrderNumber() <= 0)
+					? 1
+					: excelDataGoto.get(0).getBlockOrderNumber();
+		}
 	}
 
 	int xExcelCurrentRow = 0;
 	int xExcelDataSize = extractedData.getNumberOfDataRows();
+	mapOperators.clear();
 	mapExportRows = new LinkedHashMap<>();
 	headersExport.clear();
 	columnsCSV.clear();
@@ -59,8 +79,12 @@ if (extractedData.getNumberOfDataRows() > 0) {
 		mapLoops.clear();
 		mapRefresh.clear();
 
-		lastRecall = false;
-		currentBlockOrder = blockInitial; // start blocks from initial for this row
+		if (firstRound) {
+			firstRound = false;
+			currentBlockOrder = blockRecall; // start blocks from initial for this row
+		} else {
+			currentBlockOrder = blockExcelGoto; // start blocks from initial for this row
+		}
 
 		blockLoop:
 		while (currentBlockOrder <= blocksLoaded.size() - 1 && !blocksLoaded.isEmpty() && !stopAll) {
@@ -88,6 +112,30 @@ if (extractedData.getNumberOfDataRows() > 0) {
 			boolean blockActive = blocksLoaded.get(currentBlockOrder).getActive();
 
 			if (blockActive) {
+
+				// Fire only when the block CHANGES, and only for ACTIVE blocks
+				if (lastBlockOrderPushed == null || !lastBlockOrderPushed.equals(currentBlockOrder)) {
+
+					// RESET instruction-level first-load flag
+					firstPageLoadDone = false;
+
+					performActions.waitPage();
+					lastBlockOrderPushed = currentBlockOrder;
+
+					performLists.resetListElements();
+					pushUpdateListElements();
+
+					logOperations.info("Total Target Elements: "
+							+ performLists.getListTargetElements().size());
+
+					// Inputs-only list with inferred labels
+					//                            inputs.clear();
+					//                            inputs =
+					//
+					//
+					// DomIntrospectionUtil.listAllRelevantElements(performActions.getCurrentDriver());
+				}
+
 				excelFieldName = blockLoad.getExportFile();
 
 				if (!Strings.isNullOrEmpty(excelFieldName)) {
@@ -312,15 +360,57 @@ if (extractedData.getNumberOfDataRows() > 0) {
 						continue;
 					}
 
-					mapSavedLocators.clear();
+					// FIRST IMMEDIATE ATTEMPT TO LOCATE
+					if (isWebElementInstruction(currentInstruction)) {
+						webElementFound = immediateXPath(currentInstruction.getXpath());
+					}
 
-					// Loop through the instructionReferenceLoadDTOList
-					if (currentInstruction.getReferenceLoadDTOList() != null) {
-						for (ReferenceLoadDTO reference : currentInstruction.getReferenceLoadDTOList()) {
-							// Populate the map with referenceType as the key and value as the value
-							mapSavedLocators.put(reference.getReferenceType(), reference.getValue());
+					performActions.waitPage();
+					try {
+						if (navTime > 0) {
+							performActions.onHoldInSeconds(navTime);
+							logOperations.info("Navigation Time : {}", navTime);
+						}
+					} catch (Exception ignore) {
+					}
+
+					// Fire on FIRST page load OR when the INSTRUCTION changes
+					// and only for web-element work (INPUT / OUTPUT / CLICK / GET / SET)
+					if (isWebElementInstruction(currentInstruction) && webElementFound == null) {
+
+						Integer currentInstructionId = currentInstruction.getId();
+
+						if (!firstPageLoadDone
+								|| lastInstructionIdPushed == null
+								|| !lastInstructionIdPushed.equals(currentInstructionId)) {
+
+							firstPageLoadDone = true;
+							lastInstructionIdPushed = currentInstructionId;
+
+							performLists.resetListElements();
+							pushUpdateListElements();
+
+							logOperations.info("Total Target Elements: "
+									+ performLists
+											.getListTargetElements()
+											.size());
+
+							// runYourScript(currentInstructionId);
 						}
 					}
+
+					//                            mapSavedLocators.clear();
+					//
+					//                            // Loop through the instructionReferenceLoadDTOList
+					//                            if (currentInstruction.getReferenceLoadDTOList() != null) {
+					//                                for (ReferenceLoadDTO reference :
+					// currentInstruction.getReferenceLoadDTOList()) {
+					//                                    // Populate the map with referenceType as the key and
+					// value as the value
+					//                                    mapSavedLocators.put(reference.getReferenceType(),
+					// reference.getValue());
+					//                                }
+					//                            }
 
 					currentIndex++;
 
@@ -334,6 +424,9 @@ if (extractedData.getNumberOfDataRows() > 0) {
 					boolean execOutPut = false;
 					boolean excelWriteOperation = false;
 					boolean pauseOperation = false;
+					boolean nextEnter = false;
+					boolean swipeUp = false;
+					boolean swipeDown = false;
 
 					String xPathOperation = null;
 					String[] parentActions = null;
@@ -586,6 +679,12 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								"Continue",
 								"Stop Run",
 								0);
+					} else if (actions[0].equalsIgnoreCase(ARConstantsEngine.NEXT_ENTER)) {
+						nextEnter = true;
+					} else if (actions[0].equalsIgnoreCase(ARConstantsEngine.SWIPE_UP)) {
+						swipeUp = true;
+					} else if (actions[0].equalsIgnoreCase(ARConstantsEngine.SWIPE_DOWN)) {
+						swipeDown = true;
 					}
 
 					if (actions[0].equalsIgnoreCase(ARConstantsEngine.LOOP)) {
@@ -939,35 +1038,67 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								&& !execPDFCheck
 								&& !execCSVCheck
 								&& !excelWriteOperation
-								&& !pauseOperation) {
+								&& !pauseOperation
+								&& !nextEnter
+								&& !swipeUp
+								&& !swipeDown) {
 
 							webElementWork = true;
 
-							// Extract dataFieldName and dataFieldValue using a separate method
-							// AR Mobile Work Around for Not creating a new DB column
-							String defaultValue = currentInstruction.getDefaultValue() != null
-											&& !currentInstruction
-													.getDefaultValue()
-													.contains("scroll-active")
-									? currentInstruction.getDefaultValue()
-									: null;
-
 							FieldData fieldData = performActions.extractFieldData(
-									dataExcel, actions, defaultValue, currentInstruction.getCodified());
+									dataExcel,
+									actions,
+									currentInstruction.getDefaultValue(),
+									currentInstruction.getCodified());
 
-							WebElement webElementFound = null;
+							//                                    webElementFound = null;
 							boolean forceCoordinates = currentInstruction.getForceCoordinates() != null
 									&& currentInstruction.getForceCoordinates();
 
 							if (!isMobileApp) {
-								try {
-									webElementFound = performActions.searchElement(
-											currentInstruction,
-											this.currentBotJob.getId(),
-											forceCoordinates,
-											byPassFlagLoop);
-								} catch (Exception ex) {
-									success = false;
+
+								if (isWebElementInstruction(currentInstruction) && webElementFound == null) {
+									try {
+										performActions.waitPage();
+
+										matchXPath = InstructionLoadMatcher.findMatchingTargetElementByXPath(
+												performLists.getListTargetElements(), currentInstruction);
+										matchScanned = null;
+										//                                            InputInfo match =
+										// findMatchingInput(inputs, currentInstruction);
+
+										if (matchXPath == null) {
+											matchScanned = InstructionLoadMatcher.findMatchingTargetElement(
+													performLists.getListTargetElements(), currentInstruction);
+
+											if (matchScanned != null) {
+												InstructionLoadUpdater.applyMatchToInstruction(
+														currentInstruction, matchScanned);
+
+												// SECOND IMMEDIATE ATTEMPT TO LOCATE
+												webElementFound = immediateXPath(matchScanned.getXPath());
+											}
+										}
+
+										// VERY IMPORTANT TO VALIDAE IF THE ELEMENT IS ON TEH PAGE FIRST
+										//                                            if (matchXPath != null ||
+										// matchScanned != null || match != null) {
+										if (webElementFound == null) {
+											webElementFound = performActions.searchElement(
+													currentInstruction,
+													this.currentBotJob.getId(),
+													forceCoordinates,
+													byPassFlagLoop);
+										}
+										//                                            } else {
+										//                                                webElementFound =
+										// null;
+										//                                                forceCoordinates =
+										// false;
+										//                                            }
+									} catch (Exception ex) {
+										success = false;
+									}
 								}
 							} else {
 								// Safely extract the first element ID (if present)
@@ -999,13 +1130,15 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								SplitDTO.applyInstructionToSplit(splitDTO, currentInstruction);
 								//                                        }
 
-								webElementFound = androidDevice.searchElement(splitDTO);
+								currentPage = androidDevice.scanElementsWithCanonicalXmlOnly();
+
+								webElementFound = androidDevice.searchElement(splitDTO, actions, currentPage);
 
 								if (webElementFound == null) {
 									appendLog(
 											currentInstruction.getName() + "- Not Found- using coordinates",
 											"warn");
-									androidDevice.executeAction(webElementFound, splitDTO);
+									androidDevice.executeAction(webElementFound, splitDTO, actions);
 								}
 							}
 
@@ -1039,7 +1172,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 
 								success = performActions.performWebActions(
 										byPassNotFound,
-										mapSavedLocators.get("coordinates"),
+										"coordinates",
 										fieldData,
 										currentInstruction,
 										mapOperators,
@@ -1059,10 +1192,19 @@ if (extractedData.getNumberOfDataRows() > 0) {
 							// Special Cases for Select Responses
 							// It could be Improved the case
 							if (resultActions.contains("FAIL")
+								|| currentPage.isEmpty()
+									|| (matchXPath == null && matchScanned == null && webElementFound == null)
 									|| (webElementFound == null && !forceCoordinates)) {
 								failedMessage = "Failed execution Web Element ";
 								msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
+								if (resultActions.contains("PASSED")) {
+									resultActions = resultActions.replaceAll("PASSED", "FAIL");
+								}
 								success = false;
+
+								if (currentPage.isEmpty()) {
+									stopAll = true;
+								}
 							} else if (resultActions != null && success) {
 								failedMessage = "";
 								currentInstruction.setExecuted(true);
@@ -1090,7 +1232,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								success = false;
 							} else {
 
-								WebElement webElementFound = null;
+								webElementFound = null;
 								if (isMobileApp) {
 									int index = IntStream.range(0, instructionIds.length)
 											.filter(i -> instructionIds[i] == parentId)
@@ -1104,7 +1246,8 @@ if (extractedData.getNumberOfDataRows() > 0) {
 									SplitDTO.applyAttrDataFromReferences(splitDTO, refInstruction);
 									SplitDTO.applyInstructionToSplit(splitDTO, refInstruction);
 
-									webElementFound = androidDevice.searchElement(splitDTO);
+									webElementFound =
+											androidDevice.searchElement(splitDTO, actions, currentPage);
 								}
 
 								resultActions = performActions.performOperatorActions(
@@ -1122,6 +1265,9 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								if (resultActions.contains("FAIL")) {
 									failedMessage = "Failed: Operation (GetValue / SetValue) ";
 									msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
+									if (resultActions.contains("PASSED")) {
+										resultActions = resultActions.replaceAll("PASSED", "FAIL");
+									}
 									success = false;
 								} else {
 									failedMessage = "";
@@ -1785,6 +1931,86 @@ if (extractedData.getNumberOfDataRows() > 0) {
 						break;
 					}
 
+					if (nextEnter) {
+
+						String nameInstruc =
+								"(" + currentInstruction.getId() + ") " + currentInstruction.getName();
+
+						resultActions = String.format("Device : \"%s\"", nameInstruc);
+
+						FieldData msgBlock = new FieldData(resultActions, ARConstantsEngine.NEXT_ENTER);
+
+						// Excel Report and Log
+						performActions.logAndReport(
+								currentCondition,
+								true,
+								true,
+								blockStartTime,
+								blockReportName,
+								success,
+								new String[] {ARConstantsEngine.NEXT_ENTER},
+								msgBlock,
+								dataExcel,
+								writerReport,
+								"DEVICE -> NEXT/ENTER",
+								String.format("NEXT/ENTER CALLED AT: \"%s\" : ", nameInstruc));
+
+						respModal = ARExecution.DialogModal.NONE;
+						break;
+					} else if (swipeUp) {
+
+						String nameInstruc =
+								"(" + currentInstruction.getId() + ") " + currentInstruction.getName();
+
+						resultActions = String.format("Device : \"%s\"", nameInstruc);
+
+						FieldData msgBlock = new FieldData(resultActions, ARConstantsEngine.SWIPE_UP);
+
+						// Excel Report and Log
+						performActions.logAndReport(
+								currentCondition,
+								true,
+								true,
+								blockStartTime,
+								blockReportName,
+								success,
+								new String[] {ARConstantsEngine.SWIPE_UP},
+								msgBlock,
+								dataExcel,
+								writerReport,
+								"DEVICE -> SWIPE UP",
+								String.format("SWIPE UP CALLED AT: \"%s\" : ", nameInstruc));
+
+						respModal = ARExecution.DialogModal.NONE;
+						break;
+					} else if (swipeDown) {
+
+						String nameInstruc =
+								"(" + currentInstruction.getId() + ") " + currentInstruction.getName();
+
+						resultActions = String.format("Device : \"%s\"", nameInstruc);
+
+						FieldData msgBlock = new FieldData(resultActions, ARConstantsEngine.SWIPE_DOWN);
+
+						// Excel Report and Log
+						performActions.logAndReport(
+								currentCondition,
+								true,
+								true,
+								blockStartTime,
+								blockReportName,
+								success,
+								new String[] {ARConstantsEngine.SWIPE_DOWN},
+								msgBlock,
+								dataExcel,
+								writerReport,
+								"DEVICE -> SWIPE DOWN",
+								String.format("SWIPE DOWN CALLED AT: \"%s\" : ", nameInstruc));
+
+						respModal = ARExecution.DialogModal.NONE;
+						break;
+					}
+
 					// It decides Here if ByPass as per Loop or Per IF-ELSEIF-ELSE-ENDIF blocks
 					// Does not block other executions if it fails for any reason and jumps to the beginning or
 					// Excel GOTO position block
@@ -1897,7 +2123,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 			currentBlockOrder++;
 		}
 
-		currentBlockOrder = blockInitial; // BLOCK DEFINED BY "DEFAULT" OR "EXCEL GOTO"
+		currentBlockOrder = blockExcelGoto; // BLOCK DEFINED BY "DEFAULT" OR "EXCEL GOTO"
 		xExcelCurrentRow++;
 		addRowFromMap(mapExportRows);
 		if (excelFieldName != null && excelFieldName.toLowerCase().endsWith(".csv")) {
