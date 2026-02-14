@@ -4615,126 +4615,165 @@ public class ARScannedElementPane extends ARPane {
                                     }
 
                                 } else if (execPDFCheck) {
-                                    // Check Validation Operator
 
-                                    if (!mapOperators.containsKey(variableField)) {
-                                        failedMessage = "Get Value Is Not Defined ";
-                                        msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
-                                        //                                        resultActions =
-                                        // performActions.getValueIsNotDefined(
-                                        //                                                actions[0],
-                                        //                                                currentInstruction,
-                                        //                                                resultActions,
-                                        //                                                ARExecution.ConditionStatus
-                                        //                                                        .NONE, // NOT
-                                        // currentCondition to Force Message,
-                                        //                                                parentField,
-                                        //                                                variableField);
-
-                                        String reason = performActions.buildGetVariableReason(
-                                                actions[0],
-                                                currentInstruction,
-                                                resultActions,
-                                                currentCondition,
-                                                parentField,
-                                                variableField,
-                                                byPassNotFound, // or your bypass flag
-                                                blockName,
-                                                currentInstruction.getId(),
-                                                false);
-
-                                        appendLog("[TEST]" + reason, "error");
-                                        alreadyLogged = true;
-
-                                        logOperations.error("{}", reason);
-
-                                        success = false;
+                                    // If fieldsToValidate is null/empty => ignore (no log)
+                                    Map<String, FieldsToValidate> fMap = splitDTO.getFieldsToValidate();
+                                    if (fMap == null || fMap.isEmpty()) {
+                                        // ignore
                                     } else {
-                                        //                                    fieldName = parentField;
 
-                                        resultActions = "PDF Check Value for " + String.join(" ", operations);
-                                        boolean isOperationValid = false;
-                                        String invalidValues = null;
+                                        for (Map.Entry<String, FieldsToValidate> entry : fMap.entrySet()) {
 
-                                        if (operations[1].equalsIgnoreCase("=")) {
-                                            isOperationValid = mapOperators
-                                                    .get(variableField)
-                                                    .trim()
-                                                    .equalsIgnoreCase(operations[2].trim());
+                                            FieldsToValidate expectedField = entry.getValue();
 
-                                        } else if (operations[1].equalsIgnoreCase(">")) {
-                                            int resp = handleGreaterThan(
-                                                    mapOperators
-                                                            .get(variableField)
-                                                            .trim(),
-                                                    operations[2].trim());
-                                            if (resp == 1) {
-                                                isOperationValid = true;
-                                            } else if (resp == 0) {
-                                                isOperationValid = false;
+                                            // Only run if parentField exists as a key. If not found => ignore (no log).
+                                            if (expectedField == null || expectedField.getValue() == null) {
+                                                // ignore
                                             } else {
-                                                isOperationValid = false;
-                                                invalidValues = "Invalid Numbers";
+
+                                                String parentFieldPDF = entry.getKey();
+
+                                                String foundKey = null;
+                                                if (allOutPuts != null && !allOutPuts.isEmpty()) {
+                                                    for (Integer outId : allOutPuts) {
+                                                        String k = outId + "-" + parentFieldPDF;
+                                                        if (mapOperators.containsKey(k)) {
+                                                            foundKey = k;
+                                                            break;
+                                                        }
+                                                    }
+                                                }
+
+                                                if (foundKey == null) {
+                                                    // ignore
+                                                } else {
+
+                                                    String actualValue = mapOperators.get(foundKey);
+
+                                                    // You still keep your "Get Value Is Not Defined" behavior
+                                                    if (actualValue == null
+                                                            || actualValue
+                                                                    .trim()
+                                                                    .isEmpty()) {
+                                                        failedMessage = "Get Value Is Not Defined ";
+                                                        msgInstruction =
+                                                                updateMSGInstruction(msgInstruction, failedMessage);
+
+                                                        //                                                resultActions
+                                                        // =
+                                                        // performActions.getValueIsNotDefined(
+                                                        //
+                                                        // actions[0],
+                                                        //
+                                                        // currentInstruction,
+                                                        //
+                                                        // resultActions,
+                                                        //
+                                                        // ARExecution.ConditionStatus.NONE,
+                                                        //
+                                                        // parentField,
+                                                        //
+                                                        // variableField);
+
+                                                        String reason = performActions.buildGetVariableReason(
+                                                                actions[0],
+                                                                currentInstruction,
+                                                                resultActions,
+                                                                currentCondition,
+                                                                parentField,
+                                                                variableField,
+                                                                byPassNotFound, // or your bypass flag
+                                                                blockName,
+                                                                currentInstruction.getId(),
+                                                                false);
+
+                                                        appendLog("[TEST]" + reason, "error");
+                                                        alreadyLogged = true;
+
+                                                        logOperations.error("{}", reason);
+
+                                                        success = false;
+
+                                                    } else {
+                                                        // actual/current value on the web/app side
+
+                                                        // expected value comes from
+                                                        // splitDTO.fieldsToValidate[parentField].value
+                                                        String expectedValue = expectedField.getValue();
+
+                                                        // operator comes from your parsed operations array
+                                                        String operator = operations[1];
+
+                                                        resultActions = "PDF Check Value for " + parentFieldPDF;
+                                                        ValidationResult vr =
+                                                                evaluateOperation(actualValue, operator, expectedValue);
+
+                                                        if (vr.valid) {
+                                                            currentInstruction.setExecuted(true);
+                                                            failedMessage = "";
+                                                            success = true;
+
+                                                            resultActions = performActions.buildValidationReason(
+                                                                    vr.invalidReason,
+                                                                    parentFieldPDF,
+                                                                    actualValue, // actual/current web value
+                                                                    expectedValue,
+                                                                    resultActions,
+                                                                    operations,
+                                                                    currentCondition,
+                                                                    byPassNotFound,
+                                                                    true,
+                                                                    blockName,
+                                                                    currentInstruction.getId(),
+                                                                    true);
+
+                                                            appendLog("[TEST]" + resultActions, "info");
+                                                            alreadyLogged = true;
+
+                                                            logOperations.info(
+                                                                    "Validation SUCCESS for field '{}': actual='{}' {} expected='{}'",
+                                                                    parentFieldPDF,
+                                                                    actualValue,
+                                                                    operator,
+                                                                    expectedValue);
+
+                                                        } else {
+                                                            failedMessage = "Failed: Check Validation ";
+                                                            msgInstruction =
+                                                                    updateMSGInstruction(msgInstruction, failedMessage);
+
+                                                            resultActions = performActions.buildValidationReason(
+                                                                    vr.invalidReason,
+                                                                    parentFieldPDF,
+                                                                    actualValue, // actual/current web value
+                                                                    expectedValue,
+                                                                    resultActions,
+                                                                    operations,
+                                                                    currentCondition,
+                                                                    byPassNotFound,
+                                                                    true,
+                                                                    blockName,
+                                                                    currentInstruction.getId(),
+                                                                    false);
+
+                                                            appendLog("[TEST]" + resultActions, "error");
+                                                            alreadyLogged = true;
+
+                                                            logOperations.error(
+                                                                    "PDF Values Validation FAILED for field '{}': actual='{}' {} expected='{}'. Reason: {}",
+                                                                    parentFieldPDF,
+                                                                    actualValue,
+                                                                    operator,
+                                                                    expectedValue,
+                                                                    resultActions);
+
+                                                            success = false;
+                                                        }
+                                                    }
+                                                }
                                             }
-                                        } else if (operations[1].equalsIgnoreCase("!=")) {
-                                            isOperationValid = !mapOperators
-                                                    .get(variableField)
-                                                    .trim()
-                                                    .equalsIgnoreCase(operations[2].trim());
-                                        } else if (operations[1].equalsIgnoreCase("<")) {
-                                            int resp = handleLessThan(
-                                                    mapOperators
-                                                            .get(variableField)
-                                                            .trim(),
-                                                    operations[2].trim());
-                                            if (resp == 1) {
-                                                isOperationValid = true;
-                                            } else if (resp == 0) {
-                                                isOperationValid = false;
-                                            } else {
-                                                isOperationValid = false;
-                                                invalidValues = "Invalid Numbers";
-                                            }
-                                        }
-
-                                        if (isOperationValid) {
-                                            currentInstruction.setExecuted(true);
-                                            failedMessage = "";
-                                            success = true;
-                                        } else {
-                                            failedMessage = "Failed: Check Validation ";
-                                            msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
-                                            //                                            resultActions =
-                                            // performActions.checkValidationFailed(
-                                            //                                                    invalidValues,
-                                            //                                                    parentField,
-                                            //
-                                            // mapOperators.get(variableField),
-                                            //                                                    resultActions,
-                                            //                                                    operations,
-                                            //                                                    currentCondition,
-                                            //                                                    byPassNotFound);
-
-                                            resultActions = performActions.buildValidationReason(
-                                                    invalidValues,
-                                                    parentField,
-                                                    mapOperators.get(variableField), // actual/current web value
-                                                    "expectedValue",
-                                                    resultActions, // lastInstructionExecuted
-                                                    operations,
-                                                    currentCondition,
-                                                    byPassNotFound,
-                                                    true,
-                                                    blockName,
-                                                    currentInstruction.getId(),
-                                                    false);
-
-                                            logOperations.error("Validation failed: {}", resultActions);
-
-                                            success = false;
                                         }
                                     }
-
                                 } else if (execCSVCheck) {
 
                                     // If fieldsToValidate is null/empty => ignore (no log)

@@ -208,9 +208,19 @@ public class ARViewBotJobPane extends ARPane {
             arElementValueScene.closeModal();
         }
 
-        if (arScannedElementScene.getCurrentBotJob() != null
-                && !arScannedElementScene.getCurrentBotJob().getId().equals(selectedBotJob.getId())) {
-            callScannerTool();
+        String priority = selectedBotJob.getPriority();
+
+        if (isWebApp(priority)) {
+
+            if (arScannedElementScene.getCurrentBotJob() != null
+                    && !arScannedElementScene.getCurrentBotJob().getId().equals(selectedBotJob.getId())) {
+                callScannerTool();
+            }
+
+        } else if (isMobile(priority)) {
+
+            arScannedElementScene.closeWebDrivers();
+            arScannedElementScene.closeModal();
         }
 
         if (botJobNameLabel != null) {
@@ -1553,5 +1563,20 @@ public class ARViewBotJobPane extends ARPane {
 
         // JavaFX styling
         navigationTimeButton.setStyle("-fx-background-color: " + bg + "; -fx-text-fill: black;");
+    }
+
+    private boolean isWebApp(String priority) {
+        return priority == null
+                || priority.trim().isEmpty()
+                || ARPropertyEnum.WEB_APP.getValue().equalsIgnoreCase(priority);
+    }
+
+    private boolean isMobile(String priority) {
+        if (priority == null) {
+            return false;
+        }
+
+        return ARPropertyEnum.ANDROID.getValue().equalsIgnoreCase(priority.trim())
+                || ARPropertyEnum.IOS.getValue().equalsIgnoreCase(priority.trim());
     }
 }

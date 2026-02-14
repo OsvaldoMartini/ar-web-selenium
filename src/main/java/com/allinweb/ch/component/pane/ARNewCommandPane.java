@@ -1320,6 +1320,7 @@ public class ARNewCommandPane extends ARPane {
                 insertNewInstruction(
                         "SWIPE_DOWN", "SWIPE_DOWN", ARConstants.SWIPE_DOWN, 1, swipeTimes, null, null, null);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("EXCEL GOTO")) {
+                String previous = splitDTO.getType();
                 insertNewInstruction(
                         "EXCEL GOTO",
                         "EXCEL GOTO",
@@ -1330,6 +1331,7 @@ public class ARNewCommandPane extends ARPane {
                         null,
                         comboBoxBlocksGoto.getValue().getBlockId() // BLOCK ID as Parent Block Id
                         );
+                splitDTO.setType(previous);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("IF")) {
                 insertNewInstruction(
                         "IF",
@@ -2904,7 +2906,7 @@ public class ARNewCommandPane extends ARPane {
             blockIdChanged = false;
         }
 
-        // This will make the EXCEL GOTO TO BE RELOCATES JUST AS INFO
+        // This will make the EXCEL GOTO TO BE RELOCATES JUST AS INFO0
         // EXCEL GOTO IS GOING TO BE RENDERED DIFFERENTLY ON GridItems
         if (parentBlockId != null && actions.equals("EXCEL GOTO")) {
             blockId = comboBoxBlocksGoto.getValue().getBlockId();

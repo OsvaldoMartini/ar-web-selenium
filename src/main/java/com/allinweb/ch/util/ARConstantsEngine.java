@@ -5,6 +5,10 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ARConstantsEngine {
 
+    private static final String WEB_APP = "Web App";
+    private static final String ANDROID = "Android";
+    private static final String IOS = "iOS";
+
     // Labels & Properties
     public static final String LABELS_FILE_NAME_COMMON = "lang/labels.";
     public static final String PROPERTIES_FILE_EXTENSION = ".properties";
