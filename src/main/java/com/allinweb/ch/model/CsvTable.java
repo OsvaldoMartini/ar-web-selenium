@@ -1,19 +1,42 @@
 package com.allinweb.ch.model;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class CsvTable {
 
+    private final String fileName;
+
+    // unique + preserves insertion order
+    private final LinkedHashSet<String> columns = new LinkedHashSet<>();
+
     private final List<CsvRow> rows = new ArrayList<>();
 
-    /** Returns the internal rows (read-only if you prefer you can wrap it). */
+    public CsvTable(String fileName) {
+        this.fileName = Objects.requireNonNull(fileName, "fileName");
+    }
+
+    public String getFileName() {
+        return fileName;
+    }
+
+    /** Snapshot list in insertion order */
+    public List<String> getColumns() {
+        return new ArrayList<>(columns);
+    }
+
     public List<CsvRow> getRows() {
         return rows;
     }
 
-    /** Ensures row exists; if rowIndex is beyond current size, adds new rows up to that index. */
+    /** Add many columns (deduped, keeps first-seen order) */
+    public void addColumns(Collection<String> newColumns) {
+        if (newColumns == null) return;
+        for (String c : newColumns) {
+            String col = normalizeColumnNullable(c);
+            if (col != null) columns.add(col);
+        }
+    }
+
     private CsvRow ensureRow(int rowIndex) {
         if (rowIndex < 0) {
             throw new IllegalArgumentException("rowIndex must be >= 0");
@@ -24,31 +47,34 @@ public class CsvTable {
         return rows.get(rowIndex);
     }
 
-    /**
-     * Add/update ONE column in the given rowIndex.
-     * - If row doesn't exist, it is created.
-     * - If column exists, value is updated (column order stays as first insertion order).
-     * - If column is new, it is appended in insertion order.
-     */
+    /** Writes value, and grows columns if needed */
     public void put(int rowIndex, String column, String value) {
+        String col = normalizeColumnRequired(column);
+
+        // grow columns dynamically
+        columns.add(col);
+
         CsvRow row = ensureRow(rowIndex);
-        row.set(column, value);
+        row.set(col, value);
     }
 
-    /**
-     * Add/update MULTIPLE columns in the given rowIndex, in the iteration order of the map.
-     * IMPORTANT: if you want strict "order of addition", pass a LinkedHashMap here.
-     */
-    public void putAll(int rowIndex, Map<String, String> columns) {
-        CsvRow row = ensureRow(rowIndex);
-        for (Map.Entry<String, String> e : columns.entrySet()) {
-            row.set(e.getKey(), e.getValue());
-        }
-    }
-
-    /** Convenience: get value (returns "" if missing). */
     public String get(int rowIndex, String column) {
         if (rowIndex < 0 || rowIndex >= rows.size()) return "";
-        return rows.get(rowIndex).get(column);
+        String col = normalizeColumnRequired(column);
+        return rows.get(rowIndex).get(col);
+    }
+
+    private static String normalizeColumnRequired(String column) {
+        if (column == null) throw new IllegalArgumentException("column must not be null");
+        String col = column.trim();
+        if (col.isEmpty()) throw new IllegalArgumentException("column must not be blank");
+        return col;
+    }
+
+    /** returns null if blank/null */
+    private static String normalizeColumnNullable(String column) {
+        if (column == null) return null;
+        String col = column.trim();
+        return col.isEmpty() ? null : col;
     }
 }

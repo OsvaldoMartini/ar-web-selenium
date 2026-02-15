@@ -166,11 +166,9 @@ public class ARScannedElementPane extends ARPane {
     private TextField testActionsField;
     private TextField coordsTextField;
     private Map<String, String> mapOperators = new HashMap<>();
-    private Map<String, String> mapExportRows = new HashMap<>();
     private Set<String> headersExport = new LinkedHashSet<>();
-    private List<String> columnsCSV = new ArrayList<>(); // set once
-    private List<CsvRow> rowsCSV = new ArrayList<>();
-    CsvTable tableCSV = new CsvTable();
+    private List<String> currentColumnsCSV = new ArrayList<>(); // set once
+    private Map<String, CsvTable> csvTables = new LinkedHashMap<>();
     private List<VariableLoadDTO> variablesLoaded;
     private String[] defaultSearch;
     private boolean searchHiddenFields;
@@ -1963,9 +1961,6 @@ public class ARScannedElementPane extends ARPane {
                     excelDataGoto = performDBEngine.loadExcelGotoBlock(this.currentBotJob.getId(), "instruction");
                 }
             }
-            if (errorMessage == null)
-                errorMessage = performDataBase.loadAllColumnsExcelWrite("instruction", currentBotJob.getId());
-
             if (errorMessage == null) errorMessage = performDBEngine.loadCompleteJobs(this.currentBotJob.getId());
 
             if (errorMessage == null)
@@ -2805,132 +2800,92 @@ public class ARScannedElementPane extends ARPane {
     }
 
     /**
-     * Adds or updates a row at the given index using a Map.
-     * Columns must already be initialized via setColumns().
-     */
-    public void addColumnsToRowFromMap(Map<String, String> map, int rowIndex) {
-
-        // Ensure row exists
-        while (rowsCSV.size() < rowIndex) {
-            rowsCSV.add(new CsvRow());
-        }
-
-        CsvRow row = rowsCSV.get(rowIndex);
-
-        // Only set values for known columns
-        for (String column : columnsCSV) {
-            row.set(column, map.getOrDefault(column, ""));
-        }
-    }
-
-    /**
-     * Adds a row with values matching the columns.
-     * Missing values are filled with empty strings.
+     * Generates the CSV content as a formatted String.
      *
-     * @param values Array of values; may be less than columns.
+     * The first line contains the header row (column names),
+     * prefixed with "0: ".
+     *
+     * Each subsequent line (when enabled) represents a data row,
+     * prefixed with its sequential row number.
+     *
+     * The method appends the configured end-of-file marker
+     * at the end of the generated content.
+     *
+     * @return the complete CSV content as a String
      */
-    //    public void addRow(String... values) {
-    //        if (columnsCSV.isEmpty()) {
-    //            throw new IllegalStateException("Columns must be initialized before adding a row using values.");
-    //        }
-    //
-    //        List<String> row = new ArrayList<>();
-    //        int maxCols = columnsCSV.size();
-    //
-    //        for (int i = 0; i < maxCols; i++) {
-    //            if (i < values.length) {
-    //                row.add(values[i]);
-    //            } else {
-    //                row.add(""); // fill missing with empty string
-    //            }
-    //        }
-    //        rowsCSV.add(row);
-    //    }
-
-    //    public void addColumnsToRowFromMap(Map<String, String> map, int rowIndex) {
-    //
-    //        // Initialize columns once
-    //        if (columnsCSV.isEmpty()) {
-    //            if (map instanceof LinkedHashMap) {
-    //                columnsCSV.addAll(map.keySet());
-    //            } else {
-    //                List<String> sortedKeys = new ArrayList<>(map.keySet());
-    //                Collections.sort(sortedKeys);
-    //                columnsCSV.addAll(sortedKeys);
-    //            }
-    //        }
-    //
-    //        // Ensure row exists
-    //        while (rowsCSV.size() <= rowIndex) {
-    //            rowsCSV.add(new LinkedHashMap<>());
-    //        }
-    //
-    //        // Put values directly
-    //        rowsCSV.get(rowIndex).putAll(map);
-    //    }
-
-    //    /**
-    //     * Adds a row using a Map<String, String>. If this is the first row added,
-    //     * it sets the column order based on the map's keys.
-    //     */
-    //    public void addRowFromMap(Map<String, String> map) {
-    //        // Initialize column order on first insert
-    //        if (columnsCSV.isEmpty()) {
-    //            if (map instanceof LinkedHashMap) {
-    //                columnsCSV.addAll(map.keySet()); // preserve order
-    //            } else {
-    //                // Default to alphabetical if insertion order is unknown
-    //                List<String> sortedKeys = new ArrayList<>(map.keySet());
-    //                Collections.sort(sortedKeys);
-    //                columnsCSV.addAll(sortedKeys);
-    //            }
-    //        }
-    //
-    //        List<String> row = new ArrayList<>();
-    //        for (String column : columnsCSV) {
-    //            row.add(map.getOrDefault(column, ""));
-    //        }
-    //        rowsCSV.add(row);
-    //    }
-
-    /**
-     * Adds N empty rows. Column order must already be initialized (or will be initialized later).
-     */
-    //    public void addEmptyRows(int count) {
-    //        for (int i = 0; i < count; i++) {
-    //            List<String> row = new ArrayList<>(Collections.nCopies(columnsCSV.size(), ""));
-    //            rowsCSV.add(row);
-    //        }
-    //    }
-
-    public String getCsvContent() {
+    public String getCsvContent(CsvTable tableCSV) {
         StringBuilder sb = new StringBuilder();
-        sb.append("0: ").append(String.join(",", columnsCSV)).append("\n");
+        sb.append("0: ").append(String.join(",", tableCSV.getColumns())).append("\n");
 
         int rowNumber = 1;
         //        for (List<String> row : rowsCSV) {
         //            sb.append(rowNumber).append(": ").append(String.join(",", row)).append("\n");
         //            rowNumber++;
         //        }
-        sb.append(END_OF_FILE_MARKER);
+        //        sb.append(END_OF_FILE_MARKER);
         return sb.toString();
     }
 
-    public String getBancaStatoCsvContent(String delimiter) {
+    /**
+     * Generates the CSV content formatted according to the BancaStato specification.
+     *
+     * Format rules:
+     * - The first line is the header and always starts with "KEY"
+     *   followed by the configured delimiter and the ordered column names.
+     *
+     * - Each data row starts with:
+     *     • "EXTERNAL"       if there is only one row
+     *     • "EXTERNAL_n"     if multiple rows exist (1-based index)
+     *
+     * - Column values are written in the exact order defined by {@code tableCSV.columnsCSV}.
+     *   Missing values are rendered as empty strings.
+     *
+     * - The configured end-of-file marker is appended at the end.
+     *
+     * Example (single row):
+     *   KEY|User number
+     *   EXTERNAL|434234
+     *
+     * Example (multiple rows):
+     *   KEY|User number
+     *   EXTERNAL_1|434234
+     *   EXTERNAL_2|353534
+     *
+     * @param delimiter the column delimiter (e.g. "|")
+     * @return the formatted CSV content as a String
+     */
+    public String getBancaStatoCsvContent(CsvTable tableCSV, String delimiter) {
         StringBuilder sb = new StringBuilder();
+
+        // Header
         sb.append("KEY")
                 .append(delimiter)
-                .append(String.join(delimiter, columnsCSV))
+                .append(String.join(delimiter, tableCSV.getColumns()))
                 .append("\n");
 
-        int xRow = 1;
-        //        for (List<String> row : rowsCSV) {
-        //            sb.append("EXTERNAL_" + xRow)
-        //                    .append(delimiter)
-        //                    .append(String.join(delimiter, row))
-        //                    .append("\n");
-        //            xRow++;
-        //        }
+        int totalRows = (tableCSV == null || tableCSV.getRows() == null)
+                ? 0
+                : tableCSV.getRows().size();
+
+        // Data rows
+        for (int i = 0; i < totalRows; i++) {
+            CsvRow row = tableCSV.getRows().get(i);
+
+            String externalKey = (totalRows == 1) ? "EXTERNAL" : "EXTERNAL_" + (i + 1);
+
+            sb.append(externalKey).append(delimiter);
+
+            // values in the same order as columnsCSV
+            for (int c = 0; c < tableCSV.getColumns().size(); c++) {
+                String col = tableCSV.getColumns().get(c);
+                sb.append(row != null ? row.get(col) : "");
+                if (c < tableCSV.getColumns().size() - 1) {
+                    sb.append(delimiter);
+                }
+            }
+
+            sb.append("\n");
+        }
 
         //        sb.append(END_OF_FILE_MARKER);
         return sb.toString();
@@ -2948,10 +2903,6 @@ public class ARScannedElementPane extends ARPane {
                 }
             });
         }
-    }
-
-    public void printCsv() {
-        logOperations.info(getCsvContent());
     }
 
     // Allow the stage to be set from outside when pane is shown
@@ -3239,6 +3190,8 @@ public class ARScannedElementPane extends ARPane {
         int navTime = getNavigationTimeSeconds();
         String previousExcelFieldName = "";
         String newExcelFieldName = "";
+        String currentExcelFileName = "";
+        CsvTable currentTableCSV = null;
 
         //        List<InputInfo> inputs = new ArrayList<>();
 
@@ -3265,9 +3218,6 @@ public class ARScannedElementPane extends ARPane {
         boolean webElementWork = false;
 
         if (extractedData.getNumberOfDataRows() > 0) {
-
-            setColumns(performLists.getExcelColumnNames());
-            //            addColumnsToRowFromMap(columnsCSV, 1);
 
             // Execute All Blocks starting from executeSpecificBlock if Defined
             currentBlockOrder = (executeSpecificBlock > -1) ? executeSpecificBlock : 0;
@@ -3298,10 +3248,9 @@ public class ARScannedElementPane extends ARPane {
             int xExcelCurrentRow = 0;
             int xExcelDataSize = extractedData.getNumberOfDataRows();
             mapOperators.clear();
-            mapExportRows = new LinkedHashMap<>();
             headersExport.clear();
-            columnsCSV.clear();
-            rowsCSV.clear();
+            currentColumnsCSV.clear();
+            csvTables.clear();
 
             while (xExcelCurrentRow <= xExcelDataSize - 1 && !blocksLoaded.isEmpty() && !stopAll) {
                 // Clear's Up Any Loop as Per New Line
@@ -3366,27 +3315,40 @@ public class ARScannedElementPane extends ARPane {
                         }
 
                         newExcelFieldName = blockLoad.getExportFile();
-
-                        if (newExcelFieldName != null && !newExcelFieldName.equals(previousExcelFieldName)) {
-
-                            //                            saveExcelWrite(newExcelFieldName, xExcelDataSize,
-                            // writerExport, exportIndex);
-
-                            previousExcelFieldName = newExcelFieldName;
+                        // Always loads ExcelWrite columns per block
+                        ErrorMessage errorMessage = performDataBase.loadAllColumnsExcelWrite(
+                                "instruction", currentBotJob.getId(), blockLoad.getId());
+                        if (errorMessage == null) {
+                            setCurrentColumns(performLists.getExcelColumnNames());
                         }
 
-                        if (!Strings.isNullOrEmpty(newExcelFieldName)) {
-                            String[] parts = newExcelFieldName.split(":");
-                            if (parts.length > 2) {
-                                delimiterCSV = parts[2];
-                                newExcelFieldName =
-                                        newExcelFieldName.replace(":,", "").replace(":|", "");
+                        if (newExcelFieldName != null && !newExcelFieldName.equals(previousExcelFieldName)) {
+                            // Sanitize
+                            if (!Strings.isNullOrEmpty(newExcelFieldName)) {
+                                String[] parts = newExcelFieldName.split(":");
+                                if (parts.length > 2) {
+                                    delimiterCSV = parts[2];
+                                    newExcelFieldName =
+                                            newExcelFieldName.replace(":,", "").replace(":|", "");
+                                }
+
+                                // Extract only file name with extension
+                                Path path = Paths.get(newExcelFieldName);
+                                currentExcelFileName = path.getFileName().toString();
                             }
+
+                            currentTableCSV = csvTables.computeIfAbsent(currentExcelFileName, f -> {
+                                CsvTable t = new CsvTable(f);
+                                t.addColumns(currentColumnsCSV); // addAll per filename
+                                return t;
+                            });
+
+                            previousExcelFieldName = newExcelFieldName;
                         }
                     }
 
                     // It Searches the Block That have finished the Loops to Avoid recursivity
-                    if (loopBlockActive.size() > 0) {
+                    if (!loopBlockActive.isEmpty()) {
                         for (String blocLoopKey : loopBlockActive) {
                             if (mapLoops.containsKey(blocLoopKey)) {
                                 if (mapLoops.get(blocLoopKey) == 0) {
@@ -3540,7 +3502,7 @@ public class ARScannedElementPane extends ARPane {
 
                     while (xExcelCurrentRow < extractedData.getNumberOfDataRows() && !stopAll) {
                         failedMessage = "";
-                        //                        mapExportRows.clear();
+                        //                        tableCSV.clear();
 
                         //                    writerReport.insertBlockSeparation(blockLoad.getName());
 
@@ -4884,7 +4846,7 @@ public class ARScannedElementPane extends ARPane {
                                                 blockName,
                                                 currentInstruction.getId(),
                                                 false);
-
+                                        updateRowStatusAndNotify("red"); // #FF3131 deep carmine red
                                         appendLog("[TEST]" + reason, "error");
                                         alreadyLogged = true;
 
@@ -4905,8 +4867,15 @@ public class ARScannedElementPane extends ARPane {
                                                     .withPurpose("export");
 
                                             // Only create Columns if Have a file to write
-                                            tableCSV.put(
-                                                    xExcelCurrentRow, parentField, mapOperators.get(variableField));
+                                            String webData = mapOperators
+                                                    .get(variableField)
+                                                    .trim();
+                                            webData = performActions.sanitizeValue(webData);
+
+                                            currentTableCSV.put(
+                                                    xExcelCurrentRow,
+                                                    parentField.trim(),
+                                                    webData); // may add new columns later too
                                         }
 
                                         resultActions = performActions.messageExcel(
@@ -4919,7 +4888,9 @@ public class ARScannedElementPane extends ARPane {
                                                 currentInstruction.getId(),
                                                 (writerExport != null));
 
-                                        if (mapExportRows.size() == 0) {
+                                        if (currentTableCSV != null
+                                                || currentTableCSV.getRows() == null
+                                                || currentTableCSV.getRows().isEmpty()) {
                                             //
                                             // writerExport.insertBlockSeparation(blockLoad.getName());
                                             //                                            exportIndex *= 2;
@@ -4929,14 +4900,6 @@ public class ARScannedElementPane extends ARPane {
                                         if (writerExport != null) {
                                             headersExport.add(parentField.trim());
 
-                                            String webData = mapOperators
-                                                    .get(variableField)
-                                                    .trim();
-                                            webData = performActions.sanitizeValue(webData);
-                                            mapExportRows.put(parentField.trim(), webData);
-
-                                            //
-                                            // addRowFromMap(mapExportRows);
                                             if (newExcelFieldName != null
                                                     && newExcelFieldName
                                                             .toLowerCase()
@@ -4949,6 +4912,8 @@ public class ARScannedElementPane extends ARPane {
                                                 //                                                String csvContent
                                                 // =
                                                 // getBancaStatoCsvContent(delimiterCSV);
+                                                //
+                                                // logOperations.info(csvContent);
                                                 //
                                                 // writeToFile(newExcelFieldName, csvContent);
 
@@ -4963,13 +4928,14 @@ public class ARScannedElementPane extends ARPane {
                                         }
                                         performActions.onHoldForSeconds(null);
 
-                                        if (resultActions != null) {
+                                        if (resultActions != null && resultActions.contains("PASSED")) {
                                             currentInstruction.setExecuted(true);
                                             failedMessage = "";
                                             success = true;
                                         } else {
                                             failedMessage = "Failed: Generate File -> Excel/CSV ";
                                             msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
+                                            updateRowStatusAndNotify("red"); // #FF3131 deep carmine red
                                             success = false;
                                         }
                                     }
@@ -5298,35 +5264,23 @@ public class ARScannedElementPane extends ARPane {
                         break;
                     }
                     currentBlockOrder++;
-                    if (!mapExportRows.isEmpty()) {
-                        addRowFromMap(mapExportRows, xExcelCurrentRow);
-                        saveExcelWrite(newExcelFieldName, xExcelDataSize, writerExport, exportIndex);
+
+                    currentTableCSV = csvTables.get(currentExcelFileName);
+
+                    if (currentTableCSV != null
+                            && currentTableCSV.getRows() != null
+                            && !currentTableCSV.getRows().isEmpty()) {
+                        saveExcelWrite(newExcelFieldName, currentTableCSV, writerExport, exportIndex);
                     }
                 }
 
                 currentBlockOrder = blockExcelGoto; // BLOCK DEFINED BY "DEFAULT" OR "EXCEL GOTO"
                 xExcelCurrentRow++;
-                //                addRowFromMap(mapExportRows);
-                if (excelFieldName != null && excelFieldName.toLowerCase().endsWith(".csv")) {
-                    if (Strings.isNullOrEmpty(delimiterCSV)) {
-                        delimiterCSV = ",";
-                    }
-
-                    String csvContent = getBancaStatoCsvContent(delimiterCSV);
-                    writeToFile(excelFieldName, csvContent);
-                    if (xExcelDataSize > 1) {
-                        mapExportRows = new LinkedHashMap<>();
-                    }
-                    excelFieldName = "";
-                } else if (excelFieldName != null
-                        && excelFieldName.toLowerCase().endsWith(".xlsx")) {
-                    //
-                    //                    writerExport.insertFieldNameAndValueLastColumn(mapExportRows, exportIndex -
-                    // 1);
-                    if (writerExport != null) {
-                        //                        writerExport.insertCSVContentIntoExcel(columnsCSV, rowsCSV,
-                        // exportIndex - 1);
-                    }
+                currentTableCSV = csvTables.get(currentExcelFileName);
+                if (currentTableCSV != null
+                        && currentTableCSV.getRows() != null
+                        && !currentTableCSV.getRows().isEmpty()) {
+                    saveExcelWrite(newExcelFieldName, currentTableCSV, writerExport, exportIndex);
                 }
             }
         }
@@ -7155,76 +7109,41 @@ public class ARScannedElementPane extends ARPane {
     public void writeToFileCSV(String filename, String content) {
         try (Writer writer =
                 new BufferedWriter(new OutputStreamWriter(new FileOutputStream(filename), StandardCharsets.UTF_8))) {
+
             writer.write(content);
-            log.info("CSV written to file: " + filename);
+            logOperations.info("CSV written to file: {}", filename);
+
         } catch (IOException e) {
-            log.error("Error writing file: " + e.getMessage());
+            logOperations.error("Error writing file: {}", e.getMessage(), e);
         }
     }
 
     private void saveExcelWrite(
-            String newExcelFieldName, int xExcelDataSize, ExcelWriter.ExcelChain writerExport, int exportIndex) {
+            String newExcelFieldName, CsvTable tableCSV, ExcelWriter.ExcelChain writerExport, int exportIndex) {
         if (newExcelFieldName != null && newExcelFieldName.toLowerCase().endsWith(".csv")) {
             if (Strings.isNullOrEmpty(delimiterCSV)) {
                 delimiterCSV = ",";
             }
 
-            String csvContent = getBancaStatoCsvContent(delimiterCSV);
+            String csvContent = getBancaStatoCsvContent(tableCSV, delimiterCSV);
+            logOperations.info(csvContent);
             if (csvContent != null) {
                 writeToFileCSV(newExcelFieldName, csvContent);
-                if (xExcelDataSize > 1) {
-                    mapExportRows = new LinkedHashMap<>();
-                }
             }
-            newExcelFieldName = "";
         } else if (newExcelFieldName != null && newExcelFieldName.toLowerCase().endsWith(".xlsx")) {
             //
             //                    writerExport.insertFieldNameAndValueLastColumn(mapExportRows, exportIndex -
             // 1);
             if (writerExport != null) {
-                //                writerExport.insertCSVContentIntoExcel(columnsCSV, rowsCSV, exportIndex - 1);
+                if (tableCSV != null) {
+                    writerExport.insertCSVContentIntoExcel(tableCSV.getColumns(), tableCSV, exportIndex - 1);
+                }
             }
         }
     }
 
-    /**
-     * Adds a row using a Map<String, String>. If this is the first row added,
-     * it sets the column order based on the map's keys.
-     */
-    public void addRowFromMap(Map<String, String> map, int xExcelCurrentRow) {
-        // Initialize column order on first insert
-        if (columnsCSV.isEmpty()) {
-            if (map instanceof LinkedHashMap) {
-                columnsCSV.addAll(map.keySet()); // preserve order
-            } else {
-                // Default to alphabetical if insertion order is unknown
-                List<String> sortedKeys = new ArrayList<>(map.keySet());
-                Collections.sort(sortedKeys);
-                columnsCSV.addAll(sortedKeys);
-            }
-        }
-
-        List<String> row = new ArrayList<>();
-        for (String column : columnsCSV) {
-            row.add(map.getOrDefault(column, ""));
-        }
-        if (rowsCSV.isEmpty() || rowsCSV.size() <= xExcelCurrentRow) {
-            //            rowsCSV.add(row);
-        }
-    }
-
-    public void writeToFile(String filename, String content) {
-        try (Writer writer =
-                new BufferedWriter(new OutputStreamWriter(new FileOutputStream(filename), StandardCharsets.UTF_8))) {
-            writer.write(content);
-            logOperations.info("CSV written to file: " + filename);
-        } catch (IOException e) {
-            logOperations.error("Error writing file: " + e.getMessage());
-        }
-    }
-
-    public void setColumns(List<String> columns) {
-        columnsCSV.clear();
-        columnsCSV.addAll(columns);
+    public void setCurrentColumns(List<String> columns) {
+        currentColumnsCSV.clear();
+        currentColumnsCSV.addAll(columns);
     }
 }

@@ -267,13 +267,13 @@ public class PerformDataBase {
         }
     }
 
-    public ErrorMessage loadAllColumnsExcelWrite(String tableName, int whereId) {
+    public ErrorMessage loadAllColumnsExcelWrite(String tableName, int whereId, int blockId) {
 
         performLists.getListExcelColumns().clear();
 
         String whereColumn = tableName.equals("instruction") ? "bot_job_id" : "home_banking_id";
 
-        String selectSQL = "SELECT " + "    parent.id   AS parent_id, "
+        StringBuilder selectSQL = new StringBuilder("SELECT " + "    parent.id   AS parent_id, "
                 + "    parent.name AS parent_name, "
                 + "    child.actions, "
                 + "    child.operation, "
@@ -288,12 +288,21 @@ public class PerformDataBase {
                 + "WHERE child.name = ? "
                 + "  AND child.active = 1 "
                 + "  AND child."
-                + whereColumn + " = ? " + "ORDER BY b.block_order_number, child.id;";
+                + whereColumn + " = ? ");
 
-        try (PreparedStatement stmt = getConnection().prepareStatement(selectSQL)) {
+        if (blockId > 0) {
+            selectSQL.append(" AND child.block_id = ? ");
+        }
+
+        selectSQL.append(" ORDER BY b.block_order_number, child.id;");
+        try (PreparedStatement stmt = getConnection().prepareStatement(selectSQL.toString())) {
 
             stmt.setString(1, "ExcelWrite");
             stmt.setInt(2, whereId);
+
+            if (blockId > 0) {
+                stmt.setInt(3, blockId);
+            }
 
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
