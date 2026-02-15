@@ -36,6 +36,8 @@ public final class VisionElementMapper {
         dto.setAttributeValue("");
         dto.setAttributeType("");
         dto.setSearchAttributeValue("");
+        dto.setAutoScroll("");
+        dto.setAutoEnter("");
 
         if (ve.getAttributes() != null && !ve.getAttributes().isEmpty()) {
             AttributeData[] attrs = ve.getAttributes().entrySet().stream()

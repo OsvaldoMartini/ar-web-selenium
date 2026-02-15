@@ -426,6 +426,7 @@ public class ARNewCommandPane extends ARPane {
 
         textFlow.getChildren().addAll(regularText1, variableText1, variableText2, variableText3);
 
+        timesItems.add(new FormatOption("1s", "1"));
         timesItems.add(new FormatOption("5s", "5"));
         timesItems.add(new FormatOption("10s", "10"));
         timesItems.add(new FormatOption("20s", "20"));
@@ -478,6 +479,7 @@ public class ARNewCommandPane extends ARPane {
         gotoField.setVisible(false); // hidden by default
         gotoField.setManaged(false); // Ensure it does not t
 
+        loopsItems.add(new FormatOption("1 x", "1"));
         loopsItems.add(new FormatOption("5 x", "5"));
         loopsItems.add(new FormatOption("10 x", "10"));
         loopsItems.add(new FormatOption("20 x", "20"));
@@ -1245,7 +1247,7 @@ public class ARNewCommandPane extends ARPane {
                 String loopValue =
                         "other".equalsIgnoreCase(comboBoxLoops.getValue().getValue())
                                 ? (Strings.isNullOrEmpty(gotoField.getText())
-                                        ? "50"
+                                        ? "10"
                                         : gotoField.getText().trim())
                                 : comboBoxLoops.getValue().getValue();
 
@@ -1263,7 +1265,7 @@ public class ARNewCommandPane extends ARPane {
                 String loopValue =
                         "other".equalsIgnoreCase(comboBoxLoops.getValue().getValue())
                                 ? (Strings.isNullOrEmpty(gotoField.getText())
-                                        ? "50"
+                                        ? "10"
                                         : gotoField.getText().trim())
                                 : comboBoxLoops.getValue().getValue();
 
@@ -1281,7 +1283,7 @@ public class ARNewCommandPane extends ARPane {
                 String gotoValue =
                         "other".equalsIgnoreCase(comboBoxLoops.getValue().getValue())
                                 ? (Strings.isNullOrEmpty(gotoField.getText())
-                                        ? "50"
+                                        ? "10"
                                         : gotoField.getText().trim())
                                 : comboBoxLoops.getValue().getValue();
 
@@ -1529,7 +1531,7 @@ public class ARNewCommandPane extends ARPane {
                 gotoField.setManaged(isOther);
 
                 if (isOther) {
-                    gotoField.setText("50"); // reset when selecting "other"
+                    gotoField.setText("10"); // reset when selecting "other"
                     gotoField.requestFocus(); // optional: auto-focus for typing
                 }
 
@@ -2292,7 +2294,7 @@ public class ARNewCommandPane extends ARPane {
                     String gotoValue =
                             "other".equalsIgnoreCase(comboBoxLoops.getValue().getValue())
                                     ? Strings.isNullOrEmpty(gotoField.getText())
-                                            ? "50"
+                                            ? "10"
                                             : gotoField.getText().trim()
                                     : comboBoxLoops.getValue().getText();
 
@@ -2361,7 +2363,7 @@ public class ARNewCommandPane extends ARPane {
                     //                    String gotoValue =
                     //                            "other".equalsIgnoreCase(comboBoxLoops.getValue().getValue())
                     //                                    ? Strings.isNullOrEmpty(gotoField.getText())
-                    //                                    ? "50"
+                    //                                    ? "10"
                     //                                    : gotoField.getText().trim()
                     //                                    : comboBoxLoops.getValue().getText();
 
@@ -2710,9 +2712,9 @@ public class ARNewCommandPane extends ARPane {
     public void reloadComboVars(String varTable, int whereId, int instructionId, boolean selectLast, int variableId) {
 
         // Always bind to the same observable list instance
-        if (comboBoxVars.getItems() != variablesItems) {
-            comboBoxVars.setItems(variablesItems);
-        }
+        //        if (comboBoxVars.getItems() != variablesItems) {
+        comboBoxVars.setItems(variablesItems);
+        //        }
 
         variablesItems.clear();
 
@@ -3183,7 +3185,7 @@ public class ARNewCommandPane extends ARPane {
                     } catch (NumberFormatException e) {
                         // Not an integer → select first item
                         comboBoxLoops.getSelectionModel().selectFirst();
-                        gotoField.setText("50");
+                        gotoField.setText("10");
                     }
                 }
             }

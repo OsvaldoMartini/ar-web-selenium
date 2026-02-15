@@ -69,6 +69,7 @@ public class PerformLists {
     private List<VariableUserDTO> listVariablesUser = new ArrayList<>();
     private List<ComboBoxVars> listWebPageItems = new ArrayList<>();
     private List<ParentOperations> listParentOperations = new ArrayList<>();
+    private List<ParentOperations> listExcelColumns = new ArrayList<>();
     private final List<TargetElement> listTargetElements = new ArrayList<>();
 
     // Private constructor to prevent instantiation
@@ -288,7 +289,7 @@ public class PerformLists {
                     SplitDTO splitDTO = gson.fromJson(body, SplitDTO.class);
                     splitDTO.setType("UPDATE_LIST_ELEMENTS");
 
-                    addElementsFromSplit(List.of(splitDTO.getElementDetails()));
+                    addMapElementsTarget(List.of(splitDTO.getElementDetails()));
 
                     break;
                 case "UPDATE_BLOCKS":
@@ -1405,6 +1406,8 @@ public class PerformLists {
         listVariablesUser.clear();
         listWebPageItems.clear();
         listParentOperations.clear();
+        listExcelColumns.clear();
+        listTargetElements.clear();
     }
 
     /**
@@ -1495,7 +1498,7 @@ public class PerformLists {
         return new ArrayList<>();
     }
 
-    public void addElementsFromSplit(List<ElementDTO> elemestDetails) {
+    public void addMapElementsTarget(List<ElementDTO> elemestDetails) {
 
         targetElementHelper.initialize(performActions);
         for (ElementDTO elementDTO : elemestDetails) {
@@ -1507,5 +1510,13 @@ public class PerformLists {
 
     public void resetListElements() {
         listTargetElements.clear();
+    }
+
+    public List<String> getExcelColumnNames() {
+        return listExcelColumns.stream()
+                .map(ParentOperations::getParentName)
+                .filter(Objects::nonNull)
+                .distinct() // optional (remove if duplicates are allowed)
+                .collect(Collectors.toList());
     }
 }

@@ -38,6 +38,7 @@ import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -167,8 +168,9 @@ public class ARScannedElementPane extends ARPane {
     private Map<String, String> mapOperators = new HashMap<>();
     private Map<String, String> mapExportRows = new HashMap<>();
     private Set<String> headersExport = new LinkedHashSet<>();
-    private List<String> columnsCSV = new ArrayList<>();
-    private List<List<String>> rowsCSV = new ArrayList<>();
+    private List<String> columnsCSV = new ArrayList<>(); // set once
+    private List<CsvRow> rowsCSV = new ArrayList<>();
+    CsvTable tableCSV = new CsvTable();
     private List<VariableLoadDTO> variablesLoaded;
     private String[] defaultSearch;
     private boolean searchHiddenFields;
@@ -1171,6 +1173,7 @@ public class ARScannedElementPane extends ARPane {
         //        if (!initializeWebView()) {
         //            return;
         //        }
+        //        }
 
         if (comboBoxBlocks != null) {
             List<BlockOptions> listOptions = performLists.loadComboOptions("block", "ScannerPane");
@@ -1960,6 +1963,8 @@ public class ARScannedElementPane extends ARPane {
                     excelDataGoto = performDBEngine.loadExcelGotoBlock(this.currentBotJob.getId(), "instruction");
                 }
             }
+            if (errorMessage == null)
+                errorMessage = performDataBase.loadAllColumnsExcelWrite("instruction", currentBotJob.getId());
 
             if (errorMessage == null) errorMessage = performDBEngine.loadCompleteJobs(this.currentBotJob.getId());
 
@@ -2027,7 +2032,9 @@ public class ARScannedElementPane extends ARPane {
                 return;
             }
 
-            if (extractedData.getNumberOfDataRows() > 1 && excelDataGoto.isEmpty()) {
+            if (extractedData.getNumberOfDataRows() != null
+                    && extractedData.getNumberOfDataRows() > 1
+                    && excelDataGoto.isEmpty()) {
 
                 log.warn("Multiple Excel Rows Detected: each next row will return to first block");
 
@@ -2798,62 +2805,113 @@ public class ARScannedElementPane extends ARPane {
     }
 
     /**
+     * Adds or updates a row at the given index using a Map.
+     * Columns must already be initialized via setColumns().
+     */
+    public void addColumnsToRowFromMap(Map<String, String> map, int rowIndex) {
+
+        // Ensure row exists
+        while (rowsCSV.size() < rowIndex) {
+            rowsCSV.add(new CsvRow());
+        }
+
+        CsvRow row = rowsCSV.get(rowIndex);
+
+        // Only set values for known columns
+        for (String column : columnsCSV) {
+            row.set(column, map.getOrDefault(column, ""));
+        }
+    }
+
+    /**
      * Adds a row with values matching the columns.
      * Missing values are filled with empty strings.
      *
      * @param values Array of values; may be less than columns.
      */
-    public void addRow(String... values) {
-        if (columnsCSV.isEmpty()) {
-            throw new IllegalStateException("Columns must be initialized before adding a row using values.");
-        }
+    //    public void addRow(String... values) {
+    //        if (columnsCSV.isEmpty()) {
+    //            throw new IllegalStateException("Columns must be initialized before adding a row using values.");
+    //        }
+    //
+    //        List<String> row = new ArrayList<>();
+    //        int maxCols = columnsCSV.size();
+    //
+    //        for (int i = 0; i < maxCols; i++) {
+    //            if (i < values.length) {
+    //                row.add(values[i]);
+    //            } else {
+    //                row.add(""); // fill missing with empty string
+    //            }
+    //        }
+    //        rowsCSV.add(row);
+    //    }
 
-        List<String> row = new ArrayList<>();
-        int maxCols = columnsCSV.size();
+    //    public void addColumnsToRowFromMap(Map<String, String> map, int rowIndex) {
+    //
+    //        // Initialize columns once
+    //        if (columnsCSV.isEmpty()) {
+    //            if (map instanceof LinkedHashMap) {
+    //                columnsCSV.addAll(map.keySet());
+    //            } else {
+    //                List<String> sortedKeys = new ArrayList<>(map.keySet());
+    //                Collections.sort(sortedKeys);
+    //                columnsCSV.addAll(sortedKeys);
+    //            }
+    //        }
+    //
+    //        // Ensure row exists
+    //        while (rowsCSV.size() <= rowIndex) {
+    //            rowsCSV.add(new LinkedHashMap<>());
+    //        }
+    //
+    //        // Put values directly
+    //        rowsCSV.get(rowIndex).putAll(map);
+    //    }
 
-        for (int i = 0; i < maxCols; i++) {
-            if (i < values.length) {
-                row.add(values[i]);
-            } else {
-                row.add(""); // fill missing with empty string
-            }
-        }
-        rowsCSV.add(row);
-    }
+    //    /**
+    //     * Adds a row using a Map<String, String>. If this is the first row added,
+    //     * it sets the column order based on the map's keys.
+    //     */
+    //    public void addRowFromMap(Map<String, String> map) {
+    //        // Initialize column order on first insert
+    //        if (columnsCSV.isEmpty()) {
+    //            if (map instanceof LinkedHashMap) {
+    //                columnsCSV.addAll(map.keySet()); // preserve order
+    //            } else {
+    //                // Default to alphabetical if insertion order is unknown
+    //                List<String> sortedKeys = new ArrayList<>(map.keySet());
+    //                Collections.sort(sortedKeys);
+    //                columnsCSV.addAll(sortedKeys);
+    //            }
+    //        }
+    //
+    //        List<String> row = new ArrayList<>();
+    //        for (String column : columnsCSV) {
+    //            row.add(map.getOrDefault(column, ""));
+    //        }
+    //        rowsCSV.add(row);
+    //    }
 
     /**
-     * Adds a row using a Map<String, String>. If this is the first row added,
-     * it sets the column order based on the map's keys.
+     * Adds N empty rows. Column order must already be initialized (or will be initialized later).
      */
-    public void addRowFromMap(Map<String, String> map) {
-        // Initialize column order on first insert
-        if (columnsCSV.isEmpty()) {
-            if (map instanceof LinkedHashMap) {
-                columnsCSV.addAll(map.keySet()); // preserve order
-            } else {
-                // Default to alphabetical if insertion order is unknown
-                List<String> sortedKeys = new ArrayList<>(map.keySet());
-                Collections.sort(sortedKeys);
-                columnsCSV.addAll(sortedKeys);
-            }
-        }
-
-        List<String> row = new ArrayList<>();
-        for (String column : columnsCSV) {
-            row.add(map.getOrDefault(column, ""));
-        }
-        rowsCSV.add(row);
-    }
+    //    public void addEmptyRows(int count) {
+    //        for (int i = 0; i < count; i++) {
+    //            List<String> row = new ArrayList<>(Collections.nCopies(columnsCSV.size(), ""));
+    //            rowsCSV.add(row);
+    //        }
+    //    }
 
     public String getCsvContent() {
         StringBuilder sb = new StringBuilder();
         sb.append("0: ").append(String.join(",", columnsCSV)).append("\n");
 
         int rowNumber = 1;
-        for (List<String> row : rowsCSV) {
-            sb.append(rowNumber).append(": ").append(String.join(",", row)).append("\n");
-            rowNumber++;
-        }
+        //        for (List<String> row : rowsCSV) {
+        //            sb.append(rowNumber).append(": ").append(String.join(",", row)).append("\n");
+        //            rowNumber++;
+        //        }
         sb.append(END_OF_FILE_MARKER);
         return sb.toString();
     }
@@ -2866,26 +2924,16 @@ public class ARScannedElementPane extends ARPane {
                 .append("\n");
 
         int xRow = 1;
-        for (List<String> row : rowsCSV) {
-            sb.append("EXTERNAL_" + xRow)
-                    .append(delimiter)
-                    .append(String.join(delimiter, row))
-                    .append("\n");
-            xRow++;
-        }
+        //        for (List<String> row : rowsCSV) {
+        //            sb.append("EXTERNAL_" + xRow)
+        //                    .append(delimiter)
+        //                    .append(String.join(delimiter, row))
+        //                    .append("\n");
+        //            xRow++;
+        //        }
 
         //        sb.append(END_OF_FILE_MARKER);
         return sb.toString();
-    }
-
-    public void writeToFile(String filename, String content) {
-        try (Writer writer =
-                new BufferedWriter(new OutputStreamWriter(new FileOutputStream(filename), StandardCharsets.UTF_8))) {
-            writer.write(content);
-            logOperations.info("CSV written to file: " + filename);
-        } catch (IOException e) {
-            logOperations.error("Error writing file: " + e.getMessage());
-        }
     }
 
     private void loadAllBlocks() {
@@ -3189,6 +3237,9 @@ public class ARScannedElementPane extends ARPane {
         TargetElement matchXPath = null;
         WebElement webElementFound = null;
         int navTime = getNavigationTimeSeconds();
+        String previousExcelFieldName = "";
+        String newExcelFieldName = "";
+
         //        List<InputInfo> inputs = new ArrayList<>();
 
         sessionRowStatus = "botJobTasks"; // + botJobId;
@@ -3215,6 +3266,9 @@ public class ARScannedElementPane extends ARPane {
 
         if (extractedData.getNumberOfDataRows() > 0) {
 
+            setColumns(performLists.getExcelColumnNames());
+            //            addColumnsToRowFromMap(columnsCSV, 1);
+
             // Execute All Blocks starting from executeSpecificBlock if Defined
             currentBlockOrder = (executeSpecificBlock > -1) ? executeSpecificBlock : 0;
             int blockRecall = currentBlockOrder;
@@ -3232,12 +3286,12 @@ public class ARScannedElementPane extends ARPane {
 
                 // PREVENTID  LATGER DELETION
                 if (blockExcelGoto < 0) {
-                    blockExcelGoto =
-                            ((!excelDataGoto.isEmpty() && excelDataGoto.get(0).getBlockOrderNumber() == null)
-                                            || (!excelDataGoto.isEmpty()
-                                                    && excelDataGoto.get(0).getBlockOrderNumber() <= 0))
-                                    ? 1
-                                    : excelDataGoto.get(0).getBlockOrderNumber();
+
+                    Integer blockOrder = (excelDataGoto != null && !excelDataGoto.isEmpty())
+                            ? excelDataGoto.get(0).getBlockOrderNumber()
+                            : null;
+
+                    blockExcelGoto = (blockOrder != null && blockOrder > 0) ? blockOrder : 1;
                 }
             }
 
@@ -3311,14 +3365,22 @@ public class ARScannedElementPane extends ARPane {
                             // DomIntrospectionUtil.listAllRelevantElements(performActions.getCurrentDriver());
                         }
 
-                        excelFieldName = blockLoad.getExportFile();
+                        newExcelFieldName = blockLoad.getExportFile();
 
-                        if (!Strings.isNullOrEmpty(excelFieldName)) {
-                            String[] parts = excelFieldName.split(":");
+                        if (newExcelFieldName != null && !newExcelFieldName.equals(previousExcelFieldName)) {
+
+                            //                            saveExcelWrite(newExcelFieldName, xExcelDataSize,
+                            // writerExport, exportIndex);
+
+                            previousExcelFieldName = newExcelFieldName;
+                        }
+
+                        if (!Strings.isNullOrEmpty(newExcelFieldName)) {
+                            String[] parts = newExcelFieldName.split(":");
                             if (parts.length > 2) {
                                 delimiterCSV = parts[2];
-                                excelFieldName =
-                                        excelFieldName.replace(":,", "").replace(":|", "");
+                                newExcelFieldName =
+                                        newExcelFieldName.replace(":,", "").replace(":|", "");
                             }
                         }
                     }
@@ -3597,7 +3659,7 @@ public class ARScannedElementPane extends ARPane {
                             boolean execPDFCheck = false;
                             boolean execCSVCheck = false;
                             boolean execOutPut = false;
-                            boolean excelWriteOperation = false;
+                            boolean execExcellWrite = false;
                             boolean pauseOperation = false;
                             boolean nextEnter = false;
                             boolean swipeUp = false;
@@ -3970,7 +4032,7 @@ public class ARScannedElementPane extends ARPane {
                                     variableField = "Not Variable defined";
                                 }
                             } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.EXTRACT_FIELD)) {
-                                excelWriteOperation = true;
+                                execExcellWrite = true;
                                 parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
                                 variableField =
                                         performActions.getInstructionVariableField(currentInstruction, variablesLoaded);
@@ -4212,7 +4274,7 @@ public class ARScannedElementPane extends ARPane {
                                         && !execCheckValue
                                         && !execPDFCheck
                                         && !execCSVCheck
-                                        && !excelWriteOperation
+                                        && !execExcellWrite
                                         && !pauseOperation
                                         && !nextEnter
                                         && !swipeUp
@@ -4300,24 +4362,26 @@ public class ARScannedElementPane extends ARPane {
                                         // 2) Apply only non-empty values into splitDTO and elementDetails[0]
                                         //                                        if (matchingInstruction != null) {
                                         // >>> Add AttrData:* references into elementDetails.attributesData
+                                        SplitDTO.applyAttrDataFromReferences(splitDTO, currentInstruction);
+
+                                        SplitDTO.applyInstructionToSplit(splitDTO, currentInstruction);
+                                        //                                        }
+
+                                        // Already Maps List<TargetElement>
                                         //
-                                        // SplitDTO.applyAttrDataFromReferences(splitDTO, currentInstruction);
+                                        // androidHelper.scanElementsWithCanonicalXmlOnly(
                                         //
-                                        //
-                                        // SplitDTO.applyInstructionToSplit(splitDTO, currentInstruction);
-                                        //                                        //
-                                        //    }
-                                        //
-                                        //                                        webElementFound =
-                                        // androidDevice.searchElement(splitDTO);
-                                        //
+                                        // androidDevice.getCurrentDriver());
+
+                                        // webElementFound = androidDevice.searchElement(splitDTO, actions,
+                                        // currentPage);
+
                                         //                                        if (webElementFound == null) {
                                         //                                            appendLog(
                                         //
                                         // currentInstruction.getName() + "- Not Found- using coordinates",
                                         //                                                    "warn");
-                                        //
-                                        // androidDevice.executeAction(webElementFound, splitDTO);
+                                        // androidDevice.executeAction(webElementFound, splitDTO, actions);
                                         //                                        }
                                     }
 
@@ -4347,11 +4411,8 @@ public class ARScannedElementPane extends ARPane {
                                     //                                            if (!smartSearch.isEmpty()) {
                                     //                                                success =
                                     // performActions.executeActionsAtCoordinates(
-                                    //
-                                    // "coordinates",
-                                    //                                                        fieldData,
-                                    //                                                        actions[0],
-                                    //                                                        pressEnterAfter);
+                                    //                                                        "coordinates", fieldData,
+                                    // actions[0], pressEnterAfter);
                                     //                                            }
                                     //                                        }
                                     //                                    }
@@ -4383,6 +4444,9 @@ public class ARScannedElementPane extends ARPane {
                                     // Special Cases for Select Responses
                                     // It could be Improved the case
                                     if (resultActions.contains("FAIL")
+                                            || performLists
+                                                    .getListTargetElements()
+                                                    .isEmpty()
                                             || (matchXPath == null && matchScanned == null && webElementFound == null)
                                             || (webElementFound == null && !forceCoordinates)) {
                                         failedMessage = "Failed execution Web Element ";
@@ -4391,6 +4455,13 @@ public class ARScannedElementPane extends ARPane {
                                             resultActions = resultActions.replaceAll("PASSED", "FAIL");
                                         }
                                         success = false;
+
+                                        if (performLists.getListTargetElements().isEmpty()) {
+                                            String reason = performActions.buildMessageResult(
+                                                    success, blockName, "TIME OUT", "Device timeout", "TIME OUT");
+                                            appendLog("[TEST]" + reason, "error");
+                                            stopAll = true;
+                                        }
                                     } else if (resultActions != null && success) {
                                         failedMessage = "";
                                         currentInstruction.setExecuted(true);
@@ -4420,25 +4491,20 @@ public class ARScannedElementPane extends ARPane {
 
                                         webElementFound = null;
                                         if (isMobileApp) {
-                                            //                                            int index = IntStream.range(0,
-                                            // instructionIds.length)
-                                            //                                                    .filter(i ->
-                                            // instructionIds[i] == parentId)
-                                            //                                                    .findFirst()
-                                            //                                                    .orElse(-1);
-                                            //
-                                            //                                            InstructionLoad refInstruction
-                                            // = blockLoad
-                                            //                                                    .getInstructionLoad()
-                                            //                                                    .get(index);
-                                            //
-                                            //
-                                            // SplitDTO.applyAttrDataFromReferences(splitDTO, refInstruction);
-                                            //
-                                            // SplitDTO.applyInstructionToSplit(splitDTO, refInstruction);
-                                            //
-                                            //                                            webElementFound =
-                                            // androidDevice.searchElement(splitDTO);
+                                            int index = IntStream.range(0, instructionIds.length)
+                                                    .filter(i -> instructionIds[i] == parentId)
+                                                    .findFirst()
+                                                    .orElse(-1);
+
+                                            InstructionLoad refInstruction = blockLoad
+                                                    .getInstructionLoad()
+                                                    .get(index);
+
+                                            SplitDTO.applyAttrDataFromReferences(splitDTO, refInstruction);
+                                            SplitDTO.applyInstructionToSplit(splitDTO, refInstruction);
+
+                                            // webElementFound =androidDevice.searchElement(splitDTO, actions,
+                                            // currentPage);
                                         }
 
                                         resultActions = performActions.performOperatorActions(
@@ -4614,172 +4680,17 @@ public class ARScannedElementPane extends ARPane {
                                         }
                                     }
 
-                                } else if (execPDFCheck) {
-
-                                    // If fieldsToValidate is null/empty => ignore (no log)
-                                    Map<String, FieldsToValidate> fMap = splitDTO.getFieldsToValidate();
-                                    if (fMap == null || fMap.isEmpty()) {
-                                        // ignore
-                                    } else {
-
-                                        for (Map.Entry<String, FieldsToValidate> entry : fMap.entrySet()) {
-
-                                            FieldsToValidate expectedField = entry.getValue();
-
-                                            // Only run if parentField exists as a key. If not found => ignore (no log).
-                                            if (expectedField == null || expectedField.getValue() == null) {
-                                                // ignore
-                                            } else {
-
-                                                String parentFieldPDF = entry.getKey();
-
-                                                String foundKey = null;
-                                                if (allOutPuts != null && !allOutPuts.isEmpty()) {
-                                                    for (Integer outId : allOutPuts) {
-                                                        String k = outId + "-" + parentFieldPDF;
-                                                        if (mapOperators.containsKey(k)) {
-                                                            foundKey = k;
-                                                            break;
-                                                        }
-                                                    }
-                                                }
-
-                                                if (foundKey == null) {
-                                                    // ignore
-                                                } else {
-
-                                                    String actualValue = mapOperators.get(foundKey);
-
-                                                    // You still keep your "Get Value Is Not Defined" behavior
-                                                    if (actualValue == null
-                                                            || actualValue
-                                                                    .trim()
-                                                                    .isEmpty()) {
-                                                        failedMessage = "Get Value Is Not Defined ";
-                                                        msgInstruction =
-                                                                updateMSGInstruction(msgInstruction, failedMessage);
-
-                                                        //                                                resultActions
-                                                        // =
-                                                        // performActions.getValueIsNotDefined(
-                                                        //
-                                                        // actions[0],
-                                                        //
-                                                        // currentInstruction,
-                                                        //
-                                                        // resultActions,
-                                                        //
-                                                        // ARExecution.ConditionStatus.NONE,
-                                                        //
-                                                        // parentField,
-                                                        //
-                                                        // variableField);
-
-                                                        String reason = performActions.buildGetVariableReason(
-                                                                actions[0],
-                                                                currentInstruction,
-                                                                resultActions,
-                                                                currentCondition,
-                                                                parentField,
-                                                                variableField,
-                                                                byPassNotFound, // or your bypass flag
-                                                                blockName,
-                                                                currentInstruction.getId(),
-                                                                false);
-
-                                                        appendLog("[TEST]" + reason, "error");
-                                                        alreadyLogged = true;
-
-                                                        logOperations.error("{}", reason);
-
-                                                        success = false;
-
-                                                    } else {
-                                                        // actual/current value on the web/app side
-
-                                                        // expected value comes from
-                                                        // splitDTO.fieldsToValidate[parentField].value
-                                                        String expectedValue = expectedField.getValue();
-
-                                                        // operator comes from your parsed operations array
-                                                        String operator = operations[1];
-
-                                                        resultActions = "PDF Check Value for " + parentFieldPDF;
-                                                        ValidationResult vr =
-                                                                evaluateOperation(actualValue, operator, expectedValue);
-
-                                                        if (vr.valid) {
-                                                            currentInstruction.setExecuted(true);
-                                                            failedMessage = "";
-                                                            success = true;
-
-                                                            resultActions = performActions.buildValidationReason(
-                                                                    vr.invalidReason,
-                                                                    parentFieldPDF,
-                                                                    actualValue, // actual/current web value
-                                                                    expectedValue,
-                                                                    resultActions,
-                                                                    operations,
-                                                                    currentCondition,
-                                                                    byPassNotFound,
-                                                                    true,
-                                                                    blockName,
-                                                                    currentInstruction.getId(),
-                                                                    true);
-
-                                                            appendLog("[TEST]" + resultActions, "info");
-                                                            alreadyLogged = true;
-
-                                                            logOperations.info(
-                                                                    "Validation SUCCESS for field '{}': actual='{}' {} expected='{}'",
-                                                                    parentFieldPDF,
-                                                                    actualValue,
-                                                                    operator,
-                                                                    expectedValue);
-
-                                                        } else {
-                                                            failedMessage = "Failed: Check Validation ";
-                                                            msgInstruction =
-                                                                    updateMSGInstruction(msgInstruction, failedMessage);
-
-                                                            resultActions = performActions.buildValidationReason(
-                                                                    vr.invalidReason,
-                                                                    parentFieldPDF,
-                                                                    actualValue, // actual/current web value
-                                                                    expectedValue,
-                                                                    resultActions,
-                                                                    operations,
-                                                                    currentCondition,
-                                                                    byPassNotFound,
-                                                                    true,
-                                                                    blockName,
-                                                                    currentInstruction.getId(),
-                                                                    false);
-
-                                                            appendLog("[TEST]" + resultActions, "error");
-                                                            alreadyLogged = true;
-
-                                                            logOperations.error(
-                                                                    "PDF Values Validation FAILED for field '{}': actual='{}' {} expected='{}'. Reason: {}",
-                                                                    parentFieldPDF,
-                                                                    actualValue,
-                                                                    operator,
-                                                                    expectedValue,
-                                                                    resultActions);
-
-                                                            success = false;
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
+                                } else if (execCSVCheck || execPDFCheck) {
+                                    String msgCSVPrefix = "CSV ";
+                                    if (execPDFCheck) {
+                                        msgCSVPrefix = "PDF ";
                                     }
-                                } else if (execCSVCheck) {
 
                                     // If fieldsToValidate is null/empty => ignore (no log)
                                     Map<String, FieldsToValidate> fMap = splitDTO.getFieldsToValidate();
                                     if (fMap == null || fMap.isEmpty()) {
                                         // ignore
+                                        resultActions = resultActions.replaceAll("PASSED", "IGNORED");
                                     } else {
 
                                         for (Map.Entry<String, FieldsToValidate> entry : fMap.entrySet()) {
@@ -4864,7 +4775,8 @@ public class ARScannedElementPane extends ARPane {
                                                         // operator comes from your parsed operations array
                                                         String operator = operations[1];
 
-                                                        resultActions = "CSV Check Value for " + parentFieldCSV;
+                                                        String msgCSV = msgCSVPrefix + parentFieldCSV;
+                                                        resultActions = "Check Value for " + parentFieldCSV;
                                                         ValidationResult vr =
                                                                 evaluateOperation(actualValue, operator, expectedValue);
 
@@ -4875,7 +4787,7 @@ public class ARScannedElementPane extends ARPane {
 
                                                             resultActions = performActions.buildValidationReason(
                                                                     vr.invalidReason,
-                                                                    parentFieldCSV,
+                                                                    msgCSV,
                                                                     actualValue, // actual/current web value
                                                                     expectedValue,
                                                                     resultActions,
@@ -4891,7 +4803,8 @@ public class ARScannedElementPane extends ARPane {
                                                             alreadyLogged = true;
 
                                                             logOperations.info(
-                                                                    "Validation SUCCESS for field '{}': actual='{}' {} expected='{}'",
+                                                                    msgCSVPrefix
+                                                                            + " Validation SUCCESS for field '{}': actual='{}' {} expected='{}'",
                                                                     parentFieldCSV,
                                                                     actualValue,
                                                                     operator,
@@ -4904,7 +4817,7 @@ public class ARScannedElementPane extends ARPane {
 
                                                             resultActions = performActions.buildValidationReason(
                                                                     vr.invalidReason,
-                                                                    parentFieldCSV,
+                                                                    msgCSV,
                                                                     actualValue, // actual/current web value
                                                                     expectedValue,
                                                                     resultActions,
@@ -4920,8 +4833,9 @@ public class ARScannedElementPane extends ARPane {
                                                             alreadyLogged = true;
 
                                                             logOperations.error(
-                                                                    "CSV Values Validation FAILED for field '{}': actual='{}' {} expected='{}'. Reason: {}",
-                                                                    parentFieldCSV,
+                                                                    msgCSVPrefix
+                                                                            + " Values Validation FAILED for field '{}': actual='{}' {} expected='{}'. Reason: {}",
+                                                                    msgCSV,
                                                                     actualValue,
                                                                     operator,
                                                                     expectedValue,
@@ -4934,7 +4848,7 @@ public class ARScannedElementPane extends ARPane {
                                             }
                                         }
                                     }
-                                } else if (excelWriteOperation) {
+                                } else if (execExcellWrite) {
                                     // Excel Write Operator
 
                                     if (parentField == null) {
@@ -4985,10 +4899,14 @@ public class ARScannedElementPane extends ARPane {
                                             excelExportOnceCreation = false;
                                         }
 
-                                        if (!Strings.isNullOrEmpty(excelFieldName)) {
+                                        if (!Strings.isNullOrEmpty(newExcelFieldName)) {
                                             writerExport = new ExcelWriter(
-                                                            excelFieldName, performActions.getCurrentDriver(), true)
+                                                            newExcelFieldName, performActions.getCurrentDriver(), true)
                                                     .withPurpose("export");
+
+                                            // Only create Columns if Have a file to write
+                                            tableCSV.put(
+                                                    xExcelCurrentRow, parentField, mapOperators.get(variableField));
                                         }
 
                                         resultActions = performActions.messageExcel(
@@ -5001,16 +4919,6 @@ public class ARScannedElementPane extends ARPane {
                                                 currentInstruction.getId(),
                                                 (writerExport != null));
 
-                                        performActions.messageExcel(
-                                                actions[0],
-                                                currentInstruction,
-                                                parentField,
-                                                variableField,
-                                                mapOperators.get(variableField),
-                                                blockName,
-                                                currentInstruction.getId(),
-                                                false);
-
                                         if (mapExportRows.size() == 0) {
                                             //
                                             // writerExport.insertBlockSeparation(blockLoad.getName());
@@ -5020,16 +4928,17 @@ public class ARScannedElementPane extends ARPane {
                                         // Insert the updated mapExport into the Excel after each instruction
                                         if (writerExport != null) {
                                             headersExport.add(parentField.trim());
-                                            mapExportRows.put(
-                                                    parentField.trim(),
-                                                    mapOperators
-                                                            .get(variableField)
-                                                            .trim());
+
+                                            String webData = mapOperators
+                                                    .get(variableField)
+                                                    .trim();
+                                            webData = performActions.sanitizeValue(webData);
+                                            mapExportRows.put(parentField.trim(), webData);
 
                                             //
                                             // addRowFromMap(mapExportRows);
-                                            if (excelFieldName != null
-                                                    && excelFieldName
+                                            if (newExcelFieldName != null
+                                                    && newExcelFieldName
                                                             .toLowerCase()
                                                             .endsWith(".csv")) {
                                                 if (Strings.isNullOrEmpty(delimiterCSV)) {
@@ -5041,9 +4950,9 @@ public class ARScannedElementPane extends ARPane {
                                                 // =
                                                 // getBancaStatoCsvContent(delimiterCSV);
                                                 //
-                                                // writeToFile(excelFieldName, csvContent);
+                                                // writeToFile(newExcelFieldName, csvContent);
 
-                                                // writerExport.writeMapToCSV(mapExport, excelFieldName,
+                                                // writerExport.writeMapToCSV(mapExport, newExcelFieldName,
                                                 // delimiterCSV);
                                             } else {
                                                 //
@@ -5094,7 +5003,11 @@ public class ARScannedElementPane extends ARPane {
                             }
 
                             if (success && !alreadyLogged) {
-                                appendLog("[TEST]" + resultActions, "info");
+                                if (resultActions.contains("IGNORED")) {
+                                    appendLog("[TEST]" + resultActions, "warn");
+                                } else {
+                                    appendLog("[TEST]" + resultActions, "info");
+                                }
                             } else if (!alreadyLogged) {
                                 appendLog("[TEST]" + resultActions, "error");
                                 anyFailure = true;
@@ -5186,7 +5099,7 @@ public class ARScannedElementPane extends ARPane {
                                         String.format("NEXT/ENTER CALLED AT: \"%s\" : ", nameInstruc));
 
                                 respModal = ARExecution.DialogModal.NONE;
-                                break;
+                                continue;
                             } else if (swipeUp) {
 
                                 String nameInstruc =
@@ -5195,6 +5108,23 @@ public class ARScannedElementPane extends ARPane {
                                 resultActions = String.format("Device : \"%s\"", nameInstruc);
 
                                 FieldData msgBlock = new FieldData(resultActions, ARConstantsEngine.SWIPE_UP);
+
+                                int timesSwipe = 1;
+
+                                String operation = currentInstruction.getOperation();
+                                if (operation != null && !operation.trim().isEmpty()) {
+                                    try {
+                                        timesSwipe = Integer.parseInt(operation.trim());
+                                    } catch (NumberFormatException ignored) {
+                                        appendLog("Invalid swipe count: " + operation + ". Defaulting to 1.", "warn");
+                                    }
+                                }
+
+                                for (int i = 0; i < timesSwipe; i++) {
+                                    //                                    androidDevice.swipeUp();
+                                    // androidDevice.swipeVertical(true); // false = down
+                                    // androidDevice.swipeADB(splitDTO.getDeviceId(), true);
+                                }
 
                                 // Excel Report and Log
                                 performActions.logAndReport(
@@ -5212,7 +5142,7 @@ public class ARScannedElementPane extends ARPane {
                                         String.format("SWIPE UP CALLED AT: \"%s\" : ", nameInstruc));
 
                                 respModal = ARExecution.DialogModal.NONE;
-                                break;
+                                continue;
                             } else if (swipeDown) {
 
                                 String nameInstruc =
@@ -5222,6 +5152,23 @@ public class ARScannedElementPane extends ARPane {
 
                                 FieldData msgBlock = new FieldData(resultActions, ARConstantsEngine.SWIPE_DOWN);
 
+                                int timesSwipe = 1;
+
+                                String operation = currentInstruction.getOperation();
+                                if (operation != null && !operation.trim().isEmpty()) {
+                                    try {
+                                        timesSwipe = Integer.parseInt(operation.trim());
+                                    } catch (NumberFormatException ignored) {
+                                        appendLog("Invalid swipe count: " + operation + ". Defaulting to 1.", "warn");
+                                    }
+                                }
+
+                                for (int i = 0; i < timesSwipe; i++) {
+                                    //                                    androidDevice.swipeDown();
+                                    //                                    androidDevice.swipeVertical(false); // false =
+                                    // down
+                                    // androidDevice.swipeADB(splitDTO.getDeviceId(), false);
+                                }
                                 // Excel Report and Log
                                 performActions.logAndReport(
                                         currentCondition,
@@ -5238,7 +5185,7 @@ public class ARScannedElementPane extends ARPane {
                                         String.format("SWIPE DOWN CALLED AT: \"%s\" : ", nameInstruc));
 
                                 respModal = ARExecution.DialogModal.NONE;
-                                break;
+                                continue;
                             }
 
                             // It decides Here if ByPass as per Loop or Per IF-ELSEIF-ELSE-ENDIF blocks
@@ -5351,11 +5298,15 @@ public class ARScannedElementPane extends ARPane {
                         break;
                     }
                     currentBlockOrder++;
+                    if (!mapExportRows.isEmpty()) {
+                        addRowFromMap(mapExportRows, xExcelCurrentRow);
+                        saveExcelWrite(newExcelFieldName, xExcelDataSize, writerExport, exportIndex);
+                    }
                 }
 
                 currentBlockOrder = blockExcelGoto; // BLOCK DEFINED BY "DEFAULT" OR "EXCEL GOTO"
                 xExcelCurrentRow++;
-                addRowFromMap(mapExportRows);
+                //                addRowFromMap(mapExportRows);
                 if (excelFieldName != null && excelFieldName.toLowerCase().endsWith(".csv")) {
                     if (Strings.isNullOrEmpty(delimiterCSV)) {
                         delimiterCSV = ",";
@@ -5373,7 +5324,8 @@ public class ARScannedElementPane extends ARPane {
                     //                    writerExport.insertFieldNameAndValueLastColumn(mapExportRows, exportIndex -
                     // 1);
                     if (writerExport != null) {
-                        writerExport.insertCSVContentIntoExcel(columnsCSV, rowsCSV, exportIndex - 1);
+                        //                        writerExport.insertCSVContentIntoExcel(columnsCSV, rowsCSV,
+                        // exportIndex - 1);
                     }
                 }
             }
@@ -7198,5 +7150,81 @@ public class ARScannedElementPane extends ARPane {
         } catch (Exception ignore) {
             return 0;
         }
+    }
+
+    public void writeToFileCSV(String filename, String content) {
+        try (Writer writer =
+                new BufferedWriter(new OutputStreamWriter(new FileOutputStream(filename), StandardCharsets.UTF_8))) {
+            writer.write(content);
+            log.info("CSV written to file: " + filename);
+        } catch (IOException e) {
+            log.error("Error writing file: " + e.getMessage());
+        }
+    }
+
+    private void saveExcelWrite(
+            String newExcelFieldName, int xExcelDataSize, ExcelWriter.ExcelChain writerExport, int exportIndex) {
+        if (newExcelFieldName != null && newExcelFieldName.toLowerCase().endsWith(".csv")) {
+            if (Strings.isNullOrEmpty(delimiterCSV)) {
+                delimiterCSV = ",";
+            }
+
+            String csvContent = getBancaStatoCsvContent(delimiterCSV);
+            if (csvContent != null) {
+                writeToFileCSV(newExcelFieldName, csvContent);
+                if (xExcelDataSize > 1) {
+                    mapExportRows = new LinkedHashMap<>();
+                }
+            }
+            newExcelFieldName = "";
+        } else if (newExcelFieldName != null && newExcelFieldName.toLowerCase().endsWith(".xlsx")) {
+            //
+            //                    writerExport.insertFieldNameAndValueLastColumn(mapExportRows, exportIndex -
+            // 1);
+            if (writerExport != null) {
+                //                writerExport.insertCSVContentIntoExcel(columnsCSV, rowsCSV, exportIndex - 1);
+            }
+        }
+    }
+
+    /**
+     * Adds a row using a Map<String, String>. If this is the first row added,
+     * it sets the column order based on the map's keys.
+     */
+    public void addRowFromMap(Map<String, String> map, int xExcelCurrentRow) {
+        // Initialize column order on first insert
+        if (columnsCSV.isEmpty()) {
+            if (map instanceof LinkedHashMap) {
+                columnsCSV.addAll(map.keySet()); // preserve order
+            } else {
+                // Default to alphabetical if insertion order is unknown
+                List<String> sortedKeys = new ArrayList<>(map.keySet());
+                Collections.sort(sortedKeys);
+                columnsCSV.addAll(sortedKeys);
+            }
+        }
+
+        List<String> row = new ArrayList<>();
+        for (String column : columnsCSV) {
+            row.add(map.getOrDefault(column, ""));
+        }
+        if (rowsCSV.isEmpty() || rowsCSV.size() <= xExcelCurrentRow) {
+            //            rowsCSV.add(row);
+        }
+    }
+
+    public void writeToFile(String filename, String content) {
+        try (Writer writer =
+                new BufferedWriter(new OutputStreamWriter(new FileOutputStream(filename), StandardCharsets.UTF_8))) {
+            writer.write(content);
+            logOperations.info("CSV written to file: " + filename);
+        } catch (IOException e) {
+            logOperations.error("Error writing file: " + e.getMessage());
+        }
+    }
+
+    public void setColumns(List<String> columns) {
+        columnsCSV.clear();
+        columnsCSV.addAll(columns);
     }
 }
