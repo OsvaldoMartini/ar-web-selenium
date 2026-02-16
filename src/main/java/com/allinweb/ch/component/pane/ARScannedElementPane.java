@@ -3337,8 +3337,9 @@ public class ARScannedElementPane extends ARPane {
                                 currentExcelFileName = path.getFileName().toString();
                             }
 
-                            currentTableCSV = csvTables.computeIfAbsent(currentExcelFileName, f -> {
-                                CsvTable t = new CsvTable(f);
+                            String finalNewExcelFieldName = newExcelFieldName;
+                            currentTableCSV = csvTables.computeIfAbsent(finalNewExcelFieldName, f -> {
+                                CsvTable t = new CsvTable(f, finalNewExcelFieldName, delimiterCSV);
                                 t.addColumns(currentColumnsCSV); // addAll per filename
                                 return t;
                             });
@@ -4899,33 +4900,8 @@ public class ARScannedElementPane extends ARPane {
                                         // Insert the updated mapExport into the Excel after each instruction
                                         if (writerExport != null) {
                                             headersExport.add(parentField.trim());
-
-                                            if (newExcelFieldName != null
-                                                    && newExcelFieldName
-                                                            .toLowerCase()
-                                                            .endsWith(".csv")) {
-                                                if (Strings.isNullOrEmpty(delimiterCSV)) {
-                                                    delimiterCSV = ",";
-                                                }
-
-                                                //
-                                                //                                                String csvContent
-                                                // =
-                                                // getBancaStatoCsvContent(delimiterCSV);
-                                                //
-                                                // logOperations.info(csvContent);
-                                                //
-                                                // writeToFile(newExcelFieldName, csvContent);
-
-                                                // writerExport.writeMapToCSV(mapExport, newExcelFieldName,
-                                                // delimiterCSV);
-                                            } else {
-                                                //
-                                                // writerExport.insertFieldNameAndValueLastColumn(
-                                                //                                                        mapExport,
-                                                // exportIndex - 1);
-                                            }
                                         }
+
                                         performActions.onHoldForSeconds(null);
 
                                         if (resultActions != null && resultActions.contains("PASSED")) {
@@ -5265,7 +5241,7 @@ public class ARScannedElementPane extends ARPane {
                     }
                     currentBlockOrder++;
 
-                    currentTableCSV = csvTables.get(currentExcelFileName);
+                    currentTableCSV = csvTables.get(newExcelFieldName);
 
                     if (currentTableCSV != null
                             && currentTableCSV.getRows() != null
@@ -5276,12 +5252,26 @@ public class ARScannedElementPane extends ARPane {
 
                 currentBlockOrder = blockExcelGoto; // BLOCK DEFINED BY "DEFAULT" OR "EXCEL GOTO"
                 xExcelCurrentRow++;
-                currentTableCSV = csvTables.get(currentExcelFileName);
+                currentTableCSV = csvTables.get(newExcelFieldName);
                 if (currentTableCSV != null
                         && currentTableCSV.getRows() != null
                         && !currentTableCSV.getRows().isEmpty()) {
                     saveExcelWrite(newExcelFieldName, currentTableCSV, writerExport, exportIndex);
                 }
+            }
+        }
+
+        // Last Recall For to avoid Multirow Cycles
+        // Iterate over all stored CsvTables
+        for (Map.Entry<String, CsvTable> entry : csvTables.entrySet()) {
+
+            currentTableCSV = entry.getValue();
+
+            if (currentTableCSV != null
+                    && currentTableCSV.getRows() != null
+                    && !currentTableCSV.getRows().isEmpty()) {
+
+                saveExcelWrite(currentTableCSV.getFullPath(), currentTableCSV, writerExport, exportIndex);
             }
         }
 
@@ -7121,11 +7111,12 @@ public class ARScannedElementPane extends ARPane {
     private void saveExcelWrite(
             String newExcelFieldName, CsvTable tableCSV, ExcelWriter.ExcelChain writerExport, int exportIndex) {
         if (newExcelFieldName != null && newExcelFieldName.toLowerCase().endsWith(".csv")) {
-            if (Strings.isNullOrEmpty(delimiterCSV)) {
-                delimiterCSV = ",";
+            String delimiter = tableCSV.getDelimiter();
+            if (Strings.isNullOrEmpty(tableCSV.getDelimiter())) {
+                delimiter = ",";
             }
 
-            String csvContent = getBancaStatoCsvContent(tableCSV, delimiterCSV);
+            String csvContent = getBancaStatoCsvContent(tableCSV, delimiter);
             logOperations.info(csvContent);
             if (csvContent != null) {
                 writeToFileCSV(newExcelFieldName, csvContent);

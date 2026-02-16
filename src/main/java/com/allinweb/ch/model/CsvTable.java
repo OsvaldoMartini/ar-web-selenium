@@ -5,18 +5,30 @@ import java.util.*;
 public class CsvTable {
 
     private final String fileName;
+    private final String fullPath;
+    private final String delimiter;
 
     // unique + preserves insertion order
     private final LinkedHashSet<String> columns = new LinkedHashSet<>();
 
     private final List<CsvRow> rows = new ArrayList<>();
 
-    public CsvTable(String fileName) {
+    public CsvTable(String fileName, String fullPath, String delimiter) {
         this.fileName = Objects.requireNonNull(fileName, "fileName");
+        this.fullPath = Objects.requireNonNull(fullPath, "fullPath");
+        this.delimiter = Objects.requireNonNull(delimiter, "delimiter");
     }
 
     public String getFileName() {
         return fileName;
+    }
+
+    public String getFullPath() {
+        return fullPath;
+    }
+
+    public String getDelimiter() {
+        return delimiter;
     }
 
     /** Snapshot list in insertion order */
