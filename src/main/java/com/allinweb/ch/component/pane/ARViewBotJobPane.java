@@ -65,6 +65,8 @@ public class ARViewBotJobPane extends ARPane {
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
     private static final PerformMessage performMessage = PerformMessage.getInstance();
     private static final ARNewHomeBankingScene arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
+    private static final ARConfigurationPane arConfigurationPane = ARConfigurationPane.getInstance();
+
     protected static volatile ARViewBotJobPane instance;
     Button refreshButton;
     Button openScannerButton;
@@ -1380,26 +1382,7 @@ public class ARViewBotJobPane extends ARPane {
         componentTitleLabel.setFont(
                 Font.font((String) null, FontWeight.BOLD, FontPosture.REGULAR, ARConstants.SPACE_SM + 4.0D));
 
-        Label searchLabel = new Label("Find");
-        searchLabel.setPadding(new Insets(5.0D));
-        searchLabel.setFont(
-                Font.font((String) null, FontWeight.BOLD, FontPosture.REGULAR, ARConstants.SPACE_SM + 2.0D));
-        TextField searchTextField = new TextField();
-
-        searchTextField.textProperty().addListener((observable, oldValue, newValue) -> {
-            //            ObservableList<ComponentBlockDTO> componentBlockDTOS;
-            if (!newValue.equals("")) {
-                log.info(newValue + " Text");
-            } else {
-            }
-        });
-
-        HBox searchPaneBox = new HBox(new Node[] {searchLabel, searchTextField});
-        searchPaneBox.setMaxHeight(ARConstants.SPACE_XL);
-        searchPaneBox.setSpacing(ARConstants.SPACE_XXS);
-        HBox.setHgrow(searchTextField, Priority.ALWAYS);
-
-        this.componentContainer = new VBox(new Node[] {searchPaneBox, webViewComp});
+        this.componentContainer = new VBox(new Node[] {webViewComp});
         HBox.setHgrow(this.webViewComp, Priority.ALWAYS);
         VBox.setVgrow(this.webViewComp, Priority.ALWAYS); // Ensures vertical growth
 
