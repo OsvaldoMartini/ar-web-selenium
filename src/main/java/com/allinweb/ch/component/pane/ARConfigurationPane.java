@@ -185,32 +185,7 @@ public class ARConfigurationPane extends ARPane {
         this.previousDB = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
         this.previousDBUrl = arPropertyManager.getProperty(ARPropertyEnum.DB_URL);
 
-        //  Alert Timer Components
-        // Create a label to display the countdown
-        Label countdownLabel = new Label(String.valueOf(remainingSeconds));
-        countdownLabel.setStyle("-fx-font-size: 24px;");
-        countdownLabel.setVisible(false);
-        // Create a stack pane to hold the label
-        StackPane stackPane = new StackPane(countdownLabel);
-        stackPane.setPadding(new Insets(20));
-
-        // Create a dialog for the alert
-        alertToShow = new Alert(Alert.AlertType.INFORMATION);
-        alertToShow.setTitle("Title");
-        alertToShow.setHeaderText("Header Message");
-        alertToShow.setContentText("Main Message");
-        alertToShow.initModality(Modality.WINDOW_MODAL);
-        // Set the content of the alert
-        alertToShow.getDialogPane().setContent(stackPane);
-        // Create a timeline to update the countdown
-        timeline = new Timeline(new KeyFrame(javafx.util.Duration.seconds(1), event -> {
-            remainingSeconds--;
-            countdownLabel.setText(String.valueOf(remainingSeconds));
-            if (remainingSeconds <= 0) {
-                timeline.stop(); // Stop the timeline when countdown finishes
-                alertToShow.close(); // Close the alert dialog
-            }
-        }));
+        startAlertShowTimer();
 
         title = new Label("Configuration");
         title.setMaxHeight(ARConstants.SPACE_L);
@@ -330,12 +305,12 @@ public class ARConfigurationPane extends ARPane {
         deleteAllDBLabel = new Label("Delete ALL DB");
         insertSitesLabel = new Label("Insert Sites");
 
-        backupDBButton = builder.buildButton("Backup");
+        backupDBButton = builder.buildButton("Backup DB");
         backupDBButton.setMaxHeight(ARConstants.SPACE_XXS);
         backupDBButton.setMaxWidth(100);
         backupDBButton.setStyle("-fx-font-size: 12px;");
 
-        restoreDBButton = builder.buildButton("Restore");
+        restoreDBButton = builder.buildButton("Restore DB");
         restoreDBButton.setMaxHeight(ARConstants.SPACE_XXS);
         restoreDBButton.setMaxWidth(100);
         restoreDBButton.setStyle("-fx-font-size: 12px;");
@@ -689,27 +664,27 @@ public class ARConfigurationPane extends ARPane {
 
                 if (errorMessage == null) {
                     backupFilePath = databasePath + File.separator + "backup_bot_job_" + date + ".sql";
-                    errorMessage = performBackup.backupBotJob(conn, backupFilePath);
+                    errorMessage = performBackup.backupBotJob(conn, backupFilePath, null, null);
                 }
 
                 if (errorMessage == null) {
                     backupFilePath = databasePath + File.separator + "backup_block_" + date + ".sql";
-                    errorMessage = performBackup.backupBlock(conn, backupFilePath);
+                    errorMessage = performBackup.backupBlock(conn, backupFilePath, null);
                 }
 
                 if (errorMessage == null) {
                     backupFilePath = databasePath + File.separator + "backup_instruction_" + date + ".sql";
-                    errorMessage = performBackup.backupInstruction(conn, backupFilePath);
+                    errorMessage = performBackup.backupInstruction(conn, backupFilePath, null);
                 }
 
                 if (errorMessage == null) {
                     backupFilePath = databasePath + File.separator + "backup_variable_" + date + ".sql";
-                    errorMessage = performBackup.backupVariable(conn, backupFilePath);
+                    errorMessage = performBackup.backupVariable(conn, backupFilePath, null);
                 }
 
                 if (errorMessage == null) {
                     backupFilePath = databasePath + File.separator + "backup_reference_" + date + ".sql";
-                    errorMessage = performBackup.backupReference(conn, backupFilePath);
+                    errorMessage = performBackup.backupReference(conn, backupFilePath, null);
                 }
 
                 if (errorMessage == null) {
@@ -1268,6 +1243,9 @@ public class ARConfigurationPane extends ARPane {
             String msg2,
             String msg3,
             String msg4) {
+
+        startAlertShowTimer();
+
         executorService = Executors.newSingleThreadExecutor();
         alertToShow.setAlertType(alertType);
         alertToShow.setTitle(title);
@@ -1399,6 +1377,255 @@ public class ARConfigurationPane extends ARPane {
         if (arWebDriver != null) {
             arWebDriver.closeAllDrivers();
             arWebDriver.closeCurrentDriver();
+        }
+    }
+
+    public void startAlertShowTimer() {
+        if (alertToShow == null) {
+
+            //  Alert Timer Components
+            // Create a label to display the countdown
+            Label countdownLabel = new Label(String.valueOf(remainingSeconds));
+            countdownLabel.setStyle("-fx-font-size: 24px;");
+            countdownLabel.setVisible(false);
+            // Create a stack pane to hold the label
+            StackPane stackPane = new StackPane(countdownLabel);
+            stackPane.setPadding(new Insets(20));
+
+            // Create a dialog for the alert
+            alertToShow = new Alert(Alert.AlertType.INFORMATION);
+            alertToShow.setTitle("Title");
+            alertToShow.setHeaderText("Header Message");
+            alertToShow.setContentText("Main Message");
+            alertToShow.initModality(Modality.WINDOW_MODAL);
+            // Set the content of the alert
+            alertToShow.getDialogPane().setContent(stackPane);
+            // Create a timeline to update the countdown
+            timeline = new Timeline(new KeyFrame(javafx.util.Duration.seconds(1), event -> {
+                remainingSeconds--;
+                countdownLabel.setText(String.valueOf(remainingSeconds));
+                if (remainingSeconds <= 0) {
+                    timeline.stop(); // Stop the timeline when countdown finishes
+                    alertToShow.close(); // Close the alert dialog
+                }
+            }));
+        }
+    }
+
+    public void runExportBotJob(int homeBankingId, int botJobId) {
+        String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
+        String date = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy_MM_dd"));
+
+        Label newInstruction = new Label("DB EXPORT (ONLY BOT JOB)\n"
+                + "Database Selected: \"" + dataBaseType + "\"\n"
+                + "homeBankingId: " + homeBankingId + "\n"
+                + "botJobId: " + botJobId);
+        newInstruction.setStyle("-fx-font-size: 18px; -fx-text-fill: red;");
+
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION, null, ButtonType.YES, ButtonType.NO);
+        alert.setHeaderText(
+                "Execute EXPORT ONLY for bot_job_id=" + botJobId + " (home_banking_id=" + homeBankingId + ")?");
+        alert.getDialogPane().setContent(newInstruction);
+
+        Optional<ButtonType> result = alert.showAndWait();
+        if (result.isEmpty() || result.get() != ButtonType.YES) {
+            return;
+        }
+
+        try (Connection conn = performDataBase.getConnection()) {
+            performBackup.initialize(conn);
+
+            String databasePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+
+            ErrorMessage errorMessage;
+
+            // 1) bot_job (filtered)
+            String backupFilePath =
+                    databasePath + File.separator + "backup_(BY_BOT_JOB)_bot_job_" + botJobId + "_" + date + ".sql";
+            errorMessage = performBackup.backupBotJob(conn, backupFilePath, homeBankingId, botJobId);
+
+            // 2) block (filtered by bot_job_id)
+            if (errorMessage == null) {
+                backupFilePath =
+                        databasePath + File.separator + "backup_(BY_BOT_JOB)_block_" + botJobId + "_" + date + ".sql";
+                errorMessage = performBackup.backupBlock(conn, backupFilePath, botJobId);
+            }
+
+            // 3) instruction (filtered by bot_job_id)
+            if (errorMessage == null) {
+                backupFilePath = databasePath + File.separator + "backup_(BY_BOT_JOB)_instruction_" + botJobId + "_"
+                        + date + ".sql";
+                errorMessage = performBackup.backupInstruction(conn, backupFilePath, botJobId);
+            }
+
+            if (errorMessage == null) {
+                backupFilePath = databasePath + File.separator + "backup_(BY_BOT_JOB)_variable_" + date + ".sql";
+                errorMessage = performBackup.backupVariable(conn, backupFilePath, null);
+            }
+
+            if (errorMessage == null) {
+                backupFilePath = databasePath + File.separator + "backup_(BY_BOT_JOB)_reference_" + date + ".sql";
+                errorMessage = performBackup.backupReference(conn, backupFilePath, null);
+            }
+
+            if (errorMessage == null) {
+
+                showAlertTimer(
+                        Alert.AlertType.INFORMATION,
+                        "Export Bot Job  Success!",
+                        "Exported files created for botJob=" + botJobId,
+                        "homeBankingId= " + homeBankingId + "\nbotJob = " + +botJobId,
+                        dataBaseType,
+                        null,
+                        null);
+            } else {
+                showAlertTimer(
+                        Alert.AlertType.ERROR,
+                        errorMessage.getErrorTitle(),
+                        errorMessage.getErrorHeader(),
+                        errorMessage.getErrorMessage(),
+                        "Export Bot Job Scripts error",
+                        dataBaseType,
+                        null);
+            }
+
+        } catch (SQLException ex) {
+            log.info(ex.getMessage());
+        }
+    }
+
+    public void runImportBotJob(int homeBankingId, int botJobId, LocalDate selectedDate) {
+
+        String formattedDate;
+        if (selectedDate != null) {
+            formattedDate = selectedDate.format(DateTimeFormatter.ofPattern("yyyy_MM_dd"));
+            log.info("Selected import Bot Job date: " + formattedDate);
+        } else {
+            Label dateSelection = new Label(
+                    "Please select a date to import from.\n" + "Check the database directory for available backups.");
+            dateSelection.setWrapText(true);
+
+            Alert alert = new Alert(Alert.AlertType.WARNING, null, ButtonType.OK);
+            alert.setTitle("Import Bot Job  Warning");
+            alert.setHeaderText("No Date Selected");
+            alert.getDialogPane().setContent(dateSelection);
+            alert.showAndWait();
+            return;
+        }
+
+        String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
+        String dataBaseFolder = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+
+        Label newInstruction = new Label("DB IMPORT (ONLY BOT JOB)\nDatabase Selected: \"" + dataBaseType
+                + "\" \nDatabase Folder : \"v4.7g Beta Test\"");
+        newInstruction.setStyle("-fx-font-size: 18px; -fx-text-fill: red;");
+
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION, null, ButtonType.YES, ButtonType.NO);
+        alert.setHeaderText("Are you sure you want to EXECUTE IMPORT (ONLY BOT JOB) (\"" + dataBaseType + "\")?");
+        alert.getDialogPane().setContent(newInstruction);
+
+        ARExecution.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
+                "Import Bot Job Confirmation",
+                "<span style='font-weight: bold; color: #D32F2F;'>Are you sure you want to execute a import bot job?</span>",
+                "The database type selected is: <span style='color: #1565C0; font-weight: bold;'>" + dataBaseType
+                        + "</span>.",
+                "<span style='color: #6A1B9A; font-weight: bold;'>The import data will apply to the folder: </span>.",
+                "<span style='font-style: italic;'>Details: " + dataBaseFolder + "</span>",
+                false,
+                "Execute Import",
+                "Cancel",
+                0);
+
+        if (!respModal.equals(ARExecution.DialogModal.STOP)) {
+            try (Connection conn = performDataBase.getConnection()) {
+
+                performBackup.initialize(conn);
+
+                String databasePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+
+                String backupFilePath =
+                        databasePath + File.separator + "backup_(BY_BOT_JOB)_bot_job_" + formattedDate + ".sql";
+                ErrorMessage errorMessage = performBackup.restoreBotJob(conn, backupFilePath);
+
+                if (errorMessage == null) {
+                    backupFilePath =
+                            databasePath + File.separator + "backup_(BY_BOT_JOB)_block_" + formattedDate + ".sql";
+                    errorMessage = performBackup.restoreBlock(conn, backupFilePath);
+                }
+
+                if (errorMessage == null) {
+                    backupFilePath =
+                            databasePath + File.separator + "backup_(BY_BOT_JOB)_instruction_" + formattedDate + ".sql";
+                    errorMessage = performBackup.restoreInstruction(conn, backupFilePath);
+                }
+
+                if (errorMessage == null) {
+                    backupFilePath =
+                            databasePath + File.separator + "backup_(BY_BOT_JOB)_variable_" + formattedDate + ".sql";
+                    errorMessage = performBackup.restoreVariable(conn, backupFilePath);
+                }
+
+                if (errorMessage == null) {
+                    errorMessage = performBackup.restoreUpdateInstruction(conn);
+                }
+
+                if (errorMessage == null) {
+                    backupFilePath =
+                            databasePath + File.separator + "backup_(BY_BOT_JOB)_reference_" + formattedDate + ".sql";
+                    errorMessage = performBackup.restoreReference(conn, backupFilePath);
+                }
+
+                if (errorMessage == null) {
+                    //                        closeAllScenes();
+
+                    performLists.clearAllLists();
+
+                    errorMessage = performDBEngine.loadHomeBanking(null);
+                    if (errorMessage == null) {
+                        errorMessage = performDBEngine.loadHomeUrls(null);
+                    }
+
+                    if (errorMessage == null) {
+                        errorMessage = performDataBase.loadQuickBotJobs();
+                    }
+
+                    if (errorMessage != null) {
+                        performMessage.errorMessageOperationFailed(errorMessage);
+                    }
+                    viewBotJobListView.setItems(FXCollections.observableArrayList(performLists.getQuickBotJobs()));
+
+                    backupDBButton.setDisable(performLists.getListHomeBanking().isEmpty());
+                    homeBankingListView.setItems(FXCollections.observableArrayList(performLists.getListHomeBanking()));
+
+                    HomeBankingLoadDTO homeBank = performLists.getFirstHomeBanking();
+                    arNewHomeBankingScene.initialize(homeBank);
+
+                    performMessage.showCustomModalDialogDragWin11(
+                            "Restore DB Success! ✅",
+                            "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>Database restored successfully!</span>",
+                            "<span style='color: #1565C0; font-weight: bold;'>Now you can start to use your database!</span>",
+                            "<span style='color: #6A1B9A; font-weight: bold;'>Database:</span> "
+                                    + databaseChoiceBox.getValue(),
+                            "<span style='color: #E65100; font-weight: bold;'>💡 Don't forget:</span> Press the <span style='text-decoration: underline;'>Reload DB</span> button to refresh your data!",
+                            false,
+                            "OK",
+                            null,
+                            0);
+                } else {
+                    log.error("Restore Database error: " + errorMessage.getErrorMessage());
+                    performMessage.errorMessage(
+                            "Restore Database error",
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>"
+                                    + errorMessage.getErrorTitle() + "</span> ❌",
+                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                    + errorMessage.getErrorHeader(),
+                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                            null,
+                            0);
+                }
+            } catch (SQLException error) {
+                log.error("Restore Database error: " + error.getMessage());
+            }
         }
     }
 }
