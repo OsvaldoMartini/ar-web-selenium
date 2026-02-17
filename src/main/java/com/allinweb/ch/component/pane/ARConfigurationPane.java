@@ -1521,7 +1521,7 @@ public class ARConfigurationPane extends ARPane {
         newInstruction.setStyle("-fx-font-size: 18px; -fx-text-fill: red;");
 
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION, null, ButtonType.YES, ButtonType.NO);
-        alert.setHeaderText("Are you sure you want to EXECUTE IMPORT (ONLY BOT JOB) (\"" + dataBaseType + "\")?");
+        alert.setHeaderText("Are you sure you want to EXECUTE IMPORT (ONLY BOT JOB) (\"" + formattedDate + "\")?");
         alert.getDialogPane().setContent(newInstruction);
 
         ARExecution.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
@@ -1529,7 +1529,8 @@ public class ARConfigurationPane extends ARPane {
                 "<span style='font-weight: bold; color: #D32F2F;'>Are you sure you want to execute a import bot job?</span>",
                 "The database type selected is: <span style='color: #1565C0; font-weight: bold;'>" + dataBaseType
                         + "</span>.",
-                "<span style='color: #6A1B9A; font-weight: bold;'>The import data will apply to the folder: </span>.",
+                "<span style='color: #6A1B9A; font-weight: bold;'>Import date : " + formattedDate
+                        + " will apply to the folder: </span>.",
                 "<span style='font-style: italic;'>Details: " + dataBaseFolder + "</span>",
                 false,
                 "Execute Import",
