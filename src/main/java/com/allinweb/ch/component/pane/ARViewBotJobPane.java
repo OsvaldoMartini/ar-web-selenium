@@ -23,6 +23,7 @@ import java.awt.*;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -48,7 +49,6 @@ import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
-import javax.swing.*;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -79,6 +79,11 @@ public class ARViewBotJobPane extends ARPane {
     Button generateExcelButton;
     Button closeBotJobButton;
     Button createBATButton;
+
+    Button exportJobButton;
+    Button importJobButton;
+    DatePicker restoreDatePicker;
+
     Label webSiteInfoLabel;
     Label botJobNameLabel;
     Label botJobDescriptionLabel;
@@ -431,6 +436,30 @@ public class ARViewBotJobPane extends ARPane {
         this.closeBotJobButton = builder.buildButton(
                 "Close", ARConstants.SPACE_ZERO, ARConstants.ICON_CROSS, ARConstants.SPACE_M, new Insets(5.0D));
 
+        exportJobButton = builder.buildButton("Export Job");
+        exportJobButton.setMaxHeight(ARConstants.SPACE_XXS);
+        exportJobButton.setMaxWidth(100);
+        exportJobButton.setStyle("-fx-font-size: 12px;");
+
+        importJobButton = builder.buildButton("Import Job");
+        importJobButton.setMaxHeight(ARConstants.SPACE_XXS);
+        importJobButton.setMaxWidth(100);
+        importJobButton.setStyle("-fx-font-size: 12px;");
+
+        restoreDatePicker = new DatePicker(LocalDate.now());
+        restoreDatePicker.setPrefWidth(140);
+        restoreDatePicker.setStyle("-fx-font-size: 12px;");
+
+        double controlHeight = 28; // same as your buttons
+
+        restoreDatePicker.setMinHeight(controlHeight);
+        restoreDatePicker.setPrefHeight(controlHeight);
+        restoreDatePicker.setMaxHeight(controlHeight);
+
+        restoreDatePicker.getEditor().setMinHeight(controlHeight);
+        restoreDatePicker.getEditor().setPrefHeight(controlHeight);
+        restoreDatePicker.getEditor().setMaxHeight(controlHeight);
+
         boolean isMobile = !selectedBotJob.getPriority().equalsIgnoreCase("Web App");
         if (launchBotJobButton != null && openScannerButton != null) {
             launchBotJobButton.setDisable(isMobile);
@@ -458,8 +487,11 @@ public class ARViewBotJobPane extends ARPane {
         editBotJobButton.setPrefWidth(buttonWidth);
         leftGridPane.add(editBotJobButton, 3, 0);
 
+        exportJobButton.setPrefWidth(buttonWidth);
+        leftGridPane.add(exportJobButton, 4, 0);
+
         launchBotJobButton.setPrefWidth(buttonWidth);
-        leftGridPane.add(launchBotJobButton, 4, 0);
+        leftGridPane.add(launchBotJobButton, 5, 0);
 
         navigationTimeButton.setPrefWidth(buttonWidth * 2); // or 220
         leftGridPane.add(navigationTimeButton, 0, 1, 2, 1); // span 2 columns
@@ -470,8 +502,14 @@ public class ARViewBotJobPane extends ARPane {
         generateExcelButton.setPrefWidth(buttonWidth);
         leftGridPane.add(generateExcelButton, 3, 1);
 
+        importJobButton.setPrefWidth(buttonWidth);
+        leftGridPane.add(importJobButton, 4, 1);
+
+        restoreDatePicker.setPrefWidth(buttonWidth);
+        leftGridPane.add(restoreDatePicker, 5, 1);
+
         closeBotJobButton.setPrefWidth(buttonWidth);
-        leftGridPane.add(closeBotJobButton, 4, 1);
+        leftGridPane.add(closeBotJobButton, 6, 1);
 
         // Center the buttons
         for (Node node : leftGridPane.getChildren()) {
@@ -944,6 +982,11 @@ public class ARViewBotJobPane extends ARPane {
             navigationTimeButton.setText("Navigation Time: " + next + "s");
             updateNavigationTimeButtonColor(next);
         });
+
+        this.exportJobButton.setOnMouseClicked(
+                e -> arConfigurationPane.runExportBotJob(selectedBotJob.getHomeBankingId(), selectedBotJob.getId()));
+        this.importJobButton.setOnMouseClicked(e -> arConfigurationPane.runImportBotJob(
+                selectedBotJob.getHomeBankingId(), selectedBotJob.getId(), restoreDatePicker.getValue()));
 
         this.launchBotJobButton.setOnMouseClicked((e) -> {
             ARPropertyManager managerProps = arPropertyManager;
