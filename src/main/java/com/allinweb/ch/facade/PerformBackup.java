@@ -1286,7 +1286,7 @@ public class PerformBackup {
         }
     }
 
-    public ErrorMessage restoreBlock(Connection conn, String sqlFilePath) {
+    public ErrorMessage restoreBlock(Connection conn, String sqlFilePath, Integer botJobIdImported) {
         String insertQuery =
                 """
                         INSERT INTO block (
@@ -1295,7 +1295,18 @@ public class PerformBackup {
                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
                         """;
 
-        String selectBlockIdsSQL = "SELECT id FROM block ORDER BY id";
+        String selectBlockIdsSQL = "SELECT id FROM block ";
+
+        if (botJobIdImported != null) {
+            Integer newBotJob = botJobMap.get(botJobIdImported);
+            if (newBotJob != null) {
+                selectBlockIdsSQL += " where bot_job_id = " + newBotJob;
+            } else {
+                return new ErrorMessage("Import Failed", "Failed to import blocks data", "New Bot Job Not found");
+            }
+        }
+
+        selectBlockIdsSQL += " ORDER BY id";
 
         try (BufferedReader reader = new BufferedReader(
                         new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
@@ -1417,7 +1428,7 @@ public class PerformBackup {
         }
     }
 
-    public ErrorMessage restoreInstruction(Connection conn, String sqlFilePath) {
+    public ErrorMessage restoreInstruction(Connection conn, String sqlFilePath, Integer botJobIdImported) {
         String insertQuery =
                 """
                         INSERT INTO instruction (
@@ -1429,7 +1440,18 @@ public class PerformBackup {
                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                         """;
 
-        String selectInstructionIdsSQL = "SELECT id FROM instruction ORDER BY id";
+        String selectInstructionIdsSQL = "SELECT id FROM instruction ";
+
+        if (botJobIdImported != null) {
+            Integer newBotJob = botJobMap.get(botJobIdImported);
+            if (newBotJob != null) {
+                selectInstructionIdsSQL += " where bot_job_id = " + newBotJob;
+            } else {
+                return new ErrorMessage("Import Failed", "Failed to import instructions data", "New Bot Job Not found");
+            }
+        }
+
+        selectInstructionIdsSQL += " ORDER BY id";
 
         try (BufferedReader reader = new BufferedReader(
                         new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
@@ -1611,7 +1633,7 @@ public class PerformBackup {
                                 }
 
                                 // Firts to Be mapped after INSERTS into Variable TABLE
-                                setSafeParam(pstmt, 23, "NULL", Types.INTEGER);
+                                setSafeParam(pstmt, 23, null, Types.INTEGER);
                             }
                             case 24, 25, 26 -> {}
                             default -> throw new IllegalArgumentException("Unexpected column index: " + i);
@@ -1663,7 +1685,7 @@ public class PerformBackup {
         }
     }
 
-    public ErrorMessage restoreVariable(Connection conn, String sqlFilePath) {
+    public ErrorMessage restoreVariable(Connection conn, String sqlFilePath, Integer botJobIdImported) {
         String insertQuery =
                 """
                         INSERT INTO variable (
@@ -1671,7 +1693,18 @@ public class PerformBackup {
                         ) VALUES (?, ?, ?, ?, ?, ?, ?);
                         """;
 
-        String selectVariableIdsSQL = "SELECT id FROM variable ORDER BY id";
+        String selectVariableIdsSQL = "SELECT id FROM variable ";
+
+        if (botJobIdImported != null) {
+            Integer newBotJob = botJobMap.get(botJobIdImported);
+            if (newBotJob != null) {
+                selectVariableIdsSQL += " where bot_job_id = " + newBotJob;
+            } else {
+                return new ErrorMessage("Import Failed", "Failed to import variables data", "New Bot Job Not found");
+            }
+        }
+
+        selectVariableIdsSQL += " ORDER BY id";
 
         try (BufferedReader reader = new BufferedReader(
                         new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
@@ -1822,8 +1855,20 @@ public class PerformBackup {
         try (Statement connStmt = conn.createStatement()) {
             conn.setAutoCommit(false);
 
-            String selectAccessSQL = "SELECT id, name, parent_id, variable_id, parent_block_id "
-                    + "FROM instruction WHERE parent_id IS NOT NULL OR variable_id IS NULL OR parent_block_id IS NOT NULL ORDER BY id";
+            String selectAccessSQL = "SELECT id, name, parent_id, variable_id, parent_block_id, bot_job_id "
+                    + "FROM instruction WHERE (parent_id IS NULL OR variable_id IS NULL OR parent_block_id IS NULL)";
+
+            if (botJobIdImported != null) {
+                Integer newBotJob = botJobMap.get(botJobIdImported);
+                if (newBotJob != null) {
+                    selectAccessSQL += " AND bot_job_id = " + newBotJob;
+                } else {
+                    return new ErrorMessage(
+                            "Import Failed", "Failed to update instruction data", "New Bot Job Not found");
+                }
+            }
+
+            selectAccessSQL += " ORDER BY id";
 
             try (ResultSet rsInstruction = connStmt.executeQuery(selectAccessSQL)) {
 
@@ -1890,19 +1935,9 @@ public class PerformBackup {
 
                         // ---- WHERE id = ? ----
 
-                        if (botJobIdImported != null) {
-                            Integer newInstrucitonId = null;
-                            newInstrucitonId = instrNewInverted.get(botJobIdImported);
-                            if (newInstrucitonId != null) {
-                                updateStmt.setInt(4, newInstrucitonId);
-                                updateStmt.addBatch();
-                                count++;
-                            }
-                        } else {
-                            updateStmt.setInt(4, id);
-                            updateStmt.addBatch();
-                            count++;
-                        }
+                        updateStmt.setInt(4, id);
+                        updateStmt.addBatch();
+                        count++;
 
                         if (count % BATCH_SIZE == 0) {
                             updateStmt.executeBatch();
@@ -1929,7 +1964,7 @@ public class PerformBackup {
         }
     }
 
-    public ErrorMessage restoreReference(Connection conn, String sqlFilePath) {
+    public ErrorMessage restoreReference(Connection conn, String sqlFilePath, Integer botJobIdImported) {
         String insertQuery =
                 """
                         INSERT INTO reference (
@@ -1937,7 +1972,18 @@ public class PerformBackup {
                         ) VALUES (?, ?, ?, ?);
                         """;
 
-        String selectReferenceIdsSQL = "SELECT id FROM reference ORDER BY id";
+        String selectReferenceIdsSQL = "SELECT id FROM reference ";
+
+        if (botJobIdImported != null) {
+            Integer newBotJob = botJobMap.get(botJobIdImported);
+            if (newBotJob != null) {
+                selectReferenceIdsSQL += " where bot_job_id = " + newBotJob;
+            } else {
+                return new ErrorMessage("Import Failed", "Failed to import references data", "New Bot Job Not found");
+            }
+        }
+
+        selectReferenceIdsSQL += " ORDER BY id";
 
         try (BufferedReader reader = new BufferedReader(
                         new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
