@@ -2826,71 +2826,6 @@ public class ARScannedElementPane extends ARPane {
         return sb.toString();
     }
 
-    /**
-     * Generates the CSV content formatted according to the BancaStato specification.
-     *
-     * Format rules:
-     * - The first line is the header and always starts with "KEY"
-     *   followed by the configured delimiter and the ordered column names.
-     *
-     * - Each data row starts with:
-     *     • "EXTERNAL"       if there is only one row
-     *     • "EXTERNAL_n"     if multiple rows exist (1-based index)
-     *
-     * - Column values are written in the exact order defined by {@code tableCSV.columnsCSV}.
-     *   Missing values are rendered as empty strings.
-     *
-     * - The configured end-of-file marker is appended at the end.
-     *
-     * Example (single row):
-     *   KEY|User number
-     *   EXTERNAL|434234
-     *
-     * Example (multiple rows):
-     *   KEY|User number
-     *   EXTERNAL_1|434234
-     *   EXTERNAL_2|353534
-     *
-     * @param delimiter the column delimiter (e.g. "|")
-     * @return the formatted CSV content as a String
-     */
-    public String getBancaStatoCsvContent(CsvTable tableCSV, String delimiter) {
-        StringBuilder sb = new StringBuilder();
-
-        // Header
-        sb.append("KEY")
-                .append(delimiter)
-                .append(String.join(delimiter, tableCSV.getColumns()))
-                .append("\n");
-
-        int totalRows = (tableCSV == null || tableCSV.getRows() == null)
-                ? 0
-                : tableCSV.getRows().size();
-
-        // Data rows
-        for (int i = 0; i < totalRows; i++) {
-            CsvRow row = tableCSV.getRows().get(i);
-
-            String externalKey = (totalRows == 1) ? "EXTERNAL" : "EXTERNAL_" + (i + 1);
-
-            sb.append(externalKey).append(delimiter);
-
-            // values in the same order as columnsCSV
-            for (int c = 0; c < tableCSV.getColumns().size(); c++) {
-                String col = tableCSV.getColumns().get(c);
-                sb.append(row != null ? row.get(col) : "");
-                if (c < tableCSV.getColumns().size() - 1) {
-                    sb.append(delimiter);
-                }
-            }
-
-            sb.append("\n");
-        }
-
-        //        sb.append(END_OF_FILE_MARKER);
-        return sb.toString();
-    }
-
     private void loadAllBlocks() {
         if (comboBoxBlocks != null) {
             Platform.runLater(() -> {
@@ -3316,7 +3251,7 @@ public class ARScannedElementPane extends ARPane {
 
                         newExcelFieldName = blockLoad.getExportFile();
                         // Always loads ExcelWrite columns per block
-                        ErrorMessage errorMessage = performDataBase.loadAllColumnsExcelWrite(
+                        ErrorMessage errorMessage = performDBEngine.loadAllColumnsExcelWrite(
                                 "instruction", currentBotJob.getId(), blockLoad.getId());
                         if (errorMessage == null) {
                             setCurrentColumns(performLists.getExcelColumnNames());
@@ -4336,49 +4271,39 @@ public class ARScannedElementPane extends ARPane {
                                         //
                                         // androidDevice.getCurrentDriver());
 
-                                        // webElementFound = androidDevice.searchElement(splitDTO, actions,
-                                        // currentPage);
+                                        //                                        webElementFound =
+                                        // androidDevice.searchElement(
+                                        //                                                splitDTO, actions,
+                                        // performLists.getListTargetElements());
 
-                                        //                                        if (webElementFound == null) {
-                                        //                                            appendLog(
-                                        //
-                                        // currentInstruction.getName() + "- Not Found- using coordinates",
-                                        //                                                    "warn");
-                                        // androidDevice.executeAction(webElementFound, splitDTO, actions);
-                                        //                                        }
+                                        if (webElementFound == null) {
+                                            appendLog(
+                                                    currentInstruction.getName() + "- Not Found- using coordinates",
+                                                    "warn");
+                                            //
+                                            // androidDevice.executeAction(webElementFound, splitDTO, actions);
+                                        }
                                     }
 
-                                    // VERY IMPORTANT FORCE COORDINATES
-                                    // FORCE COORDINATES COMMENTED
-                                    //                                    if (webElementFound == null &&
-                                    // forceCoordinates && !isMobileApp) {
-                                    //
-                                    //                                        Boolean pressEnterAfter = false;
-                                    //                                        if
-                                    // (actions[0].equals(ARConstantsEngine.INSERT)
-                                    //                                                &&
-                                    // actions[1].equals(ARConstantsEngine.ENTER)) {
-                                    //                                            pressEnterAfter = true;
-                                    //                                        }
-                                    //                                        if
-                                    // (actions[0].equalsIgnoreCase(ARConstantsEngine.VISUALIZE)
-                                    //                                                ||
-                                    // actions[0].equalsIgnoreCase(ARConstantsEngine.CLICK)
-                                    //                                                ||
-                                    // actions[0].equalsIgnoreCase(ARConstantsEngine.INSERT)) {
-                                    //
-                                    //                                            List<WebElement> smartSearch =
-                                    // performActions.findBySmartLocator(
-                                    //
-                                    // currentInstruction.getCssSelector());
-                                    //                                            if (!smartSearch.isEmpty()) {
-                                    //                                                success =
-                                    // performActions.executeActionsAtCoordinates(
-                                    //                                                        "coordinates", fieldData,
-                                    // actions[0], pressEnterAfter);
-                                    //                                            }
-                                    //                                        }
-                                    //                                    }
+                                    if (webElementFound == null && forceCoordinates && !isMobileApp) {
+
+                                        Boolean pressEnterAfter = false;
+                                        if (actions[0].equals(ARConstantsEngine.INSERT)
+                                                && actions[1].equals(ARConstantsEngine.ENTER)) {
+                                            pressEnterAfter = true;
+                                        }
+                                        if (actions[0].equalsIgnoreCase(ARConstantsEngine.VISUALIZE)
+                                                || actions[0].equalsIgnoreCase(ARConstantsEngine.CLICK)
+                                                || actions[0].equalsIgnoreCase(ARConstantsEngine.INSERT)) {
+
+                                            List<WebElement> smartSearch = performActions.findBySmartLocator(
+                                                    currentInstruction.getCssSelector());
+                                            if (!smartSearch.isEmpty()) {
+                                                success = performActions.executeActionsAtCoordinates(
+                                                        "coordinates", fieldData, actions[0], pressEnterAfter);
+                                            }
+                                        }
+                                    }
 
                                     byPassNotFound = byPassFlagLoop
                                             || !currentCondition.equals(ARExecution.ConditionStatus.NONE);
@@ -4466,8 +4391,10 @@ public class ARScannedElementPane extends ARPane {
                                             SplitDTO.applyAttrDataFromReferences(splitDTO, refInstruction);
                                             SplitDTO.applyInstructionToSplit(splitDTO, refInstruction);
 
-                                            // webElementFound =androidDevice.searchElement(splitDTO, actions,
-                                            // currentPage);
+                                            //                                            webElementFound =
+                                            // androidDevice.searchElement(
+                                            //                                                    splitDTO, actions,
+                                            // performLists.getListTargetElements());
                                         }
 
                                         resultActions = performActions.performOperatorActions(
@@ -5065,7 +4992,8 @@ public class ARScannedElementPane extends ARPane {
                                 for (int i = 0; i < timesSwipe; i++) {
                                     //                                    androidDevice.swipeUp();
                                     // androidDevice.swipeVertical(true); // false = down
-                                    // androidDevice.swipeADB(splitDTO.getDeviceId(), true);
+                                    //                                    androidDevice.swipeADB(splitDTO.getDeviceId(),
+                                    // true);
                                 }
 
                                 // Excel Report and Log
@@ -5109,7 +5037,8 @@ public class ARScannedElementPane extends ARPane {
                                     //                                    androidDevice.swipeDown();
                                     //                                    androidDevice.swipeVertical(false); // false =
                                     // down
-                                    // androidDevice.swipeADB(splitDTO.getDeviceId(), false);
+                                    //                                    androidDevice.swipeADB(splitDTO.getDeviceId(),
+                                    // false);
                                 }
                                 // Excel Report and Log
                                 performActions.logAndReport(
@@ -7106,6 +7035,71 @@ public class ARScannedElementPane extends ARPane {
         } catch (IOException e) {
             logOperations.error("Error writing file: {}", e.getMessage(), e);
         }
+    }
+
+    /**
+     * Generates the CSV content formatted according to the BancaStato specification.
+     *
+     * Format rules:
+     * - The first line is the header and always starts with "KEY"
+     *   followed by the configured delimiter and the ordered column names.
+     *
+     * - Each data row starts with:
+     *     • "EXTERNAL"       if there is only one row
+     *     • "EXTERNAL_n"     if multiple rows exist (1-based index)
+     *
+     * - Column values are written in the exact order defined by {@code tableCSV.columnsCSV}.
+     *   Missing values are rendered as empty strings.
+     *
+     * - The configured end-of-file marker is appended at the end.
+     *
+     * Example (single row):
+     *   KEY|User number
+     *   EXTERNAL|434234
+     *
+     * Example (multiple rows):
+     *   KEY|User number
+     *   EXTERNAL_1|434234
+     *   EXTERNAL_2|353534
+     *
+     * @param delimiter the column delimiter (e.g. "|")
+     * @return the formatted CSV content as a String
+     */
+    public String getBancaStatoCsvContent(CsvTable tableCSV, String delimiter) {
+        StringBuilder sb = new StringBuilder();
+
+        // Header
+        sb.append("KEY")
+                .append(delimiter)
+                .append(String.join(delimiter, tableCSV.getColumns()))
+                .append("\n");
+
+        int totalRows = (tableCSV == null || tableCSV.getRows() == null)
+                ? 0
+                : tableCSV.getRows().size();
+
+        // Data rows
+        for (int i = 0; i < totalRows; i++) {
+            CsvRow row = tableCSV.getRows().get(i);
+
+            String externalKey = (totalRows == 1) ? "EXTERNAL" : "EXTERNAL_" + (i + 1);
+
+            sb.append(externalKey).append(delimiter);
+
+            // values in the same order as columnsCSV
+            for (int c = 0; c < tableCSV.getColumns().size(); c++) {
+                String col = tableCSV.getColumns().get(c);
+                sb.append(row != null ? row.get(col) : "");
+                if (c < tableCSV.getColumns().size() - 1) {
+                    sb.append(delimiter);
+                }
+            }
+
+            sb.append("\n");
+        }
+
+        //        sb.append(END_OF_FILE_MARKER);
+        return sb.toString();
     }
 
     private void saveExcelWrite(

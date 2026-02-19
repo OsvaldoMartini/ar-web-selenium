@@ -16,6 +16,11 @@ TargetElement matchScanned = null;
 TargetElement matchXPath = null;
 WebElement webElementFound = null;
 int navTime = getNavigationTimeSeconds();
+String previousExcelFieldName = "";
+String newExcelFieldName = "";
+String currentExcelFileName = "";
+CsvTable currentTableCSV = null;
+
 //        List<InputInfo> inputs = new ArrayList<>();
 
 sessionRowStatus = "botJobTasks"; // + botJobId;
@@ -59,20 +64,21 @@ if (extractedData.getNumberOfDataRows() > 0) {
 
 		// PREVENTID  LATGER DELETION
 		if (blockExcelGoto < 0) {
-			blockExcelGoto = (excelDataGoto.get(0).getBlockOrderNumber() == null
-							|| excelDataGoto.get(0).getBlockOrderNumber() <= 0)
-					? 1
-					: excelDataGoto.get(0).getBlockOrderNumber();
+
+			Integer blockOrder = (excelDataGoto != null && !excelDataGoto.isEmpty())
+					? excelDataGoto.get(0).getBlockOrderNumber()
+					: null;
+
+			blockExcelGoto = (blockOrder != null && blockOrder > 0) ? blockOrder : 1;
 		}
 	}
 
 	int xExcelCurrentRow = 0;
 	int xExcelDataSize = extractedData.getNumberOfDataRows();
 	mapOperators.clear();
-	mapExportRows = new LinkedHashMap<>();
 	headersExport.clear();
-	columnsCSV.clear();
-	rowsCSV.clear();
+	currentColumnsCSV.clear();
+	csvTables.clear();
 
 	while (xExcelCurrentRow <= xExcelDataSize - 1 && !blocksLoaded.isEmpty() && !stopAll) {
 		// Clear's Up Any Loop as Per New Line
@@ -136,20 +142,42 @@ if (extractedData.getNumberOfDataRows() > 0) {
 					// DomIntrospectionUtil.listAllRelevantElements(performActions.getCurrentDriver());
 				}
 
-				excelFieldName = blockLoad.getExportFile();
+				newExcelFieldName = blockLoad.getExportFile();
+				// Always loads ExcelWrite columns per block
+				ErrorMessage errorMessage = performDataBase.loadAllColumnsExcelWrite(
+						"instruction", currentBotJob.getId(), blockLoad.getId());
+				if (errorMessage == null) {
+					setCurrentColumns(performLists.getExcelColumnNames());
+				}
 
-				if (!Strings.isNullOrEmpty(excelFieldName)) {
-					String[] parts = excelFieldName.split(":");
-					if (parts.length > 2) {
-						delimiterCSV = parts[2];
-						excelFieldName =
-								excelFieldName.replace(":,", "").replace(":|", "");
+				if (newExcelFieldName != null && !newExcelFieldName.equals(previousExcelFieldName)) {
+					// Sanitize
+					if (!Strings.isNullOrEmpty(newExcelFieldName)) {
+						String[] parts = newExcelFieldName.split(":");
+						if (parts.length > 2) {
+							delimiterCSV = parts[2];
+							newExcelFieldName =
+									newExcelFieldName.replace(":,", "").replace(":|", "");
+						}
+
+						// Extract only file name with extension
+						Path path = Paths.get(newExcelFieldName);
+						currentExcelFileName = path.getFileName().toString();
 					}
+
+					String finalNewExcelFieldName = newExcelFieldName;
+					currentTableCSV = csvTables.computeIfAbsent(finalNewExcelFieldName, f -> {
+						CsvTable t = new CsvTable(f, finalNewExcelFieldName, delimiterCSV);
+						t.addColumns(currentColumnsCSV); // addAll per filename
+						return t;
+					});
+
+					previousExcelFieldName = newExcelFieldName;
 				}
 			}
 
 			// It Searches the Block That have finished the Loops to Avoid recursivity
-			if (loopBlockActive.size() > 0) {
+			if (!loopBlockActive.isEmpty()) {
 				for (String blocLoopKey : loopBlockActive) {
 					if (mapLoops.containsKey(blocLoopKey)) {
 						if (mapLoops.get(blocLoopKey) == 0) {
@@ -303,7 +331,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 
 			while (xExcelCurrentRow < extractedData.getNumberOfDataRows() && !stopAll) {
 				failedMessage = "";
-				//                        mapExportRows.clear();
+				//                        tableCSV.clear();
 
 				//                    writerReport.insertBlockSeparation(blockLoad.getName());
 
@@ -422,7 +450,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 					boolean execPDFCheck = false;
 					boolean execCSVCheck = false;
 					boolean execOutPut = false;
-					boolean excelWriteOperation = false;
+					boolean execExcellWrite = false;
 					boolean pauseOperation = false;
 					boolean nextEnter = false;
 					boolean swipeUp = false;
@@ -795,7 +823,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 							variableField = "Not Variable defined";
 						}
 					} else if (actions[0].equalsIgnoreCase(ARConstantsEngine.EXTRACT_FIELD)) {
-						excelWriteOperation = true;
+						execExcellWrite = true;
 						parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
 						variableField =
 								performActions.getInstructionVariableField(currentInstruction, variablesLoaded);
@@ -1037,7 +1065,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								&& !execCheckValue
 								&& !execPDFCheck
 								&& !execCSVCheck
-								&& !excelWriteOperation
+								&& !execExcellWrite
 								&& !pauseOperation
 								&& !nextEnter
 								&& !swipeUp
@@ -1125,61 +1153,45 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								// 2) Apply only non-empty values into splitDTO and elementDetails[0]
 								//                                        if (matchingInstruction != null) {
 								// >>> Add AttrData:* references into elementDetails.attributesData
-								//
-								// SplitDTO.applyAttrDataFromReferences(splitDTO, currentInstruction);
-								//
-								//
-								// SplitDTO.applyInstructionToSplit(splitDTO, currentInstruction);
-								//                                        //
-								//    }
-								//
-								//                                        webElementFound =
-								// androidDevice.searchElement(splitDTO);
-								//
-								//                                        if (webElementFound == null) {
-								//                                            appendLog(
-								//
-								// currentInstruction.getName() + "- Not Found- using coordinates",
-								//                                                    "warn");
-								//
-								// androidDevice.executeAction(webElementFound, splitDTO);
+								SplitDTO.applyAttrDataFromReferences(splitDTO, currentInstruction);
+
+								SplitDTO.applyInstructionToSplit(splitDTO, currentInstruction);
 								//                                        }
+
+								// Already Maps List<TargetElement>
+								androidHelper.scanElementsWithCanonicalXmlOnly(
+										androidDevice.getCurrentDriver());
+
+								webElementFound = androidDevice.searchElement(
+										splitDTO, actions, performLists.getListTargetElements());
+
+								if (webElementFound == null) {
+									appendLog(
+											currentInstruction.getName() + "- Not Found- using coordinates",
+											"warn");
+									androidDevice.executeAction(webElementFound, splitDTO, actions);
+								}
 							}
 
-							// VERY IMPORTANT FORCE COORDINATES
-							// FORCE COORDINATES COMMENTED
-							//                                    if (webElementFound == null &&
-							// forceCoordinates && !isMobileApp) {
-							//
-							//                                        Boolean pressEnterAfter = false;
-							//                                        if
-							// (actions[0].equals(ARConstantsEngine.INSERT)
-							//                                                &&
-							// actions[1].equals(ARConstantsEngine.ENTER)) {
-							//                                            pressEnterAfter = true;
-							//                                        }
-							//                                        if
-							// (actions[0].equalsIgnoreCase(ARConstantsEngine.VISUALIZE)
-							//                                                ||
-							// actions[0].equalsIgnoreCase(ARConstantsEngine.CLICK)
-							//                                                ||
-							// actions[0].equalsIgnoreCase(ARConstantsEngine.INSERT)) {
-							//
-							//                                            List<WebElement> smartSearch =
-							// performActions.findBySmartLocator(
-							//
-							// currentInstruction.getCssSelector());
-							//                                            if (!smartSearch.isEmpty()) {
-							//                                                success =
-							// performActions.executeActionsAtCoordinates(
-							//
-							// mapSavedLocators.get("coordinates"),
-							//                                                        fieldData,
-							//                                                        actions[0],
-							//                                                        pressEnterAfter);
-							//                                            }
-							//                                        }
-							//                                    }
+							if (webElementFound == null && forceCoordinates && !isMobileApp) {
+
+								Boolean pressEnterAfter = false;
+								if (actions[0].equals(ARConstantsEngine.INSERT)
+										&& actions[1].equals(ARConstantsEngine.ENTER)) {
+									pressEnterAfter = true;
+								}
+								if (actions[0].equalsIgnoreCase(ARConstantsEngine.VISUALIZE)
+										|| actions[0].equalsIgnoreCase(ARConstantsEngine.CLICK)
+										|| actions[0].equalsIgnoreCase(ARConstantsEngine.INSERT)) {
+
+									List<WebElement> smartSearch = performActions.findBySmartLocator(
+											currentInstruction.getCssSelector());
+									if (!smartSearch.isEmpty()) {
+										success = performActions.executeActionsAtCoordinates(
+												"coordinates", fieldData, actions[0], pressEnterAfter);
+									}
+								}
+							}
 
 							byPassNotFound = byPassFlagLoop
 									|| !currentCondition.equals(ARExecution.ConditionStatus.NONE);
@@ -1208,7 +1220,9 @@ if (extractedData.getNumberOfDataRows() > 0) {
 							// Special Cases for Select Responses
 							// It could be Improved the case
 							if (resultActions.contains("FAIL")
-								|| currentPage.isEmpty()
+									|| performLists
+											.getListTargetElements()
+											.isEmpty()
 									|| (matchXPath == null && matchScanned == null && webElementFound == null)
 									|| (webElementFound == null && !forceCoordinates)) {
 								failedMessage = "Failed execution Web Element ";
@@ -1218,7 +1232,10 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								}
 								success = false;
 
-								if (currentPage.isEmpty()) {
+								if (performLists.getListTargetElements().isEmpty()) {
+									String reason = performActions.buildMessageResult(
+											success, blockName, "TIME OUT", "Device timeout", "TIME OUT");
+									appendLog("[TEST]" + reason, "error");
 									stopAll = true;
 								}
 							} else if (resultActions != null && success) {
@@ -1250,25 +1267,20 @@ if (extractedData.getNumberOfDataRows() > 0) {
 
 								webElementFound = null;
 								if (isMobileApp) {
-									//                                            int index = IntStream.range(0,
-									// instructionIds.length)
-									//                                                    .filter(i ->
-									// instructionIds[i] == parentId)
-									//                                                    .findFirst()
-									//                                                    .orElse(-1);
-									//
-									//                                            InstructionLoad refInstruction
-									// = blockLoad
-									//                                                    .getInstructionLoad()
-									//                                                    .get(index);
-									//
-									//
-									// SplitDTO.applyAttrDataFromReferences(splitDTO, refInstruction);
-									//
-									// SplitDTO.applyInstructionToSplit(splitDTO, refInstruction);
-									//
-									//                                            webElementFound =
-									// androidDevice.searchElement(splitDTO);
+									int index = IntStream.range(0, instructionIds.length)
+											.filter(i -> instructionIds[i] == parentId)
+											.findFirst()
+											.orElse(-1);
+
+									InstructionLoad refInstruction = blockLoad
+											.getInstructionLoad()
+											.get(index);
+
+									SplitDTO.applyAttrDataFromReferences(splitDTO, refInstruction);
+									SplitDTO.applyInstructionToSplit(splitDTO, refInstruction);
+
+									webElementFound = androidDevice.searchElement(
+											splitDTO, actions, performLists.getListTargetElements());
 								}
 
 								resultActions = performActions.performOperatorActions(
@@ -1444,133 +1456,17 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								}
 							}
 
-						} else if (execPDFCheck) {
-							// Check Validation Operator
-
-							if (!mapOperators.containsKey(variableField)) {
-								failedMessage = "Get Value Is Not Defined ";
-								msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
-								//                                        resultActions =
-								// performActions.getValueIsNotDefined(
-								//                                                actions[0],
-								//                                                currentInstruction,
-								//                                                resultActions,
-								//                                                ARExecution.ConditionStatus
-								//                                                        .NONE, // NOT
-								// currentCondition to Force Message,
-								//                                                parentField,
-								//                                                variableField);
-
-								String reason = performActions.buildGetVariableReason(
-										actions[0],
-										currentInstruction,
-										resultActions,
-										currentCondition,
-										parentField,
-										variableField,
-										byPassNotFound, // or your bypass flag
-										blockName,
-										currentInstruction.getId(),
-										false);
-
-								appendLog("[TEST]" + reason, "error");
-								alreadyLogged = true;
-
-								logOperations.error("{}", reason);
-
-								success = false;
-							} else {
-								//                                    fieldName = parentField;
-
-								resultActions = "PDF Check Value for " + String.join(" ", operations);
-								boolean isOperationValid = false;
-								String invalidValues = null;
-
-								if (operations[1].equalsIgnoreCase("=")) {
-									isOperationValid = mapOperators
-											.get(variableField)
-											.trim()
-											.equalsIgnoreCase(operations[2].trim());
-
-								} else if (operations[1].equalsIgnoreCase(">")) {
-									int resp = handleGreaterThan(
-											mapOperators
-													.get(variableField)
-													.trim(),
-											operations[2].trim());
-									if (resp == 1) {
-										isOperationValid = true;
-									} else if (resp == 0) {
-										isOperationValid = false;
-									} else {
-										isOperationValid = false;
-										invalidValues = "Invalid Numbers";
-									}
-								} else if (operations[1].equalsIgnoreCase("!=")) {
-									isOperationValid = !mapOperators
-											.get(variableField)
-											.trim()
-											.equalsIgnoreCase(operations[2].trim());
-								} else if (operations[1].equalsIgnoreCase("<")) {
-									int resp = handleLessThan(
-											mapOperators
-													.get(variableField)
-													.trim(),
-											operations[2].trim());
-									if (resp == 1) {
-										isOperationValid = true;
-									} else if (resp == 0) {
-										isOperationValid = false;
-									} else {
-										isOperationValid = false;
-										invalidValues = "Invalid Numbers";
-									}
-								}
-
-								if (isOperationValid) {
-									currentInstruction.setExecuted(true);
-									failedMessage = "";
-									success = true;
-								} else {
-									failedMessage = "Failed: Check Validation ";
-									msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
-									//                                            resultActions =
-									// performActions.checkValidationFailed(
-									//                                                    invalidValues,
-									//                                                    parentField,
-									//
-									// mapOperators.get(variableField),
-									//                                                    resultActions,
-									//                                                    operations,
-									//                                                    currentCondition,
-									//                                                    byPassNotFound);
-
-									resultActions = performActions.buildValidationReason(
-											invalidValues,
-											parentField,
-											mapOperators.get(variableField), // actual/current web value
-											"expectedValue",
-											resultActions, // lastInstructionExecuted
-											operations,
-											currentCondition,
-											byPassNotFound,
-											true,
-											blockName,
-											currentInstruction.getId(),
-											false);
-
-									logOperations.error("Validation failed: {}", resultActions);
-
-									success = false;
-								}
+						} else if (execCSVCheck || execPDFCheck) {
+							String msgCSVPrefix = "CSV ";
+							if (execPDFCheck) {
+								msgCSVPrefix = "PDF ";
 							}
-
-						} else if (execCSVCheck) {
 
 							// If fieldsToValidate is null/empty => ignore (no log)
 							Map<String, FieldsToValidate> fMap = splitDTO.getFieldsToValidate();
 							if (fMap == null || fMap.isEmpty()) {
 								// ignore
+								resultActions = resultActions.replaceAll("PASSED", "IGNORED");
 							} else {
 
 								for (Map.Entry<String, FieldsToValidate> entry : fMap.entrySet()) {
@@ -1655,7 +1551,8 @@ if (extractedData.getNumberOfDataRows() > 0) {
 												// operator comes from your parsed operations array
 												String operator = operations[1];
 
-												resultActions = "CSV Check Value for " + parentFieldCSV;
+												String msgCSV = msgCSVPrefix + parentFieldCSV;
+												resultActions = "Check Value for " + parentFieldCSV;
 												ValidationResult vr =
 														evaluateOperation(actualValue, operator, expectedValue);
 
@@ -1666,7 +1563,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 
 													resultActions = performActions.buildValidationReason(
 															vr.invalidReason,
-															parentFieldCSV,
+															msgCSV,
 															actualValue, // actual/current web value
 															expectedValue,
 															resultActions,
@@ -1682,7 +1579,8 @@ if (extractedData.getNumberOfDataRows() > 0) {
 													alreadyLogged = true;
 
 													logOperations.info(
-															"Validation SUCCESS for field '{}': actual='{}' {} expected='{}'",
+															msgCSVPrefix
+																	+ " Validation SUCCESS for field '{}': actual='{}' {} expected='{}'",
 															parentFieldCSV,
 															actualValue,
 															operator,
@@ -1695,7 +1593,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 
 													resultActions = performActions.buildValidationReason(
 															vr.invalidReason,
-															parentFieldCSV,
+															msgCSV,
 															actualValue, // actual/current web value
 															expectedValue,
 															resultActions,
@@ -1711,8 +1609,9 @@ if (extractedData.getNumberOfDataRows() > 0) {
 													alreadyLogged = true;
 
 													logOperations.error(
-															"CSV Values Validation FAILED for field '{}': actual='{}' {} expected='{}'. Reason: {}",
-															parentFieldCSV,
+															msgCSVPrefix
+																	+ " Values Validation FAILED for field '{}': actual='{}' {} expected='{}'. Reason: {}",
+															msgCSV,
 															actualValue,
 															operator,
 															expectedValue,
@@ -1725,7 +1624,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 									}
 								}
 							}
-						} else if (excelWriteOperation) {
+						} else if (execExcellWrite) {
 							// Excel Write Operator
 
 							if (parentField == null) {
@@ -1761,7 +1660,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 										blockName,
 										currentInstruction.getId(),
 										false);
-
+								updateRowStatusAndNotify("red"); // #FF3131 deep carmine red
 								appendLog("[TEST]" + reason, "error");
 								alreadyLogged = true;
 
@@ -1776,10 +1675,21 @@ if (extractedData.getNumberOfDataRows() > 0) {
 									excelExportOnceCreation = false;
 								}
 
-								if (!Strings.isNullOrEmpty(excelFieldName)) {
+								if (!Strings.isNullOrEmpty(newExcelFieldName)) {
 									writerExport = new ExcelWriter(
-													excelFieldName, performActions.getCurrentDriver(), true)
+													newExcelFieldName, performActions.getCurrentDriver(), true)
 											.withPurpose("export");
+
+									// Only create Columns if Have a file to write
+									String webData = mapOperators
+											.get(variableField)
+											.trim();
+									webData = performActions.sanitizeValue(webData);
+
+									currentTableCSV.put(
+											xExcelCurrentRow,
+											parentField.trim(),
+											webData); // may add new columns later too
 								}
 
 								resultActions = performActions.messageExcel(
@@ -1792,17 +1702,9 @@ if (extractedData.getNumberOfDataRows() > 0) {
 										currentInstruction.getId(),
 										(writerExport != null));
 
-								performActions.messageExcel(
-										actions[0],
-										currentInstruction,
-										parentField,
-										variableField,
-										mapOperators.get(variableField),
-										blockName,
-										currentInstruction.getId(),
-										false);
-
-								if (mapExportRows.size() == 0) {
+								if (currentTableCSV != null
+										|| currentTableCSV.getRows() == null
+										|| currentTableCSV.getRows().isEmpty()) {
 									//
 									// writerExport.insertBlockSeparation(blockLoad.getName());
 									//                                            exportIndex *= 2;
@@ -1811,47 +1713,18 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								// Insert the updated mapExport into the Excel after each instruction
 								if (writerExport != null) {
 									headersExport.add(parentField.trim());
-									mapExportRows.put(
-											parentField.trim(),
-											mapOperators
-													.get(variableField)
-													.trim());
-
-									//
-									// addRowFromMap(mapExportRows);
-									if (excelFieldName != null
-											&& excelFieldName
-													.toLowerCase()
-													.endsWith(".csv")) {
-										if (Strings.isNullOrEmpty(delimiterCSV)) {
-											delimiterCSV = ",";
-										}
-
-										//
-										//                                                String csvContent
-										// =
-										// getBancaStatoCsvContent(delimiterCSV);
-										//
-										// writeToFile(excelFieldName, csvContent);
-
-										// writerExport.writeMapToCSV(mapExport, excelFieldName,
-										// delimiterCSV);
-									} else {
-										//
-										// writerExport.insertFieldNameAndValueLastColumn(
-										//                                                        mapExport,
-										// exportIndex - 1);
-									}
 								}
+
 								performActions.onHoldForSeconds(null);
 
-								if (resultActions != null) {
+								if (resultActions != null && resultActions.contains("PASSED")) {
 									currentInstruction.setExecuted(true);
 									failedMessage = "";
 									success = true;
 								} else {
 									failedMessage = "Failed: Generate File -> Excel/CSV ";
 									msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
+									updateRowStatusAndNotify("red"); // #FF3131 deep carmine red
 									success = false;
 								}
 							}
@@ -1885,7 +1758,11 @@ if (extractedData.getNumberOfDataRows() > 0) {
 					}
 
 					if (success && !alreadyLogged) {
-						appendLog("[TEST]" + resultActions, "info");
+						if (resultActions.contains("IGNORED")) {
+							appendLog("[TEST]" + resultActions, "warn");
+						} else {
+							appendLog("[TEST]" + resultActions, "info");
+						}
 					} else if (!alreadyLogged) {
 						appendLog("[TEST]" + resultActions, "error");
 						anyFailure = true;
@@ -1977,7 +1854,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								String.format("NEXT/ENTER CALLED AT: \"%s\" : ", nameInstruc));
 
 						respModal = ARExecution.DialogModal.NONE;
-						break;
+						continue;
 					} else if (swipeUp) {
 
 						String nameInstruc =
@@ -1986,6 +1863,23 @@ if (extractedData.getNumberOfDataRows() > 0) {
 						resultActions = String.format("Device : \"%s\"", nameInstruc);
 
 						FieldData msgBlock = new FieldData(resultActions, ARConstantsEngine.SWIPE_UP);
+
+						int timesSwipe = 1;
+
+						String operation = currentInstruction.getOperation();
+						if (operation != null && !operation.trim().isEmpty()) {
+							try {
+								timesSwipe = Integer.parseInt(operation.trim());
+							} catch (NumberFormatException ignored) {
+								appendLog("Invalid swipe count: " + operation + ". Defaulting to 1.", "warn");
+							}
+						}
+
+						for (int i = 0; i < timesSwipe; i++) {
+							//                                    androidDevice.swipeUp();
+							// androidDevice.swipeVertical(true); // false = down
+							androidDevice.swipeADB(splitDTO.getDeviceId(), true);
+						}
 
 						// Excel Report and Log
 						performActions.logAndReport(
@@ -2003,7 +1897,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								String.format("SWIPE UP CALLED AT: \"%s\" : ", nameInstruc));
 
 						respModal = ARExecution.DialogModal.NONE;
-						break;
+						continue;
 					} else if (swipeDown) {
 
 						String nameInstruc =
@@ -2013,6 +1907,23 @@ if (extractedData.getNumberOfDataRows() > 0) {
 
 						FieldData msgBlock = new FieldData(resultActions, ARConstantsEngine.SWIPE_DOWN);
 
+						int timesSwipe = 1;
+
+						String operation = currentInstruction.getOperation();
+						if (operation != null && !operation.trim().isEmpty()) {
+							try {
+								timesSwipe = Integer.parseInt(operation.trim());
+							} catch (NumberFormatException ignored) {
+								appendLog("Invalid swipe count: " + operation + ". Defaulting to 1.", "warn");
+							}
+						}
+
+						for (int i = 0; i < timesSwipe; i++) {
+							//                                    androidDevice.swipeDown();
+							//                                    androidDevice.swipeVertical(false); // false =
+							// down
+							androidDevice.swipeADB(splitDTO.getDeviceId(), false);
+						}
 						// Excel Report and Log
 						performActions.logAndReport(
 								currentCondition,
@@ -2029,7 +1940,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								String.format("SWIPE DOWN CALLED AT: \"%s\" : ", nameInstruc));
 
 						respModal = ARExecution.DialogModal.NONE;
-						break;
+						continue;
 					}
 
 					// It decides Here if ByPass as per Loop or Per IF-ELSEIF-ELSE-ENDIF blocks
@@ -2142,31 +2053,38 @@ if (extractedData.getNumberOfDataRows() > 0) {
 				break;
 			}
 			currentBlockOrder++;
+
+			currentTableCSV = csvTables.get(newExcelFieldName);
+
+			if (currentTableCSV != null
+					&& currentTableCSV.getRows() != null
+					&& !currentTableCSV.getRows().isEmpty()) {
+				saveExcelWrite(newExcelFieldName, currentTableCSV, writerExport, exportIndex);
+			}
 		}
 
 		currentBlockOrder = blockExcelGoto; // BLOCK DEFINED BY "DEFAULT" OR "EXCEL GOTO"
 		xExcelCurrentRow++;
-		addRowFromMap(mapExportRows);
-		if (excelFieldName != null && excelFieldName.toLowerCase().endsWith(".csv")) {
-			if (Strings.isNullOrEmpty(delimiterCSV)) {
-				delimiterCSV = ",";
-			}
-
-			String csvContent = getBancaStatoCsvContent(delimiterCSV);
-			writeToFile(excelFieldName, csvContent);
-			if (xExcelDataSize > 1) {
-				mapExportRows = new LinkedHashMap<>();
-			}
-			excelFieldName = "";
-		} else if (excelFieldName != null
-				&& excelFieldName.toLowerCase().endsWith(".xlsx")) {
-			//
-			//                    writerExport.insertFieldNameAndValueLastColumn(mapExportRows, exportIndex -
-			// 1);
-			if (writerExport != null) {
-				writerExport.insertCSVContentIntoExcel(columnsCSV, rowsCSV, exportIndex - 1);
-			}
+		currentTableCSV = csvTables.get(newExcelFieldName);
+		if (currentTableCSV != null
+				&& currentTableCSV.getRows() != null
+				&& !currentTableCSV.getRows().isEmpty()) {
+			saveExcelWrite(newExcelFieldName, currentTableCSV, writerExport, exportIndex);
 		}
+	}
+}
+
+// Last Recall For to avoid Multirow Cycles
+// Iterate over all stored CsvTables
+for (Map.Entry<String, CsvTable> entry : csvTables.entrySet()) {
+
+	currentTableCSV = entry.getValue();
+
+	if (currentTableCSV != null
+			&& currentTableCSV.getRows() != null
+			&& !currentTableCSV.getRows().isEmpty()) {
+
+		saveExcelWrite(currentTableCSV.getFullPath(), currentTableCSV, writerExport, exportIndex);
 	}
 }
 
