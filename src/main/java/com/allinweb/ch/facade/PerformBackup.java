@@ -1108,137 +1108,6 @@ public class PerformBackup {
         }
     }
 
-    public ErrorMessage restoreBlock(Connection conn, String sqlFilePath) {
-        String insertQuery =
-                """
-                        INSERT INTO block (
-                            block_order_number, name, description, type_id,
-                            export_file, active, wait, bot_job_id
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
-                        """;
-
-        String selectBlockIdsSQL = "SELECT id FROM block ORDER BY id";
-
-        try (BufferedReader reader = new BufferedReader(
-                        new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
-                PreparedStatement pstmt = conn.prepareStatement(insertQuery);
-                Statement idStmtBefore = conn.createStatement();
-                Statement idStmtAfter = conn.createStatement()) {
-            conn.setAutoCommit(false);
-
-            // Step 1: get current block IDs before insert
-            List<Integer> idsBefore = new ArrayList<>();
-            try (ResultSet rsBefore = idStmtBefore.executeQuery(selectBlockIdsSQL)) {
-                while (rsBefore.next()) {
-                    idsBefore.add(rsBefore.getInt("id"));
-                }
-            }
-
-            StringBuilder currentInsert = new StringBuilder();
-            boolean batchReady = false;
-
-            List<Integer> insertedOldIds = new ArrayList<>();
-            blockMap.clear();
-
-            String line;
-            while ((line = reader.readLine()) != null) {
-                line = line.trim();
-                if (line.isEmpty()) continue;
-
-                currentInsert.append(line);
-                if (line.endsWith(";")) {
-                    List<String> values = extractValuesFromInsert(currentInsert.toString());
-
-                    if (values.size() != 9) {
-                        return new ErrorMessage("Parse Error", "Expected 9 values for block", currentInsert.toString());
-                    }
-
-                    // Extract old bot_job_id (index 8)
-                    Integer oldBotJobId = null;
-                    try {
-                        String oldBotJobIdStr = values.get(8);
-                        oldBotJobId = Integer.parseInt(oldBotJobIdStr);
-                    } catch (NumberFormatException ex) {
-                        log.info("Invalid bot_job_id format: " + values.get(8));
-                    }
-
-                    // Lookup newBotJobId from botJobMap
-                    Integer newBotJobId = null;
-                    if (oldBotJobId != null) {
-                        newBotJobId = botJobMap.get(oldBotJobId);
-                    }
-
-                    if (newBotJobId == null) {
-                        log.info("Skipped block with unknown bot_job_id: " + oldBotJobId);
-                        currentInsert.setLength(0);
-                        continue; // skip this row
-                    }
-
-                    for (int i = 1; i < values.size(); i++) {
-                        String val = values.get(i);
-
-                        switch (i) {
-                                //                            case 0 -> setSafeParam(pstmt, 1, val, Types.INTEGER); //
-                                // id
-                            case 1 -> setSafeParam(pstmt, 1, val, Types.INTEGER); // block_order_number
-                            case 2 -> setSafeParam(pstmt, 2, val, Types.VARCHAR); // name
-                            case 3 -> setSafeParam(pstmt, 3, val, Types.VARCHAR); // description
-                            case 4 -> setSafeParam(pstmt, 4, val, Types.INTEGER); // type_id
-                            case 5 -> setSafeParam(pstmt, 5, val, Types.VARCHAR); // export_file
-                            case 6 -> setSafeParam(pstmt, 6, val, Types.INTEGER); // active
-                            case 7 -> setSafeParam(pstmt, 7, val, Types.INTEGER); // wait
-                            case 8 -> pstmt.setInt(8, newBotJobId); // bot_job_id (already mapped)
-                        }
-                    }
-
-                    // Track old ID for mapping later
-                    try {
-                        int oldId = Integer.parseInt(values.get(0));
-                        insertedOldIds.add(oldId);
-                        blockMap.put(oldId, -1); // initialize mapping
-                    } catch (Exception ex) {
-                        log.info("Error parsing blockMap entry: " + ex.getMessage());
-                    }
-
-                    pstmt.addBatch();
-                    currentInsert.setLength(0);
-                    batchReady = true;
-                }
-            }
-
-            if (batchReady) {
-                pstmt.executeBatch();
-                conn.commit();
-            }
-
-            // Step 3: get block IDs after insert
-            List<Integer> idsAfter = new ArrayList<>();
-            try (ResultSet rsAfter = idStmtAfter.executeQuery(selectBlockIdsSQL)) {
-                while (rsAfter.next()) {
-                    idsAfter.add(rsAfter.getInt("id"));
-                }
-            }
-
-            List<Integer> newIds = new ArrayList<>(idsAfter);
-            newIds.removeAll(idsBefore);
-
-            if (insertedOldIds.size() != newIds.size()) {
-                log.error("Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
-            }
-
-            for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
-                blockMap.put(insertedOldIds.get(i), newIds.get(i));
-            }
-
-            log.info("blockMap populated: " + blockMap);
-
-            return null;
-
-        } catch (Exception e) {
-            return new ErrorMessage("Restore Failed", "Failed to load block data", e.getMessage());
-        }
-    }
-
     public ErrorMessage restoreBotJob(
             Connection conn, String sqlFilePath, Integer homeBankIdImported, Integer homeUrlIdImported) {
         String insertQuery =
@@ -1414,6 +1283,137 @@ public class PerformBackup {
 
         } catch (Exception e) {
             return new ErrorMessage("Restore Failed", "Failed to load bot_job data", e.getMessage());
+        }
+    }
+
+    public ErrorMessage restoreBlock(Connection conn, String sqlFilePath) {
+        String insertQuery =
+                """
+                        INSERT INTO block (
+                            block_order_number, name, description, type_id,
+                            export_file, active, wait, bot_job_id
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+                        """;
+
+        String selectBlockIdsSQL = "SELECT id FROM block ORDER BY id";
+
+        try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
+                PreparedStatement pstmt = conn.prepareStatement(insertQuery);
+                Statement idStmtBefore = conn.createStatement();
+                Statement idStmtAfter = conn.createStatement()) {
+            conn.setAutoCommit(false);
+
+            // Step 1: get current block IDs before insert
+            List<Integer> idsBefore = new ArrayList<>();
+            try (ResultSet rsBefore = idStmtBefore.executeQuery(selectBlockIdsSQL)) {
+                while (rsBefore.next()) {
+                    idsBefore.add(rsBefore.getInt("id"));
+                }
+            }
+
+            StringBuilder currentInsert = new StringBuilder();
+            boolean batchReady = false;
+
+            List<Integer> insertedOldIds = new ArrayList<>();
+            blockMap.clear();
+
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+
+                currentInsert.append(line);
+                if (line.endsWith(";")) {
+                    List<String> values = extractValuesFromInsert(currentInsert.toString());
+
+                    if (values.size() != 9) {
+                        return new ErrorMessage("Parse Error", "Expected 9 values for block", currentInsert.toString());
+                    }
+
+                    // Extract old bot_job_id (index 8)
+                    Integer oldBotJobId = null;
+                    try {
+                        String oldBotJobIdStr = values.get(8);
+                        oldBotJobId = Integer.parseInt(oldBotJobIdStr);
+                    } catch (NumberFormatException ex) {
+                        log.info("Invalid bot_job_id format: " + values.get(8));
+                    }
+
+                    // Lookup newBotJobId from botJobMap
+                    Integer newBotJobId = null;
+                    if (oldBotJobId != null) {
+                        newBotJobId = botJobMap.get(oldBotJobId);
+                    }
+
+                    if (newBotJobId == null) {
+                        log.info("Skipped block with unknown bot_job_id: " + oldBotJobId);
+                        currentInsert.setLength(0);
+                        continue; // skip this row
+                    }
+
+                    for (int i = 1; i < values.size(); i++) {
+                        String val = values.get(i);
+
+                        switch (i) {
+                                //                            case 0 -> setSafeParam(pstmt, 1, val, Types.INTEGER); //
+                                // id
+                            case 1 -> setSafeParam(pstmt, 1, val, Types.INTEGER); // block_order_number
+                            case 2 -> setSafeParam(pstmt, 2, val, Types.VARCHAR); // name
+                            case 3 -> setSafeParam(pstmt, 3, val, Types.VARCHAR); // description
+                            case 4 -> setSafeParam(pstmt, 4, val, Types.INTEGER); // type_id
+                            case 5 -> setSafeParam(pstmt, 5, val, Types.VARCHAR); // export_file
+                            case 6 -> setSafeParam(pstmt, 6, val, Types.INTEGER); // active
+                            case 7 -> setSafeParam(pstmt, 7, val, Types.INTEGER); // wait
+                            case 8 -> pstmt.setInt(8, newBotJobId); // bot_job_id (already mapped)
+                        }
+                    }
+
+                    // Track old ID for mapping later
+                    try {
+                        int oldId = Integer.parseInt(values.get(0));
+                        insertedOldIds.add(oldId);
+                        blockMap.put(oldId, -1); // initialize mapping
+                    } catch (Exception ex) {
+                        log.info("Error parsing blockMap entry: " + ex.getMessage());
+                    }
+
+                    pstmt.addBatch();
+                    currentInsert.setLength(0);
+                    batchReady = true;
+                }
+            }
+
+            if (batchReady) {
+                pstmt.executeBatch();
+                conn.commit();
+            }
+
+            // Step 3: get block IDs after insert
+            List<Integer> idsAfter = new ArrayList<>();
+            try (ResultSet rsAfter = idStmtAfter.executeQuery(selectBlockIdsSQL)) {
+                while (rsAfter.next()) {
+                    idsAfter.add(rsAfter.getInt("id"));
+                }
+            }
+
+            List<Integer> newIds = new ArrayList<>(idsAfter);
+            newIds.removeAll(idsBefore);
+
+            if (insertedOldIds.size() != newIds.size()) {
+                log.error("Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
+            }
+
+            for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
+                blockMap.put(insertedOldIds.get(i), newIds.get(i));
+            }
+
+            log.info("blockMap populated: " + blockMap);
+
+            return null;
+
+        } catch (Exception e) {
+            return new ErrorMessage("Restore Failed", "Failed to load block data", e.getMessage());
         }
     }
 
