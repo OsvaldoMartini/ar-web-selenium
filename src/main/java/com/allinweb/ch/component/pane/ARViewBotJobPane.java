@@ -986,7 +986,10 @@ public class ARViewBotJobPane extends ARPane {
         this.exportJobButton.setOnMouseClicked(
                 e -> arConfigurationPane.runExportBotJob(selectedBotJob.getHomeBankingId(), selectedBotJob.getId()));
         this.importJobButton.setOnMouseClicked(e -> arConfigurationPane.runImportBotJob(
-                selectedBotJob.getHomeBankingId(), selectedBotJob.getId(), restoreDatePicker.getValue()));
+                selectedBotJob.getHomeBankingId(),
+                selectedBotJob.getHomeUrlId(),
+                selectedBotJob.getId(),
+                restoreDatePicker.getValue()));
 
         this.launchBotJobButton.setOnMouseClicked((e) -> {
             ARPropertyManager managerProps = arPropertyManager;

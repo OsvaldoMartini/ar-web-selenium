@@ -89,7 +89,10 @@ public class ARMainPane extends ARPane {
     HBox buttonPane;
     VBox panelPane;
     GridPane header = new GridPane();
-    ListView<BotJobLoadDTO> viewBotJobListView = new ListView<>();
+
+    @Getter
+    public ListView<BotJobLoadDTO> viewBotJobListView = new ListView<>();
+
     private boolean isEnabledLicence;
     private ObservableList<BotJobLoadDTO> botJobList = FXCollections.observableArrayList();
 
@@ -266,11 +269,7 @@ public class ARMainPane extends ARPane {
                 Stage currentStage = (Stage) cloneBotJobButton.getScene().getWindow();
                 arNewBotJobScene.showModal(currentStage);
 
-                botJobList.clear();
-                performDataBase.loadQuickBotJobs();
-                botJobList.addAll(performLists.getQuickBotJobs());
-
-                viewBotJobListView.setItems(botJobList);
+                refreshBotJob();
             } else {
                 performMessage.showCustomModalDialogDragWin11(
                         "Environments Are Empty",
@@ -680,5 +679,13 @@ public class ARMainPane extends ARPane {
                 performMessage.errorMessageOperationFailed(errorMessage);
             }
         }
+    }
+
+    public void refreshBotJob() {
+        botJobList.clear();
+        performDataBase.loadQuickBotJobs();
+        botJobList.addAll(performLists.getQuickBotJobs());
+
+        viewBotJobListView.setItems(botJobList);
     }
 }

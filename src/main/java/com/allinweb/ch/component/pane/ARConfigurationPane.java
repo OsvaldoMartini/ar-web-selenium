@@ -59,6 +59,7 @@ public class ARConfigurationPane extends ARPane {
     private static final ARElementValueScene arElementValueScene;
     private static final ARNewBotJobScene arNewBotJobScene;
     protected static volatile ARConfigurationPane instance;
+    protected static volatile ARMainPane arMainPane = ARMainPane.getInstance();
 
     // Static block to initialize
     static {
@@ -824,7 +825,7 @@ public class ARConfigurationPane extends ARPane {
 
                 if (errorMessage == null) {
                     backupFilePath = databasePath + File.separator + "backup_bot_job_" + formattedDate + ".sql";
-                    errorMessage = performBackup.restoreBotJob(conn, backupFilePath);
+                    errorMessage = performBackup.restoreBotJob(conn, backupFilePath, null, null);
                 }
                 if (errorMessage == null) {
                     backupFilePath = databasePath + File.separator + "backup_block_" + formattedDate + ".sql";
@@ -842,7 +843,7 @@ public class ARConfigurationPane extends ARPane {
                 }
 
                 if (errorMessage == null) {
-                    errorMessage = performBackup.restoreUpdateInstruction(conn);
+                    errorMessage = performBackup.restoreUpdateInstruction(conn, null);
                 }
 
                 if (errorMessage == null) {
@@ -1440,21 +1441,18 @@ public class ARConfigurationPane extends ARPane {
             ErrorMessage errorMessage;
 
             // 1) bot_job (filtered)
-            String backupFilePath =
-                    databasePath + File.separator + "backup_(BY_BOT_JOB)_bot_job_" + botJobId + "_" + date + ".sql";
+            String backupFilePath = databasePath + File.separator + "backup_(BY_BOT_JOB)_bot_job_" + date + ".sql";
             errorMessage = performBackup.backupBotJob(conn, backupFilePath, homeBankingId, botJobId);
 
             // 2) block (filtered by bot_job_id)
             if (errorMessage == null) {
-                backupFilePath =
-                        databasePath + File.separator + "backup_(BY_BOT_JOB)_block_" + botJobId + "_" + date + ".sql";
+                backupFilePath = databasePath + File.separator + "backup_(BY_BOT_JOB)_block_" + date + ".sql";
                 errorMessage = performBackup.backupBlock(conn, backupFilePath, botJobId);
             }
 
             // 3) instruction (filtered by bot_job_id)
             if (errorMessage == null) {
-                backupFilePath = databasePath + File.separator + "backup_(BY_BOT_JOB)_instruction_" + botJobId + "_"
-                        + date + ".sql";
+                backupFilePath = databasePath + File.separator + "backup_(BY_BOT_JOB)_instruction_" + date + ".sql";
                 errorMessage = performBackup.backupInstruction(conn, backupFilePath, botJobId);
             }
 
@@ -1494,7 +1492,8 @@ public class ARConfigurationPane extends ARPane {
         }
     }
 
-    public void runImportBotJob(int homeBankingId, int botJobId, LocalDate selectedDate) {
+    public void runImportBotJob(
+            Integer homeBankIdImported, Integer homeUrlIdImported, Integer botJobIdImported, LocalDate selectedDate) {
 
         String formattedDate;
         if (selectedDate != null) {
@@ -1546,7 +1545,8 @@ public class ARConfigurationPane extends ARPane {
 
                 String backupFilePath =
                         databasePath + File.separator + "backup_(BY_BOT_JOB)_bot_job_" + formattedDate + ".sql";
-                ErrorMessage errorMessage = performBackup.restoreBotJob(conn, backupFilePath);
+                ErrorMessage errorMessage =
+                        performBackup.restoreBotJob(conn, backupFilePath, homeBankIdImported, homeUrlIdImported);
 
                 if (errorMessage == null) {
                     backupFilePath =
@@ -1567,7 +1567,7 @@ public class ARConfigurationPane extends ARPane {
                 }
 
                 if (errorMessage == null) {
-                    errorMessage = performBackup.restoreUpdateInstruction(conn);
+                    errorMessage = performBackup.restoreUpdateInstruction(conn, botJobIdImported);
                 }
 
                 if (errorMessage == null) {
@@ -1593,27 +1593,38 @@ public class ARConfigurationPane extends ARPane {
                     if (errorMessage != null) {
                         performMessage.errorMessageOperationFailed(errorMessage);
                     }
+
+                    boolean isImportBotJob = homeBankIdImported != null;
+
+                    if (viewBotJobListView == null) {
+                        viewBotJobListView = arMainPane.getViewBotJobListView();
+                    }
+
                     viewBotJobListView.setItems(FXCollections.observableArrayList(performLists.getQuickBotJobs()));
 
-                    backupDBButton.setDisable(performLists.getListHomeBanking().isEmpty());
-                    homeBankingListView.setItems(FXCollections.observableArrayList(performLists.getListHomeBanking()));
+                    if (!isImportBotJob) {
+                        backupDBButton.setDisable(
+                                performLists.getListHomeBanking().isEmpty());
 
-                    HomeBankingLoadDTO homeBank = performLists.getFirstHomeBanking();
-                    arNewHomeBankingScene.initialize(homeBank);
+                        homeBankingListView.setItems(
+                                FXCollections.observableArrayList(performLists.getListHomeBanking()));
+
+                        HomeBankingLoadDTO homeBank = performLists.getFirstHomeBanking();
+                        arNewHomeBankingScene.initialize(homeBank);
+                    }
 
                     performMessage.showCustomModalDialogDragWin11(
-                            "Restore DB Success! ✅",
+                            "Import Bot Job! ✅",
                             "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>Database restored successfully!</span>",
                             "<span style='color: #1565C0; font-weight: bold;'>Now you can start to use your database!</span>",
-                            "<span style='color: #6A1B9A; font-weight: bold;'>Database:</span> "
-                                    + databaseChoiceBox.getValue(),
+                            "<span style='color: #6A1B9A; font-weight: bold;'>Database:</span> " + dataBaseType,
                             "<span style='color: #E65100; font-weight: bold;'>💡 Don't forget:</span> Press the <span style='text-decoration: underline;'>Reload DB</span> button to refresh your data!",
                             false,
                             "OK",
                             null,
                             0);
                 } else {
-                    log.error("Restore Database error: " + errorMessage.getErrorMessage());
+                    log.error("Import Bot Job error: " + errorMessage.getErrorMessage());
                     performMessage.errorMessage(
                             "Restore Database error",
                             "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>"

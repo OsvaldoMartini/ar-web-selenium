@@ -1,9 +1,12 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.util.ErrorMessage;
+import com.google.common.base.Strings;
 import java.io.*;
 import java.nio.charset.Charset;
 import java.sql.*;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -1236,7 +1239,8 @@ public class PerformBackup {
         }
     }
 
-    public ErrorMessage restoreBotJob(Connection conn, String sqlFilePath) {
+    public ErrorMessage restoreBotJob(
+            Connection conn, String sqlFilePath, Integer homeBankIdImported, Integer homeUrlIdImported) {
         String insertQuery =
                 """
                         INSERT INTO bot_job (
@@ -1259,6 +1263,21 @@ public class PerformBackup {
                 while (rsBefore.next()) {
                     idsBefore.add(rsBefore.getInt("id"));
                 }
+            }
+
+            String timeStamp = null;
+            if (homeBankIdImported != null
+                    && homeBankIdImported > 0
+                    && homeUrlIdImported != null
+                    && homeBankIdImported > 0) {
+
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMdd HHmmss");
+                timeStamp = LocalDateTime.now().format(formatter);
+
+                homeBankMap.clear();
+                homeBankMap.put(homeBankIdImported, homeBankIdImported);
+                homeUrlMap.clear();
+                homeUrlMap.put(homeUrlIdImported, homeUrlIdImported);
             }
 
             StringBuilder currentInsert = new StringBuilder();
@@ -1312,6 +1331,13 @@ public class PerformBackup {
                     if (newHomeBankId == null) {
                         log.info("Skipped bot_job with unknown home_banking_id: " + oldHomeBankId);
                         currentInsert.setLength(0);
+
+                        if (homeBankIdImported != null) {
+                            return new ErrorMessage(
+                                    "Import Failed",
+                                    "Import attempt failed",
+                                    "You cannot import a Bot Job between different organizations.");
+                        }
                         continue; // skip this row
                     }
 
@@ -1328,7 +1354,13 @@ public class PerformBackup {
                         switch (i) {
                                 //                            case 0 -> setSafeParam(pstmt, 1, val, Types.INTEGER); //
                                 // id
-                            case 1 -> setSafeParam(pstmt, 1, val, Types.VARCHAR); // name
+                            case 1 -> {
+                                if (!Strings.isNullOrEmpty(timeStamp)) {
+                                    setSafeParam(pstmt, 1, val + " " + timeStamp, Types.VARCHAR);
+                                } else {
+                                    setSafeParam(pstmt, 1, val, Types.VARCHAR);
+                                }
+                            } // name
                             case 2 -> setSafeParam(pstmt, 2, val, Types.VARCHAR); // description
                             case 3 -> setSafeParam(pstmt, 3, val, Types.VARCHAR); // priority
                             case 4 -> pstmt.setInt(4, newHomeBankId); // home_banking_id (mapped)
@@ -1774,13 +1806,17 @@ public class PerformBackup {
         }
     }
 
-    public ErrorMessage restoreUpdateInstruction(Connection conn) {
+    public ErrorMessage restoreUpdateInstruction(Connection conn, Integer botJobIdImported) {
         final int BATCH_SIZE = 100;
 
         instrNewInverted.clear();
 
         for (Map.Entry<Integer, Integer> entry : instructionMap.entrySet()) {
             instrNewInverted.put(entry.getValue(), entry.getKey());
+        }
+
+        if (instrNewInverted.isEmpty()) {
+            return null;
         }
 
         try (Statement connStmt = conn.createStatement()) {
@@ -1853,10 +1889,20 @@ public class PerformBackup {
                                 Types.INTEGER);
 
                         // ---- WHERE id = ? ----
-                        updateStmt.setInt(4, id);
 
-                        updateStmt.addBatch();
-                        count++;
+                        if (botJobIdImported != null) {
+                            Integer newInstrucitonId = null;
+                            newInstrucitonId = instrNewInverted.get(botJobIdImported);
+                            if (newInstrucitonId != null) {
+                                updateStmt.setInt(4, newInstrucitonId);
+                                updateStmt.addBatch();
+                                count++;
+                            }
+                        } else {
+                            updateStmt.setInt(4, id);
+                            updateStmt.addBatch();
+                            count++;
+                        }
 
                         if (count % BATCH_SIZE == 0) {
                             updateStmt.executeBatch();
