@@ -1204,7 +1204,7 @@ public class PerformBackup {
 
                         if (homeBankIdImported != null) {
                             return new ErrorMessage(
-                                    "Import Failed-Different organizations!",
+                                    "Import Failed: Different organizations!",
                                     "Import attempt failed",
                                     "You cannot import a Bot Job between different organizations.");
                         }
