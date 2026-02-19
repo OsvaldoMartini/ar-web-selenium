@@ -586,7 +586,7 @@ public class ExcelWriter {
                     int excelRowIndex = exportIndex + 1 + i;
                     getOrCreateRow(excelRowIndex);
 
-                    // ✅ EXACT output rule:
+                    // EXACT output rule:
                     // - if only 1 row: EXTERNAL
                     // - if more than 1 row: EXTERNAL_1, EXTERNAL_2, ...
                     String key = (rowCount == 1) ? "EXTERNAL" : "EXTERNAL_" + (i + 1);
