@@ -1109,7 +1109,11 @@ public class PerformBackup {
     }
 
     public ErrorMessage restoreBotJob(
-            Connection conn, String sqlFilePath, Integer homeBankIdImported, Integer homeUrlIdImported) {
+            Connection conn,
+            String sqlFilePath,
+            Integer homeBankIdImported,
+            Integer homeUrlIdImported,
+            Integer botJobIdImported) {
         String insertQuery =
                 """
                         INSERT INTO bot_job (
@@ -1135,10 +1139,7 @@ public class PerformBackup {
             }
 
             String timeStamp = null;
-            if (homeBankIdImported != null
-                    && homeBankIdImported > 0
-                    && homeUrlIdImported != null
-                    && homeBankIdImported > 0) {
+            if (homeBankIdImported != null && homeBankIdImported > 0 && homeUrlIdImported != null) {
 
                 DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMdd HHmmss");
                 timeStamp = LocalDateTime.now().format(formatter);
@@ -1239,12 +1240,15 @@ public class PerformBackup {
                     }
 
                     // Track old ID for mapping later
+                    Integer oldId = null;
                     try {
-                        int oldId = Integer.parseInt(values.get(0));
+                        oldId = botJobIdImported == null
+                                ? parseIntSafe(values.get(0))
+                                : botJobIdImported; // The Passed botJobId will be the key
                         insertedOldIds.add(oldId);
                         botJobMap.put(oldId, -1); // initialize mapping
-                    } catch (Exception ex) {
-                        log.info("Error parsing botJobMap entry: " + ex.getMessage());
+                    } catch (NumberFormatException ex) {
+                        log.info("Error parsing botJobMap entry: {}", ex.getMessage());
                     }
 
                     pstmt.addBatch();
@@ -1297,14 +1301,15 @@ public class PerformBackup {
 
         String selectBlockIdsSQL = "SELECT id FROM block ";
 
-        if (botJobIdImported != null) {
-            Integer newBotJob = botJobMap.get(botJobIdImported);
-            if (newBotJob != null) {
-                selectBlockIdsSQL += " where bot_job_id = " + newBotJob;
-            } else {
-                return new ErrorMessage("Import Failed", "Failed to import blocks data", "New Bot Job Not found");
-            }
-        }
+        //        if (botJobIdImported != null) {
+        //            Integer newBotJob = botJobMap.get(botJobIdImported);
+        //            if (newBotJob != null) {
+        //                selectBlockIdsSQL += " where bot_job_id = " + newBotJob;
+        //            } else {
+        //                return new ErrorMessage("Import Failed", "Failed to import blocks data", "New Bot Job Not
+        // found");
+        //            }
+        //        }
 
         selectBlockIdsSQL += " ORDER BY id";
 
@@ -1345,8 +1350,9 @@ public class PerformBackup {
                     // Extract old bot_job_id (index 8)
                     Integer oldBotJobId = null;
                     try {
-                        String oldBotJobIdStr = values.get(8);
-                        oldBotJobId = Integer.parseInt(oldBotJobIdStr);
+                        oldBotJobId = botJobIdImported == null
+                                ? parseIntSafe(values.get(8))
+                                : botJobIdImported; // The Passed botJobId will be the key
                     } catch (NumberFormatException ex) {
                         log.info("Invalid bot_job_id format: " + values.get(8));
                     }
@@ -1442,14 +1448,15 @@ public class PerformBackup {
 
         String selectInstructionIdsSQL = "SELECT id FROM instruction ";
 
-        if (botJobIdImported != null) {
-            Integer newBotJob = botJobMap.get(botJobIdImported);
-            if (newBotJob != null) {
-                selectInstructionIdsSQL += " where bot_job_id = " + newBotJob;
-            } else {
-                return new ErrorMessage("Import Failed", "Failed to import instructions data", "New Bot Job Not found");
-            }
-        }
+        //        if (botJobIdImported != null) {
+        //            Integer newBotJob = botJobMap.get(botJobIdImported);
+        //            if (newBotJob != null) {
+        //                selectInstructionIdsSQL += " where bot_job_id = " + newBotJob;
+        //            } else {
+        //                return new ErrorMessage("Import Failed", "Failed to import instructions data", "New Bot Job
+        // Not found");
+        //            }
+        //        }
 
         selectInstructionIdsSQL += " ORDER BY id";
 
@@ -1494,8 +1501,9 @@ public class PerformBackup {
 
                     // Extract old block_id (index 22) and bot_job_id (index 25 / index 26)
                     Integer oldBlockId = parseIntSafe(values.get(22));
-                    Integer oldBotJobId =
-                            parseIntSafe(values.get(values.size() == 26 ? 25 : 26)); // index depends on 26/27 cols
+                    Integer oldBotJobId = botJobIdImported == null
+                            ? parseIntSafe(values.get(values.size() == 26 ? 25 : 26)) // index depends on 26/27 cols
+                            : botJobIdImported; // The Passed botJobId will be the key
 
                     Integer newBlockId = oldBlockId != null ? blockMap.get(oldBlockId) : null;
                     Integer newBotJobId = oldBotJobId != null ? botJobMap.get(oldBotJobId) : null;
@@ -1695,14 +1703,15 @@ public class PerformBackup {
 
         String selectVariableIdsSQL = "SELECT id FROM variable ";
 
-        if (botJobIdImported != null) {
-            Integer newBotJob = botJobMap.get(botJobIdImported);
-            if (newBotJob != null) {
-                selectVariableIdsSQL += " where bot_job_id = " + newBotJob;
-            } else {
-                return new ErrorMessage("Import Failed", "Failed to import variables data", "New Bot Job Not found");
-            }
-        }
+        //        if (botJobIdImported != null) {
+        //            Integer newBotJob = botJobMap.get(botJobIdImported);
+        //            if (newBotJob != null) {
+        //                selectVariableIdsSQL += " where bot_job_id = " + newBotJob;
+        //            } else {
+        //                return new ErrorMessage("Import Failed", "Failed to import variables data", "New Bot Job Not
+        // found");
+        //            }
+        //        }
 
         selectVariableIdsSQL += " ORDER BY id";
 
@@ -1743,14 +1752,17 @@ public class PerformBackup {
 
                     // Extract old instruction_id (index 4) and bot_job_id (index 5)
                     Integer oldInstructionId = null;
-                    Integer oldBotJobId = null;
                     try {
                         oldInstructionId = Integer.parseInt(values.get(4));
                     } catch (NumberFormatException ex) {
                         log.info("Invalid instruction_id format: " + values.get(4));
                     }
+                    Integer oldBotJobId = null;
                     try {
-                        oldBotJobId = Integer.parseInt(values.get(5));
+                        oldBotJobId = botJobIdImported == null
+                                ? parseIntSafe(values.get(5))
+                                : botJobIdImported; // The Passed botJobId will be the key
+
                     } catch (NumberFormatException ex) {
                         log.info("Invalid bot_job_id format: " + values.get(5));
                     }
@@ -1974,14 +1986,15 @@ public class PerformBackup {
 
         String selectReferenceIdsSQL = "SELECT id FROM reference ";
 
-        if (botJobIdImported != null) {
-            Integer newBotJob = botJobMap.get(botJobIdImported);
-            if (newBotJob != null) {
-                selectReferenceIdsSQL += " where bot_job_id = " + newBotJob;
-            } else {
-                return new ErrorMessage("Import Failed", "Failed to import references data", "New Bot Job Not found");
-            }
-        }
+        //        if (botJobIdImported != null) {
+        //            Integer newBotJob = botJobMap.get(botJobIdImported);
+        //            if (newBotJob != null) {
+        //                selectReferenceIdsSQL += " where bot_job_id = " + newBotJob;
+        //            } else {
+        //                return new ErrorMessage("Import Failed", "Failed to import references data", "New Bot Job Not
+        // found");
+        //            }
+        //        }
 
         selectReferenceIdsSQL += " ORDER BY id";
 
@@ -2021,7 +2034,9 @@ public class PerformBackup {
 
                     // Parse old instruction ID and bot job ID
                     Integer oldInstructionId = parseIntSafe(values.get(3));
-                    Integer oldBotJobId = parseIntSafe(values.get(4));
+                    Integer oldBotJobId = botJobIdImported == null
+                            ? parseIntSafe(values.get(4))
+                            : botJobIdImported; // The Passed botJobId will be the key
 
                     Integer newInstructionId = oldInstructionId != null ? instructionMap.get(oldInstructionId) : null;
                     Integer newBotJobId = oldBotJobId != null ? botJobMap.get(oldBotJobId) : null;

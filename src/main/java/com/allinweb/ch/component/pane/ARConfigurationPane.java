@@ -825,7 +825,7 @@ public class ARConfigurationPane extends ARPane {
 
                 if (errorMessage == null) {
                     backupFilePath = databasePath + File.separator + "backup_bot_job_" + formattedDate + ".sql";
-                    errorMessage = performBackup.restoreBotJob(conn, backupFilePath, null, null);
+                    errorMessage = performBackup.restoreBotJob(conn, backupFilePath, null, null, null);
                 }
                 if (errorMessage == null) {
                     backupFilePath = databasePath + File.separator + "backup_block_" + formattedDate + ".sql";
@@ -1545,8 +1545,8 @@ public class ARConfigurationPane extends ARPane {
 
                 String backupFilePath =
                         databasePath + File.separator + "backup_(BY_BOT_JOB)_bot_job_" + formattedDate + ".sql";
-                ErrorMessage errorMessage =
-                        performBackup.restoreBotJob(conn, backupFilePath, homeBankIdImported, homeUrlIdImported);
+                ErrorMessage errorMessage = performBackup.restoreBotJob(
+                        conn, backupFilePath, homeBankIdImported, homeUrlIdImported, botJobIdImported);
 
                 if (errorMessage == null) {
                     backupFilePath =
