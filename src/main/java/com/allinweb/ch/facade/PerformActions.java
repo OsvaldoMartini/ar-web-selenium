@@ -1904,32 +1904,36 @@ public class PerformActions {
             safeExpected = normalizeNumber(rawExpected);
         }
 
+        // ✅ Professional summary: passed / failed
         String summary;
         if (invalidValues == null || invalidValues.trim().isEmpty()) {
-            summary = "Check Validation Value Error";
+            summary = success ? "Validation passed" : "Validation failed";
         } else {
             summary = invalidValues.trim() + " Operator: (" + op + ")";
         }
 
-        String reason;
-
         String conditionText; // ✅ will go into "Condition" column
 
         if (">".equals(op)) {
-            conditionText =
-                    String.format("value \"%s\" is not > \"%s\" (variable \"%s\")", safeActual, safeExpected, varName);
+            conditionText = String.format(
+                    "value \"%s\" %s \"%s\" (variable \"%s\")",
+                    safeActual, (success ? "is >" : "is not >"), safeExpected, varName);
 
         } else if ("<".equals(op)) {
-            conditionText =
-                    String.format("value \"%s\" is not < \"%s\" (variable \"%s\")", safeActual, safeExpected, varName);
+            conditionText = String.format(
+                    "value \"%s\" %s \"%s\" (variable \"%s\")",
+                    safeActual, (success ? "is <" : "is not <"), safeExpected, varName);
 
         } else if ("!=".equals(op)) {
-            conditionText =
-                    String.format("value \"%s\" is not != \"%s\" (variable \"%s\")", safeActual, safeExpected, varName);
+            conditionText = String.format(
+                    "value \"%s\" %s \"%s\" (variable \"%s\")",
+                    safeActual, (success ? "is !=" : "is not !="), safeExpected, varName);
 
         } else {
+            String opPhrase = success ? ("is " + op) : ("is not " + op);
+
             conditionText = String.format(
-                    "value \"%s\" is not %s \"%s\" (variable \"%s\")", safeActual, op, safeExpected, varName);
+                    "value \"%s\" %s \"%s\" (variable \"%s\")", safeActual, opPhrase, safeExpected, varName);
 
             if (includeLengths) {
                 conditionText +=
@@ -1943,9 +1947,7 @@ public class PerformActions {
         // ✅ Description column
         String desc = (blockName == null) ? "" : blockName;
 
-        // ✅ Test column: use action name (your “CSV Check Value for ...”) OR fallback to varName
-        // You said Test should be "Test-1", "Test-2"... so do NOT generate it here.
-        // Pass "Test-1" from the caller via lastInstructionExecuted (recommended), OR change this variable name.
+        // ✅ Test column
         String testName = (testRow == null) ? "" : String.valueOf(testRow);
 
         // ✅ Result column
@@ -1954,10 +1956,11 @@ public class PerformActions {
         // ✅ Time column (your JTable expects Time as first col)
         String time = new java.text.SimpleDateFormat("HH:mm:ss").format(new java.util.Date());
 
+        // Keep your output format (Condition column = conditionText).
+        // If you want to include summary too, replace conditionText with (summary + " - " + conditionText).
         String row =
                 time + " | " + testName + " | " + desc + " | " + mainField + " | " + conditionText + " | " + result;
 
-        // appendLog() contract preserved
         return row;
     }
 
@@ -2062,6 +2065,16 @@ public class PerformActions {
         String result = success ? "PASSED" : "FAIL";
 
         return time + " | " + testName + " | " + desc + " | " + mainField + " | " + conditionText + " | " + result;
+    }
+
+    public static String sanitizeValue(String input) {
+        if (input == null) return "";
+
+        return input.replace('\u00A0', ' ') // NO-BREAK SPACE
+                .replace('\u202F', ' ') // NARROW NO-BREAK SPACE
+                .replace('\u2007', ' ') // FIGURE SPACE
+                .replaceAll("\\s+", " ") // collapse whitespace
+                .trim();
     }
 
     /**
@@ -2397,6 +2410,15 @@ public class PerformActions {
             case ARConstantsEngine.PAUSE:
                 conditionText = "Pause action triggered";
                 break;
+            case ARConstantsEngine.NEXT_ENTER: // NEXT FIELD / FOCUS NEXT / ENTER
+                conditionText = "Next/Enter action triggered";
+                break;
+            case ARConstantsEngine.SWIPE_UP:
+                conditionText = "Swipe UP action triggered";
+                break;
+            case ARConstantsEngine.SWIPE_DOWN:
+                conditionText = "Swipe DOWN action triggered";
+                break;
             case ARConstantsEngine.GOTO:
                 if (msgInstruction.getValue().equals("Unknown")) {
                     conditionText = msgInstruction.getKey();
@@ -2489,6 +2511,17 @@ public class PerformActions {
         String result = "PASSED";
 
         return time + " | " + testName + " | " + desc + " | " + mainField + " | " + conditionText + " | " + result;
+    }
+
+    public String buildMessageResult(
+            boolean success, String testName, String description, String mainField, String conditionText) {
+
+        String time = java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss"));
+
+        String result = success ? "PASSED" : "FAIL";
+
+        return time + " | " + testName + " | " + description + " | " + mainField + " | " + conditionText + " | "
+                + result;
     }
 
     public int[] addElementToArray(int[] refreshLoopArray, int newItem) {

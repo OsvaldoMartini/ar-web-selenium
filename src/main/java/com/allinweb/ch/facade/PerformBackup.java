@@ -1,9 +1,12 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.util.ErrorMessage;
+import com.google.common.base.Strings;
 import java.io.*;
 import java.nio.charset.Charset;
 import java.sql.*;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -155,53 +158,76 @@ public class PerformBackup {
         }
     }
 
-    public ErrorMessage backupBotJob(Connection conn, String backupFilePath) {
-        String query =
+    public ErrorMessage backupBotJob(Connection conn, String backupFilePath, Integer homeBankingId, Integer botJobId) {
+
+        StringBuilder query = new StringBuilder(
                 """
-                        SELECT id, name, description, priority,
-                               home_banking_id, home_url_id, active
-                        FROM bot_job
-                        ORDER BY id ASC
-                        """;
+            SELECT id, name, description, priority,
+                   home_banking_id, home_url_id, active
+            FROM bot_job
+            WHERE 1=1
+            """);
+
+        List<Object> parameters = new ArrayList<>();
+
+        if (botJobId != null) {
+            query.append(" AND id = ?");
+            parameters.add(botJobId);
+        }
+
+        if (homeBankingId != null) {
+            query.append(" AND home_banking_id = ?");
+            parameters.add(homeBankingId);
+        }
+
+        query.append(" ORDER BY id ASC");
 
         File sqlFile = new File(backupFilePath);
-        try (PreparedStatement pstmt = conn.prepareStatement(query);
-                ResultSet rs = pstmt.executeQuery();
+
+        try (PreparedStatement pstmt = conn.prepareStatement(query.toString());
                 BufferedWriter writer = new BufferedWriter(
                         new OutputStreamWriter(new FileOutputStream(sqlFile), Charset.forName("windows-1252")))) {
 
-            while (rs.next()) {
-                int botJobId = rs.getInt("id");
-                String name = toSqlValue(rs.getString("name"));
-                String description = toSqlValue(rs.getString("description"));
-                String priority = toSqlValue(rs.getString("priority"));
-
-                int homeBankingId = rs.getInt("home_banking_id");
-                boolean homeBankingIdWasNull = rs.wasNull();
-
-                int homeUrlId = rs.getInt("home_url_id");
-                boolean homeUrlIdWasNull = rs.wasNull();
-
-                boolean active = rs.getBoolean("active");
-
-                // Compose SQL insert with '[null]' for strings and SQL NULL for nullable ints
-                String insert = String.format(
-                        "INSERT INTO bot_job (id, name, description, priority, home_banking_id, home_url_id, active) "
-                                + "VALUES (%d, '%s', '%s', '%s', %s, %s, %d);",
-                        botJobId,
-                        name,
-                        description,
-                        priority,
-                        homeBankingIdWasNull ? "NULL" : homeBankingId,
-                        homeUrlIdWasNull ? "NULL" : homeUrlId,
-                        active ? 1 : 0);
-
-                writer.write(insert + System.lineSeparator());
+            // Set parameters dynamically
+            for (int i = 0; i < parameters.size(); i++) {
+                pstmt.setObject(i + 1, parameters.get(i));
             }
 
-            writer.flush();
-            log.info("Backup completed at: " + sqlFile.getAbsolutePath());
-            return null;
+            try (ResultSet rs = pstmt.executeQuery()) {
+
+                while (rs.next()) {
+                    int id = rs.getInt("id");
+                    String name = toSqlValue(rs.getString("name"));
+                    String description = toSqlValue(rs.getString("description"));
+                    String priority = toSqlValue(rs.getString("priority"));
+
+                    int hbId = rs.getInt("home_banking_id");
+                    boolean hbIdWasNull = rs.wasNull();
+
+                    int homeUrlId = rs.getInt("home_url_id");
+                    boolean homeUrlIdWasNull = rs.wasNull();
+
+                    boolean active = rs.getBoolean("active");
+
+                    String insert = String.format(
+                            "INSERT INTO bot_job (id, name, description, priority, home_banking_id, home_url_id, active) "
+                                    + "VALUES (%d, '%s', '%s', '%s', %s, %s, %d);",
+                            id,
+                            name,
+                            description,
+                            priority,
+                            hbIdWasNull ? "NULL" : hbId,
+                            homeUrlIdWasNull ? "NULL" : homeUrlId,
+                            active ? 1 : 0);
+
+                    writer.write(insert);
+                    writer.newLine();
+                }
+
+                writer.flush();
+                log.info("Bot_job backup completed at: " + sqlFile.getAbsolutePath());
+                return null;
+            }
 
         } catch (Exception error) {
             log.error("Error during bot_job backup: " + error.getMessage());
@@ -209,7 +235,7 @@ public class PerformBackup {
         }
     }
 
-    public ErrorMessage backupInstruction(Connection conn, String backupFilePath) {
+    public ErrorMessage backupInstruction(Connection conn, String backupFilePath, Integer botJobIdFilter) {
         String query =
                 """
                         SELECT id, instruction_order_number, actions, name, xpath, coordinates,
@@ -218,83 +244,91 @@ public class PerformBackup {
                                action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr,
                                active, block_id, variable_id, parent_block_id, parent_id, bot_job_id
                         FROM instruction
-                        ORDER BY id ASC
-                        """;
+                        """
+                        + (botJobIdFilter != null ? " WHERE bot_job_id = ? " : "")
+                        + """
+                                ORDER BY id ASC
+                                """;
 
         File sqlFile = new File(backupFilePath);
         try (PreparedStatement pstmt = conn.prepareStatement(query);
-                ResultSet rs = pstmt.executeQuery();
                 BufferedWriter writer = new BufferedWriter(
                         new OutputStreamWriter(new FileOutputStream(sqlFile), Charset.forName("windows-1252")))) {
 
-            while (rs.next()) {
-                int id = rs.getInt("id");
-                int order = rs.getInt("instruction_order_number");
-                String actions = toSqlValue(rs.getString("actions"));
-                String name = toSqlValue(rs.getString("name"));
-                String xpath = toSqlValue(rs.getString("xpath"));
-                String coordinates = toSqlValue(rs.getString("coordinates"));
-                boolean forceCoordinates = rs.getBoolean("force_coordinates");
-                String iframeXpath = toSqlValue(rs.getString("iframe_xpath"));
-                String tagName = toSqlValue(rs.getString("tag_name"));
-                String shadowHost = toSqlValue(rs.getString("shadow_host"));
-                String shadowRoot = toSqlValue(rs.getString("shadow_root"));
-                String cssSelector = toSqlValue(rs.getString("css_selector"));
-                String description = toSqlValue(rs.getString("description"));
-                String operation = toSqlValue(rs.getString("operation"));
-                boolean optional = rs.getBoolean("optional");
-                boolean blockMarked = rs.getBoolean("block_marked");
-                String defaultValue = toSqlValue(rs.getString("default_value"));
-                int maxWait = rs.getInt("action_custom_max_wait_sec");
-                boolean maxWaitWasNull = rs.wasNull();
-                int holdSec = rs.getInt("on_hold_seconds");
-                boolean holdSecWasNull = rs.wasNull();
-                boolean codified = rs.getBoolean("codified");
-                boolean exportToAbr = rs.getBoolean("export_to_abr");
-                boolean active = rs.getBoolean("active");
-                int blockId = rs.getInt("block_id");
-                boolean blockIdWasNull = rs.wasNull();
-                int variableId = rs.getInt("variable_id");
-                boolean variableIdWasNull = rs.wasNull();
-                int parentBlockId = rs.getInt("parent_block_id");
-                boolean parentBlockIdWasNull = rs.wasNull();
-                int parentId = rs.getInt("parent_id");
-                boolean parentIdWasNull = rs.wasNull();
-                int botJobId = rs.getInt("bot_job_id");
-                boolean botJobIdWasNull = rs.wasNull();
+            if (botJobIdFilter != null) {
+                pstmt.setInt(1, botJobIdFilter);
+            }
 
-                String insert = String.format(
-                        "INSERT INTO instruction (id, instruction_order_number, actions, name, xpath, coordinates, force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root, css_selector, description, operation, optional, block_marked, default_value, action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr, active, block_id, variable_id, parent_block_id, parent_id, bot_job_id) "
-                                + "VALUES (%d, %d, '%s', '%s', '%s', '%s', %d, '%s', '%s', '%s', '%s', '%s', '%s', '%s', %d, %d, '%s', %s, %s, %d, %d, %d, %s, %s, %s, %s, %s);",
-                        id,
-                        order,
-                        actions,
-                        name,
-                        xpath,
-                        coordinates,
-                        forceCoordinates ? 1 : 0,
-                        iframeXpath,
-                        tagName,
-                        shadowHost,
-                        shadowRoot,
-                        cssSelector,
-                        description,
-                        operation,
-                        optional ? 1 : 0,
-                        blockMarked ? 1 : 0,
-                        defaultValue,
-                        maxWaitWasNull ? "NULL" : maxWait,
-                        holdSecWasNull ? "NULL" : holdSec,
-                        codified ? 1 : 0,
-                        exportToAbr ? 1 : 0,
-                        active ? 1 : 0,
-                        blockIdWasNull ? "NULL" : blockId,
-                        variableIdWasNull ? "NULL" : variableId,
-                        parentBlockIdWasNull ? "NULL" : parentBlockId,
-                        parentIdWasNull ? "NULL" : parentId,
-                        botJobIdWasNull ? "NULL" : botJobId);
+            try (ResultSet rs = pstmt.executeQuery()) { // <-- moved ResultSet into try (no logic removed)
+                while (rs.next()) {
+                    int id = rs.getInt("id");
+                    int order = rs.getInt("instruction_order_number");
+                    String actions = toSqlValue(rs.getString("actions"));
+                    String name = toSqlValue(rs.getString("name"));
+                    String xpath = toSqlValue(rs.getString("xpath"));
+                    String coordinates = toSqlValue(rs.getString("coordinates"));
+                    boolean forceCoordinates = rs.getBoolean("force_coordinates");
+                    String iframeXpath = toSqlValue(rs.getString("iframe_xpath"));
+                    String tagName = toSqlValue(rs.getString("tag_name"));
+                    String shadowHost = toSqlValue(rs.getString("shadow_host"));
+                    String shadowRoot = toSqlValue(rs.getString("shadow_root"));
+                    String cssSelector = toSqlValue(rs.getString("css_selector"));
+                    String description = toSqlValue(rs.getString("description"));
+                    String operation = toSqlValue(rs.getString("operation"));
+                    boolean optional = rs.getBoolean("optional");
+                    boolean blockMarked = rs.getBoolean("block_marked");
+                    String defaultValue = toSqlValue(rs.getString("default_value"));
+                    int maxWait = rs.getInt("action_custom_max_wait_sec");
+                    boolean maxWaitWasNull = rs.wasNull();
+                    int holdSec = rs.getInt("on_hold_seconds");
+                    boolean holdSecWasNull = rs.wasNull();
+                    boolean codified = rs.getBoolean("codified");
+                    boolean exportToAbr = rs.getBoolean("export_to_abr");
+                    boolean active = rs.getBoolean("active");
+                    int blockId = rs.getInt("block_id");
+                    boolean blockIdWasNull = rs.wasNull();
+                    int variableId = rs.getInt("variable_id");
+                    boolean variableIdWasNull = rs.wasNull();
+                    int parentBlockId = rs.getInt("parent_block_id");
+                    boolean parentBlockIdWasNull = rs.wasNull();
+                    int parentId = rs.getInt("parent_id");
+                    boolean parentIdWasNull = rs.wasNull();
+                    int botJobId = rs.getInt("bot_job_id");
+                    boolean botJobIdWasNull = rs.wasNull();
 
-                writer.write(insert + System.lineSeparator());
+                    String insert = String.format(
+                            "INSERT INTO instruction (id, instruction_order_number, actions, name, xpath, coordinates, force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root, css_selector, description, operation, optional, block_marked, default_value, action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr, active, block_id, variable_id, parent_block_id, parent_id, bot_job_id) "
+                                    + "VALUES (%d, %d, '%s', '%s', '%s', '%s', %d, '%s', '%s', '%s', '%s', '%s', '%s', '%s', %d, %d, '%s', %s, %s, %d, %d, %d, %s, %s, %s, %s, %s);",
+                            id,
+                            order,
+                            actions,
+                            name,
+                            xpath,
+                            coordinates,
+                            forceCoordinates ? 1 : 0,
+                            iframeXpath,
+                            tagName,
+                            shadowHost,
+                            shadowRoot,
+                            cssSelector,
+                            description,
+                            operation,
+                            optional ? 1 : 0,
+                            blockMarked ? 1 : 0,
+                            defaultValue,
+                            maxWaitWasNull ? "NULL" : maxWait,
+                            holdSecWasNull ? "NULL" : holdSec,
+                            codified ? 1 : 0,
+                            exportToAbr ? 1 : 0,
+                            active ? 1 : 0,
+                            blockIdWasNull ? "NULL" : blockId,
+                            variableIdWasNull ? "NULL" : variableId,
+                            parentBlockIdWasNull ? "NULL" : parentBlockId,
+                            parentIdWasNull ? "NULL" : parentId,
+                            botJobIdWasNull ? "NULL" : botJobId);
+
+                    writer.write(insert + System.lineSeparator());
+                }
             }
 
             writer.flush();
@@ -309,45 +343,54 @@ public class PerformBackup {
         }
     }
 
-    public ErrorMessage backupVariable(Connection conn, String backupFilePath) {
+    public ErrorMessage backupVariable(Connection conn, String backupFilePath, Integer botJobIdFilter) {
         String query =
                 """
                         SELECT id, type, name, value, instruction_id, bot_job_id, local_format, delimiter
                         FROM variable
-                        ORDER BY id ASC
-                        """;
+                        """
+                        + (botJobIdFilter != null ? " WHERE bot_job_id = ? " : "")
+                        + """
+                                ORDER BY id ASC
+                                """;
 
         File sqlFile = new File(backupFilePath);
         try (PreparedStatement pstmt = conn.prepareStatement(query);
-                ResultSet rs = pstmt.executeQuery();
                 BufferedWriter writer = new BufferedWriter(
                         new OutputStreamWriter(new FileOutputStream(sqlFile), Charset.forName("windows-1252")))) {
 
-            while (rs.next()) {
-                int id = rs.getInt("id");
-                String type = toSqlValue(rs.getString("type"));
-                String name = toSqlValue(rs.getString("name"));
-                String value = toSqlValue(rs.getString("value"));
-                int instructionId = rs.getInt("instruction_id");
-                boolean instructionIdWasNull = rs.wasNull();
-                int botJobId = rs.getInt("bot_job_id");
-                boolean botJobIdWasNull = rs.wasNull();
-                String localFormat = toSqlValue(rs.getString("local_format"));
-                String delimiter = toSqlValue(rs.getString("delimiter"));
+            if (botJobIdFilter != null) {
+                pstmt.setInt(1, botJobIdFilter);
+            }
 
-                String insert = String.format(
-                        "INSERT INTO variable (id, type, name, value, instruction_id, bot_job_id, local_format, delimiter) "
-                                + "VALUES (%d, '%s', '%s', '%s', %s, %s, '%s', '%s');",
-                        id,
-                        type,
-                        name,
-                        value,
-                        instructionIdWasNull ? "NULL" : instructionId,
-                        botJobIdWasNull ? "NULL" : botJobId,
-                        localFormat,
-                        delimiter);
+            try (ResultSet rs = pstmt.executeQuery()) { // moved inside try (same as previous pattern)
 
-                writer.write(insert + System.lineSeparator());
+                while (rs.next()) {
+                    int id = rs.getInt("id");
+                    String type = toSqlValue(rs.getString("type"));
+                    String name = toSqlValue(rs.getString("name"));
+                    String value = toSqlValue(rs.getString("value"));
+                    int instructionId = rs.getInt("instruction_id");
+                    boolean instructionIdWasNull = rs.wasNull();
+                    int botJobId = rs.getInt("bot_job_id");
+                    boolean botJobIdWasNull = rs.wasNull();
+                    String localFormat = toSqlValue(rs.getString("local_format"));
+                    String delimiter = toSqlValue(rs.getString("delimiter"));
+
+                    String insert = String.format(
+                            "INSERT INTO variable (id, type, name, value, instruction_id, bot_job_id, local_format, delimiter) "
+                                    + "VALUES (%d, '%s', '%s', '%s', %s, %s, '%s', '%s');",
+                            id,
+                            type,
+                            name,
+                            value,
+                            instructionIdWasNull ? "NULL" : instructionId,
+                            botJobIdWasNull ? "NULL" : botJobId,
+                            localFormat,
+                            delimiter);
+
+                    writer.write(insert + System.lineSeparator());
+                }
             }
 
             writer.flush();
@@ -361,34 +404,43 @@ public class PerformBackup {
         }
     }
 
-    public ErrorMessage backupReference(Connection conn, String backupFilePath) {
+    public ErrorMessage backupReference(Connection conn, String backupFilePath, Integer botJobIdFilter) {
         String query =
                 """
                         SELECT id, reference_type, value, instruction_id, bot_job_id
                         FROM reference
-                        ORDER BY id ASC
-                        """;
+                        """
+                        + (botJobIdFilter != null ? " WHERE bot_job_id = ? " : "")
+                        + """
+                                ORDER BY id ASC
+                                """;
 
         File sqlFile = new File(backupFilePath);
         try (PreparedStatement pstmt = conn.prepareStatement(query);
-                ResultSet rs = pstmt.executeQuery();
                 BufferedWriter writer = new BufferedWriter(
                         new OutputStreamWriter(new FileOutputStream(sqlFile), Charset.forName("windows-1252")))) {
 
-            while (rs.next()) {
-                int id = rs.getInt("id");
-                String referenceType = toSqlValue(rs.getString("reference_type"));
-                String value = toSqlValue(rs.getString("value"));
-                int instructionId = rs.getInt("instruction_id"); // NOT NULL, no check needed
-                int botJobId = rs.getInt("bot_job_id");
-                boolean botJobIdWasNull = rs.wasNull();
+            if (botJobIdFilter != null) {
+                pstmt.setInt(1, botJobIdFilter);
+            }
 
-                String insert = String.format(
-                        "INSERT INTO reference (id, reference_type, value, instruction_id, bot_job_id) "
-                                + "VALUES (%d, '%s', '%s', %d, %s);",
-                        id, referenceType, value, instructionId, botJobIdWasNull ? "NULL" : botJobId);
+            try (ResultSet rs = pstmt.executeQuery()) { // moved inside try (same safe pattern)
 
-                writer.write(insert + System.lineSeparator());
+                while (rs.next()) {
+                    int id = rs.getInt("id");
+                    String referenceType = toSqlValue(rs.getString("reference_type"));
+                    String value = toSqlValue(rs.getString("value"));
+                    int instructionId = rs.getInt("instruction_id"); // NOT NULL, no check needed
+                    int botJobId = rs.getInt("bot_job_id");
+                    boolean botJobIdWasNull = rs.wasNull();
+
+                    String insert = String.format(
+                            "INSERT INTO reference (id, reference_type, value, instruction_id, bot_job_id) "
+                                    + "VALUES (%d, '%s', '%s', %d, %s);",
+                            id, referenceType, value, instructionId, botJobIdWasNull ? "NULL" : botJobId);
+
+                    writer.write(insert + System.lineSeparator());
+                }
             }
 
             writer.flush();
@@ -402,59 +454,76 @@ public class PerformBackup {
         }
     }
 
-    public ErrorMessage backupBlock(Connection conn, String backupFilePath) {
-        String query =
+    public ErrorMessage backupBlock(Connection conn, String backupFilePath, Integer botJobId) {
+
+        StringBuilder query = new StringBuilder(
                 """
-                        SELECT id, block_order_number, name, description, type_id, export_file, active, wait, bot_job_id
-                        FROM block
-                        ORDER BY id ASC
-                        """;
+            SELECT id, block_order_number, name, description,
+                   type_id, export_file, active, wait, bot_job_id
+            FROM block
+            WHERE 1=1
+            """);
+
+        if (botJobId != null) {
+            query.append(" AND bot_job_id = ?");
+        }
+
+        query.append(" ORDER BY id ASC");
 
         File sqlFile = new File(backupFilePath);
-        try (PreparedStatement pstmt = conn.prepareStatement(query);
-                ResultSet rs = pstmt.executeQuery();
+
+        try (PreparedStatement pstmt = conn.prepareStatement(query.toString());
                 BufferedWriter writer = new BufferedWriter(
                         new OutputStreamWriter(new FileOutputStream(sqlFile), Charset.forName("windows-1252")))) {
 
-            while (rs.next()) {
-                int id = rs.getInt("id");
-                int orderNumber = rs.getInt("block_order_number");
-
-                String name = toSqlValue(rs.getString("name"));
-                String description = toSqlValue(rs.getString("description"));
-
-                int typeId = rs.getInt("type_id");
-                boolean typeIdWasNull = rs.wasNull();
-
-                String exportFile = toSqlValue(rs.getString("export_file"));
-
-                boolean active = rs.getBoolean("active");
-
-                int wait = rs.getInt("wait");
-                boolean waitWasNull = rs.wasNull();
-
-                int botJobId = rs.getInt("bot_job_id");
-                boolean botJobIdWasNull = rs.wasNull();
-
-                String insert = String.format(
-                        "INSERT INTO block (id, block_order_number, name, description, type_id, export_file, active, wait, bot_job_id) "
-                                + "VALUES (%d, %d, '%s', '%s', %s, '%s', %d, %s, %s);",
-                        id,
-                        orderNumber,
-                        name,
-                        description,
-                        typeIdWasNull ? "NULL" : typeId,
-                        exportFile,
-                        active ? 1 : 0,
-                        waitWasNull ? "NULL" : wait,
-                        botJobIdWasNull ? "NULL" : botJobId);
-
-                writer.write(insert + System.lineSeparator());
+            if (botJobId != null) {
+                pstmt.setInt(1, botJobId);
             }
 
-            writer.flush();
-            log.info("Block backup completed at: " + sqlFile.getAbsolutePath());
-            return null;
+            try (ResultSet rs = pstmt.executeQuery()) {
+
+                while (rs.next()) {
+
+                    int id = rs.getInt("id");
+                    int orderNumber = rs.getInt("block_order_number");
+
+                    String name = toSqlValue(rs.getString("name"));
+                    String description = toSqlValue(rs.getString("description"));
+
+                    int typeId = rs.getInt("type_id");
+                    boolean typeIdWasNull = rs.wasNull();
+
+                    String exportFile = toSqlValue(rs.getString("export_file"));
+
+                    boolean active = rs.getBoolean("active");
+
+                    int wait = rs.getInt("wait");
+                    boolean waitWasNull = rs.wasNull();
+
+                    int botJobIdValue = rs.getInt("bot_job_id");
+                    boolean botJobIdWasNull = rs.wasNull();
+
+                    String insert = String.format(
+                            "INSERT INTO block (id, block_order_number, name, description, type_id, export_file, active, wait, bot_job_id) "
+                                    + "VALUES (%d, %d, '%s', '%s', %s, '%s', %d, %s, %s);",
+                            id,
+                            orderNumber,
+                            name,
+                            description,
+                            typeIdWasNull ? "NULL" : typeId,
+                            exportFile,
+                            active ? 1 : 0,
+                            waitWasNull ? "NULL" : wait,
+                            botJobIdWasNull ? "NULL" : botJobIdValue);
+
+                    writer.write(insert);
+                    writer.newLine();
+                }
+
+                writer.flush();
+                log.info("Block backup completed at: " + sqlFile.getAbsolutePath());
+                return null;
+            }
 
         } catch (Exception error) {
             log.error("Error during block backup: " + error.getMessage());
@@ -1039,7 +1108,189 @@ public class PerformBackup {
         }
     }
 
-    public ErrorMessage restoreBlock(Connection conn, String sqlFilePath) {
+    public ErrorMessage restoreBotJob(
+            Connection conn,
+            String sqlFilePath,
+            Integer homeBankIdImported,
+            Integer homeUrlIdImported,
+            Integer botJobIdImported) {
+        String insertQuery =
+                """
+                        INSERT INTO bot_job (
+                            name, description, priority, home_banking_id, home_url_id, active
+                        ) VALUES (?, ?, ?, ?, ?, ?);
+                        """;
+
+        String selectBotJobIdsSQL = "SELECT id FROM bot_job ORDER BY id";
+
+        try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
+                PreparedStatement pstmt = conn.prepareStatement(insertQuery);
+                Statement idStmtBefore = conn.createStatement();
+                Statement idStmtAfter = conn.createStatement()) {
+            conn.setAutoCommit(false);
+
+            // Step 1: get current bot_job IDs before insert
+            List<Integer> idsBefore = new ArrayList<>();
+            try (ResultSet rsBefore = idStmtBefore.executeQuery(selectBotJobIdsSQL)) {
+                while (rsBefore.next()) {
+                    idsBefore.add(rsBefore.getInt("id"));
+                }
+            }
+
+            String timeStamp = null;
+            if (homeBankIdImported != null && homeBankIdImported > 0 && homeUrlIdImported != null) {
+
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMdd HHmmss");
+                timeStamp = LocalDateTime.now().format(formatter);
+
+                homeBankMap.clear();
+                homeBankMap.put(homeBankIdImported, homeBankIdImported);
+                homeUrlMap.clear();
+                homeUrlMap.put(homeUrlIdImported, homeUrlIdImported);
+            }
+
+            StringBuilder currentInsert = new StringBuilder();
+            boolean batchReady = false;
+
+            List<Integer> insertedOldIds = new ArrayList<>();
+            botJobMap.clear();
+
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+
+                currentInsert.append(line);
+                if (line.endsWith(";")) {
+                    List<String> values = extractValuesFromInsert(currentInsert.toString());
+
+                    if (values.size() != 7) {
+                        return new ErrorMessage(
+                                "Parse Error", "Expected 7 values for bot_job", currentInsert.toString());
+                    }
+
+                    // Extract old home_banking_id (index 4)
+                    Integer oldHomeBankId = null;
+                    try {
+                        String oldHomeBankIdStr = values.get(4);
+                        oldHomeBankId = Integer.parseInt(oldHomeBankIdStr);
+                    } catch (NumberFormatException ex) {
+                        log.info("Invalid home_banking_id format: " + values.get(4));
+                    }
+
+                    // Extract old home_url_id (index 5)
+                    Integer oldHomeUrlId = null;
+                    try {
+                        String oldHomeUrlIdStr = values.get(5);
+                        oldHomeUrlId = Integer.parseInt(oldHomeUrlIdStr);
+                    } catch (NumberFormatException ex) {
+                        log.info("Invalid home_url_id format: " + values.get(5));
+                    }
+
+                    // Lookup newHomeBankId and newHomeUrlId from maps
+                    Integer newHomeBankId = null;
+                    Integer newHomeUrlId = null;
+                    if (oldHomeBankId != null) {
+                        newHomeBankId = homeBankMap.get(oldHomeBankId);
+                    }
+                    if (oldHomeUrlId != null) {
+                        newHomeUrlId = homeUrlMap.get(oldHomeUrlId);
+                    }
+
+                    if (newHomeBankId == null) {
+                        log.info("Skipped bot_job with unknown home_banking_id: " + oldHomeBankId);
+                        currentInsert.setLength(0);
+
+                        if (homeBankIdImported != null) {
+                            return new ErrorMessage(
+                                    "Import Failed: Different organizations!",
+                                    "Import attempt failed",
+                                    "You cannot import a Bot Job between different organizations.");
+                        }
+                        continue; // skip this row
+                    }
+
+                    if (newHomeUrlId == null) {
+                        log.info("Skipped bot_job with unknown home_url_id: " + oldHomeUrlId);
+                        currentInsert.setLength(0);
+                        continue; // skip this row
+                    }
+
+                    // Now set parameters
+                    for (int i = 1; i < values.size(); i++) {
+                        String val = values.get(i);
+
+                        switch (i) {
+                                //                            case 0 -> setSafeParam(pstmt, 1, val, Types.INTEGER); //
+                                // id
+                            case 1 -> {
+                                if (!Strings.isNullOrEmpty(timeStamp)) {
+                                    setSafeParam(pstmt, 1, val + " " + timeStamp, Types.VARCHAR);
+                                } else {
+                                    setSafeParam(pstmt, 1, val, Types.VARCHAR);
+                                }
+                            } // name
+                            case 2 -> setSafeParam(pstmt, 2, val, Types.VARCHAR); // description
+                            case 3 -> setSafeParam(pstmt, 3, val, Types.VARCHAR); // priority
+                            case 4 -> pstmt.setInt(4, newHomeBankId); // home_banking_id (mapped)
+                            case 5 -> pstmt.setInt(5, newHomeUrlId); // home_url_id (mapped)
+                            case 6 -> setSafeParam(pstmt, 6, val, Types.INTEGER); // active
+                        }
+                    }
+
+                    // Track old ID for mapping later
+                    Integer oldId = null;
+                    try {
+                        oldId = botJobIdImported == null
+                                ? parseIntSafe(values.get(0))
+                                : botJobIdImported; // The Passed botJobId will be the key
+                        insertedOldIds.add(oldId);
+                        botJobMap.put(oldId, -1); // initialize mapping
+                    } catch (NumberFormatException ex) {
+                        log.info("Error parsing botJobMap entry: {}", ex.getMessage());
+                    }
+
+                    pstmt.addBatch();
+                    currentInsert.setLength(0);
+                    batchReady = true;
+                }
+            }
+
+            if (batchReady) {
+                pstmt.executeBatch();
+                conn.commit();
+            }
+
+            // Step 3: get bot_job IDs after insert
+            List<Integer> idsAfter = new ArrayList<>();
+            try (ResultSet rsAfter = idStmtAfter.executeQuery(selectBotJobIdsSQL)) {
+                while (rsAfter.next()) {
+                    idsAfter.add(rsAfter.getInt("id"));
+                }
+            }
+
+            List<Integer> newIds = new ArrayList<>(idsAfter);
+            newIds.removeAll(idsBefore);
+
+            if (insertedOldIds.size() != newIds.size()) {
+                log.error("Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
+            }
+
+            for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
+                botJobMap.put(insertedOldIds.get(i), newIds.get(i));
+            }
+
+            log.info("botJobMap populated: " + botJobMap);
+
+            return null;
+
+        } catch (Exception e) {
+            return new ErrorMessage("Restore Failed", "Failed to load bot_job data", e.getMessage());
+        }
+    }
+
+    public ErrorMessage restoreBlock(Connection conn, String sqlFilePath, Integer botJobIdImported) {
         String insertQuery =
                 """
                         INSERT INTO block (
@@ -1048,7 +1299,19 @@ public class PerformBackup {
                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
                         """;
 
-        String selectBlockIdsSQL = "SELECT id FROM block ORDER BY id";
+        String selectBlockIdsSQL = "SELECT id FROM block ";
+
+        //        if (botJobIdImported != null) {
+        //            Integer newBotJob = botJobMap.get(botJobIdImported);
+        //            if (newBotJob != null) {
+        //                selectBlockIdsSQL += " where bot_job_id = " + newBotJob;
+        //            } else {
+        //                return new ErrorMessage("Import Failed", "Failed to import blocks data", "New Bot Job Not
+        // found");
+        //            }
+        //        }
+
+        selectBlockIdsSQL += " ORDER BY id";
 
         try (BufferedReader reader = new BufferedReader(
                         new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
@@ -1087,8 +1350,9 @@ public class PerformBackup {
                     // Extract old bot_job_id (index 8)
                     Integer oldBotJobId = null;
                     try {
-                        String oldBotJobIdStr = values.get(8);
-                        oldBotJobId = Integer.parseInt(oldBotJobIdStr);
+                        oldBotJobId = botJobIdImported == null
+                                ? parseIntSafe(values.get(8))
+                                : botJobIdImported; // The Passed botJobId will be the key
                     } catch (NumberFormatException ex) {
                         log.info("Invalid bot_job_id format: " + values.get(8));
                     }
@@ -1170,156 +1434,7 @@ public class PerformBackup {
         }
     }
 
-    public ErrorMessage restoreBotJob(Connection conn, String sqlFilePath) {
-        String insertQuery =
-                """
-                        INSERT INTO bot_job (
-                            name, description, priority, home_banking_id, home_url_id, active
-                        ) VALUES (?, ?, ?, ?, ?, ?);
-                        """;
-
-        String selectBotJobIdsSQL = "SELECT id FROM bot_job ORDER BY id";
-
-        try (BufferedReader reader = new BufferedReader(
-                        new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
-                PreparedStatement pstmt = conn.prepareStatement(insertQuery);
-                Statement idStmtBefore = conn.createStatement();
-                Statement idStmtAfter = conn.createStatement()) {
-            conn.setAutoCommit(false);
-
-            // Step 1: get current bot_job IDs before insert
-            List<Integer> idsBefore = new ArrayList<>();
-            try (ResultSet rsBefore = idStmtBefore.executeQuery(selectBotJobIdsSQL)) {
-                while (rsBefore.next()) {
-                    idsBefore.add(rsBefore.getInt("id"));
-                }
-            }
-
-            StringBuilder currentInsert = new StringBuilder();
-            boolean batchReady = false;
-
-            List<Integer> insertedOldIds = new ArrayList<>();
-            botJobMap.clear();
-
-            String line;
-            while ((line = reader.readLine()) != null) {
-                line = line.trim();
-                if (line.isEmpty()) continue;
-
-                currentInsert.append(line);
-                if (line.endsWith(";")) {
-                    List<String> values = extractValuesFromInsert(currentInsert.toString());
-
-                    if (values.size() != 7) {
-                        return new ErrorMessage(
-                                "Parse Error", "Expected 7 values for bot_job", currentInsert.toString());
-                    }
-
-                    // Extract old home_banking_id (index 4)
-                    Integer oldHomeBankId = null;
-                    try {
-                        String oldHomeBankIdStr = values.get(4);
-                        oldHomeBankId = Integer.parseInt(oldHomeBankIdStr);
-                    } catch (NumberFormatException ex) {
-                        log.info("Invalid home_banking_id format: " + values.get(4));
-                    }
-
-                    // Extract old home_url_id (index 5)
-                    Integer oldHomeUrlId = null;
-                    try {
-                        String oldHomeUrlIdStr = values.get(5);
-                        oldHomeUrlId = Integer.parseInt(oldHomeUrlIdStr);
-                    } catch (NumberFormatException ex) {
-                        log.info("Invalid home_url_id format: " + values.get(5));
-                    }
-
-                    // Lookup newHomeBankId and newHomeUrlId from maps
-                    Integer newHomeBankId = null;
-                    Integer newHomeUrlId = null;
-                    if (oldHomeBankId != null) {
-                        newHomeBankId = homeBankMap.get(oldHomeBankId);
-                    }
-                    if (oldHomeUrlId != null) {
-                        newHomeUrlId = homeUrlMap.get(oldHomeUrlId);
-                    }
-
-                    if (newHomeBankId == null) {
-                        log.info("Skipped bot_job with unknown home_banking_id: " + oldHomeBankId);
-                        currentInsert.setLength(0);
-                        continue; // skip this row
-                    }
-
-                    if (newHomeUrlId == null) {
-                        log.info("Skipped bot_job with unknown home_url_id: " + oldHomeUrlId);
-                        currentInsert.setLength(0);
-                        continue; // skip this row
-                    }
-
-                    // Now set parameters
-                    for (int i = 1; i < values.size(); i++) {
-                        String val = values.get(i);
-
-                        switch (i) {
-                                //                            case 0 -> setSafeParam(pstmt, 1, val, Types.INTEGER); //
-                                // id
-                            case 1 -> setSafeParam(pstmt, 1, val, Types.VARCHAR); // name
-                            case 2 -> setSafeParam(pstmt, 2, val, Types.VARCHAR); // description
-                            case 3 -> setSafeParam(pstmt, 3, val, Types.VARCHAR); // priority
-                            case 4 -> pstmt.setInt(4, newHomeBankId); // home_banking_id (mapped)
-                            case 5 -> pstmt.setInt(5, newHomeUrlId); // home_url_id (mapped)
-                            case 6 -> setSafeParam(pstmt, 6, val, Types.INTEGER); // active
-                        }
-                    }
-
-                    // Track old ID for mapping later
-                    try {
-                        int oldId = Integer.parseInt(values.get(0));
-                        insertedOldIds.add(oldId);
-                        botJobMap.put(oldId, -1); // initialize mapping
-                    } catch (Exception ex) {
-                        log.info("Error parsing botJobMap entry: " + ex.getMessage());
-                    }
-
-                    pstmt.addBatch();
-                    currentInsert.setLength(0);
-                    batchReady = true;
-                }
-            }
-
-            if (batchReady) {
-                pstmt.executeBatch();
-                conn.commit();
-            }
-
-            // Step 3: get bot_job IDs after insert
-            List<Integer> idsAfter = new ArrayList<>();
-            try (ResultSet rsAfter = idStmtAfter.executeQuery(selectBotJobIdsSQL)) {
-                while (rsAfter.next()) {
-                    idsAfter.add(rsAfter.getInt("id"));
-                }
-            }
-
-            List<Integer> newIds = new ArrayList<>(idsAfter);
-            newIds.removeAll(idsBefore);
-
-            if (insertedOldIds.size() != newIds.size()) {
-                log.error("Mismatch: inserted count " + insertedOldIds.size() + " vs new IDs " + newIds.size());
-            }
-
-            for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
-                botJobMap.put(insertedOldIds.get(i), newIds.get(i));
-            }
-
-            log.info("botJobMap populated: " + botJobMap);
-
-            return null;
-
-        } catch (Exception e) {
-            return new ErrorMessage("Restore Failed", "Failed to load bot_job data", e.getMessage());
-        }
-    }
-
-    public ErrorMessage restoreInstruction(Connection conn, String sqlFilePath) {
+    public ErrorMessage restoreInstruction(Connection conn, String sqlFilePath, Integer botJobIdImported) {
         String insertQuery =
                 """
                         INSERT INTO instruction (
@@ -1331,7 +1446,19 @@ public class PerformBackup {
                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                         """;
 
-        String selectInstructionIdsSQL = "SELECT id FROM instruction ORDER BY id";
+        String selectInstructionIdsSQL = "SELECT id FROM instruction ";
+
+        //        if (botJobIdImported != null) {
+        //            Integer newBotJob = botJobMap.get(botJobIdImported);
+        //            if (newBotJob != null) {
+        //                selectInstructionIdsSQL += " where bot_job_id = " + newBotJob;
+        //            } else {
+        //                return new ErrorMessage("Import Failed", "Failed to import instructions data", "New Bot Job
+        // Not found");
+        //            }
+        //        }
+
+        selectInstructionIdsSQL += " ORDER BY id";
 
         try (BufferedReader reader = new BufferedReader(
                         new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
@@ -1374,8 +1501,9 @@ public class PerformBackup {
 
                     // Extract old block_id (index 22) and bot_job_id (index 25 / index 26)
                     Integer oldBlockId = parseIntSafe(values.get(22));
-                    Integer oldBotJobId =
-                            parseIntSafe(values.get(values.size() == 26 ? 25 : 26)); // index depends on 26/27 cols
+                    Integer oldBotJobId = botJobIdImported == null
+                            ? parseIntSafe(values.get(values.size() == 26 ? 25 : 26)) // index depends on 26/27 cols
+                            : botJobIdImported; // The Passed botJobId will be the key
 
                     Integer newBlockId = oldBlockId != null ? blockMap.get(oldBlockId) : null;
                     Integer newBotJobId = oldBotJobId != null ? botJobMap.get(oldBotJobId) : null;
@@ -1513,7 +1641,7 @@ public class PerformBackup {
                                 }
 
                                 // Firts to Be mapped after INSERTS into Variable TABLE
-                                setSafeParam(pstmt, 23, "NULL", Types.INTEGER);
+                                setSafeParam(pstmt, 23, null, Types.INTEGER);
                             }
                             case 24, 25, 26 -> {}
                             default -> throw new IllegalArgumentException("Unexpected column index: " + i);
@@ -1565,7 +1693,7 @@ public class PerformBackup {
         }
     }
 
-    public ErrorMessage restoreVariable(Connection conn, String sqlFilePath) {
+    public ErrorMessage restoreVariable(Connection conn, String sqlFilePath, Integer botJobIdImported) {
         String insertQuery =
                 """
                         INSERT INTO variable (
@@ -1573,7 +1701,19 @@ public class PerformBackup {
                         ) VALUES (?, ?, ?, ?, ?, ?, ?);
                         """;
 
-        String selectVariableIdsSQL = "SELECT id FROM variable ORDER BY id";
+        String selectVariableIdsSQL = "SELECT id FROM variable ";
+
+        //        if (botJobIdImported != null) {
+        //            Integer newBotJob = botJobMap.get(botJobIdImported);
+        //            if (newBotJob != null) {
+        //                selectVariableIdsSQL += " where bot_job_id = " + newBotJob;
+        //            } else {
+        //                return new ErrorMessage("Import Failed", "Failed to import variables data", "New Bot Job Not
+        // found");
+        //            }
+        //        }
+
+        selectVariableIdsSQL += " ORDER BY id";
 
         try (BufferedReader reader = new BufferedReader(
                         new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
@@ -1612,14 +1752,17 @@ public class PerformBackup {
 
                     // Extract old instruction_id (index 4) and bot_job_id (index 5)
                     Integer oldInstructionId = null;
-                    Integer oldBotJobId = null;
                     try {
                         oldInstructionId = Integer.parseInt(values.get(4));
                     } catch (NumberFormatException ex) {
                         log.info("Invalid instruction_id format: " + values.get(4));
                     }
+                    Integer oldBotJobId = null;
                     try {
-                        oldBotJobId = Integer.parseInt(values.get(5));
+                        oldBotJobId = botJobIdImported == null
+                                ? parseIntSafe(values.get(5))
+                                : botJobIdImported; // The Passed botJobId will be the key
+
                     } catch (NumberFormatException ex) {
                         log.info("Invalid bot_job_id format: " + values.get(5));
                     }
@@ -1708,7 +1851,7 @@ public class PerformBackup {
         }
     }
 
-    public ErrorMessage restoreUpdateInstruction(Connection conn) {
+    public ErrorMessage restoreUpdateInstruction(Connection conn, Integer botJobIdImported) {
         final int BATCH_SIZE = 100;
 
         instrNewInverted.clear();
@@ -1717,11 +1860,27 @@ public class PerformBackup {
             instrNewInverted.put(entry.getValue(), entry.getKey());
         }
 
+        if (instrNewInverted.isEmpty()) {
+            return null;
+        }
+
         try (Statement connStmt = conn.createStatement()) {
             conn.setAutoCommit(false);
 
-            String selectAccessSQL = "SELECT id, name, parent_id, variable_id, parent_block_id "
-                    + "FROM instruction WHERE parent_id IS NOT NULL OR variable_id IS NULL OR parent_block_id IS NOT NULL ORDER BY id";
+            String selectAccessSQL = "SELECT id, name, parent_id, variable_id, parent_block_id, bot_job_id "
+                    + "FROM instruction WHERE (parent_id IS NULL OR variable_id IS NULL OR parent_block_id IS NULL)";
+
+            if (botJobIdImported != null) {
+                Integer newBotJob = botJobMap.get(botJobIdImported);
+                if (newBotJob != null) {
+                    selectAccessSQL += " AND bot_job_id = " + newBotJob;
+                } else {
+                    return new ErrorMessage(
+                            "Import Failed", "Failed to update instruction data", "New Bot Job Not found");
+                }
+            }
+
+            selectAccessSQL += " ORDER BY id";
 
             try (ResultSet rsInstruction = connStmt.executeQuery(selectAccessSQL)) {
 
@@ -1787,8 +1946,8 @@ public class PerformBackup {
                                 Types.INTEGER);
 
                         // ---- WHERE id = ? ----
-                        updateStmt.setInt(4, id);
 
+                        updateStmt.setInt(4, id);
                         updateStmt.addBatch();
                         count++;
 
@@ -1817,7 +1976,7 @@ public class PerformBackup {
         }
     }
 
-    public ErrorMessage restoreReference(Connection conn, String sqlFilePath) {
+    public ErrorMessage restoreReference(Connection conn, String sqlFilePath, Integer botJobIdImported) {
         String insertQuery =
                 """
                         INSERT INTO reference (
@@ -1825,7 +1984,19 @@ public class PerformBackup {
                         ) VALUES (?, ?, ?, ?);
                         """;
 
-        String selectReferenceIdsSQL = "SELECT id FROM reference ORDER BY id";
+        String selectReferenceIdsSQL = "SELECT id FROM reference ";
+
+        //        if (botJobIdImported != null) {
+        //            Integer newBotJob = botJobMap.get(botJobIdImported);
+        //            if (newBotJob != null) {
+        //                selectReferenceIdsSQL += " where bot_job_id = " + newBotJob;
+        //            } else {
+        //                return new ErrorMessage("Import Failed", "Failed to import references data", "New Bot Job Not
+        // found");
+        //            }
+        //        }
+
+        selectReferenceIdsSQL += " ORDER BY id";
 
         try (BufferedReader reader = new BufferedReader(
                         new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
@@ -1863,7 +2034,9 @@ public class PerformBackup {
 
                     // Parse old instruction ID and bot job ID
                     Integer oldInstructionId = parseIntSafe(values.get(3));
-                    Integer oldBotJobId = parseIntSafe(values.get(4));
+                    Integer oldBotJobId = botJobIdImported == null
+                            ? parseIntSafe(values.get(4))
+                            : botJobIdImported; // The Passed botJobId will be the key
 
                     Integer newInstructionId = oldInstructionId != null ? instructionMap.get(oldInstructionId) : null;
                     Integer newBotJobId = oldBotJobId != null ? botJobMap.get(oldBotJobId) : null;
