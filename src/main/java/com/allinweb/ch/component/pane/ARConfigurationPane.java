@@ -199,7 +199,7 @@ public class ARConfigurationPane extends ARPane {
 
         //        ButtonBar homeBankingActionGroup = new ButtonBar();
         insertSitesdButton = builder.buildButton("Insert Organizations");
-        insertSitesdButton.setMaxWidth(120);
+        insertSitesdButton.setMinWidth(Region.USE_PREF_SIZE);
 
         //        homeBankingActionGroup.getButtons().addAll(addHomeBankingButton);
 
@@ -308,12 +308,12 @@ public class ARConfigurationPane extends ARPane {
 
         backupDBButton = builder.buildButton("Backup DB");
         backupDBButton.setMaxHeight(ARConstants.SPACE_XXS);
-        backupDBButton.setMaxWidth(100);
+        backupDBButton.setMinWidth(Region.USE_PREF_SIZE);
         backupDBButton.setStyle("-fx-font-size: 12px;");
 
         restoreDBButton = builder.buildButton("Restore DB");
         restoreDBButton.setMaxHeight(ARConstants.SPACE_XXS);
-        restoreDBButton.setMaxWidth(100);
+        restoreDBButton.setMinWidth(Region.USE_PREF_SIZE);
         restoreDBButton.setStyle("-fx-font-size: 12px;");
 
         backupDBButton.setDisable(false);
@@ -331,15 +331,18 @@ public class ARConfigurationPane extends ARPane {
 
         reloadDBButton = builder.buildButton("Reload Configs");
         reloadDBButton.setMaxHeight(ARConstants.SPACE_L);
-        reloadDBButton.setMaxWidth(120);
+        reloadDBButton.setMinWidth(Region.USE_PREF_SIZE);
 
         deleteAllDBButton = builder.buildButton("Delete DB");
         deleteAllDBButton.setMaxHeight(ARConstants.SPACE_L);
-        deleteAllDBButton.setMaxWidth(120);
+        deleteAllDBButton.setMinWidth(Region.USE_PREF_SIZE);
         deleteAllDBButton.setStyle("-fx-background-color: lightcoral; -fx-text-fill: blue;");
 
         browserChoiceBox.setItems(browserList);
+        browserChoiceBox.setMinWidth(Region.USE_PREF_SIZE);
+
         databaseChoiceBox.setItems(databaseList);
+        databaseChoiceBox.setMinWidth(Region.USE_PREF_SIZE);
         databaseChoiceBox.setDisable(true);
 
         HBox buttonRow = new HBox(10); // spacing between columns

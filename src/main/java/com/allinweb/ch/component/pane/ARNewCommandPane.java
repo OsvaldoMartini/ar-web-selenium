@@ -2908,7 +2908,7 @@ public class ARNewCommandPane extends ARPane {
             blockIdChanged = false;
         }
 
-        // This will make the EXCEL GOTO TO BE RELOCATES JUST AS INFO0
+        // This will make the EXCEL GOTO TO BE RELOCATES JUST AS INFO
         // EXCEL GOTO IS GOING TO BE RENDERED DIFFERENTLY ON GridItems
         if (parentBlockId != null && actions.equals("EXCEL GOTO")) {
             blockId = comboBoxBlocksGoto.getValue().getBlockId();
@@ -3223,7 +3223,7 @@ public class ARNewCommandPane extends ARPane {
                     } catch (NumberFormatException e) {
                         // Not an integer → select first item
                         comboBoxLoops.getSelectionModel().selectFirst();
-                        gotoField.setText("50");
+                        gotoField.setText("10");
                     }
                 }
             }

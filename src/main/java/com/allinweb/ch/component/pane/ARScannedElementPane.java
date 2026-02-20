@@ -1171,7 +1171,6 @@ public class ARScannedElementPane extends ARPane {
         //        if (!initializeWebView()) {
         //            return;
         //        }
-        //        }
 
         if (comboBoxBlocks != null) {
             List<BlockOptions> listOptions = performLists.loadComboOptions("block", "ScannerPane");
