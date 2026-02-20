@@ -447,7 +447,7 @@ public class ARViewBotJobPane extends ARPane {
         importJobButton.setStyle("-fx-font-size: 12px;");
 
         restoreDatePicker = new DatePicker(LocalDate.now());
-        restoreDatePicker.setPrefWidth(140);
+        restoreDatePicker.setMinWidth(Region.USE_PREF_SIZE);
         restoreDatePicker.setStyle("-fx-font-size: 12px;");
 
         double controlHeight = 28; // same as your buttons
@@ -490,7 +490,7 @@ public class ARViewBotJobPane extends ARPane {
         exportJobButton.setPrefWidth(buttonWidth);
         leftGridPane.add(exportJobButton, 4, 0);
 
-        launchBotJobButton.setPrefWidth(buttonWidth);
+        launchBotJobButton.setPrefWidth(buttonWidth + 5);
         leftGridPane.add(launchBotJobButton, 5, 0);
 
         navigationTimeButton.setPrefWidth(buttonWidth * 2); // or 220
@@ -505,7 +505,7 @@ public class ARViewBotJobPane extends ARPane {
         importJobButton.setPrefWidth(buttonWidth);
         leftGridPane.add(importJobButton, 4, 1);
 
-        restoreDatePicker.setPrefWidth(buttonWidth);
+        restoreDatePicker.setPrefWidth(buttonWidth + 5);
         leftGridPane.add(restoreDatePicker, 5, 1);
 
         closeBotJobButton.setPrefWidth(buttonWidth);
