@@ -6,8 +6,6 @@ package com.allinweb.ch.customJmsForEmi.jms;
 
 import com.allinweb.ch.customJmsForEmi.jms.db.AMIMessageInterface;
 import com.allinweb.ch.customJmsForEmi.s.ClassB;
-
-import java.lang.IllegalStateException;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.*;
@@ -106,7 +104,7 @@ public class AMIConnection implements Connection {
         }
         this.checkClosed();
         if (this.isStarted()) {
-            throw new IllegalStateException("set client id before start");
+            throw new java.lang.IllegalStateException("set client id before start");
         }
         this.clientID = clientID;
     }
@@ -236,7 +234,7 @@ public class AMIConnection implements Connection {
 
     protected void checkClosed() {
         if (this.isClosed()) {
-            throw new IllegalStateException("Forbidden call on a closed connection.");
+            throw new java.lang.IllegalStateException("Forbidden call on a closed connection.");
         }
     }
 
