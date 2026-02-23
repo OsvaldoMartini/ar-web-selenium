@@ -2456,36 +2456,6 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    public void updateListElements(
-            WebDriver driver,
-            String[] dataArray,
-            int port,
-            String sessionId,
-            String destinationId,
-            String operationId,
-            int homeBankingId,
-            int botJobId) {
-        // "UPDATE_LIST_ELEMENTS", "perform-list-data", "searchTerms"
-        ErrorMessage errorMessage = performListElements.dynamicLoadElementsDTO(
-                driver,
-                dataArray,
-                searchHiddenFields,
-                port,
-                sessionId,
-                destinationId,
-                operationId,
-                homeBankingId,
-                botJobId);
-
-        if (errorMessage != null) {
-            logOperations.error(
-                    "Error: Dynamic Pick One Clone ElementsDTO - {} - {} - {}",
-                    errorMessage.getErrorTitle(),
-                    errorMessage.getErrorHeader(),
-                    errorMessage.getErrorMessage());
-        }
-    }
-
     public void revertCloneInjections(WebDriver driver) {
         try {
             jsExecutor = (JavascriptExecutor) driver;
@@ -3110,7 +3080,6 @@ public class ARScannedElementPane extends ARPane {
         boolean success = true;
         boolean stopAll = false;
         boolean firstRound = true;
-        boolean anyFailure = false;
         boolean alreadyLogged = false;
         long botJobStartTime = System.nanoTime();
         long totalExecutionTime = 0;
@@ -4878,7 +4847,6 @@ public class ARScannedElementPane extends ARPane {
                                 }
                             } else if (!alreadyLogged) {
                                 appendLog("[TEST]" + resultActions, "error");
-                                anyFailure = true;
                             }
 
                             alreadyLogged = false;
@@ -5064,9 +5032,6 @@ public class ARScannedElementPane extends ARPane {
                             if (!success
                                     && !byPassFlagLoop
                                     && currentCondition.equals(ARExecution.ConditionStatus.NONE)) {
-
-                                // Record failure but do NOT alter execution flow
-                                anyFailure = true;
 
                                 // Reset success so execution can continue
                                 success = true;
@@ -5324,23 +5289,6 @@ public class ARScannedElementPane extends ARPane {
         setInterceptBotJob(false);
         isJobRunning.set(false);
         return true;
-    }
-
-    private WebElement immediateXPath(String xPath) {
-        try {
-            if (waitXPath == null && performActions.getCurrentDriver() != null) {
-                waitXPath = new WebDriverWait(performActions.getCurrentDriver(), Duration.ofSeconds(0));
-            }
-            waitXPath.until(ExpectedConditions.presenceOfElementLocated(By.xpath(xPath)));
-            List<WebElement> foundElementList =
-                    performActions.getCurrentDriver().findElements(By.xpath(xPath));
-            if (foundElementList.size() > 0) {
-                return foundElementList.get(0);
-            }
-        } catch (TimeoutException ignored) {
-        } catch (Exception ignored) {
-        }
-        return null;
     }
 
     private static class ValidationResult {
@@ -6961,6 +6909,23 @@ public class ARScannedElementPane extends ARPane {
         return s == null ? "" : s.trim();
     }
 
+    private WebElement immediateXPath(String xPath) {
+        try {
+            if (waitXPath == null && performActions.getCurrentDriver() != null) {
+                waitXPath = new WebDriverWait(performActions.getCurrentDriver(), Duration.ofSeconds(0));
+            }
+            waitXPath.until(ExpectedConditions.presenceOfElementLocated(By.xpath(xPath)));
+            List<WebElement> foundElementList =
+                    performActions.getCurrentDriver().findElements(By.xpath(xPath));
+            if (foundElementList.size() > 0) {
+                return foundElementList.get(0);
+            }
+        } catch (TimeoutException ignored) {
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+
     private void pushUpdateListElements() {
         if (performActions == null || performActions.getCurrentDriver() == null) return;
 
@@ -6978,6 +6943,36 @@ public class ARScannedElementPane extends ARPane {
                 "searchTerms",
                 this.currentBotJob.getHomeBankingId(),
                 this.currentBotJob.getId());
+    }
+
+    public void updateListElements(
+            WebDriver driver,
+            String[] dataArray,
+            int port,
+            String sessionId,
+            String destinationId,
+            String operationId,
+            int homeBankingId,
+            int botJobId) {
+        // "UPDATE_LIST_ELEMENTS", "perform-list-data", "searchTerms"
+        ErrorMessage errorMessage = performListElements.dynamicLoadElementsDTO(
+                driver,
+                dataArray,
+                searchHiddenFields,
+                port,
+                sessionId,
+                destinationId,
+                operationId,
+                homeBankingId,
+                botJobId);
+
+        if (errorMessage != null) {
+            logOperations.error(
+                    "Error: Dynamic Pick One Clone ElementsDTO - {} - {} - {}",
+                    errorMessage.getErrorTitle(),
+                    errorMessage.getErrorHeader(),
+                    errorMessage.getErrorMessage());
+        }
     }
 
     private static boolean isWebElementInstruction(InstructionLoad instr) {
