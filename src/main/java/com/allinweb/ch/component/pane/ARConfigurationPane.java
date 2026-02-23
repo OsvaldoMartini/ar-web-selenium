@@ -659,7 +659,7 @@ public class ARConfigurationPane extends ARPane {
                 String databasePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
 
                 String backupFilePath = databasePath + File.separator + "backup_home_banking_" + date + ".sql";
-                ErrorMessage errorMessage = performBackup.backupHomeBanking(conn, backupFilePath);
+                ErrorMessage errorMessage = performBackup.backupHomeBanking(conn, backupFilePath, null);
 
                 if (errorMessage == null) {
                     backupFilePath = databasePath + File.separator + "backup_home_url_" + date + ".sql";
@@ -1417,7 +1417,7 @@ public class ARConfigurationPane extends ARPane {
         }
     }
 
-    public void runExportBotJob(int homeBankingId, int botJobId) {
+    public void runExportBotJob(int homeBankingId, int botJobId, String exportPath) {
         String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
         String date = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy_MM_dd"));
 
@@ -1440,33 +1440,34 @@ public class ARConfigurationPane extends ARPane {
         try (Connection conn = performDataBase.getConnection()) {
             performBackup.initialize(conn);
 
-            String databasePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-
-            ErrorMessage errorMessage;
+            String backupFilePath = exportPath + File.separator + "backup_(BY_BOT_JOB)_home_banking_" + date + ".sql";
+            ErrorMessage errorMessage = performBackup.backupHomeBanking(conn, backupFilePath, homeBankingId);
 
             // 1) bot_job (filtered)
-            String backupFilePath = databasePath + File.separator + "backup_(BY_BOT_JOB)_bot_job_" + date + ".sql";
-            errorMessage = performBackup.backupBotJob(conn, backupFilePath, homeBankingId, botJobId);
+            if (errorMessage == null) {
+                backupFilePath = exportPath + File.separator + "backup_(BY_BOT_JOB)_bot_job_" + date + ".sql";
+                errorMessage = performBackup.backupBotJob(conn, backupFilePath, homeBankingId, botJobId);
+            }
 
             // 2) block (filtered by bot_job_id)
             if (errorMessage == null) {
-                backupFilePath = databasePath + File.separator + "backup_(BY_BOT_JOB)_block_" + date + ".sql";
+                backupFilePath = exportPath + File.separator + "backup_(BY_BOT_JOB)_block_" + date + ".sql";
                 errorMessage = performBackup.backupBlock(conn, backupFilePath, botJobId);
             }
 
             // 3) instruction (filtered by bot_job_id)
             if (errorMessage == null) {
-                backupFilePath = databasePath + File.separator + "backup_(BY_BOT_JOB)_instruction_" + date + ".sql";
+                backupFilePath = exportPath + File.separator + "backup_(BY_BOT_JOB)_instruction_" + date + ".sql";
                 errorMessage = performBackup.backupInstruction(conn, backupFilePath, botJobId);
             }
 
             if (errorMessage == null) {
-                backupFilePath = databasePath + File.separator + "backup_(BY_BOT_JOB)_variable_" + date + ".sql";
+                backupFilePath = exportPath + File.separator + "backup_(BY_BOT_JOB)_variable_" + date + ".sql";
                 errorMessage = performBackup.backupVariable(conn, backupFilePath, botJobId);
             }
 
             if (errorMessage == null) {
-                backupFilePath = databasePath + File.separator + "backup_(BY_BOT_JOB)_reference_" + date + ".sql";
+                backupFilePath = exportPath + File.separator + "backup_(BY_BOT_JOB)_reference_" + date + ".sql";
                 errorMessage = performBackup.backupReference(conn, backupFilePath, botJobId);
             }
 
@@ -1497,7 +1498,12 @@ public class ARConfigurationPane extends ARPane {
     }
 
     public void runImportBotJob(
-            Integer homeBankIdImported, Integer homeUrlIdImported, Integer botJobIdImported, LocalDate selectedDate) {
+            Integer homeBankIdImported,
+            String organizationName,
+            Integer homeUrlIdImported,
+            Integer botJobIdImported,
+            LocalDate selectedDate,
+            String importPath) {
 
         String formattedDate;
         if (selectedDate != null) {
@@ -1517,7 +1523,6 @@ public class ARConfigurationPane extends ARPane {
         }
 
         String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
-        String dataBaseFolder = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
 
         Label newInstruction = new Label("DB IMPORT (ONLY BOT JOB)\nDatabase Selected: \"" + dataBaseType
                 + "\" \nDatabase Folder : \"v4.7g Beta Test\"");
@@ -1534,7 +1539,7 @@ public class ARConfigurationPane extends ARPane {
                         + "</span>.",
                 "<span style='color: #6A1B9A; font-weight: bold;'>Import date : " + formattedDate
                         + " will apply to the folder: </span>.",
-                "<span style='font-style: italic;'>Details: " + dataBaseFolder + "</span>",
+                "<span style='font-style: italic;'>Details: " + importPath + "</span>",
                 false,
                 "Execute Import",
                 "Cancel",
@@ -1545,28 +1550,32 @@ public class ARConfigurationPane extends ARPane {
 
                 performBackup.initialize(conn);
 
-                String databasePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-
                 String backupFilePath =
-                        databasePath + File.separator + "backup_(BY_BOT_JOB)_bot_job_" + formattedDate + ".sql";
-                ErrorMessage errorMessage = performBackup.restoreBotJob(
-                        conn, backupFilePath, homeBankIdImported, homeUrlIdImported, botJobIdImported);
+                        importPath + File.separator + "backup_(BY_BOT_JOB)_home_banking_" + formattedDate + ".sql";
+                ErrorMessage errorMessage = performBackup.getHomeBankingNameFromFile(backupFilePath, organizationName);
 
                 if (errorMessage == null) {
                     backupFilePath =
-                            databasePath + File.separator + "backup_(BY_BOT_JOB)_block_" + formattedDate + ".sql";
+                            importPath + File.separator + "backup_(BY_BOT_JOB)_bot_job_" + formattedDate + ".sql";
+                    errorMessage = performBackup.restoreBotJob(
+                            conn, backupFilePath, homeBankIdImported, homeUrlIdImported, botJobIdImported);
+                }
+
+                if (errorMessage == null) {
+                    backupFilePath =
+                            importPath + File.separator + "backup_(BY_BOT_JOB)_block_" + formattedDate + ".sql";
                     errorMessage = performBackup.restoreBlock(conn, backupFilePath, botJobIdImported);
                 }
 
                 if (errorMessage == null) {
                     backupFilePath =
-                            databasePath + File.separator + "backup_(BY_BOT_JOB)_instruction_" + formattedDate + ".sql";
+                            importPath + File.separator + "backup_(BY_BOT_JOB)_instruction_" + formattedDate + ".sql";
                     errorMessage = performBackup.restoreInstruction(conn, backupFilePath, botJobIdImported);
                 }
 
                 if (errorMessage == null) {
                     backupFilePath =
-                            databasePath + File.separator + "backup_(BY_BOT_JOB)_variable_" + formattedDate + ".sql";
+                            importPath + File.separator + "backup_(BY_BOT_JOB)_variable_" + formattedDate + ".sql";
                     errorMessage = performBackup.restoreVariable(conn, backupFilePath, botJobIdImported);
                 }
 
@@ -1576,7 +1585,7 @@ public class ARConfigurationPane extends ARPane {
 
                 if (errorMessage == null) {
                     backupFilePath =
-                            databasePath + File.separator + "backup_(BY_BOT_JOB)_reference_" + formattedDate + ".sql";
+                            importPath + File.separator + "backup_(BY_BOT_JOB)_reference_" + formattedDate + ".sql";
                     errorMessage = performBackup.restoreReference(conn, backupFilePath, botJobIdImported);
                 }
 

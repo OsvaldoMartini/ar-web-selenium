@@ -60,59 +60,74 @@ public class PerformBackup {
         return input.replace("'", "''");
     }
 
-    public ErrorMessage backupHomeBanking(Connection conn, String backupFilePath) {
-        String query =
+    public ErrorMessage backupHomeBanking(Connection conn, String backupFilePath, Integer homeBankId) {
+
+        StringBuilder query = new StringBuilder(
                 """
-                        SELECT id, url, name, priority, search_config, options_config,
-                               cookies, driver_session, username, password
-                        FROM home_banking
-                        ORDER BY id ASC
-                        """;
+                SELECT id, url, name, priority, search_config, options_config,
+                       cookies, driver_session, username, password
+                FROM home_banking
+                WHERE 1=1
+                """);
+
+        List<Object> parameters = new ArrayList<>();
+
+        if (homeBankId != null) {
+            query.append(" AND id = ?");
+            parameters.add(homeBankId);
+        }
+
+        query.append(" ORDER BY id ASC");
 
         File sqlFile = new File(backupFilePath);
 
-        try (PreparedStatement pstmt = conn.prepareStatement(query);
-                ResultSet rs = pstmt.executeQuery();
+        try (PreparedStatement pstmt = conn.prepareStatement(query.toString());
                 BufferedWriter writer = new BufferedWriter(
                         new OutputStreamWriter(new FileOutputStream(sqlFile), Charset.forName("windows-1252")))) {
 
-            while (rs.next()) {
-                int id = rs.getInt("id");
-                String url = toSqlValue(rs.getString("url"));
-                String name = toSqlValue(rs.getString("name"));
-                String priority = toSqlValue(rs.getString("priority"));
-                String searchConfig = toSqlValue(rs.getString("search_config"));
-                String optionsConfig = toSqlValue(rs.getString("options_config"));
-                String cookies = toSqlValue(rs.getString("cookies"));
-                String driverSession = toSqlValue(rs.getString("driver_session"));
-                String username = toSqlValue(rs.getString("username"));
-                String password = toSqlValue(rs.getString("password"));
-
-                // Compose SQL insert using '[null]' as string literal when applicable
-                String insert = String.format(
-                        "INSERT INTO home_banking (id, url, name, priority, search_config, options_config, cookies, driver_session, username, password) "
-                                + "VALUES (%d, '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s');",
-                        id,
-                        url,
-                        name,
-                        priority,
-                        searchConfig,
-                        optionsConfig,
-                        cookies,
-                        driverSession,
-                        username,
-                        password);
-
-                writer.write(insert + System.lineSeparator());
+            // Set parameters dynamically
+            for (int i = 0; i < parameters.size(); i++) {
+                pstmt.setObject(i + 1, parameters.get(i));
             }
 
-            writer.flush();
+            try (ResultSet rs = pstmt.executeQuery()) {
 
-            log.info("HomeBanking backup completed at: " + sqlFile.getAbsolutePath());
-            return null;
+                while (rs.next()) {
+                    int id = rs.getInt("id");
+                    String url = toSqlValue(rs.getString("url"));
+                    String name = toSqlValue(rs.getString("name"));
+                    String priority = toSqlValue(rs.getString("priority"));
+                    String searchConfig = toSqlValue(rs.getString("search_config"));
+                    String optionsConfig = toSqlValue(rs.getString("options_config"));
+                    String cookies = toSqlValue(rs.getString("cookies"));
+                    String driverSession = toSqlValue(rs.getString("driver_session"));
+                    String username = toSqlValue(rs.getString("username"));
+                    String password = toSqlValue(rs.getString("password"));
+
+                    String insert = String.format(
+                            "INSERT INTO home_banking (id, url, name, priority, search_config, options_config, cookies, driver_session, username, password) "
+                                    + "VALUES (%d, '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s');",
+                            id,
+                            url,
+                            name,
+                            priority,
+                            searchConfig,
+                            optionsConfig,
+                            cookies,
+                            driverSession,
+                            username,
+                            password);
+
+                    writer.write(insert);
+                    writer.newLine();
+                }
+
+                writer.flush();
+                log.info("HomeBanking backup completed at: " + sqlFile.getAbsolutePath());
+                return null;
+            }
 
         } catch (Exception error) {
-
             log.error("Error during home_banking backup: " + error.getMessage());
             return new ErrorMessage("Error in backup process", "Error during home_banking backup", error.getMessage());
         }
@@ -828,6 +843,64 @@ public class PerformBackup {
         }
     }
 
+    public ErrorMessage getHomeBankingNameFromFile(String sqlFilePath, String currentOrganization) {
+
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")))) {
+
+            StringBuilder currentInsert = new StringBuilder();
+            String line;
+
+            String oldName = null;
+
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+
+                currentInsert.append(line);
+
+                if (line.endsWith(";")) {
+                    String insertSql = currentInsert.toString();
+                    currentInsert.setLength(0);
+
+                    List<String> values = extractValuesFromInsert(insertSql);
+
+                    if (values.size() != 10) {
+                        continue;
+                    }
+
+                    oldName = values.get(2); // name is index 2
+
+                    // Normalize if needed (optional trim)
+                    if (oldName != null) {
+                        oldName = oldName.trim();
+                    }
+
+                    if (currentOrganization != null && currentOrganization.equalsIgnoreCase(oldName)) {
+
+                        // Organization matches → OK
+                        return null;
+                    }
+                }
+            }
+
+            // No match found
+            return new ErrorMessage(
+                    "Import Failed: Different organizations!",
+                    "Attempt to import from: " + oldName + " to " + currentOrganization,
+                    "You cannot import a Bot Job between different organizations.");
+
+        } catch (Exception e) {
+
+            log.error("Failed reading home_banking name from file: " + e.getMessage());
+
+            return new ErrorMessage(
+                    "Import Failed: File Not Found",
+                    "Import attempt failed: " + sqlFilePath,
+                    "The file was not found. Please execute the Export Bot Job first or select the correct directory.");
+        }
+    }
+
     // RESTORE
     public ErrorMessage restoreHomeBanking(Connection conn, String sqlFilePath) {
         String insertQuery =
@@ -1173,8 +1246,9 @@ public class PerformBackup {
                     // Extract old home_banking_id (index 4)
                     Integer oldHomeBankId = null;
                     try {
-                        String oldHomeBankIdStr = values.get(4);
-                        oldHomeBankId = Integer.parseInt(oldHomeBankIdStr);
+                        oldHomeBankId = homeBankIdImported == null
+                                ? parseIntSafe(values.get(4))
+                                : homeBankIdImported; // The Passed homeBankIdImported will be the key
                     } catch (NumberFormatException ex) {
                         log.info("Invalid home_banking_id format: " + values.get(4));
                     }
@@ -1182,8 +1256,9 @@ public class PerformBackup {
                     // Extract old home_url_id (index 5)
                     Integer oldHomeUrlId = null;
                     try {
-                        String oldHomeUrlIdStr = values.get(5);
-                        oldHomeUrlId = Integer.parseInt(oldHomeUrlIdStr);
+                        oldHomeUrlId = homeUrlIdImported == null
+                                ? parseIntSafe(values.get(5))
+                                : homeUrlIdImported; // The Passed homeUrlIdImported will be the key
                     } catch (NumberFormatException ex) {
                         log.info("Invalid home_url_id format: " + values.get(5));
                     }
