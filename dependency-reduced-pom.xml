@@ -62,7 +62,7 @@
           <execution>
             <id>run</id>
             <configuration>
-              <mainClass>project.Main</mainClass>
+              <mainClass>com.allinweb.ch.ARControlPanel</mainClass>
             </configuration>
           </execution>
           <execution>

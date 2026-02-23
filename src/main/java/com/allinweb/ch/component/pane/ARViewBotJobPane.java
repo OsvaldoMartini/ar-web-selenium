@@ -47,6 +47,8 @@ import javafx.scene.text.FontPosture;
 import javafx.scene.text.FontWeight;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
+import javafx.stage.DirectoryChooser;
+import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
 import lombok.extern.slf4j.Slf4j;
@@ -83,6 +85,9 @@ public class ARViewBotJobPane extends ARPane {
     Button exportJobButton;
     Button importJobButton;
     DatePicker restoreDatePicker;
+
+    TextField pathExport;
+    Button pathExportButton;
 
     Label webSiteInfoLabel;
     Label botJobNameLabel;
@@ -460,6 +465,29 @@ public class ARViewBotJobPane extends ARPane {
         restoreDatePicker.getEditor().setPrefHeight(controlHeight);
         restoreDatePicker.getEditor().setMaxHeight(controlHeight);
 
+        // ---- PATH (license/export) group: aligned + wider ----
+        pathExport = createPathTextField(ARPropertyEnum.PATH_LICENSE);
+        pathExportButton = createPathButton(ARConstants.ICON_DIRECTORY);
+
+        // same height for TextField + Button
+        pathExport.setMinHeight(controlHeight);
+        pathExport.setPrefHeight(controlHeight);
+        pathExport.setMaxHeight(controlHeight);
+
+        pathExportButton.setMinHeight(controlHeight);
+        pathExportButton.setPrefHeight(controlHeight);
+        pathExportButton.setMaxHeight(controlHeight);
+
+        // let TextField grow
+        pathExport.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(pathExport, Priority.ALWAYS);
+
+        // aligned HBox
+        HBox exportGroup = new HBox(5, pathExport, pathExportButton);
+        exportGroup.setAlignment(Pos.CENTER_LEFT);
+        exportGroup.setFillHeight(true);
+        exportGroup.setMaxWidth(Double.MAX_VALUE);
+
         boolean isMobile = !selectedBotJob.getPriority().equalsIgnoreCase("Web App");
         if (launchBotJobButton != null && openScannerButton != null) {
             launchBotJobButton.setDisable(isMobile);
@@ -473,6 +501,19 @@ public class ARViewBotJobPane extends ARPane {
 
         // Define a uniform width for the buttons
         double buttonWidth = 100;
+
+        // -------- Column constraints so the middle area can expand (cols 5-7) --------
+        // We use 9 columns: 0..8 (because you place items at column 8)
+        for (int i = 0; i < 9; i++) {
+            ColumnConstraints cc = new ColumnConstraints();
+            cc.setHgrow(Priority.NEVER);
+            cc.setFillWidth(true);
+            leftGridPane.getColumnConstraints().add(cc);
+        }
+        // Make the "wide area" expandable (for exportGroup + restoreDatePicker)
+        leftGridPane.getColumnConstraints().get(5).setHgrow(Priority.ALWAYS);
+        leftGridPane.getColumnConstraints().get(6).setHgrow(Priority.ALWAYS);
+        leftGridPane.getColumnConstraints().get(7).setHgrow(Priority.ALWAYS);
 
         // Add the top row of buttons
         refreshButton.setPrefWidth(buttonWidth);
@@ -490,8 +531,13 @@ public class ARViewBotJobPane extends ARPane {
         exportJobButton.setPrefWidth(buttonWidth);
         leftGridPane.add(exportJobButton, 4, 0);
 
+        // exportGroup spans more columns (wider)
+        leftGridPane.add(exportGroup, 5, 0, 3, 1); // colspan = 3 (cols 5,6,7)
+        GridPane.setFillWidth(exportGroup, true);
+        GridPane.setHalignment(exportGroup, HPos.LEFT);
+
         launchBotJobButton.setPrefWidth(buttonWidth + 5);
-        leftGridPane.add(launchBotJobButton, 5, 0);
+        leftGridPane.add(launchBotJobButton, 8, 0);
 
         navigationTimeButton.setPrefWidth(buttonWidth * 2); // or 220
         leftGridPane.add(navigationTimeButton, 0, 1, 2, 1); // span 2 columns
@@ -509,10 +555,13 @@ public class ARViewBotJobPane extends ARPane {
         leftGridPane.add(restoreDatePicker, 5, 1);
 
         closeBotJobButton.setPrefWidth(buttonWidth);
-        leftGridPane.add(closeBotJobButton, 6, 1);
+        leftGridPane.add(closeBotJobButton, 8, 1);
 
-        // Center the buttons
+        // Center only the "button-like" nodes (do NOT override exportGroup/restoreDatePicker alignment)
         for (Node node : leftGridPane.getChildren()) {
+            if (node == exportGroup || node == restoreDatePicker) {
+                continue;
+            }
             GridPane.setHalignment(node, HPos.CENTER);
         }
 
@@ -527,18 +576,12 @@ public class ARViewBotJobPane extends ARPane {
 
         // ChoiceBox + Button
         homeURLChoiceBox = new ChoiceBox<>();
-        // Remove fixed width
-        // homeURLChoiceBox.setPrefWidth(300);
-        // homeURLChoiceBox.setMaxWidth(300);
-        // homeURLChoiceBox.setMinWidth(300);
 
         // Apply CSS style for font size, padding, background, and text color
         homeURLChoiceBox.setStyle("-fx-font-size: 1.1em;" + "-fx-padding: 4 8 4 8;"
                 + "-fx-background-radius: 5;"
                 + "-fx-border-radius: 5;"
                 + "-fx-text-fill: white;");
-
-        //        homeURLChoiceBox.setDefaultButton(true);
 
         populateHomeUrlChoiceBox(selectedBotJob.getHomeBankingId(), selectedBotJob.getHomeUrlId());
         Tooltip tooltip = new Tooltip("Select the target URL / environment for the Bot Job");
@@ -683,7 +726,7 @@ public class ARViewBotJobPane extends ARPane {
         batCreate.setAlignment(Pos.CENTER_LEFT); // This centers vertically, keeps horizontal left
 
         HBox.setHgrow(webSiteInfoLabel, Priority.ALWAYS);
-        webSiteInfoLabel.setAlignment(Pos.CENTER); // Center text inside labe
+        webSiteInfoLabel.setAlignment(Pos.CENTER); // Center text inside label
 
         botJobContainer = new VBox(new Node[] {leftGridPane, batCreate, mainInfoRow, componentBox});
 
@@ -694,7 +737,6 @@ public class ARViewBotJobPane extends ARPane {
 
         // Use AnchorPane to ensure the VBox resizes with the window
         mainPane = new AnchorPane(botJobContainer);
-        //        mainPane.getStylesheets().add(css);
 
         AnchorPane.setTopAnchor(botJobContainer, ARConstants.SPACE_M);
         AnchorPane.setBottomAnchor(botJobContainer, ARConstants.SPACE_M);
@@ -983,13 +1025,47 @@ public class ARViewBotJobPane extends ARPane {
             updateNavigationTimeButtonColor(next);
         });
 
-        this.exportJobButton.setOnMouseClicked(
-                e -> arConfigurationPane.runExportBotJob(selectedBotJob.getHomeBankingId(), selectedBotJob.getId()));
-        this.importJobButton.setOnMouseClicked(e -> arConfigurationPane.runImportBotJob(
-                selectedBotJob.getHomeBankingId(),
-                selectedBotJob.getHomeUrlId(),
-                selectedBotJob.getId(),
-                restoreDatePicker.getValue()));
+        this.exportJobButton.setOnMouseClicked(e -> {
+            if (Strings.isNullOrEmpty(pathExport.getText().trim())) {
+                performMessage.errorMessage(
+                        "Missing Path to Export or Import Bot Job",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Action Required: Configure Export/Import Path</span>",
+                        "<span style='color: #2E7D32; font-weight: bold;'>To export or import the bot job, you must first select a valid destination/source folder.</span>",
+                        "<span style='font-style: italic;'>Please set the path (folder icon) and try again.</span>",
+                        null,
+                        0);
+                return;
+            }
+
+            arConfigurationPane.runExportBotJob(
+                    selectedBotJob.getHomeBankingId(),
+                    selectedBotJob.getId(),
+                    pathExport.getText().trim());
+        });
+        this.importJobButton.setOnMouseClicked(e -> {
+            if (Strings.isNullOrEmpty(pathExport.getText().trim())) {
+                performMessage.errorMessage(
+                        "Missing Path to Export or Import Bot Job",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Action Required: Configure Export/Import Path</span>",
+                        "<span style='color: #2E7D32; font-weight: bold;'>To export or import the bot job, you must first select a valid destination/source folder.</span>",
+                        "<span style='font-style: italic;'>Please set the path (folder icon) and try again.</span>",
+                        null,
+                        0);
+                return;
+            }
+
+            arConfigurationPane.runImportBotJob(
+                    selectedBotJob.getHomeBankingId(),
+                    selectedBotJob.getHomeUrlId(),
+                    selectedBotJob.getId(),
+                    restoreDatePicker.getValue(),
+                    pathExport.getText().trim());
+        });
+
+        this.pathExportButton.setOnMouseClicked(e -> {
+            Stage currentStage = (Stage) pathExport.getScene().getWindow();
+            openChooserFor(pathExport, currentStage, true);
+        });
 
         this.launchBotJobButton.setOnMouseClicked((e) -> {
             ARPropertyManager managerProps = arPropertyManager;
@@ -1607,5 +1683,45 @@ public class ARViewBotJobPane extends ARPane {
 
         return ARPropertyEnum.ANDROID.getValue().equalsIgnoreCase(priority.trim())
                 || ARPropertyEnum.IOS.getValue().equalsIgnoreCase(priority.trim());
+    }
+
+    private TextField createPathTextField(ARPropertyEnum property) {
+        TextField textField = new TextField();
+        textField.setText(arPropertyManager.getProperty(property));
+        AnchorPane.setTopAnchor(textField, ARConstants.SPACE_ZERO);
+        AnchorPane.setBottomAnchor(textField, ARConstants.SPACE_ZERO);
+        AnchorPane.setRightAnchor(textField, ARConstants.SPACE_XL);
+        AnchorPane.setLeftAnchor(textField, ARConstants.SPACE_ZERO);
+        return textField;
+    }
+
+    private void openChooserFor(TextField field, Stage ownerStage, boolean isDirectory) {
+        String folderBase = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        if (Strings.isNullOrEmpty(folderBase)) {
+            folderBase = System.getProperty("user.dir");
+        }
+
+        File startingPoint = new File(folderBase);
+        String chosenPath =
+                isDirectory ? openDirectoryChooserFor(startingPoint, ownerStage) : openFileChooserFor(startingPoint);
+        if (!Strings.isNullOrEmpty(chosenPath)) {
+            field.setText(chosenPath);
+        }
+    }
+
+    private String openFileChooserFor(File startingDirectory) {
+        FileChooser chooser = new FileChooser();
+        chooser.setInitialDirectory(startingDirectory);
+        File chosenPath = chooser.showOpenDialog(new Stage());
+        return chosenPath.getAbsolutePath();
+    }
+
+    private String openDirectoryChooserFor(File startingDirectory, Stage ownerStage) {
+        DirectoryChooser chooser = new DirectoryChooser();
+        chooser.setInitialDirectory(startingDirectory);
+
+        // Make sure the dialog is shown in front of the provided stage
+        File chosenPath = chooser.showDialog(ownerStage);
+        return chosenPath != null ? chosenPath.getAbsolutePath() : null;
     }
 }
