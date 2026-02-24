@@ -659,7 +659,7 @@ public class ARConfigurationPane extends ARPane {
                 String databasePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
 
                 String backupFilePath = databasePath + File.separator + "backup_home_banking_" + date + ".sql";
-                ErrorMessage errorMessage = performBackup.backupHomeBanking(conn, backupFilePath);
+                ErrorMessage errorMessage = performBackup.backupHomeBanking(conn, backupFilePath, null);
 
                 if (errorMessage == null) {
                     backupFilePath = databasePath + File.separator + "backup_home_url_" + date + ".sql";
@@ -1439,11 +1439,14 @@ public class ARConfigurationPane extends ARPane {
         try (Connection conn = performDataBase.getConnection()) {
             performBackup.initialize(conn);
 
-            ErrorMessage errorMessage;
+            String backupFilePath = exportPath + File.separator + "backup_(BY_BOT_JOB)_home_banking_" + date + ".sql";
+            ErrorMessage errorMessage = performBackup.backupHomeBanking(conn, backupFilePath, homeBankingId);
 
             // 1) bot_job (filtered)
-            String backupFilePath = exportPath + File.separator + "backup_(BY_BOT_JOB)_bot_job_" + date + ".sql";
-            errorMessage = performBackup.backupBotJob(conn, backupFilePath, homeBankingId, botJobId);
+            if (errorMessage == null) {
+                backupFilePath = exportPath + File.separator + "backup_(BY_BOT_JOB)_bot_job_" + date + ".sql";
+                errorMessage = performBackup.backupBotJob(conn, backupFilePath, homeBankingId, botJobId);
+            }
 
             // 2) block (filtered by bot_job_id)
             if (errorMessage == null) {
@@ -1495,6 +1498,7 @@ public class ARConfigurationPane extends ARPane {
 
     public void runImportBotJob(
             Integer homeBankIdImported,
+            String organizationName,
             Integer homeUrlIdImported,
             Integer botJobIdImported,
             LocalDate selectedDate,
@@ -1546,9 +1550,15 @@ public class ARConfigurationPane extends ARPane {
                 performBackup.initialize(conn);
 
                 String backupFilePath =
-                        importPath + File.separator + "backup_(BY_BOT_JOB)_bot_job_" + formattedDate + ".sql";
-                ErrorMessage errorMessage = performBackup.restoreBotJob(
-                        conn, backupFilePath, homeBankIdImported, homeUrlIdImported, botJobIdImported);
+                        importPath + File.separator + "backup_(BY_BOT_JOB)_home_banking_" + formattedDate + ".sql";
+                ErrorMessage errorMessage = performBackup.getHomeBankingNameFromFile(backupFilePath, organizationName);
+
+                if (errorMessage == null) {
+                    backupFilePath =
+                            importPath + File.separator + "backup_(BY_BOT_JOB)_bot_job_" + formattedDate + ".sql";
+                    errorMessage = performBackup.restoreBotJob(
+                            conn, backupFilePath, homeBankIdImported, homeUrlIdImported, botJobIdImported);
+                }
 
                 if (errorMessage == null) {
                     backupFilePath =

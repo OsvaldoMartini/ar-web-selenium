@@ -1056,6 +1056,7 @@ public class ARViewBotJobPane extends ARPane {
 
             arConfigurationPane.runImportBotJob(
                     selectedBotJob.getHomeBankingId(),
+                    selectedBotJob.getHomeBankingLoadDTO().getName(),
                     selectedBotJob.getHomeUrlId(),
                     selectedBotJob.getId(),
                     restoreDatePicker.getValue(),
