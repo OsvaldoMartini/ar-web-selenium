@@ -8,6 +8,8 @@ import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
 import com.allinweb.ch.component.scene.ARScannedElementScene;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.driver.ARWebDriver;
+import com.allinweb.ch.executors.AppExecutors;
+import com.allinweb.ch.executors.ExecutorsManager;
 import com.allinweb.ch.facade.*;
 import com.allinweb.ch.model.*;
 import com.allinweb.ch.readersAndWriters.ExcelReader;
@@ -30,9 +32,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
@@ -59,11 +59,13 @@ import javafx.scene.text.Text;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import javafx.stage.Stage;
+import javax.swing.*;
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.*;
+import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.slf4j.Logger;
@@ -118,7 +120,16 @@ public class ARScannedElementPane extends ARPane {
     String delimiterCSV = null;
     private Stage stage;
     private Set<String> windowHandles;
-    private ExecutorService executorServicePreLaunch;
+    // Shared executors from central manager (DO NOT shutdown them here)
+    private final ExecutorService executorServicePreLaunch =
+            AppExecutors.get().executor(ExecutorsManager.Pool.PRELAUNCH);
+
+    private final ScheduledExecutorService screenshotScheduler =
+            AppExecutors.get().scheduler(ExecutorsManager.Pool.SCREENSHOT_SCHEDULER);
+
+    // Handle to cancel the periodic task (instead of shutting down scheduler)
+    private ScheduledFuture<?> screenshotFuture;
+
     private int portSocketInitial = 54525;
     private BotJobLoadDTO currentBotJob;
     private static String currentBotJobName = null;
@@ -2070,8 +2081,6 @@ public class ARScannedElementPane extends ARPane {
             performActions.setInterceptBotJob(true);
             setInterceptBotJob(true);
             isJobRunning.set(false);
-            executorServicePreLaunch = null;
-
             if (!lastBrowserTab()) {
                 return;
             }
@@ -2511,30 +2520,24 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private void recallJob() {
-        if (isJobRunning.compareAndSet(false, true)) { // Try to set to true if currently false
+        if (isJobRunning.compareAndSet(false, true)) {
             try {
-                if (executorServicePreLaunch == null || executorServicePreLaunch.isShutdown()) {
-                    executorServicePreLaunch = Executors.newSingleThreadExecutor();
-                }
+                //                startScreenshotLoop();
 
                 executorServicePreLaunch.submit(() -> {
                     try {
                         executeJob();
-                        launchBotJobButton.setDisable(false);
                     } finally {
                         isJobRunning.set(false);
+                        stopScreenshotLoop();
                     }
                 });
-            } catch (Exception ignore) {
-                // Log the error properly instead of ignoring
-
-                log.error("Error submitting to executorServicePreLaunch: " + ignore.getMessage());
-                isJobRunning.set(false); // Ensure flag is reset on submission failure
+            } catch (Exception e) {
+                isJobRunning.set(false);
+                stopScreenshotLoop();
+                log.error("Error submitting to executorServicePreLaunch: {}", e.getMessage(), e);
             }
         } else {
-            // Optionally log that a new execution was requested but is already running
-            log.info("recallJob() requested, but executeJob() is already running.");
-
             log.info("recallJob() requested while executeJob() was running.");
         }
 
@@ -2544,22 +2547,45 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private void shutDownExecutorService(ExecutorService executorService) {
-        if (executorService == null || executorService.isShutdown()) {
+    //    private void sendScreenshotToListener() {
+    //        if (screenShotListener == null) {
+    //            return;
+    //        }
+    //        BufferedImage screenshot = takeScreenshotFast();
+    //        if (screenshot == null) {
+    //            return;
+    //        }
+    //
+    //        SwingUtilities.invokeLater(() -> screenShotListener.onScreenShot(screenshot));
+    //    }
+
+    private void startScreenshotLoop() {
+        // already running?
+        if (screenshotFuture != null && !screenshotFuture.isCancelled() && !screenshotFuture.isDone()) {
             return;
         }
-        executorService.shutdown();
-        try {
-            if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
-                executorService.shutdownNow();
-                if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
-                    log.warn("ExecutorService did not terminate");
-                }
-            }
-        } catch (InterruptedException error) {
-            executorService.shutdownNow();
-            Thread.currentThread().interrupt();
-            log.warn("ExecutorService did not terminate: " + error.getMessage());
+
+        screenshotFuture = screenshotScheduler.scheduleAtFixedRate(
+                () -> {
+                    try {
+                        if (!isJobRunning.get()) {
+                            stopScreenshotLoop(); // cancels only this task
+                            return;
+                        }
+                        //                        sendScreenshotToListener();
+                    } catch (Exception e) {
+                        log.warn("Error in screenshot loop", e);
+                    }
+                },
+                0,
+                500,
+                TimeUnit.MILLISECONDS);
+    }
+
+    private void stopScreenshotLoop() {
+        if (screenshotFuture != null) {
+            screenshotFuture.cancel(true);
+            screenshotFuture = null;
         }
     }
 
@@ -3080,6 +3106,7 @@ public class ARScannedElementPane extends ARPane {
         boolean success = true;
         boolean stopAll = false;
         boolean firstRound = true;
+        boolean anyFailure = false;
         boolean alreadyLogged = false;
         long botJobStartTime = System.nanoTime();
         long totalExecutionTime = 0;
@@ -4234,21 +4261,15 @@ public class ARScannedElementPane extends ARPane {
                                         //                                        }
 
                                         // Already Maps List<TargetElement>
-                                        //
-                                        // androidHelper.scanElementsWithCanonicalXmlOnly(
-                                        //
-                                        // androidDevice.getCurrentDriver());
+                                        // androidHelper.scanElementsWithCanonicalXmlOnly(androidDevice.getCurrentDriver());
 
-                                        //                                        webElementFound =
-                                        // androidDevice.searchElement(
-                                        //                                                splitDTO, actions,
+                                        // webElementFound = androidDevice.searchElement(splitDTO, actions,
                                         // performLists.getListTargetElements());
 
                                         if (webElementFound == null) {
                                             appendLog(
                                                     currentInstruction.getName() + "- Not Found- using coordinates",
                                                     "warn");
-                                            //
                                             // androidDevice.executeAction(webElementFound, splitDTO, actions);
                                         }
                                     }
@@ -4359,9 +4380,7 @@ public class ARScannedElementPane extends ARPane {
                                             SplitDTO.applyAttrDataFromReferences(splitDTO, refInstruction);
                                             SplitDTO.applyInstructionToSplit(splitDTO, refInstruction);
 
-                                            //                                            webElementFound =
-                                            // androidDevice.searchElement(
-                                            //                                                    splitDTO, actions,
+                                            // webElementFound = androidDevice.searchElement(splitDTO, actions,
                                             // performLists.getListTargetElements());
                                         }
 
@@ -4847,6 +4866,7 @@ public class ARScannedElementPane extends ARPane {
                                 }
                             } else if (!alreadyLogged) {
                                 appendLog("[TEST]" + resultActions, "error");
+                                anyFailure = true;
                             }
 
                             alreadyLogged = false;
@@ -4957,10 +4977,9 @@ public class ARScannedElementPane extends ARPane {
                                 }
 
                                 for (int i = 0; i < timesSwipe; i++) {
-                                    //                                    androidDevice.swipeUp();
-                                    // androidDevice.swipeVertical(true); // false = down
-                                    //                                    androidDevice.swipeADB(splitDTO.getDeviceId(),
-                                    // true);
+                                    //// androidDevice.swipeUp();
+                                    //// androidDevice.swipeVertical(true); // false = down
+                                    // androidDevice.swipeADB(splitDTO.getDeviceId(), true);
                                 }
 
                                 // Excel Report and Log
@@ -5001,11 +5020,9 @@ public class ARScannedElementPane extends ARPane {
                                 }
 
                                 for (int i = 0; i < timesSwipe; i++) {
-                                    //                                    androidDevice.swipeDown();
-                                    //                                    androidDevice.swipeVertical(false); // false =
-                                    // down
-                                    //                                    androidDevice.swipeADB(splitDTO.getDeviceId(),
-                                    // false);
+                                    //// androidDevice.swipeDown();
+                                    //// androidDevice.swipeVertical(false); // false = down
+                                    // androidDevice.swipeADB(splitDTO.getDeviceId(), false);
                                 }
                                 // Excel Report and Log
                                 performActions.logAndReport(
@@ -5032,6 +5049,9 @@ public class ARScannedElementPane extends ARPane {
                             if (!success
                                     && !byPassFlagLoop
                                     && currentCondition.equals(ARExecution.ConditionStatus.NONE)) {
+
+                                // Record failure but do NOT alter execution flow
+                                anyFailure = true;
 
                                 // Reset success so execution can continue
                                 success = true;
@@ -5177,17 +5197,7 @@ public class ARScannedElementPane extends ARPane {
         }
 
         // PRINT END BASE LOG//
-
-        String[] parts = resultActions.split("\\|", -1);
-
-        String firstFour = String.join(
-                "|",
-                parts.length > 0 ? parts[0] : "",
-                parts.length > 1 ? parts[1] : "",
-                parts.length > 2 ? parts[2] : "",
-                parts.length > 3 ? parts[3] : "");
-
-        if (success) {
+        if (!anyFailure) {
             baseLogString = blocksLoaded.get(0).getName()
                     + ARConstantsEngine.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.END)
@@ -5196,29 +5206,30 @@ public class ARScannedElementPane extends ARPane {
 
             if (isInterceptBotJob()) {
                 updateRowStatusAndNotify("yellow"); // #fcba03 deep carmine yellow
-                performMessage.showCustomModalDialogDragWin11TimerAuto(
+                performMessage.showCustomModalDialogDragWin11Timer(
                         "Bot-Job Interrupted successfully",
                         currentBotJobName,
                         "Last Execution:",
-                        firstFour,
-                        "Browser will close in",
+                        resultActions,
+                        "The Device Connection is going to close in",
                         false,
                         "OK",
                         null,
                         300,
-                        10);
+                        25);
             } else {
                 updateRowStatusAndNotify("green"); // #1d9c06 deep carmine green
-                respModal = performMessage.showCustomModalDialogDragWin11(
+                respModal = performMessage.showCustomModalDialogDragWin11Timer(
                         "Bot-Job Finished - successfully",
                         currentBotJobName,
                         "Last Execution:",
-                        firstFour,
-                        null,
+                        resultActions,
+                        "The Device Connection is going to close in",
                         false,
-                        "OK",
-                        "Close Browser",
-                        300);
+                        "Continue scan",
+                        "Close Connection",
+                        300,
+                        25);
             }
 
             performActions.setInterceptBotJob(false);
@@ -5226,8 +5237,6 @@ public class ARScannedElementPane extends ARPane {
             isJobRunning.set(false);
 
         } else {
-            countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: red;");
-            countdownTextField.setText(resultActions);
             baseLogString = blocksLoaded.get(0).getName()
                     + ARConstantsEngine.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.END)
@@ -5238,42 +5247,44 @@ public class ARScannedElementPane extends ARPane {
 
             if (isInterceptBotJob()) {
                 updateRowStatusAndNotify("yellow"); // #fcba03 deep carmine yellow
-                performMessage.showCustomModalDialogDragWin11TimerAuto(
+                performMessage.showCustomModalDialogDragWin11Timer(
                         "Bot-Job Interrupted successfully",
                         currentBotJobName,
                         "Last Execution:",
-                        firstFour,
-                        "Browser will close in",
+                        resultActions,
+                        "The Device Connection is going to close in",
                         false,
                         "OK",
                         null,
                         300,
-                        10);
+                        25);
 
             } else {
                 updateRowStatusAndNotify("red"); // #FF3131 deep carmine red
                 if (webElementWork) {
-                    respModal = performMessage.showCustomModalDialogDragWin11(
+                    respModal = performMessage.showCustomModalDialogDragWin11Timer(
                             "Bot-Job Finished - successfully",
                             currentBotJobName,
                             "Last Execution:",
-                            firstFour,
-                            null,
+                            resultActions,
+                            "The Device Connection is going to close in",
                             false,
-                            "OK",
-                            "Close Browser",
-                            300);
+                            "Continue scan",
+                            "Close Connection",
+                            300,
+                            25);
                 } else {
-                    respModal = performMessage.showCustomModalDialogDragWin11(
+                    respModal = performMessage.showCustomModalDialogDragWin11Timer(
                             "Process Execution Terminated",
                             !Strings.isNullOrEmpty(failedMessage) ? failedMessage : "Failed:",
                             "Last Execution:",
-                            firstFour,
-                            null,
+                            resultActions,
+                            "The Device Connection is going to close in",
                             true,
-                            "OK",
-                            "Close Browser",
-                            350);
+                            "Continue scan",
+                            "Close Connection",
+                            350,
+                            25);
                 }
             }
         }
@@ -5284,7 +5295,6 @@ public class ARScannedElementPane extends ARPane {
             currentARWebDriver.getCurrentDriver().quit();
         }
 
-        shutDownExecutorService(executorServicePreLaunch);
         performActions.setInterceptBotJob(true);
         setInterceptBotJob(false);
         isJobRunning.set(false);
