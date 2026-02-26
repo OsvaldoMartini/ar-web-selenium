@@ -1159,22 +1159,17 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								//                                        }
 
 								// Already Maps List<TargetElement>
-								//
-								// androidHelper.scanElementsWithCanonicalXmlOnly(
-								//
-								// androidDevice.getCurrentDriver());
+								androidHelper.scanElementsWithCanonicalXmlOnly(
+										androidDevice.getCurrentDriver());
 
-								//                                        webElementFound =
-								// androidDevice.searchElement(
-								//                                                splitDTO, actions,
-								// performLists.getListTargetElements());
+								webElementFound = androidDevice.searchElement(
+										splitDTO, actions, performLists.getListTargetElements());
 
 								if (webElementFound == null) {
 									appendLog(
 											currentInstruction.getName() + "- Not Found- using coordinates",
 											"warn");
-									//
-									// androidDevice.executeAction(webElementFound, splitDTO, actions);
+									androidDevice.executeAction(webElementFound, splitDTO, actions);
 								}
 							}
 
@@ -1284,10 +1279,8 @@ if (extractedData.getNumberOfDataRows() > 0) {
 									SplitDTO.applyAttrDataFromReferences(splitDTO, refInstruction);
 									SplitDTO.applyInstructionToSplit(splitDTO, refInstruction);
 
-									//                                            webElementFound =
-									// androidDevice.searchElement(
-									//                                                    splitDTO, actions,
-									// performLists.getListTargetElements());
+									webElementFound = androidDevice.searchElement(
+											splitDTO, actions, performLists.getListTargetElements());
 								}
 
 								resultActions = performActions.performOperatorActions(
@@ -1885,8 +1878,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 						for (int i = 0; i < timesSwipe; i++) {
 							//                                    androidDevice.swipeUp();
 							// androidDevice.swipeVertical(true); // false = down
-							//                                    androidDevice.swipeADB(splitDTO.getDeviceId(),
-							// true);
+							androidDevice.swipeADB(splitDTO.getDeviceId(), true);
 						}
 
 						// Excel Report and Log
@@ -1930,8 +1922,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 							//                                    androidDevice.swipeDown();
 							//                                    androidDevice.swipeVertical(false); // false =
 							// down
-							//                                    androidDevice.swipeADB(splitDTO.getDeviceId(),
-							// false);
+							androidDevice.swipeADB(splitDTO.getDeviceId(), false);
 						}
 						// Excel Report and Log
 						performActions.logAndReport(

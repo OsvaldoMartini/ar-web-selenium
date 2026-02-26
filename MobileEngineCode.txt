@@ -144,7 +144,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 
 				newExcelFieldName = blockLoad.getExportFile();
 				// Always loads ExcelWrite columns per block
-				ErrorMessage errorMessage = performDataBase.loadAllColumnsExcelWrite(
+				ErrorMessage errorMessage = performDBEngine.loadAllColumnsExcelWrite(
 						"instruction", currentBotJob.getId(), blockLoad.getId());
 				if (errorMessage == null) {
 					setCurrentColumns(performLists.getExcelColumnNames());

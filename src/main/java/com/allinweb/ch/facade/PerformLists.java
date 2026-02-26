@@ -84,6 +84,12 @@ public class PerformLists {
                 }
             }
         }
+
+        log.info(
+                "PerformLists instance={} cl={}",
+                System.identityHashCode(instance),
+                instance.getClass().getClassLoader());
+
         return instance;
     }
 
