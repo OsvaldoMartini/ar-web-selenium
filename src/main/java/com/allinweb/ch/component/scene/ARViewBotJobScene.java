@@ -369,7 +369,7 @@ public class ARViewBotJobScene extends ARScene {
             String serverUri = "ws://localhost:" + portSocket + "/websocket?sessionId=" + sessionId;
             try {
                 WebSocketContainer container = ContainerProvider.getWebSocketContainer();
-                container.connectToServer(this, new URI(serverUri));
+                container.connectToServer(ARViewBotJobScene.getInstance(), new URI(serverUri));
                 latch.await();
                 startKeepAlivePings();
                 isConnectWebSocket = true;
@@ -405,7 +405,7 @@ public class ARViewBotJobScene extends ARScene {
 
     private void stepsInsertManyDTO(SplitDTO processDTO, boolean isMany) {
         String insertMsg = isMany ? "Insert ALL" : "Insert one Element";
-        currentBlockId = validateBlockDB("block", this.selectedBotJob.getId(), insertMsg);
+        currentBlockId = validateBlockDB("block", this.selectedBotJob.getId(), processDTO.getBlockId(), insertMsg);
         if (currentBlockId > 0) {
             performDataBase.loadInstructions(selectedBotJob.getId(), currentBlockId, -1, "instruction");
             List<InstructionLoad> instruc = performLists.getListInstruction();
@@ -535,12 +535,9 @@ public class ARViewBotJobScene extends ARScene {
     }
 
     public int createBlockIfNone(String blockTable, int whereId) {
+        if (performLists.getListBlock().isEmpty()) {
 
-        // It Prevents Start without blocks
-        ErrorMessage errorMessage = performDataBase.loadBlocks(whereId, null, blockTable);
-        if (errorMessage == null && performLists.getListBlock().isEmpty()) {
-
-            errorMessage =
+            ErrorMessage errorMessage =
                     performDataBase.initiateNewBlock(blockTable, whereId, "Default Block", "Default Block", 1, false);
 
             if (errorMessage == null) {
@@ -555,17 +552,35 @@ public class ARViewBotJobScene extends ARScene {
                 performMessage.errorMessageOperationFailed(errorMessage);
             }
         } else {
-            if (!performLists.getListBlock().isEmpty()) {
-                return performLists.getListBlock().get(0).getId();
-            }
+            return performLists.getListBlock().get(0).getId();
         }
         return -1;
     }
 
-    public int validateBlockDB(String blockTable, int whereId, String message) {
+    public int validateBlockDB(String blockTable, int whereId, Integer blockId, String message) {
+        // It Prevents Start without blocks
+        ErrorMessage errorMessage = performDataBase.loadBlocks(whereId, null, blockTable);
+
+        if (errorMessage != null) {
+            log.error(
+                    "Error: {} Title: {} Message: {}",
+                    errorMessage.getErrorHeader(),
+                    errorMessage.getErrorTitle(),
+                    errorMessage.getErrorMessage());
+            return -1;
+        }
+
+        if (blockId != null) {
+            BlockLoadDTO blockFound = performLists.getBlockLoadByBankId(blockTable, whereId, blockId);
+            if (blockFound != null) {
+                currentBlockId = blockFound.getId();
+                return blockFound.getId();
+            }
+        }
+
         int newBlockID = createBlockIfNone(blockTable, whereId);
         if (newBlockID > 0) {
-            ErrorMessage errorMessage = performDataBase.loadBlocks(whereId, "", blockTable);
+            errorMessage = performDataBase.loadBlocks(whereId, "", blockTable);
             if (errorMessage != null) {
                 log.error(
                         "Error: {} Title: {} Message: {}",

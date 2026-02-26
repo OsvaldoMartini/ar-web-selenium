@@ -433,7 +433,7 @@ public class ARNewCommandScene extends ARScene {
             String serverUri = "ws://localhost:" + portSocket + "/websocket?sessionId=" + sessionId;
             try {
                 WebSocketContainer container = ContainerProvider.getWebSocketContainer();
-                container.connectToServer(this, new URI(serverUri));
+                container.connectToServer(ARNewCommandScene.getInstance(), new URI(serverUri));
                 latch.await();
                 startKeepAlivePings();
                 isConnectWebSocket = true;
