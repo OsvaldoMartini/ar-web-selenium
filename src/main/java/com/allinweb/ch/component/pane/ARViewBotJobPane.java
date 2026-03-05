@@ -250,7 +250,8 @@ public class ARViewBotJobPane extends ARPane {
             }
         }
 
-        boolean isMobile = !selectedBotJob.getPriority().equalsIgnoreCase("Web App");
+        boolean isMobile = (!selectedBotJob.getPriority().equalsIgnoreCase("Web App")
+                && !selectedBotJob.getPriority().equalsIgnoreCase("Rest Api"));
         if (launchBotJobButton != null && openScannerButton != null) {
             launchBotJobButton.setDisable(isMobile);
             openScannerButton.setDisable(isMobile);
@@ -488,7 +489,8 @@ public class ARViewBotJobPane extends ARPane {
         exportGroup.setFillHeight(true);
         exportGroup.setMaxWidth(Double.MAX_VALUE);
 
-        boolean isMobile = !selectedBotJob.getPriority().equalsIgnoreCase("Web App");
+        boolean isMobile = (!selectedBotJob.getPriority().equalsIgnoreCase("Web App")
+                && !selectedBotJob.getPriority().equalsIgnoreCase("Rest Api"));
         if (launchBotJobButton != null && openScannerButton != null) {
             launchBotJobButton.setDisable(isMobile);
             openScannerButton.setDisable(isMobile);
@@ -1115,7 +1117,8 @@ public class ARViewBotJobPane extends ARPane {
                 return;
             }
 
-            if (!selectedBotJob.getPriority().equalsIgnoreCase("Web App")) {
+            if (!selectedBotJob.getPriority().equalsIgnoreCase("Web App")
+                    && !selectedBotJob.getPriority().equalsIgnoreCase("Rest Api")) {
                 performMessage.errorMessage(
                         "Mobile Bot Job Selected",
                         "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Mobile Bot Jobs can only be executed from AR Mobile!</span>",

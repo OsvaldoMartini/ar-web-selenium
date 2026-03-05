@@ -54,6 +54,7 @@ public class ARNewBotJobPane extends ARPane {
     private RadioButton rbWeb;
     private RadioButton rbAndroid;
     private RadioButton rbIos;
+    private RadioButton rbRestAppi;
     private HBox groupOptions;
 
     private Pane mainPane;
@@ -182,12 +183,16 @@ public class ARNewBotJobPane extends ARPane {
         rbIos = new RadioButton("iOS Apps");
         rbIos.setToggleGroup(appTypeGroup);
 
+        rbRestAppi = new RadioButton("Rest Api");
+        rbRestAppi.setToggleGroup(appTypeGroup);
+
         // Optional styling
         rbWeb.setStyle("-fx-font-size: 13;");
         rbAndroid.setStyle("-fx-font-size: 13;");
         rbIos.setStyle("-fx-font-size: 13;");
+        rbRestAppi.setStyle("-fx-font-size: 13;");
 
-        groupOptions = new HBox(15, rbWeb, rbAndroid, rbIos);
+        groupOptions = new HBox(15, rbWeb, rbAndroid, rbIos, rbRestAppi);
         //        groupOptions = new HBox(15, rbWeb);
         groupOptions.setAlignment(Pos.CENTER);
         groupOptions.setPadding(new Insets(0, 0, 10, 0));
@@ -322,6 +327,7 @@ public class ARNewBotJobPane extends ARPane {
             String projectType = "Web App";
             if ("Android".equals(appType)) projectType = "Android";
             else if ("iOS".equals(appType)) projectType = "iOS";
+            else if ("Rest Api".equals(appType)) projectType = "Rest Api";
 
             // Validation: simply check if rawName is empty or null
             boolean isMeaningfulEmpty = Strings.isNullOrEmpty(rawName);

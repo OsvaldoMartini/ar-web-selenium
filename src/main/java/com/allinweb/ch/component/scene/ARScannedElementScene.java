@@ -174,7 +174,7 @@ public class ARScannedElementScene extends ARScene {
             String serverUri = "ws://localhost:" + portSocket + "/websocket?sessionId=" + sessionId;
             try {
                 WebSocketContainer container = ContainerProvider.getWebSocketContainer();
-                container.connectToServer(ARScannedElementPane.getInstance(), new URI(serverUri));
+                container.connectToServer(ARScannedElementScene.getInstance(), new URI(serverUri));
                 latch.await();
                 startKeepAlivePings();
                 isConnectWebSocket = true;
