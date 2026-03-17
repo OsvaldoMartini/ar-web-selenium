@@ -1,0 +1,8 @@
+{
+  "shell": {
+    "language":   "Language",
+    "themeDark":  "Dark",
+    "themeLight": "Light",
+    "title":      "CAPI Tools"
+  }
+}
