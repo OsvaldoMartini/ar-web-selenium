@@ -124,6 +124,10 @@ public class ARViewBotJobPane extends ARPane {
     private WebEngine webEngineTasks;
     private WebView webViewComp = new WebView();
     private WebEngine webEngineComp;
+    private WebView webViewApiTool = new WebView();
+    private WebEngine webEngineApiTool;
+    private boolean isApiToolVisible = false;
+    Button apiToolToggleButton;
     private ARScene arScene;
     private BotJobLoadDTO selectedBotJob;
     // Private constructor to prevent instantiation
@@ -333,6 +337,7 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     private void buildViewComponent() {
+        // ── botJobTasks (unchanged) ─────────────────────────────────────────
         if (performLists.getListBotJob().isEmpty()) {
             ErrorMessage errorMessage = performDBEngine.loadCompleteJobs(selectedBotJob.getId());
             if (errorMessage != null) {
@@ -343,7 +348,6 @@ public class ARViewBotJobPane extends ARPane {
         setPayloadEmpty("botJobTasks");
         String jsonData = gson.toJson(payloadEmpty);
 
-        // Load blocks based on the BotJobLoadDTO instead of blockDTOObservableList
         if (!performLists.getListBotJob().isEmpty()) {
             List<InstructionLoad> instructions = performLists.buildJsonViewData(performLists.getListBotJob());
             if (!instructions.isEmpty()) {
@@ -356,8 +360,7 @@ public class ARViewBotJobPane extends ARPane {
         webEngineTasks = webViewTasks.getEngine();
         webEngineTasks.javaScriptEnabledProperty().set(true);
 
-        // (SENDER: insertTool) -> botJobTasks
-        sessionId = "botJobTasks"; // + selectedBotJob.getId();
+        sessionId = "botJobTasks";
         buildWebView(
                 webEngineTasks,
                 jsonData,
@@ -367,11 +370,10 @@ public class ARViewBotJobPane extends ARPane {
                 selectedBotJob.getId(),
                 selectedBotJob.getName());
 
+        // ── componentTasks (unchanged) ──────────────────────────────────────
         if (performLists.getListBotJobComp().isEmpty()) {
-
             ErrorMessage errorMessage = performDataBase.loadComponentsComplete(
                     selectedBotJob.getHomeBankingId(), selectedBotJob.getId(), selectedBotJob.getName());
-
             if (errorMessage != null) {
                 performMessage.errorMessageOperationFailed(errorMessage);
             }
@@ -392,11 +394,27 @@ public class ARViewBotJobPane extends ARPane {
         webEngineComp = webViewComp.getEngine();
         webEngineComp.javaScriptEnabledProperty().set(true);
 
-        // (SENDER: insertTool) -> botJobTasks -> componentTasks
-        sessionId = "componentTasks"; // + selectedBotJob.getId();
+        sessionId = "componentTasks";
         buildWebView(
                 webEngineComp,
                 jsonData,
+                portInitial,
+                sessionId,
+                selectedBotJob.getHomeBankingId(),
+                selectedBotJob.getId(),
+                selectedBotJob.getName());
+
+        // ── capiApiTestToolAI  ← NEW ──────────────────────────────────────────────
+        // Load the React app in the third WebView with sessionId = "capiApiTestToolAI".
+        // We pass an empty JSON array as payload; the React component manages its
+        // own internal data (see capiApiTestToolAI.tsx and index_patch.tsx).
+        webEngineApiTool = webViewApiTool.getEngine();
+        webEngineApiTool.javaScriptEnabledProperty().set(true);
+
+        sessionId = "capiApiTestToolAI";
+        buildWebView(
+                webEngineApiTool,
+                "[]",
                 portInitial,
                 sessionId,
                 selectedBotJob.getHomeBankingId(),
@@ -441,6 +459,17 @@ public class ARViewBotJobPane extends ARPane {
                 "Generate", ARConstants.SPACE_ZERO, ARConstants.ICON_EXCEL, ARConstants.SPACE_M, new Insets(5.0D));
         this.closeBotJobButton = builder.buildButton(
                 "Close", ARConstants.SPACE_ZERO, ARConstants.ICON_CROSS, ARConstants.SPACE_M, new Insets(5.0D));
+
+        // Define a uniform width for the buttons
+        double buttonWidth = 100;
+
+        // ── API Test Tool toggle button   ─────────────────────────────
+        this.apiToolToggleButton = new Button("🔧 API Tool");
+        this.apiToolToggleButton.setPrefWidth(buttonWidth);
+        this.apiToolToggleButton.setPadding(new Insets(5.0D));
+        this.apiToolToggleButton.setFocusTraversable(false);
+        this.apiToolToggleButton.setStyle(
+                "-fx-background-color: #37474F; -fx-text-fill: white; -fx-font-weight: bold;");
 
         exportJobButton = builder.buildButton("Export Job");
         exportJobButton.setMaxHeight(ARConstants.SPACE_XXS);
@@ -501,9 +530,6 @@ public class ARViewBotJobPane extends ARPane {
         leftGridPane.setVgap(10); // Vertical spacing between elements
         leftGridPane.setHgap(10); // Horizontal spacing between elements
 
-        // Define a uniform width for the buttons
-        double buttonWidth = 100;
-
         // -------- Column constraints so the middle area can expand (cols 5-7) --------
         // We use 9 columns: 0..8 (because you place items at column 8)
         for (int i = 0; i < 9; i++) {
@@ -558,6 +584,9 @@ public class ARViewBotJobPane extends ARPane {
 
         closeBotJobButton.setPrefWidth(buttonWidth);
         leftGridPane.add(closeBotJobButton, 8, 1);
+
+        apiToolToggleButton.setPrefWidth(buttonWidth);
+        leftGridPane.add(apiToolToggleButton, 6, 1);
 
         // Center only the "button-like" nodes (do NOT override exportGroup/restoreDatePicker alignment)
         for (Node node : leftGridPane.getChildren()) {
@@ -1250,6 +1279,44 @@ public class ARViewBotJobPane extends ARPane {
                 this.componentContainer.setManaged(true);
             }
             isComponentBoxVisible = !isComponentBoxVisible;
+        });
+
+        // ── API Tool toggle handler  ─────────────────────────────────
+        apiToolToggleButton.setOnMouseClicked((e) -> {
+            if (isApiToolVisible) {
+                // ── Switch BACK to botJobTasks view ────────────────────────
+                componentBox.getChildren().clear();
+                componentBox.getChildren().add(webViewTasks);
+
+                // Restore grow constraints on the tasks WebView
+                HBox.setHgrow(webViewTasks, Priority.ALWAYS);
+                VBox.setVgrow(webViewTasks, Priority.ALWAYS);
+
+                componentBox.requestLayout();
+
+                apiToolToggleButton.setStyle(
+                        "-fx-background-color: #37474F; -fx-text-fill: white; -fx-font-weight: bold;");
+                apiToolToggleButton.setText("🔧 API Tool");
+
+                isApiToolVisible = false;
+
+            } else {
+                // ── Switch TO capiApiTestToolAI view ──────────────────────────────
+                componentBox.getChildren().clear();
+                componentBox.getChildren().add(webViewApiTool);
+
+                // Make the apiTool WebView fill all available space
+                HBox.setHgrow(webViewApiTool, Priority.ALWAYS);
+                VBox.setVgrow(webViewApiTool, Priority.ALWAYS);
+
+                componentBox.requestLayout();
+
+                apiToolToggleButton.setStyle(
+                        "-fx-background-color: #1565C0; -fx-text-fill: white; -fx-font-weight: bold;");
+                apiToolToggleButton.setText("📋 Bot Tasks");
+
+                isApiToolVisible = true;
+            }
         });
     }
 
