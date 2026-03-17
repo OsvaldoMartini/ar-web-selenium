@@ -67,3 +67,11 @@ configuration.properties
 /config/
 /chrome/
 
+
+
+
+.env
+venv/
+.venv/
+__pycache__/
+*.pyc
