@@ -325,9 +325,9 @@ public class ARNewBotJobPane extends ARPane {
             String rawName =
                     botJobName.getText() == null ? "" : botJobName.getText().trim();
             String projectType = "Web App";
-            if ("Android".equals(appType)) projectType = "Android";
-            else if ("iOS".equals(appType)) projectType = "iOS";
-            else if ("Rest Api".equals(appType)) projectType = "Rest Api";
+            if ("Android".equalsIgnoreCase(appType)) projectType = "Android";
+            else if ("iOS".equalsIgnoreCase(appType)) projectType = "iOS";
+            else if ("Rest Api".equalsIgnoreCase(appType)) projectType = "Rest Api";
 
             // Validation: simply check if rawName is empty or null
             boolean isMeaningfulEmpty = Strings.isNullOrEmpty(rawName);
@@ -498,9 +498,15 @@ public class ARNewBotJobPane extends ARPane {
     }
 
     private String getSelectedAppType() {
-        Toggle t = appTypeGroup == null ? null : appTypeGroup.getSelectedToggle();
+        if (appTypeGroup == null) return "Web"; // fallback
+
+        Toggle t = appTypeGroup.getSelectedToggle();
+
+        if (t == rbWeb) return "Web App";
         if (t == rbAndroid) return "Android";
         if (t == rbIos) return "iOS";
-        return "Web"; // default
+        if (t == rbRestAppi) return "Rest API";
+
+        return "Web App"; // default fallback
     }
 }
