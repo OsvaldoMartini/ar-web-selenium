@@ -525,10 +525,6 @@ public class ARViewBotJobPane extends ARPane {
         Node[] toolbarControls = {
             refreshButton,
             openScannerButton,
-            exportJobButton,
-            importJobButton,
-            pathExport,
-            pathExportButton,
             openExcelFileButton,
             generateExcelButton,
             navigationTimeButton,
@@ -550,6 +546,18 @@ public class ARViewBotJobPane extends ARPane {
         editBotJobButton.setMinHeight(BTN_H);
         editBotJobButton.setPrefHeight(BTN_H);
         editBotJobButton.setMaxHeight(BTN_H);
+        exportJobButton.setMinHeight(BTN_H);
+        exportJobButton.setPrefHeight(BTN_H);
+        exportJobButton.setMaxHeight(BTN_H);
+        importJobButton.setMinHeight(BTN_H);
+        importJobButton.setPrefHeight(BTN_H);
+        importJobButton.setMaxHeight(BTN_H);
+        pathExportButton.setMinHeight(BTN_H);
+        pathExportButton.setPrefHeight(BTN_H);
+        pathExportButton.setMaxHeight(BTN_H);
+        pathExport.setMinHeight(BTN_H);
+        pathExport.setPrefHeight(BTN_H);
+        pathExport.setMaxHeight(BTN_H);
 
         restoreDatePicker.setMinHeight(BTN_H);
         restoreDatePicker.setPrefHeight(BTN_H);
@@ -568,11 +576,6 @@ public class ARViewBotJobPane extends ARPane {
             s.setStyle("-fx-opacity: 0.4;");
             return s;
         };
-
-        // ── Path export group ─────────────────────────────────────────────────────
-        HBox pathGroup = new HBox(3, pathExport, pathExportButton);
-        pathGroup.setAlignment(Pos.CENTER_LEFT);
-        HBox.setHgrow(pathGroup, Priority.ALWAYS);
 
         // ── Mobile/Web disable ────────────────────────────────────────────────────
         boolean isMobile = (!selectedBotJob.getPriority().equalsIgnoreCase("Web App")
@@ -596,13 +599,6 @@ public class ARViewBotJobPane extends ARPane {
                 .addAll(
                         refreshButton,
                         openScannerButton,
-                        sep.get(),
-                        exportJobButton,
-                        importJobButton,
-                        sep.get(),
-                        pathGroup,
-                        sep.get(),
-                        restoreDatePicker,
                         sep.get(),
                         openExcelFileButton,
                         generateExcelButton,
@@ -649,35 +645,27 @@ public class ARViewBotJobPane extends ARPane {
         botJobDescriptionTextField.visibleProperty().bind(isEditingBotJob);
         botJobDescriptionTextField.managedProperty().bind(isEditingBotJob);
 
-        VBox idStack = new VBox(1, webSiteInfoLabel, botJobNameLabel, botJobDescriptionLabel);
-        idStack.setAlignment(Pos.CENTER_LEFT);
-
-        VBox idStackEdit = new VBox(1, botJobNameTextField, botJobDescriptionTextField);
-        idStackEdit.visibleProperty().bind(isEditingBotJob);
-        idStackEdit.managedProperty().bind(isEditingBotJob);
-        idStack.visibleProperty().bind(isEditingBotJob.not());
-        idStack.managedProperty().bind(isEditingBotJob.not());
-
-        StackPane idPane = new StackPane(idStack, idStackEdit);
-        idPane.setAlignment(Pos.CENTER_LEFT);
-
-        // ── ChoiceBox (capped width) ──────────────────────────────────────────────
+        // ── ChoiceBox ─────────────────────────────────────────────────────────────
         homeURLChoiceBox = new ChoiceBox<>();
         homeURLChoiceBox.setStyle(
                 "-fx-font-size: 12px; -fx-padding: 2 6 2 6; -fx-background-radius: 5; -fx-border-radius: 5;");
         populateHomeUrlChoiceBox(selectedBotJob.getHomeBankingId(), selectedBotJob.getHomeUrlId());
         homeURLChoiceBox.setTooltip(new Tooltip("Select the target URL / environment for the Bot Job"));
-        homeURLChoiceBox.setPrefWidth(220);
-        homeURLChoiceBox.setMaxWidth(260);
+        homeURLChoiceBox.setPrefWidth(200);
+        homeURLChoiceBox.setMaxWidth(200);
         homeURLChoiceBox.setMinHeight(BTN_H);
         homeURLChoiceBox.setPrefHeight(BTN_H);
         homeURLChoiceBox.setMaxHeight(BTN_H);
 
         refreshEnvsButton = createPathButton(ARConstants.ICON_REFRESH);
+        refreshEnvsButton.setMinHeight(BTN_H);
+        refreshEnvsButton.setPrefHeight(BTN_H);
 
         insertSitesdButton = new Button("Orgs / Environments");
         insertSitesdButton.setDefaultButton(true);
         insertSitesdButton.setStyle("-fx-font-size: 11px;");
+        insertSitesdButton.setMinHeight(BTN_H);
+        insertSitesdButton.setPrefHeight(BTN_H);
 
         HomeUrlDTO homeUrlDTO =
                 performLists.getHomeUrlByBankId(selectedBotJob.getHomeBankingId(), selectedBotJob.getHomeUrlId());
@@ -695,36 +683,86 @@ public class ARViewBotJobPane extends ARPane {
         currentUrlLabel.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(currentUrlLabel, Priority.ALWAYS);
 
-        // ── View mode row: ENV badge + URL ────────────────────────────────────────
+        // ── Path export: capped width so it fits neatly ───────────────────────────
+        pathExport.setPrefWidth(200);
+        pathExport.setMaxWidth(Double.MAX_VALUE);
+
+        // ════════════════════════════════════════════════════════════════════════
+        //  INFO BAR  — two fixed rows, right column always visible
+        //
+        //  Row 0: [Name/Id labels | textfield]  [Save][Edit]  [Export][Import][Date]  [🔥🧊]
+        //  Row 1: [Description    | textfield]  [ENV url | ChoiceBox ↺ Orgs]  [📁][Path────]  [🔥🧊]
+        // ════════════════════════════════════════════════════════════════════════
+
+        // ── Col 0: fixed-width name/desc ──────────────────────────────────────────
+        botJobNameLabel.setMinWidth(160);
+        botJobNameLabel.setMaxWidth(160);
+        botJobDescriptionLabel.setMinWidth(160);
+        botJobDescriptionLabel.setMaxWidth(160);
+        botJobNameTextField.setMinWidth(160);
+        botJobNameTextField.setMaxWidth(160);
+        botJobDescriptionTextField.setMinWidth(160);
+        botJobDescriptionTextField.setMaxWidth(160);
+
+        VBox col0View = new VBox(2, webSiteInfoLabel, botJobNameLabel, botJobDescriptionLabel);
+        col0View.setAlignment(Pos.CENTER_LEFT);
+        col0View.visibleProperty().bind(isEditingBotJob.not());
+        col0View.managedProperty().bind(isEditingBotJob.not());
+
+        VBox col0Edit = new VBox(4, botJobNameTextField, botJobDescriptionTextField);
+        col0Edit.setAlignment(Pos.CENTER_LEFT);
+        col0Edit.visibleProperty().bind(isEditingBotJob);
+        col0Edit.managedProperty().bind(isEditingBotJob);
+
+        StackPane col0 = new StackPane(col0View, col0Edit);
+        col0.setAlignment(Pos.CENTER_LEFT);
+        col0.setMinWidth(165);
+        col0.setMaxWidth(165);
+
+        Separator vDiv1 = new Separator(javafx.geometry.Orientation.VERTICAL);
+        vDiv1.setPadding(new Insets(0, 6, 0, 6));
+        vDiv1.setStyle("-fx-opacity: 0.35;");
+
+        // ── Col 1: Save/Edit always row0, ENV/ChoiceBox toggle row1 ──────────────
+        HBox saveEditRow = new HBox(4, saveBotJobButton, editBotJobButton);
+        saveEditRow.setAlignment(Pos.CENTER_LEFT);
+
         HBox urlViewRow = new HBox(6, envBadge, currentUrlLabel);
         urlViewRow.setAlignment(Pos.CENTER_LEFT);
         HBox.setHgrow(urlViewRow, Priority.ALWAYS);
         urlViewRow.visibleProperty().bind(isEditingBotJob.not());
         urlViewRow.managedProperty().bind(isEditingBotJob.not());
 
-        // ── Edit mode row: ChoiceBox + refresh + Orgs ─────────────────────────────
         HBox choiceRow = new HBox(4, homeURLChoiceBox, refreshEnvsButton, insertSitesdButton);
         choiceRow.setAlignment(Pos.CENTER_LEFT);
         choiceRow.visibleProperty().bind(isEditingBotJob);
         choiceRow.managedProperty().bind(isEditingBotJob);
 
-        // ── Save + Edit row: always visible, ONE parent only (this VBox) ──────────
-        HBox saveEditRow = new HBox(4, saveBotJobButton, editBotJobButton);
-        saveEditRow.setAlignment(Pos.CENTER_LEFT);
-
-        // ── Centre column: Save/Edit on top, then URL view OR ChoiceBox below ─────
-        VBox centreCol = new VBox(3, saveEditRow, urlViewRow, choiceRow);
-        centreCol.setAlignment(Pos.CENTER_LEFT);
-        HBox.setHgrow(centreCol, Priority.ALWAYS);
-
-        Separator vDiv1 = new Separator(javafx.geometry.Orientation.VERTICAL);
-        vDiv1.setPadding(new Insets(0, 6, 0, 6));
-        vDiv1.setStyle("-fx-opacity: 0.35;");
+        VBox col1 = new VBox(4, saveEditRow, urlViewRow, choiceRow);
+        col1.setAlignment(Pos.CENTER_LEFT);
 
         Separator vDiv2 = new Separator(javafx.geometry.Orientation.VERTICAL);
         vDiv2.setPadding(new Insets(0, 6, 0, 6));
         vDiv2.setStyle("-fx-opacity: 0.35;");
 
+        // ── Col 2 (RIGHT, always visible): row0=Export/Import/Date  row1=📁/Path ──
+        HBox rightRow0 = new HBox(4, exportJobButton, importJobButton, restoreDatePicker);
+        rightRow0.setAlignment(Pos.CENTER_LEFT);
+
+        HBox rightRow1 = new HBox(4, pathExportButton, pathExport);
+        rightRow1.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(pathExport, Priority.ALWAYS);
+        pathExport.setPrefWidth(200);
+
+        VBox col2 = new VBox(4, rightRow0, rightRow1);
+        col2.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(col2, Priority.ALWAYS);
+
+        Separator vDiv3 = new Separator(javafx.geometry.Orientation.VERTICAL);
+        vDiv3.setPadding(new Insets(0, 6, 0, 6));
+        vDiv3.setStyle("-fx-opacity: 0.35;");
+
+        // ── Col 3: BAT + component ────────────────────────────────────────────────
         initComponentButton();
         componentButton.setMinWidth(40);
 
@@ -736,7 +774,7 @@ public class ARViewBotJobPane extends ARPane {
         infoBar.setPadding(new Insets(5, 8, 5, 8));
         infoBar.setStyle("-fx-background-color: -fx-background; " + "-fx-border-color: derive(-fx-base,-10%); "
                 + "-fx-border-width: 0 0 1 0;");
-        infoBar.getChildren().addAll(idPane, vDiv1, centreCol, vDiv2, actionCol);
+        infoBar.getChildren().addAll(col0, vDiv1, col1, vDiv2, col2, vDiv3, actionCol);
 
         // ════════════════════════════════════════════════════════════════════════
         //  CONTENT AREA
