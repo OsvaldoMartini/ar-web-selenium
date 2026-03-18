@@ -443,60 +443,57 @@ public class ARViewBotJobPane extends ARPane {
         final double BTN_W = 88.0; // standard button width
         final String BTN_FONT = "-fx-font-size: 12px;";
 
-        // ── Helper: standard compact button style ─────────────────────────────────
-        // (re-use builder where it exists, hand-style the rest)
-
         // ── Buttons ───────────────────────────────────────────────────────────────
         this.refreshButton = builder.buildButton(
-                "↺ Refresh",
+                "Refresh",
                 ARConstants.SPACE_ZERO,
                 ARConstants.ICON_REFRESH,
                 ARConstants.SPACE_M,
                 new Insets(3, 8, 3, 8));
 
         this.openScannerButton = builder.buildButton(
-                "⊡ Scanner",
+                "Scanner",
                 ARConstants.SPACE_ZERO,
                 ARConstants.ICON_BROWSER,
                 ARConstants.SPACE_M,
                 new Insets(3, 8, 3, 8));
 
         this.editBotJobButton = builder.buildButton(
-                "✎ Edit", ARConstants.SPACE_ZERO, ARConstants.ICON_EDIT, ARConstants.SPACE_M, new Insets(3, 8, 3, 8));
+                "Edit", ARConstants.SPACE_ZERO, ARConstants.ICON_EDIT, ARConstants.SPACE_M, new Insets(3, 8, 3, 8));
 
         this.launchBotJobButton = builder.buildButton(
-                "▶ Launch", ARConstants.SPACE_ZERO, ARConstants.ICON_PLAY, ARConstants.SPACE_M, new Insets(3, 8, 3, 8));
+                "Launch", ARConstants.SPACE_ZERO, ARConstants.ICON_PLAY, ARConstants.SPACE_M, new Insets(3, 8, 3, 8));
         this.launchBotJobButton.setStyle("-fx-background-color: #1a6b3a; -fx-text-fill: white; -fx-font-weight: bold; "
                 + "-fx-font-size: 12px; -fx-background-radius: 5;");
 
         this.saveBotJobButton = builder.buildButton(
-                "💾 Save", ARConstants.SPACE_ZERO, ARConstants.ICON_SAVE, ARConstants.SPACE_M, new Insets(3, 8, 3, 8));
+                "Save", ARConstants.SPACE_ZERO, ARConstants.ICON_SAVE, ARConstants.SPACE_M, new Insets(3, 8, 3, 8));
         this.saveBotJobButton.setDisable(true);
 
         this.openExcelFileButton = builder.buildButton(
-                "⊞ Excel", ARConstants.SPACE_ZERO, ARConstants.ICON_EXCEL, ARConstants.SPACE_M, new Insets(3, 8, 3, 8));
+                "Excel", ARConstants.SPACE_ZERO, ARConstants.ICON_EXCEL, ARConstants.SPACE_M, new Insets(3, 8, 3, 8));
 
         this.generateExcelButton = builder.buildButton(
-                "⊞ Generate",
+                "Generate",
                 ARConstants.SPACE_ZERO,
                 ARConstants.ICON_EXCEL,
                 ARConstants.SPACE_M,
                 new Insets(3, 8, 3, 8));
 
         this.closeBotJobButton = builder.buildButton(
-                "✕ Close", ARConstants.SPACE_ZERO, ARConstants.ICON_CROSS, ARConstants.SPACE_M, new Insets(3, 8, 3, 8));
+                "Close", ARConstants.SPACE_ZERO, ARConstants.ICON_CROSS, ARConstants.SPACE_M, new Insets(3, 8, 3, 8));
         this.closeBotJobButton.setStyle("-fx-font-size: 12px; -fx-text-fill: #c0392b; "
                 + "-fx-border-color: #e57373; -fx-border-radius: 5; -fx-background-radius: 5;");
 
-        exportJobButton = builder.buildButton("↑ Export");
+        exportJobButton = builder.buildButton("Export");
         exportJobButton.setStyle(BTN_FONT);
 
-        importJobButton = builder.buildButton("↓ Import");
+        importJobButton = builder.buildButton("Import");
         importJobButton.setStyle(BTN_FONT);
 
         // ── Navigation time button (cycles 0‥10) ──────────────────────────────────
         int navTimeInitial = getNavigationTimeValue();
-        this.navigationTimeButton = new Button("⏱ Nav: " + navTimeInitial + "s");
+        this.navigationTimeButton = new Button("Navigation Time: " + navTimeInitial + "s");
         this.navigationTimeButton.setStyle(
                 "-fx-background-color: #1565C0; -fx-text-fill: white; -fx-font-weight: bold; "
                         + "-fx-font-size: 12px; -fx-background-radius: 5;");
@@ -505,7 +502,7 @@ public class ARViewBotJobPane extends ARPane {
         updateNavigationTimeButtonColor(navTimeInitial);
 
         // ── API Tool toggle ───────────────────────────────────────────────────────
-        this.apiToolToggleButton = new Button("🔧 API Tool");
+        this.apiToolToggleButton = new Button("API Tool");
         this.apiToolToggleButton.setPadding(new Insets(3, 8, 3, 8));
         this.apiToolToggleButton.setFocusTraversable(false);
         this.apiToolToggleButton.setStyle("-fx-background-color: #37474F; -fx-text-fill: white; "
@@ -561,7 +558,6 @@ public class ARViewBotJobPane extends ARPane {
         pathExportButton.setPrefWidth(28);
 
         // ── Separator factory ─────────────────────────────────────────────────────
-        // We'll inline thin Separator nodes between groups
         java.util.function.Supplier<Separator> sep = () -> {
             Separator s = new Separator(javafx.geometry.Orientation.VERTICAL);
             s.setPadding(new Insets(0, 3, 0, 3));
@@ -583,7 +579,7 @@ public class ARViewBotJobPane extends ARPane {
         }
 
         // ════════════════════════════════════════════════════════════════════════
-        //  SINGLE TOOLBAR ROW  (replaces the old two-row GridPane)
+        //  SINGLE TOOLBAR ROW
         // ════════════════════════════════════════════════════════════════════════
         HBox toolbarRow = new HBox(3);
         toolbarRow.setAlignment(Pos.CENTER_LEFT);
@@ -627,10 +623,9 @@ public class ARViewBotJobPane extends ARPane {
                         closeBotJobButton);
 
         // ════════════════════════════════════════════════════════════════════════
-        //  INFO BAR  (replaces the tall red-boxed section)
+        //  INFO BAR
         // ════════════════════════════════════════════════════════════════════════
 
-        // -- ID / name / description column (left) --------------------------------
         createBATButton = createPathButton(ARConstants.ICON_BURN);
 
         String projectType = selectedBotJob.getPriority();
@@ -653,7 +648,6 @@ public class ARViewBotJobPane extends ARPane {
         botJobDescriptionTextField.setStyle(labelStyle);
         HBox.setHgrow(botJobDescriptionTextField, Priority.ALWAYS);
 
-        // Edit-mode bindings (unchanged logic)
         botJobNameLabel.visibleProperty().bind(isEditingBotJob.not());
         botJobNameLabel.managedProperty().bind(isEditingBotJob.not());
         botJobNameTextField.visibleProperty().bind(isEditingBotJob);
@@ -664,10 +658,8 @@ public class ARViewBotJobPane extends ARPane {
         botJobDescriptionTextField.visibleProperty().bind(isEditingBotJob);
         botJobDescriptionTextField.managedProperty().bind(isEditingBotJob);
 
-        // Compact vertical stack: badge / name / description
         VBox idStack = new VBox(1, webSiteInfoLabel, botJobNameLabel, botJobDescriptionLabel);
         idStack.setAlignment(Pos.CENTER_LEFT);
-        // (text fields sit in the same spot, visibility toggled by isEditingBotJob)
         VBox idStackEdit = new VBox(1, botJobNameTextField, botJobDescriptionTextField);
         idStackEdit.visibleProperty().bind(isEditingBotJob);
         idStackEdit.managedProperty().bind(isEditingBotJob);
@@ -677,19 +669,18 @@ public class ARViewBotJobPane extends ARPane {
         StackPane idPane = new StackPane(idStack, idStackEdit);
         idPane.setAlignment(Pos.CENTER_LEFT);
 
-        // Divider line between columns
         Separator vDiv1 = new Separator(javafx.geometry.Orientation.VERTICAL);
         vDiv1.setPadding(new Insets(0, 6, 0, 6));
         vDiv1.setStyle("-fx-opacity: 0.35;");
 
-        // -- URL / environment column (centre, expands) ----------------------------
+        // ── ChoiceBox: capped width so it doesn't stretch ─────────────────────────
         homeURLChoiceBox = new ChoiceBox<>();
         homeURLChoiceBox.setStyle(
-                "-fx-font-size: 12px; -fx-padding: 2 6 2 6; " + "-fx-background-radius: 5; -fx-border-radius: 5;");
+                "-fx-font-size: 12px; -fx-padding: 2 6 2 6; -fx-background-radius: 5; -fx-border-radius: 5;");
         populateHomeUrlChoiceBox(selectedBotJob.getHomeBankingId(), selectedBotJob.getHomeUrlId());
         homeURLChoiceBox.setTooltip(new Tooltip("Select the target URL / environment for the Bot Job"));
-        HBox.setHgrow(homeURLChoiceBox, Priority.ALWAYS);
-        homeURLChoiceBox.setMaxWidth(Double.MAX_VALUE);
+        homeURLChoiceBox.setPrefWidth(220); // fixed comfortable width
+        homeURLChoiceBox.setMaxWidth(260); // hard cap — won't stretch the bar
 
         refreshEnvsButton = createPathButton(ARConstants.ICON_REFRESH);
 
@@ -703,11 +694,9 @@ public class ARViewBotJobPane extends ARPane {
                 ? homeUrlDTO.getUrl()
                 : selectedBotJob.getHomeBankingLoadDTO().getUrl();
 
-        // ENV badge label
         Label envBadge = new Label("ENV");
         envBadge.setStyle("-fx-font-size: 10px; -fx-font-weight: bold; -fx-text-fill: #1565C0; "
-                + "-fx-background-color: #e3f0fd; -fx-background-radius: 3; "
-                + "-fx-padding: 1 5 1 5;");
+                + "-fx-background-color: #e3f0fd; -fx-background-radius: 3; -fx-padding: 1 5 1 5;");
 
         currentUrlLabel = new Label(urlEntryPoint);
         currentUrlLabel.setStyle(
@@ -715,13 +704,11 @@ public class ARViewBotJobPane extends ARPane {
         currentUrlLabel.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(currentUrlLabel, Priority.ALWAYS);
 
-        // View mode: badge + url
         HBox urlViewRow = new HBox(6, envBadge, currentUrlLabel);
         urlViewRow.setAlignment(Pos.CENTER_LEFT);
         urlViewRow.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(urlViewRow, Priority.ALWAYS);
 
-        // Edit mode: choicebox + refresh + insert
         HBox urlEditRow = new HBox(4, homeURLChoiceBox, refreshEnvsButton, insertSitesdButton);
         urlEditRow.setAlignment(Pos.CENTER_LEFT);
         urlEditRow.setMaxWidth(Double.MAX_VALUE);
@@ -740,14 +727,12 @@ public class ARViewBotJobPane extends ARPane {
         vDiv2.setPadding(new Insets(0, 6, 0, 6));
         vDiv2.setStyle("-fx-opacity: 0.35;");
 
-        // -- Action column (right): BAT + component button -------------------------
         initComponentButton();
         componentButton.setMinWidth(40);
 
         HBox actionCol = new HBox(4, createBATButton, componentButton);
         actionCol.setAlignment(Pos.CENTER);
 
-        // -- Assemble info bar -----------------------------------------------------
         HBox infoBar = new HBox(0);
         infoBar.setAlignment(Pos.CENTER_LEFT);
         infoBar.setPadding(new Insets(5, 8, 5, 8));
@@ -756,7 +741,7 @@ public class ARViewBotJobPane extends ARPane {
         infoBar.getChildren().addAll(idPane, vDiv1, urlPane, vDiv2, actionCol);
 
         // ════════════════════════════════════════════════════════════════════════
-        //  CONTENT AREA  (web-view / component container — unchanged)
+        //  CONTENT AREA
         // ════════════════════════════════════════════════════════════════════════
         if (!performLists.getListBotJob().isEmpty()
                 && performLists.getListBlock().isEmpty()) {
@@ -775,7 +760,7 @@ public class ARViewBotJobPane extends ARPane {
         HBox.setHgrow(this.componentContainer, Priority.NEVER);
 
         // ════════════════════════════════════════════════════════════════════════
-        //  FINAL LAYOUT  — toolbar → info bar → content
+        //  FINAL LAYOUT
         // ════════════════════════════════════════════════════════════════════════
         botJobContainer = new VBox(0, toolbarRow, infoBar, componentBox);
         VBox.setVgrow(botJobContainer, Priority.ALWAYS);
