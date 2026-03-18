@@ -444,10 +444,18 @@ public class ARViewBotJobPane extends ARPane {
 
         // ── Buttons ───────────────────────────────────────────────────────────────
         this.refreshButton = builder.buildButton(
-                "Refresh", ARConstants.SPACE_ZERO, ARConstants.ICON_REFRESH, ARConstants.SPACE_M, new Insets(3, 8, 3, 8));
+                "Refresh",
+                ARConstants.SPACE_ZERO,
+                ARConstants.ICON_REFRESH,
+                ARConstants.SPACE_M,
+                new Insets(3, 8, 3, 8));
 
         this.openScannerButton = builder.buildButton(
-                "Scanner", ARConstants.SPACE_ZERO, ARConstants.ICON_BROWSER, ARConstants.SPACE_M, new Insets(3, 8, 3, 8));
+                "Scanner",
+                ARConstants.SPACE_ZERO,
+                ARConstants.ICON_BROWSER,
+                ARConstants.SPACE_M,
+                new Insets(3, 8, 3, 8));
 
         this.editBotJobButton = builder.buildButton(
                 "Edit", ARConstants.SPACE_ZERO, ARConstants.ICON_EDIT, ARConstants.SPACE_M, new Insets(3, 8, 3, 8));
@@ -465,7 +473,11 @@ public class ARViewBotJobPane extends ARPane {
                 "Excel", ARConstants.SPACE_ZERO, ARConstants.ICON_EXCEL, ARConstants.SPACE_M, new Insets(3, 8, 3, 8));
 
         this.generateExcelButton = builder.buildButton(
-                "Generate", ARConstants.SPACE_ZERO, ARConstants.ICON_EXCEL, ARConstants.SPACE_M, new Insets(3, 8, 3, 8));
+                "Generate",
+                ARConstants.SPACE_ZERO,
+                ARConstants.ICON_EXCEL,
+                ARConstants.SPACE_M,
+                new Insets(3, 8, 3, 8));
 
         this.closeBotJobButton = builder.buildButton(
                 "Close", ARConstants.SPACE_ZERO, ARConstants.ICON_CROSS, ARConstants.SPACE_M, new Insets(3, 8, 3, 8));
@@ -509,12 +521,20 @@ public class ARViewBotJobPane extends ARPane {
         restoreDatePicker.setPrefWidth(120);
         restoreDatePicker.setMinWidth(Region.USE_PREF_SIZE);
 
-        // ── Uniform height ────────────────────────────────────────────────────────
+        // ── Uniform height (toolbar controls only — Save/Edit sized separately) ───
         Node[] toolbarControls = {
-                refreshButton, openScannerButton, saveBotJobButton, editBotJobButton,
-                exportJobButton, importJobButton, pathExport, pathExportButton,
-                openExcelFileButton, generateExcelButton, navigationTimeButton,
-                apiToolToggleButton, launchBotJobButton, closeBotJobButton
+            refreshButton,
+            openScannerButton,
+            exportJobButton,
+            importJobButton,
+            pathExport,
+            pathExportButton,
+            openExcelFileButton,
+            generateExcelButton,
+            navigationTimeButton,
+            apiToolToggleButton,
+            launchBotJobButton,
+            closeBotJobButton
         };
         for (Node n : toolbarControls) {
             if (n instanceof Control ctrl) {
@@ -523,6 +543,14 @@ public class ARViewBotJobPane extends ARPane {
                 ctrl.setMaxHeight(BTN_H);
             }
         }
+        // Save/Edit sized here, added only to info bar
+        saveBotJobButton.setMinHeight(BTN_H);
+        saveBotJobButton.setPrefHeight(BTN_H);
+        saveBotJobButton.setMaxHeight(BTN_H);
+        editBotJobButton.setMinHeight(BTN_H);
+        editBotJobButton.setPrefHeight(BTN_H);
+        editBotJobButton.setMaxHeight(BTN_H);
+
         restoreDatePicker.setMinHeight(BTN_H);
         restoreDatePicker.setPrefHeight(BTN_H);
         restoreDatePicker.setMaxHeight(BTN_H);
@@ -555,7 +583,7 @@ public class ARViewBotJobPane extends ARPane {
         }
 
         // ════════════════════════════════════════════════════════════════════════
-        //  TOOLBAR ROW
+        //  TOOLBAR ROW  — Save/Edit NOT here, they live in the info bar
         // ════════════════════════════════════════════════════════════════════════
         HBox toolbarRow = new HBox(3);
         toolbarRow.setAlignment(Pos.CENTER_LEFT);
@@ -563,24 +591,28 @@ public class ARViewBotJobPane extends ARPane {
         toolbarRow.setStyle("-fx-background-color: -fx-background; " + "-fx-border-color: derive(-fx-base,-10%); "
                 + "-fx-border-width: 0 0 1 0;");
 
-        toolbarRow.getChildren().addAll(
-                refreshButton, openScannerButton,
-                sep.get(),
-                saveBotJobButton, editBotJobButton,
-                sep.get(),
-                exportJobButton, importJobButton,
-                sep.get(),
-                pathGroup,
-                sep.get(),
-                restoreDatePicker,
-                sep.get(),
-                openExcelFileButton, generateExcelButton,
-                sep.get(),
-                navigationTimeButton,
-                sep.get(),
-                apiToolToggleButton,
-                sep.get(),
-                launchBotJobButton, closeBotJobButton);
+        toolbarRow
+                .getChildren()
+                .addAll(
+                        refreshButton,
+                        openScannerButton,
+                        sep.get(),
+                        exportJobButton,
+                        importJobButton,
+                        sep.get(),
+                        pathGroup,
+                        sep.get(),
+                        restoreDatePicker,
+                        sep.get(),
+                        openExcelFileButton,
+                        generateExcelButton,
+                        sep.get(),
+                        navigationTimeButton,
+                        sep.get(),
+                        apiToolToggleButton,
+                        sep.get(),
+                        launchBotJobButton,
+                        closeBotJobButton);
 
         // ════════════════════════════════════════════════════════════════════════
         //  INFO BAR
@@ -617,11 +649,9 @@ public class ARViewBotJobPane extends ARPane {
         botJobDescriptionTextField.visibleProperty().bind(isEditingBotJob);
         botJobDescriptionTextField.managedProperty().bind(isEditingBotJob);
 
-        // View mode: name + description stacked
         VBox idStack = new VBox(1, webSiteInfoLabel, botJobNameLabel, botJobDescriptionLabel);
         idStack.setAlignment(Pos.CENTER_LEFT);
 
-        // Edit mode: text fields stacked
         VBox idStackEdit = new VBox(1, botJobNameTextField, botJobDescriptionTextField);
         idStackEdit.visibleProperty().bind(isEditingBotJob);
         idStackEdit.managedProperty().bind(isEditingBotJob);
@@ -665,34 +695,27 @@ public class ARViewBotJobPane extends ARPane {
         currentUrlLabel.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(currentUrlLabel, Priority.ALWAYS);
 
-        // ── View mode: ENV badge + URL label ──────────────────────────────────────
+        // ── View mode row: ENV badge + URL ────────────────────────────────────────
         HBox urlViewRow = new HBox(6, envBadge, currentUrlLabel);
         urlViewRow.setAlignment(Pos.CENTER_LEFT);
         HBox.setHgrow(urlViewRow, Priority.ALWAYS);
-
-        // ── Edit mode row 1: Save + Edit buttons above ChoiceBox ─────────────────
-        // (Save/Edit are in the toolbar AND shown here in edit mode for proximity)
-        HBox saveEditRow = new HBox(4, saveBotJobButton, editBotJobButton);
-        saveEditRow.setAlignment(Pos.CENTER_LEFT);
-        saveEditRow.visibleProperty().bind(isEditingBotJob);
-        saveEditRow.managedProperty().bind(isEditingBotJob);
-
-        // ── Edit mode row 2: ChoiceBox + refresh + Orgs ──────────────────────────
-        HBox choiceRow = new HBox(4, homeURLChoiceBox, refreshEnvsButton, insertSitesdButton);
-        choiceRow.setAlignment(Pos.CENTER_LEFT);
-
-        // ── Edit mode: Save/Edit stacked above ChoiceBox row ─────────────────────
-        VBox editModeBlock = new VBox(3, saveEditRow, choiceRow);
-        editModeBlock.setAlignment(Pos.CENTER_LEFT);
-        editModeBlock.visibleProperty().bind(isEditingBotJob);
-        editModeBlock.managedProperty().bind(isEditingBotJob);
-
         urlViewRow.visibleProperty().bind(isEditingBotJob.not());
         urlViewRow.managedProperty().bind(isEditingBotJob.not());
 
-        StackPane urlPane = new StackPane(urlViewRow, editModeBlock);
-        urlPane.setAlignment(Pos.CENTER_LEFT);
-        HBox.setHgrow(urlPane, Priority.ALWAYS);
+        // ── Edit mode row: ChoiceBox + refresh + Orgs ─────────────────────────────
+        HBox choiceRow = new HBox(4, homeURLChoiceBox, refreshEnvsButton, insertSitesdButton);
+        choiceRow.setAlignment(Pos.CENTER_LEFT);
+        choiceRow.visibleProperty().bind(isEditingBotJob);
+        choiceRow.managedProperty().bind(isEditingBotJob);
+
+        // ── Save + Edit row: always visible, ONE parent only (this VBox) ──────────
+        HBox saveEditRow = new HBox(4, saveBotJobButton, editBotJobButton);
+        saveEditRow.setAlignment(Pos.CENTER_LEFT);
+
+        // ── Centre column: Save/Edit on top, then URL view OR ChoiceBox below ─────
+        VBox centreCol = new VBox(3, saveEditRow, urlViewRow, choiceRow);
+        centreCol.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(centreCol, Priority.ALWAYS);
 
         Separator vDiv1 = new Separator(javafx.geometry.Orientation.VERTICAL);
         vDiv1.setPadding(new Insets(0, 6, 0, 6));
@@ -713,15 +736,17 @@ public class ARViewBotJobPane extends ARPane {
         infoBar.setPadding(new Insets(5, 8, 5, 8));
         infoBar.setStyle("-fx-background-color: -fx-background; " + "-fx-border-color: derive(-fx-base,-10%); "
                 + "-fx-border-width: 0 0 1 0;");
-        infoBar.getChildren().addAll(idPane, vDiv1, urlPane, vDiv2, actionCol);
+        infoBar.getChildren().addAll(idPane, vDiv1, centreCol, vDiv2, actionCol);
 
         // ════════════════════════════════════════════════════════════════════════
         //  CONTENT AREA
         // ════════════════════════════════════════════════════════════════════════
-        if (!performLists.getListBotJob().isEmpty() && performLists.getListBlock().isEmpty()) {
+        if (!performLists.getListBotJob().isEmpty()
+                && performLists.getListBlock().isEmpty()) {
             performDataBase.loadBlocks(selectedBotJob.getId(), selectedBotJob.getName(), "block");
         }
-        if (!performLists.getListBotJobComp().isEmpty() && performLists.getListBlockComp().isEmpty()) {
+        if (!performLists.getListBotJobComp().isEmpty()
+                && performLists.getListBlockComp().isEmpty()) {
             performDataBase.loadBlocks(selectedBotJob.getHomeBankingId(), selectedBotJob.getName(), "component_block");
         }
 
