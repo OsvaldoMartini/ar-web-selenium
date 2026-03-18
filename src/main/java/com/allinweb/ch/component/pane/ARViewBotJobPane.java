@@ -594,21 +594,30 @@ public class ARViewBotJobPane extends ARPane {
         toolbarRow.setStyle("-fx-background-color: -fx-background; " + "-fx-border-color: derive(-fx-base,-10%); "
                 + "-fx-border-width: 0 0 1 0;");
 
+        // ── Styled groups (light green tint per group) ───────────────────────────
+        HBox grpView = new HBox(3, refreshButton, openScannerButton);
+        grpView.setStyle("-fx-background-color: #EAF3DE; -fx-background-radius: 6; -fx-padding: 3 6 3 6;");
+        grpView.setAlignment(Pos.CENTER_LEFT);
+
+        HBox grpExcel = new HBox(3, openExcelFileButton, generateExcelButton);
+        grpExcel.setStyle("-fx-background-color: #EAF3DE; -fx-background-radius: 6; -fx-padding: 3 6 3 6;");
+        grpExcel.setAlignment(Pos.CENTER_LEFT);
+
+        HBox grpNav = new HBox(3, navigationTimeButton);
+        grpNav.setStyle("-fx-background-color: #dbeafe; -fx-background-radius: 6; -fx-padding: 3 6 3 6;");
+        grpNav.setAlignment(Pos.CENTER_LEFT);
+
+        HBox grpApi = new HBox(3, apiToolToggleButton);
+        grpApi.setStyle("-fx-background-color: #e8edf0; -fx-background-radius: 6; -fx-padding: 3 6 3 6;");
+        grpApi.setAlignment(Pos.CENTER_LEFT);
+
+        HBox grpLaunch = new HBox(3, launchBotJobButton, closeBotJobButton);
+        grpLaunch.setStyle("-fx-background-color: #EAF3DE; -fx-background-radius: 6; -fx-padding: 3 6 3 6;");
+        grpLaunch.setAlignment(Pos.CENTER_LEFT);
+
         toolbarRow
                 .getChildren()
-                .addAll(
-                        refreshButton,
-                        openScannerButton,
-                        sep.get(),
-                        openExcelFileButton,
-                        generateExcelButton,
-                        sep.get(),
-                        navigationTimeButton,
-                        sep.get(),
-                        apiToolToggleButton,
-                        sep.get(),
-                        launchBotJobButton,
-                        closeBotJobButton);
+                .addAll(grpView, sep.get(), grpExcel, sep.get(), grpNav, sep.get(), grpApi, sep.get(), grpLaunch);
 
         // ════════════════════════════════════════════════════════════════════════
         //  INFO BAR
@@ -726,6 +735,7 @@ public class ARViewBotJobPane extends ARPane {
         // ── Col 1: Save/Edit always row0, ENV/ChoiceBox toggle row1 ──────────────
         HBox saveEditRow = new HBox(4, saveBotJobButton, editBotJobButton);
         saveEditRow.setAlignment(Pos.CENTER_LEFT);
+        saveEditRow.setStyle("-fx-background-color: #EAF3DE; -fx-background-radius: 6; -fx-padding: 3 6 3 6;");
 
         HBox urlViewRow = new HBox(6, envBadge, currentUrlLabel);
         urlViewRow.setAlignment(Pos.CENTER_LEFT);
@@ -735,6 +745,7 @@ public class ARViewBotJobPane extends ARPane {
 
         HBox choiceRow = new HBox(4, homeURLChoiceBox, refreshEnvsButton, insertSitesdButton);
         choiceRow.setAlignment(Pos.CENTER_LEFT);
+        choiceRow.setStyle("-fx-background-color: #EAF3DE; -fx-background-radius: 6; -fx-padding: 3 6 3 6;");
         choiceRow.visibleProperty().bind(isEditingBotJob);
         choiceRow.managedProperty().bind(isEditingBotJob);
 
@@ -748,9 +759,11 @@ public class ARViewBotJobPane extends ARPane {
         // ── Col 2 (RIGHT, always visible): row0=Export/Import/Date  row1=📁/Path ──
         HBox rightRow0 = new HBox(4, exportJobButton, importJobButton, restoreDatePicker);
         rightRow0.setAlignment(Pos.CENTER_LEFT);
+        rightRow0.setStyle("-fx-background-color: #EAF3DE; -fx-background-radius: 6; -fx-padding: 3 6 3 6;");
 
         HBox rightRow1 = new HBox(4, pathExportButton, pathExport);
         rightRow1.setAlignment(Pos.CENTER_LEFT);
+        rightRow1.setStyle("-fx-background-color: #EAF3DE; -fx-background-radius: 6; -fx-padding: 3 6 3 6;");
         HBox.setHgrow(pathExport, Priority.ALWAYS);
         pathExport.setPrefWidth(200);
 
