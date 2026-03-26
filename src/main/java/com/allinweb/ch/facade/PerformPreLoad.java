@@ -50,19 +50,16 @@ public class PerformPreLoad {
     }
 
     private static String loadScript(String classpathPath) {
-        try (InputStream is = PerformPreLoad.class
-                .getResourceAsStream("/" + classpathPath)) {
+        try (InputStream is = PerformPreLoad.class.getResourceAsStream("/" + classpathPath)) {
             if (is == null) {
-                throw new IllegalStateException(
-                        "Scanner script not found on classpath: " + classpathPath
-                                + " — run the pageScanner build step first: "
-                                + "npx esbuild index.js --bundle --minify "
-                                + "--outfile=build/scanner.min.js");
+                throw new IllegalStateException("Scanner script not found on classpath: " + classpathPath
+                        + " — run the pageScanner build step first: "
+                        + "npx esbuild index.js --bundle --minify "
+                        + "--outfile=build/scanner.min.js");
             }
             return new String(is.readAllBytes(), StandardCharsets.UTF_8);
         } catch (IOException e) {
-            throw new RuntimeException(
-                    "Failed to load scanner script: " + classpathPath, e);
+            throw new RuntimeException("Failed to load scanner script: " + classpathPath, e);
         }
     }
 
@@ -112,21 +109,18 @@ public class PerformPreLoad {
             jsExecutor = (JavascriptExecutor) driver;
             jsExecutor.executeScript(
                     getJsScanner(),
-                    dataList,           // arguments[0] — searchTerms
+                    dataList, // arguments[0] — searchTerms
                     searchHiddenFields, // arguments[1] — searchHiddenFields
-                    port,               // arguments[2] — WS port
-                    sessionId,          // arguments[3] — sessionId
-                    destination,        // arguments[4] — destination
-                    operationId,        // arguments[5] — operationId
-                    homeBankingId,      // arguments[6] — homeBankingId
-                    botJobId);          // arguments[7] — botJobId
+                    port, // arguments[2] — WS port
+                    sessionId, // arguments[3] — sessionId
+                    destination, // arguments[4] — destination
+                    operationId, // arguments[5] — operationId
+                    homeBankingId, // arguments[6] — homeBankingId
+                    botJobId); // arguments[7] — botJobId
             return null;
         } catch (Exception error) {
             log.error("PerformPreLoad — scanner injection failed: {}", error.getMessage(), error);
-            return new ErrorMessage(
-                    "Error running Scanner",
-                    "Dynamic Load ElementsDTO error",
-                    error.getMessage());
+            return new ErrorMessage("Error running Scanner", "Dynamic Load ElementsDTO error", error.getMessage());
         }
     }
 }

@@ -155,6 +155,7 @@ public class ARScannedElementPane extends ARPane {
     private Button configureButton;
     private Button stopBotJobButton;
     private Button pageScannerButton;
+    private Button pluginTestButton;
     private Button refreshWebPageButton;
     private Button leftButton;
     private Button rightButton;
@@ -1445,6 +1446,8 @@ public class ARScannedElementPane extends ARPane {
         pageScannerButton = builder.buildButton(
                 "Page Scanner", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
 
+        pluginTestButton = buildPluginTestButton();
+
         turnOnOffButton = new Button("Search Hidden Fields: Off");
         turnOnOffButton.setStyle("-fx-background-color: grey; -fx-text-fill: white;");
 
@@ -1629,6 +1632,7 @@ public class ARScannedElementPane extends ARPane {
 
             // Add buttons and checkbox to the GridPane
             gridPaneTop.add(pageScannerButton, 0, 0);
+            gridPaneTop.add(pluginTestButton, 1, 0);
             gridPaneTop.add(searchTermsLabel, 3, 0);
             gridPaneTop.add(searchTermsField, 4, 0);
             gridPaneTop.add(searchButton, 5, 0);
@@ -7134,5 +7138,110 @@ public class ARScannedElementPane extends ARPane {
     public void setCurrentColumns(List<String> columns) {
         currentColumnsCSV.clear();
         currentColumnsCSV.addAll(columns);
+    }
+
+    // ── Plugin Test Button ────────────────────────────────────────────────────
+
+    /**
+     * Builds the "Plugin Test" button.
+     *
+     * Visual states:
+     *   Green  — plugin script found on classpath and ready to inject.
+     *   Orange — plugin script missing (build step not run yet).
+     *
+     * The button is styled inline so it is visually distinct from the standard
+     * toolbar buttons and clearly communicates its test/diagnostic purpose.
+     */
+    private Button buildPluginTestButton() {
+        Button btn = new Button();
+
+        boolean pluginAvailable = isPluginAvailable("plugins/pluginTest/build/pluginTest.min.js");
+
+        if (pluginAvailable) {
+            btn.setText("⬤  Plugin Test");
+            btn.setStyle("-fx-background-color: #166534;" + // dark green background
+                    "-fx-text-fill: #dcfce7;"
+                    + // soft green text
+                    "-fx-font-size: 12px;"
+                    + "-fx-font-weight: bold;"
+                    + "-fx-background-radius: 6;"
+                    + "-fx-padding: 6 14 6 14;"
+                    + "-fx-cursor: hand;");
+            btn.setTooltip(new Tooltip("Plugin loaded OK — click to inject test script into browser"));
+            btn.setOnAction(e -> runPluginTest());
+        } else {
+            btn.setText("⚠  Plugin Test");
+            btn.setStyle("-fx-background-color: #7c2d12;" + // dark orange/brown background
+                    "-fx-text-fill: #fed7aa;"
+                    + // soft orange text
+                    "-fx-font-size: 12px;"
+                    + "-fx-font-weight: bold;"
+                    + "-fx-background-radius: 6;"
+                    + "-fx-padding: 6 14 6 14;"
+                    + "-fx-cursor: default;");
+            btn.setTooltip(new Tooltip("Plugin script not found on classpath.\n"
+                    + "Run: npx esbuild index.js --bundle --minify --outfile=build/pluginTest.min.js\n"
+                    + "in src/main/resources/plugins/pluginTest/"));
+            btn.setDisable(true);
+        }
+
+        return btn;
+    }
+
+    /**
+     * Returns true if the given classpath resource exists (does not load it fully).
+     */
+    private boolean isPluginAvailable(String classpathPath) {
+        try (InputStream is = getClass().getResourceAsStream("/" + classpathPath)) {
+            return is != null;
+        } catch (Exception e) {
+            log.warn("PluginTest — could not check classpath resource: {}", classpathPath, e);
+            return false;
+        }
+    }
+
+    /**
+     * Loads pluginTest.min.js from the classpath and injects it into the
+     * currently active browser page via Selenium's JavascriptExecutor.
+     *
+     * On success: a green floating card appears in the browser for 4 seconds.
+     * On failure: a JavaFX alert dialog describes the error.
+     */
+    private void runPluginTest() {
+        String classpathPath = "plugins/pluginTest/build/pluginTest.min.js";
+        try (InputStream is = getClass().getResourceAsStream("/" + classpathPath)) {
+            if (is == null) {
+                showPluginTestAlert(
+                        Alert.AlertType.ERROR,
+                        "Plugin not found",
+                        "Could not locate: " + classpathPath + "\n"
+                                + "Run the pluginTest build step and restart the application.");
+                return;
+            }
+            String script = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+            WebDriver driver = performActions.getCurrentDriver();
+            if (driver == null) {
+                showPluginTestAlert(
+                        Alert.AlertType.WARNING,
+                        "No browser session",
+                        "Open a browser session first, then click Plugin Test.");
+                return;
+            }
+            ((JavascriptExecutor) driver).executeScript(script);
+            log.info("PluginTest — script injected successfully from classpath: {}", classpathPath);
+        } catch (Exception ex) {
+            log.error("PluginTest — injection failed", ex);
+            showPluginTestAlert(Alert.AlertType.ERROR, "Plugin injection failed", ex.getMessage());
+        }
+    }
+
+    private void showPluginTestAlert(Alert.AlertType type, String header, String body) {
+        Platform.runLater(() -> {
+            Alert alert = new Alert(type);
+            alert.setTitle("Plugin Test");
+            alert.setHeaderText(header);
+            alert.setContentText(body);
+            alert.showAndWait();
+        });
     }
 }
