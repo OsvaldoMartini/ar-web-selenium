@@ -22,6 +22,10 @@ import com.google.gson.Gson;
 import io.opentelemetry.api.internal.StringUtils;
 import java.io.*;
 import java.io.StringReader;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -39,11 +43,14 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.concurrent.Task;
 import javafx.concurrent.Worker;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
@@ -156,6 +163,7 @@ public class ARScannedElementPane extends ARPane {
     private Button stopBotJobButton;
     private Button pageScannerButton;
     private Button pluginTestButton;
+    private Button updatePluginsButton;
     private Button refreshWebPageButton;
     private Button leftButton;
     private Button rightButton;
@@ -1447,6 +1455,7 @@ public class ARScannedElementPane extends ARPane {
                 "Page Scanner", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
 
         pluginTestButton = buildPluginTestButton();
+        updatePluginsButton = buildUpdatePluginsButton();
 
         turnOnOffButton = new Button("Search Hidden Fields: Off");
         turnOnOffButton.setStyle("-fx-background-color: grey; -fx-text-fill: white;");
@@ -1633,6 +1642,7 @@ public class ARScannedElementPane extends ARPane {
             // Add buttons and checkbox to the GridPane
             gridPaneTop.add(pageScannerButton, 0, 0);
             gridPaneTop.add(pluginTestButton, 1, 0);
+            gridPaneTop.add(updatePluginsButton, 2, 0);
             gridPaneTop.add(searchTermsLabel, 3, 0);
             gridPaneTop.add(searchTermsField, 4, 0);
             gridPaneTop.add(searchButton, 5, 0);
@@ -7257,6 +7267,290 @@ public class ARScannedElementPane extends ARPane {
             log.error("PluginTest — injection failed", ex);
             showPluginTestAlert(Alert.AlertType.ERROR, "Plugin injection failed", ex.getMessage());
         }
+    }
+
+    // ── Update Plugins Button ──────────────────────────────────────────────────
+
+    /**
+     * Builds the "Update Plugins" button using the standard builder pattern
+     * with the ICON_DOWNLOAD icon.
+     */
+    private Button buildUpdatePluginsButton() {
+        Button btn = builder.buildButton(
+                "Update Plugins",
+                ARConstants.SPACE_ZERO,
+                ARConstants.ICON_DOWNLOAD,
+                ARConstants.SPACE_M,
+                new Insets(5.0D));
+        btn.setTooltip(new Tooltip("Download latest plugins from configured URL"));
+        btn.setOnAction(e -> runPluginUpdate());
+        return btn;
+    }
+
+    /**
+     * Main entry point for the plugin update flow.
+     * Runs the download on a background thread with a progress dialog.
+     *
+     * Flow:
+     *   1. Validate url_plugins and path_plugins config
+     *   2. HTTP HEAD to check ETag / Content-Length
+     *   3. Compare with local .plugins-meta file
+     *   4. If changed: download ZIP, extract to path_plugins
+     *   5. Save new ETag to .plugins-meta
+     *   6. Refresh pluginTestButton state
+     */
+    private void runPluginUpdate() {
+        String urlPlugins = arPropertyManager.getProperty(ARPropertyEnum.URL_PLUGINS);
+        String pathPlugins = arPropertyManager.getProperty(ARPropertyEnum.PATH_PLUGINS);
+
+        if (urlPlugins == null || urlPlugins.isBlank()) {
+            showPluginTestAlert(
+                    Alert.AlertType.WARNING,
+                    "URL not configured",
+                    "url_plugins is not set in ARWeb.config.\n" + "Go to Configuration and set the URL Plugins field.");
+            return;
+        }
+
+        if (pathPlugins == null || pathPlugins.isBlank()) {
+            showPluginTestAlert(
+                    Alert.AlertType.WARNING, "Plugins path not configured", "path_plugins is not set in ARWeb.config.");
+            return;
+        }
+
+        Path pluginsDir = Paths.get(pathPlugins);
+        Path metaFile = pluginsDir.resolve(".plugins-meta");
+
+        // ── Build progress dialog ─────────────────────────────────────────
+        ProgressBar progressBar = new ProgressBar(0);
+        progressBar.setPrefWidth(350);
+        Label statusLabel = new Label("Checking for updates...");
+        statusLabel.setStyle("-fx-font-size: 12px;");
+
+        VBox dialogContent = new VBox(10, statusLabel, progressBar);
+        dialogContent.setPadding(new Insets(15));
+
+        Alert progressDialog = new Alert(Alert.AlertType.INFORMATION);
+        progressDialog.setTitle("Update Plugins");
+        progressDialog.setHeaderText("Plugin Update");
+        progressDialog.getDialogPane().setContent(dialogContent);
+        progressDialog.getButtonTypes().setAll(ButtonType.CANCEL);
+
+        // ── Background task ───────────────────────────────────────────────
+        Task<String> updateTask = new Task<>() {
+            @Override
+            protected String call() throws Exception {
+                HttpClient client = HttpClient.newBuilder()
+                        .connectTimeout(Duration.ofSeconds(15))
+                        .followRedirects(HttpClient.Redirect.NORMAL)
+                        .build();
+
+                // Step 1: HEAD request to check remote state
+                updateMessage("Checking remote version...");
+                HttpRequest headRequest = HttpRequest.newBuilder()
+                        .uri(URI.create(urlPlugins))
+                        .method("HEAD", HttpRequest.BodyPublishers.noBody())
+                        .timeout(Duration.ofSeconds(15))
+                        .build();
+
+                HttpResponse<Void> headResponse = client.send(headRequest, HttpResponse.BodyHandlers.discarding());
+
+                if (headResponse.statusCode() != 200) {
+                    throw new IOException(
+                            "Server returned HTTP " + headResponse.statusCode() + " for URL: " + urlPlugins);
+                }
+
+                String remoteETag = headResponse.headers().firstValue("ETag").orElse("");
+                long remoteSize = headResponse
+                        .headers()
+                        .firstValue("Content-Length")
+                        .map(Long::parseLong)
+                        .orElse(-1L);
+                String remoteLastModified =
+                        headResponse.headers().firstValue("Last-Modified").orElse("");
+
+                // Build a version fingerprint from whatever headers are available
+                String remoteFingerprint = remoteETag + "|" + remoteSize + "|" + remoteLastModified;
+
+                // Step 2: Compare with local meta
+                String localFingerprint = "";
+                if (Files.exists(metaFile)) {
+                    Properties meta = new Properties();
+                    try (InputStream in = Files.newInputStream(metaFile)) {
+                        meta.load(in);
+                    }
+                    localFingerprint = meta.getProperty("fingerprint", "");
+                }
+
+                if (remoteFingerprint.equals(localFingerprint) && !localFingerprint.isEmpty()) {
+                    updateMessage("Plugins are already up to date.");
+                    return "UP_TO_DATE";
+                }
+
+                // Step 3: Download the ZIP
+                updateMessage("Downloading plugins...");
+                HttpRequest getRequest = HttpRequest.newBuilder()
+                        .uri(URI.create(urlPlugins))
+                        .timeout(Duration.ofSeconds(120))
+                        .build();
+
+                HttpResponse<InputStream> getResponse =
+                        client.send(getRequest, HttpResponse.BodyHandlers.ofInputStream());
+
+                if (getResponse.statusCode() != 200) {
+                    throw new IOException("Download failed with HTTP " + getResponse.statusCode());
+                }
+
+                long contentLength = getResponse
+                        .headers()
+                        .firstValue("Content-Length")
+                        .map(Long::parseLong)
+                        .orElse(-1L);
+
+                // Download to temp file with progress tracking
+                Path tempZip = Files.createTempFile("ar-plugins-", ".zip");
+                try (InputStream body = getResponse.body();
+                        OutputStream out = Files.newOutputStream(tempZip)) {
+
+                    byte[] buffer = new byte[8192];
+                    long totalRead = 0;
+                    int bytesRead;
+
+                    while ((bytesRead = body.read(buffer)) != -1) {
+                        out.write(buffer, 0, bytesRead);
+                        totalRead += bytesRead;
+                        if (contentLength > 0) {
+                            updateProgress(totalRead, contentLength);
+                        }
+                        updateMessage(String.format(
+                                "Downloading... %s / %s",
+                                formatBytes(totalRead), contentLength > 0 ? formatBytes(contentLength) : "unknown"));
+                    }
+                }
+
+                // Step 4: Extract ZIP to plugins folder
+                updateMessage("Extracting plugins...");
+                updateProgress(-1, -1); // indeterminate during extract
+                Files.createDirectories(pluginsDir);
+
+                try (ZipInputStream zis = new ZipInputStream(Files.newInputStream(tempZip), StandardCharsets.UTF_8)) {
+
+                    ZipEntry entry;
+                    while ((entry = zis.getNextEntry()) != null) {
+                        Path target = pluginsDir.resolve(entry.getName()).normalize();
+
+                        // Security: prevent zip-slip (path traversal)
+                        if (!target.startsWith(pluginsDir)) {
+                            log.warn("UpdatePlugins — skipping zip-slip entry: {}", entry.getName());
+                            continue;
+                        }
+
+                        if (entry.isDirectory()) {
+                            Files.createDirectories(target);
+                        } else {
+                            Files.createDirectories(target.getParent());
+                            try (OutputStream fileOut = Files.newOutputStream(target)) {
+                                byte[] buf = new byte[8192];
+                                int len;
+                                while ((len = zis.read(buf)) != -1) {
+                                    fileOut.write(buf, 0, len);
+                                }
+                            }
+                        }
+                        zis.closeEntry();
+                    }
+                }
+
+                // Clean up temp file
+                Files.deleteIfExists(tempZip);
+
+                // Step 5: Save meta file with new fingerprint
+                Properties meta = new Properties();
+                meta.setProperty("fingerprint", remoteFingerprint);
+                meta.setProperty("url", urlPlugins);
+                meta.setProperty("updated", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+                try (OutputStream metaOut = Files.newOutputStream(metaFile)) {
+                    meta.store(metaOut, "AR Web Plugin Update Metadata");
+                }
+
+                updateMessage("Plugins updated successfully!");
+                updateProgress(1, 1);
+                return "UPDATED";
+            }
+        };
+
+        // Bind progress bar to task
+        progressBar.progressProperty().bind(updateTask.progressProperty());
+        statusLabel.textProperty().bind(updateTask.messageProperty());
+
+        updateTask.setOnSucceeded(e -> {
+            String result = updateTask.getValue();
+            progressDialog.close();
+
+            if ("UP_TO_DATE".equals(result)) {
+                showPluginTestAlert(
+                        Alert.AlertType.INFORMATION,
+                        "Already up to date",
+                        "Your plugins are already the latest version.");
+            } else {
+                // Refresh the pluginTestButton to reflect new file state
+                Platform.runLater(() -> {
+                    int btnIndex = -1;
+                    for (int i = 0;
+                            i
+                                    < ((GridPane) pluginTestButton.getParent())
+                                            .getChildren()
+                                            .size();
+                            i++) {
+                        if (((GridPane) pluginTestButton.getParent())
+                                        .getChildren()
+                                        .get(i)
+                                == pluginTestButton) {
+                            btnIndex = i;
+                            break;
+                        }
+                    }
+                    if (btnIndex >= 0) {
+                        GridPane grid = (GridPane) pluginTestButton.getParent();
+                        grid.getChildren().remove(pluginTestButton);
+                        pluginTestButton = buildPluginTestButton();
+                        grid.add(pluginTestButton, 1, 0);
+                    }
+                });
+
+                showPluginTestAlert(
+                        Alert.AlertType.INFORMATION,
+                        "Update complete",
+                        "Plugins have been downloaded and extracted to:\n" + pathPlugins);
+            }
+            log.info("UpdatePlugins — result: {}", result);
+        });
+
+        updateTask.setOnFailed(e -> {
+            progressDialog.close();
+            Throwable ex = updateTask.getException();
+            log.error("UpdatePlugins — failed", ex);
+            showPluginTestAlert(Alert.AlertType.ERROR, "Update failed", ex.getMessage());
+        });
+
+        // Cancel button closes dialog and cancels task
+        progressDialog.setOnCloseRequest(e -> updateTask.cancel());
+
+        // Run on background thread
+        Thread thread = new Thread(updateTask);
+        thread.setDaemon(true);
+        thread.setName("plugin-update-thread");
+        thread.start();
+
+        progressDialog.show();
+    }
+
+    /**
+     * Formats byte count into human-readable string (KB/MB).
+     */
+    private static String formatBytes(long bytes) {
+        if (bytes < 1024) return bytes + " B";
+        if (bytes < 1024 * 1024) return String.format("%.1f KB", bytes / 1024.0);
+        return String.format("%.1f MB", bytes / (1024.0 * 1024.0));
     }
 
     private void showPluginTestAlert(Alert.AlertType type, String header, String body) {

@@ -275,6 +275,7 @@ public class ARPropertyManager {
             setProperty(ARPropertyEnum.PATH_WEBDRIVER.getValue(), ARConstantsEngine.USER_PATH + "\\driver");
             setProperty(ARPropertyEnum.PATH_APPIUM.getValue(), ARConstantsEngine.USER_PATH + "\\appium");
             setProperty(ARPropertyEnum.PATH_PLUGINS.getValue(), ARConstantsEngine.USER_PATH + "\\plugins");
+            setProperty(ARPropertyEnum.URL_PLUGINS.getValue(), "");
             setProperty(ARPropertyEnum.LOG_LEVEL.getValue(), Level.INFO.getName());
             setProperty(ARPropertyEnum.BROWSER.getValue(), ARConstantsEngine.EDGE);
             setProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC.getValue(), "60");

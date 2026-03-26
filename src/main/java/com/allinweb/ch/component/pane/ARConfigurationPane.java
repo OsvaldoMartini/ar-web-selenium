@@ -105,6 +105,7 @@ public class ARConfigurationPane extends ARPane {
     Label pathWebDriverLabel;
     Label pathAppiumLabel;
     Label pathPluginsLabel;
+    Label urlPluginsLabel;
     TextField pathExcel;
     TextField pathLicense;
     TextField pathLog;
@@ -118,6 +119,7 @@ public class ARConfigurationPane extends ARPane {
     TextField pathWebDriver;
     TextField pathAppium;
     TextField pathPlugins;
+    TextField urlPlugins;
     ChoiceBox<String> browserChoiceBox = new ChoiceBox<>();
     ChoiceBox<String> databaseChoiceBox = new ChoiceBox<>();
     ObservableList<String> browserList =
@@ -447,6 +449,10 @@ public class ARConfigurationPane extends ARPane {
         pathPluginsButton = createPathButton();
         AnchorPane pluginsGroup = new AnchorPane(pathPlugins, pathPluginsButton);
 
+        urlPluginsLabel = new Label("URL Plugins:");
+        urlPlugins = createPathTextField(ARPropertyEnum.URL_PLUGINS);
+        urlPlugins.setPromptText("https://yourserver.com/plugins/latest.zip");
+
         Label organizationsLabel = new Label("Organizations");
         organizationsLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #1565C0;");
         organizationsLabel.setAlignment(Pos.CENTER);
@@ -472,6 +478,8 @@ public class ARConfigurationPane extends ARPane {
                 appiumGroup,
                 pathPluginsLabel,
                 pluginsGroup,
+                urlPluginsLabel,
+                urlPlugins,
                 dbUrlLabel,
                 dbUrl,
                 dbUserPwdGroup,
@@ -1051,6 +1059,8 @@ public class ARConfigurationPane extends ARPane {
             arPropertyManager.setProperty(
                     ARPropertyEnum.PATH_PLUGINS.getValue(),
                     pathPlugins.getText().trim());
+            arPropertyManager.setProperty(
+                    ARPropertyEnum.URL_PLUGINS.getValue(), urlPlugins.getText().trim());
 
             try {
                 performInitializer.testConnection(
