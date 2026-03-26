@@ -7277,11 +7277,7 @@ public class ARScannedElementPane extends ARPane {
      */
     private Button buildUpdatePluginsButton() {
         Button btn = builder.buildButton(
-                "Update Plugins",
-                ARConstants.SPACE_ZERO,
-                ARConstants.ICON_DOWNLOAD,
-                ARConstants.SPACE_M,
-                new Insets(5.0D));
+                "", ARConstants.SPACE_ZERO, ARConstants.ICON_DOWNLOAD, ARConstants.SPACE_M, new Insets(5.0D));
         btn.setTooltip(new Tooltip("Download latest plugins from configured URL"));
         btn.setOnAction(e -> runPluginUpdate());
         return btn;

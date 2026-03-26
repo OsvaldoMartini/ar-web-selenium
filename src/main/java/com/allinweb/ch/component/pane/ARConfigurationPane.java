@@ -458,12 +458,16 @@ public class ARConfigurationPane extends ARPane {
         organizationsLabel.setAlignment(Pos.CENTER);
         organizationsLabel.setMaxWidth(Double.MAX_VALUE);
 
-        pathGroup = new VBox(
+        // ── Collapsible Section Headers ─────────────────────────────────
+        // Plain Label + VBox + click-to-toggle. No Accordion/TitledPane.
+        // Maps directly to Swing: JPanel + setVisible() + MouseListener.
+
+        // Operational section content
+        VBox operationalContent = new VBox(
                 pathLicenseLabel,
                 licenseGroup,
                 pathExcelLabel,
                 excelGroup,
-                //                gridPaneExport,
                 gridPaneLog,
                 gridPaneDB,
                 pathReportLabel,
@@ -473,7 +477,12 @@ public class ARConfigurationPane extends ARPane {
                 pathEngineLabel,
                 engineGroup,
                 pathWebDriverLabel,
-                driverGroup,
+                driverGroup);
+        operationalContent.setSpacing(2);
+        operationalContent.setPadding(new Insets(4, 0, 4, 0));
+
+        // Advanced section content
+        VBox advancedContent = new VBox(
                 pathAppiumLabel,
                 appiumGroup,
                 pathPluginsLabel,
@@ -482,7 +491,56 @@ public class ARConfigurationPane extends ARPane {
                 urlPlugins,
                 dbUrlLabel,
                 dbUrl,
-                dbUserPwdGroup,
+                dbUserPwdGroup);
+        advancedContent.setSpacing(2);
+        advancedContent.setPadding(new Insets(4, 0, 4, 0));
+        advancedContent.setVisible(false);
+        advancedContent.setManaged(false); // collapsed by default
+
+        // Section header style
+        String headerStyle = "-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #1565C0;"
+                + "-fx-padding: 6 10 6 10; -fx-background-color: #E3F2FD;"
+                + "-fx-background-radius: 4; -fx-cursor: hand;";
+
+        Label operationalHeader = new Label("▼  Operational Configuration");
+        operationalHeader.setMaxWidth(Double.MAX_VALUE);
+        operationalHeader.setStyle(headerStyle);
+
+        Label advancedHeader = new Label("▶  Advanced Configuration");
+        advancedHeader.setMaxWidth(Double.MAX_VALUE);
+        advancedHeader.setStyle(headerStyle);
+
+        // Click toggles: opening one closes the other (accordion behavior)
+        operationalHeader.setOnMouseClicked(e -> {
+            boolean willOpen = !operationalContent.isVisible();
+            // Close the other section
+            advancedContent.setVisible(false);
+            advancedContent.setManaged(false);
+            advancedHeader.setText("▶  Advanced Configuration");
+            // Toggle this section
+            operationalContent.setVisible(willOpen);
+            operationalContent.setManaged(willOpen);
+            operationalHeader.setText(willOpen ? "▼  Operational Configuration" : "▶  Operational Configuration");
+        });
+
+        advancedHeader.setOnMouseClicked(e -> {
+            boolean willOpen = !advancedContent.isVisible();
+            // Close the other section
+            operationalContent.setVisible(false);
+            operationalContent.setManaged(false);
+            operationalHeader.setText("▶  Operational Configuration");
+            // Toggle this section
+            advancedContent.setVisible(willOpen);
+            advancedContent.setManaged(willOpen);
+            advancedHeader.setText(willOpen ? "▼  Advanced Configuration" : "▶  Advanced Configuration");
+        });
+
+        // ── Main layout ──────────────────────────────────────────────────
+        pathGroup = new VBox(
+                operationalHeader,
+                operationalContent,
+                advancedHeader,
+                advancedContent,
                 buttonRow,
                 organizationsLabel,
                 homeBankingContainer);
