@@ -459,7 +459,7 @@ public class ARScannedElementPane extends ARPane {
     private static String loadScriptFromResource(String resourcePath) throws IOException {
         // Use ClassLoader to get the resource as an InputStream
         try (InputStream inputStream =
-                ARScannedElementPane.class.getClassLoader().getResourceAsStream(resourcePath)) {
+                     ARScannedElementPane.class.getClassLoader().getResourceAsStream(resourcePath)) {
             if (inputStream == null) {
                 throw new IOException("Resource not found: " + resourcePath);
             }
@@ -589,8 +589,8 @@ public class ARScannedElementPane extends ARPane {
             actionReq = checkClickElement.isSelected()
                     ? ARConstants.CLICK
                     : checkInputText.isSelected()
-                            ? ARConstants.INSERT
-                            : checkOutputText.isSelected() ? ARConstants.OUTPUT : ARConstants.OTHER;
+                    ? ARConstants.INSERT
+                    : checkOutputText.isSelected() ? ARConstants.OUTPUT : ARConstants.OTHER;
         }
 
         targetInsert.setClickElement(checkClickElement.isSelected());
@@ -1469,7 +1469,7 @@ public class ARScannedElementPane extends ARPane {
                 "/cross.png", // Icon source
                 16.0, // Smaller icon size
                 new Insets(2.0) // Reduced padding
-                );
+        );
 
         testActionLabel = new Label("Test Actions :");
 
@@ -2287,10 +2287,10 @@ public class ARScannedElementPane extends ARPane {
                     nameDefined = (!Strings.isNullOrEmpty(targetSelected.getSomeText())
                             ? PerformActions.truncateAndNormalize(targetSelected.getSomeText(), 30)
                             : !Strings.isNullOrEmpty(targetSelected.getAttribId())
-                                    ? targetSelected.getAttribId()
-                                    : !Strings.isNullOrEmpty(targetSelected.getAttribName())
-                                            ? targetSelected.getAttribName()
-                                            : "");
+                            ? targetSelected.getAttribId()
+                            : !Strings.isNullOrEmpty(targetSelected.getAttribName())
+                            ? targetSelected.getAttribName()
+                            : "");
 
                     if (targetSelected.getDefinedName() != null
                             && !targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
@@ -3070,8 +3070,8 @@ public class ARScannedElementPane extends ARPane {
         blocksLoaded.forEach(block -> {
             boolean hasInput = block.getInstructionLoad() != null
                     && block.getInstructionLoad().stream()
-                            .anyMatch(instr -> instr.getActions() != null
-                                    && instr.getActions().startsWith("I:"));
+                    .anyMatch(instr -> instr.getActions() != null
+                            && instr.getActions().startsWith("I:"));
 
             block.setHasAnyInput(hasInput);
         });
@@ -3536,8 +3536,8 @@ public class ARScannedElementPane extends ARPane {
 
                                     logOperations.info("Total Target Elements: "
                                             + performLists
-                                                    .getListTargetElements()
-                                                    .size());
+                                            .getListTargetElements()
+                                            .size());
 
                                     // runYourScript(currentInstructionId);
                                 }
@@ -3629,8 +3629,8 @@ public class ARScannedElementPane extends ARPane {
                                     .split(ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER);
                             String[] operations = currentInstruction.getOperation() != null
                                     ? currentInstruction
-                                            .getOperation()
-                                            .split(ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER)
+                                    .getOperation()
+                                    .split(ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER)
                                     : null;
 
                             if (actions[0].equalsIgnoreCase(ARConstantsEngine.IF)
@@ -3796,16 +3796,16 @@ public class ARScannedElementPane extends ARPane {
                                         (currentInstruction.getOperation() != null
                                                 ? "(" + parentId + ")-" + operations[0] + ":" + operations[1]
                                                 : (actions[0].equalsIgnoreCase(ARConstantsEngine.INSERT))
-                                                        ? valueInsert
-                                                        : ""));
+                                                ? valueInsert
+                                                : ""));
                             } else {
                                 msgInstruction = new FieldData(
                                         "(" + currentInstruction.getId() + ")-" + currentInstruction.getName(),
                                         (currentInstruction.getOperation() != null
                                                 ? currentInstruction.getOperation()
                                                 : (actions[0].equalsIgnoreCase(ARConstantsEngine.INSERT))
-                                                        ? valueInsert
-                                                        : ""));
+                                                ? valueInsert
+                                                : ""));
                             }
 
                             resultActions = performActions.actionResultMessage(blockName, actions, msgInstruction);
@@ -4336,8 +4336,8 @@ public class ARScannedElementPane extends ARPane {
                                     // It could be Improved the case
                                     if (resultActions.contains("FAIL")
                                             || performLists
-                                                    .getListTargetElements()
-                                                    .isEmpty()
+                                            .getListTargetElements()
+                                            .isEmpty()
                                             || (matchXPath == null && matchScanned == null && webElementFound == null)
                                             || (webElementFound == null && !forceCoordinates)) {
                                         failedMessage = "Failed execution Web Element ";
@@ -4615,8 +4615,8 @@ public class ARScannedElementPane extends ARPane {
                                                     // You still keep your "Get Value Is Not Defined" behavior
                                                     if (actualValue == null
                                                             || actualValue
-                                                                    .trim()
-                                                                    .isEmpty()) {
+                                                            .trim()
+                                                            .isEmpty()) {
                                                         failedMessage = "Get Value Is Not Defined ";
                                                         msgInstruction =
                                                                 updateMSGInstruction(msgInstruction, failedMessage);
@@ -4792,7 +4792,7 @@ public class ARScannedElementPane extends ARPane {
 
                                         if (!Strings.isNullOrEmpty(newExcelFieldName)) {
                                             writerExport = new ExcelWriter(
-                                                            newExcelFieldName, performActions.getCurrentDriver(), true)
+                                                    newExcelFieldName, performActions.getCurrentDriver(), true)
                                                     .withPurpose("export");
 
                                             // Only create Columns if Have a file to write
@@ -7045,7 +7045,7 @@ public class ARScannedElementPane extends ARPane {
 
     public void writeToFileCSV(String filename, String content) {
         try (Writer writer =
-                new BufferedWriter(new OutputStreamWriter(new FileOutputStream(filename), StandardCharsets.UTF_8))) {
+                     new BufferedWriter(new OutputStreamWriter(new FileOutputStream(filename), StandardCharsets.UTF_8))) {
 
             writer.write(content);
             logOperations.info("CSV written to file: {}", filename);
@@ -7193,8 +7193,8 @@ public class ARScannedElementPane extends ARPane {
             String hint = (pluginsDir == null || pluginsDir.isBlank())
                     ? "path_plugins is not configured in ARWeb.config."
                     : "Plugin script not found in: " + pluginsDir + "/pluginTest/build/\n"
-                            + "Run: npx esbuild index.js --bundle --minify --outfile=build/pluginTest.min.js\n"
-                            + "in " + pluginsDir + "/pluginTest/";
+                    + "Run: npx esbuild index.js --bundle --minify --outfile=build/pluginTest.min.js\n"
+                    + "in " + pluginsDir + "/pluginTest/";
             btn.setTooltip(new Tooltip(hint));
             btn.setDisable(true);
         }
@@ -7286,14 +7286,13 @@ public class ARScannedElementPane extends ARPane {
     /**
      * Main entry point for the plugin update flow.
      * Runs the download on a background thread with a progress dialog.
+     * Always downloads — no version check, no fingerprint comparison.
      *
      * Flow:
      *   1. Validate url_plugins and path_plugins config
-     *   2. HTTP HEAD to check ETag / Content-Length
-     *   3. Compare with local .plugins-meta file
-     *   4. If changed: download ZIP, extract to path_plugins
-     *   5. Save new ETag to .plugins-meta
-     *   6. Refresh pluginTestButton state
+     *   2. Download ZIP from url_plugins
+     *   3. Extract to path_plugins folder
+     *   4. Refresh pluginTestButton state
      */
     private void runPluginUpdate() {
         String urlPlugins = arPropertyManager.getProperty(ARPropertyEnum.URL_PLUGINS);
@@ -7340,49 +7339,7 @@ public class ARScannedElementPane extends ARPane {
                         .followRedirects(HttpClient.Redirect.NORMAL)
                         .build();
 
-                // Step 1: HEAD request to check remote state
-                updateMessage("Checking remote version...");
-                HttpRequest headRequest = HttpRequest.newBuilder()
-                        .uri(URI.create(urlPlugins))
-                        .method("HEAD", HttpRequest.BodyPublishers.noBody())
-                        .timeout(Duration.ofSeconds(15))
-                        .build();
-
-                HttpResponse<Void> headResponse = client.send(headRequest, HttpResponse.BodyHandlers.discarding());
-
-                if (headResponse.statusCode() != 200) {
-                    throw new IOException(
-                            "Server returned HTTP " + headResponse.statusCode() + " for URL: " + urlPlugins);
-                }
-
-                String remoteETag = headResponse.headers().firstValue("ETag").orElse("");
-                long remoteSize = headResponse
-                        .headers()
-                        .firstValue("Content-Length")
-                        .map(Long::parseLong)
-                        .orElse(-1L);
-                String remoteLastModified =
-                        headResponse.headers().firstValue("Last-Modified").orElse("");
-
-                // Build a version fingerprint from whatever headers are available
-                String remoteFingerprint = remoteETag + "|" + remoteSize + "|" + remoteLastModified;
-
-                // Step 2: Compare with local meta
-                String localFingerprint = "";
-                if (Files.exists(metaFile)) {
-                    Properties meta = new Properties();
-                    try (InputStream in = Files.newInputStream(metaFile)) {
-                        meta.load(in);
-                    }
-                    localFingerprint = meta.getProperty("fingerprint", "");
-                }
-
-                if (remoteFingerprint.equals(localFingerprint) && !localFingerprint.isEmpty()) {
-                    updateMessage("Plugins are already up to date.");
-                    return "UP_TO_DATE";
-                }
-
-                // Step 3: Download the ZIP
+                // Step 1: Download the ZIP (always — no version check)
                 updateMessage("Downloading plugins...");
                 HttpRequest getRequest = HttpRequest.newBuilder()
                         .uri(URI.create(urlPlugins))
@@ -7393,7 +7350,8 @@ public class ARScannedElementPane extends ARPane {
                         client.send(getRequest, HttpResponse.BodyHandlers.ofInputStream());
 
                 if (getResponse.statusCode() != 200) {
-                    throw new IOException("Download failed with HTTP " + getResponse.statusCode());
+                    throw new IOException(
+                            "Download failed with HTTP " + getResponse.statusCode() + " from: " + urlPlugins);
                 }
 
                 long contentLength = getResponse
@@ -7405,7 +7363,7 @@ public class ARScannedElementPane extends ARPane {
                 // Download to temp file with progress tracking
                 Path tempZip = Files.createTempFile("ar-plugins-", ".zip");
                 try (InputStream body = getResponse.body();
-                        OutputStream out = Files.newOutputStream(tempZip)) {
+                     OutputStream out = Files.newOutputStream(tempZip)) {
 
                     byte[] buffer = new byte[8192];
                     long totalRead = 0;
@@ -7423,11 +7381,14 @@ public class ARScannedElementPane extends ARPane {
                     }
                 }
 
-                // Step 4: Extract ZIP to plugins folder
+                log.info("UpdatePlugins — downloaded {} to temp file: {}", formatBytes(Files.size(tempZip)), tempZip);
+
+                // Step 2: Extract ZIP to plugins folder
                 updateMessage("Extracting plugins...");
                 updateProgress(-1, -1); // indeterminate during extract
                 Files.createDirectories(pluginsDir);
 
+                int fileCount = 0;
                 try (ZipInputStream zis = new ZipInputStream(Files.newInputStream(tempZip), StandardCharsets.UTF_8)) {
 
                     ZipEntry entry;
@@ -7442,6 +7403,7 @@ public class ARScannedElementPane extends ARPane {
 
                         if (entry.isDirectory()) {
                             Files.createDirectories(target);
+                            log.info("UpdatePlugins — created dir:  {}", target);
                         } else {
                             Files.createDirectories(target.getParent());
                             try (OutputStream fileOut = Files.newOutputStream(target)) {
@@ -7451,6 +7413,8 @@ public class ARScannedElementPane extends ARPane {
                                     fileOut.write(buf, 0, len);
                                 }
                             }
+                            fileCount++;
+                            log.info("UpdatePlugins — extracted file: {}", target);
                         }
                         zis.closeEntry();
                     }
@@ -7459,17 +7423,18 @@ public class ARScannedElementPane extends ARPane {
                 // Clean up temp file
                 Files.deleteIfExists(tempZip);
 
-                // Step 5: Save meta file with new fingerprint
+                // Step 3: Save meta file with download timestamp
                 Properties meta = new Properties();
-                meta.setProperty("fingerprint", remoteFingerprint);
                 meta.setProperty("url", urlPlugins);
                 meta.setProperty("updated", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+                meta.setProperty("files", String.valueOf(fileCount));
                 try (OutputStream metaOut = Files.newOutputStream(metaFile)) {
                     meta.store(metaOut, "AR Web Plugin Update Metadata");
                 }
 
-                updateMessage("Plugins updated successfully!");
+                updateMessage("Done! Extracted " + fileCount + " files.");
                 updateProgress(1, 1);
+                log.info("UpdatePlugins — completed: {} files extracted to {}", fileCount, pluginsDir);
                 return "UPDATED";
             }
         };
@@ -7482,42 +7447,36 @@ public class ARScannedElementPane extends ARPane {
             String result = updateTask.getValue();
             progressDialog.close();
 
-            if ("UP_TO_DATE".equals(result)) {
-                showPluginTestAlert(
-                        Alert.AlertType.INFORMATION,
-                        "Already up to date",
-                        "Your plugins are already the latest version.");
-            } else {
-                // Refresh the pluginTestButton to reflect new file state
-                Platform.runLater(() -> {
-                    int btnIndex = -1;
-                    for (int i = 0;
-                            i
-                                    < ((GridPane) pluginTestButton.getParent())
-                                            .getChildren()
-                                            .size();
-                            i++) {
-                        if (((GridPane) pluginTestButton.getParent())
-                                        .getChildren()
-                                        .get(i)
-                                == pluginTestButton) {
-                            btnIndex = i;
-                            break;
-                        }
+            // Refresh the pluginTestButton to reflect new file state
+            Platform.runLater(() -> {
+                int btnIndex = -1;
+                for (int i = 0;
+                     i
+                             < ((GridPane) pluginTestButton.getParent())
+                             .getChildren()
+                             .size();
+                     i++) {
+                    if (((GridPane) pluginTestButton.getParent())
+                            .getChildren()
+                            .get(i)
+                            == pluginTestButton) {
+                        btnIndex = i;
+                        break;
                     }
-                    if (btnIndex >= 0) {
-                        GridPane grid = (GridPane) pluginTestButton.getParent();
-                        grid.getChildren().remove(pluginTestButton);
-                        pluginTestButton = buildPluginTestButton();
-                        grid.add(pluginTestButton, 1, 0);
-                    }
-                });
+                }
+                if (btnIndex >= 0) {
+                    GridPane grid = (GridPane) pluginTestButton.getParent();
+                    grid.getChildren().remove(pluginTestButton);
+                    pluginTestButton = buildPluginTestButton();
+                    grid.add(pluginTestButton, 1, 0);
+                }
+            });
 
-                showPluginTestAlert(
-                        Alert.AlertType.INFORMATION,
-                        "Update complete",
-                        "Plugins have been downloaded and extracted to:\n" + pathPlugins);
-            }
+            showPluginTestAlert(
+                    Alert.AlertType.INFORMATION,
+                    "Download complete",
+                    "Plugins have been downloaded and extracted to:\n" + pathPlugins);
+
             log.info("UpdatePlugins — result: {}", result);
         });
 
