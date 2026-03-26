@@ -122,14 +122,14 @@ public class PerformPreLoad {
             JavascriptExecutor executor = (JavascriptExecutor) driver;
             executor.executeScript(
                     getJsScanner(),
-                    dataList, // arguments[0] — searchTerms
-                    searchHiddenFields, // arguments[1] — searchHiddenFields
-                    port, // arguments[2] — WS port
-                    sessionId, // arguments[3] — sessionId
-                    destination, // arguments[4] — destination
-                    operationId, // arguments[5] — operationId
-                    homeBankingId, // arguments[6] — homeBankingId
-                    botJobId); // arguments[7] — botJobId
+                    dataList,             // arguments[0] — searchTerms
+                    searchHiddenFields,   // arguments[1] — searchHiddenFields
+                    port,                 // arguments[2] — WS port
+                    sessionId,            // arguments[3] — sessionId
+                    destination,          // arguments[4] — destination
+                    operationId,          // arguments[5] — operationId
+                    homeBankingId,        // arguments[6] — homeBankingId
+                    botJobId);            // arguments[7] — botJobId
             return null;
         } catch (Exception error) {
             log.error("PerformPreLoad — scanner injection failed: {}", error.getMessage(), error);

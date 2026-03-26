@@ -1,22 +1,29 @@
 /**
  * pluginTest — plugin entry point
  *
- * A minimal smoke-test plugin that fires an alert() to confirm the plugin
- * folder structure and classpath loading mechanism are working correctly.
+ * A minimal smoke-test plugin that confirms the plugin folder structure
+ * and classpath loading mechanism are working correctly.
  *
- * Injected by PerformPreLoad.testPluginLoad() via Selenium JavascriptExecutor.
+ * Injected by ARScannedElementPane.runPluginTest() via Selenium JavascriptExecutor.
  * No arguments required.
+ *
+ * Validation behaviour:
+ *   ✅ Success: console.log("plugin test") + green floating card (4 s)
+ *   ⚠  Failure: handled on the Java side (Alert dialog)
  *
  * Build output: build/pluginTest.min.js  (produced by esbuild or Maven)
  *   npx esbuild index.js --bundle --minify --outfile=build/pluginTest.min.js
  */
 
 (function () {
-  // Clean any previous test overlay
+  // ── Console confirmation (required by plugin test spec) ──────────────
+  console.log('plugin test');
+
+  // ── Clean any previous test overlay ──────────────────────────────────
   const existing = document.getElementById('__ar-plugin-test-overlay');
   if (existing) existing.remove();
 
-  // Inject a floating status card instead of a blocking alert()
+  // ── Inject a floating status card ────────────────────────────────────
   const overlay = document.createElement('div');
   overlay.id = '__ar-plugin-test-overlay';
   overlay.style.cssText = [
