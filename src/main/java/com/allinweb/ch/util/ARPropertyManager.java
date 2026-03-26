@@ -274,6 +274,7 @@ public class ARPropertyManager {
             setProperty(ARPropertyEnum.PATH_ENGINE.getValue(), ARConstantsEngine.USER_PATH);
             setProperty(ARPropertyEnum.PATH_WEBDRIVER.getValue(), ARConstantsEngine.USER_PATH + "\\driver");
             setProperty(ARPropertyEnum.PATH_APPIUM.getValue(), ARConstantsEngine.USER_PATH + "\\appium");
+            setProperty(ARPropertyEnum.PATH_PLUGINS.getValue(), ARConstantsEngine.USER_PATH + "\\plugins");
             setProperty(ARPropertyEnum.LOG_LEVEL.getValue(), Level.INFO.getName());
             setProperty(ARPropertyEnum.BROWSER.getValue(), ARConstantsEngine.EDGE);
             setProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC.getValue(), "60");
@@ -303,6 +304,7 @@ public class ARPropertyManager {
             //            "db_user",
             //            "db_pwd",
             "path_appium",
+            "path_plugins",
             "navigation_time",
             "path_excel",
             "path_log",
@@ -369,6 +371,11 @@ public class ARPropertyManager {
                 // appium
                 if ("path_appium".equals(prop)) {
                     setProperty(ARPropertyEnum.PATH_APPIUM.getValue(), ARConstantsEngine.USER_PATH + "\\appium");
+                }
+
+                // plugins
+                if ("path_plugins".equals(prop)) {
+                    setProperty(ARPropertyEnum.PATH_PLUGINS.getValue(), ARConstantsEngine.USER_PATH + "\\plugins");
                 }
 
                 // navigation time

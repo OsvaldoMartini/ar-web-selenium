@@ -104,6 +104,7 @@ public class ARConfigurationPane extends ARPane {
     Label insertSitesLabel;
     Label pathWebDriverLabel;
     Label pathAppiumLabel;
+    Label pathPluginsLabel;
     TextField pathExcel;
     TextField pathLicense;
     TextField pathLog;
@@ -116,6 +117,7 @@ public class ARConfigurationPane extends ARPane {
     TextField pathEngine;
     TextField pathWebDriver;
     TextField pathAppium;
+    TextField pathPlugins;
     ChoiceBox<String> browserChoiceBox = new ChoiceBox<>();
     ChoiceBox<String> databaseChoiceBox = new ChoiceBox<>();
     ObservableList<String> browserList =
@@ -132,6 +134,7 @@ public class ARConfigurationPane extends ARPane {
     Button pathEngineButton;
     Button pathWebDriverButton;
     Button pathAppiumButton;
+    Button pathPluginsButton;
     Button reloadDBButton;
     Button backupDBButton;
     Button restoreDBButton;
@@ -439,6 +442,11 @@ public class ARConfigurationPane extends ARPane {
         pathAppiumButton = createPathButton();
         AnchorPane appiumGroup = new AnchorPane(pathAppium, pathAppiumButton);
 
+        pathPluginsLabel = new Label("Plugins Path:");
+        pathPlugins = createPathTextField(ARPropertyEnum.PATH_PLUGINS);
+        pathPluginsButton = createPathButton();
+        AnchorPane pluginsGroup = new AnchorPane(pathPlugins, pathPluginsButton);
+
         Label organizationsLabel = new Label("Organizations");
         organizationsLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #1565C0;");
         organizationsLabel.setAlignment(Pos.CENTER);
@@ -462,6 +470,8 @@ public class ARConfigurationPane extends ARPane {
                 driverGroup,
                 pathAppiumLabel,
                 appiumGroup,
+                pathPluginsLabel,
+                pluginsGroup,
                 dbUrlLabel,
                 dbUrl,
                 dbUserPwdGroup,
@@ -563,6 +573,7 @@ public class ARConfigurationPane extends ARPane {
         pathEngineButton.setOnMouseClicked(e -> openChooserFor(pathEngine, modalStage, false));
         pathWebDriverButton.setOnMouseClicked(e -> openChooserFor(pathWebDriver, modalStage, false));
         pathAppiumButton.setOnMouseClicked(e -> openChooserFor(pathAppium, modalStage, true));
+        pathPluginsButton.setOnMouseClicked(e -> openChooserFor(pathPlugins, modalStage, true));
 
         browserChoiceBox.setValue(arPropertyManager.getProperty(ARPropertyEnum.BROWSER));
 
@@ -1007,6 +1018,11 @@ public class ARConfigurationPane extends ARPane {
             validfields = false;
         }
 
+        if (Strings.isNullOrEmpty(pathPlugins.getText())) {
+            new ARAlertScene(Alert.AlertType.ERROR, "Field Blank", "Plugins Path must be filed!", ButtonType.OK);
+            validfields = false;
+        }
+
         if (validfields) {
 
             arPropertyManager.setProperty(ARPropertyEnum.BROWSER.getValue(), browserChoiceBox.getValue());
@@ -1032,6 +1048,9 @@ public class ARConfigurationPane extends ARPane {
                     pathWebDriver.getText().trim());
             arPropertyManager.setProperty(
                     ARPropertyEnum.PATH_APPIUM.getValue(), pathAppium.getText().trim());
+            arPropertyManager.setProperty(
+                    ARPropertyEnum.PATH_PLUGINS.getValue(),
+                    pathPlugins.getText().trim());
 
             try {
                 performInitializer.testConnection(

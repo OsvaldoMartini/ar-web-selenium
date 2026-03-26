@@ -48,6 +48,13 @@ executed by the AR Web Engine.
 
 ### Guide lines
 
+### IMPORTANT
+```bash
+cd src/main/resources/plugins/pageScanner
+npx esbuild index.js --bundle --minify --outfile=build/scanner.min.js
+```
+
+
 #### Premise
 The project tries to make modular components. This is because there
 is a possibility in the future to split the application in multiple

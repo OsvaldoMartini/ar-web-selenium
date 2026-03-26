@@ -7146,8 +7146,8 @@ public class ARScannedElementPane extends ARPane {
      * Builds the "Plugin Test" button.
      *
      * Visual states:
-     *   Green  — plugin script found on classpath and ready to inject.
-     *   Orange — plugin script missing (build step not run yet).
+     *   Green  — plugin script found in the PATH_PLUGINS folder and ready to inject.
+     *   Orange — plugin script missing (build step not run yet, or path_plugins not configured).
      *
      * The button is styled inline so it is visually distinct from the standard
      * toolbar buttons and clearly communicates its test/diagnostic purpose.
@@ -7155,7 +7155,7 @@ public class ARScannedElementPane extends ARPane {
     private Button buildPluginTestButton() {
         Button btn = new Button();
 
-        boolean pluginAvailable = isPluginAvailable("plugins/pluginTest/build/pluginTest.min.js");
+        boolean pluginAvailable = isPluginAvailable("pluginTest/build/pluginTest.min.js");
 
         if (pluginAvailable) {
             btn.setText("⬤  Plugin Test");
@@ -7179,9 +7179,13 @@ public class ARScannedElementPane extends ARPane {
                     + "-fx-background-radius: 6;"
                     + "-fx-padding: 6 14 6 14;"
                     + "-fx-cursor: default;");
-            btn.setTooltip(new Tooltip("Plugin script not found on classpath.\n"
-                    + "Run: npx esbuild index.js --bundle --minify --outfile=build/pluginTest.min.js\n"
-                    + "in src/main/resources/plugins/pluginTest/"));
+            String pluginsDir = arPropertyManager.getProperty(ARPropertyEnum.PATH_PLUGINS);
+            String hint = (pluginsDir == null || pluginsDir.isBlank())
+                    ? "path_plugins is not configured in ARWeb.config."
+                    : "Plugin script not found in: " + pluginsDir + "/pluginTest/build/\n"
+                            + "Run: npx esbuild index.js --bundle --minify --outfile=build/pluginTest.min.js\n"
+                            + "in " + pluginsDir + "/pluginTest/";
+            btn.setTooltip(new Tooltip(hint));
             btn.setDisable(true);
         }
 
@@ -7189,36 +7193,56 @@ public class ARScannedElementPane extends ARPane {
     }
 
     /**
-     * Returns true if the given classpath resource exists (does not load it fully).
+     * Returns true if the given plugin script exists in the PATH_PLUGINS folder.
+     *
+     * @param relativePath path relative to the plugins folder (e.g. "pluginTest/build/pluginTest.min.js")
      */
-    private boolean isPluginAvailable(String classpathPath) {
-        try (InputStream is = getClass().getResourceAsStream("/" + classpathPath)) {
-            return is != null;
+    private boolean isPluginAvailable(String relativePath) {
+        try {
+            String pluginsDir = arPropertyManager.getProperty(ARPropertyEnum.PATH_PLUGINS);
+            if (pluginsDir == null || pluginsDir.isBlank()) {
+                log.warn("PluginTest — PATH_PLUGINS is not configured in ARWeb.config");
+                return false;
+            }
+            Path scriptPath = Paths.get(pluginsDir, relativePath);
+            return Files.exists(scriptPath) && Files.isReadable(scriptPath);
         } catch (Exception e) {
-            log.warn("PluginTest — could not check classpath resource: {}", classpathPath, e);
+            log.warn("PluginTest — could not check plugin path: {}", relativePath, e);
             return false;
         }
     }
 
     /**
-     * Loads pluginTest.min.js from the classpath and injects it into the
-     * currently active browser page via Selenium's JavascriptExecutor.
+     * Loads pluginTest.min.js from the PATH_PLUGINS folder and injects it into
+     * the currently active browser page via Selenium's JavascriptExecutor.
      *
-     * On success: a green floating card appears in the browser for 4 seconds.
+     * On success: console.log("plugin test") + a green floating card appears for 4 seconds.
      * On failure: a JavaFX alert dialog describes the error.
      */
     private void runPluginTest() {
-        String classpathPath = "plugins/pluginTest/build/pluginTest.min.js";
-        try (InputStream is = getClass().getResourceAsStream("/" + classpathPath)) {
-            if (is == null) {
+        String relativePath = "pluginTest/build/pluginTest.min.js";
+        try {
+            String pluginsDir = arPropertyManager.getProperty(ARPropertyEnum.PATH_PLUGINS);
+            if (pluginsDir == null || pluginsDir.isBlank()) {
+                showPluginTestAlert(
+                        Alert.AlertType.ERROR,
+                        "Plugin path not configured",
+                        "path_plugins is not set in ARWeb.config.\n"
+                                + "Add path_plugins=<your plugins folder> to the configuration.");
+                return;
+            }
+
+            Path scriptPath = Paths.get(pluginsDir, relativePath);
+            if (!Files.exists(scriptPath)) {
                 showPluginTestAlert(
                         Alert.AlertType.ERROR,
                         "Plugin not found",
-                        "Could not locate: " + classpathPath + "\n"
-                                + "Run the pluginTest build step and restart the application.");
+                        "Could not locate: " + scriptPath.toAbsolutePath() + "\n"
+                                + "Run the pluginTest build step and ensure the file is in the plugins folder.");
                 return;
             }
-            String script = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+
+            String script = Files.readString(scriptPath, StandardCharsets.UTF_8);
             WebDriver driver = performActions.getCurrentDriver();
             if (driver == null) {
                 showPluginTestAlert(
@@ -7228,7 +7252,7 @@ public class ARScannedElementPane extends ARPane {
                 return;
             }
             ((JavascriptExecutor) driver).executeScript(script);
-            log.info("PluginTest — script injected successfully from classpath: {}", classpathPath);
+            log.info("PluginTest — script injected successfully from: {}", scriptPath.toAbsolutePath());
         } catch (Exception ex) {
             log.error("PluginTest — injection failed", ex);
             showPluginTestAlert(Alert.AlertType.ERROR, "Plugin injection failed", ex.getMessage());

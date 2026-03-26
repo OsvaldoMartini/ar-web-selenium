@@ -1,9 +1,13 @@
 package com.allinweb.ch.facade;
 
+import com.allinweb.ch.util.ARPropertyEnum;
+import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ErrorMessage;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -15,34 +19,40 @@ public class PerformPreLoad {
 
     protected static volatile PerformPreLoad instance;
 
+    private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
+
     /**
      * Cached scanner bundle. Null until the first call to dynamicLoadElementsDTO().
-     * Loaded lazily so a missing build artifact does NOT crash the JVM at startup —
+     * Loaded lazily so a missing file does NOT crash the JVM at startup —
      * the error surfaces only when a scan is actually triggered.
      *
-     * Source tree : src/main/resources/plugins/pageScanner/
-     * Build output: src/main/resources/plugins/pageScanner/build/scanner.min.js
+     * Loaded from the filesystem path defined by PATH_PLUGINS in ARWeb.config:
+     *   {path_plugins}/pageScanner/build/scanner.min.js
      *
      * To rebuild the bundle:
-     *   cd src/main/resources/plugins/pageScanner
+     *   cd {path_plugins}/pageScanner
      *   npx esbuild index.js --bundle --minify --outfile=build/scanner.min.js
-     * Or use the Maven frontend-maven-plugin target configured in pom.xml.
      */
     private static volatile String jsScanner = null;
 
+    /** Relative path within the plugins folder */
+    private static final String SCANNER_RELATIVE_PATH = "pageScanner/build/scanner.min.js";
+
     /**
-     * Loads (and caches) the minified scanner bundle from the classpath.
+     * Loads (and caches) the minified scanner bundle from the PATH_PLUGINS folder.
      * Thread-safe via double-checked locking on jsScanner.
      *
-     * @throws IllegalStateException if the build artifact is missing from the classpath.
-     * @throws RuntimeException      if the resource stream cannot be read.
+     * @throws IllegalStateException if the config property or file is missing.
+     * @throws RuntimeException      if the file cannot be read.
      */
     private static String getJsScanner() {
         if (jsScanner == null) {
             synchronized (PerformPreLoad.class) {
                 if (jsScanner == null) {
-                    jsScanner = loadScript("plugins/pageScanner/build/scanner.min.js");
-                    log.info("PerformPreLoad — scanner script loaded from classpath ({} chars)", jsScanner.length());
+                    jsScanner = loadPluginScript(SCANNER_RELATIVE_PATH);
+                    log.info(
+                            "PerformPreLoad — scanner script loaded from plugins folder ({} chars)",
+                            jsScanner.length());
                 }
             }
         }
@@ -50,25 +60,33 @@ public class PerformPreLoad {
     }
 
     /**
-     * Reads a classpath resource into a UTF-8 String.
-     * Shared utility — also usable for loading other plugin scripts.
+     * Reads a plugin script from the filesystem, using the PATH_PLUGINS
+     * config property as the base directory.
      *
-     * @param classpathPath resource path relative to classpath root (no leading /)
-     * @return the file content as a String
-     * @throws IllegalStateException if the resource is missing
+     * @param relativePath path relative to the plugins folder (e.g. "pageScanner/build/scanner.min.js")
+     * @return the file content as a UTF-8 String
+     * @throws IllegalStateException if PATH_PLUGINS is not configured or the file doesn't exist
      * @throws RuntimeException      if an I/O error occurs
      */
-    static String loadScript(String classpathPath) {
-        try (InputStream is = PerformPreLoad.class.getResourceAsStream("/" + classpathPath)) {
-            if (is == null) {
-                throw new IllegalStateException("Scanner script not found on classpath: " + classpathPath
-                        + " — run the pageScanner build step first: "
-                        + "npx esbuild index.js --bundle --minify "
-                        + "--outfile=build/scanner.min.js");
-            }
-            return new String(is.readAllBytes(), StandardCharsets.UTF_8);
+    static String loadPluginScript(String relativePath) {
+        String pluginsDir = arPropertyManager.getProperty(ARPropertyEnum.PATH_PLUGINS);
+        if (pluginsDir == null || pluginsDir.isBlank()) {
+            throw new IllegalStateException("PATH_PLUGINS is not configured in ARWeb.config. "
+                    + "Add path_plugins=<your plugins folder> to the configuration.");
+        }
+
+        Path scriptPath = Paths.get(pluginsDir, relativePath);
+
+        if (!Files.exists(scriptPath)) {
+            throw new IllegalStateException("Plugin script not found: " + scriptPath.toAbsolutePath()
+                    + " — ensure the file exists in the plugins folder configured by path_plugins ("
+                    + pluginsDir + ")");
+        }
+
+        try {
+            return Files.readString(scriptPath, StandardCharsets.UTF_8);
         } catch (IOException e) {
-            throw new RuntimeException("Failed to load scanner script: " + classpathPath, e);
+            throw new RuntimeException("Failed to read plugin script: " + scriptPath.toAbsolutePath(), e);
         }
     }
 
@@ -115,10 +133,6 @@ public class PerformPreLoad {
 
         List<String> dataList = Arrays.asList(dataArray);
         try {
-            // BUG FIX: use a local variable instead of the static jsExecutor field.
-            // The old code wrote to a shared static `private static JavascriptExecutor jsExecutor`
-            // which is a race condition when multiple scans run concurrently across
-            // different WebDriver sessions (e.g. multi-tab or parallel bot jobs).
             JavascriptExecutor executor = (JavascriptExecutor) driver;
             executor.executeScript(
                     getJsScanner(),
