@@ -1165,12 +1165,14 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								webElementFound = androidDevice.searchElement(
 										splitDTO, actions, performLists.getListTargetElements());
 
-								if (webElementFound == null) {
-									appendLog(
-											currentInstruction.getName() + "- Not Found- using coordinates",
-											"warn");
-									androidDevice.executeAction(webElementFound, splitDTO, actions);
-								}
+								//                                        if (webElementFound == null) {
+								//                                            appendLog(
+								//
+								// currentInstruction.getName() + "- Not Found- using coordinates",
+								//                                                    "warn");
+								//
+								// androidDevice.executeAction(webElementFound, splitDTO, actions);
+								//                                        }
 							}
 
 							if (webElementFound == null && forceCoordinates && !isMobileApp) {
@@ -1469,6 +1471,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								resultActions = resultActions.replaceAll("PASSED", "IGNORED");
 							} else {
 
+								String foundKey = null;
 								for (Map.Entry<String, FieldsToValidate> entry : fMap.entrySet()) {
 
 									FieldsToValidate expectedField = entry.getValue();
@@ -1480,7 +1483,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 
 										String parentFieldCSV = entry.getKey();
 
-										String foundKey = null;
+										foundKey = null;
 										if (allOutPuts != null && !allOutPuts.isEmpty()) {
 											for (Integer outId : allOutPuts) {
 												String k = outId + "-" + parentFieldCSV;
@@ -1493,9 +1496,24 @@ if (extractedData.getNumberOfDataRows() > 0) {
 
 										if (foundKey == null) {
 											// ignore
+											FieldData notFoundMsg = new FieldData(
+													"(" + currentInstruction.getId() + ")-"
+															+ currentInstruction.getName(),
+													Objects.requireNonNullElse(
+															currentInstruction.getOperation(), entry.getKey()));
+
+											String notFoundKey = performActions.actionResultMessage(
+													blockName,
+													new String[] {ARConstantsEngine.CSV_CHECK},
+													notFoundMsg);
+											notFoundKey = notFoundKey.replaceAll("PASSED", "IGNORED");
+											appendLog("[TEST]" + notFoundKey, "warn");
 										} else {
 
-											String actualValue = mapOperators.get(foundKey);
+											String actualValue = mapOperators
+													.get(foundKey)
+													.trim();
+											actualValue = performActions.sanitizeValue(actualValue);
 
 											// You still keep your "Get Value Is Not Defined" behavior
 											if (actualValue == null
@@ -1547,6 +1565,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 												// expected value comes from
 												// splitDTO.fieldsToValidate[parentField].value
 												String expectedValue = expectedField.getValue();
+												expectedValue = performActions.sanitizeValue(expectedValue);
 
 												// operator comes from your parsed operations array
 												String operator = operations[1];
@@ -1620,6 +1639,11 @@ if (extractedData.getNumberOfDataRows() > 0) {
 													success = false;
 												}
 											}
+										}
+
+										// When cannot find any Key
+										if (foundKey == null) {
+											resultActions = resultActions.replaceAll("PASSED", "IGNORED");
 										}
 									}
 								}
@@ -2073,7 +2097,6 @@ if (extractedData.getNumberOfDataRows() > 0) {
 		}
 	}
 }
-
 // Last Recall For to avoid Multirow Cycles
 // Iterate over all stored CsvTables
 for (Map.Entry<String, CsvTable> entry : csvTables.entrySet()) {

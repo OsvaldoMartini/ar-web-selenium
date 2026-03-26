@@ -1,6 +1,9 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.util.ErrorMessage;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -12,13 +15,58 @@ public class PerformPreLoad {
 
     protected static volatile PerformPreLoad instance;
     private static JavascriptExecutor jsExecutor;
-    private String jsSearchInUse =
-            """
-// SEARCH IN USE (SENDER: scannerTool) -> scannerGrid
-!function(t,e,n,a,o,i,r,s){let l=null,c=0,d=null,u=!1,m=null;const f=new Map,h=new Set;let p=null,w=!1;try{"function"==typeof window.__scannerToolCleanup&&window.__scannerToolCleanup()}catch(t){}function b(){if(!(c>=100))try{d=new WebSocket(`ws://localhost:${n}/websocket?sessionId=${window.sessionId}`),d.onopen=()=>{c=0;try{const t={type:"echo",sessionId:window.sessionId,operationId:"test echo",body:"subscribe"},e=btoa(unescape(encodeURIComponent(JSON.stringify(t))));d.send(e)}catch(t){}A(window.searchTerms),l=setInterval(()=>{if(d&&d.readyState===WebSocket.OPEN){const t={type:"ping-search",sessionId:window.sessionId,timestamp:(new Date).toISOString()};try{const e=btoa(unescape(encodeURIComponent(JSON.stringify(t))));d.send(e)}catch(t){}}},15e3)},d.onmessage=t=>{let e=t.data;if(e.endsWith("\\0")&&(e=e.slice(0,-1)),e)try{const t=JSON.parse(e),a="string"==typeof t.body?JSON.parse(t.body):t.body;if(window.sessionId===a.sessionId){if("highlight"===a.operationId){const t=Array.isArray(a.elementDetails)?a.elementDetails:[];if((n=M(t[0].xPath))||(n=document.querySelector(t[0].cssSelector)),!n)var n=function(t){const[e,n]=t.split(","),a=parseFloat(e.trim()),o=parseFloat(n.trim());if(isNaN(a)||isNaN(o))return null;return document.elementFromPoint(a,o)}(t[0].coordinates);if(n){window.__scannerRawClickedElement=n;const e=t[0].xPath;if(m&&m!==e){const t=f.get(m);p.style.outline=t||""}f.has(e)||(f.set(e,n.style.outline),h.add(e));const a=f.get(e)||"";a.includes("#2323FF")?n.style.outline="3px solid #FF3131":a.includes("#FF3131")?n.style.outline="3px solid #2323FF":n.style.outline="3px solid #FF3131",p=n,m=e}else k()}t.body.includes("cannot be processed")||t.footer&&t.footer.includes("cannot be processed")}}catch(t){}},d.onerror=t=>{},d.onclose=()=>{c<100&&(c++,u||b())}}catch(t){}}window.__scannerToolCleanup=null,window.elementInfoMap=new Map,window.searchTerms=t,window.allElementInfo=[],window.destination=o,window.operationId=i,window.homeBankingId=r,window.botJobId=s,window.sessionId=`${a}`;const g=()=>{try{if(u=!0,void 0!==_&&clearInterval(_),l&&(clearInterval(l),l=null),d&&(d.readyState===WebSocket.OPEN||d.readyState===WebSocket.CONNECTING)){try{d.onclose=null}catch(t){}d.close(1e3,"cleanup")}}catch(t){}};function y(t){w&&(["DOMContentLoaded","onreadystatechange","load","onload","Direct Execution"].includes(t)||["complete","interactive"].includes(document.readyState))&&b(),w=!0}window.cleanupWebSocket=g,window.__scannerToolCleanup=g,window.addEventListener("beforeunload",g,{once:!0});function x(t,e,n,a,o){if(0===o.length||!o.includes("with id")&&!o.includes("with name")&&!o.includes("with text")&&!o.includes("with test-id")){let o=null;const i=t.getRootNode&&t.getRootNode();if(i&&i instanceof ShadowRoot)o=i.host;else for(o=t;o&&!o.shadowRoot;)o=o.parentElement;if(o&&o.shadowRoot){const t=o.shadowRoot;N(t).forEach(n=>{const a=v(n);a&&T(n,a,a.xPath,e,o,t)})}else T(t,a,n,e,null,null);return}o.forEach(o=>{let i=!1;if((o.includes("with id")&&a.attributeData.some(t=>"id"===t.name)||o.includes("with name")&&a.attributeData.some(t=>"name"===t.name)||o.includes("with text")&&a.someText.length>0)&&(i=!0),i){let o=null;const i=t.getRootNode&&t.getRootNode();if(i&&i instanceof ShadowRoot)o=i.host;else for(o=t;o&&!o.shadowRoot;)o=o.parentElement;if(o&&o.shadowRoot){const t=o.shadowRoot;N(t).forEach(n=>{const a=v(n);a&&T(n,a,a.xPath,e,o,t)})}else T(t,a,n,e,null,null)}})}function N(t){const e=[];return["button","a"].forEach(n=>{e.push(...t.querySelectorAll(n))}),e}const E=function(t,e,n){const a=`Elements inside iframe: ${n}`;console.log(`iFrame Found: ${t.src||t.title||t.id||t.name||"No description"}; ${a}`),elementInfoMap.set(e,`xpath:${e};text:${t.src||t.title||t.id||t.name||"No description"};${a}`)};function S(t,e){try{t.querySelectorAll("*").forEach(t=>{if(!t||!t.shadowRoot)return;const n=t.shadowRoot;N(n).forEach(t=>{const n=v(t);n&&x(t,"Shadow-Child",n.xPath,n,e)}),S(n,e)})}catch(t){}}const I=function e(n,a,o=!1){n.querySelectorAll("iframe").forEach(n=>{try{let o=n.contentDocument||n.contentWindow.document;if(n){let i=null,r=null;const s=D(n),l=v(n);l&&x(n,"iFrame-Found",l.xPath,l,t);const c=new DOMParser;if(n.srcdoc&&(i=c.parseFromString(n.srcdoc,"text/html"),r=i.querySelectorAll("*")),n.src){const e=function(t){if(!t.src)return null;const e=new XMLHttpRequest;e.open("GET",t.src,!1);try{if(e.send(),200!==e.status)return null;const t=e.responseText;return(new DOMParser).parseFromString(t,"text/html").querySelectorAll("*")}catch(t){return null}}(n);e&&(E(n,s,e.length),e.forEach(function(e){const n=v(e);n&&(n.iFrameXPath=s,x(e,"iFrame-Child",`${s}${n?.xPath}`,n,t))}))}n.src||E(n,s,r?r.length:o?o.querySelectorAll("*").length:0),o.querySelectorAll("*").forEach(function(e){const n=v(e);n&&(n.iFrameXPath=s,x(e,"iFrame-Child",`${s}${n?.xPath}`,n,t))}),r?.forEach(function(e){const n=v(e);n&&(n.iFrameXPath=s,x(e,"iFrame-Child",`${s}${n?.xPath}`,n,t))}),i&&C(i,s),e(o,a,!0)}}catch(t){}})},C=function(e,n){e.querySelectorAll("*").forEach(function(e){const a=v(e);a&&(a.iFrameXPath=n,x(e,"iFrame-Child",`${n}${a?.xPath}`,a,t))})},A=function(t){window.elementInfoMap=new Map;let e=[];I(document,e,elementInfoMap),S(document,t),function(t,e,n){e.length>0?e.forEach(e=>{e.includes("with id")?n.push(...Array.from(t.querySelectorAll("[id]"))):e.includes("with name")?n.push(...Array.from(t.querySelectorAll("[name]"))):e.includes("with test-id")?n.push(...Array.from(t.querySelectorAll("[test-id]"))):n.push(...Array.from(t.querySelectorAll(e)))}):n.push(...Array.from(t.querySelectorAll("*")).filter(t=>"iframe"!==t.tagName.toLowerCase())),n.forEach(t=>{if(["html","body","main","script","meta","head","style"].includes(t.tagName.toLowerCase()))return;const n=v(t);n&&x(t,"tagName-Found",n.xPath,n,e)})}(document,t,e,elementInfoMap),window.allElementInfo=[],e=function(t){let e=[];return t.forEach((t,n)=>{let a=t;e.push(a)}),e}(window.elementInfoMap);const n=R(e),a=L(n),o=["input","textarea","button","a","select","label","span","div"].reduce((t,e)=>[...t,...a.filter(t=>["label","span","div"].includes(e)?t.tagName===e&&""!==t.someText?.trim():t.tagName===e)],[]);!function(t){t.forEach(t=>{if(t.attribId||t.attribName){let e=t.someText,n=t.attribId,a=t.attribName,o=null;const i=[];n&&(i.push(`label[for="${n}"] mat-label`),i.push(`mat-label[for="${n}"]`),i.push(`mat-checkbox[test-id="${a}"] .mdc-label`),i.push(`label[for="${n}"]`)),a&&(i.push(`label[for="${a}"] mat-label`),i.push(`mat-label[for="${a}"]`),i.push(`mat-checkbox[test-id="${a}"] .mdc-label`),i.push(`label[for="${n}"]`)),i.forEach(n=>{const a=document.querySelector(n);a&&null===o&&(o=a.textContent.trim(),t.attributeData.push({name:"someText",value:e}),t.someText=o)})}})}(o),function(t){t.forEach(t=>{t.someText&&"div"===t.tagName&&(t.tagName="label")})}(o),function(t){const e=window.__scannerRawClickedElement;if(!e||!Array.isArray(t)||0===t.length)return;if(!(e.closest?.("avq-instrument-table")||e.closest?.("avq-trades-table")||e.closest?.("table[mat-table]")||e.closest?.("table.mat-mdc-table")))return;t.forEach(t=>{t&&(t.tagName="button")});const n=e.closest?.('td[role="gridcell"], td, th');if(!n)return;const a=(n.innerText||n.textContent||"").replace(/\\s+/g," ").trim();if(!a)return;t.forEach(t=>{if(t){if("input"===t.tagName){const e=t.attributeData?.find(t=>"aria-label"===t.name)?.value?.trim()||"",n=t.attributeData?.find(t=>"someText"===t.name)?.value?.trim()||"";n&&n!==e||(t.someText=a)}else t.someText=a;if(Array.isArray(t.attributeData)){const e=t.attributeData.findIndex(t=>"someText"===t.name);e>=0?t.attributeData[e].value=t.someText:t.attributeData.push({name:"someText",value:t.someText})}}})}(o),function(t){let e=1;t.forEach(t=>{window.allElementInfo.push({...t,id:e++})})}(o),window.elementInfoMap.clear(),d&&d.readyState;const i=t=>new Promise(e=>setTimeout(e,t));!async function(){if(d&&d.readyState===WebSocket.OPEN){const t=25,e=Array.isArray(window.allElementInfo)?window.allElementInfo:[];for(let n=0;n<e.length;n+=t){const a=e.slice(n,n+t),o={type:"SEARCH_TOOL",sessionId:window.destination,operationId:window.operationId,homeBankingId:window.homeBankingId,botJobId:window.botJobId,elementDetails:a,chunkIndex:Math.floor(n/t),totalChunks:Math.ceil(e.length/t),chunkSize:t,totalElements:e.length},r=btoa(unescape(encodeURIComponent(JSON.stringify(o))));d.send(r),console.log("Sent chunk #"+n/t,a),await i(300)}}}()};function T(t,e,n,a,o,i){let r="",s="",l=[];function c(t){if(!t)return"";let e=t.tagName.toLowerCase();return t.id&&(e+=`#${t.id}`),t.className&&"string"==typeof t.className&&(e+=`.${t.className.replace(/\\s+/g,".")}`),e}let d=o;for(;d;)l.unshift(c(d)),d=d.parentNode instanceof ShadowRoot?d.parentNode.host:null;o&&(r=c(o)),t&&(s=c(t));let u=s;l.length>0&&(u=l.reduceRight((t,e)=>`${e} ${t}`,s));const m={...e,shadowHost:r,shadowRoot:String(!!i),nestedShadow:String(l.length>1),cssSelector:s},h=function(t){const e=(t.tagName||"").toLowerCase(),n=t.attributeData||[],a=q(n,"label"),o=q(n,"for"),i=q(n,"id"),r=q(n,"name"),s=q(n,"aria-label"),l=q(n,"formcontrolname"),c=q(n,"test-id"),d=q(n,"data-test-id"),u=q(n,"title"),m=q(n,"value"),f=q(n,"innerhtml"),h=q(n,"href"),p=O(t.someText),w=function(t){const e=O(t);if(!e)return"";try{const t=new URL(e,window.location.href).pathname||"",n=(t.split("/").pop()||"").match(/\\.([a-z0-9]+)$/i);return n?n[1]:""}catch{const t=e.match(/\\.([a-z0-9]+)(?:[?#].*)?$/i);return t?t[1]:""}}(h),b="a"===e,g="option"===e;let y="",x="";X(a)?(y=a,x=a):X(o)?(y=o,x=o):g&&X(m)?(y=m,x=m):X(l)?(y=l,x=l):X(c)?(y=c,x=c):X(r)?(y=r,x=r):X(s)?(y=s,x=s):b&&X(f)&&!/[<>]/.test(f)?(y=f,x=f):X(i)?(y=i,x=i):X(w)?(y=`${w} File`,x=`${w} File`):X(p)?(y=p,x=e):X(d)?(y=d,x=d):X(u)?(y=u,x=u):(y=e||"",x="NO IDENTIFICATION");y=O(y),x=O(x);let N=y;(X(t.attribId)||X(t.attribName)||X(t.someText))&&(X(t.someText)?N=function(t,e){const n=O(t);return n?n.length>e?n.slice(0,e):n:""}(t.someText,30):X(t.attribId)?N=O(t.attribId):X(t.attribName)&&(N=O(t.attribName)));return{nameLabel:y,nameField:x,definedName:N}}(m)||{nameLabel:"",nameField:"",definedName:""};m&&(f.has(t)||f.set(t,t.style.outline),t.style.outline="3px solid red",window.elementInfoMap.set(n,$(a,m,h)))}const v=function(t){if(!e&&!(0!==t.offsetWidth&&0!==t.offsetHeight&&"hidden"!==window.getComputedStyle(t).visibility||"input"===t.tagName.toLowerCase()&&"hidden"===t.type.toLowerCase()))return null;const n=Array.from(t.attributes).map(t=>({name:t.name,value:t.value})),a=t.id||"",o=t.name||"",i=`${t.getBoundingClientRect().left.toFixed(2)},${t.getBoundingClientRect().top.toFixed(2)}`;let r=t.tagName.toLowerCase();const s=function(t,e,n){let a="";if(n&&!F(n)){const t=P(n);a=[...t.titles,...t.text,...t.labels].map(t=>t.trim()).filter(Boolean).join("; ")}const o=["aria-label","aria-labelledby","aria-describedby","textarea","input","select","placeholder","label","name","title","alt","for","data-label","data-name","data-title","id","data-testid"];let i="";const r=(t,e)=>{if("aria-labelledby"===t||"aria-describedby"===t){const t=document.getElementById(e);if(t&&!F(t))return t.textContent.trim()}return e.trim()};if(a&&!/^\\..*\\{.*\\}$/.test(a))i=a;else{const t=e.find(({name:t})=>"title"===t);if(t&&(i=r(t.name,t.value)),!i)for(const t of o){const n=e.find(({name:e})=>e===t);if(n&&(i=r(n.name,n.value),i))break}}return i}(0,n,t),l=D(t),c=function(t,e){if("string"!=typeof e||""===e.trim())return"unknown";const n=e.split("/").filter(t=>""!==t.trim());for(let t=n.length-1;t>=0;t--){const e=n[t],a=e.match(/^([a-zA-Z-]+)(?:\\[\\d+\\])?/);if(!a)continue;const o=a[1].toLowerCase();if("a"===o)return"a";if("input"===o){const t=e.match(/@type=["']?([^"'\\]]+)["']?/),n=t?t[1].toLowerCase():"";return["button","submit","reset"].includes(n)?"button":"input"}if("button"===o)return"button";if(o.includes("expansion-panel-header")||o.includes("sidenav")||o.includes("nav"))return"button";if("select"===o||"option"===o)return"select";if("textarea"===o)return"input";if(o.includes("mat-button")||o.includes("mat-raised-button")||o.includes("mat-icon-button")||o.includes("mat-menu-item")||o.includes("mat-select")||o.includes("mat-option")||o.includes("matinput"))return"button";if(o.includes("data-testid")||o.includes("aria-label")||e.includes("@role='button'")||e.includes("@role='textbox'")||e.includes("react-button")||e.includes("react-link")||e.includes("react-input"))return e.includes("react-input")?"input":e.includes("react-link")?"a":"button";if(e.includes("mdc-button")||e.includes("mdc-text-field")||e.includes("mdc-list-item"))return e.includes("mdc-text-field")?"input":"button";if(e.includes("el-button")||e.includes("el-input__inner")||e.includes("el-select-dropdown__item"))return e.includes("el-input__inner")?"input":e.includes("el-select-dropdown__item")?"select":"button"}return t}(r,l);return c!==r&&(r=c),{xPath:l,tagName:r,attributeData:n,customXPath:"",attribId:a,attribName:o,coordinates:i,someText:s}};const F=t=>{const e=window.getComputedStyle(t);return"none"===e.display||"hidden"===e.visibility||t.hasAttribute("aria-hidden")};function P(t){if(!t)return{text:[],labels:[],titles:[]};const e={text:new Set,labels:new Set,titles:new Set},n=t=>{const e=window.getComputedStyle(t);return!("none"===e.display||"hidden"===e.visibility||t.hasAttribute("aria-hidden"))},a=t=>t.includes("_")||t.includes("--")||t.includes("-");if(t.textContent?.trim()&&n(t)){const n=t.textContent.trim().split(/\\s+/).filter(t=>!a(t)).join(" ").trim();n&&e.text.add(n)}t.querySelectorAll("label").forEach(t=>{n(t)&&t.textContent?.trim()&&e.labels.add(t.textContent.trim());const o=t.getAttribute("for");if(o){const t=document.getElementById(o);if(t&&n(t)){const n=t.value?.trim(),o=t.placeholder?.trim();if(n){const t=n.split(/\\s+/).filter(t=>!a(t)).join(" ").trim();t&&e.text.add(t)}else if(o){const t=o.split(/\\s+/).filter(t=>!a(t)).join(" ").trim();t&&e.text.add(t)}}}});return["p","h1","h2","h3","h4","h5","h6","li","span","div","strong","em","b","i","blockquote"].forEach(o=>{t.querySelectorAll(o).forEach(t=>{if(n(t)&&t.textContent?.trim()){const n=t.textContent.trim().split(/\\s+/).filter(t=>!a(t)).join(" ").trim();n&&e.text.add(n)}})}),t.querySelectorAll("a").forEach(t=>{if(n(t)&&t.textContent?.trim()){const n=t.textContent.trim().split(/\\s+/).filter(t=>!a(t)).join(" ").trim();n&&e.text.add(n)}}),t.querySelectorAll("iframe").forEach(t=>{if(t.hasAttribute("title")){const n=t.getAttribute("title")?.trim();n&&e.titles.add(n)}try{const n=t.contentDocument||(new DOMParser).parseFromString(t.srcdoc||"","text/html");if(n.body){const t=P(n.body);t.titles.forEach(t=>e.titles.add(t)),t.text.forEach(t=>e.text.add(t)),t.labels.forEach(t=>e.labels.add(t))}}catch(t){console.log("Could not access iframe content",t)}}),{text:Array.from(e.text),labels:Array.from(e.labels),titles:Array.from(e.titles)}}const D=function t(e){if(e===document.body)return"/html/body";let n=0;const a=e.parentNode?e.parentNode.childNodes:[];for(let o=0;o<a.length;o++){let i=a[o];if(1===i.nodeType&&i.tagName===e.tagName){if(i===e)return t(e.parentNode)+"/"+e.tagName.toLowerCase()+"["+(n+1)+"]";n++}}return""};const $=function(t,e,n){return{typeElement:t,tagName:e.tagName??"No Tag Name Detected",xPath:e.xPath??"",someText:e.someText??"",attribId:e.attribId??"",attribName:e.attribName??"",coordinates:e.coordinates??"",attributeData:e.attributeData??"",customXPath:e.customXPath??"",iFrameXPath:e.iFrameXPath??"",shadowHost:e.shadowHost??"",shadowRoot:e.shadowRoot??"",nestedShadow:e.nestedShadow??"",cssSelector:e.cssSelector??"",attributeValue:e.attributeValue??"",attributeType:e.attributeType??"",searchAttributeValue:e.searchAttributeValue??"",nameLabel:n?.nameLabel??"",nameField:n?.nameField??"",definedName:n?.definedName??""}};const R=t=>{const e=new Map,n=t=>t.split("/").filter(t=>t).map(t=>{const e=t.match(/([a-zA-Z]+)(?:\\[(\\d+)\\])?/);return e?{tagName:e[1],index:e[2]?parseInt(e[2]):null}:null}).filter(t=>null!==t),a=(t,e)=>{const a=n(t),o=n(e);if(0===a.length||0===o.length)return!1;let i=0;for(let t=0;t<Math.min(a.length,o.length)&&(a[t].tagName===o[t].tagName&&a[t].index===o[t].index);t++)if("a"===a[t].tagName){i=t+1;break}return 0!==i&&a.slice(0,i).every((t,e)=>t.tagName===o[e].tagName&&t.index===o[e].index)};t.forEach(t=>{if(t.xPath&&t.coordinates){let n=!1;for(const[o,i]of e)if(a(t.xPath,o)&&t.coordinates===i[0].coordinates){i.push(t),n=!0;break}n||e.set(t.xPath,[t])}});const o=[];return e.forEach(t=>{if(t.length>1){let e=t[0];t.forEach(t=>{const[n,a]=t.coordinates.split(",").map(parseFloat),[o,i]=e.coordinates.split(",").map(parseFloat);(a>i||a===i&&n>o)&&(e=t)}),o.push(e)}else o.push(t[0])}),o},L=t=>{const e=new Map,n=new Map,a=new Map;t.forEach(t=>{if("span"!==t.tagName.toLowerCase()&&"div"!==t.tagName.toLowerCase()&&"button"!==t.tagName.toLowerCase())return;const o=t.someText?.trim();o&&o.split(/[\\s,;]+/).forEach(a=>{const o=a.trim();o&&(e.set(o,(e.get(o)||0)+1),n.has(o)||n.set(o,new Set),n.get(o).add(t))}),t.coordinates&&(a.has(t.coordinates)||a.set(t.coordinates,[]),a.get(t.coordinates).push(t))}),a.forEach(t=>{let e=t.find(t=>t.attributeData?.some(t=>"aria-label"===t.name));if(e){const n=e.attributeData.find(t=>"aria-label"===t.name);n&&t.forEach(t=>{t.someText!==n.value&&(t.someText=n.value)})}});const o=Array.from(e.entries()).filter(([t,e])=>e>1).map(([t])=>t),i=[],r=new Set,s=(t,e)=>t.attributeData?.some(t=>t.name===e);o.forEach(t=>{if(n.has(t)){let e=Array.from(n.get(t));e.sort((t,e)=>s(e,"aria-label")-s(t,"aria-label")||s(e,"test-id")-s(t,"test-id")),r.has(e[0])||(i.push(e[0]),r.add(e[0]))}}),t.forEach(t=>{if(!r.has(t)){const e=t.someText?.trim();if(e){e.split(/[\\s,;]+/).map(t=>t.trim()).some(t=>o.includes(t))||(i.push(t),r.add(t))}}});const l=new Map,c=[];i.forEach(t=>{if(t.coordinates)if(l.has(t.coordinates)){const e=l.get(t.coordinates);(!s(e,"aria-label")&&s(t,"aria-label")||t.attributeData&&e.attributeData&&t.attributeData.length>e.attributeData.length)&&(l.set(t.coordinates,t),c[c.indexOf(e)]=t)}else l.set(t.coordinates,t),c.push(t);else c.push(t)});const d=new Set,u=[];return c.forEach(t=>{t.xPath&&!d.has(t.xPath)&&(d.add(t.xPath),u.push(t))}),t.forEach(t=>{"span"!==t.tagName.toLowerCase()&&"div"!==t.tagName.toLowerCase()&&"button"!==t.tagName.toLowerCase()&&t.xPath&&!d.has(t.xPath)&&u.push(t)}),u};function M(t){try{return document.evaluate(t,document,null,XPathResult.FIRST_ORDERED_NODE_TYPE,null).singleNodeValue}catch(t){return console.error("Error finding element by XPath:",t),null}}function k(){f&&f.size>0&&(f.forEach((t,e)=>{e&&e.style&&(e.style.outline=t)}),h&&h.size>0&&h.forEach(t=>{const e=f.get(t);var n=M(t);n&&n.style&&(n.style.outline=e)}))}window.addEventListener("message",function(t){if(t.origin===window.trustedOriginURL&&"elementsData"===t.data.type){t.data.data}}),navigator.userAgent.includes("Edg"),"complete"===document.readyState||"interactive"===document.readyState?setTimeout(()=>y("Direct Execution"),0):(document.addEventListener("DOMContentLoaded",()=>setTimeout(()=>y("DOMContentLoaded"),0)),window.addEventListener("load",()=>y("load")),document.attachEvent?.("onreadystatechange",function(){"complete"===document.readyState&&setTimeout(()=>y("onreadystatechange"),0)}),window.attachEvent?.("onload",()=>y("onload"))),b(),window.revertSearchInjections=function(){setTimeout(()=>{k(),window.allElementInfo=[]},3e3)};const _=setInterval(k,5e3);function O(t){return(t??"").toString().trim().replace(/\\s+/g," ")}function q(t,e){if(!Array.isArray(t))return"";const n=t.find(t=>t&&"string"==typeof t.name&&t.name.toLowerCase()===e.toLowerCase());return n?.value??""}function X(t){return O(t).length>0}}(arguments[0],arguments[1],arguments[2],arguments[3],arguments[4],arguments[5],arguments[6],arguments[7]);
-""";
 
-    // Private constructor to prevent instantiation
+    /**
+     * Cached scanner bundle. Null until the first call to dynamicLoadElementsDTO().
+     * Loaded lazily so a missing build artifact does NOT crash the JVM at startup —
+     * the error surfaces only when a scan is actually triggered.
+     *
+     * Source tree : src/main/resources/plugins/pageScanner/
+     * Build output: src/main/resources/plugins/pageScanner/build/scanner.min.js
+     *
+     * To rebuild the bundle:
+     *   cd src/main/resources/plugins/pageScanner
+     *   npx esbuild index.js --bundle --minify --outfile=build/scanner.min.js
+     * Or use the Maven frontend-maven-plugin target configured in pom.xml.
+     */
+    private static volatile String jsScanner = null;
+
+    /**
+     * Loads (and caches) the minified scanner bundle from the classpath.
+     * Thread-safe via double-checked locking on jsScanner.
+     *
+     * @throws IllegalStateException if the build artifact is missing from the classpath.
+     * @throws RuntimeException      if the resource stream cannot be read.
+     */
+    private static String getJsScanner() {
+        if (jsScanner == null) {
+            synchronized (PerformPreLoad.class) {
+                if (jsScanner == null) {
+                    jsScanner = loadScript("plugins/pageScanner/build/scanner.min.js");
+                }
+            }
+        }
+        return jsScanner;
+    }
+
+    private static String loadScript(String classpathPath) {
+        try (InputStream is = PerformPreLoad.class
+                .getResourceAsStream("/" + classpathPath)) {
+            if (is == null) {
+                throw new IllegalStateException(
+                        "Scanner script not found on classpath: " + classpathPath
+                                + " — run the pageScanner build step first: "
+                                + "npx esbuild index.js --bundle --minify "
+                                + "--outfile=build/scanner.min.js");
+            }
+            return new String(is.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new RuntimeException(
+                    "Failed to load scanner script: " + classpathPath, e);
+        }
+    }
+
+    // Private constructor — use getInstance()
     private PerformPreLoad() {}
 
     public static PerformPreLoad getInstance() {
@@ -32,7 +80,22 @@ public class PerformPreLoad {
         return instance;
     }
 
-    // "scannerTool", "scannerGrid", "searchTerms"
+    /**
+     * Injects the page-scanner bundle into the current browser page via
+     * Selenium's JavascriptExecutor.
+     *
+     * Argument mapping (matches index.js IIFE parameter order):
+     *   arguments[0]  searchTerms        — String[] filter tags
+     *   arguments[1]  searchHiddenFields — boolean
+     *   arguments[2]  port               — WebSocket server port
+     *   arguments[3]  sessionId          — UUID string
+     *   arguments[4]  destination        — target session ID for WS routing
+     *   arguments[5]  operationId        — operation label string
+     *   arguments[6]  homeBankingId      — int
+     *   arguments[7]  botJobId           — int
+     *
+     * @return null on success, or an ErrorMessage on failure.
+     */
     public ErrorMessage dynamicLoadElementsDTO(
             WebDriver driver,
             String[] dataArray,
@@ -47,20 +110,23 @@ public class PerformPreLoad {
         List<String> dataList = Arrays.asList(dataArray);
         try {
             jsExecutor = (JavascriptExecutor) driver;
-            // "scannerTool", "scannerGrid", "searchTerms"
             jsExecutor.executeScript(
-                    jsSearchInUse,
-                    dataList,
-                    searchHiddenFields,
-                    port,
-                    sessionId,
-                    destination,
-                    operationId,
-                    homeBankingId,
-                    botJobId);
+                    getJsScanner(),
+                    dataList,           // arguments[0] — searchTerms
+                    searchHiddenFields, // arguments[1] — searchHiddenFields
+                    port,               // arguments[2] — WS port
+                    sessionId,          // arguments[3] — sessionId
+                    destination,        // arguments[4] — destination
+                    operationId,        // arguments[5] — operationId
+                    homeBankingId,      // arguments[6] — homeBankingId
+                    botJobId);          // arguments[7] — botJobId
             return null;
         } catch (Exception error) {
-            return new ErrorMessage("Error running Scanner", "Dynamic Load ElementsDTO error", error.getMessage());
+            log.error("PerformPreLoad — scanner injection failed: {}", error.getMessage(), error);
+            return new ErrorMessage(
+                    "Error running Scanner",
+                    "Dynamic Load ElementsDTO error",
+                    error.getMessage());
         }
     }
 }

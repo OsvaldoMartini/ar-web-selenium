@@ -10,8 +10,7 @@
  * Original functions: A(), x(), N(), S()
  */
 
-import { generateXPath }    from './xpathResolver.js';
-import { inspectShadowDom } from './domWalker.js'; // internal, see shadowWalker below
+import { generateXPath } from './xpathResolver.js';
 
 const SKIP_TAGS = new Set(['html', 'body', 'main', 'script', 'meta', 'head', 'style']);
 const INTERACTIVE_TAGS = ['input', 'textarea', 'button', 'a', 'select', 'label', 'span', 'div'];

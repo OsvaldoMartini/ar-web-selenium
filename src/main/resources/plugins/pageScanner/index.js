@@ -23,7 +23,7 @@ import { inspectIframes }   from './scanner/iframeInspector.js';
 import { classifyTag }      from './classifier/tagClassifier.js';
 import { resolveNameLabel } from './classifier/nameLabelResolver.js';
 import { deduplicate }      from './classifier/deduplicator.js';
-import { applyHighlight, revertHighlights } from './highlight/highlighter.js';
+import { applyHighlight, revertHighlights, startRevertInterval } from './highlight/highlighter.js';
 
 (function (
   searchTerms, searchHiddenFields, port,
@@ -58,6 +58,9 @@ import { applyHighlight, revertHighlights } from './highlight/highlighter.js';
   window.cleanupWebSocket     = ws.cleanup;
   window.__scannerToolCleanup = ws.cleanup;
   window.addEventListener('beforeunload', ws.cleanup, { once: true });
+
+  // Start the 5-second periodic highlight revert sweep
+  startRevertInterval();
 
   // ── Main scan ─────────────────────────────────────────────────────────────
   function runScan() {
@@ -104,8 +107,6 @@ import { applyHighlight, revertHighlights } from './highlight/highlighter.js';
     document.addEventListener('DOMContentLoaded', () => setTimeout(() => ws.connect(), 0));
     window.addEventListener('load', () => ws.connect());
   }
-
-  ws.connect();
 
 }(
   arguments[0], arguments[1], arguments[2],
