@@ -69,18 +69,13 @@ public class PerformPreLoad {
      * @throws RuntimeException      if an I/O error occurs
      */
     static String loadPluginScript(String relativePath) {
-        String pluginsDir = arPropertyManager.getProperty(ARPropertyEnum.PATH_PLUGINS);
-        if (pluginsDir == null || pluginsDir.isBlank()) {
-            throw new IllegalStateException("PATH_PLUGINS is not configured in ARWeb.config. "
-                    + "Add path_plugins=<your plugins folder> to the configuration.");
-        }
+        String pluginsDir = arPropertyManager.resolvePluginsDir();
 
         Path scriptPath = Paths.get(pluginsDir, relativePath);
 
         if (!Files.exists(scriptPath)) {
             throw new IllegalStateException("Plugin script not found: " + scriptPath.toAbsolutePath()
-                    + " — ensure the file exists in the plugins folder configured by path_plugins ("
-                    + pluginsDir + ")");
+                    + " — ensure the file exists in the plugins folder: " + pluginsDir);
         }
 
         try {

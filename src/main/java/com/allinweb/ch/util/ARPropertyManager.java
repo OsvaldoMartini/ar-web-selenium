@@ -191,6 +191,36 @@ public class ARPropertyManager {
         return this.properties.getProperty(property.getValue());
     }
 
+    /**
+     * Resolves the effective plugins directory.
+     * <ol>
+     *   <li>If {@code path_plugins} is configured and the directory exists, returns it.</li>
+     *   <li>If the configured directory does not exist, falls back to
+     *       {@code {project parent}/ARWeb/plugins} (consistent with other ARWeb paths).</li>
+     *   <li>If {@code path_plugins} is not configured at all, falls back to
+     *       {@code {project parent}/ARWeb/plugins}.</li>
+     * </ol>
+     *
+     * @return the resolved plugins directory path (never null)
+     */
+    public String resolvePluginsDir() {
+        String configured = getProperty(ARPropertyEnum.PATH_PLUGINS);
+        if (configured != null && !configured.isBlank()) {
+            java.nio.file.Path configuredPath = java.nio.file.Paths.get(configured);
+            if (java.nio.file.Files.isDirectory(configuredPath)) {
+                return configured;
+            }
+            log.warn("resolvePluginsDir — configured path_plugins does not exist: {}. Falling back to ARWeb/plugins.", configured);
+        } else {
+            log.warn("resolvePluginsDir — path_plugins is not configured. Falling back to ARWeb/plugins.");
+        }
+
+        String parentPath = new File(ARConstantsEngine.USER_PATH).getParent();
+        String fallback = parentPath + "\\ARWeb\\plugins";
+        log.info("resolvePluginsDir — using fallback plugins path: {}", fallback);
+        return fallback;
+    }
+
     public void setProperty(String propertyName, String value) {
         this.properties.setProperty(propertyName, value);
         try (FileOutputStream output = new FileOutputStream(configurationFileName)) {

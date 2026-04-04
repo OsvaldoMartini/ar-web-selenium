@@ -459,7 +459,7 @@ public class ARScannedElementPane extends ARPane {
     private static String loadScriptFromResource(String resourcePath) throws IOException {
         // Use ClassLoader to get the resource as an InputStream
         try (InputStream inputStream =
-                     ARScannedElementPane.class.getClassLoader().getResourceAsStream(resourcePath)) {
+                ARScannedElementPane.class.getClassLoader().getResourceAsStream(resourcePath)) {
             if (inputStream == null) {
                 throw new IOException("Resource not found: " + resourcePath);
             }
@@ -589,8 +589,8 @@ public class ARScannedElementPane extends ARPane {
             actionReq = checkClickElement.isSelected()
                     ? ARConstants.CLICK
                     : checkInputText.isSelected()
-                    ? ARConstants.INSERT
-                    : checkOutputText.isSelected() ? ARConstants.OUTPUT : ARConstants.OTHER;
+                            ? ARConstants.INSERT
+                            : checkOutputText.isSelected() ? ARConstants.OUTPUT : ARConstants.OTHER;
         }
 
         targetInsert.setClickElement(checkClickElement.isSelected());
@@ -1469,7 +1469,7 @@ public class ARScannedElementPane extends ARPane {
                 "/cross.png", // Icon source
                 16.0, // Smaller icon size
                 new Insets(2.0) // Reduced padding
-        );
+                );
 
         testActionLabel = new Label("Test Actions :");
 
@@ -2287,10 +2287,10 @@ public class ARScannedElementPane extends ARPane {
                     nameDefined = (!Strings.isNullOrEmpty(targetSelected.getSomeText())
                             ? PerformActions.truncateAndNormalize(targetSelected.getSomeText(), 30)
                             : !Strings.isNullOrEmpty(targetSelected.getAttribId())
-                            ? targetSelected.getAttribId()
-                            : !Strings.isNullOrEmpty(targetSelected.getAttribName())
-                            ? targetSelected.getAttribName()
-                            : "");
+                                    ? targetSelected.getAttribId()
+                                    : !Strings.isNullOrEmpty(targetSelected.getAttribName())
+                                            ? targetSelected.getAttribName()
+                                            : "");
 
                     if (targetSelected.getDefinedName() != null
                             && !targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
@@ -3070,8 +3070,8 @@ public class ARScannedElementPane extends ARPane {
         blocksLoaded.forEach(block -> {
             boolean hasInput = block.getInstructionLoad() != null
                     && block.getInstructionLoad().stream()
-                    .anyMatch(instr -> instr.getActions() != null
-                            && instr.getActions().startsWith("I:"));
+                            .anyMatch(instr -> instr.getActions() != null
+                                    && instr.getActions().startsWith("I:"));
 
             block.setHasAnyInput(hasInput);
         });
@@ -3536,8 +3536,8 @@ public class ARScannedElementPane extends ARPane {
 
                                     logOperations.info("Total Target Elements: "
                                             + performLists
-                                            .getListTargetElements()
-                                            .size());
+                                                    .getListTargetElements()
+                                                    .size());
 
                                     // runYourScript(currentInstructionId);
                                 }
@@ -3629,8 +3629,8 @@ public class ARScannedElementPane extends ARPane {
                                     .split(ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER);
                             String[] operations = currentInstruction.getOperation() != null
                                     ? currentInstruction
-                                    .getOperation()
-                                    .split(ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER)
+                                            .getOperation()
+                                            .split(ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER)
                                     : null;
 
                             if (actions[0].equalsIgnoreCase(ARConstantsEngine.IF)
@@ -3796,16 +3796,16 @@ public class ARScannedElementPane extends ARPane {
                                         (currentInstruction.getOperation() != null
                                                 ? "(" + parentId + ")-" + operations[0] + ":" + operations[1]
                                                 : (actions[0].equalsIgnoreCase(ARConstantsEngine.INSERT))
-                                                ? valueInsert
-                                                : ""));
+                                                        ? valueInsert
+                                                        : ""));
                             } else {
                                 msgInstruction = new FieldData(
                                         "(" + currentInstruction.getId() + ")-" + currentInstruction.getName(),
                                         (currentInstruction.getOperation() != null
                                                 ? currentInstruction.getOperation()
                                                 : (actions[0].equalsIgnoreCase(ARConstantsEngine.INSERT))
-                                                ? valueInsert
-                                                : ""));
+                                                        ? valueInsert
+                                                        : ""));
                             }
 
                             resultActions = performActions.actionResultMessage(blockName, actions, msgInstruction);
@@ -4336,8 +4336,8 @@ public class ARScannedElementPane extends ARPane {
                                     // It could be Improved the case
                                     if (resultActions.contains("FAIL")
                                             || performLists
-                                            .getListTargetElements()
-                                            .isEmpty()
+                                                    .getListTargetElements()
+                                                    .isEmpty()
                                             || (matchXPath == null && matchScanned == null && webElementFound == null)
                                             || (webElementFound == null && !forceCoordinates)) {
                                         failedMessage = "Failed execution Web Element ";
@@ -4615,8 +4615,8 @@ public class ARScannedElementPane extends ARPane {
                                                     // You still keep your "Get Value Is Not Defined" behavior
                                                     if (actualValue == null
                                                             || actualValue
-                                                            .trim()
-                                                            .isEmpty()) {
+                                                                    .trim()
+                                                                    .isEmpty()) {
                                                         failedMessage = "Get Value Is Not Defined ";
                                                         msgInstruction =
                                                                 updateMSGInstruction(msgInstruction, failedMessage);
@@ -4792,7 +4792,7 @@ public class ARScannedElementPane extends ARPane {
 
                                         if (!Strings.isNullOrEmpty(newExcelFieldName)) {
                                             writerExport = new ExcelWriter(
-                                                    newExcelFieldName, performActions.getCurrentDriver(), true)
+                                                            newExcelFieldName, performActions.getCurrentDriver(), true)
                                                     .withPurpose("export");
 
                                             // Only create Columns if Have a file to write
@@ -7045,7 +7045,7 @@ public class ARScannedElementPane extends ARPane {
 
     public void writeToFileCSV(String filename, String content) {
         try (Writer writer =
-                     new BufferedWriter(new OutputStreamWriter(new FileOutputStream(filename), StandardCharsets.UTF_8))) {
+                new BufferedWriter(new OutputStreamWriter(new FileOutputStream(filename), StandardCharsets.UTF_8))) {
 
             writer.write(content);
             logOperations.info("CSV written to file: {}", filename);
@@ -7189,12 +7189,10 @@ public class ARScannedElementPane extends ARPane {
                     + "-fx-background-radius: 6;"
                     + "-fx-padding: 6 14 6 14;"
                     + "-fx-cursor: default;");
-            String pluginsDir = arPropertyManager.getProperty(ARPropertyEnum.PATH_PLUGINS);
-            String hint = (pluginsDir == null || pluginsDir.isBlank())
-                    ? "path_plugins is not configured in ARWeb.config."
-                    : "Plugin script not found in: " + pluginsDir + "/pluginTest/build/\n"
-                    + "Run: npx esbuild index.js --bundle --minify --outfile=build/pluginTest.min.js\n"
-                    + "in " + pluginsDir + "/pluginTest/";
+            String pluginsDir = arPropertyManager.resolvePluginsDir();
+            String hint = "Plugin script not found in: " + pluginsDir + "/pluginTest/build/\n"
+                            + "Run: npx esbuild index.js --bundle --minify --outfile=build/pluginTest.min.js\n"
+                            + "in " + pluginsDir + "/pluginTest/";
             btn.setTooltip(new Tooltip(hint));
             btn.setDisable(true);
         }
@@ -7209,11 +7207,7 @@ public class ARScannedElementPane extends ARPane {
      */
     private boolean isPluginAvailable(String relativePath) {
         try {
-            String pluginsDir = arPropertyManager.getProperty(ARPropertyEnum.PATH_PLUGINS);
-            if (pluginsDir == null || pluginsDir.isBlank()) {
-                log.warn("PluginTest — PATH_PLUGINS is not configured in ARWeb.config");
-                return false;
-            }
+            String pluginsDir = arPropertyManager.resolvePluginsDir();
             Path scriptPath = Paths.get(pluginsDir, relativePath);
             return Files.exists(scriptPath) && Files.isReadable(scriptPath);
         } catch (Exception e) {
@@ -7232,15 +7226,7 @@ public class ARScannedElementPane extends ARPane {
     private void runPluginTest() {
         String relativePath = "pluginTest/build/pluginTest.min.js";
         try {
-            String pluginsDir = arPropertyManager.getProperty(ARPropertyEnum.PATH_PLUGINS);
-            if (pluginsDir == null || pluginsDir.isBlank()) {
-                showPluginTestAlert(
-                        Alert.AlertType.ERROR,
-                        "Plugin path not configured",
-                        "path_plugins is not set in ARWeb.config.\n"
-                                + "Add path_plugins=<your plugins folder> to the configuration.");
-                return;
-            }
+            String pluginsDir = arPropertyManager.resolvePluginsDir();
 
             Path scriptPath = Paths.get(pluginsDir, relativePath);
             if (!Files.exists(scriptPath)) {
@@ -7285,215 +7271,362 @@ public class ARScannedElementPane extends ARPane {
 
     /**
      * Main entry point for the plugin update flow.
-     * Runs the download on a background thread with a progress dialog.
-     * Always downloads — no version check, no fingerprint comparison.
      *
      * Flow:
-     *   1. Validate url_plugins and path_plugins config
-     *   2. Download ZIP from url_plugins
-     *   3. Extract to path_plugins folder
-     *   4. Refresh pluginTestButton state
+     *   1. Fetch manifest.json from url_plugins server
+     *   2. Show a picker dialog with available plugins
+     *   3. User selects a plugin and clicks Download
+     *   4. Download ZIP, validate, extract to path_plugins
+     *   5. Refresh pluginTestButton state
      */
     private void runPluginUpdate() {
-        String urlPlugins = arPropertyManager.getProperty(ARPropertyEnum.URL_PLUGINS);
-        String pathPlugins = arPropertyManager.getProperty(ARPropertyEnum.PATH_PLUGINS);
+        String urlBase = arPropertyManager.getProperty(ARPropertyEnum.URL_PLUGINS);
 
-        if (urlPlugins == null || urlPlugins.isBlank()) {
+        if (urlBase == null || urlBase.isBlank()) {
             showPluginTestAlert(
                     Alert.AlertType.WARNING,
                     "URL not configured",
-                    "url_plugins is not set in ARWeb.config.\n" + "Go to Configuration and set the URL Plugins field.");
+                    "url_plugins is not set in ARWeb.config.\nGo to Configuration and set the URL Plugins field.");
             return;
         }
 
-        if (pathPlugins == null || pathPlugins.isBlank()) {
-            showPluginTestAlert(
-                    Alert.AlertType.WARNING, "Plugins path not configured", "path_plugins is not set in ARWeb.config.");
-            return;
-        }
+        String pathPlugins = arPropertyManager.resolvePluginsDir();
 
+        String baseUrl = urlBase.endsWith("/") ? urlBase : urlBase + "/";
+        String manifestUrl = baseUrl + "manifest.json";
         Path pluginsDir = Paths.get(pathPlugins);
+
+        log.info("UpdatePlugins — fetching manifest from: {}", manifestUrl);
+
+        // ── Fetch manifest on background thread, then show picker on FX thread ──
+        Thread fetchThread = new Thread(() -> {
+            try {
+                HttpClient client = HttpClient.newBuilder()
+                        .connectTimeout(Duration.ofSeconds(10))
+                        .followRedirects(HttpClient.Redirect.NORMAL)
+                        .build();
+
+                HttpRequest req = HttpRequest.newBuilder()
+                        .uri(URI.create(manifestUrl))
+                        .timeout(Duration.ofSeconds(15))
+                        .build();
+
+                HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+
+                if (resp.statusCode() != 200) {
+                    throw new IOException("Server returned HTTP " + resp.statusCode() + " for: " + manifestUrl);
+                }
+
+                // Strip BOM and parse JSON (lenient mode — some servers add BOM or trailing whitespace)
+                String jsonBody = resp.body().trim();
+                if (jsonBody.startsWith("\uFEFF")) {
+                    jsonBody = jsonBody.substring(1); // strip UTF-8 BOM
+                }
+                com.google.gson.stream.JsonReader reader =
+                        new com.google.gson.stream.JsonReader(new java.io.StringReader(jsonBody));
+                reader.setLenient(true);
+                com.google.gson.JsonObject root =
+                        com.google.gson.JsonParser.parseReader(reader).getAsJsonObject();
+                com.google.gson.JsonArray pluginsArray = root.getAsJsonArray("plugins");
+
+                if (pluginsArray == null || pluginsArray.size() == 0) {
+                    throw new IOException("Manifest contains no plugins.");
+                }
+
+                // Build plugin list
+                List<String[]> plugins = new ArrayList<>(); // [name, description, version, size, fileName]
+                for (int i = 0; i < pluginsArray.size(); i++) {
+                    com.google.gson.JsonObject p = pluginsArray.get(i).getAsJsonObject();
+                    plugins.add(new String[] {
+                        p.has("name") ? p.get("name").getAsString() : "Unknown",
+                        p.has("description") ? p.get("description").getAsString() : "",
+                        p.has("version") ? p.get("version").getAsString() : "",
+                        p.has("size") ? p.get("size").getAsString() : "",
+                        p.has("fileName") ? p.get("fileName").getAsString() : ""
+                    });
+                }
+
+                log.info("UpdatePlugins — manifest loaded: {} plugins available", plugins.size());
+
+                // Show picker on FX thread
+                Platform.runLater(() -> showPluginPicker(plugins, baseUrl, pluginsDir));
+
+            } catch (Exception ex) {
+                log.error("UpdatePlugins — failed to fetch manifest from: {}", manifestUrl, ex);
+                Platform.runLater(() -> showPluginTestAlert(
+                        Alert.AlertType.ERROR,
+                        "Cannot load plugin list",
+                        "Failed to fetch manifest.json from:\n" + manifestUrl + "\n\n" + ex.getMessage()));
+            }
+        });
+        fetchThread.setDaemon(true);
+        fetchThread.setName("plugin-manifest-fetch");
+        fetchThread.start();
+    }
+
+    /**
+     * Shows a dialog with a ComboBox listing available plugins.
+     * User picks one, clicks Download, and the ZIP is downloaded + extracted.
+     */
+    private void showPluginPicker(List<String[]> plugins, String baseUrl, Path pluginsDir) {
+        // Build ComboBox items: "Name (version) — size"
+        ComboBox<String> comboBox = new ComboBox<>();
+        for (String[] p : plugins) {
+            String label = p[0]; // name
+            if (!p[2].isEmpty()) label += "  (v" + p[2] + ")";
+            if (!p[3].isEmpty()) label += "  —  " + p[3];
+            comboBox.getItems().add(label);
+        }
+        comboBox.getSelectionModel().selectFirst();
+        comboBox.setPrefWidth(400);
+
+        // Description label updates on selection
+        Label descLabel = new Label(plugins.get(0)[1]);
+        descLabel.setWrapText(true);
+        descLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #555;");
+        descLabel.setPrefWidth(400);
+
+        comboBox.getSelectionModel().selectedIndexProperty().addListener((obs, oldVal, newVal) -> {
+            int idx = newVal.intValue();
+            if (idx >= 0 && idx < plugins.size()) {
+                descLabel.setText(plugins.get(idx)[1]);
+            }
+        });
+
+        VBox content = new VBox(8, new Label("Select a plugin to download:"), comboBox, descLabel);
+        content.setPadding(new Insets(10));
+
+        Alert pickerDialog = new Alert(Alert.AlertType.CONFIRMATION);
+        pickerDialog.setTitle("Download Plugin");
+        pickerDialog.setHeaderText("Available Plugins");
+        pickerDialog.getDialogPane().setContent(content);
+        pickerDialog
+                .getButtonTypes()
+                .setAll(new ButtonType("Download", ButtonBar.ButtonData.OK_DONE), ButtonType.CANCEL);
+
+        Optional<ButtonType> result = pickerDialog.showAndWait();
+        if (result.isPresent() && result.get().getButtonData() == ButtonBar.ButtonData.OK_DONE) {
+            int selectedIndex = comboBox.getSelectionModel().getSelectedIndex();
+            if (selectedIndex >= 0) {
+                String[] selected = plugins.get(selectedIndex);
+                String fileName = selected[4]; // fileName from manifest
+                String pluginName = selected[0];
+
+                if (fileName.isEmpty()) {
+                    showPluginTestAlert(
+                            Alert.AlertType.ERROR,
+                            "Invalid plugin",
+                            "The selected plugin has no fileName in the manifest.");
+                    return;
+                }
+
+                String downloadUrl = baseUrl + fileName;
+                log.info("UpdatePlugins — user selected: {} -> {}", pluginName, downloadUrl);
+                downloadAndExtractPlugin(downloadUrl, fileName, pluginName, pluginsDir);
+            }
+        }
+    }
+
+    /**
+     * Downloads a single plugin ZIP and extracts it to the plugins folder.
+     * Runs on a background thread with a progress dialog.
+     */
+    private void downloadAndExtractPlugin(String downloadUrl, String fileName, String pluginName, Path pluginsDir) {
         Path metaFile = pluginsDir.resolve(".plugins-meta");
 
-        // ── Build progress dialog ─────────────────────────────────────────
         ProgressBar progressBar = new ProgressBar(0);
         progressBar.setPrefWidth(350);
-        Label statusLabel = new Label("Checking for updates...");
+        Label statusLabel = new Label("Downloading " + pluginName + "...");
         statusLabel.setStyle("-fx-font-size: 12px;");
 
         VBox dialogContent = new VBox(10, statusLabel, progressBar);
         dialogContent.setPadding(new Insets(15));
 
         Alert progressDialog = new Alert(Alert.AlertType.INFORMATION);
-        progressDialog.setTitle("Update Plugins");
-        progressDialog.setHeaderText("Plugin Update");
+        progressDialog.setTitle("Download Plugin");
+        progressDialog.setHeaderText("Downloading: " + pluginName);
         progressDialog.getDialogPane().setContent(dialogContent);
         progressDialog.getButtonTypes().setAll(ButtonType.CANCEL);
 
-        // ── Background task ───────────────────────────────────────────────
-        Task<String> updateTask = new Task<>() {
+        Task<String> downloadTask = new Task<>() {
             @Override
             protected String call() throws Exception {
+                log.info("UpdatePlugins — downloading: {}", downloadUrl);
+
                 HttpClient client = HttpClient.newBuilder()
                         .connectTimeout(Duration.ofSeconds(15))
                         .followRedirects(HttpClient.Redirect.NORMAL)
                         .build();
 
-                // Step 1: Download the ZIP (always — no version check)
-                updateMessage("Downloading plugins...");
                 HttpRequest getRequest = HttpRequest.newBuilder()
-                        .uri(URI.create(urlPlugins))
+                        .uri(URI.create(downloadUrl))
                         .timeout(Duration.ofSeconds(120))
                         .build();
 
                 HttpResponse<InputStream> getResponse =
                         client.send(getRequest, HttpResponse.BodyHandlers.ofInputStream());
 
-                if (getResponse.statusCode() != 200) {
-                    throw new IOException(
-                            "Download failed with HTTP " + getResponse.statusCode() + " from: " + urlPlugins);
-                }
-
+                int statusCode = getResponse.statusCode();
+                String contentType =
+                        getResponse.headers().firstValue("Content-Type").orElse("unknown");
                 long contentLength = getResponse
                         .headers()
                         .firstValue("Content-Length")
                         .map(Long::parseLong)
                         .orElse(-1L);
 
-                // Download to temp file with progress tracking
-                Path tempZip = Files.createTempFile("ar-plugins-", ".zip");
+                log.info(
+                        "UpdatePlugins — HTTP {} | Content-Type: {} | Content-Length: {}",
+                        statusCode,
+                        contentType,
+                        contentLength);
+
+                if (statusCode != 200) {
+                    throw new IOException("HTTP " + statusCode + " for: " + downloadUrl);
+                }
+                if (contentType.contains("text/html")) {
+                    throw new IOException("Server returned HTML instead of ZIP.\n"
+                            + "File '" + fileName + "' may not exist on the server.\n"
+                            + "URL: " + downloadUrl);
+                }
+
+                // Download to temp file
+                updateMessage("Downloading " + pluginName + "...");
+                Path tempZip = Files.createTempFile("ar-plugin-", ".zip");
+                long totalRead = 0;
+
                 try (InputStream body = getResponse.body();
-                     OutputStream out = Files.newOutputStream(tempZip)) {
-
+                        OutputStream out = Files.newOutputStream(tempZip)) {
                     byte[] buffer = new byte[8192];
-                    long totalRead = 0;
                     int bytesRead;
-
                     while ((bytesRead = body.read(buffer)) != -1) {
                         out.write(buffer, 0, bytesRead);
                         totalRead += bytesRead;
-                        if (contentLength > 0) {
-                            updateProgress(totalRead, contentLength);
-                        }
+                        if (contentLength > 0) updateProgress(totalRead, contentLength);
                         updateMessage(String.format(
-                                "Downloading... %s / %s",
-                                formatBytes(totalRead), contentLength > 0 ? formatBytes(contentLength) : "unknown"));
+                                "Downloading %s... %s / %s",
+                                pluginName,
+                                formatBytes(totalRead),
+                                contentLength > 0 ? formatBytes(contentLength) : "unknown"));
                     }
+                    out.flush();
                 }
 
-                log.info("UpdatePlugins — downloaded {} to temp file: {}", formatBytes(Files.size(tempZip)), tempZip);
+                long fileSize = Files.size(tempZip);
+                log.info("UpdatePlugins — downloaded {} to: {}", formatBytes(fileSize), tempZip);
 
-                // Step 2: Extract ZIP to plugins folder
-                updateMessage("Extracting plugins...");
-                updateProgress(-1, -1); // indeterminate during extract
+                // Validate ZIP
+                if (fileSize == 0) {
+                    Files.deleteIfExists(tempZip);
+                    throw new IOException("Downloaded file is empty (0 bytes): " + downloadUrl);
+                }
+                try (InputStream check = Files.newInputStream(tempZip)) {
+                    int b1 = check.read(), b2 = check.read();
+                    if (b1 != 0x50 || b2 != 0x4B) {
+                        String preview = Files.readString(tempZip, StandardCharsets.UTF_8);
+                        if (preview.length() > 200) preview = preview.substring(0, 200);
+                        Files.deleteIfExists(tempZip);
+                        throw new IOException("Not a valid ZIP file.\nFirst 200 chars: " + preview);
+                    }
+                }
+                log.info("UpdatePlugins — ZIP validated OK");
+
+                // Extract
+                updateMessage("Extracting " + pluginName + "...");
+                updateProgress(-1, -1);
                 Files.createDirectories(pluginsDir);
 
-                int fileCount = 0;
+                int fileCount = 0, dirCount = 0;
                 try (ZipInputStream zis = new ZipInputStream(Files.newInputStream(tempZip), StandardCharsets.UTF_8)) {
-
                     ZipEntry entry;
                     while ((entry = zis.getNextEntry()) != null) {
                         Path target = pluginsDir.resolve(entry.getName()).normalize();
-
-                        // Security: prevent zip-slip (path traversal)
                         if (!target.startsWith(pluginsDir)) {
-                            log.warn("UpdatePlugins — skipping zip-slip entry: {}", entry.getName());
+                            log.warn("UpdatePlugins — SKIPPED zip-slip: {}", entry.getName());
                             continue;
                         }
-
                         if (entry.isDirectory()) {
                             Files.createDirectories(target);
-                            log.info("UpdatePlugins — created dir:  {}", target);
+                            dirCount++;
+                            log.info("UpdatePlugins — DIR:  {}", target);
                         } else {
                             Files.createDirectories(target.getParent());
+                            long entrySize = 0;
                             try (OutputStream fileOut = Files.newOutputStream(target)) {
                                 byte[] buf = new byte[8192];
                                 int len;
                                 while ((len = zis.read(buf)) != -1) {
                                     fileOut.write(buf, 0, len);
+                                    entrySize += len;
                                 }
                             }
                             fileCount++;
-                            log.info("UpdatePlugins — extracted file: {}", target);
+                            log.info("UpdatePlugins — FILE: {} ({})", target, formatBytes(entrySize));
                         }
                         zis.closeEntry();
                     }
                 }
 
-                // Clean up temp file
                 Files.deleteIfExists(tempZip);
 
-                // Step 3: Save meta file with download timestamp
+                if (fileCount == 0) {
+                    throw new IOException("ZIP was valid but contained 0 files.");
+                }
+
+                // Save meta
                 Properties meta = new Properties();
-                meta.setProperty("url", urlPlugins);
+                meta.setProperty("lastPlugin", pluginName);
+                meta.setProperty("lastFile", fileName);
+                meta.setProperty("url", downloadUrl);
                 meta.setProperty("updated", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
                 meta.setProperty("files", String.valueOf(fileCount));
                 try (OutputStream metaOut = Files.newOutputStream(metaFile)) {
                     meta.store(metaOut, "AR Web Plugin Update Metadata");
                 }
 
-                updateMessage("Done! Extracted " + fileCount + " files.");
+                String summary = pluginName + ": " + fileCount + " files, " + dirCount + " dirs";
+                updateMessage("Done! " + summary);
                 updateProgress(1, 1);
-                log.info("UpdatePlugins — completed: {} files extracted to {}", fileCount, pluginsDir);
-                return "UPDATED";
+                log.info("UpdatePlugins — SUCCESS: {}", summary);
+                return summary;
             }
         };
 
-        // Bind progress bar to task
-        progressBar.progressProperty().bind(updateTask.progressProperty());
-        statusLabel.textProperty().bind(updateTask.messageProperty());
+        progressBar.progressProperty().bind(downloadTask.progressProperty());
+        statusLabel.textProperty().bind(downloadTask.messageProperty());
 
-        updateTask.setOnSucceeded(e -> {
-            String result = updateTask.getValue();
+        downloadTask.setOnSucceeded(e -> {
             progressDialog.close();
-
-            // Refresh the pluginTestButton to reflect new file state
             Platform.runLater(() -> {
-                int btnIndex = -1;
-                for (int i = 0;
-                     i
-                             < ((GridPane) pluginTestButton.getParent())
-                             .getChildren()
-                             .size();
-                     i++) {
-                    if (((GridPane) pluginTestButton.getParent())
-                            .getChildren()
-                            .get(i)
-                            == pluginTestButton) {
-                        btnIndex = i;
-                        break;
-                    }
-                }
-                if (btnIndex >= 0) {
+                try {
                     GridPane grid = (GridPane) pluginTestButton.getParent();
-                    grid.getChildren().remove(pluginTestButton);
-                    pluginTestButton = buildPluginTestButton();
-                    grid.add(pluginTestButton, 1, 0);
+                    if (grid != null) {
+                        grid.getChildren().remove(pluginTestButton);
+                        pluginTestButton = buildPluginTestButton();
+                        grid.add(pluginTestButton, 1, 0);
+                    }
+                } catch (Exception ex) {
+                    log.warn("UpdatePlugins — could not refresh pluginTestButton", ex);
                 }
             });
-
             showPluginTestAlert(
                     Alert.AlertType.INFORMATION,
                     "Download complete",
-                    "Plugins have been downloaded and extracted to:\n" + pathPlugins);
-
-            log.info("UpdatePlugins — result: {}", result);
+                    downloadTask.getValue() + "\nDestination: " + pluginsDir);
         });
 
-        updateTask.setOnFailed(e -> {
+        downloadTask.setOnFailed(e -> {
             progressDialog.close();
-            Throwable ex = updateTask.getException();
+            Throwable ex = downloadTask.getException();
             log.error("UpdatePlugins — failed", ex);
-            showPluginTestAlert(Alert.AlertType.ERROR, "Update failed", ex.getMessage());
+            showPluginTestAlert(Alert.AlertType.ERROR, "Download failed", ex.getMessage());
         });
 
-        // Cancel button closes dialog and cancels task
-        progressDialog.setOnCloseRequest(e -> updateTask.cancel());
+        progressDialog.setOnCloseRequest(e -> downloadTask.cancel());
 
-        // Run on background thread
-        Thread thread = new Thread(updateTask);
+        Thread thread = new Thread(downloadTask);
         thread.setDaemon(true);
-        thread.setName("plugin-update-thread");
+        thread.setName("plugin-download-thread");
         thread.start();
 
         progressDialog.show();
@@ -7517,4 +7650,432 @@ public class ARScannedElementPane extends ARPane {
             alert.showAndWait();
         });
     }
+
+// ════════════════════════════════════════════════════════════════════════════
+// PLUGIN MANIFEST SYSTEM  — add these methods to ARScannedElementPane.java
+//
+// Placement:  paste the entire block just BEFORE the closing brace of the class,
+//             replacing (or appending after) the existing showPluginTestAlert method.
+//
+// Required imports (all already present in ARScannedElementPane.java):
+//   java.net.URI, java.net.http.HttpClient/HttpRequest/HttpResponse,
+//   java.time.Duration, java.io.InputStream, java.nio.charset.StandardCharsets
+//   javafx.concurrent.Task, javafx.application.Platform,
+//   javafx.scene.control.*, javafx.scene.layout.*,
+//   javafx.geometry.Insets, javafx.collections.*
+//   com.google.gson.Gson  (already on classpath via pom.xml)
+//   com.allinweb.ch.model.PluginDTO, PluginManifestDTO  (new model classes)
+// ════════════════════════════════════════════════════════════════════════════
+
+
+    // ── Plugin Manifest ───────────────────────────────────────────────────────
+
+    /**
+     * Derives the manifest.json URL from {@code url_plugins}.
+     *
+     * <p>Convention (server rooted at {@code public/}):
+     * <pre>
+     *   url_plugins  =  http://192.168.1.109:30875          (base)
+     *   manifest     =  http://192.168.1.109:30875/plugins/manifest.json
+     *   zip files    =  http://192.168.1.109:30875 + downloadUrl
+     *                   e.g. http://192.168.1.109:30875/plugins/pageScanner.zip
+     * </pre>
+     *
+     * <p>If {@code url_plugins} already ends with a path (legacy config pointing
+     * directly to a ZIP such as {@code .../plugins/latest.zip}), the method
+     * strips everything from the last {@code /plugins/} segment and appends
+     * {@code /plugins/manifest.json}, so old configs keep working.
+     *
+     * @param urlPlugins  the raw value of the {@code url_plugins} property
+     * @return            the fully-qualified manifest URL string
+     */
+    private static String buildManifestUrl(String urlPlugins) {
+        // Strip trailing slash
+        String base = urlPlugins.endsWith("/")
+                ? urlPlugins.substring(0, urlPlugins.length() - 1)
+                : urlPlugins;
+
+        // If the stored value already looks like a file URL, derive the server root
+        // e.g. "http://host:port/plugins/latest.zip" → "http://host:port"
+        int pluginsIdx = base.lastIndexOf("/plugins/");
+        if (pluginsIdx > 0) {
+            base = base.substring(0, pluginsIdx);
+        }
+
+        return base + "/plugins/manifest.json";
+    }
+
+    /**
+     * Fetches {@code manifest.json} synchronously on the calling (background) thread.
+     *
+     * @param manifestUrl  full URL to manifest.json
+     * @return             parsed {@link PluginManifestDTO}
+     * @throws Exception   on HTTP error, timeout, or JSON parse failure
+     */
+    private PluginManifestDTO fetchManifest(String manifestUrl) throws Exception {
+        log.info("PluginManifest — fetching: {}", manifestUrl);
+
+        HttpClient client = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .followRedirects(HttpClient.Redirect.NORMAL)
+                .build();
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(manifestUrl))
+                .timeout(Duration.ofSeconds(15))
+                .header("Accept", "application/json")
+                .GET()
+                .build();
+
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+
+        if (response.statusCode() != 200) {
+            throw new IOException(
+                    "HTTP " + response.statusCode() + " from: " + manifestUrl);
+        }
+
+        String body = response.body();
+        if (body == null || body.isBlank()) {
+            throw new IOException("Empty response from: " + manifestUrl);
+        }
+
+        log.debug("PluginManifest — raw JSON ({} chars): {}", body.length(), body.substring(0, Math.min(200, body.length())));
+
+        Gson gson = new Gson();
+        PluginManifestDTO manifest = gson.fromJson(body, PluginManifestDTO.class);
+
+        if (manifest == null) {
+            throw new IOException("Gson returned null — invalid JSON from: " + manifestUrl);
+        }
+        if (manifest.getPlugins() == null || manifest.getPlugins().isEmpty()) {
+            throw new IOException("Manifest parsed but 'plugins' array is missing or empty.");
+        }
+
+        log.info("PluginManifest — loaded {} plugins (manifest v{})", manifest.getPlugins().size(), manifest.getVersion());
+        return manifest;
+    }
+
+    // ── Plugin List Dialog ────────────────────────────────────────────────────
+
+    /**
+     * Entry point wired to the "Update Plugins" button.
+     *
+     * <ol>
+     *   <li>Validates {@code url_plugins} and {@code path_plugins} config.</li>
+     *   <li>Fetches {@code manifest.json} on a background thread.</li>
+     *   <li>On success: shows a plugin-list dialog; user can download all or
+     *       individual plugins.</li>
+     *   <li>On failure: shows the standard "Cannot load plugin list" error alert
+     *       with the failure reason.</li>
+     * </ol>
+     */
+    private void runShowPluginList() {
+        String urlPlugins  = arPropertyManager.getProperty(ARPropertyEnum.URL_PLUGINS);
+
+        // ── Config guards ─────────────────────────────────────────────────────
+        if (urlPlugins == null || urlPlugins.isBlank()) {
+            showPluginTestAlert(
+                    Alert.AlertType.WARNING,
+                    "URL not configured",
+                    "url_plugins is not set in ARWeb.config.\n"
+                            + "Go to Configuration → URL Plugins and set it to your server base URL,\n"
+                            + "e.g.  http://192.168.1.109:30875");
+            return;
+        }
+
+        String pathPlugins = arPropertyManager.resolvePluginsDir();
+
+        final String manifestUrl  = buildManifestUrl(urlPlugins);
+        final String serverBase   = manifestUrl.substring(0, manifestUrl.lastIndexOf("/plugins/manifest.json"));
+
+        // ── Background fetch ──────────────────────────────────────────────────
+        Task<PluginManifestDTO> fetchTask = new Task<>() {
+            @Override
+            protected PluginManifestDTO call() throws Exception {
+                updateMessage("Connecting to plugin server…");
+                return fetchManifest(manifestUrl);
+            }
+        };
+
+        fetchTask.setOnSucceeded(evt -> {
+            PluginManifestDTO manifest = fetchTask.getValue();
+            Platform.runLater(() -> showPluginListDialog(manifest, serverBase, pathPlugins));
+        });
+
+        fetchTask.setOnFailed(evt -> {
+            Throwable cause = fetchTask.getException();
+            log.error("PluginManifest — fetch failed", cause);
+            showPluginTestAlert(
+                    Alert.AlertType.ERROR,
+                    "Cannot load plugin list",
+                    "Failed to fetch manifest.json from:\n" + manifestUrl + "\n\n" + cause.getMessage());
+        });
+
+        Thread t = new Thread(fetchTask);
+        t.setDaemon(true);
+        t.setName("plugin-manifest-fetch");
+        t.start();
+    }
+
+    /**
+     * Builds and shows a JavaFX dialog listing all plugins from the manifest.
+     *
+     * <p>Layout:
+     * <pre>
+     *  ┌──────────────────────────────────────────────────────────────┐
+     *  │ Plugin List   v1.0.0  ·  updated 2026-03-26                  │
+     *  ├──────────────────────────────────────────────────────────────┤
+     *  │  Icon  │  Name              │  Version  │  Size  │  Desc     │
+     *  │  🔍    │  Page Scanner      │  4.7.1    │  20 KB │  ...      │
+     *  │  ✅    │  Plugin Test       │  1.0.0    │   2 KB │  ...      │
+     *  │  …     │  …                 │  …        │  …     │  …        │
+     *  ├──────────────────────────────────────────────────────────────┤
+     *  │            [Download Selected]   [Download All]   [Close]    │
+     *  └──────────────────────────────────────────────────────────────┘
+     * </pre>
+     *
+     * @param manifest    parsed manifest from server
+     * @param serverBase  base URL, e.g. {@code http://192.168.1.109:30875}
+     * @param pathPlugins local extraction folder
+     */
+    private void showPluginListDialog(PluginManifestDTO manifest, String serverBase, String pathPlugins) {
+
+        // ── Header label ──────────────────────────────────────────────────────
+        String headerText = "Plugin List  ·  manifest v" + manifest.getVersion()
+                + (manifest.getUpdated() != null ? "  ·  updated " + manifest.getUpdated() : "");
+        Label headerLabel = new Label(headerText);
+        headerLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #636e72;");
+
+        // ── TableView ─────────────────────────────────────────────────────────
+        TableView<PluginDTO> table = new TableView<>();
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+        table.setPrefHeight(220);
+
+        TableColumn<PluginDTO, String> colIcon = new TableColumn<>("Icon");
+        colIcon.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(c.getValue().getIcon()));
+        colIcon.setPrefWidth(40);
+        colIcon.setMinWidth(40);
+        colIcon.setMaxWidth(40);
+
+        TableColumn<PluginDTO, String> colName = new TableColumn<>("Name");
+        colName.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(c.getValue().getName()));
+        colName.setPrefWidth(130);
+
+        TableColumn<PluginDTO, String> colVersion = new TableColumn<>("Version");
+        colVersion.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(c.getValue().getVersion()));
+        colVersion.setPrefWidth(65);
+
+        TableColumn<PluginDTO, String> colSize = new TableColumn<>("Size");
+        colSize.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(c.getValue().getSize()));
+        colSize.setPrefWidth(55);
+
+        TableColumn<PluginDTO, String> colDesc = new TableColumn<>("Description");
+        colDesc.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(c.getValue().getDescription()));
+
+        //noinspection unchecked
+        table.getColumns().addAll(colIcon, colName, colVersion, colSize, colDesc);
+        table.setItems(FXCollections.observableArrayList(manifest.getPlugins()));
+
+        // ── Info strip ────────────────────────────────────────────────────────
+        Label infoLabel = new Label("Select one or more plugins, then click Download Selected.");
+        infoLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #636e72;");
+
+        // ── Buttons ───────────────────────────────────────────────────────────
+        Button btnDownloadSelected = new Button("⬇  Download Selected");
+        Button btnDownloadAll      = new Button("⬇  Download All");
+        Button btnClose            = new Button("Close");
+
+        btnDownloadSelected.setDefaultButton(false);
+        btnDownloadAll.setStyle("-fx-background-color: #0984e3; -fx-text-fill: white;");
+        btnClose.setCancelButton(true);
+
+        HBox buttonBar = new HBox(10, btnDownloadSelected, btnDownloadAll, btnClose);
+        buttonBar.setAlignment(javafx.geometry.Pos.CENTER_RIGHT);
+        buttonBar.setPadding(new Insets(8, 0, 0, 0));
+
+        VBox content = new VBox(8, headerLabel, table, infoLabel, buttonBar);
+        content.setPadding(new Insets(12));
+        content.setPrefWidth(680);
+
+        // ── Dialog wrapper ────────────────────────────────────────────────────
+        Dialog<Void> dialog = new Dialog<>();
+        dialog.setTitle("Plugin Test");
+        dialog.setHeaderText("Available Plugins");
+        dialog.getDialogPane().setContent(content);
+        dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+        // Hide the built-in close button — we use our own btnClose
+        dialog.getDialogPane().lookupButton(ButtonType.CLOSE).setVisible(false);
+
+        // ── Button actions ────────────────────────────────────────────────────
+        btnClose.setOnAction(e -> dialog.close());
+
+        btnDownloadSelected.setOnAction(e -> {
+            List<PluginDTO> selected = new ArrayList<>(table.getSelectionModel().getSelectedItems());
+            if (selected.isEmpty()) {
+                showPluginTestAlert(Alert.AlertType.INFORMATION, "No selection", "Select at least one plugin to download.");
+                return;
+            }
+            dialog.close();
+            runDownloadPlugins(selected, serverBase, pathPlugins);
+        });
+
+        btnDownloadAll.setOnAction(e -> {
+            List<PluginDTO> all = new ArrayList<>(manifest.getPlugins());
+            dialog.close();
+            runDownloadPlugins(all, serverBase, pathPlugins);
+        });
+
+        dialog.showAndWait();
+    }
+
+    // ── Individual Plugin Download ────────────────────────────────────────────
+
+    /**
+     * Downloads and extracts a list of plugins (each is a separate ZIP).
+     *
+     * <p>Runs on a single background thread; shows one progress dialog for all.
+     *
+     * @param plugins     plugins to download
+     * @param serverBase  e.g. {@code http://192.168.1.109:30875}
+     * @param pathPlugins local target folder
+     */
+    private void runDownloadPlugins(List<PluginDTO> plugins, String serverBase, String pathPlugins) {
+        Path pluginsDir = Paths.get(pathPlugins);
+
+        // ── Progress dialog ───────────────────────────────────────────────────
+        ProgressBar progressBar = new ProgressBar(0);
+        progressBar.setPrefWidth(400);
+        Label statusLabel  = new Label("Starting…");
+        Label counterLabel = new Label("0 / " + plugins.size());
+        statusLabel.setStyle("-fx-font-size: 12px;");
+        counterLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #636e72;");
+
+        VBox dialogContent = new VBox(8, statusLabel, progressBar, counterLabel);
+        dialogContent.setPadding(new Insets(12));
+
+        Alert progressDialog = new Alert(Alert.AlertType.INFORMATION);
+        progressDialog.setTitle("Plugin Test");
+        progressDialog.setHeaderText("Downloading Plugins");
+        progressDialog.getDialogPane().setContent(dialogContent);
+        progressDialog.getButtonTypes().setAll(ButtonType.CANCEL);
+
+        // ── Background task ───────────────────────────────────────────────────
+        Task<Integer> downloadTask = new Task<>() {
+            @Override
+            protected Integer call() throws Exception {
+                HttpClient client = HttpClient.newBuilder()
+                        .connectTimeout(Duration.ofSeconds(15))
+                        .followRedirects(HttpClient.Redirect.NORMAL)
+                        .build();
+
+                Files.createDirectories(pluginsDir);
+                int successCount = 0;
+
+                for (int i = 0; i < plugins.size(); i++) {
+                    if (isCancelled()) break;
+
+                    PluginDTO plugin = plugins.get(i);
+                    String zipUrl = serverBase + plugin.getDownloadUrl();
+                    updateMessage("Downloading " + plugin.getName() + "…");
+                    Platform.runLater(() -> counterLabel.setText((plugins.indexOf(plugin) + 1) + " / " + plugins.size()));
+
+                    log.info("PluginDownload — GET {}", zipUrl);
+
+                    HttpRequest req = HttpRequest.newBuilder()
+                            .uri(URI.create(zipUrl))
+                            .timeout(Duration.ofSeconds(60))
+                            .build();
+
+                    HttpResponse<InputStream> resp = client.send(req, HttpResponse.BodyHandlers.ofInputStream());
+
+                    if (resp.statusCode() != 200) {
+                        log.warn("PluginDownload — HTTP {} for {}", resp.statusCode(), zipUrl);
+                        updateMessage("⚠  Skipped " + plugin.getName() + " (HTTP " + resp.statusCode() + ")");
+                        Thread.sleep(600);
+                        continue;
+                    }
+
+                    // Download to temp file
+                    Path tempZip = Files.createTempFile("ar-plugin-" + plugin.getId() + "-", ".zip");
+                    try (InputStream body = resp.body();
+                         OutputStream out  = Files.newOutputStream(tempZip)) {
+                        body.transferTo(out);
+                    }
+
+                    // Extract into pluginsDir
+                    updateMessage("Extracting " + plugin.getName() + "…");
+                    try (ZipInputStream zis = new ZipInputStream(Files.newInputStream(tempZip), StandardCharsets.UTF_8)) {
+                        ZipEntry entry;
+                        while ((entry = zis.getNextEntry()) != null) {
+                            Path target = pluginsDir.resolve(entry.getName()).normalize();
+                            if (!target.startsWith(pluginsDir)) {
+                                log.warn("PluginDownload — zip-slip blocked: {}", entry.getName());
+                                continue;
+                            }
+                            if (entry.isDirectory()) {
+                                Files.createDirectories(target);
+                            } else {
+                                Files.createDirectories(target.getParent());
+                                try (OutputStream fo = Files.newOutputStream(target)) {
+                                    byte[] buf = new byte[8192];
+                                    int len;
+                                    while ((len = zis.read(buf)) != -1) fo.write(buf, 0, len);
+                                }
+                            }
+                            zis.closeEntry();
+                        }
+                    }
+                    Files.deleteIfExists(tempZip);
+                    successCount++;
+                    updateProgress(i + 1, plugins.size());
+                    log.info("PluginDownload — installed: {}", plugin.getName());
+                }
+
+                return successCount;
+            }
+        };
+
+        progressBar.progressProperty().bind(downloadTask.progressProperty());
+        statusLabel.textProperty().bind(downloadTask.messageProperty());
+
+        downloadTask.setOnSucceeded(evt -> {
+            progressDialog.close();
+            int count = downloadTask.getValue();
+            // Refresh pluginTestButton
+            Platform.runLater(() -> {
+                if (pluginTestButton.getParent() instanceof GridPane grid) {
+                    int idx = grid.getChildren().indexOf(pluginTestButton);
+                    if (idx >= 0) {
+                        grid.getChildren().remove(pluginTestButton);
+                        pluginTestButton = buildPluginTestButton();
+                        grid.add(pluginTestButton, 1, 0);
+                    }
+                }
+            });
+            showPluginTestAlert(
+                    Alert.AlertType.INFORMATION,
+                    "Download complete",
+                    count + " of " + plugins.size() + " plugin(s) downloaded and extracted to:\n" + pathPlugins);
+            log.info("PluginDownload — finished: {}/{} plugins", count, plugins.size());
+        });
+
+        downloadTask.setOnFailed(evt -> {
+            progressDialog.close();
+            Throwable ex = downloadTask.getException();
+            log.error("PluginDownload — failed", ex);
+            showPluginTestAlert(Alert.AlertType.ERROR, "Download failed", ex.getMessage());
+        });
+
+        progressDialog.setOnCloseRequest(e -> downloadTask.cancel());
+
+        Thread t = new Thread(downloadTask);
+        t.setDaemon(true);
+        t.setName("plugin-download-thread");
+        t.start();
+
+        progressDialog.show();
+    }
+
+
 }
