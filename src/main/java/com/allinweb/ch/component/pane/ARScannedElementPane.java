@@ -162,7 +162,7 @@ public class ARScannedElementPane extends ARPane {
     private Button configureButton;
     private Button stopBotJobButton;
     private Button pageScannerButton;
-    private Button pluginTestButton;
+    private Button pluginUpdateButton;
     private Button updatePluginsButton;
     private Button refreshWebPageButton;
     private Button leftButton;
@@ -1454,7 +1454,7 @@ public class ARScannedElementPane extends ARPane {
         pageScannerButton = builder.buildButton(
                 "Page Scanner", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
 
-        pluginTestButton = buildPluginTestButton();
+        pluginUpdateButton = buildPluginUpdateButton();
         updatePluginsButton = buildUpdatePluginsButton();
 
         turnOnOffButton = new Button("Search Hidden Fields: Off");
@@ -1641,7 +1641,7 @@ public class ARScannedElementPane extends ARPane {
 
             // Add buttons and checkbox to the GridPane
             gridPaneTop.add(pageScannerButton, 0, 0);
-            gridPaneTop.add(pluginTestButton, 1, 0);
+            gridPaneTop.add(pluginUpdateButton, 1, 0);
             gridPaneTop.add(updatePluginsButton, 2, 0);
             gridPaneTop.add(searchTermsLabel, 3, 0);
             gridPaneTop.add(searchTermsField, 4, 0);
@@ -7150,58 +7150,197 @@ public class ARScannedElementPane extends ARPane {
         currentColumnsCSV.addAll(columns);
     }
 
-    // ── Plugin Test Button ────────────────────────────────────────────────────
+    // ── Plugin Update Button ────────────────────────────────────────────────────
 
     /**
-     * Builds the "Plugin Test" button.
+     * Builds the "Plugin Update" button.
      *
      * Visual states:
-     *   Green  — plugin script found in the PATH_PLUGINS folder and ready to inject.
-     *   Orange — plugin script missing (build step not run yet, or path_plugins not configured).
+     *   Green  — all plugins from manifest are present locally.
+     *   Orange — some or all plugins are missing locally.
      *
-     * The button is styled inline so it is visually distinct from the standard
-     * toolbar buttons and clearly communicates its test/diagnostic purpose.
+     * Clicking the button opens a dialog that shows all plugins declared in the
+     * local manifest.json (or scanned from disk), their local availability status,
+     * and allows downloading missing ones from the configured server.
+     *
+     * Plugins can arrive in the folder via:
+     *   - Download from server (using this button)
+     *   - Email attachment (user copies ZIP and extracts)
+     *   - USB drive / pendrive (user copies plugin folders)
      */
-    private Button buildPluginTestButton() {
+    private Button buildPluginUpdateButton() {
         Button btn = new Button();
 
-        boolean pluginAvailable = isPluginAvailable("pluginTest/build/pluginTest.min.js");
+        String pluginsDir = arPropertyManager.resolvePluginsDir();
+        int[] counts = countLocalPlugins(pluginsDir);
+        int installed = counts[0];
+        int total = counts[1];
 
-        if (pluginAvailable) {
-            btn.setText("⬤  Plugin Test");
-            btn.setStyle("-fx-background-color: #166534;" + // dark green background
-                    "-fx-text-fill: #dcfce7;"
-                    + // soft green text
-                    "-fx-font-size: 12px;"
+        if (total > 0 && installed == total) {
+            btn.setText("⬤  Plugin Update (" + installed + "/" + total + ")");
+            btn.setStyle("-fx-background-color: #166534;"
+                    + "-fx-text-fill: #dcfce7;"
+                    + "-fx-font-size: 12px;"
                     + "-fx-font-weight: bold;"
                     + "-fx-background-radius: 6;"
                     + "-fx-padding: 6 14 6 14;"
                     + "-fx-cursor: hand;");
-            btn.setTooltip(new Tooltip("Plugin loaded OK — click to inject test script into browser"));
-            btn.setOnAction(e -> runPluginTest());
-        } else {
-            btn.setText("⚠  Plugin Test");
-            btn.setStyle("-fx-background-color: #7c2d12;" + // dark orange/brown background
-                    "-fx-text-fill: #fed7aa;"
-                    + // soft orange text
-                    "-fx-font-size: 12px;"
+            btn.setTooltip(new Tooltip("All " + installed + " plugins installed — click to manage"));
+        } else if (total > 0) {
+            btn.setText("⚠  Plugin Update (" + installed + "/" + total + ")");
+            btn.setStyle("-fx-background-color: #7c2d12;"
+                    + "-fx-text-fill: #fed7aa;"
+                    + "-fx-font-size: 12px;"
                     + "-fx-font-weight: bold;"
                     + "-fx-background-radius: 6;"
                     + "-fx-padding: 6 14 6 14;"
-                    + "-fx-cursor: default;");
-            String pluginsDir = arPropertyManager.resolvePluginsDir();
-            String hint = "Plugin script not found in: " + pluginsDir + "/pluginTest/build/\n"
-                            + "Run: npx esbuild index.js --bundle --minify --outfile=build/pluginTest.min.js\n"
-                            + "in " + pluginsDir + "/pluginTest/";
-            btn.setTooltip(new Tooltip(hint));
-            btn.setDisable(true);
+                    + "-fx-cursor: hand;");
+            btn.setTooltip(new Tooltip(installed + " of " + total + " plugins installed — click to download missing"));
+        } else {
+            btn.setText("⚠  Plugin Update");
+            btn.setStyle("-fx-background-color: #7c2d12;"
+                    + "-fx-text-fill: #fed7aa;"
+                    + "-fx-font-size: 12px;"
+                    + "-fx-font-weight: bold;"
+                    + "-fx-background-radius: 6;"
+                    + "-fx-padding: 6 14 6 14;"
+                    + "-fx-cursor: hand;");
+            btn.setTooltip(new Tooltip("No plugins found — click to scan or download"));
         }
 
+        btn.setOnAction(e -> showPluginUpdateDialog());
         return btn;
     }
 
     /**
-     * Returns true if the given plugin script exists in the PATH_PLUGINS folder.
+     * Counts locally installed plugins by reading manifest.json from the plugins folder
+     * and checking which plugin folders exist with a build/*.min.js file.
+     *
+     * @return int[2]: [installed count, total declared in manifest]
+     */
+    private int[] countLocalPlugins(String pluginsDir) {
+        try {
+            Path manifestPath = Paths.get(pluginsDir, "manifest.json");
+            if (!Files.exists(manifestPath)) {
+                // No manifest — fall back to counting plugin subdirectories
+                return countPluginFolders(pluginsDir);
+            }
+            String json = Files.readString(manifestPath, StandardCharsets.UTF_8).trim();
+            if (json.startsWith("\uFEFF")) json = json.substring(1);
+            com.google.gson.JsonObject root = com.google.gson.JsonParser.parseString(json).getAsJsonObject();
+            com.google.gson.JsonArray plugins = root.getAsJsonArray("plugins");
+            if (plugins == null) return new int[]{0, 0};
+
+            int total = plugins.size();
+            int installed = 0;
+            for (int i = 0; i < plugins.size(); i++) {
+                com.google.gson.JsonObject p = plugins.get(i).getAsJsonObject();
+                String id = p.has("id") ? p.get("id").getAsString() : "";
+                if (!id.isEmpty() && isPluginInstalledLocally(pluginsDir, id)) {
+                    installed++;
+                }
+            }
+            return new int[]{installed, total};
+        } catch (Exception e) {
+            log.warn("countLocalPlugins — failed to read manifest: {}", e.getMessage());
+            return countPluginFolders(pluginsDir);
+        }
+    }
+
+    /**
+     * Fallback: counts plugin subdirectories that contain at least one file.
+     */
+    private int[] countPluginFolders(String pluginsDir) {
+        try {
+            Path dir = Paths.get(pluginsDir);
+            if (!Files.isDirectory(dir)) return new int[]{0, 0};
+            int count = 0;
+            try (var entries = Files.list(dir)) {
+                for (Path entry : entries.toList()) {
+                    if (Files.isDirectory(entry) && !entry.getFileName().toString().startsWith(".")) {
+                        count++;
+                    }
+                }
+            }
+            return new int[]{count, count};
+        } catch (Exception e) {
+            return new int[]{0, 0};
+        }
+    }
+
+    /**
+     * Checks if a plugin is installed locally by looking for its folder
+     * and at least one .js file inside (either build/*.min.js or index.js).
+     *
+     * If a ZIP file ({pluginId}.zip) is found but the folder does not exist,
+     * it is automatically extracted in place so the plugin becomes available.
+     */
+    private boolean isPluginInstalledLocally(String pluginsDir, String pluginId) {
+        Path pluginDir = Paths.get(pluginsDir, pluginId);
+
+        // Auto-extract ZIP if folder is missing but ZIP exists
+        if (!Files.isDirectory(pluginDir)) {
+            Path zipFile = Paths.get(pluginsDir, pluginId + ".zip");
+            if (Files.exists(zipFile)) {
+                log.info("PluginUpdate — found {}.zip but no folder, auto-extracting...", pluginId);
+                try {
+                    extractPluginZip(zipFile, Paths.get(pluginsDir));
+                } catch (Exception e) {
+                    log.error("PluginUpdate — failed to auto-extract {}: {}", zipFile, e.getMessage());
+                    return false;
+                }
+            }
+        }
+
+        if (!Files.isDirectory(pluginDir)) return false;
+
+        // Check for build output or source
+        Path buildDir = pluginDir.resolve("build");
+        if (Files.isDirectory(buildDir)) {
+            try (var files = Files.list(buildDir)) {
+                if (files.anyMatch(f -> f.toString().endsWith(".min.js"))) return true;
+            } catch (Exception ignored) {}
+        }
+        // Also accept index.js (source present, not yet built)
+        return Files.exists(pluginDir.resolve("index.js"));
+    }
+
+    /**
+     * Extracts a plugin ZIP file into the target directory.
+     * Includes zip-slip protection (rejects entries that escape the target dir).
+     */
+    private void extractPluginZip(Path zipFile, Path targetDir) throws IOException {
+        try (java.util.zip.ZipInputStream zis = new java.util.zip.ZipInputStream(
+                Files.newInputStream(zipFile), StandardCharsets.UTF_8)) {
+            java.util.zip.ZipEntry entry;
+            int fileCount = 0;
+            while ((entry = zis.getNextEntry()) != null) {
+                Path target = targetDir.resolve(entry.getName()).normalize();
+                if (!target.startsWith(targetDir)) {
+                    log.warn("PluginUpdate — SKIPPED zip-slip entry: {}", entry.getName());
+                    continue;
+                }
+                if (entry.isDirectory()) {
+                    Files.createDirectories(target);
+                } else {
+                    Files.createDirectories(target.getParent());
+                    try (java.io.OutputStream out = Files.newOutputStream(target)) {
+                        byte[] buf = new byte[8192];
+                        int len;
+                        while ((len = zis.read(buf)) != -1) {
+                            out.write(buf, 0, len);
+                        }
+                    }
+                    fileCount++;
+                }
+                zis.closeEntry();
+            }
+            log.info("PluginUpdate — extracted {} files from {}", fileCount, zipFile.getFileName());
+        }
+    }
+
+    /**
+     * Returns true if the given plugin script exists in the plugins folder.
      *
      * @param relativePath path relative to the plugins folder (e.g. "pluginTest/build/pluginTest.min.js")
      */
@@ -7211,47 +7350,163 @@ public class ARScannedElementPane extends ARPane {
             Path scriptPath = Paths.get(pluginsDir, relativePath);
             return Files.exists(scriptPath) && Files.isReadable(scriptPath);
         } catch (Exception e) {
-            log.warn("PluginTest — could not check plugin path: {}", relativePath, e);
+            log.warn("PluginCheck — could not check plugin path: {}", relativePath, e);
             return false;
         }
     }
 
     /**
-     * Loads pluginTest.min.js from the PATH_PLUGINS folder and injects it into
-     * the currently active browser page via Selenium's JavascriptExecutor.
+     * Shows the Plugin Update dialog.
      *
-     * On success: console.log("plugin test") + a green floating card appears for 4 seconds.
-     * On failure: a JavaFX alert dialog describes the error.
+     * Scans the local plugins folder and (if url_plugins is configured) fetches
+     * the remote manifest to build a unified view of all plugins with their status:
+     *   - LOCAL: present in the plugins folder
+     *   - AVAILABLE: on the server, ready to download
+     *   - MISSING: declared in manifest but not found locally or on server
+     *
+     * The user can then download individual plugins or all missing ones at once.
      */
-    private void runPluginTest() {
-        String relativePath = "pluginTest/build/pluginTest.min.js";
+    private void showPluginUpdateDialog() {
+        String pluginsDir = arPropertyManager.resolvePluginsDir();
+        String urlBase = arPropertyManager.getProperty(ARPropertyEnum.URL_PLUGINS);
+        boolean serverConfigured = urlBase != null && !urlBase.isBlank();
+
+        // Read local manifest first
+        List<String[]> pluginRows = new ArrayList<>(); // [id, name, version, size, fileName, status]
+        Path localManifest = Paths.get(pluginsDir, "manifest.json");
+
         try {
-            String pluginsDir = arPropertyManager.resolvePluginsDir();
-
-            Path scriptPath = Paths.get(pluginsDir, relativePath);
-            if (!Files.exists(scriptPath)) {
-                showPluginTestAlert(
-                        Alert.AlertType.ERROR,
-                        "Plugin not found",
-                        "Could not locate: " + scriptPath.toAbsolutePath() + "\n"
-                                + "Run the pluginTest build step and ensure the file is in the plugins folder.");
-                return;
+            if (Files.exists(localManifest)) {
+                String json = Files.readString(localManifest, StandardCharsets.UTF_8).trim();
+                if (json.startsWith("\uFEFF")) json = json.substring(1);
+                com.google.gson.JsonObject root = com.google.gson.JsonParser.parseString(json).getAsJsonObject();
+                com.google.gson.JsonArray plugins = root.getAsJsonArray("plugins");
+                if (plugins != null) {
+                    for (int i = 0; i < plugins.size(); i++) {
+                        com.google.gson.JsonObject p = plugins.get(i).getAsJsonObject();
+                        String id = p.has("id") ? p.get("id").getAsString() : "";
+                        String name = p.has("name") ? p.get("name").getAsString() : id;
+                        String version = p.has("version") ? p.get("version").getAsString() : "";
+                        String size = p.has("size") ? p.get("size").getAsString() : "";
+                        String fileName = p.has("fileName") ? p.get("fileName").getAsString() : "";
+                        boolean local = !id.isEmpty() && isPluginInstalledLocally(pluginsDir, id);
+                        pluginRows.add(new String[]{id, name, version, size, fileName, local ? "LOCAL" : "MISSING"});
+                    }
+                }
             }
+        } catch (Exception e) {
+            log.warn("PluginUpdate — could not read local manifest: {}", e.getMessage());
+        }
 
-            String script = Files.readString(scriptPath, StandardCharsets.UTF_8);
-            WebDriver driver = performActions.getCurrentDriver();
-            if (driver == null) {
-                showPluginTestAlert(
-                        Alert.AlertType.WARNING,
-                        "No browser session",
-                        "Open a browser session first, then click Plugin Test.");
-                return;
+        // If no manifest, scan folders
+        if (pluginRows.isEmpty()) {
+            try {
+                Path dir = Paths.get(pluginsDir);
+                if (Files.isDirectory(dir)) {
+                    try (var entries = Files.list(dir)) {
+                        for (Path entry : entries.toList()) {
+                            if (Files.isDirectory(entry) && !entry.getFileName().toString().startsWith(".")) {
+                                String folderName = entry.getFileName().toString();
+                                pluginRows.add(new String[]{folderName, folderName, "", "", "", "LOCAL"});
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("PluginUpdate — could not scan plugins folder: {}", e.getMessage());
             }
-            ((JavascriptExecutor) driver).executeScript(script);
-            log.info("PluginTest — script injected successfully from: {}", scriptPath.toAbsolutePath());
-        } catch (Exception ex) {
-            log.error("PluginTest — injection failed", ex);
-            showPluginTestAlert(Alert.AlertType.ERROR, "Plugin injection failed", ex.getMessage());
+        }
+
+        // Build the dialog UI
+        final List<String[]> rows = pluginRows;
+        buildPluginUpdateUI(rows, pluginsDir, urlBase, serverConfigured);
+    }
+
+    /**
+     * Builds and shows the Plugin Update UI dialog with a table of plugins and action buttons.
+     */
+    private void buildPluginUpdateUI(List<String[]> rows, String pluginsDir,
+                                      String urlBase, boolean serverConfigured) {
+        // ── Table ──
+        VBox tableBox = new VBox(4);
+        tableBox.setPadding(new Insets(5));
+
+        // Header
+        HBox header = new HBox(10);
+        Label hName = new Label("Plugin"); hName.setPrefWidth(140); hName.setStyle("-fx-font-weight:bold;-fx-font-size:12px;");
+        Label hVer = new Label("Version"); hVer.setPrefWidth(60); hVer.setStyle("-fx-font-weight:bold;-fx-font-size:12px;");
+        Label hSize = new Label("Size"); hSize.setPrefWidth(60); hSize.setStyle("-fx-font-weight:bold;-fx-font-size:12px;");
+        Label hStatus = new Label("Status"); hStatus.setPrefWidth(80); hStatus.setStyle("-fx-font-weight:bold;-fx-font-size:12px;");
+        header.getChildren().addAll(hName, hVer, hSize, hStatus);
+        tableBox.getChildren().add(header);
+
+        List<CheckBox> downloadChecks = new ArrayList<>();
+        List<String[]> downloadableRows = new ArrayList<>();
+
+        for (String[] row : rows) {
+            HBox line = new HBox(10);
+            Label lName = new Label(row[1]); lName.setPrefWidth(140); lName.setStyle("-fx-font-size:12px;");
+            Label lVer = new Label(row[2]); lVer.setPrefWidth(60); lVer.setStyle("-fx-font-size:12px;");
+            Label lSize = new Label(row[3]); lSize.setPrefWidth(60); lSize.setStyle("-fx-font-size:12px;");
+            Label lStatus = new Label();
+            lStatus.setPrefWidth(80);
+            lStatus.setStyle("-fx-font-size:12px;-fx-font-weight:bold;");
+
+            if ("LOCAL".equals(row[5])) {
+                lStatus.setText("✓ Installed");
+                lStatus.setStyle(lStatus.getStyle() + "-fx-text-fill:#166534;");
+                line.getChildren().addAll(lName, lVer, lSize, lStatus);
+            } else {
+                lStatus.setText("✗ Missing");
+                lStatus.setStyle(lStatus.getStyle() + "-fx-text-fill:#dc2626;");
+                CheckBox cb = new CheckBox();
+                cb.setSelected(false);
+                cb.setDisable(true);
+                if (serverConfigured && !row[4].isEmpty()) {
+                    downloadChecks.add(cb);
+                    downloadableRows.add(row);
+                }
+                line.getChildren().addAll(cb, lName, lVer, lSize, lStatus);
+            }
+            tableBox.getChildren().add(line);
+        }
+
+        // ── Info label ──
+        Label infoLabel = new Label("Plugins folder: " + pluginsDir
+                + "\nPlugins can be added via: Download from server, email, or USB/pendrive copy.");
+        infoLabel.setWrapText(true);
+        infoLabel.setStyle("-fx-font-size:11px;-fx-text-fill:#555;");
+        infoLabel.setPrefWidth(500);
+
+        VBox content = new VBox(10, tableBox, infoLabel);
+        content.setPadding(new Insets(10));
+
+        // ── Dialog ──
+        Alert dialog = new Alert(Alert.AlertType.INFORMATION);
+        dialog.setTitle("Plugin Update");
+        dialog.setHeaderText("Plugins Status");
+        dialog.getDialogPane().setContent(content);
+        dialog.getDialogPane().setPrefWidth(580);
+
+        if (!downloadChecks.isEmpty()) {
+            ButtonType downloadBtn = new ButtonType("Download Selected", ButtonBar.ButtonData.OK_DONE);
+            dialog.getButtonTypes().setAll(downloadBtn, ButtonType.CLOSE);
+
+            Optional<ButtonType> result = dialog.showAndWait();
+            if (result.isPresent() && result.get().getButtonData() == ButtonBar.ButtonData.OK_DONE) {
+                String baseUrl = urlBase.endsWith("/") ? urlBase : urlBase + "/";
+                Path pluginsDirPath = Paths.get(pluginsDir);
+                for (int i = 0; i < downloadChecks.size(); i++) {
+                    if (downloadChecks.get(i).isSelected()) {
+                        String[] row = downloadableRows.get(i);
+                        String downloadUrl = baseUrl + row[4]; // fileName
+                        downloadAndExtractPlugin(downloadUrl, row[4], row[1], pluginsDirPath);
+                    }
+                }
+            }
+        } else {
+            dialog.getButtonTypes().setAll(ButtonType.CLOSE);
+            dialog.showAndWait();
         }
     }
 
@@ -7277,7 +7532,7 @@ public class ARScannedElementPane extends ARPane {
      *   2. Show a picker dialog with available plugins
      *   3. User selects a plugin and clicks Download
      *   4. Download ZIP, validate, extract to path_plugins
-     *   5. Refresh pluginTestButton state
+     *   5. Refresh pluginUpdateButton state
      */
     private void runPluginUpdate() {
         String urlBase = arPropertyManager.getProperty(ARPropertyEnum.URL_PLUGINS);
@@ -7599,14 +7854,14 @@ public class ARScannedElementPane extends ARPane {
             progressDialog.close();
             Platform.runLater(() -> {
                 try {
-                    GridPane grid = (GridPane) pluginTestButton.getParent();
+                    GridPane grid = (GridPane) pluginUpdateButton.getParent();
                     if (grid != null) {
-                        grid.getChildren().remove(pluginTestButton);
-                        pluginTestButton = buildPluginTestButton();
-                        grid.add(pluginTestButton, 1, 0);
+                        grid.getChildren().remove(pluginUpdateButton);
+                        pluginUpdateButton = buildPluginUpdateButton();
+                        grid.add(pluginUpdateButton, 1, 0);
                     }
                 } catch (Exception ex) {
-                    log.warn("UpdatePlugins — could not refresh pluginTestButton", ex);
+                    log.warn("UpdatePlugins — could not refresh pluginUpdateButton", ex);
                 }
             });
             showPluginTestAlert(
@@ -8042,14 +8297,14 @@ public class ARScannedElementPane extends ARPane {
         downloadTask.setOnSucceeded(evt -> {
             progressDialog.close();
             int count = downloadTask.getValue();
-            // Refresh pluginTestButton
+            // Refresh pluginUpdateButton
             Platform.runLater(() -> {
-                if (pluginTestButton.getParent() instanceof GridPane grid) {
-                    int idx = grid.getChildren().indexOf(pluginTestButton);
+                if (pluginUpdateButton.getParent() instanceof GridPane grid) {
+                    int idx = grid.getChildren().indexOf(pluginUpdateButton);
                     if (idx >= 0) {
-                        grid.getChildren().remove(pluginTestButton);
-                        pluginTestButton = buildPluginTestButton();
-                        grid.add(pluginTestButton, 1, 0);
+                        grid.getChildren().remove(pluginUpdateButton);
+                        pluginUpdateButton = buildPluginUpdateButton();
+                        grid.add(pluginUpdateButton, 1, 0);
                     }
                 }
             });
