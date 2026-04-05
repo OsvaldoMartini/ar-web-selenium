@@ -79,6 +79,7 @@ public class ARViewBotJobPane extends ARPane {
     Button openExcelFileButton;
     Button generateExcelButton;
     Button closeBotJobButton;
+    Button openReportButton;
     Button createBATButton;
 
     Button exportJobButton;
@@ -484,6 +485,11 @@ public class ARViewBotJobPane extends ARPane {
         this.closeBotJobButton.setStyle("-fx-font-size: 12px; -fx-text-fill: #c0392b; "
                 + "-fx-border-color: #e57373; -fx-border-radius: 5; -fx-background-radius: 5;");
 
+        this.openReportButton = builder.buildButton(
+                "Report", ARConstants.SPACE_ZERO, ARConstants.ICON_EXCEL3, ARConstants.SPACE_M, new Insets(3, 8, 3, 8));
+        this.openReportButton.setStyle("-fx-font-size: 12px; -fx-text-fill: #1565C0; "
+                + "-fx-border-color: #90caf9; -fx-border-radius: 5; -fx-background-radius: 5;");
+
         exportJobButton = builder.buildButton("Export");
         exportJobButton.setStyle(BTN_FONT);
 
@@ -530,6 +536,7 @@ public class ARViewBotJobPane extends ARPane {
             navigationTimeButton,
             apiToolToggleButton,
             launchBotJobButton,
+            openReportButton,
             closeBotJobButton
         };
         for (Node n : toolbarControls) {
@@ -599,7 +606,7 @@ public class ARViewBotJobPane extends ARPane {
         grpView.setStyle("-fx-background-color: #EAF3DE; -fx-background-radius: 6; -fx-padding: 3 6 3 6;");
         grpView.setAlignment(Pos.CENTER_LEFT);
 
-        HBox grpExcel = new HBox(3, openExcelFileButton, generateExcelButton);
+        HBox grpExcel = new HBox(3, openExcelFileButton, generateExcelButton, openReportButton);
         grpExcel.setStyle("-fx-background-color: #EAF3DE; -fx-background-radius: 6; -fx-padding: 3 6 3 6;");
         grpExcel.setAlignment(Pos.CENTER_LEFT);
 
@@ -611,13 +618,22 @@ public class ARViewBotJobPane extends ARPane {
         grpApi.setStyle("-fx-background-color: #e8edf0; -fx-background-radius: 6; -fx-padding: 3 6 3 6;");
         grpApi.setAlignment(Pos.CENTER_LEFT);
 
-        HBox grpLaunch = new HBox(3, launchBotJobButton, closeBotJobButton);
+        HBox grpLaunch = new HBox(3, launchBotJobButton);
         grpLaunch.setStyle("-fx-background-color: #EAF3DE; -fx-background-radius: 6; -fx-padding: 3 6 3 6;");
         grpLaunch.setAlignment(Pos.CENTER_LEFT);
 
+        // Spacer pushes Close button to the right
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        HBox grpClose = new HBox(3, closeBotJobButton);
+        grpClose.setStyle("-fx-background-radius: 6; -fx-padding: 3 6 3 6;");
+        grpClose.setAlignment(Pos.CENTER_RIGHT);
+
         toolbarRow
                 .getChildren()
-                .addAll(grpView, sep.get(), grpExcel, sep.get(), grpNav, sep.get(), grpApi, sep.get(), grpLaunch);
+                .addAll(grpView, sep.get(), grpExcel, sep.get(), grpNav, sep.get(), grpApi, sep.get(), grpLaunch,
+                        spacer, grpClose);
 
         // ════════════════════════════════════════════════════════════════════════
         //  INFO BAR
@@ -1304,6 +1320,53 @@ public class ARViewBotJobPane extends ARPane {
                             0);
 
                     return;
+                }
+            }
+        });
+        this.openReportButton.setOnMouseClicked((e) -> {
+            String reportDir = arPropertyManager.getProperty(ARPropertyEnum.PATH_REPORT);
+            if (Strings.isNullOrEmpty(reportDir)) {
+                performMessage.errorMessage(
+                        "Report folder not configured",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>The property 'path_report' is not set.</span>",
+                        "<span style='color: #1565C0; font-weight: bold;'>Please open Settings and configure the Report folder.</span>",
+                        null, null, 0);
+                return;
+            }
+
+            File reportFolder = new File(reportDir);
+            if (!reportFolder.isDirectory()) {
+                performMessage.errorMessage(
+                        "Report folder does not exist",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Folder not found:</span>",
+                        "<span style='color: #1565C0; font-weight: bold;'>" + reportDir + "</span>",
+                        "<span style='font-style: italic;'>Check the 'path_report' property in Settings.</span>",
+                        null, 0);
+                return;
+            }
+
+            FileChooser fileChooser = new FileChooser();
+            fileChooser.setTitle("Open Report File");
+            fileChooser.setInitialDirectory(reportFolder);
+            fileChooser.getExtensionFilters().addAll(
+                    new FileChooser.ExtensionFilter("Excel Files", "*.xlsx", "*.xls"),
+                    new FileChooser.ExtensionFilter("All Files", "*.*"));
+
+            Stage ownerStage = (Stage) ((Button) e.getSource()).getScene().getWindow();
+            File selectedFile = fileChooser.showOpenDialog(ownerStage);
+
+            if (selectedFile != null) {
+                try {
+                    Desktop.getDesktop().open(selectedFile);
+                    log.info("Opening report file: {}", selectedFile.getAbsolutePath());
+                } catch (IOException ex) {
+                    log.error("Failed to open report file: {}", selectedFile.getAbsolutePath(), ex);
+                    performMessage.errorMessage(
+                            "Cannot open report file",
+                            "<span style='color: #D32F2F; font-weight: bold;'>Failed to open:</span>",
+                            "<span style='color: #1565C0; font-weight: bold;'>" + selectedFile.getName() + "</span>",
+                            "<span style='font-style: italic;'>" + ex.getMessage() + "</span>",
+                            null, 0);
                 }
             }
         });
