@@ -94,7 +94,8 @@ public class PerformPreLoad {
             log.error("loadPluginScript — path_plugins folder does not exist: {}", configured);
             throw new PluginLoadException(
                     "Plugins folder does not exist",
-                    "<span style='color: #E65100; font-weight: bold;'>The folder was not found on disk:</span>  " + configured,
+                    "<span style='color: #E65100; font-weight: bold;'>The folder was not found on disk:</span>  "
+                            + configured,
                     "<span style='font-style: italic;'>Please verify that the folder exists and contains the plugin sub-folders (pageScanner, hoverPick, etc.).</span>",
                     "<span style='color: #455A64;'>You can change it in Settings > path_plugins.</span>");
         }
@@ -103,16 +104,20 @@ public class PerformPreLoad {
         Path scriptPath = pluginsPath.resolve(relativePath);
 
         if (!Files.exists(scriptPath)) {
-            String pluginName = relativePath.contains("/")
-                    ? relativePath.substring(0, relativePath.indexOf('/'))
-                    : relativePath;
+            String pluginName =
+                    relativePath.contains("/") ? relativePath.substring(0, relativePath.indexOf('/')) : relativePath;
 
-            log.error("loadPluginScript — Plugin script not found: {}: expected at {}", pluginName, scriptPath.toAbsolutePath());
+            log.error(
+                    "loadPluginScript — Plugin script not found: {}: expected at {}",
+                    pluginName,
+                    scriptPath.toAbsolutePath());
             throw new PluginLoadException(
                     "Plugin script not found: " + pluginName,
-                    "<span style='color: #E65100; font-weight: bold;'>File not found:</span>  " + scriptPath.toAbsolutePath(),
+                    "<span style='color: #E65100; font-weight: bold;'>File not found:</span>  "
+                            + scriptPath.toAbsolutePath(),
                     "<span style='font-style: italic;'>The 'path_plugins' is set to:</span>  <b>" + configured + "</b>",
-                    "<span style='color: #455A64;'>Make sure the '" + pluginName + "' plugin is installed in that folder and its build output exists.</span>");
+                    "<span style='color: #455A64;'>Make sure the '" + pluginName
+                            + "' plugin is installed in that folder and its build output exists.</span>");
         }
 
         // ── 5. Read the file ────────────────────────────────────────────────
@@ -122,7 +127,8 @@ public class PerformPreLoad {
             log.error("loadPluginScript — Failed to read plugin script: {}", e.getMessage(), e);
             throw new PluginLoadException(
                     "Failed to read plugin script",
-                    "<span style='color: #E65100; font-weight: bold;'>The file exists but could not be read:</span>  " + scriptPath.toAbsolutePath(),
+                    "<span style='color: #E65100; font-weight: bold;'>The file exists but could not be read:</span>  "
+                            + scriptPath.toAbsolutePath(),
                     "<span style='font-style: italic;'>Check file permissions and ensure it is not locked by another process.</span>",
                     null,
                     e);
@@ -160,16 +166,24 @@ public class PerformPreLoad {
         }
 
         /** Short title for the dialog title bar */
-        public String getUserTitle() { return userTitle; }
+        public String getUserTitle() {
+            return userTitle;
+        }
 
         /** Dialog message line 2 — what went wrong */
-        public String getMsg1() { return msg1; }
+        public String getMsg1() {
+            return msg1;
+        }
 
         /** Dialog message line 3 — where to look / what is configured */
-        public String getMsg2() { return msg2; }
+        public String getMsg2() {
+            return msg2;
+        }
 
         /** Dialog message line 4 — how to fix it */
-        public String getMsg3() { return msg3; }
+        public String getMsg3() {
+            return msg3;
+        }
     }
 
     // Private constructor — use getInstance()
@@ -230,8 +244,11 @@ public class PerformPreLoad {
             return null;
         } catch (PluginLoadException ple) {
             log.error("PerformPreLoad — plugin load failed: {}", ple.getUserTitle(), ple);
-            return new ErrorMessage(ple.getUserTitle(), "Page Scanner Plugin",
-                    ple.getMsg1() + "\n" + (ple.getMsg2() != null ? ple.getMsg2() : "") + "\n" + (ple.getMsg3() != null ? ple.getMsg3() : ""));
+            return new ErrorMessage(
+                    ple.getUserTitle(),
+                    "Page Scanner Plugin",
+                    ple.getMsg1() + "\n" + (ple.getMsg2() != null ? ple.getMsg2() : "") + "\n"
+                            + (ple.getMsg3() != null ? ple.getMsg3() : ""));
         } catch (Exception error) {
             log.error("PerformPreLoad — scanner injection failed: {}", error.getMessage(), error);
             return new ErrorMessage("Error running Scanner", "Dynamic Load ElementsDTO error", error.getMessage());

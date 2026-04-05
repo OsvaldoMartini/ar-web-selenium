@@ -7263,9 +7263,10 @@ public class ARScannedElementPane extends ARPane {
             }
             String json = Files.readString(manifestPath, StandardCharsets.UTF_8).trim();
             if (json.startsWith("\uFEFF")) json = json.substring(1);
-            com.google.gson.JsonObject root = com.google.gson.JsonParser.parseString(json).getAsJsonObject();
+            com.google.gson.JsonObject root =
+                    com.google.gson.JsonParser.parseString(json).getAsJsonObject();
             com.google.gson.JsonArray plugins = root.getAsJsonArray("plugins");
-            if (plugins == null) return new int[]{0, 0};
+            if (plugins == null) return new int[] {0, 0};
 
             int total = plugins.size();
             int installed = 0;
@@ -7276,7 +7277,7 @@ public class ARScannedElementPane extends ARPane {
                     installed++;
                 }
             }
-            return new int[]{installed, total};
+            return new int[] {installed, total};
         } catch (Exception e) {
             log.warn("countLocalPlugins — failed to read manifest: {}", e.getMessage());
             return countPluginFolders(pluginsDir);
@@ -7289,18 +7290,19 @@ public class ARScannedElementPane extends ARPane {
     private int[] countPluginFolders(String pluginsDir) {
         try {
             Path dir = Paths.get(pluginsDir);
-            if (!Files.isDirectory(dir)) return new int[]{0, 0};
+            if (!Files.isDirectory(dir)) return new int[] {0, 0};
             int count = 0;
             try (var entries = Files.list(dir)) {
                 for (Path entry : entries.toList()) {
-                    if (Files.isDirectory(entry) && !entry.getFileName().toString().startsWith(".")) {
+                    if (Files.isDirectory(entry)
+                            && !entry.getFileName().toString().startsWith(".")) {
                         count++;
                     }
                 }
             }
-            return new int[]{count, count};
+            return new int[] {count, count};
         } catch (Exception e) {
-            return new int[]{0, 0};
+            return new int[] {0, 0};
         }
     }
 
@@ -7335,7 +7337,8 @@ public class ARScannedElementPane extends ARPane {
         if (Files.isDirectory(buildDir)) {
             try (var files = Files.list(buildDir)) {
                 if (files.anyMatch(f -> f.toString().endsWith(".min.js"))) return true;
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         }
         // Also accept index.js (source present, not yet built)
         return Files.exists(pluginDir.resolve("index.js"));
@@ -7346,8 +7349,8 @@ public class ARScannedElementPane extends ARPane {
      * Includes zip-slip protection (rejects entries that escape the target dir).
      */
     private void extractPluginZip(Path zipFile, Path targetDir) throws IOException {
-        try (java.util.zip.ZipInputStream zis = new java.util.zip.ZipInputStream(
-                Files.newInputStream(zipFile), StandardCharsets.UTF_8)) {
+        try (java.util.zip.ZipInputStream zis =
+                new java.util.zip.ZipInputStream(Files.newInputStream(zipFile), StandardCharsets.UTF_8)) {
             java.util.zip.ZipEntry entry;
             int fileCount = 0;
             while ((entry = zis.getNextEntry()) != null) {
@@ -7413,9 +7416,11 @@ public class ARScannedElementPane extends ARPane {
 
         try {
             if (Files.exists(localManifest)) {
-                String json = Files.readString(localManifest, StandardCharsets.UTF_8).trim();
+                String json =
+                        Files.readString(localManifest, StandardCharsets.UTF_8).trim();
                 if (json.startsWith("\uFEFF")) json = json.substring(1);
-                com.google.gson.JsonObject root = com.google.gson.JsonParser.parseString(json).getAsJsonObject();
+                com.google.gson.JsonObject root =
+                        com.google.gson.JsonParser.parseString(json).getAsJsonObject();
                 com.google.gson.JsonArray plugins = root.getAsJsonArray("plugins");
                 if (plugins != null) {
                     for (int i = 0; i < plugins.size(); i++) {
@@ -7426,7 +7431,7 @@ public class ARScannedElementPane extends ARPane {
                         String size = p.has("size") ? p.get("size").getAsString() : "";
                         String fileName = p.has("fileName") ? p.get("fileName").getAsString() : "";
                         boolean local = !id.isEmpty() && isPluginInstalledLocally(pluginsDir, id);
-                        pluginRows.add(new String[]{id, name, version, size, fileName, local ? "LOCAL" : "MISSING"});
+                        pluginRows.add(new String[] {id, name, version, size, fileName, local ? "LOCAL" : "MISSING"});
                     }
                 }
             }
@@ -7441,9 +7446,10 @@ public class ARScannedElementPane extends ARPane {
                 if (Files.isDirectory(dir)) {
                     try (var entries = Files.list(dir)) {
                         for (Path entry : entries.toList()) {
-                            if (Files.isDirectory(entry) && !entry.getFileName().toString().startsWith(".")) {
+                            if (Files.isDirectory(entry)
+                                    && !entry.getFileName().toString().startsWith(".")) {
                                 String folderName = entry.getFileName().toString();
-                                pluginRows.add(new String[]{folderName, folderName, "", "", "", "LOCAL"});
+                                pluginRows.add(new String[] {folderName, folderName, "", "", "", "LOCAL"});
                             }
                         }
                     }
@@ -7461,18 +7467,25 @@ public class ARScannedElementPane extends ARPane {
     /**
      * Builds and shows the Plugin Update UI dialog with a table of plugins and action buttons.
      */
-    private void buildPluginUpdateUI(List<String[]> rows, String pluginsDir,
-                                      String urlBase, boolean serverConfigured) {
+    private void buildPluginUpdateUI(List<String[]> rows, String pluginsDir, String urlBase, boolean serverConfigured) {
         // ── Table ──
         VBox tableBox = new VBox(4);
         tableBox.setPadding(new Insets(5));
 
         // Header
         HBox header = new HBox(10);
-        Label hName = new Label("Plugin"); hName.setPrefWidth(140); hName.setStyle("-fx-font-weight:bold;-fx-font-size:12px;");
-        Label hVer = new Label("Version"); hVer.setPrefWidth(60); hVer.setStyle("-fx-font-weight:bold;-fx-font-size:12px;");
-        Label hSize = new Label("Size"); hSize.setPrefWidth(60); hSize.setStyle("-fx-font-weight:bold;-fx-font-size:12px;");
-        Label hStatus = new Label("Status"); hStatus.setPrefWidth(80); hStatus.setStyle("-fx-font-weight:bold;-fx-font-size:12px;");
+        Label hName = new Label("Plugin");
+        hName.setPrefWidth(140);
+        hName.setStyle("-fx-font-weight:bold;-fx-font-size:12px;");
+        Label hVer = new Label("Version");
+        hVer.setPrefWidth(60);
+        hVer.setStyle("-fx-font-weight:bold;-fx-font-size:12px;");
+        Label hSize = new Label("Size");
+        hSize.setPrefWidth(60);
+        hSize.setStyle("-fx-font-weight:bold;-fx-font-size:12px;");
+        Label hStatus = new Label("Status");
+        hStatus.setPrefWidth(80);
+        hStatus.setStyle("-fx-font-weight:bold;-fx-font-size:12px;");
         header.getChildren().addAll(hName, hVer, hSize, hStatus);
         tableBox.getChildren().add(header);
 
@@ -7481,9 +7494,15 @@ public class ARScannedElementPane extends ARPane {
 
         for (String[] row : rows) {
             HBox line = new HBox(10);
-            Label lName = new Label(row[1]); lName.setPrefWidth(140); lName.setStyle("-fx-font-size:12px;");
-            Label lVer = new Label(row[2]); lVer.setPrefWidth(60); lVer.setStyle("-fx-font-size:12px;");
-            Label lSize = new Label(row[3]); lSize.setPrefWidth(60); lSize.setStyle("-fx-font-size:12px;");
+            Label lName = new Label(row[1]);
+            lName.setPrefWidth(140);
+            lName.setStyle("-fx-font-size:12px;");
+            Label lVer = new Label(row[2]);
+            lVer.setPrefWidth(60);
+            lVer.setStyle("-fx-font-size:12px;");
+            Label lSize = new Label(row[3]);
+            lSize.setPrefWidth(60);
+            lSize.setStyle("-fx-font-size:12px;");
             Label lStatus = new Label();
             lStatus.setPrefWidth(80);
             lStatus.setStyle("-fx-font-size:12px;-fx-font-weight:bold;");
@@ -7948,22 +7967,21 @@ public class ARScannedElementPane extends ARPane {
         });
     }
 
-// ════════════════════════════════════════════════════════════════════════════
-// PLUGIN MANIFEST SYSTEM  — add these methods to ARScannedElementPane.java
-//
-// Placement:  paste the entire block just BEFORE the closing brace of the class,
-//             replacing (or appending after) the existing showPluginTestAlert method.
-//
-// Required imports (all already present in ARScannedElementPane.java):
-//   java.net.URI, java.net.http.HttpClient/HttpRequest/HttpResponse,
-//   java.time.Duration, java.io.InputStream, java.nio.charset.StandardCharsets
-//   javafx.concurrent.Task, javafx.application.Platform,
-//   javafx.scene.control.*, javafx.scene.layout.*,
-//   javafx.geometry.Insets, javafx.collections.*
-//   com.google.gson.Gson  (already on classpath via pom.xml)
-//   com.allinweb.ch.model.PluginDTO, PluginManifestDTO  (new model classes)
-// ════════════════════════════════════════════════════════════════════════════
-
+    // ════════════════════════════════════════════════════════════════════════════
+    // PLUGIN MANIFEST SYSTEM  — add these methods to ARScannedElementPane.java
+    //
+    // Placement:  paste the entire block just BEFORE the closing brace of the class,
+    //             replacing (or appending after) the existing showPluginTestAlert method.
+    //
+    // Required imports (all already present in ARScannedElementPane.java):
+    //   java.net.URI, java.net.http.HttpClient/HttpRequest/HttpResponse,
+    //   java.time.Duration, java.io.InputStream, java.nio.charset.StandardCharsets
+    //   javafx.concurrent.Task, javafx.application.Platform,
+    //   javafx.scene.control.*, javafx.scene.layout.*,
+    //   javafx.geometry.Insets, javafx.collections.*
+    //   com.google.gson.Gson  (already on classpath via pom.xml)
+    //   com.allinweb.ch.model.PluginDTO, PluginManifestDTO  (new model classes)
+    // ════════════════════════════════════════════════════════════════════════════
 
     // ── Plugin Manifest ───────────────────────────────────────────────────────
 
@@ -7988,9 +8006,7 @@ public class ARScannedElementPane extends ARPane {
      */
     private static String buildManifestUrl(String urlPlugins) {
         // Strip trailing slash
-        String base = urlPlugins.endsWith("/")
-                ? urlPlugins.substring(0, urlPlugins.length() - 1)
-                : urlPlugins;
+        String base = urlPlugins.endsWith("/") ? urlPlugins.substring(0, urlPlugins.length() - 1) : urlPlugins;
 
         // If the stored value already looks like a file URL, derive the server root
         // e.g. "http://host:port/plugins/latest.zip" → "http://host:port"
@@ -8024,11 +8040,11 @@ public class ARScannedElementPane extends ARPane {
                 .GET()
                 .build();
 
-        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        HttpResponse<String> response =
+                client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
 
         if (response.statusCode() != 200) {
-            throw new IOException(
-                    "HTTP " + response.statusCode() + " from: " + manifestUrl);
+            throw new IOException("HTTP " + response.statusCode() + " from: " + manifestUrl);
         }
 
         String body = response.body();
@@ -8036,7 +8052,10 @@ public class ARScannedElementPane extends ARPane {
             throw new IOException("Empty response from: " + manifestUrl);
         }
 
-        log.debug("PluginManifest — raw JSON ({} chars): {}", body.length(), body.substring(0, Math.min(200, body.length())));
+        log.debug(
+                "PluginManifest — raw JSON ({} chars): {}",
+                body.length(),
+                body.substring(0, Math.min(200, body.length())));
 
         Gson gson = new Gson();
         PluginManifestDTO manifest = gson.fromJson(body, PluginManifestDTO.class);
@@ -8048,7 +8067,10 @@ public class ARScannedElementPane extends ARPane {
             throw new IOException("Manifest parsed but 'plugins' array is missing or empty.");
         }
 
-        log.info("PluginManifest — loaded {} plugins (manifest v{})", manifest.getPlugins().size(), manifest.getVersion());
+        log.info(
+                "PluginManifest — loaded {} plugins (manifest v{})",
+                manifest.getPlugins().size(),
+                manifest.getVersion());
         return manifest;
     }
 
@@ -8067,7 +8089,7 @@ public class ARScannedElementPane extends ARPane {
      * </ol>
      */
     private void runShowPluginList() {
-        String urlPlugins  = arPropertyManager.getProperty(ARPropertyEnum.URL_PLUGINS);
+        String urlPlugins = arPropertyManager.getProperty(ARPropertyEnum.URL_PLUGINS);
 
         // ── Config guards ─────────────────────────────────────────────────────
         if (urlPlugins == null || urlPlugins.isBlank()) {
@@ -8082,8 +8104,8 @@ public class ARScannedElementPane extends ARPane {
 
         String pathPlugins = arPropertyManager.resolvePluginsDir();
 
-        final String manifestUrl  = buildManifestUrl(urlPlugins);
-        final String serverBase   = manifestUrl.substring(0, manifestUrl.lastIndexOf("/plugins/manifest.json"));
+        final String manifestUrl = buildManifestUrl(urlPlugins);
+        final String serverBase = manifestUrl.substring(0, manifestUrl.lastIndexOf("/plugins/manifest.json"));
 
         // ── Background fetch ──────────────────────────────────────────────────
         Task<PluginManifestDTO> fetchTask = new Task<>() {
@@ -8150,25 +8172,30 @@ public class ARScannedElementPane extends ARPane {
         table.setPrefHeight(220);
 
         TableColumn<PluginDTO, String> colIcon = new TableColumn<>("Icon");
-        colIcon.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(c.getValue().getIcon()));
+        colIcon.setCellValueFactory(
+                c -> new javafx.beans.property.SimpleStringProperty(c.getValue().getIcon()));
         colIcon.setPrefWidth(40);
         colIcon.setMinWidth(40);
         colIcon.setMaxWidth(40);
 
         TableColumn<PluginDTO, String> colName = new TableColumn<>("Name");
-        colName.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(c.getValue().getName()));
+        colName.setCellValueFactory(
+                c -> new javafx.beans.property.SimpleStringProperty(c.getValue().getName()));
         colName.setPrefWidth(130);
 
         TableColumn<PluginDTO, String> colVersion = new TableColumn<>("Version");
-        colVersion.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(c.getValue().getVersion()));
+        colVersion.setCellValueFactory(
+                c -> new javafx.beans.property.SimpleStringProperty(c.getValue().getVersion()));
         colVersion.setPrefWidth(65);
 
         TableColumn<PluginDTO, String> colSize = new TableColumn<>("Size");
-        colSize.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(c.getValue().getSize()));
+        colSize.setCellValueFactory(
+                c -> new javafx.beans.property.SimpleStringProperty(c.getValue().getSize()));
         colSize.setPrefWidth(55);
 
         TableColumn<PluginDTO, String> colDesc = new TableColumn<>("Description");
-        colDesc.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(c.getValue().getDescription()));
+        colDesc.setCellValueFactory(
+                c -> new javafx.beans.property.SimpleStringProperty(c.getValue().getDescription()));
 
         //noinspection unchecked
         table.getColumns().addAll(colIcon, colName, colVersion, colSize, colDesc);
@@ -8180,8 +8207,8 @@ public class ARScannedElementPane extends ARPane {
 
         // ── Buttons ───────────────────────────────────────────────────────────
         Button btnDownloadSelected = new Button("⬇  Download Selected");
-        Button btnDownloadAll      = new Button("⬇  Download All");
-        Button btnClose            = new Button("Close");
+        Button btnDownloadAll = new Button("⬇  Download All");
+        Button btnClose = new Button("Close");
 
         btnDownloadSelected.setDefaultButton(false);
         btnDownloadAll.setStyle("-fx-background-color: #0984e3; -fx-text-fill: white;");
@@ -8210,7 +8237,8 @@ public class ARScannedElementPane extends ARPane {
         btnDownloadSelected.setOnAction(e -> {
             List<PluginDTO> selected = new ArrayList<>(table.getSelectionModel().getSelectedItems());
             if (selected.isEmpty()) {
-                showPluginTestAlert(Alert.AlertType.INFORMATION, "No selection", "Select at least one plugin to download.");
+                showPluginTestAlert(
+                        Alert.AlertType.INFORMATION, "No selection", "Select at least one plugin to download.");
                 return;
             }
             dialog.close();
@@ -8243,7 +8271,7 @@ public class ARScannedElementPane extends ARPane {
         // ── Progress dialog ───────────────────────────────────────────────────
         ProgressBar progressBar = new ProgressBar(0);
         progressBar.setPrefWidth(400);
-        Label statusLabel  = new Label("Starting…");
+        Label statusLabel = new Label("Starting…");
         Label counterLabel = new Label("0 / " + plugins.size());
         statusLabel.setStyle("-fx-font-size: 12px;");
         counterLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #636e72;");
@@ -8275,7 +8303,8 @@ public class ARScannedElementPane extends ARPane {
                     PluginDTO plugin = plugins.get(i);
                     String zipUrl = serverBase + plugin.getDownloadUrl();
                     updateMessage("Downloading " + plugin.getName() + "…");
-                    Platform.runLater(() -> counterLabel.setText((plugins.indexOf(plugin) + 1) + " / " + plugins.size()));
+                    Platform.runLater(
+                            () -> counterLabel.setText((plugins.indexOf(plugin) + 1) + " / " + plugins.size()));
 
                     log.info("PluginDownload — GET {}", zipUrl);
 
@@ -8296,13 +8325,14 @@ public class ARScannedElementPane extends ARPane {
                     // Download to temp file
                     Path tempZip = Files.createTempFile("ar-plugin-" + plugin.getId() + "-", ".zip");
                     try (InputStream body = resp.body();
-                         OutputStream out  = Files.newOutputStream(tempZip)) {
+                            OutputStream out = Files.newOutputStream(tempZip)) {
                         body.transferTo(out);
                     }
 
                     // Extract into pluginsDir
                     updateMessage("Extracting " + plugin.getName() + "…");
-                    try (ZipInputStream zis = new ZipInputStream(Files.newInputStream(tempZip), StandardCharsets.UTF_8)) {
+                    try (ZipInputStream zis =
+                            new ZipInputStream(Files.newInputStream(tempZip), StandardCharsets.UTF_8)) {
                         ZipEntry entry;
                         while ((entry = zis.getNextEntry()) != null) {
                             Path target = pluginsDir.resolve(entry.getName()).normalize();
@@ -8373,6 +8403,4 @@ public class ARScannedElementPane extends ARPane {
 
         progressDialog.show();
     }
-
-
 }

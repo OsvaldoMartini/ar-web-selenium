@@ -19,13 +19,29 @@ public class PluginManifestDTO {
 
     // ── Getters ───────────────────────────────────────────────────────────────
 
-    public String getVersion()           { return version; }
-    public String getUpdated()           { return updated; }
-    public List<PluginDTO> getPlugins()  { return plugins; }
+    public String getVersion() {
+        return version;
+    }
+
+    public String getUpdated() {
+        return updated;
+    }
+
+    public List<PluginDTO> getPlugins() {
+        return plugins;
+    }
 
     // ── Setters (required by Gson) ────────────────────────────────────────────
 
-    public void setVersion(String version)            { this.version = version; }
-    public void setUpdated(String updated)            { this.updated = updated; }
-    public void setPlugins(List<PluginDTO> plugins)   { this.plugins = plugins; }
+    public void setVersion(String version) {
+        this.version = version;
+    }
+
+    public void setUpdated(String updated) {
+        this.updated = updated;
+    }
+
+    public void setPlugins(List<PluginDTO> plugins) {
+        this.plugins = plugins;
+    }
 }

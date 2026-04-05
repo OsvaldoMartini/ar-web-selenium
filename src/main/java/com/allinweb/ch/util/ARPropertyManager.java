@@ -210,7 +210,9 @@ public class ARPropertyManager {
             if (java.nio.file.Files.isDirectory(configuredPath)) {
                 return configured;
             }
-            log.warn("resolvePluginsDir — configured path_plugins does not exist: {}. Falling back to ARWeb/plugins.", configured);
+            log.warn(
+                    "resolvePluginsDir — configured path_plugins does not exist: {}. Falling back to ARWeb/plugins.",
+                    configured);
         } else {
             log.warn("resolvePluginsDir — path_plugins is not configured. Falling back to ARWeb/plugins.");
         }

@@ -632,7 +632,8 @@ public class ARViewBotJobPane extends ARPane {
 
         toolbarRow
                 .getChildren()
-                .addAll(grpView, sep.get(), grpExcel, sep.get(), grpNav, sep.get(), grpApi, sep.get(), grpLaunch,
+                .addAll(
+                        grpView, sep.get(), grpExcel, sep.get(), grpNav, sep.get(), grpApi, sep.get(), grpLaunch,
                         spacer, grpClose);
 
         // ════════════════════════════════════════════════════════════════════════
@@ -1330,7 +1331,9 @@ public class ARViewBotJobPane extends ARPane {
                         "Report folder not configured",
                         "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>The property 'path_report' is not set.</span>",
                         "<span style='color: #1565C0; font-weight: bold;'>Please open Settings and configure the Report folder.</span>",
-                        null, null, 0);
+                        null,
+                        null,
+                        0);
                 return;
             }
 
@@ -1341,16 +1344,19 @@ public class ARViewBotJobPane extends ARPane {
                         "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Folder not found:</span>",
                         "<span style='color: #1565C0; font-weight: bold;'>" + reportDir + "</span>",
                         "<span style='font-style: italic;'>Check the 'path_report' property in Settings.</span>",
-                        null, 0);
+                        null,
+                        0);
                 return;
             }
 
             FileChooser fileChooser = new FileChooser();
             fileChooser.setTitle("Open Report File");
             fileChooser.setInitialDirectory(reportFolder);
-            fileChooser.getExtensionFilters().addAll(
-                    new FileChooser.ExtensionFilter("Excel Files", "*.xlsx", "*.xls"),
-                    new FileChooser.ExtensionFilter("All Files", "*.*"));
+            fileChooser
+                    .getExtensionFilters()
+                    .addAll(
+                            new FileChooser.ExtensionFilter("Excel Files", "*.xlsx", "*.xls"),
+                            new FileChooser.ExtensionFilter("All Files", "*.*"));
 
             Stage ownerStage = (Stage) ((Button) e.getSource()).getScene().getWindow();
             File selectedFile = fileChooser.showOpenDialog(ownerStage);
@@ -1366,7 +1372,8 @@ public class ARViewBotJobPane extends ARPane {
                             "<span style='color: #D32F2F; font-weight: bold;'>Failed to open:</span>",
                             "<span style='color: #1565C0; font-weight: bold;'>" + selectedFile.getName() + "</span>",
                             "<span style='font-style: italic;'>" + ex.getMessage() + "</span>",
-                            null, 0);
+                            null,
+                            0);
                 }
             }
         });

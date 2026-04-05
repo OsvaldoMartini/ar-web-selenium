@@ -94,20 +94,23 @@ public class PerformCloneLoad {
             JavascriptExecutor executor = (JavascriptExecutor) driver;
             executor.executeScript(
                     getJsHoverPick(),
-                    searchHiddenFields,   // arguments[0] — hiddenFields
-                    port,                 // arguments[1] — socketPort
-                    sessionId,            // arguments[2] — sessionId
-                    destination,          // arguments[3] — destination
-                    operationId,          // arguments[4] — operationId
-                    homeBankingId,        // arguments[5] — homeBankingId
-                    botJobId,             // arguments[6] — botJobId
-                    currentUrl,           // arguments[7] — targetOriginURL
-                    currentUrl);          // arguments[8] — trustedOriginURL
+                    searchHiddenFields, // arguments[0] — hiddenFields
+                    port, // arguments[1] — socketPort
+                    sessionId, // arguments[2] — sessionId
+                    destination, // arguments[3] — destination
+                    operationId, // arguments[4] — operationId
+                    homeBankingId, // arguments[5] — homeBankingId
+                    botJobId, // arguments[6] — botJobId
+                    currentUrl, // arguments[7] — targetOriginURL
+                    currentUrl); // arguments[8] — trustedOriginURL
             return null;
         } catch (PerformPreLoad.PluginLoadException ple) {
             log.error("PerformCloneLoad — plugin load failed: {}", ple.getUserTitle(), ple);
-            return new ErrorMessage(ple.getUserTitle(), "Hover Pick Plugin",
-                    ple.getMsg1() + "\n" + (ple.getMsg2() != null ? ple.getMsg2() : "") + "\n" + (ple.getMsg3() != null ? ple.getMsg3() : ""));
+            return new ErrorMessage(
+                    ple.getUserTitle(),
+                    "Hover Pick Plugin",
+                    ple.getMsg1() + "\n" + (ple.getMsg2() != null ? ple.getMsg2() : "") + "\n"
+                            + (ple.getMsg3() != null ? ple.getMsg3() : ""));
         } catch (Exception error) {
             log.error("PerformCloneLoad — hoverPick injection failed: {}", error.getMessage(), error);
             return new ErrorMessage("Error running Scanner", "Dynamic Load ElementsDTO error", error.getMessage());

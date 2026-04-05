@@ -28,25 +28,71 @@ public class PluginDTO {
 
     // ── Getters ───────────────────────────────────────────────────────────────
 
-    public String getId()          { return id; }
-    public String getName()        { return name; }
-    public String getDescription() { return description; }
-    public String getVersion()     { return version; }
-    public String getIcon()        { return icon; }
-    public String getSize()        { return size; }
-    public String getFileName()    { return fileName; }
-    public String getDownloadUrl() { return downloadUrl; }
+    public String getId() {
+        return id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public String getVersion() {
+        return version;
+    }
+
+    public String getIcon() {
+        return icon;
+    }
+
+    public String getSize() {
+        return size;
+    }
+
+    public String getFileName() {
+        return fileName;
+    }
+
+    public String getDownloadUrl() {
+        return downloadUrl;
+    }
 
     // ── Setters (required by Gson) ────────────────────────────────────────────
 
-    public void setId(String id)                   { this.id = id; }
-    public void setName(String name)               { this.name = name; }
-    public void setDescription(String description) { this.description = description; }
-    public void setVersion(String version)         { this.version = version; }
-    public void setIcon(String icon)               { this.icon = icon; }
-    public void setSize(String size)               { this.size = size; }
-    public void setFileName(String fileName)       { this.fileName = fileName; }
-    public void setDownloadUrl(String downloadUrl) { this.downloadUrl = downloadUrl; }
+    public void setId(String id) {
+        this.id = id;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public void setVersion(String version) {
+        this.version = version;
+    }
+
+    public void setIcon(String icon) {
+        this.icon = icon;
+    }
+
+    public void setSize(String size) {
+        this.size = size;
+    }
+
+    public void setFileName(String fileName) {
+        this.fileName = fileName;
+    }
+
+    public void setDownloadUrl(String downloadUrl) {
+        this.downloadUrl = downloadUrl;
+    }
 
     /** Display label used in TableView / ListView cells. */
     @Override
