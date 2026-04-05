@@ -103,6 +103,10 @@ public class PerformCloneLoad {
                     currentUrl,           // arguments[7] — targetOriginURL
                     currentUrl);          // arguments[8] — trustedOriginURL
             return null;
+        } catch (PerformPreLoad.PluginLoadException ple) {
+            log.error("PerformCloneLoad — plugin load failed: {}", ple.getUserTitle(), ple);
+            return new ErrorMessage(ple.getUserTitle(), "Hover Pick Plugin",
+                    ple.getMsg1() + "\n" + (ple.getMsg2() != null ? ple.getMsg2() : "") + "\n" + (ple.getMsg3() != null ? ple.getMsg3() : ""));
         } catch (Exception error) {
             log.error("PerformCloneLoad — hoverPick injection failed: {}", error.getMessage(), error);
             return new ErrorMessage("Error running Scanner", "Dynamic Load ElementsDTO error", error.getMessage());

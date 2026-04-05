@@ -2439,13 +2439,18 @@ public class ARScannedElementPane extends ARPane {
                     errorMessage.getErrorTitle(),
                     errorMessage.getErrorHeader(),
                     errorMessage.getErrorMessage());
-            //            performMessage.errorMessage(
-            //                    errorMessage.getErrorTitle(),
-            //                    errorMessage.getErrorHeader(),
-            //                    (!Strings.isNullOrEmpty(lines[0]) ? lines[0] : null),
-            //                    (!Strings.isNullOrEmpty(lines[0]) ? lines[1] : null),
-            //                    null,
-            //                    0);
+
+            performMessage.showCustomModalDialogDragWin11Timer(
+                    errorMessage.getErrorTitle(),
+                    "<span style='color: #D32F2F; font-weight: bold;'>" + errorMessage.getErrorHeader() + "</span>",
+                    (lines.length > 0 && !Strings.isNullOrEmpty(lines[0]) ? lines[0] : null),
+                    (lines.length > 1 && !Strings.isNullOrEmpty(lines[1]) ? lines[1] : null),
+                    (lines.length > 2 && !Strings.isNullOrEmpty(lines[2]) ? lines[2] : null),
+                    true,
+                    "OK",
+                    null,
+                    350,
+                    0);
         }
     }
 
@@ -2471,11 +2476,25 @@ public class ARScannedElementPane extends ARPane {
                 botJobId);
 
         if (errorMessage != null) {
+            String[] lines = errorMessage.getErrorMessage().split("\n");
+
             logOperations.error(
-                    "Error: Dynamic Pick One Clone ElementsDTO - {} - {} - {}",
+                    "Error: periodicSearchThread - {} - {} - {}",
                     errorMessage.getErrorTitle(),
                     errorMessage.getErrorHeader(),
                     errorMessage.getErrorMessage());
+
+            performMessage.showCustomModalDialogDragWin11Timer(
+                    errorMessage.getErrorTitle(),
+                    "<span style='color: #D32F2F; font-weight: bold;'>" + errorMessage.getErrorHeader() + "</span>",
+                    (lines.length > 0 && !Strings.isNullOrEmpty(lines[0]) ? lines[0] : null),
+                    (lines.length > 1 && !Strings.isNullOrEmpty(lines[1]) ? lines[1] : null),
+                    (lines.length > 2 && !Strings.isNullOrEmpty(lines[2]) ? lines[2] : null),
+                    true,
+                    "OK",
+                    null,
+                    350,
+                    0);
         }
     }
 
