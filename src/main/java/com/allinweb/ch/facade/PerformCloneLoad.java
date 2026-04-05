@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 
+// HOVER PICK IN USE (SENDER: scannerTool) -> scannerGrid
 @Slf4j
 public class PerformCloneLoad {
     protected static volatile PerformCloneLoad instance;
