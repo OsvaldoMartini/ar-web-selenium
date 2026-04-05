@@ -9,14 +9,46 @@ import org.openqa.selenium.WebDriver;
 @Slf4j
 public class PerformCloneLoad {
     protected static volatile PerformCloneLoad instance;
-    private static JavascriptExecutor jsExecutor;
-    private String jsHoverPickInject =
-            """
-// HOVER PICK IN USE (SENDER: scannerTool) -> scannerGrid
-!function(e,t,n,o,i,a,l,s){let r=null,c=0;var d=null;let u=!1,m=null;const f=new Map,b=new Set;let p=null;try{"function"==typeof window.__scannerToolCleanup&&window.__scannerToolCleanup()}catch(e){}window.__scannerToolCleanup=null;var w=document.createElement("div");w.id="coordinates",w.style.position="fixed",w.style.padding="10px",w.style.backgroundColor="rgba(0, 0, 0, 0.5)",w.style.color="white",w.style.borderRadius="5px",w.style.fontSize="14px",w.style.zIndex=Number.MAX_SAFE_INTEGER,w.style.cursor="pointer",w.textContent="X: 0nbsp;&nbsp;&nbsp;&nbsp;Y: 0",document.body.appendChild(w),window.elementInfoMap=new Map,window.allElementInfo=[],window.destination=o,window.operationId=i,window.homeBankingId=a,window.botJobId=l,window.sessionId=`${n}`;let h=null;const y=()=>{try{if(u=!0,document.removeEventListener("mousemove",T),document.removeEventListener("click",A),r&&(clearInterval(r),r=null),_&&(clearInterval(_),_=null),F(),P(),d&&(d.readyState===WebSocket.OPEN||d.readyState===WebSocket.CONNECTING)){try{d.onclose=null}catch(e){}d.close(1e3,"cleanup")}try{window.elementInfoMap?.clear()}catch(e){}window.allElementInfo=[]}catch(e){}};function g(){if(window.allElementInfo=[],window.elementInfoMap.forEach((e,t)=>{window.allElementInfo.push({...e,id:1})}),window.allElementInfo.forEach(e=>{if(e.attribId||e.attribName){let t=e.someText,n=e.attribId,o=e.attribName,i=null;const a=[];n&&(a.push(`label[for="${n}"] mat-label`),a.push(`mat-label[for="${n}"]`),a.push(`mat-checkbox[test-id="${o}"] .mdc-label`),a.push(`label[for="${n}"]`)),o&&(a.push(`label[for="${o}"] mat-label`),a.push(`mat-label[for="${o}"]`),a.push(`mat-checkbox[test-id="${o}"] .mdc-label`),a.push(`label[for="${n}"]`)),a.forEach(a=>{const l=document.querySelector(a);l&&null===i&&(i=l.textContent.trim(),console.log(`Found mat-label text for input with id/name '${n||o}':`,i),e.attributeData.push({name:"someText",value:t}),e.someText=i)})}}),function(e){e.forEach(e=>{e.someText&&"div"===e.tagName&&(e.tagName="label")})}(window.allElementInfo),function(e){const t=window.__scannerRawClickedElement;if(!t||!Array.isArray(e)||0===e.length)return;if(!(t.closest?.("avq-instrument-table")||t.closest?.("avq-trades-table")||t.closest?.("table[mat-table]")||t.closest?.("table.mat-mdc-table")))return;e.forEach(e=>{e&&(e.tagName="button")});const n=t.closest?.('td[role="gridcell"], td, th');if(!n)return;const o=(n.innerText||n.textContent||"").replace(/\\s+/g," ").trim();if(!o)return;e.forEach(e=>{if(e){if("input"===e.tagName){const t=e.attributeData?.find(e=>"aria-label"===e.name)?.value?.trim()||"",n=e.attributeData?.find(e=>"someText"===e.name)?.value?.trim()||"";n&&n!==t||(e.someText=o)}else e.someText=o;if(Array.isArray(e.attributeData)){const t=e.attributeData.findIndex(e=>"someText"===e.name);t>=0?e.attributeData[t].value=e.someText:e.attributeData.push({name:"someText",value:e.someText})}}})}(window.allElementInfo),console.log("All element info stored in Map:",window.allElementInfo),d&&d.readyState,d&&d.readyState===WebSocket.OPEN){if(window.allElementInfo.length>0){const e={type:"SEARCH_TOOL",sessionId:window.destination,operationId:window.operationId,homeBankingId:window.homeBankingId,botJobId:window.botJobId,elementDetails:window.allElementInfo},t=btoa(unescape(encodeURIComponent(JSON.stringify(e))));d.send(t),window.elementInfoMap.clear()}}else console.log("WebSocket is not open. Cannot send message.")}function x(e){try{return document.evaluate(e,document,null,XPathResult.FIRST_ORDERED_NODE_TYPE,null).singleNodeValue}catch(e){return console.error("Error finding element by XPath:",e),null}}window.cleanupWebSocket=y,window.__scannerToolCleanup=y,window.addEventListener("beforeunload",y,{once:!0});const I=function(t){if(!e&&!(0!==t.offsetWidth&&0!==t.offsetHeight&&"hidden"!==window.getComputedStyle(t).visibility||"input"===t.tagName.toLowerCase()&&"hidden"===t.type.toLowerCase()))return null;const n=Array.from(t.attributes).map(e=>({name:e.name,value:e.value})),o=t.id||"",i=t.name||"",a=`${t.getBoundingClientRect().left.toFixed(2)},${t.getBoundingClientRect().top.toFixed(2)}`;let l=t.tagName.toLowerCase();const s=function(e,t,n){let o="";if(n&&!E(n)){const e=v(n);o=[...e.titles,...e.text,...e.labels].map(e=>e.trim()).filter(Boolean).join("; ")}const i=["aria-label","aria-labelledby","aria-describedby","placeholder","label","name","title","alt","for","data-label","data-name","data-title","id","data-testid"];let a="";const l=(e,t)=>{if("aria-labelledby"===e||"aria-describedby"===e){const e=document.getElementById(t);if(e&&!E(e))return e.textContent.trim()}return t.trim()};if(o&&!/^\\..*\\{.*\\}$/.test(o))a=o;else{const e=t.find(({name:e})=>"title"===e);if(e&&(a=l(e.name,e.value)),!a)for(const e of i){const n=t.find(({name:t})=>t===e);if(n&&(a=l(n.name,n.value),a))break}}return a}(0,n,t),r=N(t),c=function(e,t,n){if("string"!=typeof t||""===t.trim())return"label";const o=t.split("/").filter(e=>""!==e.trim());for(let e=o.length-1;e>=0;e--){const t=o[e],i=t.match(/^([a-zA-Z-]+)(?:\\[\\d+\\])?/);if(!i)continue;const a=i[1].toLowerCase();if("a"===a&&S(n))return"a";if("input"===a){const e=t.match(/@type=["']?([^"'\\]]+)["']?/),n=e?e[1].toLowerCase():"";return["button","submit","reset"].includes(n)?"button":"input"}if("button"===a)return"button";if(S(n)&&(a.includes("expansion-panel-header")||a.includes("sidenav")||a.includes("nav")))return"button";if("select"===a||"option"===a)return"select";if("textarea"===a)return"input";if(S(n)&&(a.includes("mat-button")||a.includes("mat-raised-button")||a.includes("mat-icon-button")||a.includes("mat-menu-item")||a.includes("mat-select")||a.includes("mat-option")||a.includes("matinput")))return"button";if(S(n)&&(a.includes("data-testid")||a.includes("aria-label")||t.includes("@role='button'")||t.includes("@role='textbox'")||t.includes("react-button")||t.includes("react-link")||t.includes("react-input")))return t.includes("react-input")?"input":t.includes("react-link")?"a":"button";if(S(n)&&(t.includes("mdc-button")||t.includes("mdc-text-field")||t.includes("mdc-list-item")))return t.includes("mdc-text-field")?"input":"button";if(S(n)&&(t.includes("el-button")||t.includes("el-input__inner")||t.includes("el-select-dropdown__item")))return t.includes("el-input__inner")?"input":t.includes("el-select-dropdown__item")?"select":"button"}return"label"}(0,r,t);return c!==l&&(l=c),{xPath:r,tagName:l,attributeData:n,customXPath:"",attribId:o,attribName:i,coordinates:a,someText:s}},E=e=>{const t=window.getComputedStyle(e);return"none"===t.display||"hidden"===t.visibility||e.hasAttribute("aria-hidden")};function v(e){if(!e)return{text:[],labels:[],titles:[]};const t={text:new Set,labels:new Set,titles:new Set},n=e=>{const t=window.getComputedStyle(e);return!("none"===t.display||"hidden"===t.visibility||e.hasAttribute("aria-hidden"))},o=e=>e.includes("_")||e.includes("--")||e.includes("-");if(e.textContent?.trim()&&n(e)){const n=e.textContent.trim().split(/\\s+/).filter(e=>!o(e)).join(" ").trim();n&&t.text.add(n)}e.querySelectorAll("label").forEach(e=>{n(e)&&e.textContent?.trim()&&t.labels.add(e.textContent.trim());const i=e.getAttribute("for");if(i){const e=document.getElementById(i);if(e&&n(e)){const n=e.value?.trim(),i=e.placeholder?.trim();if(n){const e=n.split(/\\s+/).filter(e=>!o(e)).join(" ").trim();e&&t.text.add(e)}else if(i){const e=i.split(/\\s+/).filter(e=>!o(e)).join(" ").trim();e&&t.text.add(e)}}}});return["p","h1","h2","h3","h4","h5","h6","li","span","div","strong","em","b","i","blockquote"].forEach(i=>{e.querySelectorAll(i).forEach(e=>{if(n(e)&&e.textContent?.trim()){const n=e.textContent.trim().split(/\\s+/).filter(e=>!o(e)).join(" ").trim();n&&t.text.add(n)}})}),e.querySelectorAll("a").forEach(e=>{if(n(e)&&e.textContent?.trim()){const n=e.textContent.trim().split(/\\s+/).filter(e=>!o(e)).join(" ").trim();n&&t.text.add(n)}}),e.querySelectorAll("iframe").forEach(e=>{if(e.hasAttribute("title")){const n=e.getAttribute("title")?.trim();n&&t.titles.add(n)}try{const n=e.contentDocument||(new DOMParser).parseFromString(e.srcdoc||"","text/html");if(n.body){const e=v(n.body);e.titles.forEach(e=>t.titles.add(e)),e.text.forEach(e=>t.text.add(e)),e.labels.forEach(e=>t.labels.add(e))}}catch(e){console.log("Could not access iframe content",e)}}),{text:Array.from(t.text),labels:Array.from(t.labels),titles:Array.from(t.titles)}}const N=function e(t){if(t===document.body)return"/html/body";let n=0;const o=t.parentNode?t.parentNode.childNodes:[];for(let i=0;i<o.length;i++){let a=o[i];if(1===a.nodeType&&a.tagName===t.tagName){if(a===t)return e(t.parentNode)+"/"+t.tagName.toLowerCase()+"["+(n+1)+"]";n++}}return""};function S(e){return!(!e||"function"!=typeof e.getAttribute)&&(e instanceof HTMLButtonElement||e instanceof HTMLAnchorElement||e instanceof HTMLInputElement||e.onclick||"button"===e.getAttribute("role"))}const C=function(e,t){return{typeElement:e,tagName:t.tagName??"No Tag Name Detected",xPath:t.xPath??"",someText:t.someText??"",attribId:t.attribId??"",attribName:t.attribName??"",coordinates:t.coordinates??"",attributeData:t.attributeData??"",customXPath:t.customXPath??"",iFrameXPath:t.iFrameXPath??"",shadowHost:t.shadowHost??"",shadowRoot:t.shadowRoot??"",nestedShadow:t.nestedShadow??"",cssSelector:t.cssSelector??"",attributeValue:t.attributeValue??"",attributeType:t.attributeType??"",searchAttributeValue:t.searchAttributeValue??""}};function T(e){const t=e.clientX,n=e.clientY,o=w.offsetWidth,i=w.offsetHeight;w.innerHTML=`X: ${t}&nbsp;&nbsp;&nbsp;&nbsp;Y: ${n}`,w.style.left=t-o/2+"px",w.style.top=n-i/2+"px";const a=document.elementFromPoint(t,n);h!==a&&(h&&(h.style.outline=""),a&&a!==w&&(a.style.outline="3px solid red"),h=a)}function A(e){e.preventDefault(),e.stopPropagation(),w.style.display="none";const t=e.clientX,n=e.clientY;let o=document.elementFromPoint(t,n);window.__scannerRawClickedElement=o;let i=function(e){if(!e)return e;const t=e.tagName?.toLowerCase();if("mat-label"===t||"label"===t){const n="label"===t?e:e.closest("label"),o=n?.getAttribute("for");if(o){const e=document.getElementById(o);if(e)return e}const i=e.closest("mat-form-field"),a=i?.querySelector("textarea, input, select");if(a)return a}return e}(o);if(window.__scannerLastClickedElement=i,w.style.display="block",i&&(f.has(i)||f.set(i,i.style.outline),i.style.outline="3px solid blue"),i&&"iframe"===i.tagName.toLowerCase()){var a=i.contentDocument||i.contentWindow.document;if(a){window.allElementInfo=[];const e=I(i);xPathIFrame=e.xPath,e&&window.elementInfoMap.set(e.xPath,C("clicked-iFrame",e)),a.querySelectorAll("*").forEach(function(e){const t=I(e);t&&(t.iFrameXPath=xPathIFrame,window.elementInfoMap.set(t.xPath,C("iFrame-Child",t)))})}}else{var l=i.tagName.toLowerCase();if(["html","body","main"].includes(l))return;window.elementInfoMap.clear(),console.log("Clicked element:",i);let e=i;for(;e&&!e.shadowRoot;)e=e.parentElement;if(e&&e.shadowRoot){const t=e.shadowRoot;(function(e){const t=[];return["button","a"].forEach(n=>{t.push(...e.querySelectorAll(n))}),t})(t).forEach(n=>{k(n,e,t)})}else k(i,null,null)}g(),setTimeout(()=>{window.allElementInfo=[],window.elementInfoMap.clear()},1e3)}function k(e,t,n){const o=I(e);let i="",a="",l=[];function s(e){if(!e)return"";let t=e.tagName.toLowerCase();return e.id&&(t+=`#${e.id}`),e.className&&(t+=`.${e.className.replace(/\\s+/g,".")}`),t}let r=t;for(;r;)l.unshift(s(r)),r=r.parentNode instanceof ShadowRoot?r.parentNode.host:null;t&&(i=s(t)),e&&(a=s(e));let c=a;l.length>0&&(c=l.reduceRight((e,t)=>`${t} ${e}`,a));const d={...o,shadowHost:i,shadowRoot:String(!!n),nestedShadow:String(l.length>1),cssSelector:a};d&&(f.has(e)||f.set(e,e.style.outline),e.style.outline="3px solid red",window.elementInfoMap.set(d.xPath,C("clicked",d)))}function P(){f&&f.size>0&&(f.forEach((e,t)=>{t&&t.style&&(t.style.outline=e)}),b&&b.size>0&&b.forEach(e=>{const t=f.get(e);var n=x(e);n&&n.style&&(n.style.outline=t)}))}!function e(){if(!(c>=100))try{(d=new WebSocket(`ws://localhost:${t}/websocket?sessionId=${window.sessionId}`)).onopen=()=>{c=0;try{const e={type:"echo",sessionId:window.sessionId,operationId:"test echo",body:"subscribe"},t=btoa(unescape(encodeURIComponent(JSON.stringify(e))));d.send(t)}catch(e){}g(),r=setInterval(()=>{if(d&&d.readyState===WebSocket.OPEN){const e={type:"ping-hover",sessionId:window.sessionId,timestamp:(new Date).toISOString()};try{const t=btoa(unescape(encodeURIComponent(JSON.stringify(e))));d.send(t)}catch(e){}}},15e3)},d.onmessage=e=>{let t=e.data;if(t.endsWith("\\0")&&(t=t.slice(0,-1)),t)try{const e=JSON.parse(t),o="string"==typeof e.body?JSON.parse(e.body):e.body;if(window.sessionId===o.sessionId){if("highlight"===o.operationId){const e=Array.isArray(o.details)?o.details:[];if((n=x(e[0].xPath))||(n=document.querySelector(e[0].cssSelector)),!n)var n=function(e){const[t,n]=e.split(","),o=parseFloat(t.trim()),i=parseFloat(n.trim());if(isNaN(o)||isNaN(i))return null;return document.elementFromPoint(o,i)}(e[0].coordinates);if(n){const t=e[0].xPath;if(m&&m!==t){const e=f.get(m);p.style.outline=e||""}f.has(t)||(f.set(t,n.style.outline),b.add(t));const o=f.get(t)||"";o.includes("#2323FF")?n.style.outline="3px solid #FF3131":o.includes("#FF3131")?n.style.outline="3px solid #2323FF":n.style.outline="3px solid #FF3131",p=n,m=t}else P()}e.body.includes("cannot be processed")||e.footer&&e.footer.includes("cannot be processed")}}catch(e){console.log("Non-JSON message received:",t)}},d.onerror=e=>{},d.onclose=()=>{c<100&&(c++,u||e())}}catch(e){}}(),window.revertHoverPickInjections=function(){document.removeEventListener("mousemove",T),document.removeEventListener("click",A),setTimeout(()=>{F(),P(),window.allElementInfo=[]},1e3)};let _=setInterval(P,5e3);function F(){h&&(h.style.outline=""),w&&(w.remove(),w=null)}document.addEventListener("mousemove",T),document.addEventListener("click",A),window.postMessage({type:"myMessage",data:"some data"},s),window.addEventListener("message",function(e){e.origin})}(arguments[0],arguments[1],arguments[2],arguments[3],arguments[4],arguments[5],arguments[6],arguments[7],arguments[8]);
-""";
 
-    // Private constructor to prevent instantiation
+    /**
+     * Cached hoverPick bundle. Null until the first call to dynamicPickOneCloneElementsDTO().
+     * Loaded lazily so a missing file does NOT crash the JVM at startup —
+     * the error surfaces only when a pick is actually triggered.
+     *
+     * Loaded from the filesystem path defined by PATH_PLUGINS in ARWeb.config:
+     *   {path_plugins}/hoverPick/build/hoverPick.min.js
+     *
+     * To rebuild the bundle:
+     *   cd {path_plugins}/hoverPick
+     *   npx esbuild index.js --bundle --minify --outfile=build/hoverPick.min.js
+     */
+    private static volatile String jsHoverPick = null;
+
+    /** Relative path within the plugins folder */
+    private static final String HOVER_PICK_RELATIVE_PATH = "hoverPick/build/hoverPick.min.js";
+
+    /**
+     * Loads (and caches) the minified hoverPick bundle from the PATH_PLUGINS folder.
+     * Thread-safe via double-checked locking on jsHoverPick.
+     *
+     * @throws IllegalStateException if the config property or file is missing.
+     * @throws RuntimeException      if the file cannot be read.
+     */
+    private static String getJsHoverPick() {
+        if (jsHoverPick == null) {
+            synchronized (PerformCloneLoad.class) {
+                if (jsHoverPick == null) {
+                    jsHoverPick = PerformPreLoad.loadPluginScript(HOVER_PICK_RELATIVE_PATH);
+                    log.info(
+                            "PerformCloneLoad — hoverPick script loaded from plugins folder ({} chars)",
+                            jsHoverPick.length());
+                }
+            }
+        }
+        return jsHoverPick;
+    }
+
+    // Private constructor — use getInstance()
     private PerformCloneLoad() {}
 
     public static PerformCloneLoad getInstance() {
@@ -30,6 +62,23 @@ public class PerformCloneLoad {
         return instance;
     }
 
+    /**
+     * Injects the hoverPick bundle into the current browser page via
+     * Selenium's JavascriptExecutor.
+     *
+     * Argument mapping (matches index.js IIFE parameter order):
+     *   arguments[0]  hiddenFields    — boolean
+     *   arguments[1]  port            — WebSocket server port
+     *   arguments[2]  sessionId       — UUID string
+     *   arguments[3]  destination     — target session ID for WS routing
+     *   arguments[4]  operationId     — operation label string
+     *   arguments[5]  homeBankingId   — int
+     *   arguments[6]  botJobId        — int
+     *   arguments[7]  targetOriginURL — origin for postMessage
+     *   arguments[8]  trustedOriginURL — trusted origin for message validation
+     *
+     * @return null on success, or an ErrorMessage on failure.
+     */
     public ErrorMessage dynamicPickOneCloneElementsDTO(
             WebDriver driver,
             boolean searchHiddenFields,
@@ -41,20 +90,21 @@ public class PerformCloneLoad {
             int botJobId,
             String currentUrl) {
         try {
-            jsExecutor = (JavascriptExecutor) driver;
-            jsExecutor.executeScript(
-                    jsHoverPickInject,
-                    searchHiddenFields,
-                    port,
-                    sessionId,
-                    destination,
-                    operationId,
-                    homeBankingId,
-                    botJobId,
-                    currentUrl,
-                    currentUrl);
+            JavascriptExecutor executor = (JavascriptExecutor) driver;
+            executor.executeScript(
+                    getJsHoverPick(),
+                    searchHiddenFields,   // arguments[0] — hiddenFields
+                    port,                 // arguments[1] — socketPort
+                    sessionId,            // arguments[2] — sessionId
+                    destination,          // arguments[3] — destination
+                    operationId,          // arguments[4] — operationId
+                    homeBankingId,        // arguments[5] — homeBankingId
+                    botJobId,             // arguments[6] — botJobId
+                    currentUrl,           // arguments[7] — targetOriginURL
+                    currentUrl);          // arguments[8] — trustedOriginURL
             return null;
         } catch (Exception error) {
+            log.error("PerformCloneLoad — hoverPick injection failed: {}", error.getMessage(), error);
             return new ErrorMessage("Error running Scanner", "Dynamic Load ElementsDTO error", error.getMessage());
         }
     }
