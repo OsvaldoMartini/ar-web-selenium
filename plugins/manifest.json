@@ -1,0 +1,56 @@
+{
+  "version": "1.0.0",
+  "updated": "2026-03-26",
+  "plugins": [
+    {
+      "id": "pageScanner",
+      "name": "Page Scanner",
+      "description": "DOM traversal, element detection, WebSocket chunk sender, red outline highlighting. The core scanner plugin for AR Web.",
+      "version": "4.7.1",
+      "icon": "🔍",
+      "size": "20 KB",
+      "fileName": "pageScanner.zip",
+      "downloadUrl": "/plugins/pageScanner.zip"
+    },
+    {
+      "id": "pluginTest",
+      "name": "Plugin Test",
+      "description": "Smoke-test plugin that verifies the plugin loading pipeline. Shows a green overlay and logs to console.",
+      "version": "1.0.0",
+      "icon": "✅",
+      "size": "2 KB",
+      "fileName": "pluginTest.zip",
+      "downloadUrl": "/plugins/pluginTest.zip"
+    },
+    {
+      "id": "hoverPick",
+      "name": "Hover Pick",
+      "description": "Mouse tracking with coordinate overlay. Click any element to select it, auto-detects iframes and shadow DOM.",
+      "version": "4.7.0",
+      "icon": "🎯",
+      "size": "14 KB",
+      "fileName": "hoverPick.zip",
+      "downloadUrl": "/plugins/hoverPick.zip"
+    },
+    {
+      "id": "searchList",
+      "name": "Search List",
+      "description": "Synchronous element list extraction. Scans the page and returns all found elements as a single JSON payload.",
+      "version": "4.7.0",
+      "icon": "📋",
+      "size": "15 KB",
+      "fileName": "searchList.zip",
+      "downloadUrl": "/plugins/searchList.zip"
+    },
+    {
+      "id": "searchListAsync",
+      "name": "Search List Async",
+      "description": "Async element extraction with Selenium executeAsyncScript callback. Used by PerformListElements for in-process scanning.",
+      "version": "4.7.0",
+      "icon": "⚡",
+      "size": "17 KB",
+      "fileName": "searchListAsync.zip",
+      "downloadUrl": "/plugins/searchListAsync.zip"
+    }
+  ]
+}
