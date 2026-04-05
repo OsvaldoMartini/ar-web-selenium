@@ -3104,6 +3104,9 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private boolean executeJob() {
+        // Reset the first-call log flag so the first searchListAsync injection is logged
+        performListElements.resetFirstCallLog();
+
         if (PerformActions.waitForPage == null) {
             String updateTimeout = arPropertyManager.getProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
             String interactionTimeout = arPropertyManager.getProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
@@ -7010,11 +7013,25 @@ public class ARScannedElementPane extends ARPane {
                 botJobId);
 
         if (errorMessage != null) {
+            String[] lines = errorMessage.getErrorMessage().split("\n");
+
             logOperations.error(
-                    "Error: Dynamic Pick One Clone ElementsDTO - {} - {} - {}",
+                    "Error: updateListElements - {} - {} - {}",
                     errorMessage.getErrorTitle(),
                     errorMessage.getErrorHeader(),
                     errorMessage.getErrorMessage());
+
+            performMessage.showCustomModalDialogDragWin11Timer(
+                    errorMessage.getErrorTitle(),
+                    "<span style='color: #D32F2F; font-weight: bold;'>" + errorMessage.getErrorHeader() + "</span>",
+                    (lines.length > 0 && !Strings.isNullOrEmpty(lines[0]) ? lines[0] : null),
+                    (lines.length > 1 && !Strings.isNullOrEmpty(lines[1]) ? lines[1] : null),
+                    (lines.length > 2 && !Strings.isNullOrEmpty(lines[2]) ? lines[2] : null),
+                    true,
+                    "OK",
+                    null,
+                    350,
+                    0);
         }
     }
 
@@ -7479,25 +7496,31 @@ public class ARScannedElementPane extends ARPane {
                 lStatus.setText("✗ Missing");
                 lStatus.setStyle(lStatus.getStyle() + "-fx-text-fill:#dc2626;");
                 CheckBox cb = new CheckBox();
-                cb.setSelected(false);
-                cb.setDisable(true);
+                cb.setSelected(true); // auto-check missing plugins
                 if (serverConfigured && !row[4].isEmpty()) {
+                    cb.setDisable(false); // user can uncheck to skip download
                     downloadChecks.add(cb);
                     downloadableRows.add(row);
+                } else {
+                    cb.setDisable(true); // no server configured — cannot download
                 }
                 line.getChildren().addAll(cb, lName, lVer, lSize, lStatus);
             }
             tableBox.getChildren().add(line);
         }
 
-        // ── Info label ──
-        Label infoLabel = new Label("Plugins folder: " + pluginsDir
-                + "\nPlugins can be added via: Download from server, email, or USB/pendrive copy.");
-        infoLabel.setWrapText(true);
-        infoLabel.setStyle("-fx-font-size:11px;-fx-text-fill:#555;");
-        infoLabel.setPrefWidth(500);
+        // ── Info labels ──
+        Label folderLabel = new Label("Plugins folder:  " + pluginsDir);
+        folderLabel.setWrapText(true);
+        folderLabel.setStyle("-fx-font-size:12px;-fx-font-weight:bold;-fx-text-fill:#1565C0;");
+        folderLabel.setPrefWidth(500);
 
-        VBox content = new VBox(10, tableBox, infoLabel);
+        Label addLabel = new Label("Plugins can be added via:  Download from server, email, or USB/pendrive copy.");
+        addLabel.setWrapText(true);
+        addLabel.setStyle("-fx-font-size:12px;-fx-font-weight:bold;-fx-text-fill:#1565C0;");
+        addLabel.setPrefWidth(500);
+
+        VBox content = new VBox(10, tableBox, folderLabel, addLabel);
         content.setPadding(new Insets(10));
 
         // ── Dialog ──

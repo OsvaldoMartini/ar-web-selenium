@@ -90,6 +90,7 @@ public class PerformCloneLoad {
             int botJobId,
             String currentUrl) {
         try {
+            log.info(">> Injecting plugin [hoverPick] — session={}, botJob={}", sessionId, botJobId);
             JavascriptExecutor executor = (JavascriptExecutor) driver;
             executor.executeScript(
                     getJsHoverPick(),

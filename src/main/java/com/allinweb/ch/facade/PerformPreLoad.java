@@ -215,6 +215,7 @@ public class PerformPreLoad {
 
         List<String> dataList = Arrays.asList(dataArray);
         try {
+            log.info(">> Injecting plugin [pageScanner] — session={}, botJob={}", sessionId, botJobId);
             JavascriptExecutor executor = (JavascriptExecutor) driver;
             executor.executeScript(
                     getJsScanner(),
