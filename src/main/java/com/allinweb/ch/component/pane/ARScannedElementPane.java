@@ -7358,18 +7358,15 @@ public class ARScannedElementPane extends ARPane {
      */
     private boolean isPluginInstalledLocally(String pluginsDir, String pluginId) {
         Path pluginDir = Paths.get(pluginsDir, pluginId);
+        Path zipFile = Paths.get(pluginsDir, pluginId + ".zip");
 
-        // Auto-extract ZIP if folder is missing but ZIP exists
-        if (!Files.isDirectory(pluginDir)) {
-            Path zipFile = Paths.get(pluginsDir, pluginId + ".zip");
-            if (Files.exists(zipFile)) {
-                log.info("PluginUpdate — found {}.zip but no folder, auto-extracting...", pluginId);
-                try {
-                    extractPluginZip(zipFile, Paths.get(pluginsDir));
-                } catch (Exception e) {
-                    log.error("PluginUpdate — failed to auto-extract {}: {}", zipFile, e.getMessage());
-                    return false;
-                }
+        // Always extract ZIP if it exists — overwrites old files with latest version
+        if (Files.exists(zipFile)) {
+            log.info("PluginUpdate — extracting {}.zip (overwriting existing files)...", pluginId);
+            try {
+                extractPluginZip(zipFile, Paths.get(pluginsDir));
+            } catch (Exception e) {
+                log.error("PluginUpdate — failed to extract {}: {}", zipFile, e.getMessage());
             }
         }
 

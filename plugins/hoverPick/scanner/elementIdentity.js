@@ -121,10 +121,30 @@ export function extractVisibleTextFromHTML(element) {
 function getVisibleText(tagName, attributeData, element) {
   let textResult = '';
 
-  if (element && !isHidden(element)) {
-    const extracted = extractVisibleTextFromHTML(element);
-    textResult = [...extracted.titles, ...extracted.text, ...extracted.labels]
-      .map((t) => t.trim()).filter(Boolean).join('; ');
+  if (element) {
+    // For the element itself (if visible)
+    if (!isHidden(element)) {
+      const extracted = extractVisibleTextFromHTML(element);
+      textResult = [...extracted.titles, ...extracted.text, ...extracted.labels]
+        .map((t) => t.trim()).filter(Boolean).join('; ');
+    }
+
+    // For hidden inputs inside Angular Material cards/wrappers:
+    // 1. Try aria-label first (most reliable for Material components)
+    if (!textResult) {
+      const ariaLabel = element.getAttribute('aria-label');
+      if (ariaLabel && ariaLabel.trim()) {
+        textResult = ariaLabel.trim();
+      }
+    }
+
+    // 2. Walk up to the card and extract targeted text (title, content)
+    if (!textResult) {
+      const cardParent = findCardAncestor(element);
+      if (cardParent) {
+        textResult = extractCardText(cardParent);
+      }
+    }
   }
 
   const attributePriority = [
@@ -161,6 +181,75 @@ function getVisibleText(tagName, attributeData, element) {
   }
 
   return firstMeaningfulText;
+}
+
+/**
+ * Walk up the DOM to find the nearest Angular Material card or meaningful container.
+ * Returns the card element, or null if none found.
+ */
+const CARD_TAGS = [
+  'avq-card', 'avq-portfolio-card', 'avq-trading-recent-trade-card',
+  'mat-card', 'mat-radio-button', 'mat-checkbox', 'mat-slide-toggle',
+  'mat-button-toggle', 'mat-list-option', 'mat-option',
+];
+
+/**
+ * Extract meaningful text from a card/wrapper element.
+ * Looks for title elements, content text, and labels — avoids
+ * pulling in the entire card's textContent which includes framework noise.
+ */
+function extractCardText(card) {
+  const parts = [];
+
+  // Priority selectors for meaningful text inside cards
+  const selectors = [
+    // Angular Material / custom card titles
+    'avq-card-title', 'mat-card-title', '[class*="card-title"]',
+    '[class*="card-header-title"]', '[class*="title"]',
+    // Content / subtitle
+    'avq-card-subtitle', 'mat-card-subtitle', '[class*="subtitle"]',
+    // Labels
+    'label:not(.avq-visually-hidden):not(.mdc-label)',
+    // Currency / value
+    'avq-currency', '[class*="currency"]',
+    // Any text with test-id (usually meaningful)
+    '[test-id]',
+  ];
+
+  for (const sel of selectors) {
+    try {
+      card.querySelectorAll(sel).forEach((el) => {
+        const text = el.textContent?.trim();
+        if (text && text.length > 1 && text.length < 200) {
+          parts.push(text.replace(/\s+/g, ' '));
+        }
+      });
+    } catch (_) {}
+  }
+
+  // Deduplicate (child text is often repeated in parent)
+  const seen = new Set();
+  const unique = parts.filter((t) => {
+    if (seen.has(t)) return false;
+    // Remove entries that are substrings of already-added entries
+    for (const s of seen) { if (s.includes(t)) return false; }
+    seen.add(t);
+    return true;
+  });
+
+  return unique.join(' | ') || '';
+}
+
+function findCardAncestor(el) {
+  let node = el.parentElement;
+  for (let i = 0; i < 10 && node; i++) {
+    const tag = node.tagName.toLowerCase();
+    if (CARD_TAGS.includes(tag)) return node;
+    // Also match custom card components with 'card' in the tag name
+    if (tag.includes('card') || tag.includes('option') || tag.includes('list-item')) return node;
+    node = node.parentElement;
+  }
+  return null;
 }
 
 /**
