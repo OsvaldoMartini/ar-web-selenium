@@ -25,7 +25,7 @@ public class PerformCloneLoad {
     private static volatile String jsHoverPick = null;
 
     /** Relative path within the plugins folder */
-    private static final String HOVER_PICK_RELATIVE_PATH = "hoverPick/build/hoverPick.min.js";
+    private static final String HOVER_PICK_RELATIVE_PATH = "hoverPick/hoverPick.min.enc";
 
     /**
      * Loads (and caches) the minified hoverPick bundle from the PATH_PLUGINS folder.
@@ -38,7 +38,7 @@ public class PerformCloneLoad {
         if (jsHoverPick == null) {
             synchronized (PerformCloneLoad.class) {
                 if (jsHoverPick == null) {
-                    jsHoverPick = PerformPreLoad.loadPluginScript(HOVER_PICK_RELATIVE_PATH);
+                    jsHoverPick = EncryptedPluginLoader.getInstance().loadPlugin(HOVER_PICK_RELATIVE_PATH);
                     log.info(
                             "PerformCloneLoad — hoverPick script loaded from plugins folder ({} chars)",
                             jsHoverPick.length());

@@ -7361,13 +7361,12 @@ public class ARScannedElementPane extends ARPane {
         Path zipFile = Paths.get(pluginsDir, pluginId + ".zip");
 
         // Always extract ZIP if it exists — overwrites old files with latest version
-        // Extract .min.js into the plugin's build/ subfolder (e.g. plugins/hoverPick/build/)
+        // Extract directly into the plugin's folder (e.g. plugins/hoverPick/)
         if (Files.exists(zipFile)) {
             log.info("PluginUpdate — extracting {}.zip (overwriting existing files)...", pluginId);
             try {
-                Path buildDir = pluginDir.resolve("build");
-                Files.createDirectories(buildDir);
-                extractPluginZip(zipFile, buildDir);
+                Files.createDirectories(pluginDir);
+                extractPluginZip(zipFile, pluginDir);
             } catch (Exception e) {
                 log.error("PluginUpdate — failed to extract {}: {}", zipFile, e.getMessage());
             }
@@ -7375,18 +7374,29 @@ public class ARScannedElementPane extends ARPane {
 
         if (!Files.isDirectory(pluginDir)) return false;
 
-        // Check for build output or source
+        // Check for .min.enc or .min.js directly in the plugin folder
+        try (var files = Files.list(pluginDir)) {
+            if (files.anyMatch(f -> {
+                String name = f.toString();
+                return name.endsWith(".min.enc") || name.endsWith(".min.js");
+            })) return true;
+        } catch (Exception ignored) {
+        }
+
+        // Also check build/ subfolder (backward compatibility)
         Path buildDir = pluginDir.resolve("build");
         if (Files.isDirectory(buildDir)) {
             try (var files = Files.list(buildDir)) {
-                if (files.anyMatch(f -> f.toString().endsWith(".min.js"))) return true;
+                if (files.anyMatch(f -> {
+                    String name = f.toString();
+                    return name.endsWith(".min.enc") || name.endsWith(".min.js");
+                })) return true;
             } catch (Exception ignored) {
             }
         }
-        // Accept index.js (source present, not yet built)
-        if (Files.exists(pluginDir.resolve("index.js"))) return true;
 
-        // Accept any .js file in the folder (shared libraries like bancaStato)
+        // Accept index.js or any .js source file
+        if (Files.exists(pluginDir.resolve("index.js"))) return true;
         try (var files = Files.list(pluginDir)) {
             if (files.anyMatch(f -> f.toString().endsWith(".js"))) return true;
         } catch (Exception ignored) {

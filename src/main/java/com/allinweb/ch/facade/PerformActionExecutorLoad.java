@@ -26,7 +26,7 @@ public class PerformActionExecutorLoad {
     /** Cached bundle — null until first injection. */
     private static volatile String jsActionExecutor = null;
 
-    private static final String RELATIVE_PATH = "actionExecutor/build/actionExecutor.min.js";
+    private static final String RELATIVE_PATH = "actionExecutor/actionExecutor.min.enc";
 
     private PerformActionExecutorLoad() {}
 
@@ -45,7 +45,7 @@ public class PerformActionExecutorLoad {
         if (jsActionExecutor == null) {
             synchronized (PerformActionExecutorLoad.class) {
                 if (jsActionExecutor == null) {
-                    jsActionExecutor = PerformPreLoad.loadPluginScript(RELATIVE_PATH);
+                    jsActionExecutor = EncryptedPluginLoader.getInstance().loadPlugin(RELATIVE_PATH);
                     log.info("PerformActionExecutorLoad — script loaded ({} chars)", jsActionExecutor.length());
                 }
             }

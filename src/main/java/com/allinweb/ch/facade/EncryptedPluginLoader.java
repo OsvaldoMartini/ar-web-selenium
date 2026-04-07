@@ -2,11 +2,6 @@ package com.allinweb.ch.facade;
 
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
-import lombok.extern.slf4j.Slf4j;
-
-import javax.crypto.Cipher;
-import javax.crypto.spec.GCMParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -14,6 +9,10 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.concurrent.ConcurrentHashMap;
+import javax.crypto.Cipher;
+import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Decrypts and loads encrypted plugin scripts (.enc files) at runtime.
@@ -88,12 +87,10 @@ public class EncryptedPluginLoader {
         ensureKey();
 
         // Resolve file path
-        String pluginsDir = ARPropertyManager.getInstance()
-                .getProperty(ARPropertyEnum.PATH_PLUGINS);
+        String pluginsDir = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.PATH_PLUGINS);
         if (pluginsDir == null || pluginsDir.isBlank()) {
             throw new PerformPreLoad.PluginLoadException(
-                    "Plugins folder not configured",
-                    "path_plugins is not set in ARWeb.config", null, null);
+                    "Plugins folder not configured", "path_plugins is not set in ARWeb.config", null, null);
         }
 
         Path encPath = Paths.get(pluginsDir).resolve(relativePath);
@@ -113,8 +110,7 @@ public class EncryptedPluginLoader {
                 }
             }
             throw new PerformPreLoad.PluginLoadException(
-                    "Encrypted plugin not found",
-                    "File not found: " + encPath.toAbsolutePath(), null, null);
+                    "Encrypted plugin not found", "File not found: " + encPath.toAbsolutePath(), null, null);
         }
 
         // Read and decrypt
@@ -128,7 +124,9 @@ public class EncryptedPluginLoader {
             throw new PerformPreLoad.PluginLoadException(
                     "Plugin decryption failed",
                     "Could not decrypt: " + encPath.toAbsolutePath(),
-                    e.getMessage(), null, e);
+                    e.getMessage(),
+                    null,
+                    e);
         }
     }
 
@@ -186,13 +184,13 @@ public class EncryptedPluginLoader {
 
             // 3. Key file in plugins folder
             if (keyHex == null || keyHex.isBlank()) {
-                String pluginsDir = ARPropertyManager.getInstance()
-                        .getProperty(ARPropertyEnum.PATH_PLUGINS);
+                String pluginsDir = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.PATH_PLUGINS);
                 if (pluginsDir != null) {
                     Path keyFile = Paths.get(pluginsDir, "plugins.key");
                     if (Files.exists(keyFile)) {
                         try {
-                            keyHex = Files.readString(keyFile, StandardCharsets.UTF_8).trim();
+                            keyHex = Files.readString(keyFile, StandardCharsets.UTF_8)
+                                    .trim();
                             log.info("EncryptedPluginLoader — key loaded from {}", keyFile);
                         } catch (IOException e) {
                             log.error("EncryptedPluginLoader — failed to read key file: {}", e.getMessage());
@@ -215,8 +213,7 @@ public class EncryptedPluginLoader {
         int len = hex.length();
         byte[] bytes = new byte[len / 2];
         for (int i = 0; i < len; i += 2) {
-            bytes[i / 2] = (byte) ((Character.digit(hex.charAt(i), 16) << 4)
-                    + Character.digit(hex.charAt(i + 1), 16));
+            bytes[i / 2] = (byte) ((Character.digit(hex.charAt(i), 16) << 4) + Character.digit(hex.charAt(i + 1), 16));
         }
         return bytes;
     }

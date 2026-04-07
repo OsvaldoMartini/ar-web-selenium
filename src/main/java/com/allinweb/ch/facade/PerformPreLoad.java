@@ -37,7 +37,7 @@ public class PerformPreLoad {
     private static volatile String jsScanner = null;
 
     /** Relative path within the plugins folder */
-    private static final String SCANNER_RELATIVE_PATH = "pageScanner/build/scanner.min.js";
+    private static final String SCANNER_RELATIVE_PATH = "pageScanner/scanner.min.enc";
 
     /**
      * Loads (and caches) the minified scanner bundle from the PATH_PLUGINS folder.
@@ -50,7 +50,7 @@ public class PerformPreLoad {
         if (jsScanner == null) {
             synchronized (PerformPreLoad.class) {
                 if (jsScanner == null) {
-                    jsScanner = loadPluginScript(SCANNER_RELATIVE_PATH);
+                    jsScanner = EncryptedPluginLoader.getInstance().loadPlugin(SCANNER_RELATIVE_PATH);
                     log.info(
                             "PerformPreLoad — scanner script loaded from plugins folder ({} chars)",
                             jsScanner.length());
@@ -81,6 +81,7 @@ public class PerformPreLoad {
         PerformCloneLoad.reloadScript();
         PerformActionExecutorLoad.reloadScript();
         PerformListElements.reloadScript();
+        EncryptedPluginLoader.getInstance().reloadAll();
         log.info("All plugin caches cleared — scripts will reload on next injection");
     }
 
