@@ -5,7 +5,7 @@
     {
       "id": "pageScanner",
       "name": "Page Scanner",
-      "description": "DOM traversal, element detection, WebSocket chunk sender, red outline highlighting. The core scanner plugin for AR Web.",
+      "description": "DOM traversal, element detection, WebSocket chunk sender, red outline highlighting. The core scanner plugin for Web Sites.",
       "version": "4.7.2",
       "icon": "🔍",
       "size": "20 KB",
@@ -15,7 +15,7 @@
     {
       "id": "hoverPick",
       "name": "Hover Pick",
-      "description": "Mouse tracking with coordinate overlay. Click any element to select it, auto-detects iframes and shadow DOM. BancaStato-aware.",
+      "description": "Mouse tracking with coordinate overlay. Click any element to select it, auto-detects iframes and shadow DOM. Banca Context-aware.",
       "version": "4.7.1",
       "icon": "🎯",
       "size": "24 KB",

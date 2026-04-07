@@ -1,7 +1,7 @@
 {
-  "name": "ar-web-plugins",
+  "name": "web-sites-plugins",
   "version": "1.0.0",
-  "description": "AR Web browser plugins — esbuild bundled JS injected by Selenium",
+  "description": "Web Sites browser plugins — esbuild bundled JS injected by Selenium",
   "private": true,
   "scripts": {
     "build": "node build-plugins.js",
