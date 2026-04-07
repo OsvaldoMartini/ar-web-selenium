@@ -7361,12 +7361,13 @@ public class ARScannedElementPane extends ARPane {
         Path zipFile = Paths.get(pluginsDir, pluginId + ".zip");
 
         // Always extract ZIP if it exists — overwrites old files with latest version
-        // Extract into the plugin's own subfolder (e.g. plugins/hoverPick/)
+        // Extract .min.js into the plugin's build/ subfolder (e.g. plugins/hoverPick/build/)
         if (Files.exists(zipFile)) {
             log.info("PluginUpdate — extracting {}.zip (overwriting existing files)...", pluginId);
             try {
-                Files.createDirectories(pluginDir);
-                extractPluginZip(zipFile, pluginDir);
+                Path buildDir = pluginDir.resolve("build");
+                Files.createDirectories(buildDir);
+                extractPluginZip(zipFile, buildDir);
             } catch (Exception e) {
                 log.error("PluginUpdate — failed to extract {}: {}", zipFile, e.getMessage());
             }

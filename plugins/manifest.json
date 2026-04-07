@@ -3,16 +3,6 @@
   "updated": "2026-04-07",
   "plugins": [
     {
-      "id": "bancaContext",
-      "name": "BancaStato Context",
-      "description": "Shared heuristic resolvers for BancaStato IAM and AVQ components. Used by pageScanner and hoverPick for label/title extraction.",
-      "version": "1.0.0",
-      "icon": "🏦",
-      "size": "8 KB",
-      "fileName": "bancaContext.zip",
-      "downloadUrl": "/plugins/bancaContext.zip"
-    },
-    {
       "id": "pageScanner",
       "name": "Page Scanner",
       "description": "DOM traversal, element detection, WebSocket chunk sender, red outline highlighting. The core scanner plugin for AR Web.",
