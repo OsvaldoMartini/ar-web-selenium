@@ -489,7 +489,12 @@ public class PerformActions {
                         if (isMobileApp) {
                             //                            androidDevice.executeAction(instructionElement, splitDTO);
                         } else {
-                            passed = clickElement(byPassNotFound, instructionElement);
+                            try {
+                                passed = clickElement(byPassNotFound, instructionElement);
+                            } catch (Exception clickEx) {
+                                logOperations.warn("clickElement threw: {} — trying actionExecutor", clickEx.getMessage());
+                                passed = false;
+                            }
                             if (!passed) {
                                 // Fallback: try via actionExecutor (JS in browser, no visibility checks)
                                 passed = tryActionExecutor("click", currentInstruction, null);
@@ -502,8 +507,14 @@ public class PerformActions {
                                 //                                androidDevice.executeAction(instructionElement,
                                 // splitDTO, null, data.getValue());
                             } else {
-                                passed = insertDataInSelectElement(
-                                        byPassNotFound, instructionElement, savedCoordinates, data, pressEnterAfter);
+                                try {
+                                    passed = insertDataInSelectElement(
+                                            byPassNotFound, instructionElement, savedCoordinates, data, pressEnterAfter);
+                                } catch (Exception selectEx) {
+                                    logOperations.warn("Selenium select threw: {} — trying fallbacks",
+                                            selectEx.getMessage());
+                                    passed = false;
+                                }
 
                                 if (!passed) {
                                     // Try by coordinates
@@ -521,18 +532,24 @@ public class PerformActions {
                                 //                                androidDevice.executeAction(instructionElement,
                                 // splitDTO, null, data.getValue());
                             } else {
-                                //                            instructionElement.click();
-                                instructionElement.clear();
-                                clearElement(instructionElement);
-                                //                            clearValueAtCoordinates(savedCoordinates);
+                                try {
+                                    //                            instructionElement.click();
+                                    instructionElement.clear();
+                                    clearElement(instructionElement);
+                                    //                            clearValueAtCoordinates(savedCoordinates);
 
-                                passed = insertInElement(
-                                        byPassNotFound,
-                                        instructionElement,
-                                        data.getValue(),
-                                        currentInstruction.getDefaultValue(),
-                                        currentInstruction.getCodified(),
-                                        pressEnterAfter);
+                                    passed = insertInElement(
+                                            byPassNotFound,
+                                            instructionElement,
+                                            data.getValue(),
+                                            currentInstruction.getDefaultValue(),
+                                            currentInstruction.getCodified(),
+                                            pressEnterAfter);
+                                } catch (Exception insertEx) {
+                                    logOperations.warn("Selenium insert threw: {} — trying fallbacks",
+                                            insertEx.getMessage());
+                                    passed = false;
+                                }
 
                                 if (!passed) {
                                     // Try by coordinates

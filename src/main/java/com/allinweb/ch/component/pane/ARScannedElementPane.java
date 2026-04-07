@@ -7450,6 +7450,10 @@ public class ARScannedElementPane extends ARPane {
      * The user can then download individual plugins or all missing ones at once.
      */
     private void showPluginUpdateDialog() {
+        // Always clear plugin caches so next injection reads fresh .min.js from disk
+        PerformPreLoad.reloadAllPlugins();
+        logOperations.info("Plugin Update — all plugin caches cleared");
+
         String pluginsDir = arPropertyManager.resolvePluginsDir();
         String urlBase = arPropertyManager.getProperty(ARPropertyEnum.URL_PLUGINS);
         boolean serverConfigured = urlBase != null && !urlBase.isBlank();

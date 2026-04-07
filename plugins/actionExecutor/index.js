@@ -42,24 +42,16 @@ import { executeCommand } from './executor/actionExecutor.js';
     sessionId: window.__actionExecSessionId,
     onReady:   () => {
       console.log('[actionExecutor] Ready — listening for commands');
-      // Notify Java that the executor is ready
-      ws.sendJson({
-        type:          'ACTION_EXECUTOR',
-        sessionId:     destination,
-        operationId:   'actionExecutorReady',
-        homeBankingId: homeBankingId,
-        botJobId:      botJobId,
-        result:        { success: true, message: 'actionExecutor ready' },
-      });
     },
     onCommand: (cmd) => {
       executeCommand(cmd, (result) => {
-        // Send result back to Java
+        // Send result back to Java — use sessionId (not destination)
+        // to avoid hitting the "engine-perform-bot-job" rowStatus handler
         if (ws.isOpen()) {
           ws.sendJson({
             type:          'ACTION_EXECUTOR',
-            sessionId:     destination,
-            operationId:   'actionExecutorResult',
+            sessionId:     window.__actionExecSessionId,
+            operationId:   'ACTION_EXECUTOR',
             homeBankingId: homeBankingId,
             botJobId:      botJobId,
             commandId:     result.commandId || cmd.commandId,
