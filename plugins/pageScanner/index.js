@@ -24,6 +24,7 @@ import { classifyTag }      from './classifier/tagClassifier.js';
 import { resolveNameLabel } from './classifier/nameLabelResolver.js';
 import { deduplicate }      from './classifier/deduplicator.js';
 import { applyHighlight, revertHighlights, startRevertInterval } from './highlight/highlighter.js';
+import { evaluateXPath } from './scanner/xpathResolver.js';
 
 (function (
   searchTerms, searchHiddenFields, port,
@@ -80,6 +81,9 @@ import { applyHighlight, revertHighlights, startRevertInterval } from './highlig
     deduped.forEach(el => window.allElementInfo.push({ ...el, id: id++ }));
     window.elementInfoMap.clear();
 
+    // Flash red outline on all found elements, revert after 5 seconds
+    highlightScannedElements(deduped);
+
     if (ws.isOpen()) {
       sendChunks(ws.send, {
         sessionId:     window.sessionId,
@@ -90,6 +94,27 @@ import { applyHighlight, revertHighlights, startRevertInterval } from './highlig
         elements:      window.allElementInfo,
       });
     }
+  }
+
+  // ── Scan highlight (brief red outline on found elements) ────────────────────
+  function highlightScannedElements(elements) {
+    const originals = new Map();
+    elements.forEach(el => {
+      try {
+        const dom = evaluateXPath(el.xPath);
+        if (dom && dom.style) {
+          originals.set(dom, dom.style.outline);
+          dom.style.outline = '3px solid #FF3131';
+        }
+      } catch (_) {}
+    });
+
+    // Revert after 5 seconds
+    setTimeout(() => {
+      originals.forEach((original, dom) => {
+        try { dom.style.outline = original || ''; } catch (_) {}
+      });
+    }, 5000);
   }
 
   // ── Revert helper (called by Java after scan) ──────────────────────────────
