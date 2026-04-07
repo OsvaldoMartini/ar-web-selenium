@@ -7,8 +7,7 @@
 
 import { generateXPath }  from './xpathResolver.js';
 import { classifyTag }     from '../classifier/tagClassifier.js';
-import { resolveAvqCard }  from '../../bancaStato/cardResolver.js';
-import { resolveIamElement, isIamElement } from '../../bancaStato/iamResolver.js';
+import { resolveElement as resolveBancaElement, extractSomeText as bancaExtractText, detectBank } from '../../bancaContext/index.js';
 
 /**
  * Check if an element is visually hidden.
@@ -401,65 +400,48 @@ export function getElementIdentity(hiddenFields, element) {
   const classified = classifyTag(tagName, xPath, element);
   if (classified !== tagName) tagName = classified;
 
-  // ── BancaStato heuristics ────────────────────────────────────────────────
-
-  // 1. IAM framework (login pages, forms, modals)
-  const iamData = resolveIamElement(element);
-  if (iamData) {
-    const someText = iamData.someText || '';
-    // Inject IAM metadata into attributeData
-    if (iamData.iamType)   attributeData.push({ name: 'iam-type', value: iamData.iamType });
-    if (iamData.label)     attributeData.push({ name: 'someText', value: iamData.label });
-    if (iamData.pageTitle) attributeData.push({ name: 'iam-page-title', value: iamData.pageTitle });
-    if (iamData.cardTitle) attributeData.push({ name: 'iam-card-title', value: iamData.cardTitle });
-    if (iamData.inputType) attributeData.push({ name: 'iam-input-type', value: iamData.inputType });
-    if (iamData.buttonId)  attributeData.push({ name: 'iam-button-id', value: iamData.buttonId });
-    if (iamData.href)      attributeData.push({ name: 'iam-href', value: iamData.href });
-
-    return {
-      xPath, tagName, attributeData, customXPath: '',
-      attribId, attribName, coordinates, someText,
-    };
-  }
-
-  // 2. AVQ card components (trading, portfolio)
-  const cardData = resolveAvqCard(element);
+  // ── Bank context heuristics (auto-detects which bank) ────────────────────
+  const bankData = resolveBancaElement(element);
 
   let someText = '';
-  if (cardData) {
-    // Use the card's computed someText (title + key-values + currency)
-    someText = cardData.someText;
+  if (bankData) {
+    someText = bankData.someText || '';
 
-    // Inject card data into attributeData so Java receives it
-    if (cardData.title) {
-      attributeData.push({ name: 'someText', value: cardData.title });
+    // Inject bank metadata into attributeData
+    if (bankData.bank)      attributeData.push({ name: 'bank-id', value: bankData.bank });
+    if (bankData.someText)  attributeData.push({ name: 'someText', value: bankData.someText });
+
+    // IAM-specific fields
+    if (bankData.iamType)   attributeData.push({ name: 'iam-type', value: bankData.iamType });
+    if (bankData.label)     attributeData.push({ name: 'bank-label', value: bankData.label });
+    if (bankData.pageTitle) attributeData.push({ name: 'bank-page-title', value: bankData.pageTitle });
+    if (bankData.cardTitle) attributeData.push({ name: 'bank-card-title', value: bankData.cardTitle });
+    if (bankData.inputType) attributeData.push({ name: 'bank-input-type', value: bankData.inputType });
+    if (bankData.buttonId)  attributeData.push({ name: 'bank-button-id', value: bankData.buttonId });
+    if (bankData.href)      attributeData.push({ name: 'bank-href', value: bankData.href });
+
+    // Card-specific fields
+    if (bankData.testId)     attributeData.push({ name: 'card-test-id', value: bankData.testId });
+    if (bankData.radioValue) attributeData.push({ name: 'card-radio-value', value: bankData.radioValue });
+    if (bankData.currency)   attributeData.push({ name: 'card-currency', value: bankData.currency });
+    if (bankData.performance) attributeData.push({ name: 'card-performance', value: bankData.performance });
+
+    // Key-value pairs
+    if (bankData.keyValues) {
+      bankData.keyValues.forEach(kv => {
+        if (kv.label && kv.value) {
+          attributeData.push({ name: 'card-kv-' + kv.label.toLowerCase().replace(/\s+/g, '-'), value: kv.value });
+        }
+      });
     }
-    if (cardData.testId) {
-      attributeData.push({ name: 'card-test-id', value: cardData.testId });
+    // Actions
+    if (bankData.actions) {
+      bankData.actions.forEach((act, i) => {
+        if (act.ariaLabel) attributeData.push({ name: 'card-action-' + i, value: act.ariaLabel });
+      });
     }
-    if (cardData.radioValue) {
-      attributeData.push({ name: 'card-radio-value', value: cardData.radioValue });
-    }
-    if (cardData.currency) {
-      attributeData.push({ name: 'card-currency', value: cardData.currency });
-    }
-    if (cardData.performance) {
-      attributeData.push({ name: 'card-performance', value: cardData.performance });
-    }
-    // Add each key-value pair as an attribute
-    cardData.keyValues.forEach((kv, i) => {
-      if (kv.label && kv.value) {
-        attributeData.push({ name: 'card-kv-' + kv.label.toLowerCase().replace(/\s+/g, '-'), value: kv.value });
-      }
-    });
-    // Add action buttons
-    cardData.actions.forEach((act, i) => {
-      if (act.ariaLabel) {
-        attributeData.push({ name: 'card-action-' + i, value: act.ariaLabel });
-      }
-    });
   } else {
-    // Standard text extraction for non-card elements
+    // No bank context — standard text extraction
     someText = getVisibleText(tagName, attributeData, element);
   }
 

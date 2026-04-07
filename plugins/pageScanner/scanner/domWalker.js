@@ -11,8 +11,7 @@
  */
 
 import { generateXPath } from './xpathResolver.js';
-import { resolveIamElement } from '../../bancaStato/iamResolver.js';
-import { resolveAvqCard }    from '../../bancaStato/cardResolver.js';
+import { extractSomeText as bancaExtractText, detectBank } from '../../bancaContext/index.js';
 
 const SKIP_TAGS = new Set(['html', 'body', 'main', 'script', 'meta', 'head', 'style']);
 const INTERACTIVE_TAGS = ['input', 'textarea', 'button', 'a', 'select', 'label', 'span', 'div'];
@@ -152,12 +151,9 @@ function describeCssSelector(el) {
 }
 
 function extractSomeText(el, attributes) {
-  // ── BancaStato heuristics (IAM + AVQ) ──────────────────────────────────
-  const iamData = resolveIamElement(el);
-  if (iamData && iamData.someText) return iamData.someText;
-
-  const cardData = resolveAvqCard(el);
-  if (cardData && cardData.someText) return cardData.someText;
+  // ── Bank context heuristics (auto-detects which bank) ──────────────────
+  const bankText = bancaExtractText(el, attributes);
+  if (bankText) return bankText;
 
   // ── Standard extraction ────────────────────────────────────────────────
   // 1. label[for] association
