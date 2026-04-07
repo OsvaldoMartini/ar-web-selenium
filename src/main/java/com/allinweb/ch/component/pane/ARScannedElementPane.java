@@ -7361,10 +7361,12 @@ public class ARScannedElementPane extends ARPane {
         Path zipFile = Paths.get(pluginsDir, pluginId + ".zip");
 
         // Always extract ZIP if it exists — overwrites old files with latest version
+        // Extract into the plugin's own subfolder (e.g. plugins/hoverPick/)
         if (Files.exists(zipFile)) {
             log.info("PluginUpdate — extracting {}.zip (overwriting existing files)...", pluginId);
             try {
-                extractPluginZip(zipFile, Paths.get(pluginsDir));
+                Files.createDirectories(pluginDir);
+                extractPluginZip(zipFile, pluginDir);
             } catch (Exception e) {
                 log.error("PluginUpdate — failed to extract {}: {}", zipFile, e.getMessage());
             }
@@ -7380,8 +7382,15 @@ public class ARScannedElementPane extends ARPane {
             } catch (Exception ignored) {
             }
         }
-        // Also accept index.js (source present, not yet built)
-        return Files.exists(pluginDir.resolve("index.js"));
+        // Accept index.js (source present, not yet built)
+        if (Files.exists(pluginDir.resolve("index.js"))) return true;
+
+        // Accept any .js file in the folder (shared libraries like bancaStato)
+        try (var files = Files.list(pluginDir)) {
+            if (files.anyMatch(f -> f.toString().endsWith(".js"))) return true;
+        } catch (Exception ignored) {
+        }
+        return false;
     }
 
     /**

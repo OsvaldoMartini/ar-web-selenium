@@ -7,6 +7,8 @@
 
 import { generateXPath }  from './xpathResolver.js';
 import { classifyTag }     from '../classifier/tagClassifier.js';
+import { resolveAvqCard }  from '../../bancaStato/cardResolver.js';
+import { resolveIamElement, isIamElement } from '../../bancaStato/iamResolver.js';
 
 /**
  * Check if an element is visually hidden.
@@ -118,69 +120,181 @@ export function extractVisibleTextFromHTML(element) {
  * Resolve the "someText" label for an element using visible text
  * and attribute priority fallback.
  */
+/**
+ * Extract someText by looking at what's visually on screen.
+ *
+ * Strategy: walk UP the DOM from the element, at each level scan
+ * child nodes left-to-right / top-to-bottom for the first visible text.
+ * Stops as soon as meaningful text is found.
+ */
 function getVisibleText(tagName, attributeData, element) {
-  let textResult = '';
+  if (!element) return '';
 
-  if (element) {
-    // For the element itself (if visible)
-    if (!isHidden(element)) {
-      const extracted = extractVisibleTextFromHTML(element);
-      textResult = [...extracted.titles, ...extracted.text, ...extracted.labels]
-        .map((t) => t.trim()).filter(Boolean).join('; ');
-    }
+  // 1. Associated <label for="..."> — most reliable for form controls
+  const labelText = findAssociatedLabel(element);
+  if (labelText) return labelText;
 
-    // For hidden inputs inside Angular Material cards/wrappers:
-    // 1. Try aria-label first (most reliable for Material components)
-    if (!textResult) {
-      const ariaLabel = element.getAttribute('aria-label');
-      if (ariaLabel && ariaLabel.trim()) {
-        textResult = ariaLabel.trim();
-      }
-    }
+  // 2. The element itself — direct text or value
+  const ownText = getDirectText(element);
+  if (ownText) return ownText;
 
-    // 2. Walk up to the card and extract targeted text (title, content)
-    if (!textResult) {
-      const cardParent = findCardAncestor(element);
-      if (cardParent) {
-        textResult = extractCardText(cardParent);
+  // 3. aria-label on the element
+  const ariaLabel = element.getAttribute('aria-label');
+  if (ariaLabel && ariaLabel.trim()) return ariaLabel.trim();
+
+  // 4. placeholder
+  const placeholder = element.getAttribute('placeholder');
+  if (placeholder && placeholder.trim()) return placeholder.trim();
+
+  // 5. Nearest title (h1-h6, *-title tags) — walk up DOM
+  const titleText = findNearestTitle(element);
+  if (titleText) return titleText;
+
+  // 6. Siblings — scan left/right for first visible text
+  const siblingText = scanSiblingsForText(element);
+  if (siblingText) return siblingText;
+
+  // 7. Walk UP — scan children at each level
+  let node = element.parentElement;
+  for (let i = 0; i < 6 && node; i++) {
+    const text = scanChildrenForText(node);
+    if (text) return text;
+    node = node.parentElement;
+  }
+
+  // 8. Attribute fallback
+  const fallbackAttrs = ['title', 'alt', 'test-id', 'data-testid', 'name'];
+  for (const attr of fallbackAttrs) {
+    const val = element.getAttribute(attr);
+    if (val && val.trim() && val.trim().length < 100) return val.trim();
+  }
+
+  return '';
+}
+
+/** Find associated <label> for a form element. */
+function findAssociatedLabel(el) {
+  if (!el) return '';
+  // 1. label[for="id"]
+  if (el.id) {
+    const label = document.querySelector('label[for="' + el.id + '"]');
+    if (label) {
+      const text = label.textContent?.trim();
+      if (text && text.length > 0 && !label.classList?.contains('avq-visually-hidden')
+          && !label.classList?.contains('cdk-visually-hidden')) {
+        return text;
       }
     }
   }
+  // 2. Wrapping <label> ancestor
+  const parentLabel = el.closest('label');
+  if (parentLabel) {
+    const text = parentLabel.textContent?.trim();
+    if (text && text.length > 0) return text;
+  }
+  // 3. mat-label sibling in mat-form-field
+  const matFF = el.closest('mat-form-field');
+  if (matFF) {
+    const matLabel = matFF.querySelector('mat-label');
+    if (matLabel) {
+      const text = matLabel.textContent?.trim();
+      if (text) return text;
+    }
+  }
+  return '';
+}
 
-  const attributePriority = [
-    'aria-label','aria-labelledby','aria-describedby','placeholder',
-    'label','name','title','alt','for','data-label','data-name',
-    'data-title','id','data-testid',
+/**
+ * Walk UP the DOM and at each level search for a title element.
+ * Matches: *-title tags, [class*=title], h1-h6, [title] attribute,
+ * aria-label, label[for], mat-label.
+ */
+function findNearestTitle(el) {
+  const TITLE_SELECTORS = [
+    // Custom title tags (Angular Material, framework components)
+    'avq-card-title', 'mat-card-title', 'mat-card-header',
+    '[class*="title"]', '[class*="header-title"]',
+    // Standard headings
+    'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+    // Labels
+    'mat-label', 'label:not(.avq-visually-hidden):not(.mdc-label):not(.cdk-visually-hidden)',
+    // Elements with title attribute
+    '[title]',
   ];
 
-  let firstMeaningfulText = '';
-
-  const getAttrText = (name, value) => {
-    if (name === 'aria-labelledby' || name === 'aria-describedby') {
-      const ref = document.getElementById(value);
-      if (ref && !isHidden(ref)) return ref.textContent.trim();
-    }
-    return value.trim();
-  };
-
-  if (textResult && !/^\..*\{.*\}$/.test(textResult)) {
-    firstMeaningfulText = textResult;
-  } else {
-    const titleAttr = attributeData.find(({ name }) => name === 'title');
-    if (titleAttr) firstMeaningfulText = getAttrText(titleAttr.name, titleAttr.value);
-
-    if (!firstMeaningfulText) {
-      for (const attr of attributePriority) {
-        const found = attributeData.find(({ name }) => name === attr);
-        if (found) {
-          firstMeaningfulText = getAttrText(found.name, found.value);
-          if (firstMeaningfulText) break;
+  let node = el.parentElement;
+  for (let depth = 0; depth < 10 && node; depth++) {
+    for (const sel of TITLE_SELECTORS) {
+      try {
+        const found = node.querySelector(sel);
+        if (found && !isHidden(found)) {
+          // For [title] attribute, read the attribute itself
+          if (sel === '[title]') {
+            const attr = found.getAttribute('title')?.trim();
+            if (attr && attr.length > 1) return attr.slice(0, 200);
+          }
+          const text = (found.textContent || '').trim().replace(/\s+/g, ' ');
+          if (text && text.length > 1 && text.length < 300) return text.slice(0, 200);
         }
-      }
+      } catch (_) {}
+    }
+    node = node.parentElement;
+  }
+  return '';
+}
+
+/** Get direct text of an element (not from children). */
+function getDirectText(el) {
+  if (!el) return '';
+  // Check for value (inputs)
+  if (el.value && el.tagName.toLowerCase() !== 'select') return el.value.trim().slice(0, 200);
+  // Check for direct text nodes only (not nested children)
+  let text = '';
+  for (const child of el.childNodes) {
+    if (child.nodeType === Node.TEXT_NODE) {
+      text += child.textContent;
     }
   }
+  text = text.trim().replace(/\s+/g, ' ');
+  if (text && text.length > 1) return text.slice(0, 200);
+  return '';
+}
 
-  return firstMeaningfulText;
+/** Scan sibling elements for the first visible text. */
+function scanSiblingsForText(el) {
+  if (!el.parentElement) return '';
+  const siblings = Array.from(el.parentElement.children);
+  for (const sib of siblings) {
+    if (sib === el) continue;
+    const text = getVisibleChildText(sib);
+    if (text) return text;
+  }
+  return '';
+}
+
+/** Scan direct children of a container for the first meaningful visible text. */
+function scanChildrenForText(container) {
+  if (!container) return '';
+  const children = Array.from(container.children);
+  for (const child of children) {
+    const text = getVisibleChildText(child);
+    if (text) return text;
+  }
+  return '';
+}
+
+/** Get visible text from an element, preferring short meaningful strings. */
+function getVisibleChildText(el) {
+  if (!el || isHidden(el)) return '';
+  const tag = el.tagName.toLowerCase();
+  // Skip framework noise
+  if (['script', 'style', 'svg', 'path', 'mat-icon'].includes(tag)) return '';
+  // Skip visually-hidden elements
+  if (el.classList?.contains('avq-visually-hidden') || el.classList?.contains('cdk-visually-hidden')) return '';
+
+  const text = (el.textContent || '').trim().replace(/\s+/g, ' ');
+  if (text && text.length > 1 && text.length < 300) return text.slice(0, 200);
+  return '';
 }
 
 /**
@@ -283,10 +397,71 @@ export function getElementIdentity(hiddenFields, element) {
   const coordinates = `${element.getBoundingClientRect().left.toFixed(2)},${element.getBoundingClientRect().top.toFixed(2)}`;
 
   let tagName  = element.tagName.toLowerCase();
-  const someText = getVisibleText(tagName, attributeData, element);
   const xPath  = generateXPath(element);
   const classified = classifyTag(tagName, xPath, element);
   if (classified !== tagName) tagName = classified;
+
+  // ── BancaStato heuristics ────────────────────────────────────────────────
+
+  // 1. IAM framework (login pages, forms, modals)
+  const iamData = resolveIamElement(element);
+  if (iamData) {
+    const someText = iamData.someText || '';
+    // Inject IAM metadata into attributeData
+    if (iamData.iamType)   attributeData.push({ name: 'iam-type', value: iamData.iamType });
+    if (iamData.label)     attributeData.push({ name: 'someText', value: iamData.label });
+    if (iamData.pageTitle) attributeData.push({ name: 'iam-page-title', value: iamData.pageTitle });
+    if (iamData.cardTitle) attributeData.push({ name: 'iam-card-title', value: iamData.cardTitle });
+    if (iamData.inputType) attributeData.push({ name: 'iam-input-type', value: iamData.inputType });
+    if (iamData.buttonId)  attributeData.push({ name: 'iam-button-id', value: iamData.buttonId });
+    if (iamData.href)      attributeData.push({ name: 'iam-href', value: iamData.href });
+
+    return {
+      xPath, tagName, attributeData, customXPath: '',
+      attribId, attribName, coordinates, someText,
+    };
+  }
+
+  // 2. AVQ card components (trading, portfolio)
+  const cardData = resolveAvqCard(element);
+
+  let someText = '';
+  if (cardData) {
+    // Use the card's computed someText (title + key-values + currency)
+    someText = cardData.someText;
+
+    // Inject card data into attributeData so Java receives it
+    if (cardData.title) {
+      attributeData.push({ name: 'someText', value: cardData.title });
+    }
+    if (cardData.testId) {
+      attributeData.push({ name: 'card-test-id', value: cardData.testId });
+    }
+    if (cardData.radioValue) {
+      attributeData.push({ name: 'card-radio-value', value: cardData.radioValue });
+    }
+    if (cardData.currency) {
+      attributeData.push({ name: 'card-currency', value: cardData.currency });
+    }
+    if (cardData.performance) {
+      attributeData.push({ name: 'card-performance', value: cardData.performance });
+    }
+    // Add each key-value pair as an attribute
+    cardData.keyValues.forEach((kv, i) => {
+      if (kv.label && kv.value) {
+        attributeData.push({ name: 'card-kv-' + kv.label.toLowerCase().replace(/\s+/g, '-'), value: kv.value });
+      }
+    });
+    // Add action buttons
+    cardData.actions.forEach((act, i) => {
+      if (act.ariaLabel) {
+        attributeData.push({ name: 'card-action-' + i, value: act.ariaLabel });
+      }
+    });
+  } else {
+    // Standard text extraction for non-card elements
+    someText = getVisibleText(tagName, attributeData, element);
+  }
 
   return {
     xPath,

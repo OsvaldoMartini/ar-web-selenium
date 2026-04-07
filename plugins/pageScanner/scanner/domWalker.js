@@ -11,6 +11,8 @@
  */
 
 import { generateXPath } from './xpathResolver.js';
+import { resolveIamElement } from '../../bancaStato/iamResolver.js';
+import { resolveAvqCard }    from '../../bancaStato/cardResolver.js';
 
 const SKIP_TAGS = new Set(['html', 'body', 'main', 'script', 'meta', 'head', 'style']);
 const INTERACTIVE_TAGS = ['input', 'textarea', 'button', 'a', 'select', 'label', 'span', 'div'];
@@ -150,14 +152,38 @@ function describeCssSelector(el) {
 }
 
 function extractSomeText(el, attributes) {
+  // ── BancaStato heuristics (IAM + AVQ) ──────────────────────────────────
+  const iamData = resolveIamElement(el);
+  if (iamData && iamData.someText) return iamData.someText;
+
+  const cardData = resolveAvqCard(el);
+  if (cardData && cardData.someText) return cardData.someText;
+
+  // ── Standard extraction ────────────────────────────────────────────────
+  // 1. label[for] association
+  if (el.id) {
+    const label = document.querySelector('label[for="' + el.id + '"]');
+    if (label) {
+      const text = label.textContent?.trim();
+      if (text && !label.classList?.contains('avq-visually-hidden')
+          && !label.classList?.contains('cdk-visually-hidden')) {
+        return text;
+      }
+    }
+  }
+
+  // 2. aria-labelledby
   const ariaLabelledBy = attributes.find(a => a.name === 'aria-labelledby')?.value;
   if (ariaLabelledBy) {
     const labelEl = document.getElementById(ariaLabelledBy);
     if (labelEl) return labelEl.textContent.trim();
   }
+
+  // 3. aria-label
   const ariaLabel = attributes.find(a => a.name === 'aria-label')?.value;
   if (ariaLabel) return ariaLabel.trim();
 
+  // 4. Visible text content
   const computedStyle = window.getComputedStyle(el);
   if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') return '';
 

@@ -1,36 +1,46 @@
 {
   "version": "1.0.0",
-  "updated": "2026-03-26",
+  "updated": "2026-04-07",
   "plugins": [
+    {
+      "id": "bancaStato",
+      "name": "BancaStato Context",
+      "description": "Shared heuristic resolvers for BancaStato IAM and AVQ components. Used by pageScanner and hoverPick for label/title extraction.",
+      "version": "1.0.0",
+      "icon": "🏦",
+      "size": "8 KB",
+      "fileName": "bancaStato.zip",
+      "downloadUrl": "/plugins/bancaStato.zip"
+    },
     {
       "id": "pageScanner",
       "name": "Page Scanner",
       "description": "DOM traversal, element detection, WebSocket chunk sender, red outline highlighting. The core scanner plugin for AR Web.",
-      "version": "4.7.1",
+      "version": "4.7.2",
       "icon": "🔍",
       "size": "20 KB",
       "fileName": "pageScanner.zip",
       "downloadUrl": "/plugins/pageScanner.zip"
     },
     {
-      "id": "pluginTest",
-      "name": "Plugin Test",
-      "description": "Smoke-test plugin that verifies the plugin loading pipeline. Shows a green overlay and logs to console.",
-      "version": "1.0.0",
-      "icon": "✅",
-      "size": "2 KB",
-      "fileName": "pluginTest.zip",
-      "downloadUrl": "/plugins/pluginTest.zip"
-    },
-    {
       "id": "hoverPick",
       "name": "Hover Pick",
-      "description": "Mouse tracking with coordinate overlay. Click any element to select it, auto-detects iframes and shadow DOM.",
-      "version": "4.7.0",
+      "description": "Mouse tracking with coordinate overlay. Click any element to select it, auto-detects iframes and shadow DOM. BancaStato-aware.",
+      "version": "4.7.1",
       "icon": "🎯",
-      "size": "14 KB",
+      "size": "24 KB",
       "fileName": "hoverPick.zip",
       "downloadUrl": "/plugins/hoverPick.zip"
+    },
+    {
+      "id": "actionExecutor",
+      "name": "Action Executor",
+      "description": "WebSocket-based DOM action executor. Receives click/type/select commands from Java and executes them directly in the browser, bypassing Selenium visibility checks.",
+      "version": "1.1.0",
+      "icon": "⚙️",
+      "size": "7 KB",
+      "fileName": "actionExecutor.zip",
+      "downloadUrl": "/plugins/actionExecutor.zip"
     },
     {
       "id": "searchList",
@@ -51,6 +61,16 @@
       "size": "17 KB",
       "fileName": "searchListAsync.zip",
       "downloadUrl": "/plugins/searchListAsync.zip"
+    },
+    {
+      "id": "pluginTest",
+      "name": "Plugin Test",
+      "description": "Smoke-test plugin that verifies the plugin loading pipeline. Shows a green overlay and logs to console.",
+      "version": "1.0.0",
+      "icon": "✅",
+      "size": "2 KB",
+      "fileName": "pluginTest.zip",
+      "downloadUrl": "/plugins/pluginTest.zip"
     }
   ]
 }
