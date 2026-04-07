@@ -517,13 +517,13 @@ public class PerformActions {
                                 }
 
                                 if (!passed) {
-                                    // Try by coordinates
-                                    passed = executeActionsAtCoordinates(
-                                            savedCoordinates, data, ARConstantsEngine.SELECT, pressEnterAfter);
-                                }
-                                if (!passed) {
                                     // Fallback: try via actionExecutor (JS in browser)
                                     passed = tryActionExecutor("select", currentInstruction, data.getValue());
+                                }
+                                if (!passed) {
+                                    // Last resort: try by coordinates
+                                    passed = executeActionsAtCoordinates(
+                                            savedCoordinates, data, ARConstantsEngine.SELECT, pressEnterAfter);
                                 }
                                 return passed;
                             }
@@ -552,13 +552,13 @@ public class PerformActions {
                                 }
 
                                 if (!passed) {
-                                    // Try by coordinates
-                                    passed = executeActionsAtCoordinates(
-                                            savedCoordinates, data, ARConstantsEngine.INSERT, pressEnterAfter);
-                                }
-                                if (!passed) {
                                     // Fallback: try via actionExecutor (JS in browser)
                                     passed = tryActionExecutor("type", currentInstruction, data.getValue());
+                                }
+                                if (!passed) {
+                                    // Last resort: try by coordinates
+                                    passed = executeActionsAtCoordinates(
+                                            savedCoordinates, data, ARConstantsEngine.INSERT, pressEnterAfter);
                                 }
                                 return passed;
                             }
