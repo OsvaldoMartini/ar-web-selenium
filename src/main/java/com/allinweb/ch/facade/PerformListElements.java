@@ -70,6 +70,14 @@ public class PerformListElements {
         return jsSearchListAsync;
     }
 
+    /** Clear cache so the script reloads from disk on next injection. */
+    public static void reloadScript() {
+        synchronized (PerformListElements.class) {
+            jsSearchListAsync = null;
+            log.info("PerformListElements — searchListAsync cache cleared");
+        }
+    }
+
     // Private constructor to prevent instantiation
     private PerformListElements() {}
 

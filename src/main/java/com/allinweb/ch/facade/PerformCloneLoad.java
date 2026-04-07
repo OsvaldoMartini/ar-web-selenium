@@ -48,6 +48,18 @@ public class PerformCloneLoad {
         return jsHoverPick;
     }
 
+    /**
+     * Clears the cached hoverPick bundle so the next injection
+     * re-reads the file from disk. Call this from a "Refresh Plugins"
+     * button to pick up script changes without restarting the JVM.
+     */
+    public static void reloadScript() {
+        synchronized (PerformCloneLoad.class) {
+            jsHoverPick = null;
+            log.info("PerformCloneLoad — hoverPick cache cleared, will reload on next injection");
+        }
+    }
+
     // Private constructor — use getInstance()
     private PerformCloneLoad() {}
 

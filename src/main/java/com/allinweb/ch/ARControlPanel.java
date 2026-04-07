@@ -6,6 +6,7 @@ import com.allinweb.ch.component.scene.ARMainScene;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformInitializer;
 import com.allinweb.ch.facade.PerformMessage;
+import com.allinweb.ch.facade.PluginFileWatcher;
 import com.allinweb.ch.license.LicenceVal;
 import com.allinweb.ch.license.LicenseManager;
 import com.allinweb.ch.socket.ARWebSocketServer;
@@ -141,6 +142,9 @@ public class ARControlPanel extends Application {
         arWebSocketServerIP = ARWebSocketServerIP.getInstance();
         arWebSocketServer = ARWebSocketServer.getInstance();
         performDataBase.callSocketLists("perform-list-data", "non-negotiable");
+
+        // Start watching plugins directory for .min.js changes (hot reload)
+        PluginFileWatcher.getInstance().start();
     }
 
     private static void setLogPath() {

@@ -102,6 +102,14 @@ public class PerformActions {
     @Setter
     private boolean justCalledRefreshPage = false;
 
+    /** Called after page refresh/navigation to re-inject plugins (e.g. actionExecutor). */
+    @Setter
+    private Runnable onPageRefresh;
+
+    /** Called to re-inject the actionExecutor plugin when it's not alive in the browser. */
+    @Setter
+    private Runnable actionExecutorInjector;
+
     // Private constructor to prevent instantiation
     private PerformActions() {}
 
@@ -431,6 +439,9 @@ public class PerformActions {
             SplitDTO splitDTO)
             throws Exception {
 
+        // Ensure actionExecutor plugin is alive before executing any action
+        ensureActionExecutor();
+
         WebDriver originalDriver = this.currentDriver; // Save the original WebDriver state
         boolean switchedToIframe = false;
 
@@ -480,11 +491,8 @@ public class PerformActions {
                         } else {
                             passed = clickElement(byPassNotFound, instructionElement);
                             if (!passed) {
-                                // Try by coordinates
-                                FieldData filedData = new FieldData("&EMPTY", "&EMPTY");
-                                //                            passed = executeActionsAtCoordinates(
-                                //                                    savedCoordinates, filedData, ARConstants.CLICK,
-                                // pressEnterAfter);
+                                // Fallback: try via actionExecutor (JS in browser, no visibility checks)
+                                passed = tryActionExecutor("click", currentInstruction, null);
                             }
                         }
                         return passed;
@@ -501,6 +509,10 @@ public class PerformActions {
                                     // Try by coordinates
                                     passed = executeActionsAtCoordinates(
                                             savedCoordinates, data, ARConstantsEngine.SELECT, pressEnterAfter);
+                                }
+                                if (!passed) {
+                                    // Fallback: try via actionExecutor (JS in browser)
+                                    passed = tryActionExecutor("select", currentInstruction, data.getValue());
                                 }
                                 return passed;
                             }
@@ -527,6 +539,10 @@ public class PerformActions {
                                     passed = executeActionsAtCoordinates(
                                             savedCoordinates, data, ARConstantsEngine.INSERT, pressEnterAfter);
                                 }
+                                if (!passed) {
+                                    // Fallback: try via actionExecutor (JS in browser)
+                                    passed = tryActionExecutor("type", currentInstruction, data.getValue());
+                                }
                                 return passed;
                             }
                         }
@@ -541,6 +557,68 @@ public class PerformActions {
             if (switchedToIframe) {
                 setCurrentDriver(originalDriver);
             }
+        }
+    }
+
+    /**
+     * Check if the actionExecutor JS plugin is alive in the browser.
+     * If not, re-inject it via the callback set by ARScannedElementPane.
+     * Called before every action step to ensure the plugin is always available.
+     */
+    public void ensureActionExecutor() {
+        if (currentDriver == null || actionExecutorInjector == null) return;
+
+        try {
+            JavascriptExecutor js = (JavascriptExecutor) currentDriver;
+            Object alive = js.executeScript("return window.__actionExecutorActive === true;");
+            if (Boolean.TRUE.equals(alive)) return;
+
+            logOperations.info("actionExecutor not alive in browser — re-injecting");
+            actionExecutorInjector.run();
+        } catch (Exception e) {
+            logOperations.warn("ensureActionExecutor check failed: {} — re-injecting", e.getMessage());
+            try {
+                actionExecutorInjector.run();
+            } catch (Exception re) {
+                logOperations.warn("actionExecutor re-injection failed: {}", re.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Fallback: send an action command to the injected actionExecutor JS plugin
+     * via WebSocket.  The browser executes it directly in DOM context —
+     * no Selenium visibility / pointer-events checks.
+     *
+     * @param action      "click", "type", "select", "clear", etc.
+     * @param instruction the current instruction (provides xPath, cssSelector, coordinates, attribId)
+     * @param value       the value to type or select (nullable)
+     * @return true if the JS-side action succeeded
+     */
+    private boolean tryActionExecutor(String action, InstructionLoad instruction, String value) {
+        // Make sure the plugin is alive before sending a command
+        ensureActionExecutor();
+
+        try {
+            ActionExecutorClient client = ActionExecutorClient.getInstance();
+            ActionExecutorClient.ActionResult result = client.sendAction(
+                    action,
+                    instruction.getXpath(),
+                    instruction.getCssSelector(),
+                    instruction.getCoordinates(),
+                    null, // attribId not on InstructionLoad; JS will fallback to xPath/css/coords
+                    value);
+
+            if (result.isSuccess()) {
+                logOperations.info("actionExecutor fallback succeeded: {} — {}", action, result.getMessage());
+                return true;
+            } else {
+                logOperations.warn("actionExecutor fallback failed: {} — {}", action, result.getMessage());
+                return false;
+            }
+        } catch (Exception e) {
+            logOperations.warn("actionExecutor fallback error: {} — {}", action, e.getMessage());
+            return false;
         }
     }
 
@@ -1198,10 +1276,14 @@ public class PerformActions {
             }
         }
 
-        //        for (String handle : this.currentDriver.getWindowHandles()) {
-        //            this.currentDriver.switchTo().window(handle);
-        //            operationsLog.info("Window title: " + this.currentDriver.getTitle());
-        //        }
+        // Re-inject plugins lost during page reload (actionExecutor, etc.)
+        if (onPageRefresh != null) {
+            try {
+                onPageRefresh.run();
+            } catch (Exception e) {
+                logOperations.warn("onPageRefresh callback failed: {}", e.getMessage());
+            }
+        }
     }
 
     private boolean insertInElement(

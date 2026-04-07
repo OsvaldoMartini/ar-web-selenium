@@ -61,6 +61,30 @@ public class PerformPreLoad {
     }
 
     /**
+     * Clears the cached pageScanner bundle so the next injection
+     * re-reads the file from disk. Call this from a "Refresh Plugins"
+     * button to pick up script changes without restarting the JVM.
+     */
+    public static void reloadScript() {
+        synchronized (PerformPreLoad.class) {
+            jsScanner = null;
+            log.info("PerformPreLoad — pageScanner cache cleared, will reload on next injection");
+        }
+    }
+
+    /**
+     * Clears ALL plugin caches (pageScanner + hoverPick + actionExecutor).
+     * Convenience method for a single "Refresh Plugins" button.
+     */
+    public static void reloadAllPlugins() {
+        reloadScript();
+        PerformCloneLoad.reloadScript();
+        PerformActionExecutorLoad.reloadScript();
+        PerformListElements.reloadScript();
+        log.info("All plugin caches cleared — scripts will reload on next injection");
+    }
+
+    /**
      * Reads a plugin script from the filesystem, using the PATH_PLUGINS
      * config property as the base directory.
      *

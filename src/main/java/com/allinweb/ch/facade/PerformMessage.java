@@ -799,11 +799,11 @@ public class PerformMessage {
             buttonPanel.add(stopButton);
 
             if (seconds > 0) {
-                // Use a Timer to trigger the Stop button action after the specified delay
+                // Use a Timer to default to "Continue scan" (OK) after the specified delay
                 Timer timer = new Timer(seconds * 1000, e -> {
-                    // Simulate a click on the Stop button
-                    stopButton.getActionListeners()[0].actionPerformed(
-                            new ActionEvent(stopButton, ActionEvent.ACTION_PERFORMED, null));
+                    // Simulate a click on the OK button (Continue scan)
+                    okButton.getActionListeners()[0].actionPerformed(
+                            new ActionEvent(okButton, ActionEvent.ACTION_PERFORMED, null));
                 });
                 timer.setRepeats(false); // Make sure the timer only runs once
                 timer.start();

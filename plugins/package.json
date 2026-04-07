@@ -1,0 +1,13 @@
+{
+  "name": "ar-web-plugins",
+  "version": "1.0.0",
+  "description": "AR Web browser plugins — esbuild bundled JS injected by Selenium",
+  "private": true,
+  "scripts": {
+    "build": "node build-plugins.js",
+    "watch": "node watch-plugins.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.0"
+  }
+}

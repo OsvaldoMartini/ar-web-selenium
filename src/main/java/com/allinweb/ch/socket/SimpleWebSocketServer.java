@@ -2,10 +2,7 @@ package com.allinweb.ch.socket;
 
 import com.allinweb.ch.component.scene.ARExcelFileScene;
 import com.allinweb.ch.component.scene.ARSaveComponentScene;
-import com.allinweb.ch.facade.PerformDBEngine;
-import com.allinweb.ch.facade.PerformDataBase;
-import com.allinweb.ch.facade.PerformLists;
-import com.allinweb.ch.facade.PerformMessage;
+import com.allinweb.ch.facade.*;
 import com.allinweb.ch.model.*;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
@@ -34,6 +31,7 @@ public class SimpleWebSocketServer {
     private static WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static ARExcelFileScene arExcelFileScene = ARExcelFileScene.getInstance();
     private static ARSaveComponentScene arSaveComponentScene = ARSaveComponentScene.getInstance();
+    private static  ActionExecutorClient actionExecutorClient = ActionExecutorClient.getInstance();
     private final Gson gson = new Gson();
     private PayloadJson payloadEmpty;
     private RowStatus rowStatus = new RowStatus();
@@ -461,6 +459,11 @@ public class SimpleWebSocketServer {
                         performMessage.outputJsonElementDTO(
                                 splitDTO.getElementDetails(), excludeList, "AI-ElementDTO", jsonPath);
                     }
+                    alreadySentMgsSocket = true;
+                    break;
+                case "ACTION_EXECUTOR":
+                    // Route actionExecutor results to the ActionExecutorClient
+                    actionExecutorClient.onResult(jsonEntry);
                     alreadySentMgsSocket = true;
                     break;
                 case "UPDATE_LIST_ELEMENTS":

@@ -103,6 +103,8 @@ public class ARScannedElementPane extends ARPane {
     private static final PerformMessage performMessage = PerformMessage.getInstance();
     private static final PerformPreLoad performPreLoad = PerformPreLoad.getInstance();
     private static final PerformListElements performListElements = PerformListElements.getInstance();
+    private static final PerformActionExecutorLoad performActionExecutorLoad = PerformActionExecutorLoad.getInstance();
+    private static final ActionExecutorClient actionExecutorClient = ActionExecutorClient.getInstance();
     private static final ARNewHomeBankingScene arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
     public static TargetElement targetSelected = new TargetElement();
     protected static volatile ARScannedElementPane instance;
@@ -1540,6 +1542,9 @@ public class ARScannedElementPane extends ARPane {
             if (!lastBrowserTab()) {
                 return;
             }
+
+            // Clear plugin caches so scripts reload from disk on next injection
+            PerformPreLoad.reloadAllPlugins();
 
             performActions.refreshPage();
 
@@ -3268,6 +3273,9 @@ public class ARScannedElementPane extends ARPane {
 
                             performLists.resetListElements();
                             pushUpdateListElements();
+
+                            // Inject actionExecutor plugin (once per page)
+                            injectActionExecutor();
 
                             logOperations.info("Total Target Elements: "
                                     + performLists.getListTargetElements().size());
@@ -6989,6 +6997,42 @@ public class ARScannedElementPane extends ARPane {
                 "searchTerms",
                 this.currentBotJob.getHomeBankingId(),
                 this.currentBotJob.getId());
+    }
+
+    /**
+     * Inject the actionExecutor plugin into the current browser page.
+     * The plugin stays alive as a WebSocket listener and executes DOM
+     * actions (click, type, ...) sent from Java — no Selenium visibility checks.
+     * Safe to call multiple times: the JS guards against double injection.
+     */
+    private void injectActionExecutor() {
+        if (performActions == null || performActions.getCurrentDriver() == null) return;
+
+        String sessionId = String.valueOf(this.currentBotJob.getHomeBankingId());
+        String destination = "engine-perform-bot-job";
+
+        ErrorMessage error = performActionExecutorLoad.injectActionExecutor(
+                performActions.getCurrentDriver(),
+                portSocketInitial,
+                sessionId,
+                destination,
+                this.currentBotJob.getHomeBankingId(),
+                this.currentBotJob.getId());
+
+        if (error != null) {
+            logOperations.warn("actionExecutor injection failed: {} — falling back to Selenium",
+                    error.getErrorMessage());
+        } else {
+            // Configure the client so performWebActions can use it
+            actionExecutorClient.configure(
+                    this.currentBotJob.getHomeBankingId(), sessionId);
+        }
+
+        // Wire callbacks so the plugin is re-injected automatically:
+        // 1. After refreshPage() — page reload kills the JS plugin
+        performActions.setOnPageRefresh(this::injectActionExecutor);
+        // 2. Before any action step — ensureActionExecutor() checks if alive, re-injects if not
+        performActions.setActionExecutorInjector(this::injectActionExecutor);
     }
 
     public void updateListElements(
