@@ -8,7 +8,7 @@
 
 import { getElementIdentity } from '../scanner/elementIdentity.js';
 import { elementDTO, resolveControlFromClicked } from '../classifier/nameLabelResolver.js';
-import { getCoordinatesElement, getOriginalStyles } from '../highlight/highlighter.js';
+import { getCoordinatesElement, getOriginalStyles, showPickedToast } from '../highlight/highlighter.js';
 import { sendData } from '../sender/dataSender.js';
 
 /**
@@ -91,6 +91,9 @@ export function buildClickHandler(hiddenFields, wsClient) {
         pushElement(hiddenFields, clickedElement, null, null, originalStyles);
       }
     }
+
+    // Show toast with picked element info
+    showPickedToast(clickedElement);
 
     sendData(wsClient);
 

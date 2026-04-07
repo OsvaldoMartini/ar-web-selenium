@@ -38,6 +38,7 @@ export function resolveControlFromClicked(el) {
 
   const tag = el.tagName?.toLowerCase();
 
+  // LABEL → resolve to associated form control
   if (tag === 'mat-label' || tag === 'label') {
     const label = tag === 'label' ? el : el.closest('label');
     const forId = label?.getAttribute('for');
@@ -48,6 +49,22 @@ export function resolveControlFromClicked(el) {
     const mff = el.closest('mat-form-field');
     const control = mff?.querySelector('textarea, input, select');
     if (control) return control;
+  }
+
+  // CARD with radio/checkbox → resolve to the input control inside the card
+  // Handles Angular Material cards (avq-card, mat-card) where the actual
+  // actionable element is a radio or checkbox buried inside the card structure.
+  if (tag !== 'input') {
+    const card = el.closest('avq-card, avq-portfolio-card, avq-trading-recent-trade-card, mat-card');
+    if (card) {
+      const radioInput = card.querySelector(
+        'mat-radio-button input[type="radio"], mat-checkbox input[type="checkbox"]'
+      );
+      if (radioInput) {
+        alert('[hoverPick] Card resolved → input[type=' + radioInput.type + '] id=' + (radioInput.id || 'none'));
+        return radioInput;
+      }
+    }
   }
 
   return el;

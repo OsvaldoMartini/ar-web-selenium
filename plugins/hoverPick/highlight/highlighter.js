@@ -137,3 +137,60 @@ export function clearRevertInterval() {
     restoreIntervalId = null;
   }
 }
+
+/**
+ * Show a small toast notification when an element is picked.
+ *
+ * @param {Element} el  The picked DOM element
+ */
+export function showPickedToast(el) {
+  if (!el) return;
+
+  // Remove any previous toast
+  const prev = document.getElementById('__hoverPickToast');
+  if (prev) prev.remove();
+
+  const tag  = el.tagName.toLowerCase();
+  const id   = el.id ? '#' + el.id : '';
+  const name = el.getAttribute('name') ? '[name="' + el.getAttribute('name') + '"]' : '';
+  const type = el.getAttribute('type') ? '[type="' + el.getAttribute('type') + '"]' : '';
+  const text = (el.textContent || '').trim().substring(0, 40);
+  const label = text ? ' \u2014 "' + text + (text.length >= 40 ? '\u2026' : '') + '"' : '';
+
+  const toast = document.createElement('div');
+  toast.id = '__hoverPickToast';
+  toast.textContent = '\u2714 Selected: <' + tag + id + name + type + '>' + label;
+
+  Object.assign(toast.style, {
+    position:        'fixed',
+    bottom:          '20px',
+    left:            '50%',
+    transform:       'translateX(-50%)',
+    padding:         '10px 20px',
+    backgroundColor: '#1a73e8',
+    color:           '#fff',
+    borderRadius:    '8px',
+    fontSize:        '13px',
+    fontFamily:      'monospace',
+    zIndex:          String(Number.MAX_SAFE_INTEGER),
+    boxShadow:       '0 4px 12px rgba(0,0,0,0.3)',
+    opacity:         '0',
+    transition:      'opacity 0.3s ease',
+    pointerEvents:   'none',
+    whiteSpace:      'nowrap',
+    maxWidth:        '90vw',
+    overflow:        'hidden',
+    textOverflow:    'ellipsis',
+  });
+
+  document.body.appendChild(toast);
+
+  // Fade in
+  requestAnimationFrame(() => { toast.style.opacity = '1'; });
+
+  // Fade out and remove after 3 seconds
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
