@@ -492,7 +492,8 @@ public class PerformActions {
                             try {
                                 passed = clickElement(byPassNotFound, instructionElement);
                             } catch (Exception clickEx) {
-                                logOperations.warn("clickElement threw: {} — trying actionExecutor", clickEx.getMessage());
+                                logOperations.warn(
+                                        "clickElement threw: {} — trying actionExecutor", clickEx.getMessage());
                                 passed = false;
                             }
                             if (!passed) {
@@ -509,10 +510,14 @@ public class PerformActions {
                             } else {
                                 try {
                                     passed = insertDataInSelectElement(
-                                            byPassNotFound, instructionElement, savedCoordinates, data, pressEnterAfter);
+                                            byPassNotFound,
+                                            instructionElement,
+                                            savedCoordinates,
+                                            data,
+                                            pressEnterAfter);
                                 } catch (Exception selectEx) {
-                                    logOperations.warn("Selenium select threw: {} — trying fallbacks",
-                                            selectEx.getMessage());
+                                    logOperations.warn(
+                                            "Selenium select threw: {} — trying fallbacks", selectEx.getMessage());
                                     passed = false;
                                 }
 
@@ -546,8 +551,8 @@ public class PerformActions {
                                             currentInstruction.getCodified(),
                                             pressEnterAfter);
                                 } catch (Exception insertEx) {
-                                    logOperations.warn("Selenium insert threw: {} — trying fallbacks",
-                                            insertEx.getMessage());
+                                    logOperations.warn(
+                                            "Selenium insert threw: {} — trying fallbacks", insertEx.getMessage());
                                     passed = false;
                                 }
 
@@ -627,10 +632,18 @@ public class PerformActions {
                     value);
 
             if (result.isSuccess()) {
-                logOperations.info("actionExecutor fallback succeeded: {} — {}", action, result.getMessage());
+                logOperations.info(
+                        "actionExecutor fallback succeeded: {} — {} (verified={})",
+                        action,
+                        result.getMessage(),
+                        result.isVerified());
                 return true;
             } else {
-                logOperations.warn("actionExecutor fallback failed: {} — {}", action, result.getMessage());
+                logOperations.warn(
+                        "actionExecutor fallback failed: {} — {} (verified={})",
+                        action,
+                        result.getMessage(),
+                        result.isVerified());
                 return false;
             }
         } catch (Exception e) {

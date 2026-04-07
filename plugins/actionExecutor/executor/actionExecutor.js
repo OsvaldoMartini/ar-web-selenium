@@ -94,6 +94,43 @@ function resolveMatParent(el) {
   return null;
 }
 
+// ── Element state capture (before/after verification) ───────────────────────
+
+function captureState(el) {
+  if (!el) return {};
+  const state = {
+    tagName:     el.tagName.toLowerCase(),
+    value:       el.value !== undefined ? el.value : null,
+    checked:     el.checked !== undefined ? el.checked : null,
+    selected:    el.selected !== undefined ? el.selected : null,
+    disabled:    el.disabled || false,
+    className:   el.className || '',
+    ariaChecked: el.getAttribute('aria-checked'),
+    ariaSelected: el.getAttribute('aria-selected'),
+    textContent: (el.textContent || '').trim().substring(0, 80),
+  };
+  // For mat-radio-button: also check parent state
+  const matParent = resolveMatParent(el);
+  if (matParent) {
+    state.matClass    = matParent.className || '';
+    state.matChecked  = matParent.getAttribute('aria-checked');
+    state.matDisabled = matParent.getAttribute('aria-disabled');
+  }
+  return state;
+}
+
+function didStateChange(before, after) {
+  if (!before || !after) return false;
+  return before.value !== after.value
+    || before.checked !== after.checked
+    || before.selected !== after.selected
+    || before.ariaChecked !== after.ariaChecked
+    || before.ariaSelected !== after.ariaSelected
+    || before.className !== after.className
+    || before.matClass !== after.matClass
+    || before.matChecked !== after.matChecked;
+}
+
 // ── Action handlers ─────────────────────────────────────────────────────────
 
 const actions = {
@@ -259,10 +296,33 @@ export function executeCommand(cmd, sendReply) {
   }
 
   try {
+    // Capture element state BEFORE action
+    const before = captureState(el);
+
     const result = handler(el, cmd);
     result.commandId = cmd.commandId;
-    console.log(`[actionExecutor] ${actionName} -> ${result.message}`);
-    sendReply(result);
+
+    // Capture element state AFTER action (small delay for Angular digest)
+    setTimeout(() => {
+      const after = captureState(el);
+      const verified = didStateChange(before, after);
+
+      result.verified = verified;
+      result.before = before;
+      result.after = after;
+
+      if (verified) {
+        console.log(`[actionExecutor] ${actionName} -> VERIFIED (state changed)`);
+      } else {
+        console.log(`[actionExecutor] ${actionName} -> executed but state unchanged`);
+      }
+
+      console.log(`[actionExecutor] before:`, JSON.stringify(before));
+      console.log(`[actionExecutor] after: `, JSON.stringify(after));
+
+      sendReply(result);
+    }, 100);
+    return; // sendReply is called async in setTimeout
   } catch (err) {
     const result = {
       success: false,

@@ -31,7 +31,7 @@ public class SimpleWebSocketServer {
     private static WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static ARExcelFileScene arExcelFileScene = ARExcelFileScene.getInstance();
     private static ARSaveComponentScene arSaveComponentScene = ARSaveComponentScene.getInstance();
-    private static  ActionExecutorClient actionExecutorClient = ActionExecutorClient.getInstance();
+    private static ActionExecutorClient actionExecutorClient = ActionExecutorClient.getInstance();
     private final Gson gson = new Gson();
     private PayloadJson payloadEmpty;
     private RowStatus rowStatus = new RowStatus();

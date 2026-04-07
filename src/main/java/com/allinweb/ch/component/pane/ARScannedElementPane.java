@@ -7020,12 +7020,11 @@ public class ARScannedElementPane extends ARPane {
                 this.currentBotJob.getId());
 
         if (error != null) {
-            logOperations.warn("actionExecutor injection failed: {} — falling back to Selenium",
-                    error.getErrorMessage());
+            logOperations.warn(
+                    "actionExecutor injection failed: {} — falling back to Selenium", error.getErrorMessage());
         } else {
             // Configure the client so performWebActions can use it
-            actionExecutorClient.configure(
-                    this.currentBotJob.getHomeBankingId(), sessionId);
+            actionExecutorClient.configure(this.currentBotJob.getHomeBankingId(), sessionId);
         }
 
         // Wire callbacks so the plugin is re-injected automatically:

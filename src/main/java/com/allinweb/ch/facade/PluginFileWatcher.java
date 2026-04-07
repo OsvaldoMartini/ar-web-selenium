@@ -2,14 +2,13 @@ package com.allinweb.ch.facade;
 
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
-import lombok.extern.slf4j.Slf4j;
-
 import java.io.IOException;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Watches the plugins directory for changes to {@code .min.js} build files.
@@ -60,8 +59,7 @@ public class PluginFileWatcher {
             return;
         }
 
-        String pluginsDir = ARPropertyManager.getInstance()
-                .getProperty(ARPropertyEnum.PATH_PLUGINS);
+        String pluginsDir = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.PATH_PLUGINS);
 
         if (pluginsDir == null || pluginsDir.isBlank()) {
             log.warn("PluginFileWatcher — path_plugins not configured, file watcher disabled");
@@ -90,7 +88,8 @@ public class PluginFileWatcher {
         running.set(false);
         try {
             if (watchService != null) watchService.close();
-        } catch (IOException ignored) {}
+        } catch (IOException ignored) {
+        }
         if (watcherThread != null) watcherThread.interrupt();
         log.info("PluginFileWatcher — stopped");
     }
@@ -127,14 +126,13 @@ public class PluginFileWatcher {
                     Path changed = (Path) event.context();
                     if (changed != null && changed.toString().endsWith(".min.js")) {
                         Path fullPath = dir != null ? dir.resolve(changed) : changed;
-                        log.info("PluginFileWatcher — detected change: {} ({})",
-                                fullPath, kind.name());
+                        log.info("PluginFileWatcher — detected change: {} ({})", fullPath, kind.name());
 
                         if (!cacheCleared) {
                             PerformPreLoad.reloadAllPlugins();
                             cacheCleared = true;
-                            log.info("PluginFileWatcher — plugin caches cleared, " +
-                                    "next injection will use updated scripts");
+                            log.info("PluginFileWatcher — plugin caches cleared, "
+                                    + "next injection will use updated scripts");
                         }
                     }
                 }
@@ -152,7 +150,10 @@ public class PluginFileWatcher {
             log.error("PluginFileWatcher — error: {}", e.getMessage(), e);
         } finally {
             running.set(false);
-            try { if (watchService != null) watchService.close(); } catch (IOException ignored) {}
+            try {
+                if (watchService != null) watchService.close();
+            } catch (IOException ignored) {
+            }
         }
     }
 
@@ -160,16 +161,13 @@ public class PluginFileWatcher {
      * Walk the plugins directory and register every {@code build/} subdirectory.
      * This catches: pageScanner/build/, hoverPick/build/, actionExecutor/build/, etc.
      */
-    private void registerBuildDirs(Path pluginsPath, Map<WatchKey, Path> keyPathMap)
-            throws IOException {
+    private void registerBuildDirs(Path pluginsPath, Map<WatchKey, Path> keyPathMap) throws IOException {
         Files.walkFileTree(pluginsPath, new SimpleFileVisitor<>() {
             @Override
-            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
-                    throws IOException {
+            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
                 if (dir.getFileName().toString().equals("build") || dir.equals(pluginsPath)) {
-                    WatchKey key = dir.register(watchService,
-                            StandardWatchEventKinds.ENTRY_CREATE,
-                            StandardWatchEventKinds.ENTRY_MODIFY);
+                    WatchKey key = dir.register(
+                            watchService, StandardWatchEventKinds.ENTRY_CREATE, StandardWatchEventKinds.ENTRY_MODIFY);
                     keyPathMap.put(key, dir);
                     log.debug("PluginFileWatcher — watching: {}", dir);
                 }

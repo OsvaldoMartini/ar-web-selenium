@@ -74,23 +74,18 @@ public class PerformActionExecutorLoad {
      *   [5] botJobId       — int
      */
     public ErrorMessage injectActionExecutor(
-            WebDriver driver,
-            int port,
-            String sessionId,
-            String destination,
-            int homeBankingId,
-            int botJobId) {
+            WebDriver driver, int port, String sessionId, String destination, int homeBankingId, int botJobId) {
         try {
             log.info(">> Injecting plugin [actionExecutor] — session={}, botJob={}", sessionId, botJobId);
             JavascriptExecutor executor = (JavascriptExecutor) driver;
             executor.executeScript(
                     getScript(),
-                    port,              // arguments[0]
-                    sessionId,         // arguments[1]
-                    destination,       // arguments[2]
-                    "actionExecutor",  // arguments[3]
-                    homeBankingId,     // arguments[4]
-                    botJobId);         // arguments[5]
+                    port, // arguments[0]
+                    sessionId, // arguments[1]
+                    destination, // arguments[2]
+                    "actionExecutor", // arguments[3]
+                    homeBankingId, // arguments[4]
+                    botJobId); // arguments[5]
             return null;
         } catch (PerformPreLoad.PluginLoadException ple) {
             log.error("PerformActionExecutorLoad — plugin load failed: {}", ple.getUserTitle(), ple);

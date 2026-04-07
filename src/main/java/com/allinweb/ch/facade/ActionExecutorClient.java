@@ -1,13 +1,11 @@
 package com.allinweb.ch.facade;
 
+import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import com.allinweb.ch.socket.WebSocketSessionManager;
-import lombok.extern.slf4j.Slf4j;
-
 import java.util.UUID;
 import java.util.concurrent.*;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Java-side client for the actionExecutor browser plugin.
@@ -32,7 +30,7 @@ public class ActionExecutorClient {
     private final ConcurrentHashMap<String, CompletableFuture<ActionResult>> pendingResults = new ConcurrentHashMap<>();
 
     private int homeBankingId;
-    private String sessionId;  // the browser's WS session ID
+    private String sessionId; // the browser's WS session ID
 
     /** Default timeout for waiting on a command result */
     private static final int DEFAULT_TIMEOUT_SECONDS = 15;
@@ -57,10 +55,11 @@ public class ActionExecutorClient {
     public void configure(int homeBankingId, String sessionId) {
         // Cancel any pending futures from the previous session (page was reloaded)
         if (!pendingResults.isEmpty()) {
-            log.info("ActionExecutorClient — clearing {} stale pending results from previous session",
+            log.info(
+                    "ActionExecutorClient — clearing {} stale pending results from previous session",
                     pendingResults.size());
-            pendingResults.forEach((id, future) ->
-                    future.complete(new ActionResult(false, "session reset — page reloaded")));
+            pendingResults.forEach(
+                    (id, future) -> future.complete(new ActionResult(false, "session reset — page reloaded")));
             pendingResults.clear();
         }
         this.homeBankingId = homeBankingId;
@@ -75,19 +74,28 @@ public class ActionExecutorClient {
      */
     public void onResult(JsonObject jsonMessage) {
         try {
-            String commandId = jsonMessage.has("commandId")
-                    ? jsonMessage.get("commandId").getAsString() : null;
+            String commandId =
+                    jsonMessage.has("commandId") ? jsonMessage.get("commandId").getAsString() : null;
 
-            JsonObject result = jsonMessage.has("result")
-                    ? jsonMessage.get("result").getAsJsonObject() : null;
+            JsonObject result =
+                    jsonMessage.has("result") ? jsonMessage.get("result").getAsJsonObject() : null;
 
             if (commandId != null && result != null) {
                 boolean success = result.has("success") && result.get("success").getAsBoolean();
                 String message = result.has("message") ? result.get("message").getAsString() : "";
+                boolean verified =
+                        result.has("verified") && result.get("verified").getAsBoolean();
+
+                // Log before/after state for debugging
+                if (result.has("before") && result.has("after")) {
+                    log.info("ActionExecutorClient — commandId={}, verified={}", commandId, verified);
+                    log.info("  BEFORE: {}", result.get("before"));
+                    log.info("  AFTER:  {}", result.get("after"));
+                }
 
                 CompletableFuture<ActionResult> future = pendingResults.remove(commandId);
                 if (future != null) {
-                    future.complete(new ActionResult(success, message));
+                    future.complete(new ActionResult(success, verified, message));
                 } else {
                     log.warn("ActionExecutorClient — no pending future for commandId={}", commandId);
                 }
@@ -139,16 +147,14 @@ public class ActionExecutorClient {
      * Generic action sender — used by performWebActions fallback.
      */
     public ActionResult sendAction(
-            String action, String xPath, String cssSelector,
-            String coordinates, String attribId, String value) {
+            String action, String xPath, String cssSelector, String coordinates, String attribId, String value) {
         return sendCommand(action, xPath, cssSelector, coordinates, attribId, value);
     }
 
     // ── Core send + wait ────────────────────────────────────────────────────
 
     private ActionResult sendCommand(
-            String action, String xPath, String cssSelector,
-            String coordinates, String attribId, String value) {
+            String action, String xPath, String cssSelector, String coordinates, String attribId, String value) {
 
         String commandId = UUID.randomUUID().toString();
         CompletableFuture<ActionResult> future = new CompletableFuture<>();
@@ -160,11 +166,11 @@ public class ActionExecutorClient {
             command.addProperty("sessionId", sessionId);
             command.addProperty("action", action);
             command.addProperty("commandId", commandId);
-            if (xPath != null)       command.addProperty("xPath", xPath);
-            if (cssSelector != null)  command.addProperty("cssSelector", cssSelector);
-            if (coordinates != null)  command.addProperty("coordinates", coordinates);
-            if (attribId != null)     command.addProperty("attribId", attribId);
-            if (value != null)        command.addProperty("value", value);
+            if (xPath != null) command.addProperty("xPath", xPath);
+            if (cssSelector != null) command.addProperty("cssSelector", cssSelector);
+            if (coordinates != null) command.addProperty("coordinates", coordinates);
+            if (attribId != null) command.addProperty("attribId", attribId);
+            if (value != null) command.addProperty("value", value);
 
             String body = gson.toJson(command);
 
@@ -174,8 +180,11 @@ public class ActionExecutorClient {
 
             // Wait for the result with timeout
             ActionResult result = future.get(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-            log.info("ActionExecutorClient — {} result: success={}, message={}",
-                    action, result.isSuccess(), result.getMessage());
+            log.info(
+                    "ActionExecutorClient — {} result: success={}, message={}",
+                    action,
+                    result.isSuccess(),
+                    result.getMessage());
             return result;
 
         } catch (TimeoutException e) {
@@ -193,15 +202,32 @@ public class ActionExecutorClient {
 
     public static class ActionResult {
         private final boolean success;
+        private final boolean verified;
         private final String message;
 
         public ActionResult(boolean success, String message) {
             this.success = success;
+            this.verified = false;
             this.message = message;
         }
 
-        public boolean isSuccess() { return success; }
-        public String getMessage() { return message; }
+        public ActionResult(boolean success, boolean verified, String message) {
+            this.success = success;
+            this.verified = verified;
+            this.message = message;
+        }
+
+        public boolean isSuccess() {
+            return success;
+        }
+        /** True if the element's state actually changed after the action. */
+        public boolean isVerified() {
+            return verified;
+        }
+
+        public String getMessage() {
+            return message;
+        }
 
         @Override
         public String toString() {
