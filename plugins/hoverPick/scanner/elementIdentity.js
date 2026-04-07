@@ -266,7 +266,9 @@ export function getElementIdentity(hiddenFields, element) {
         element.offsetHeight === 0 ||
         window.getComputedStyle(element).visibility === 'hidden') &&
       !(element.tagName.toLowerCase() === 'input' &&
-        element.type.toLowerCase() === 'hidden')
+        element.type.toLowerCase() === 'hidden') &&
+      // Allow hidden inputs inside Angular Material wrappers (radio, checkbox, etc.)
+      !findCardAncestor(element)
     ) {
       return null;
     }

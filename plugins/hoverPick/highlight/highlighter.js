@@ -167,7 +167,7 @@ export function showPickedToast(el) {
     left:            '50%',
     transform:       'translateX(-50%)',
     padding:         '10px 20px',
-    backgroundColor: '#1a73e8',
+    backgroundColor: '#D32F2F',
     color:           '#fff',
     borderRadius:    '8px',
     fontSize:        '13px',
