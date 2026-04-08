@@ -101,11 +101,7 @@ async function main() {
 function askPassword(prompt) {
   return new Promise(resolve => {
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-    process.stdout.write(prompt);
-    rl.input.on('data', (data) => {
-      rl.close();
-      resolve(data.toString().trim());
-    });
+    rl.question(prompt, answer => { rl.close(); resolve(answer.trim()); });
   });
 }
 
