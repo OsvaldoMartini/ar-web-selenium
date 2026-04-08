@@ -136,7 +136,8 @@ public class EncryptedPluginLoader {
      */
     public void reloadAll() {
         cache.clear();
-        log.info("EncryptedPluginLoader — cache cleared");
+        key = null; // force re-authentication on next load
+        log.info("EncryptedPluginLoader — cache and key cleared");
     }
 
     // ── Decryption ──────────────────────────────────────────────────────────
@@ -174,47 +175,14 @@ public class EncryptedPluginLoader {
         synchronized (this) {
             if (key != null) return;
 
-            // 1. System property
-            String keyHex = System.getProperty("arweb.plugin.key");
+            // Use PluginKeyManager — handles password prompt + license binding
+            key = PluginKeyManager.getInstance().getPluginKey();
 
-            // 2. Environment variable
-            if (keyHex == null || keyHex.isBlank()) {
-                keyHex = System.getenv("ARWEB_PLUGIN_KEY");
+            if (key != null) {
+                log.info("EncryptedPluginLoader — key loaded via PluginKeyManager ({} bytes)", key.length);
+            } else {
+                log.warn("EncryptedPluginLoader — no key available, encrypted plugins will fail to load");
             }
-
-            // 3. Key file in plugins folder
-            if (keyHex == null || keyHex.isBlank()) {
-                String pluginsDir = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.PATH_PLUGINS);
-                if (pluginsDir != null) {
-                    Path keyFile = Paths.get(pluginsDir, "plugins.key");
-                    if (Files.exists(keyFile)) {
-                        try {
-                            keyHex = Files.readString(keyFile, StandardCharsets.UTF_8)
-                                    .trim();
-                            log.info("EncryptedPluginLoader — key loaded from {}", keyFile);
-                        } catch (IOException e) {
-                            log.error("EncryptedPluginLoader — failed to read key file: {}", e.getMessage());
-                        }
-                    }
-                }
-            }
-
-            if (keyHex == null || keyHex.isBlank()) {
-                log.warn("EncryptedPluginLoader — no encryption key found, encrypted plugins will fail to load");
-                return;
-            }
-
-            key = hexToBytes(keyHex);
-            log.info("EncryptedPluginLoader — key loaded ({} bytes)", key.length);
         }
-    }
-
-    private static byte[] hexToBytes(String hex) {
-        int len = hex.length();
-        byte[] bytes = new byte[len / 2];
-        for (int i = 0; i < len; i += 2) {
-            bytes[i / 2] = (byte) ((Character.digit(hex.charAt(i), 16) << 4) + Character.digit(hex.charAt(i + 1), 16));
-        }
-        return bytes;
     }
 }
