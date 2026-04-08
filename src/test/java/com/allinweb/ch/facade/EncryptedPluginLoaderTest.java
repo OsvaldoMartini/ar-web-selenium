@@ -55,9 +55,8 @@ public class EncryptedPluginLoaderTest {
     private static final int PBKDF2_ITERATIONS = 100_000;
     private static final int KEY_LENGTH_BITS = 256;
 
-    // Supabase config
-    private static final String SUPABASE_URL = "https://tlqjpxitggzetgsgvxmp.supabase.co";
-    private static final String SUPABASE_ANON_KEY = "sb_publishable_ivT0y1WFZGyI_4n76eTj0Q_OadxuJIW";
+    // MultiPlugins API (local PostgreSQL backend)
+    private static final String API_URL = "https://multiplugins.ch/api";
 
     private static final String DEFAULT_LICENSE = "D:/Projects/ARWeb-Martini/ARWeb-Scanner/ARWeb.lic";
 
@@ -259,8 +258,8 @@ public class EncryptedPluginLoaderTest {
         System.out.println("  Java:        " + javaVersion);
 
         String json = String.format(
-                "{\"p_license_hash\":\"%s\",\"p_machine_id\":\"%s\",\"p_hostname\":\"%s\","
-                        + "\"p_os_info\":\"%s\",\"p_java_version\":\"%s\"}",
+                "{\"license_hash\":\"%s\",\"machine_id\":\"%s\",\"hostname\":\"%s\","
+                        + "\"os_info\":\"%s\",\"java_version\":\"%s\"}",
                 escapeJson(licenseFingerprint),
                 escapeJson(machineId),
                 escapeJson(hostname),
@@ -270,10 +269,8 @@ public class EncryptedPluginLoaderTest {
         HttpClient client =
                 HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(15)).build();
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(SUPABASE_URL + "/rest/v1/rpc/activate_client"))
+                .uri(URI.create(API_URL + "/client/activate"))
                 .header("Content-Type", "application/json")
-                .header("apikey", SUPABASE_ANON_KEY)
-                .header("Authorization", "Bearer " + SUPABASE_ANON_KEY)
                 .timeout(Duration.ofSeconds(30))
                 .POST(HttpRequest.BodyPublishers.ofString(json))
                 .build();
