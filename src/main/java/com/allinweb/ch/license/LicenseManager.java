@@ -113,6 +113,7 @@ public class LicenseManager {
             return response.statusCode() == 200
                     && (response.body().contains("\"ok\":true") || response.body().contains("\"ok\": true"));
         } catch (Exception e) {
+            System.err.println("[PING] API ping failed: " + e.getClass().getSimpleName() + ": " + e.getMessage());
             return false;
         }
     }

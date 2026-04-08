@@ -36,10 +36,10 @@ import lombok.extern.slf4j.Slf4j;
  * <p>Security model:
  * <ul>
  *   <li>First launch: Java collects machine fingerprint + license hash</li>
- *   <li>Calls Supabase RPC {@code activate_client} to validate the license</li>
+ *   <li>Calls MultiPlugins API {@code /api/client/activate} to validate the license</li>
  *   <li>On success: receives the plugin AES key, wraps it with machine_id + license</li>
- *   <li>Saves as {@code PROTECTED:...} in plugins.key — works offline from now on</li>
- *   <li>Periodic {@code validate_client} call checks expiry/revocation</li>
+ *   <li>Saves as {@code ACTIVATED:...} in plugins.key — works offline from now on</li>
+ *   <li>Periodic {@code /api/client/validate} call checks expiry/revocation</li>
  * </ul>
  *
  * <p>No password prompt needed — the server validates the license, and the key
@@ -69,11 +69,9 @@ public class PluginKeyManager {
     private static final String ACTIVATED_PREFIX = "ACTIVATED:";
     private static final String PROTECTED_PREFIX = "PROTECTED:"; // legacy
 
-    // Supabase config — override with system properties if needed
-    private static final String SUPABASE_URL =
-            System.getProperty("arweb.supabase.url", "https://tlqjpxitggzetgsgvxmp.supabase.co");
-    private static final String SUPABASE_ANON_KEY =
-            System.getProperty("arweb.supabase.key", "sb_publishable_ivT0y1WFZGyI_4n76eTj0Q_OadxuJIW");
+    // MultiPlugins API
+    private static final String API_URL =
+            System.getProperty("arweb.api.url", "https://multiplugins.ch/api");
 
     // Validation interval (days)
     private static final int VALIDATE_INTERVAL_DAYS = 7;
@@ -179,10 +177,10 @@ public class PluginKeyManager {
         String osInfo = System.getProperty("os.name") + " " + System.getProperty("os.version");
         String javaVersion = System.getProperty("java.version");
 
-        // Build JSON body for Supabase RPC
+        // Build JSON body for MultiPlugins API
         String json = String.format(
-                "{\"p_license_hash\":\"%s\",\"p_machine_id\":\"%s\",\"p_hostname\":\"%s\","
-                        + "\"p_os_info\":\"%s\",\"p_java_version\":\"%s\"}",
+                "{\"license_hash\":\"%s\",\"machine_id\":\"%s\",\"hostname\":\"%s\","
+                        + "\"os_info\":\"%s\",\"java_version\":\"%s\"}",
                 escapeJson(licenseFingerprint),
                 escapeJson(machId),
                 escapeJson(hostname),
@@ -190,10 +188,8 @@ public class PluginKeyManager {
                 escapeJson(javaVersion));
 
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(SUPABASE_URL + "/rest/v1/rpc/activate_client"))
+                .uri(URI.create(API_URL + "/client/activate"))
                 .header("Content-Type", "application/json")
-                .header("apikey", SUPABASE_ANON_KEY)
-                .header("Authorization", "Bearer " + SUPABASE_ANON_KEY)
                 .timeout(Duration.ofSeconds(30))
                 .POST(HttpRequest.BodyPublishers.ofString(json))
                 .build();
@@ -313,15 +309,13 @@ public class PluginKeyManager {
                         }
                     }
 
-                    // Download from Supabase Storage
-                    String downloadUrl = SUPABASE_URL + "/storage/v1/object/plugins/" + storagePath;
+                    // Download from MultiPlugins server
+                    String downloadUrl = API_URL.replace("/api", "") + "/data/plugins/" + storagePath;
 
-                    log.info("PluginKeyManager — downloading {} v{} ...", name, version);
+                    log.info("PluginKeyManager — downloading {} v{} from {}", name, version, downloadUrl);
 
                     HttpRequest dlRequest = HttpRequest.newBuilder()
                             .uri(URI.create(downloadUrl))
-                            .header("apikey", SUPABASE_ANON_KEY)
-                            .header("Authorization", "Bearer " + SUPABASE_ANON_KEY)
                             .timeout(Duration.ofSeconds(60))
                             .GET()
                             .build();
@@ -415,14 +409,12 @@ public class PluginKeyManager {
 
     private boolean validateOnline(String licenseFingerprint, String machId) throws Exception {
         String json = String.format(
-                "{\"p_license_hash\":\"%s\",\"p_machine_id\":\"%s\"}",
+                "{\"license_hash\":\"%s\",\"machine_id\":\"%s\"}",
                 escapeJson(licenseFingerprint), escapeJson(machId));
 
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(SUPABASE_URL + "/rest/v1/rpc/validate_client"))
+                .uri(URI.create(API_URL + "/client/validate"))
                 .header("Content-Type", "application/json")
-                .header("apikey", SUPABASE_ANON_KEY)
-                .header("Authorization", "Bearer " + SUPABASE_ANON_KEY)
                 .timeout(Duration.ofSeconds(15))
                 .POST(HttpRequest.BodyPublishers.ofString(json))
                 .build();
