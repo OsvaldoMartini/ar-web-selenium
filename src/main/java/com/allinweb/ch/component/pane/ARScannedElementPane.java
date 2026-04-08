@@ -45,6 +45,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import javafx.animation.FadeTransition;
+import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -166,6 +168,7 @@ public class ARScannedElementPane extends ARPane {
     private Button pageScannerButton;
     private Button pluginUpdateButton;
     private Button updatePluginsButton;
+    private Label lblPluginHint;
     private Button refreshWebPageButton;
     private Button leftButton;
     private Button rightButton;
@@ -1459,6 +1462,12 @@ public class ARScannedElementPane extends ARPane {
         pluginUpdateButton = buildPluginUpdateButton();
         updatePluginsButton = buildUpdatePluginsButton();
 
+        lblPluginHint = new Label();
+        lblPluginHint.setStyle("-fx-font-size: 11px;");
+        lblPluginHint.setVisible(false);
+        lblPluginHint.setManaged(false);
+        lblPluginHint.setWrapText(true);
+
         turnOnOffButton = new Button("Search Hidden Fields: Off");
         turnOnOffButton.setStyle("-fx-background-color: grey; -fx-text-fill: white;");
 
@@ -1669,7 +1678,7 @@ public class ARScannedElementPane extends ARPane {
                             iFrameText);
             vBoxCheckBox.setSpacing(6); // Adjust spacing between CheckBoxes
 
-            topPane.getChildren().add(gridPaneTop); // Add gridPaneTop to topPane
+            topPane.getChildren().addAll(gridPaneTop, lblPluginHint); // Add gridPaneTop + hint to topPane
 
             verticalBox = new VBox();
             verticalBox.setSpacing(10);
@@ -2437,25 +2446,12 @@ public class ARScannedElementPane extends ARPane {
                 currentUrl);
 
         if (errorMessage != null) {
-            String[] lines = errorMessage.getErrorMessage().split("\n");
-
             logOperations.error(
                     "Error: Dynamic Pick One Clone ElementsDTO - {} - {} - {}",
                     errorMessage.getErrorTitle(),
                     errorMessage.getErrorHeader(),
                     errorMessage.getErrorMessage());
-
-            performMessage.showCustomModalDialogDragWin11Timer(
-                    errorMessage.getErrorTitle(),
-                    "<span style='color: #D32F2F; font-weight: bold;'>" + errorMessage.getErrorHeader() + "</span>",
-                    (lines.length > 0 && !Strings.isNullOrEmpty(lines[0]) ? lines[0] : null),
-                    (lines.length > 1 && !Strings.isNullOrEmpty(lines[1]) ? lines[1] : null),
-                    (lines.length > 2 && !Strings.isNullOrEmpty(lines[2]) ? lines[2] : null),
-                    true,
-                    "OK",
-                    null,
-                    350,
-                    0);
+            showPluginHint(errorMessage.getErrorTitle() + " - " + errorMessage.getErrorHeader(), "#f44336", 6);
         }
     }
 
@@ -2481,25 +2477,12 @@ public class ARScannedElementPane extends ARPane {
                 botJobId);
 
         if (errorMessage != null) {
-            String[] lines = errorMessage.getErrorMessage().split("\n");
-
             logOperations.error(
                     "Error: periodicSearchThread - {} - {} - {}",
                     errorMessage.getErrorTitle(),
                     errorMessage.getErrorHeader(),
                     errorMessage.getErrorMessage());
-
-            performMessage.showCustomModalDialogDragWin11Timer(
-                    errorMessage.getErrorTitle(),
-                    "<span style='color: #D32F2F; font-weight: bold;'>" + errorMessage.getErrorHeader() + "</span>",
-                    (lines.length > 0 && !Strings.isNullOrEmpty(lines[0]) ? lines[0] : null),
-                    (lines.length > 1 && !Strings.isNullOrEmpty(lines[1]) ? lines[1] : null),
-                    (lines.length > 2 && !Strings.isNullOrEmpty(lines[2]) ? lines[2] : null),
-                    true,
-                    "OK",
-                    null,
-                    350,
-                    0);
+            showPluginHint(errorMessage.getErrorTitle() + " - " + errorMessage.getErrorHeader(), "#f44336", 6);
         }
     }
 
@@ -7056,25 +7039,12 @@ public class ARScannedElementPane extends ARPane {
                 botJobId);
 
         if (errorMessage != null) {
-            String[] lines = errorMessage.getErrorMessage().split("\n");
-
             logOperations.error(
                     "Error: updateListElements - {} - {} - {}",
                     errorMessage.getErrorTitle(),
                     errorMessage.getErrorHeader(),
                     errorMessage.getErrorMessage());
-
-            performMessage.showCustomModalDialogDragWin11Timer(
-                    errorMessage.getErrorTitle(),
-                    "<span style='color: #D32F2F; font-weight: bold;'>" + errorMessage.getErrorHeader() + "</span>",
-                    (lines.length > 0 && !Strings.isNullOrEmpty(lines[0]) ? lines[0] : null),
-                    (lines.length > 1 && !Strings.isNullOrEmpty(lines[1]) ? lines[1] : null),
-                    (lines.length > 2 && !Strings.isNullOrEmpty(lines[2]) ? lines[2] : null),
-                    true,
-                    "OK",
-                    null,
-                    350,
-                    0);
+            showPluginHint(errorMessage.getErrorTitle() + " - " + errorMessage.getErrorHeader(), "#f44336", 6);
         }
     }
 
@@ -7647,6 +7617,35 @@ public class ARScannedElementPane extends ARPane {
         btn.setTooltip(new Tooltip("Download latest plugins from configured URL"));
         btn.setOnAction(e -> runPluginUpdate());
         return btn;
+    }
+
+    /**
+     * Shows a short fade-away hint below the top button bar.
+     * @param message short text
+     * @param color   CSS color (#4caf50 green, #f44336 red, #ff9800 orange)
+     * @param seconds display time before fade
+     */
+    private void showPluginHint(String message, String color, double seconds) {
+        Platform.runLater(() -> {
+            lblPluginHint.setText(message);
+            lblPluginHint.setStyle(
+                    "-fx-font-size: 11px; -fx-padding: 0 0 0 10; -fx-text-fill: " + color + "; -fx-font-weight: bold;");
+            lblPluginHint.setOpacity(1.0);
+            lblPluginHint.setVisible(true);
+            lblPluginHint.setManaged(true);
+            PauseTransition pause = new PauseTransition(javafx.util.Duration.seconds(seconds));
+            pause.setOnFinished(ev -> {
+                FadeTransition fade = new FadeTransition(javafx.util.Duration.seconds(1.5), lblPluginHint);
+                fade.setFromValue(1.0);
+                fade.setToValue(0.0);
+                fade.setOnFinished(fe -> {
+                    lblPluginHint.setVisible(false);
+                    lblPluginHint.setManaged(false);
+                });
+                fade.play();
+            });
+            pause.play();
+        });
     }
 
     /**

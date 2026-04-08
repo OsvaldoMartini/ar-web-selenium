@@ -70,8 +70,7 @@ public class PluginKeyManager {
     private static final String PROTECTED_PREFIX = "PROTECTED:"; // legacy
 
     // MultiPlugins API
-    private static final String API_URL =
-            System.getProperty("arweb.api.url", "https://multiplugins.ch/api");
+    private static final String API_URL = System.getProperty("arweb.api.url", "https://multiplugins.ch/api");
 
     // Validation interval (days)
     private static final int VALIDATE_INTERVAL_DAYS = 7;
@@ -409,8 +408,7 @@ public class PluginKeyManager {
 
     private boolean validateOnline(String licenseFingerprint, String machId) throws Exception {
         String json = String.format(
-                "{\"license_hash\":\"%s\",\"machine_id\":\"%s\"}",
-                escapeJson(licenseFingerprint), escapeJson(machId));
+                "{\"license_hash\":\"%s\",\"machine_id\":\"%s\"}", escapeJson(licenseFingerprint), escapeJson(machId));
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(API_URL + "/client/validate"))

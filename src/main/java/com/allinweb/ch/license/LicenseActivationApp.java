@@ -144,9 +144,11 @@ public class LicenseActivationApp extends Application {
         TextField tfOrganization = new TextField();
         tfOrganization.setPromptText("Organization name (mandatory)");
 
-        // TextField for entering the license owner's name
         TextField tfLicenseOwner = new TextField();
-        tfLicenseOwner.setPromptText("Licensed to (Owner of the license, min 6 chars)");
+        tfLicenseOwner.setPromptText("User Name");
+
+        TextField tfEmail = new TextField();
+        tfEmail.setPromptText("Email address (for receiving license response)");
 
         // Checkbox to agree
         CheckBox cbAgree = new CheckBox("Agree");
@@ -191,11 +193,22 @@ public class LicenseActivationApp extends Application {
                     } else {
                         try {
                             if (rbRequestLicense.isSelected()) {
+                                String owner = tfLicenseOwner.getText().trim();
+                                String email = tfEmail.getText().trim();
+                                if (!email.isEmpty() && !LicenseManager.isEmail(email)) {
+                                    performMessage.errorMessage(
+                                            "Invalid email format",
+                                            "Please enter a valid email address",
+                                            null,
+                                            null,
+                                            null,
+                                            0);
+                                    return;
+                                }
                                 String desktopDir = getDesktopDir();
 
                                 LicenseManager.generateRequestFile(
-                                        desktopDir, tfOrganization.getText().trim(),
-                                        tfLicenseOwner.getText().trim());
+                                        desktopDir, tfOrganization.getText().trim(), owner, email);
                                 performMessage.showCustomModalDialogDragWin11(
                                         "Request File Generated Successfully!",
                                         "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>The request file for license generation has been successfully created.</span>",
@@ -258,8 +271,16 @@ public class LicenseActivationApp extends Application {
         actionButtonsBox.setPadding(new Insets(10));
 
         // Main layout
-        VBox mainLayout =
-                new VBox(10, headerLabel, radioButtonsBox, scrollPane, tfOrganization, tfLicenseOwner, cbAgree, actionButtonsBox);
+        VBox mainLayout = new VBox(
+                10,
+                headerLabel,
+                radioButtonsBox,
+                scrollPane,
+                tfOrganization,
+                tfLicenseOwner,
+                tfEmail,
+                cbAgree,
+                actionButtonsBox);
         mainLayout.setPadding(new Insets(10));
 
         // Set up the scene

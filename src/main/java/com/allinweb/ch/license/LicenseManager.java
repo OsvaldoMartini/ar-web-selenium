@@ -41,13 +41,27 @@ public class LicenseManager {
     }
 
     /**
-     * Encrypted format: organization|ownerName|pcName|domainName|userName|requestDate (6 parts)
+     * Returns true if the input is a valid email address (RFC 5322 simplified).
      */
-    public static void generateRequestFile(String fileFolder, String organization, String ownerLicence)
+    public static boolean isEmail(String input) {
+        if (input == null || input.isBlank()) return false;
+        return input.matches(
+                "^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~\\-]+@[a-zA-Z0-9](?:[a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?)*\\.[a-zA-Z]{2,}$");
+    }
+
+    /**
+     * Encrypted format:
+     *   organization|owner|pcName|domainName|userName|requestDate|email  (7 parts)
+     * Owner and email are independent — both optional.
+     */
+    public static void generateRequestFile(String fileFolder, String organization, String owner, String email)
             throws Exception {
-        String requestData = organization + "|" + ownerLicence + "|" + SystemDetails.getSystemDetails();
+        String safeEmail = (email != null) ? email : "";
+        String safeOwner = (owner != null) ? owner : "";
+        String requestData = organization + "|" + safeOwner + "|" + SystemDetails.getSystemDetails() + "|" + safeEmail;
         String encryptedRequest = encrypt(requestData, KEY);
-        String fileName = organization + "-" + ownerLicence + ".request";
+        String fileLabel = !safeOwner.isEmpty() ? safeOwner : (!safeEmail.isEmpty() ? safeEmail : "request");
+        String fileName = organization + "-" + fileLabel + ".request";
         File newFile = new File(fileFolder, fileName);
 
         try (FileWriter writer = new FileWriter(newFile)) {
@@ -62,16 +76,17 @@ public class LicenseManager {
      * Sends the encrypted license request directly to the MultiPlugins API.
      * Returns "SUCCESS" on success, or the error message on failure.
      */
-    public static String sendRequestOnline(String organization, String ownerLicence) throws Exception {
-        String requestData = organization + "|" + ownerLicence + "|" + SystemDetails.getSystemDetails();
+    public static String sendRequestOnline(String organization, String owner, String email) throws Exception {
+        String safeEmail = (email != null) ? email : "";
+        String safeOwner = (owner != null) ? owner : "";
+        String requestData = organization + "|" + safeOwner + "|" + SystemDetails.getSystemDetails() + "|" + safeEmail;
         String encryptedRequest = encrypt(requestData, KEY);
 
-        HttpClient client = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(15))
-                .build();
+        HttpClient client =
+                HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(15)).build();
 
-        String json = "{\"content\":\"" + escapeJson(encryptedRequest)
-                + "\",\"organization\":\"" + escapeJson(organization) + "\"}";
+        String json = "{\"content\":\"" + escapeJson(encryptedRequest) + "\",\"organization\":\""
+                + escapeJson(organization) + "\"}";
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(API_URL + "/client/license-request"))
@@ -111,7 +126,8 @@ public class LicenseManager {
 
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             return response.statusCode() == 200
-                    && (response.body().contains("\"ok\":true") || response.body().contains("\"ok\": true"));
+                    && (response.body().contains("\"ok\":true")
+                            || response.body().contains("\"ok\": true"));
         } catch (Exception e) {
             System.err.println("[PING] API ping failed: " + e.getClass().getSimpleName() + ": " + e.getMessage());
             return false;
@@ -236,8 +252,9 @@ public class LicenseManager {
     }
 
     public String genereteResponseFile(String decryptedContent, int numDays) {
-        // Format: organization|ownerName|pcName|domainName|userName|requestDate (6 parts)
-        // Legacy: ownerName|pcName|domainName|userName|requestDate (5 parts)
+        // Format: organization|owner|pcName|domainName|userName|requestDate|email (7 parts)
+        // Compat:  organization|owner|pcName|domainName|userName|requestDate (6 parts)
+        // Legacy:  ownerName|pcName|domainName|userName|requestDate (5 parts)
         try {
             String[] parts = decryptedContent.split("\\|");
 
