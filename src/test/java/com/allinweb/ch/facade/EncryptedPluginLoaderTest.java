@@ -1,26 +1,45 @@
 package com.allinweb.ch.facade;
 
+import java.io.Console;
 import java.io.OutputStream;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
+import java.security.MessageDigest;
+import java.security.SecureRandom;
+import java.security.spec.KeySpec;
+import java.time.Duration;
 import java.util.Arrays;
+import java.util.Base64;
+import java.util.Enumeration;
+import java.util.Scanner;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import javax.crypto.Cipher;
+import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
 
 /**
- * Full pipeline test: UNZIP → DECRYPT → VALIDATE
+ * Full pipeline test: ACTIVATE → UNZIP → DECRYPT → VALIDATE
  *
- * Simulates exactly what happens in production:
- *   1. "Plugin Update" button unzips {plugin}.zip → {plugin}/build/{name}.min.enc
- *   2. EncryptedPluginLoader reads .enc → decrypts with plugins.key → returns JS string
- *   3. Selenium injects the JS into the browser
+ * Handles four scenarios:
+ *   A. --activate     → Online activation via Supabase (no password needed)
+ *   B. ACTIVATED:...  → Machine-bound key, unwrap locally
+ *   C. PROTECTED:...  → Legacy password key, prompts password
+ *   D. Plain hex key  → Backward-compatible, no auth needed
  *
  * Run:
- *   java com.allinweb.ch.facade.EncryptedPluginLoaderTest
- *   java com.allinweb.ch.facade.EncryptedPluginLoaderTest "D:\path\to\plugins"
+ *   java EncryptedPluginLoaderTest                                        (auto-detect)
+ *   java EncryptedPluginLoaderTest "D:\path\to\plugins"                   (custom path)
+ *   java EncryptedPluginLoaderTest "D:\path\to\plugins" --activate        (force online activation)
+ *   java EncryptedPluginLoaderTest "D:\path\to\plugins" --license "D:\path\to\ARWeb.lic"
  */
 public class EncryptedPluginLoaderTest {
 
@@ -28,6 +47,19 @@ public class EncryptedPluginLoaderTest {
     private static final int IV_LENGTH = 12;
     private static final int TAG_LENGTH_BYTES = 16;
     private static final int TAG_LENGTH_BITS = 128;
+
+    // Key wrapping constants (must match PluginKeyManager)
+    private static final String ACTIVATED_PREFIX = "ACTIVATED:";
+    private static final String PROTECTED_PREFIX = "PROTECTED:";
+    private static final int SALT_LENGTH = 16;
+    private static final int PBKDF2_ITERATIONS = 100_000;
+    private static final int KEY_LENGTH_BITS = 256;
+
+    // Supabase config
+    private static final String SUPABASE_URL = "https://tlqjpxitggzetgsgvxmp.supabase.co";
+    private static final String SUPABASE_ANON_KEY = "sb_publishable_ivT0y1WFZGyI_4n76eTj0Q_OadxuJIW";
+
+    private static final String DEFAULT_LICENSE = "D:/Projects/ARWeb-Martini/ARWeb-Scanner/ARWeb.lic";
 
     /** Plugin ID → expected .enc filename inside the zip */
     private static final String[][] PLUGINS = {
@@ -40,22 +72,71 @@ public class EncryptedPluginLoaderTest {
     };
 
     public static void main(String[] args) {
-        String pluginsDir = args.length > 0 ? args[0] : "D:/Projects/ARWeb-Martini/ARWeb/plugins";
+        String pluginsDir =
+                args.length > 0 && !args[0].startsWith("--") ? args[0] : "D:/Projects/ARWeb-Martini/ARWeb/plugins";
 
-        System.out.println("=== Full Plugin Pipeline Test: UNZIP → DECRYPT → VALIDATE ===\n");
+        boolean forceActivate = Arrays.asList(args).contains("--activate");
+
+        System.out.println("=== Full Plugin Pipeline Test ===\n");
         System.out.println("Plugins dir: " + pluginsDir + "\n");
 
         try {
-            // --1. Load key --───────────────────────────────────────────────
-            Path keyFile = Paths.get(pluginsDir, "plugins.key");
-            if (!Files.exists(keyFile)) {
-                System.out.println("FAIL: plugins.key not found at " + keyFile.toAbsolutePath());
+            // ── Resolve license path ──
+            String licensePath = DEFAULT_LICENSE;
+            for (int i = 0; i < args.length - 1; i++) {
+                if ("--license".equals(args[i])) {
+                    licensePath = args[i + 1];
+                    break;
+                }
+            }
+
+            String licenseFingerprint = getLicenseFingerprint(licensePath);
+            if (licenseFingerprint == null) {
+                System.out.println("FAIL: Could not read license at " + licensePath);
                 System.exit(1);
             }
-            String keyHex = Files.readString(keyFile, StandardCharsets.UTF_8).trim();
-            byte[] key = hexToBytes(keyHex);
-            System.out.println("Key loaded: " + keyHex.substring(0, 8) + "... (" + (key.length * 8) + "-bit AES)\n");
+            System.out.println("License:     " + licensePath);
+            System.out.println("Fingerprint: " + licenseFingerprint.substring(0, 16) + "...");
 
+            String machineId = getMachineId();
+            System.out.println("Machine ID:  " + machineId.substring(0, 16) + "...\n");
+
+            // ── Load / activate key ──
+            Path keyFile = Paths.get(pluginsDir, "plugins.key");
+            byte[] key;
+
+            if (forceActivate || !Files.exists(keyFile)) {
+                // Online activation
+                System.out.println("=== ONLINE ACTIVATION ===\n");
+                key = activateOnline(keyFile, licenseFingerprint, machineId);
+                if (key == null) {
+                    System.out.println("\nActivation FAILED. Exiting.");
+                    System.exit(1);
+                }
+                System.out.println("\nActivation SUCCEEDED. Key saved to plugins.key\n");
+            } else {
+                String content =
+                        Files.readString(keyFile, StandardCharsets.UTF_8).trim();
+
+                if (content.startsWith(ACTIVATED_PREFIX)) {
+                    System.out.println("plugins.key is MACHINE-BOUND (ACTIVATED)\n");
+                    String encoded = content.substring(ACTIVATED_PREFIX.length());
+                    key = unwrapKey(encoded, machineId, licenseFingerprint);
+                    System.out.println("Key UNLOCKED (" + (key.length * 8) + "-bit AES)\n");
+                } else if (content.startsWith(PROTECTED_PREFIX)) {
+                    System.out.println("plugins.key is PASSWORD-PROTECTED (legacy)\n");
+                    String encoded = content.substring(PROTECTED_PREFIX.length());
+                    String password = askPassword("Enter plugin password: ");
+                    key = unwrapKey(encoded, password, licenseFingerprint);
+                    System.out.println("Key UNLOCKED (" + (key.length * 8) + "-bit AES)\n");
+                } else {
+                    key = hexToBytes(content);
+                    System.out.println("Key loaded (plain hex): " + content.substring(0, 8) + "... (" + (key.length * 8)
+                            + "-bit AES)\n");
+                }
+            }
+
+            // ── Test decrypt all plugins ──
             int passed = 0;
             int failed = 0;
 
@@ -63,9 +144,8 @@ public class EncryptedPluginLoaderTest {
                 String pluginId = plugin[0];
                 String encFileName = plugin[1];
 
-                System.out.println("--" + pluginId + " --");
+                System.out.println("── " + pluginId + " ──");
 
-                // --2. Check ZIP exists --───────────────────────────────────
                 Path zipPath = Paths.get(pluginsDir, pluginId + ".zip");
                 if (!Files.exists(zipPath)) {
                     System.out.println("  SKIP: " + pluginId + ".zip not found\n");
@@ -73,7 +153,6 @@ public class EncryptedPluginLoaderTest {
                 }
                 System.out.println("  ZIP:    " + zipPath.getFileName() + " (" + Files.size(zipPath) + " bytes)");
 
-                // --3. Unzip to temp dir (simulates Plugin Update) --────────
                 Path tempDir = Files.createTempDirectory("plugin-test-" + pluginId);
                 Path buildDir = tempDir.resolve("build");
                 Files.createDirectories(buildDir);
@@ -83,7 +162,6 @@ public class EncryptedPluginLoaderTest {
                     ZipEntry entry;
                     while ((entry = zis.getNextEntry()) != null) {
                         if (entry.isDirectory()) continue;
-                        // Extract into build/ subfolder (same as Java isPluginInstalledLocally)
                         Path target = buildDir.resolve(entry.getName()).normalize();
                         if (!target.startsWith(buildDir)) {
                             System.out.println("  WARN:   zip-slip blocked: " + entry.getName());
@@ -107,11 +185,9 @@ public class EncryptedPluginLoaderTest {
                     continue;
                 }
 
-                // --4. Find .enc file --─────────────────────────────────────
                 Path encPath = buildDir.resolve(encFileName);
                 if (!Files.exists(encPath)) {
                     System.out.println("  FAIL:   " + encFileName + " not found after unzip");
-                    System.out.println("          Files in build/:");
                     try (var list = Files.list(buildDir)) {
                         list.forEach(f -> System.out.println("            " + f.getFileName()));
                     }
@@ -124,10 +200,8 @@ public class EncryptedPluginLoaderTest {
                 byte[] fileData = Files.readAllBytes(encPath);
                 System.out.println("  ENC:    " + encFileName + " (" + fileData.length + " bytes)");
 
-                // --5. Decrypt --────────────────────────────────────────────
                 try {
                     String js = decrypt(fileData, key);
-
                     boolean validJs =
                             js.contains("function") || js.contains("var ") || js.contains("const ") || js.contains("(");
 
@@ -147,12 +221,10 @@ public class EncryptedPluginLoaderTest {
                     failed++;
                 }
 
-                // Cleanup temp
                 deleteDir(tempDir);
                 System.out.println();
             }
 
-            // --Summary --───────────────────────────────────────────────────
             System.out.println("=======================================");
             System.out.println("  " + passed + " PASSED, " + failed + " FAILED");
             System.out.println("=======================================");
@@ -160,8 +232,8 @@ public class EncryptedPluginLoaderTest {
             if (failed > 0) {
                 System.out.println("\nPossible causes:");
                 System.out.println("  - Wrong key (plugins.key doesn't match .enc files)");
+                System.out.println("  - Different machine (key is bound to the activating machine)");
                 System.out.println("  - ZIP contains wrong files (re-run: node encrypt-plugins.js)");
-                System.out.println("  - ZIP has subfolder structure (should be flat, .enc at root)");
                 System.exit(1);
             } else {
                 System.out.println("\nPipeline OK. Ready for production.");
@@ -173,6 +245,79 @@ public class EncryptedPluginLoaderTest {
             System.exit(1);
         }
     }
+
+    // ── Online activation via Supabase ──────────────────────────────────────
+
+    private static byte[] activateOnline(Path keyFile, String licenseFingerprint, String machineId) throws Exception {
+        String hostname = getHostname();
+        String osInfo = System.getProperty("os.name") + " " + System.getProperty("os.version");
+        String javaVersion = System.getProperty("java.version");
+
+        System.out.println("Connecting to activation server...");
+        System.out.println("  Hostname:    " + hostname);
+        System.out.println("  OS:          " + osInfo);
+        System.out.println("  Java:        " + javaVersion);
+
+        String json = String.format(
+                "{\"p_license_hash\":\"%s\",\"p_machine_id\":\"%s\",\"p_hostname\":\"%s\","
+                        + "\"p_os_info\":\"%s\",\"p_java_version\":\"%s\"}",
+                escapeJson(licenseFingerprint),
+                escapeJson(machineId),
+                escapeJson(hostname),
+                escapeJson(osInfo),
+                escapeJson(javaVersion));
+
+        HttpClient client =
+                HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(15)).build();
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(SUPABASE_URL + "/rest/v1/rpc/activate_client"))
+                .header("Content-Type", "application/json")
+                .header("apikey", SUPABASE_ANON_KEY)
+                .header("Authorization", "Bearer " + SUPABASE_ANON_KEY)
+                .timeout(Duration.ofSeconds(30))
+                .POST(HttpRequest.BodyPublishers.ofString(json))
+                .build();
+
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        System.out.println("  HTTP Status: " + response.statusCode());
+
+        if (response.statusCode() != 200) {
+            System.out.println("  ERROR: " + response.body());
+            return null;
+        }
+
+        String body = response.body();
+        boolean ok = body.contains("\"ok\":true") || body.contains("\"ok\": true");
+
+        if (!ok) {
+            String error = extractJsonString(body, "error");
+            System.out.println("  REJECTED: " + error);
+            System.out.println("  Full response: " + body);
+            return null;
+        }
+
+        String pluginKeyHex = extractJsonString(body, "plugin_key");
+        if (pluginKeyHex == null || pluginKeyHex.isEmpty() || pluginKeyHex.equals("YOUR_HEX_KEY_HERE")) {
+            System.out.println("  ERROR: Plugin key not configured on server");
+            System.out.println("  Update the 'plugin_key_hex' in Supabase config table");
+            return null;
+        }
+
+        String clientName = extractJsonString(body, "client_name");
+        System.out.println("  Client:      " + clientName);
+        System.out.println("  Key received: " + pluginKeyHex.substring(0, 8) + "...");
+
+        byte[] key = hexToBytes(pluginKeyHex);
+
+        // Wrap with machine_id + license and save
+        String wrapped = wrapKeyActivated(key, machineId, licenseFingerprint);
+        Files.writeString(keyFile, wrapped, StandardCharsets.UTF_8);
+
+        return key;
+    }
+
+    // ── Plugin decryption ───────────────────────────────────────────────────
 
     private static String decrypt(byte[] fileData, byte[] key) throws Exception {
         if (fileData.length < IV_LENGTH + TAG_LENGTH_BYTES) {
@@ -197,6 +342,155 @@ public class EncryptedPluginLoaderTest {
         return new String(decrypted, StandardCharsets.UTF_8);
     }
 
+    // ── Password prompt (for legacy PROTECTED keys) ─────────────────────────
+
+    private static String askPassword(String prompt) {
+        Console console = System.console();
+        if (console != null) {
+            char[] pw = console.readPassword(prompt);
+            return new String(pw);
+        }
+        System.out.print(prompt);
+        Scanner scanner = new Scanner(System.in);
+        return scanner.nextLine().trim();
+    }
+
+    // ── Machine ID ──────────────────────────────────────────────────────────
+
+    private static String getMachineId() {
+        try {
+            StringBuilder sb = new StringBuilder();
+            sb.append(getHostname()).append("|");
+
+            Enumeration<NetworkInterface> nets = NetworkInterface.getNetworkInterfaces();
+            while (nets.hasMoreElements()) {
+                NetworkInterface ni = nets.nextElement();
+                byte[] mac = ni.getHardwareAddress();
+                if (mac != null && mac.length > 0) {
+                    for (byte b : mac) sb.append(String.format("%02x", b));
+                    sb.append(",");
+                }
+            }
+
+            sb.append(System.getProperty("os.name")).append("|");
+            sb.append(System.getProperty("user.name"));
+
+            return bytesToHex(
+                    MessageDigest.getInstance("SHA-256").digest(sb.toString().getBytes(StandardCharsets.UTF_8)));
+        } catch (Exception e) {
+            // Fallback
+            String fallback = getHostname() + "|" + System.getProperty("user.name");
+            try {
+                return bytesToHex(
+                        MessageDigest.getInstance("SHA-256").digest(fallback.getBytes(StandardCharsets.UTF_8)));
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
+            }
+        }
+    }
+
+    private static String getHostname() {
+        try {
+            return InetAddress.getLocalHost().getHostName();
+        } catch (Exception e) {
+            String cn = System.getenv("COMPUTERNAME");
+            return cn != null ? cn : "unknown";
+        }
+    }
+
+    // ── License fingerprint ─────────────────────────────────────────────────
+
+    private static String getLicenseFingerprint(String licensePath) {
+        try {
+            Path licFile = Paths.get(licensePath);
+            if (!Files.exists(licFile)) return null;
+            byte[] content = Files.readAllBytes(licFile);
+            byte[] hash = MessageDigest.getInstance("SHA-256").digest(content);
+            return bytesToHex(hash);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    // ── Key wrapping (ACTIVATED — machine-bound) ────────────────────────────
+
+    private static String wrapKeyActivated(byte[] pluginKey, String machineId, String fingerprint) throws Exception {
+        byte[] salt = new byte[SALT_LENGTH];
+        new SecureRandom().nextBytes(salt);
+        byte[] iv = new byte[IV_LENGTH];
+        new SecureRandom().nextBytes(iv);
+
+        byte[] wrapperKey = deriveKey(machineId, fingerprint, salt);
+        Cipher cipher = Cipher.getInstance(ALGORITHM);
+        cipher.init(
+                Cipher.ENCRYPT_MODE, new SecretKeySpec(wrapperKey, "AES"), new GCMParameterSpec(TAG_LENGTH_BITS, iv));
+        byte[] encrypted = cipher.doFinal(pluginKey);
+
+        byte[] combined = new byte[salt.length + iv.length + encrypted.length];
+        System.arraycopy(salt, 0, combined, 0, salt.length);
+        System.arraycopy(iv, 0, combined, salt.length, iv.length);
+        System.arraycopy(encrypted, 0, combined, salt.length + iv.length, encrypted.length);
+
+        return ACTIVATED_PREFIX + Base64.getEncoder().encodeToString(combined);
+    }
+
+    // ── Key unwrapping (both ACTIVATED and legacy PROTECTED) ────────────────
+
+    private static byte[] unwrapKey(String encoded, String secret, String fingerprint) throws Exception {
+        byte[] combined = Base64.getDecoder().decode(encoded);
+        byte[] salt = Arrays.copyOfRange(combined, 0, SALT_LENGTH);
+        byte[] iv = Arrays.copyOfRange(combined, SALT_LENGTH, SALT_LENGTH + IV_LENGTH);
+        byte[] encrypted = Arrays.copyOfRange(combined, SALT_LENGTH + IV_LENGTH, combined.length);
+
+        byte[] wrapperKey = deriveKey(secret, fingerprint, salt);
+        Cipher cipher = Cipher.getInstance(ALGORITHM);
+        cipher.init(
+                Cipher.DECRYPT_MODE, new SecretKeySpec(wrapperKey, "AES"), new GCMParameterSpec(TAG_LENGTH_BITS, iv));
+        return cipher.doFinal(encrypted);
+    }
+
+    private static byte[] deriveKey(String secret, String fingerprint, byte[] salt) throws Exception {
+        String combined = secret + "|" + fingerprint;
+        KeySpec spec = new PBEKeySpec(combined.toCharArray(), salt, PBKDF2_ITERATIONS, KEY_LENGTH_BITS);
+        return SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
+                .generateSecret(spec)
+                .getEncoded();
+    }
+
+    // ── JSON helpers ────────────────────────────────────────────────────────
+
+    private static String extractJsonString(String json, String key) {
+        String search = "\"" + key + "\":\"";
+        int start = json.indexOf(search);
+        if (start < 0) {
+            search = "\"" + key + "\":";
+            start = json.indexOf(search);
+            if (start < 0) return null;
+            start += search.length();
+            while (start < json.length() && json.charAt(start) == ' ') start++;
+            if (start >= json.length() || json.charAt(start) == 'n') return null;
+            if (json.charAt(start) == '"') {
+                start++;
+                int end = json.indexOf('"', start);
+                return end > start ? json.substring(start, end) : null;
+            }
+            return null;
+        }
+        start += search.length();
+        int end = json.indexOf('"', start);
+        return end > start ? json.substring(start, end) : null;
+    }
+
+    private static String escapeJson(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r");
+    }
+
+    // ── Hex utilities ───────────────────────────────────────────────────────
+
     private static byte[] hexToBytes(String hex) {
         int len = hex.length();
         byte[] bytes = new byte[len / 2];
@@ -206,16 +500,20 @@ public class EncryptedPluginLoaderTest {
         return bytes;
     }
 
+    private static String bytesToHex(byte[] bytes) {
+        StringBuilder sb = new StringBuilder(bytes.length * 2);
+        for (byte b : bytes) sb.append(String.format("%02x", b));
+        return sb.toString();
+    }
+
     private static void deleteDir(Path dir) {
         try {
-            Files.walk(dir)
-                    .sorted((a, b) -> b.compareTo(a)) // files before dirs
-                    .forEach(p -> {
-                        try {
-                            Files.delete(p);
-                        } catch (Exception ignored) {
-                        }
-                    });
+            Files.walk(dir).sorted((a, b) -> b.compareTo(a)).forEach(p -> {
+                try {
+                    Files.delete(p);
+                } catch (Exception ignored) {
+                }
+            });
         } catch (Exception ignored) {
         }
     }

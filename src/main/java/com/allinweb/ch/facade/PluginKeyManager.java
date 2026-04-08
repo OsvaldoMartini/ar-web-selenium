@@ -2,6 +2,12 @@ package com.allinweb.ch.facade;
 
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -9,15 +15,14 @@ import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.security.spec.KeySpec;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Base64;
-import java.util.Optional;
+import java.util.Enumeration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 import javafx.application.Platform;
-import javafx.geometry.Insets;
-import javafx.scene.control.*;
-import javafx.scene.layout.GridPane;
+import javafx.scene.control.Alert;
 import javax.crypto.Cipher;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.GCMParameterSpec;
@@ -26,52 +31,61 @@ import javax.crypto.spec.SecretKeySpec;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Manages the plugin encryption key, bound to the license file and a user password.
+ * Manages the plugin encryption key with online activation via Supabase.
  *
  * <p>Security model:
  * <ul>
- *   <li>The actual AES-256 plugin key is stored in {@code plugins.key}, encrypted</li>
- *   <li>The wrapper key is derived from: {@code PBKDF2(password + license_fingerprint)}</li>
- *   <li>If the license changes → fingerprint changes → can't unwrap → BLOCKED</li>
- *   <li>If plugins.key is tampered → decryption fails → BLOCKED</li>
- *   <li>If wrong password → can't derive wrapper key → BLOCKED</li>
+ *   <li>First launch: Java collects machine fingerprint + license hash</li>
+ *   <li>Calls Supabase RPC {@code activate_client} to validate the license</li>
+ *   <li>On success: receives the plugin AES key, wraps it with machine_id + license</li>
+ *   <li>Saves as {@code PROTECTED:...} in plugins.key — works offline from now on</li>
+ *   <li>Periodic {@code validate_client} call checks expiry/revocation</li>
  * </ul>
  *
- * <p>File format of plugins.key (when password-protected):
+ * <p>No password prompt needed — the server validates the license, and the key
+ * is bound to the specific machine (can't be copied to another PC).
+ *
+ * <p>File format of plugins.key (when activated):
  * <pre>
- *   PROTECTED:base64([salt(16)] [iv(12)] [tag(16)] [encrypted_plugin_key])
+ *   ACTIVATED:base64([salt(16)] [iv(12)] [encrypted_plugin_key + gcm_tag])
  * </pre>
- * If the file does NOT start with "PROTECTED:", it's treated as a plain hex key
- * (backward compatibility).
- *
- * <p>First launch flow:
- * <ol>
- *   <li>No plugins.key → prompt "Create plugin password"</li>
- *   <li>Generate random AES-256 key for plugins</li>
- *   <li>Wrap it with PBKDF2(password + license) → save as PROTECTED:...</li>
- * </ol>
- *
- * <p>Normal launch flow:
- * <ol>
- *   <li>plugins.key starts with PROTECTED: → prompt "Enter plugin password"</li>
- *   <li>Derive wrapper key from password + license → unwrap → return plugin key</li>
- * </ol>
+ * If the file starts with "PROTECTED:" (legacy password-based), it falls back
+ * to password prompt. Plain hex keys are also supported (backward compat).
  */
 @Slf4j
 public class PluginKeyManager {
 
     private static volatile PluginKeyManager instance;
 
+    // Crypto constants
     private static final String ALGORITHM = "AES/GCM/NoPadding";
     private static final int SALT_LENGTH = 16;
     private static final int IV_LENGTH = 12;
     private static final int TAG_BITS = 128;
     private static final int PBKDF2_ITERATIONS = 100_000;
     private static final int KEY_LENGTH_BITS = 256;
-    private static final String PROTECTED_PREFIX = "PROTECTED:";
+
+    // Key file prefixes
+    private static final String ACTIVATED_PREFIX = "ACTIVATED:";
+    private static final String PROTECTED_PREFIX = "PROTECTED:"; // legacy
+
+    // Supabase config — override with system properties if needed
+    private static final String SUPABASE_URL =
+            System.getProperty("arweb.supabase.url", "https://tlqjpxitggzetgsgvxmp.supabase.co");
+    private static final String SUPABASE_ANON_KEY =
+            System.getProperty("arweb.supabase.key", "sb_publishable_ivT0y1WFZGyI_4n76eTj0Q_OadxuJIW");
+
+    // Validation interval (days)
+    private static final int VALIDATE_INTERVAL_DAYS = 7;
+
+    private final HttpClient httpClient =
+            HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(15)).build();
 
     /** The unwrapped plugin AES key — null until successfully loaded */
     private byte[] pluginKey;
+
+    /** Cached machine ID */
+    private String machineId;
 
     private PluginKeyManager() {}
 
@@ -87,8 +101,8 @@ public class PluginKeyManager {
     }
 
     /**
-     * Get the plugin encryption key. Prompts for password if needed.
-     * Returns null if the user cancels or authentication fails.
+     * Get the plugin encryption key. Activates online if needed.
+     * Returns null if activation fails.
      */
     public byte[] getPluginKey() {
         if (pluginKey != null) return pluginKey;
@@ -105,29 +119,44 @@ public class PluginKeyManager {
 
                 Path keyFile = Paths.get(pluginsDir, "plugins.key");
                 String licenseFingerprint = getLicenseFingerprint();
+                String machId = getMachineId();
 
                 if (licenseFingerprint == null) {
                     log.error("PluginKeyManager — could not read license fingerprint");
+                    showError("License file not found.\nMake sure ARWeb.lic is in the correct location.");
                     return null;
                 }
 
                 if (!Files.exists(keyFile)) {
-                    // First launch — create new key with password
-                    pluginKey = firstTimeSetup(keyFile, licenseFingerprint);
+                    // ── First launch: online activation ──
+                    pluginKey = activateOnline(keyFile, licenseFingerprint, machId);
                 } else {
                     String content =
                             Files.readString(keyFile, StandardCharsets.UTF_8).trim();
-                    if (content.startsWith(PROTECTED_PREFIX)) {
-                        // Password-protected key
-                        pluginKey = unlockWithPassword(content, licenseFingerprint);
+
+                    if (content.startsWith(ACTIVATED_PREFIX)) {
+                        // ── Machine-bound key (no password needed) ──
+                        String encoded = content.substring(ACTIVATED_PREFIX.length());
+                        pluginKey = unwrapKey(encoded, machId, licenseFingerprint);
+                        log.info("PluginKeyManager — key unlocked (machine-bound)");
+
+                        // Periodic validation in background
+                        scheduleValidation(licenseFingerprint, machId);
+
+                    } else if (content.startsWith(PROTECTED_PREFIX)) {
+                        // ── Legacy password-protected key ──
+                        log.info("PluginKeyManager — legacy PROTECTED key detected, re-activating online");
+                        pluginKey = activateOnline(keyFile, licenseFingerprint, machId);
+
                     } else {
-                        // Plain hex key (backward compatibility)
+                        // ── Plain hex key (backward compatibility) ──
                         pluginKey = hexToBytes(content);
-                        log.info("PluginKeyManager — loaded plain key (not password-protected)");
+                        log.info("PluginKeyManager — loaded plain key (not machine-bound)");
                     }
                 }
             } catch (Exception e) {
                 log.error("PluginKeyManager — failed: {}", e.getMessage(), e);
+                showError("Plugin activation failed:\n" + e.getMessage());
                 pluginKey = null;
             }
         }
@@ -135,71 +164,287 @@ public class PluginKeyManager {
         return pluginKey;
     }
 
-    /** Clear cached key (for re-authentication). */
+    /** Clear cached key (for re-activation). */
     public void clearKey() {
         if (pluginKey != null) Arrays.fill(pluginKey, (byte) 0);
         pluginKey = null;
     }
 
-    // ── First-time setup ────────────────────────────────────────────────────
+    // ── Online activation ───────────────────────────────────────────────────
 
-    private byte[] firstTimeSetup(Path keyFile, String licenseFingerprint) throws Exception {
-        log.info("PluginKeyManager — first-time setup, prompting for new password");
+    private byte[] activateOnline(Path keyFile, String licenseFingerprint, String machId) throws Exception {
+        log.info("PluginKeyManager — activating online...");
 
-        String password = promptNewPassword();
-        if (password == null) {
-            log.warn("PluginKeyManager — user cancelled password creation");
+        String hostname = getHostname();
+        String osInfo = System.getProperty("os.name") + " " + System.getProperty("os.version");
+        String javaVersion = System.getProperty("java.version");
+
+        // Build JSON body for Supabase RPC
+        String json = String.format(
+                "{\"p_license_hash\":\"%s\",\"p_machine_id\":\"%s\",\"p_hostname\":\"%s\","
+                        + "\"p_os_info\":\"%s\",\"p_java_version\":\"%s\"}",
+                escapeJson(licenseFingerprint),
+                escapeJson(machId),
+                escapeJson(hostname),
+                escapeJson(osInfo),
+                escapeJson(javaVersion));
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(SUPABASE_URL + "/rest/v1/rpc/activate_client"))
+                .header("Content-Type", "application/json")
+                .header("apikey", SUPABASE_ANON_KEY)
+                .header("Authorization", "Bearer " + SUPABASE_ANON_KEY)
+                .timeout(Duration.ofSeconds(30))
+                .POST(HttpRequest.BodyPublishers.ofString(json))
+                .build();
+
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+        if (response.statusCode() != 200) {
+            log.error("PluginKeyManager — activation HTTP error: {} {}", response.statusCode(), response.body());
+            showError(
+                    "Activation server returned error " + response.statusCode() + "\nCheck your internet connection.");
             return null;
         }
 
-        // Generate random plugin key
-        byte[] newPluginKey = new byte[32]; // AES-256
-        new SecureRandom().nextBytes(newPluginKey);
+        String body = response.body();
+        log.debug("PluginKeyManager — activation response: {}", body);
 
-        // Wrap and save
-        String wrapped = wrapKey(newPluginKey, password, licenseFingerprint);
-        Files.writeString(keyFile, wrapped, StandardCharsets.UTF_8);
-
-        log.info("PluginKeyManager — new key created and saved (password-protected)");
-        return newPluginKey;
-    }
-
-    // ── Unlock with password ────────────────────────────────────────────────
-
-    private byte[] unlockWithPassword(String fileContent, String licenseFingerprint) throws Exception {
-        String encoded = fileContent.substring(PROTECTED_PREFIX.length());
-
-        for (int attempt = 1; attempt <= 3; attempt++) {
-            String password = promptPassword(attempt);
-            if (password == null) {
-                log.warn("PluginKeyManager — user cancelled password entry");
-                return null;
-            }
-
-            try {
-                byte[] unwrapped = unwrapKey(encoded, password, licenseFingerprint);
-                log.info("PluginKeyManager — key unlocked successfully");
-                return unwrapped;
-            } catch (Exception e) {
-                log.warn("PluginKeyManager — attempt {}/3 failed: {}", attempt, e.getMessage());
-                if (attempt < 3) {
-                    showError("Wrong password (attempt " + attempt + "/3). Try again.");
-                }
-            }
+        // Parse JSON response (minimal parsing, no dependency needed)
+        boolean ok = body.contains("\"ok\":true") || body.contains("\"ok\": true");
+        if (!ok) {
+            String error = extractJsonString(body, "error");
+            log.error("PluginKeyManager — activation rejected: {}", error);
+            String userMsg =
+                    switch (error) {
+                        case "LICENSE_NOT_FOUND" -> "License not recognized.\nContact your administrator.";
+                        case "LICENSE_REVOKED" -> "Your license has been revoked.\nContact your administrator.";
+                        case "LICENSE_EXPIRED" -> "Your license has expired.\nContact your administrator to renew.";
+                        case "MAX_ACTIVATIONS_REACHED" -> "Maximum activations reached for this license.\n"
+                                + "Contact your administrator to increase the limit.";
+                        default -> "Activation failed: " + error;
+                    };
+            showError(userMsg);
+            return null;
         }
 
-        log.error("PluginKeyManager — 3 failed attempts, blocking");
-        showError("Plugin access blocked. Too many wrong password attempts.\nRestart the application to try again.");
-        return null;
+        // Extract the plugin key from response
+        String pluginKeyHex = extractJsonString(body, "plugin_key");
+        if (pluginKeyHex == null || pluginKeyHex.isEmpty() || pluginKeyHex.equals("YOUR_HEX_KEY_HERE")) {
+            log.error("PluginKeyManager — server returned empty/placeholder plugin key");
+            showError(
+                    "Activation succeeded but plugin key not configured on server.\n" + "Contact your administrator.");
+            return null;
+        }
+
+        byte[] key = hexToBytes(pluginKeyHex);
+
+        // Wrap with machine_id + license and save
+        String wrapped = wrapKey(key, machId, licenseFingerprint);
+        Files.writeString(keyFile, wrapped, StandardCharsets.UTF_8);
+
+        String clientName = extractJsonString(body, "client_name");
+        log.info("PluginKeyManager — activated successfully for client: {}", clientName);
+
+        // Download encrypted plugins from Supabase Storage
+        downloadPlugins(body, keyFile.getParent());
+
+        return key;
     }
 
-    // ── Key wrapping (PBKDF2 + AES-GCM) ────────────────────────────────────
+    // ── Plugin download from Supabase Storage ───────────────────────────────
 
-    private String wrapKey(byte[] pluginKey, String password, String licenseFingerprint) throws Exception {
+    /**
+     * Downloads encrypted plugin files (.enc) from Supabase Storage.
+     * Called after successful activation. Parses the plugins array from
+     * the activation response and downloads each file.
+     */
+    private void downloadPlugins(String activationResponse, Path pluginsDir) {
+        new Thread(() -> {
+            try {
+                // Extract plugins array from response
+                // Format: "plugins":[{"name":"...","storage_path":"...","version":"..."}, ...]
+                int pluginsStart = activationResponse.indexOf("\"plugins\":[");
+                if (pluginsStart < 0) {
+                    log.info("PluginKeyManager — no plugins to download");
+                    return;
+                }
+
+                int arrayStart = activationResponse.indexOf('[', pluginsStart);
+                int arrayEnd = findMatchingBracket(activationResponse, arrayStart);
+                if (arrayEnd < 0) return;
+
+                String pluginsJson = activationResponse.substring(arrayStart, arrayEnd + 1);
+
+                // Parse each plugin entry and download
+                int pos = 0;
+                int downloaded = 0;
+                int skipped = 0;
+
+                while (true) {
+                    int objStart = pluginsJson.indexOf('{', pos);
+                    if (objStart < 0) break;
+                    int objEnd = pluginsJson.indexOf('}', objStart);
+                    if (objEnd < 0) break;
+
+                    String obj = pluginsJson.substring(objStart, objEnd + 1);
+                    pos = objEnd + 1;
+
+                    String storagePath = extractJsonString(obj, "storage_path");
+                    String fileName = extractJsonString(obj, "file_name");
+                    String version = extractJsonString(obj, "version");
+                    String name = extractJsonString(obj, "name");
+                    String checksum = extractJsonString(obj, "checksum");
+
+                    if (storagePath == null || storagePath.isEmpty()) continue;
+
+                    // Determine local path: plugins/{pluginName}/build/{name}.min.enc
+                    // The storage_path is like "pageScanner/pageScanner.min.enc"
+                    Path localDir = pluginsDir.resolve(storagePath).getParent();
+                    Path localFile = pluginsDir.resolve(storagePath);
+
+                    // Check if already up to date (by checksum or just existence)
+                    if (Files.exists(localFile) && checksum != null) {
+                        String localChecksum = bytesToHex(sha256(Files.readAllBytes(localFile)));
+                        if (localChecksum.equals(checksum)) {
+                            log.debug("PluginKeyManager — {} v{} already up to date", name, version);
+                            skipped++;
+                            continue;
+                        }
+                    }
+
+                    // Download from Supabase Storage
+                    String downloadUrl = SUPABASE_URL + "/storage/v1/object/plugins/" + storagePath;
+
+                    log.info("PluginKeyManager — downloading {} v{} ...", name, version);
+
+                    HttpRequest dlRequest = HttpRequest.newBuilder()
+                            .uri(URI.create(downloadUrl))
+                            .header("apikey", SUPABASE_ANON_KEY)
+                            .header("Authorization", "Bearer " + SUPABASE_ANON_KEY)
+                            .timeout(Duration.ofSeconds(60))
+                            .GET()
+                            .build();
+
+                    HttpResponse<byte[]> dlResponse =
+                            httpClient.send(dlRequest, HttpResponse.BodyHandlers.ofByteArray());
+
+                    if (dlResponse.statusCode() == 200) {
+                        Files.createDirectories(localDir);
+                        Files.write(localFile, dlResponse.body());
+                        log.info(
+                                "PluginKeyManager — saved {} ({} KB)",
+                                localFile.getFileName(),
+                                dlResponse.body().length / 1024);
+                        downloaded++;
+                    } else {
+                        log.warn("PluginKeyManager — download failed for {}: HTTP {}", name, dlResponse.statusCode());
+                    }
+                }
+
+                log.info("PluginKeyManager — download complete: {} new, {} up-to-date", downloaded, skipped);
+
+            } catch (Exception e) {
+                log.warn("PluginKeyManager — plugin download error: {}", e.getMessage());
+                // Non-fatal — plugins may already exist locally from .zip distribution
+            }
+        });
+    }
+
+    private static int findMatchingBracket(String s, int openPos) {
+        int depth = 0;
+        boolean inString = false;
+        for (int i = openPos; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == '"' && (i == 0 || s.charAt(i - 1) != '\\')) inString = !inString;
+            if (inString) continue;
+            if (c == '[') depth++;
+            else if (c == ']') {
+                depth--;
+                if (depth == 0) return i;
+            }
+        }
+        return -1;
+    }
+
+    // ── Periodic validation ─────────────────────────────────────────────────
+
+    private void scheduleValidation(String licenseFingerprint, String machId) {
+        // Check last validation timestamp
+        try {
+            String pluginsDir = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.PATH_PLUGINS);
+            Path stampFile = Paths.get(pluginsDir, ".last-validation");
+
+            if (Files.exists(stampFile)) {
+                long lastValidation = Long.parseLong(
+                        Files.readString(stampFile, StandardCharsets.UTF_8).trim());
+                long daysSince = (System.currentTimeMillis() - lastValidation) / (1000L * 60 * 60 * 24);
+                if (daysSince < VALIDATE_INTERVAL_DAYS) {
+                    log.debug("PluginKeyManager — last validation {} days ago, skipping", daysSince);
+                    return;
+                }
+            }
+
+            // Run validation in background
+            new Thread(() -> {
+                try {
+                    boolean valid = validateOnline(licenseFingerprint, machId);
+                    if (valid) {
+                        Files.writeString(
+                                Paths.get(pluginsDir, ".last-validation"),
+                                String.valueOf(System.currentTimeMillis()),
+                                StandardCharsets.UTF_8);
+                        log.info("PluginKeyManager — validation passed");
+                    } else {
+                        log.warn("PluginKeyManager — validation failed, clearing key");
+                        clearKey();
+                        // Delete plugins.key so next launch re-activates
+                        Files.deleteIfExists(Paths.get(pluginsDir, "plugins.key"));
+                        showError("Your license is no longer valid.\n"
+                                + "The application will need to re-activate on next launch.");
+                    }
+                } catch (Exception e) {
+                    // Network error — don't block, try next time
+                    log.warn("PluginKeyManager — validation network error: {}", e.getMessage());
+                }
+            });
+        } catch (Exception e) {
+            log.warn("PluginKeyManager — could not schedule validation: {}", e.getMessage());
+        }
+    }
+
+    private boolean validateOnline(String licenseFingerprint, String machId) throws Exception {
+        String json = String.format(
+                "{\"p_license_hash\":\"%s\",\"p_machine_id\":\"%s\"}",
+                escapeJson(licenseFingerprint), escapeJson(machId));
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(SUPABASE_URL + "/rest/v1/rpc/validate_client"))
+                .header("Content-Type", "application/json")
+                .header("apikey", SUPABASE_ANON_KEY)
+                .header("Authorization", "Bearer " + SUPABASE_ANON_KEY)
+                .timeout(Duration.ofSeconds(15))
+                .POST(HttpRequest.BodyPublishers.ofString(json))
+                .build();
+
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+        if (response.statusCode() != 200) {
+            log.warn("PluginKeyManager — validate HTTP error: {}", response.statusCode());
+            return true; // network error → don't block the user
+        }
+
+        String body = response.body();
+        return body.contains("\"ok\":true") || body.contains("\"ok\": true");
+    }
+
+    // ── Key wrapping (machine-bound, PBKDF2 + AES-GCM) ─────────────────────
+
+    private String wrapKey(byte[] pluginKey, String machId, String licenseFingerprint) throws Exception {
         byte[] salt = new byte[SALT_LENGTH];
         new SecureRandom().nextBytes(salt);
 
-        byte[] wrapperKey = deriveKey(password, licenseFingerprint, salt);
+        byte[] wrapperKey = deriveKey(machId, licenseFingerprint, salt);
         byte[] iv = new byte[IV_LENGTH];
         new SecureRandom().nextBytes(iv);
 
@@ -213,38 +458,81 @@ public class PluginKeyManager {
         System.arraycopy(iv, 0, combined, salt.length, iv.length);
         System.arraycopy(encrypted, 0, combined, salt.length + iv.length, encrypted.length);
 
-        return PROTECTED_PREFIX + Base64.getEncoder().encodeToString(combined);
+        return ACTIVATED_PREFIX + Base64.getEncoder().encodeToString(combined);
     }
 
-    private byte[] unwrapKey(String encoded, String password, String licenseFingerprint) throws Exception {
+    private byte[] unwrapKey(String encoded, String machId, String licenseFingerprint) throws Exception {
         byte[] combined = Base64.getDecoder().decode(encoded);
 
         byte[] salt = Arrays.copyOfRange(combined, 0, SALT_LENGTH);
         byte[] iv = Arrays.copyOfRange(combined, SALT_LENGTH, SALT_LENGTH + IV_LENGTH);
         byte[] encrypted = Arrays.copyOfRange(combined, SALT_LENGTH + IV_LENGTH, combined.length);
 
-        byte[] wrapperKey = deriveKey(password, licenseFingerprint, salt);
+        byte[] wrapperKey = deriveKey(machId, licenseFingerprint, salt);
 
         Cipher cipher = Cipher.getInstance(ALGORITHM);
         cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(wrapperKey, "AES"), new GCMParameterSpec(TAG_BITS, iv));
 
-        return cipher.doFinal(encrypted); // the original plugin AES key
+        return cipher.doFinal(encrypted);
     }
 
-    private byte[] deriveKey(String password, String licenseFingerprint, byte[] salt) throws Exception {
-        // Combine password + license fingerprint as the secret
-        String combined = password + "|" + licenseFingerprint;
+    private byte[] deriveKey(String machId, String licenseFingerprint, byte[] salt) throws Exception {
+        String combined = machId + "|" + licenseFingerprint;
         KeySpec spec = new PBEKeySpec(combined.toCharArray(), salt, PBKDF2_ITERATIONS, KEY_LENGTH_BITS);
         SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
         return factory.generateSecret(spec).getEncoded();
     }
 
-    // ── License fingerprint ─────────────────────────────────────────────────
+    // ── Machine fingerprint ─────────────────────────────────────────────────
 
     /**
-     * Read the license file and compute a SHA-256 fingerprint.
-     * The fingerprint binds the plugin key to this specific license.
+     * Generate a stable machine ID from hostname + MAC addresses.
+     * The ID is a SHA-256 hash, so it's consistent across launches.
      */
+    public String getMachineId() {
+        if (machineId != null) return machineId;
+
+        try {
+            StringBuilder sb = new StringBuilder();
+            sb.append(getHostname()).append("|");
+
+            // Collect all MAC addresses
+            Enumeration<NetworkInterface> nets = NetworkInterface.getNetworkInterfaces();
+            while (nets.hasMoreElements()) {
+                NetworkInterface ni = nets.nextElement();
+                byte[] mac = ni.getHardwareAddress();
+                if (mac != null && mac.length > 0) {
+                    for (byte b : mac) sb.append(String.format("%02x", b));
+                    sb.append(",");
+                }
+            }
+
+            // Add OS + user
+            sb.append(System.getProperty("os.name")).append("|");
+            sb.append(System.getProperty("user.name"));
+
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(sb.toString().getBytes(StandardCharsets.UTF_8));
+            machineId = bytesToHex(hash);
+        } catch (Exception e) {
+            log.warn("PluginKeyManager — machine ID fallback: {}", e.getMessage());
+            // Fallback: just hostname + user
+            machineId = bytesToHex(sha256(getHostname() + "|" + System.getProperty("user.name")));
+        }
+
+        return machineId;
+    }
+
+    private String getHostname() {
+        try {
+            return InetAddress.getLocalHost().getHostName();
+        } catch (Exception e) {
+            return System.getenv("COMPUTERNAME") != null ? System.getenv("COMPUTERNAME") : "unknown";
+        }
+    }
+
+    // ── License fingerprint ─────────────────────────────────────────────────
+
     private String getLicenseFingerprint() {
         try {
             String licensePath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.PATH_LICENSE);
@@ -257,95 +545,31 @@ public class PluginKeyManager {
             }
 
             byte[] licContent = Files.readAllBytes(licFile);
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(licContent);
-            return bytesToHex(hash);
+            return bytesToHex(sha256(licContent));
         } catch (Exception e) {
             log.error("PluginKeyManager — failed to read license: {}", e.getMessage());
             return null;
         }
     }
 
-    // ── UI dialogs (JavaFX) ─────────────────────────────────────────────────
-
-    private String promptNewPassword() {
-        return runOnFxThread(() -> {
-            Dialog<String> dialog = new Dialog<>();
-            dialog.setTitle("Plugin Security Setup");
-            dialog.setHeaderText("Create a password to protect your plugins.\n"
-                    + "This password is bound to your license — keep it safe.");
-
-            ButtonType createButton = new ButtonType("Create", ButtonBar.ButtonData.OK_DONE);
-            dialog.getDialogPane().getButtonTypes().addAll(createButton, ButtonType.CANCEL);
-
-            PasswordField pw1 = new PasswordField();
-            pw1.setPromptText("Password");
-            PasswordField pw2 = new PasswordField();
-            pw2.setPromptText("Confirm password");
-
-            GridPane grid = new GridPane();
-            grid.setHgap(10);
-            grid.setVgap(10);
-            grid.setPadding(new Insets(20, 80, 10, 10));
-            grid.add(new Label("Password:"), 0, 0);
-            grid.add(pw1, 1, 0);
-            grid.add(new Label("Confirm:"), 0, 1);
-            grid.add(pw2, 1, 1);
-            dialog.getDialogPane().setContent(grid);
-
-            Platform.runLater(pw1::requestFocus);
-
-            dialog.setResultConverter(btn -> {
-                if (btn == createButton) {
-                    if (pw1.getText().length() < 4) return null;
-                    if (!pw1.getText().equals(pw2.getText())) return null;
-                    return pw1.getText();
-                }
-                return null;
-            });
-
-            Optional<String> result = dialog.showAndWait();
-            return result.orElse(null);
-        });
-    }
-
-    private String promptPassword(int attempt) {
-        return runOnFxThread(() -> {
-            TextInputDialog dialog = new TextInputDialog();
-            dialog.setTitle("Plugin Authentication");
-            dialog.setHeaderText("Enter plugin password" + (attempt > 1 ? " (attempt " + attempt + "/3)" : ""));
-            dialog.setContentText("Password:");
-
-            // Replace TextField with PasswordField
-            PasswordField pwField = new PasswordField();
-            pwField.setPromptText("Password");
-            dialog.getEditor().setVisible(false);
-            dialog.getEditor().setManaged(false);
-            dialog.getDialogPane().setContent(pwField);
-            Platform.runLater(pwField::requestFocus);
-
-            dialog.setResultConverter(btn -> {
-                if (btn == ButtonType.OK) return pwField.getText();
-                return null;
-            });
-
-            Optional<String> result = dialog.showAndWait();
-            return result.orElse(null);
-        });
-    }
+    // ── UI (error dialogs only) ─────────────────────────────────────────────
 
     private void showError(String message) {
-        runOnFxThread(() -> {
-            Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle("Plugin Security");
-            alert.setHeaderText(null);
-            alert.setContentText(message);
-            alert.showAndWait();
-            return null;
-        });
+        try {
+            runOnFxThread(() -> {
+                Alert alert = new Alert(Alert.AlertType.ERROR);
+                alert.setTitle("Plugin Activation");
+                alert.setHeaderText(null);
+                alert.setContentText(message);
+                alert.showAndWait();
+                return null;
+            });
+        } catch (Exception e) {
+            // If no JavaFX available, just log
+            log.error("PluginKeyManager — {}", message);
+        }
     }
 
-    /** Run a UI action on the JavaFX thread and wait for the result. */
     private <T> T runOnFxThread(java.util.function.Supplier<T> action) {
         if (Platform.isFxApplicationThread()) {
             return action.get();
@@ -367,7 +591,53 @@ public class PluginKeyManager {
         return result.get();
     }
 
-    // ── Hex utilities ───────────────────────────────────────────────────────
+    // ── JSON helpers (minimal, no external dependency) ──────────────────────
+
+    private static String extractJsonString(String json, String key) {
+        String search = "\"" + key + "\":\"";
+        int start = json.indexOf(search);
+        if (start < 0) {
+            // Try without quotes (for null values)
+            search = "\"" + key + "\":";
+            start = json.indexOf(search);
+            if (start < 0) return null;
+            start += search.length();
+            // Skip whitespace
+            while (start < json.length() && json.charAt(start) == ' ') start++;
+            if (start >= json.length() || json.charAt(start) == 'n') return null; // null
+            if (json.charAt(start) == '"') {
+                start++;
+                int end = json.indexOf('"', start);
+                return end > start ? json.substring(start, end) : null;
+            }
+            return null;
+        }
+        start += search.length();
+        int end = json.indexOf('"', start);
+        return end > start ? json.substring(start, end) : null;
+    }
+
+    private static String escapeJson(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r");
+    }
+
+    // ── Crypto utilities ────────────────────────────────────────────────────
+
+    private static byte[] sha256(String input) {
+        return sha256(input.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static byte[] sha256(byte[] input) {
+        try {
+            return MessageDigest.getInstance("SHA-256").digest(input);
+        } catch (Exception e) {
+            throw new RuntimeException("SHA-256 not available", e);
+        }
+    }
 
     private static byte[] hexToBytes(String hex) {
         int len = hex.length();
