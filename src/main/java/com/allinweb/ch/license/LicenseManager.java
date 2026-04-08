@@ -12,10 +12,15 @@ import com.sun.jna.ptr.PointerByReference;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.Key;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
@@ -26,6 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class LicenseManager {
     private static final String KEY = "0123456789abcdef"; // 16-byte key for AES-128
+    public static final String API_URL = "https://multiplugins.ch/api";
     private static final PerformMessage performMessage;
     private static final ARPropertyManager arPropertyManager;
 
@@ -34,32 +40,89 @@ public class LicenseManager {
         arPropertyManager = ARPropertyManager.getInstance();
     }
 
-    public static void generateRequestFile(String fileFolder, String ownerLicence) throws Exception {
-        String encryptedRequest = encrypt(ownerLicence + "|" + SystemDetails.getSystemDetails(), KEY);
-        String fileName = "ARWeb 1.1.0.request";
-        File newFile;
+    /**
+     * Encrypted format: organization|ownerName|pcName|domainName|userName|requestDate (6 parts)
+     */
+    public static void generateRequestFile(String fileFolder, String organization, String ownerLicence)
+            throws Exception {
+        String requestData = organization + "|" + ownerLicence + "|" + SystemDetails.getSystemDetails();
+        String encryptedRequest = encrypt(requestData, KEY);
+        String fileName = organization + "-" + ownerLicence + ".request";
+        File newFile = new File(fileFolder, fileName);
 
-        newFile = new File(fileFolder, fileName);
-
-        // Write the encrypted data to the file
         try (FileWriter writer = new FileWriter(newFile)) {
             writer.write(encryptedRequest);
             log.info("File saved to: " + newFile.getAbsolutePath());
         } catch (IOException error) {
             log.warn("Error reading/writing to the file: " + error.getMessage());
-            //            performMessage.errorMessage(
-            //                    "Error reading/writing to the file!",
-            //                    "<span style='font-style: italic;'>Please ensure the application has the necessary
-            // write permissions for the specified directory</span>",
-            //                    "<span style='color: #E65100; font-weight: bold;'>Attempted to read/write:</span>
-            // <span style='font-weight: bold;'>"
-            //                            + fileFolder + "</span>",
-            //                    "<span style='color: #E65100; font-weight: bold;'>File name:</span> <span
-            // style='color: #6A1B9A; font-weight: bold;'>"
-            //                            + fileName + "</span>",
-            //                    "<span style='font-style: italic;'>Details: " + "error.getMessage()" + "</span>",
-            //                    0);
         }
+    }
+
+    /**
+     * Sends the encrypted license request directly to the MultiPlugins API.
+     * Returns "SUCCESS" on success, or the error message on failure.
+     */
+    public static String sendRequestOnline(String organization, String ownerLicence) throws Exception {
+        String requestData = organization + "|" + ownerLicence + "|" + SystemDetails.getSystemDetails();
+        String encryptedRequest = encrypt(requestData, KEY);
+
+        HttpClient client = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(15))
+                .build();
+
+        String json = "{\"content\":\"" + escapeJson(encryptedRequest)
+                + "\",\"organization\":\"" + escapeJson(organization) + "\"}";
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(API_URL + "/client/license-request"))
+                .header("Content-Type", "application/json")
+                .timeout(Duration.ofSeconds(30))
+                .POST(HttpRequest.BodyPublishers.ofString(json))
+                .build();
+
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        if (response.statusCode() == 200 || response.statusCode() == 201) {
+            String body = response.body();
+            if (body.contains("\"ok\":true") || body.contains("\"ok\": true")) {
+                return "SUCCESS";
+            }
+            return body;
+        }
+        return "HTTP Error: " + response.statusCode() + " - " + response.body();
+    }
+
+    /**
+     * Pings the API to check connectivity.
+     * Returns true if the server responds with ok:true, false otherwise.
+     */
+    public static boolean pingApi() {
+        try {
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(5))
+                    .build();
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(API_URL + "/client/ping"))
+                    .header("Content-Type", "application/json")
+                    .timeout(Duration.ofSeconds(5))
+                    .GET()
+                    .build();
+
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            return response.statusCode() == 200
+                    && (response.body().contains("\"ok\":true") || response.body().contains("\"ok\": true"));
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private static String escapeJson(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r");
     }
 
     public static boolean importResponseFile(String filePath) throws Exception {
@@ -172,16 +235,17 @@ public class LicenseManager {
     }
 
     public String genereteResponseFile(String decryptedContent, int numDays) {
-        // Suppose the decrypted content is formatted as "PCID|expiryDate" (e.g., "PC12345|2025-12-31")
+        // Format: organization|ownerName|pcName|domainName|userName|requestDate (6 parts)
+        // Legacy: ownerName|pcName|domainName|userName|requestDate (5 parts)
         try {
             String[] parts = decryptedContent.split("\\|");
 
-            String pcID = parts[1];
-            String domainName = parts[2];
-            String userName = parts[3];
-            // LocalDate expiryDate = LocalDate.parse(parts[4], DateTimeFormatter.ISO_LOCAL_DATE);
+            int offset = parts.length >= 6 ? 2 : 1; // skip organization+owner or just owner
+            String pcID = parts[offset];
+            String domainName = parts[offset + 1];
+            String userName = parts[offset + 2];
 
-            LocalDate expiryDate = LocalDate.parse(parts[4], DateTimeFormatter.ISO_LOCAL_DATE);
+            LocalDate expiryDate = LocalDate.parse(parts[offset + 3], DateTimeFormatter.ISO_LOCAL_DATE);
             expiryDate = expiryDate.plusDays(numDays);
 
             String encryptedResponse = encrypt(pcID + "|" + domainName + "|" + userName + "|" + expiryDate, KEY);

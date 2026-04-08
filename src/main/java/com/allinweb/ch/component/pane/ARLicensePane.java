@@ -16,6 +16,8 @@ import com.sun.jna.platform.win32.Shell32;
 import com.sun.jna.ptr.PointerByReference;
 import java.io.File;
 import java.io.IOException;
+import javafx.animation.FadeTransition;
+import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -24,6 +26,7 @@ import javafx.scene.layout.*;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -47,6 +50,11 @@ public class ARLicensePane extends ARPane {
     private RadioButton rbRequestLicense;
     private RadioButton rbActivateLicense;
     private RadioButton rbUseExistentLicense;
+    private ToggleButton tbOnlineRequest;
+    private ToggleButton tbDirectoryRequest;
+    private Button btnPingStatus;
+    private Label lblPingHint;
+    private TextField tfOrganization;
     private TextField tfLicenseOwner;
     private Button uploadButton;
     private TextField filePathField;
@@ -158,10 +166,44 @@ public class ARLicensePane extends ARPane {
         rbUseExistentLicense = new RadioButton("Use Existing License");
         rbUseExistentLicense.setToggleGroup(toggleGroup);
 
+        // ── Toggle buttons: Online vs Directory ──
+        ToggleGroup requestModeGroup = new ToggleGroup();
+
+        // Ping status indicator (rounded circle)
+        btnPingStatus = new Button();
+        btnPingStatus.setPrefSize(18, 18);
+        btnPingStatus.setMinSize(18, 18);
+        btnPingStatus.setMaxSize(18, 18);
+        btnPingStatus.setStyle(
+                "-fx-background-color: #9e9e9e; -fx-background-radius: 9; -fx-border-radius: 9; -fx-cursor: hand;");
+        btnPingStatus.setTooltip(new Tooltip("API status: unknown"));
+
+        tbOnlineRequest = new ToggleButton("On Line Request");
+        tbOnlineRequest.setToggleGroup(requestModeGroup);
+        tbOnlineRequest.setPrefWidth(200);
+        tbOnlineRequest.setStyle(
+                "-fx-background-color: #e0e0e0; -fx-font-weight: bold; -fx-background-radius: 5;");
+
+        tbDirectoryRequest = new ToggleButton("Request Target Directory");
+        tbDirectoryRequest.setToggleGroup(requestModeGroup);
+        tbDirectoryRequest.setSelected(true);
+        tbDirectoryRequest.setPrefWidth(200);
+        tbDirectoryRequest.setStyle(
+                "-fx-background-color: linear-gradient(#29abe2, #007bff); -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5;");
+
+        HBox toggleBox = new HBox(10, btnPingStatus, tbOnlineRequest, tbDirectoryRequest);
+        toggleBox.setAlignment(Pos.CENTER_LEFT);
+
+        // Hint label that fades away after a few seconds
+        lblPingHint = new Label();
+        lblPingHint.setStyle("-fx-font-size: 11px; -fx-padding: 2 0 0 28;");
+        lblPingHint.setVisible(false);
+        lblPingHint.setManaged(false);
+
         filePathField = new TextField();
         HBox.setHgrow(filePathField, Priority.ALWAYS);
 
-        uploadButton = new Button("Request target Directory");
+        uploadButton = new Button("Change Destination Folder (Desktop)");
         uploadButton.setPrefWidth(300);
         uploadButton.setStyle(
                 "-fx-background-color: linear-gradient(#29abe2, #007bff); -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5;");
@@ -171,18 +213,14 @@ public class ARLicensePane extends ARPane {
         radioButtonsVBox.setAlignment(Pos.TOP_LEFT);
 
         HBox filePathBox = new HBox(10, filePathField);
-        //        filePathBox.setPadding(new Insets(10));
-        //        filePathBox.setAlignment(Pos.TOP_LEFT);
 
         HBox uploadButtonBox = new HBox(10, uploadButton);
-        //        uploadButtonBox.setPadding(new Insets(10));
-        //        uploadButtonBox.setAlignment(Pos.TOP_LEFT);
 
-        VBox vertButton = new VBox(10, uploadButtonBox, filePathBox);
+        VBox vertButton = new VBox(10, toggleBox, lblPingHint, uploadButtonBox, filePathBox);
         vertButton.setPadding(new Insets(10));
         vertButton.setAlignment(Pos.TOP_LEFT);
 
-        HBox.setHgrow(filePathBox, Priority.ALWAYS); // Make the text field grow
+        HBox.setHgrow(filePathBox, Priority.ALWAYS);
         HBox.setHgrow(vertButton, Priority.ALWAYS);
 
         // HBox to hold both VBoxes side by side
@@ -196,6 +234,9 @@ public class ARLicensePane extends ARPane {
 
         taLicenseAgreement.setWrapText(true);
         taLicenseAgreement.setEditable(false);
+
+        tfOrganization = new TextField();
+        tfOrganization.setPromptText("Organization name (mandatory)");
 
         tfLicenseOwner = new TextField();
         tfLicenseOwner.setPromptText("Licensed to (Owner of the license, min 6 chars)");
@@ -213,7 +254,8 @@ public class ARLicensePane extends ARPane {
         HBox actionButtonsBox = new HBox(10, btnProceed, btnClose);
         actionButtonsBox.setPadding(new Insets(10));
         VBox mainLayout = new VBox(
-                10, headerContainer, radioAndUploadBox, taLicenseAgreement, tfLicenseOwner, cbAgree, actionButtonsBox);
+                10, headerContainer, radioAndUploadBox, taLicenseAgreement, tfOrganization, tfLicenseOwner, cbAgree,
+                actionButtonsBox);
 
         mainLayout.setPadding(new Insets(10));
         mainLayout.setFillWidth(true); // Ensure components stretch horizontally
@@ -230,12 +272,100 @@ public class ARLicensePane extends ARPane {
 
     @Override
     public void initUIBehaviour() {
+        // ── Toggle button styling and behavior ──
+        Runnable updateToggleStyles = () -> {
+            if (tbOnlineRequest.isSelected()) {
+                tbOnlineRequest.setStyle(
+                        "-fx-background-color: linear-gradient(#29abe2, #007bff); -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5;");
+                tbDirectoryRequest.setStyle(
+                        "-fx-background-color: #e0e0e0; -fx-font-weight: bold; -fx-background-radius: 5;");
+                uploadButton.setDisable(true);
+                filePathField.setDisable(true);
+            } else if (tbDirectoryRequest.isSelected()) {
+                tbDirectoryRequest.setStyle(
+                        "-fx-background-color: linear-gradient(#29abe2, #007bff); -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5;");
+                tbOnlineRequest.setStyle(
+                        "-fx-background-color: #e0e0e0; -fx-font-weight: bold; -fx-background-radius: 5;");
+                uploadButton.setDisable(false);
+                filePathField.setDisable(false);
+            }
+        };
+
+        // Ping helper — updates the status indicator + shows fade-away hint
+        Runnable doPing = () -> {
+            btnPingStatus.setStyle(
+                    "-fx-background-color: #ff9800; -fx-background-radius: 9; -fx-border-radius: 9; -fx-cursor: hand;");
+            btnPingStatus.getTooltip().setText("Checking...");
+            lblPingHint.setOpacity(1.0);
+            lblPingHint.setText("Connecting to server...");
+            lblPingHint.setStyle("-fx-font-size: 11px; -fx-padding: 2 0 0 28; -fx-text-fill: #ff9800;");
+            lblPingHint.setVisible(true);
+            lblPingHint.setManaged(true);
+            new Thread(() -> {
+                boolean reachable = LicenseManager.pingApi();
+                Platform.runLater(() -> {
+                    if (reachable) {
+                        log.info("API ping successful: {}", LicenseManager.API_URL);
+                        btnPingStatus.setStyle(
+                                "-fx-background-color: #4caf50; -fx-background-radius: 9; -fx-border-radius: 9; -fx-cursor: hand;");
+                        btnPingStatus.getTooltip().setText("API online: " + LicenseManager.API_URL);
+                        filePathField.setText("API connected: " + LicenseManager.API_URL);
+                        lblPingHint.setText("Connected to server");
+                        lblPingHint.setStyle("-fx-font-size: 11px; -fx-padding: 2 0 0 28; -fx-text-fill: #4caf50; -fx-font-weight: bold;");
+                    } else {
+                        log.warn("API ping failed: {}", LicenseManager.API_URL);
+                        btnPingStatus.setStyle(
+                                "-fx-background-color: #f44336; -fx-background-radius: 9; -fx-border-radius: 9; -fx-cursor: hand;");
+                        btnPingStatus.getTooltip().setText("API unreachable");
+                        filePathField.setText("");
+                        lblPingHint.setText("Server unreachable - check your connection");
+                        lblPingHint.setStyle("-fx-font-size: 11px; -fx-padding: 2 0 0 28; -fx-text-fill: #f44336; -fx-font-weight: bold;");
+                        tbDirectoryRequest.setSelected(true);
+                        updateToggleStyles.run();
+                    }
+                    // Fade out the hint after 4 seconds
+                    PauseTransition pause = new PauseTransition(Duration.seconds(4));
+                    pause.setOnFinished(ev -> {
+                        FadeTransition fade = new FadeTransition(Duration.seconds(1.5), lblPingHint);
+                        fade.setFromValue(1.0);
+                        fade.setToValue(0.0);
+                        fade.setOnFinished(fe -> {
+                            lblPingHint.setVisible(false);
+                            lblPingHint.setManaged(false);
+                        });
+                        fade.play();
+                    });
+                    pause.play();
+                });
+            }).start();
+        };
+
+        // Click the indicator to re-ping
+        btnPingStatus.setOnAction(event -> doPing.run());
+
+        tbOnlineRequest.setOnAction(event -> {
+            if (!tbOnlineRequest.isSelected()) tbOnlineRequest.setSelected(true);
+            updateToggleStyles.run();
+            doPing.run();
+        });
+        tbDirectoryRequest.setOnAction(event -> {
+            if (!tbDirectoryRequest.isSelected()) tbDirectoryRequest.setSelected(true);
+            updateToggleStyles.run();
+            btnPingStatus.setStyle(
+                    "-fx-background-color: #9e9e9e; -fx-background-radius: 9; -fx-border-radius: 9; -fx-cursor: hand;");
+            btnPingStatus.getTooltip().setText("API status: unknown");
+        });
+
         // Add event handlers to log the state change to the console
         rbRequestLicense.setOnAction(event -> {
             if (rbRequestLicense.isSelected()) {
                 uploadButton.setText("Change Destination Folder (Desktop)");
                 filePathField.setText("");
                 tfLicenseOwner.setDisable(false);
+                tfOrganization.setDisable(false);
+                tbOnlineRequest.setDisable(false);
+                tbDirectoryRequest.setDisable(false);
+                updateToggleStyles.run();
                 defineDesktopFolder();
             }
         });
@@ -245,6 +375,11 @@ public class ARLicensePane extends ARPane {
                 uploadButton.setText("Locate Response File (Desktop)");
                 filePathField.setText("");
                 tfLicenseOwner.setDisable(false);
+                tfOrganization.setDisable(true);
+                tbOnlineRequest.setDisable(true);
+                tbDirectoryRequest.setDisable(true);
+                uploadButton.setDisable(false);
+                filePathField.setDisable(false);
                 defineDesktopFolder();
             }
         });
@@ -254,6 +389,11 @@ public class ARLicensePane extends ARPane {
                 uploadButton.setText("Locate Existing License");
                 filePathField.setText("");
                 tfLicenseOwner.setDisable(true);
+                tfOrganization.setDisable(true);
+                tbOnlineRequest.setDisable(true);
+                tbDirectoryRequest.setDisable(true);
+                uploadButton.setDisable(false);
+                filePathField.setDisable(false);
                 defineDesktopFolder();
             }
         });
@@ -332,24 +472,65 @@ public class ARLicensePane extends ARPane {
                                 null,
                                 null,
                                 0);
+                    } else if (rbRequestLicense.isSelected()
+                            && tfOrganization.getText().trim().isEmpty()) {
+                        performMessage.errorMessage(
+                                "Mandatory field is missing!",
+                                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please provide the \"Organization\" field information!</span>",
+                                null,
+                                null,
+                                null,
+                                0);
                     } else {
                         if (rbRequestLicense.isSelected()) {
-                            if (!Strings.isNullOrEmpty(filePathField.getText().trim())) {
-                                fileFolder = filePathField.getText().trim();
+                            String organization = tfOrganization.getText().trim();
+                            String owner = tfLicenseOwner.getText().trim();
+
+                            if (tbOnlineRequest.isSelected()) {
+                                // ── Online request: send to API ──
+                                String result = LicenseManager.sendRequestOnline(organization, owner);
+                                if ("SUCCESS".equals(result)) {
+                                    performMessage.showCustomModalDialogDragWin11(
+                                            "License Request Sent Successfully!",
+                                            "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>Your license request has been sent to the server.</span>",
+                                            "<span style='color: #0277BD; font-weight: bold;'>You will receive your license once the request is processed by your provider.</span>",
+                                            "<span style='font-style: italic;'>Organization: " + organization
+                                                    + "</span>",
+                                            "<span style='color: #E65100; font-weight: bold;'>API:</span> <span style='font-weight: bold;'>"
+                                                    + LicenseManager.API_URL + "</span>",
+                                            false,
+                                            "OK",
+                                            null,
+                                            0);
+                                } else {
+                                    performMessage.errorMessage(
+                                            "Online License Request Failed!",
+                                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>The server could not process your request.</span>",
+                                            "<span style='color: #0277BD; font-weight: bold;'>Please check your internet connection and try again.</span>",
+                                            "<span style='font-style: italic;'>Server response: " + result
+                                                    + "</span>",
+                                            null,
+                                            0);
+                                }
+                            } else {
+                                // ── Directory request: save to file ──
+                                if (!Strings.isNullOrEmpty(filePathField.getText().trim())) {
+                                    fileFolder = filePathField.getText().trim();
+                                }
+                                LicenseManager.generateRequestFile(fileFolder, organization, owner);
+                                performMessage.showCustomModalDialogDragWin11(
+                                        "Request File Generated Successfully!",
+                                        "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>The request file for license generation has been successfully created.</span>",
+                                        "<span style='color: #0277BD; font-weight: bold;'>Please send this request file to your provider to receive the User License.</span>",
+                                        "<span style='font-style: italic;'>Organization: " + organization
+                                                + "</span>",
+                                        "<span style='color: #E65100; font-weight: bold;'>Request file path:</span> <span style='font-weight: bold;'>"
+                                                + fileFolder + "</span>",
+                                        false,
+                                        "OK",
+                                        null,
+                                        0);
                             }
-                            LicenseManager.generateRequestFile(
-                                    fileFolder, tfLicenseOwner.getText().trim());
-                            performMessage.showCustomModalDialogDragWin11(
-                                    "Request File Generated Successfully!",
-                                    "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>The request file for license generation has been successfully created.</span>",
-                                    "<span style='color: #0277BD; font-weight: bold;'>Please send this request file to your provider to receive the User License.</span>",
-                                    "<span style='font-style: italic;'>This request file contains encrypted system information required for license activation.</span>",
-                                    "<span style='color: #E65100; font-weight: bold;'>Request file path:</span> <span style='font-weight: bold;'>"
-                                            + fileFolder + "</span>",
-                                    false,
-                                    "OK",
-                                    null,
-                                    0);
 
                         } else if (rbActivateLicense.isSelected()) {
 

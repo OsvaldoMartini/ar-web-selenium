@@ -140,6 +140,10 @@ public class LicenseActivationApp extends Application {
         scrollPane.setFitToWidth(true);
         scrollPane.setPrefHeight(300);
 
+        // TextField for entering the organization name
+        TextField tfOrganization = new TextField();
+        tfOrganization.setPromptText("Organization name (mandatory)");
+
         // TextField for entering the license owner's name
         TextField tfLicenseOwner = new TextField();
         tfLicenseOwner.setPromptText("Licensed to (Owner of the license, min 6 chars)");
@@ -175,13 +179,23 @@ public class LicenseActivationApp extends Application {
                                 "<span style='font-style: italic;'>By proceeding, you confirm that you understand and agree to the terms of the User License.</span>",
                                 null,
                                 0);
+                    } else if (rbRequestLicense.isSelected()
+                            && tfOrganization.getText().trim().isEmpty()) {
+                        performMessage.errorMessage(
+                                "Mandatory field is missing!",
+                                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please provide the \"Organization\" field information!</span>",
+                                null,
+                                null,
+                                null,
+                                0);
                     } else {
                         try {
                             if (rbRequestLicense.isSelected()) {
                                 String desktopDir = getDesktopDir();
 
                                 LicenseManager.generateRequestFile(
-                                        desktopDir, tfLicenseOwner.getText().trim());
+                                        desktopDir, tfOrganization.getText().trim(),
+                                        tfLicenseOwner.getText().trim());
                                 performMessage.showCustomModalDialogDragWin11(
                                         "Request File Generated Successfully!",
                                         "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>The request file for license generation has been successfully created.</span>",
@@ -245,7 +259,7 @@ public class LicenseActivationApp extends Application {
 
         // Main layout
         VBox mainLayout =
-                new VBox(10, headerLabel, radioButtonsBox, scrollPane, tfLicenseOwner, cbAgree, actionButtonsBox);
+                new VBox(10, headerLabel, radioButtonsBox, scrollPane, tfOrganization, tfLicenseOwner, cbAgree, actionButtonsBox);
         mainLayout.setPadding(new Insets(10));
 
         // Set up the scene
