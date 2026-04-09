@@ -1213,11 +1213,17 @@ public class ARConfigurationPane extends ARPane {
                 throw error;
             }
 
-            new ARAlertScene(
-                    Alert.AlertType.INFORMATION,
-                    "Configuration saved",
-                    "The configuration has been saved and the data has been reloaded",
-                    ButtonType.OK);
+            performMessage.showCustomModalDialogDragWin11(
+                    "Configuration Saved \u2705",
+                    "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>Configuration data saved and reloaded successfully.</span>",
+                    "<span style='color: #1565C0;'>All settings have been applied.</span>",
+                    "<span style='color: #455A64; font-style: italic;'>Database: <b>" + databaseChoiceBox.getValue()
+                            + "</b></span>",
+                    null,
+                    false,
+                    "OK",
+                    null,
+                    0);
         }
     }
 
