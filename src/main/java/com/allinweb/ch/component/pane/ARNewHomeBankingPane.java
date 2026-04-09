@@ -382,8 +382,10 @@ public class ARNewHomeBankingPane extends ARPane {
         tableViewHomeUrl.getColumns().addAll(homeUrlIdColumn, orgNameColumn, homeUrlColumn);
         //         performDBEngine.loadHomeUrls(null);
 
-        List<HomeUrlDTO> filteredHomeUrl = performLists.getHomeUrlsByBankId(homeBank.getId());
-        tableViewHomeUrl.setItems(FXCollections.observableArrayList(filteredHomeUrl));
+        if (homeBank != null) {
+            List<HomeUrlDTO> filteredHomeUrl = performLists.getHomeUrlsByBankId(homeBank.getId());
+            tableViewHomeUrl.setItems(FXCollections.observableArrayList(filteredHomeUrl));
+        }
 
         homeUrlDetailsContainer
                 .getChildren()
