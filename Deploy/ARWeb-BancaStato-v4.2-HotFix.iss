@@ -43,6 +43,7 @@ PrivilegesRequiredOverridesAllowed=dialog
 CreateUninstallRegKey=no
 UsePreviousAppDir=no
 DirExistsWarning=no
+AppendDefaultDirName=no
 
 ; ── Output ───────────────────────────────────────────────────────────────────
 OutputBaseFilename=ARWeb-Updates-v4-2
@@ -103,6 +104,74 @@ Source: "{#SrcScanner}\AR_Web_Scanner-4.2.jar"; DestDir: "{app}\ARWeb-Scanner"; 
 
 [Code]
 
+// ── Strip duplicated path segments before install ───────────────────────────
+//  C:\ARWeb-Martini\ARWeb\ARWeb        ->  C:\ARWeb-Martini\ARWeb
+//  C:\ARWeb-Martini\ARWeb-ARWeb-Scanner -> C:\ARWeb-Martini\ARWeb-Scanner
+//  C:\ARWeb\ARWeb\ARWeb                ->  C:\ARWeb
+
+function StripTrailingBackslash(const S: String): String;
+begin
+  Result := S;
+  if (Length(Result) > 3) and (Result[Length(Result)] = '\') then
+    Delete(Result, Length(Result), 1);
+end;
+
+function EndsWithText(const S, Suffix: String): Boolean;
+var
+  SLower, SuffixLower: String;
+begin
+  SLower := Lowercase(S);
+  SuffixLower := Lowercase(Suffix);
+  Result := (Length(SLower) >= Length(SuffixLower)) and
+    (Copy(SLower, Length(SLower) - Length(SuffixLower) + 1, Length(SuffixLower)) = SuffixLower);
+end;
+
+procedure SanitizeAppDir;
+var
+  Dir, Clean: String;
+  Changed: Boolean;
+begin
+  Dir := StripTrailingBackslash(WizardDirValue);
+  Changed := True;
+
+  // Keep stripping duplicated trailing segments
+  while Changed do
+  begin
+    Changed := False;
+    Clean := Dir;
+
+    // C:\X\ARWeb\ARWeb  ->  C:\X\ARWeb
+    if EndsWithText(Clean, '\ARWeb\ARWeb') then
+    begin
+      Delete(Clean, Length(Clean) - Length('\ARWeb') + 1, Length('\ARWeb'));
+      Changed := True;
+    end;
+
+    // C:\X\ARWeb-ARWeb-Scanner  ->  C:\X\ARWeb-Scanner
+    if EndsWithText(Clean, '\ARWeb\ARWeb-Scanner') then
+    begin
+      Clean := Copy(Clean, 1, Length(Clean) - Length('\ARWeb\ARWeb-Scanner')) + '\ARWeb-Scanner';
+      Changed := True;
+    end;
+
+    // C:\X\ARWeb-Scanner\ARWeb-Scanner  ->  C:\X\ARWeb-Scanner
+    if EndsWithText(Clean, '\ARWeb-Scanner\ARWeb-Scanner') then
+    begin
+      Delete(Clean, Length(Clean) - Length('\ARWeb-Scanner') + 1, Length('\ARWeb-Scanner'));
+      Changed := True;
+    end;
+
+    Dir := Clean;
+  end;
+
+  // Apply the cleaned path back
+  if Dir <> StripTrailingBackslash(WizardDirValue) then
+  begin
+    WizardForm.DirEdit.Text := Dir;
+    Log('SanitizeAppDir — corrected path to: ' + Dir);
+  end;
+end;
+
 // ── Custom "What's included" info on the Ready page ─────────────────────────
 
 function UpdateReadyMemo(Space, NewLine, MemoUserInfoInfo, MemoDirInfo,
@@ -135,6 +204,9 @@ begin
 
   if CurPageID = wpSelectDir then
   begin
+    // Clean duplicated segments first
+    SanitizeAppDir;
+
     AppDir := ExpandConstant('{app}');
     LastPart := ExtractFileName(RemoveBackslashUnlessRoot(AppDir));
 
@@ -167,4 +239,12 @@ begin
       Result := (MsgBox(Msg, mbConfirmation, MB_YESNO) = IDYES);
     end;
   end;
+end;
+
+// ── Final safety net: sanitize again right before file copy ─────────────────
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+begin
+  SanitizeAppDir;
+  Result := '';
 end;
