@@ -45,7 +45,8 @@ DefaultDirName={#MyAppDefaultDir}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 PrivilegesRequiredOverridesAllowed=dialog
-CreateUninstallRegKey=no
+CreateUninstallRegKey=yes
+UninstallDisplayName={#MyAppName} v{#MyAppVersion} Avaloq
 UsePreviousAppDir=no
 DirExistsWarning=no
 AppendDefaultDirName=no
@@ -383,6 +384,22 @@ begin
   end;
 end;
 
+// ── Simple line replace in a text file ───────────────────────────────────────
+
+procedure ReplaceLineInFile(filePath, oldText, newText: String);
+var
+  Lines: TArrayOfString;
+  i: Integer;
+begin
+  if LoadStringsFromFile(filePath, Lines) then
+  begin
+    for i := 0 to GetArrayLength(Lines) - 1 do
+      Lines[i] := MyStringReplace(Lines[i], oldText, newText);
+    SaveStringsToFile(filePath, Lines, False);
+    Log('ReplaceLineInFile — replaced "' + oldText + '" with "' + newText + '" in ' + filePath);
+  end;
+end;
+
 // ── Post-install: rewrite paths in config and launcher ──────────────────────
 
 procedure CurStepChanged(CurStep: TSetupStep);
@@ -394,10 +411,10 @@ begin
     AppNewPath := ExpandConstant('{app}');
     ExpectedPath := ExpandConstant('{#MyAppDefaultDir}');
 
+    // ARWeb.config: replace escaped Java .properties paths
+    // D\:\\Projects\\ARWeb-Martini\\  ->  <root>\\
     if not SameText(AppNewPath, ExpectedPath) then
     begin
-      // ARWeb.config: replace escaped Java .properties paths
-      // D\:\\Projects\\ARWeb-Martini\\  ->  <root>\\
       UpdateConfigFile(
         AppNewPath + '\Config-4.2\ARWeb.config',
         'D\:\\Projects\\ARWeb-Martini\\',
@@ -409,6 +426,24 @@ begin
         AppNewPath + '\ARWeb-Scanner\exec_launcher-4.2.bat',
         'D:\Projects\ARWeb-Martini\',
         AppNewPath, '\', False);
+    end;
+
+    // ARWeb.config: change data_base from Access to TEXT
+    ReplaceLineInFile(
+      AppNewPath + '\Config-4.2\ARWeb.config',
+      'data_base=Access',
+      'data_base=TEXT');
+
+    // Rename unins000.exe to ARWeb-Uninstall.exe
+    if FileExists(AppNewPath + '\unins000.exe') then
+    begin
+      RenameFile(AppNewPath + '\unins000.exe', AppNewPath + '\ARWeb-Uninstall.exe');
+      Log('Renamed unins000.exe -> ARWeb-Uninstall.exe');
+    end;
+    if FileExists(AppNewPath + '\unins000.dat') then
+    begin
+      RenameFile(AppNewPath + '\unins000.dat', AppNewPath + '\ARWeb-Uninstall.dat');
+      Log('Renamed unins000.dat -> ARWeb-Uninstall.dat');
     end;
   end;
 end;
