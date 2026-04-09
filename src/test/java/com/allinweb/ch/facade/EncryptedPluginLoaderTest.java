@@ -114,7 +114,8 @@ public class EncryptedPluginLoaderTest {
             // Priority 2: plugins.key file (legacy / fallback)
             Path keyFile = Paths.get(pluginsDir, "plugins.key");
             if (key == null && Files.exists(keyFile) && !forceActivate) {
-                String content = Files.readString(keyFile, StandardCharsets.UTF_8).trim();
+                String content =
+                        Files.readString(keyFile, StandardCharsets.UTF_8).trim();
 
                 if (content.startsWith(ACTIVATED_PREFIX)) {
                     System.out.println("plugins.key is MACHINE-BOUND (ACTIVATED)\n");
@@ -129,8 +130,8 @@ public class EncryptedPluginLoaderTest {
                     System.out.println("Key UNLOCKED (" + (key.length * 8) + "-bit AES)\n");
                 } else {
                     key = hexToBytes(content);
-                    System.out.println("Key loaded (plain hex): " + content.substring(0, 8) + "... ("
-                            + (key.length * 8) + "-bit AES)\n");
+                    System.out.println("Key loaded (plain hex): " + content.substring(0, 8) + "... (" + (key.length * 8)
+                            + "-bit AES)\n");
                 }
             }
 
@@ -417,7 +418,8 @@ public class EncryptedPluginLoaderTest {
      */
     private static String extractOrgKeyFromLicense(String licensePath) {
         try {
-            String content = Files.readString(Paths.get(licensePath), StandardCharsets.UTF_8).trim();
+            String content = Files.readString(Paths.get(licensePath), StandardCharsets.UTF_8)
+                    .trim();
             SecretKeySpec keySpec = new SecretKeySpec(LIC_KEY.getBytes(StandardCharsets.UTF_8), "AES");
             Cipher cipher = Cipher.getInstance(LIC_ALGORITHM);
             cipher.init(Cipher.DECRYPT_MODE, keySpec);
