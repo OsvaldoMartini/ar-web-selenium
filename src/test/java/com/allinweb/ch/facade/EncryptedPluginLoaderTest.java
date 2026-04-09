@@ -58,7 +58,7 @@ public class EncryptedPluginLoaderTest {
     // MultiPlugins API (local PostgreSQL backend)
     private static final String API_URL = "https://multiplugins.ch/api";
 
-    private static final String DEFAULT_LICENSE = "D:/Projects/ARWeb-Martini/ARWeb-Scanner/ARWeb.lic";
+    private static final String DEFAULT_LICENSE = "C:/ARWeb-ANDROMEDA/ARWeb-Scanner/ARWeb.lic";
 
     /** Plugin ID → expected .enc filename inside the zip */
     private static final String[][] PLUGINS = {
@@ -72,7 +72,7 @@ public class EncryptedPluginLoaderTest {
 
     public static void main(String[] args) {
         String pluginsDir =
-                args.length > 0 && !args[0].startsWith("--") ? args[0] : "D:/Projects/ARWeb-Martini/ARWeb/plugins";
+                args.length > 0 && !args[0].startsWith("--") ? args[0] : "C:/ARWeb-ANDROMEDA/ARWeb/plugins";
 
         boolean forceActivate = Arrays.asList(args).contains("--activate");
 
