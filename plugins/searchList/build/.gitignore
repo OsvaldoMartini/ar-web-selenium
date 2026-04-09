@@ -1,3 +1,0 @@
-# Build output — regenerate with:
-#   npx esbuild index.js --bundle --minify --outfile=build/searchList.min.js
-!.gitignore
