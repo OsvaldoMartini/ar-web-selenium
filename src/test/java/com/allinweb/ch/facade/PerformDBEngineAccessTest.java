@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test;
 
 class PerformDBEngineAccessTest {
 
-    private static final String WEB_CONFIG_FILE_PATH = "C:\\ARWeb-Martini\\Config-4.7\\TESTS.config";
+    private static final String WEB_CONFIG_FILE_PATH = "C:\\ARWeb-Martini\\Config-4.2\\TESTS.config";
     private ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
 
     @BeforeEach

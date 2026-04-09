@@ -361,6 +361,7 @@ public class ARConfigurationPane extends ARPane {
         // Column 2: DB Type
         VBox databaseColumn = new VBox(2);
         databaseColumn.getChildren().addAll(databaseLabel, databaseChoiceBox);
+        databaseColumn.setDisable(true);
 
         // Column 3: Reload DB
         VBox reloadColumn = new VBox(2);
@@ -396,7 +397,11 @@ public class ARConfigurationPane extends ARPane {
 
         //        AnchorPane logGroup = new AnchorPane(pathLog, sizeLog, pathLogButton);
         dbUrlLabel = new Label("Database URL:");
+        dbUrlLabel.setVisible(false);
+        dbUrlLabel.setManaged(false);
         dbUrl = createPathTextField(ARPropertyEnum.DB_URL);
+        dbUrl.setVisible(false);
+        dbUrl.setManaged(false);
 
         pathReportLabel = new Label("Report Path:");
         pathReport = createPathTextField(ARPropertyEnum.PATH_REPORT);
@@ -415,6 +420,8 @@ public class ARConfigurationPane extends ARPane {
         //        AnchorPane dbUserPwdGroup = new AnchorPane(dbUser, dbPwd);
 
         GridPane dbUserPwdGroup = new GridPane();
+        dbUserPwdGroup.setVisible(false);
+        dbUserPwdGroup.setManaged(false);
         dbUserPwdGroup.setHgap(10);
         dbUserPwdGroup.setVgap(5);
 
@@ -440,9 +447,13 @@ public class ARConfigurationPane extends ARPane {
         AnchorPane driverGroup = new AnchorPane(pathWebDriver, pathWebDriverButton);
 
         pathAppiumLabel = new Label("Appium Path:");
+        pathAppiumLabel.setVisible(false);
+        pathAppiumLabel.setManaged(false);
         pathAppium = createPathTextField(ARPropertyEnum.PATH_APPIUM);
         pathAppiumButton = createPathButton();
         AnchorPane appiumGroup = new AnchorPane(pathAppium, pathAppiumButton);
+        appiumGroup.setVisible(false);
+        appiumGroup.setManaged(false);
 
         pathPluginsLabel = new Label("Plugins Path:");
         pathPlugins = createPathTextField(ARPropertyEnum.PATH_PLUGINS);
@@ -719,7 +730,7 @@ public class ARConfigurationPane extends ARPane {
         }
 
         Label newInstruction = new Label(
-                "DB BACKUP\nDatabase Selected: \"" + dataBaseType + "\" \nDatabase Folder : \"v4.7g Beta Test\"");
+                "DB BACKUP\nDatabase Selected: \"" + dataBaseType + "\" \nDatabase Folder : \"v4.2g Beta Test\"");
         newInstruction.setStyle("-fx-font-size: 18px; -fx-text-fill: red;");
 
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION, null, ButtonType.YES, ButtonType.NO);
@@ -869,7 +880,7 @@ public class ARConfigurationPane extends ARPane {
         }
 
         Label newInstruction = new Label(
-                "DB RESTORE\nDatabase Selected: \"" + dataBaseType + "\" \nDatabase Folder : \"v4.7g Beta Test\"");
+                "DB RESTORE\nDatabase Selected: \"" + dataBaseType + "\" \nDatabase Folder : \"v4.2g Beta Test\"");
         newInstruction.setStyle("-fx-font-size: 18px; -fx-text-fill: red;");
 
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION, null, ButtonType.YES, ButtonType.NO);
@@ -1611,7 +1622,7 @@ public class ARConfigurationPane extends ARPane {
         String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
 
         Label newInstruction = new Label("DB IMPORT (ONLY BOT JOB)\nDatabase Selected: \"" + dataBaseType
-                + "\" \nDatabase Folder : \"v4.7g Beta Test\"");
+                + "\" \nDatabase Folder : \"v4.2g Beta Test\"");
         newInstruction.setStyle("-fx-font-size: 18px; -fx-text-fill: red;");
 
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION, null, ButtonType.YES, ButtonType.NO);

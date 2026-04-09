@@ -179,18 +179,24 @@ public class ARNewBotJobPane extends ARPane {
 
         rbAndroid = new RadioButton("Android Apps");
         rbAndroid.setToggleGroup(appTypeGroup);
+        rbAndroid.setVisible(false);
+        rbAndroid.setManaged(false);
 
         rbIos = new RadioButton("iOS Apps");
         rbIos.setToggleGroup(appTypeGroup);
+        rbIos.setVisible(false);
+        rbIos.setManaged(false);
 
         rbRestAppi = new RadioButton("Rest Api");
         rbRestAppi.setToggleGroup(appTypeGroup);
+        rbRestAppi.setVisible(false);
+        rbRestAppi.setManaged(false);
 
         // Optional styling
         rbWeb.setStyle("-fx-font-size: 13;");
-        rbAndroid.setStyle("-fx-font-size: 13;");
-        rbIos.setStyle("-fx-font-size: 13;");
-        rbRestAppi.setStyle("-fx-font-size: 13;");
+        // rbAndroid.setStyle("-fx-font-size: 13;");
+        // rbIos.setStyle("-fx-font-size: 13;");
+        // rbRestAppi.setStyle("-fx-font-size: 13;");
 
         groupOptions = new HBox(15, rbWeb, rbAndroid, rbIos, rbRestAppi);
         //        groupOptions = new HBox(15, rbWeb);

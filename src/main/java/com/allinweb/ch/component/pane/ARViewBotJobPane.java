@@ -510,6 +510,8 @@ public class ARViewBotJobPane extends ARPane {
         this.apiToolToggleButton = new Button("API Tool");
         this.apiToolToggleButton.setPadding(new Insets(3, 8, 3, 8));
         this.apiToolToggleButton.setFocusTraversable(false);
+        this.apiToolToggleButton.setVisible(false);
+        this.apiToolToggleButton.setManaged(false);
         this.apiToolToggleButton.setStyle("-fx-background-color: #37474F; -fx-text-fill: white; "
                 + "-fx-font-weight: bold; -fx-font-size: 12px; -fx-background-radius: 5;");
 

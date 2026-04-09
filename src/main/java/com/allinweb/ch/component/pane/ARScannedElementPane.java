@@ -1461,6 +1461,7 @@ public class ARScannedElementPane extends ARPane {
 
         pluginUpdateButton = buildPluginUpdateButton();
         updatePluginsButton = buildUpdatePluginsButton();
+        updatePluginsButton.setVisible(false);
 
         lblPluginHint = new Label();
         lblPluginHint.setStyle("-fx-font-size: 11px;");
@@ -5434,7 +5435,7 @@ public class ARScannedElementPane extends ARPane {
             // Keep dedup structure if your traverse uses it
             Set<String> seenKeys = new HashSet<>(50_000);
 
-            saveCanonicalXmlToAppFolder(canonicalXml);
+            //            saveCanonicalXmlToAppFolder(canonicalXml);
 
             extractAllTextElementsFromCanonicalXml(canonicalXml, results);
 
