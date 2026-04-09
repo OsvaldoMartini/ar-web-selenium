@@ -61,7 +61,8 @@ public class LicenseManager {
             throws Exception {
         String emailTag = (email != null && !email.isBlank()) ? "email_client:" + email : "email_client:empty";
         String safeOwner = (owner != null) ? owner : "";
-        String requestData = organization + "|" + safeOwner + "|" + SystemDetails.getSystemDetails() + "|" + emailTag + "|" + APP_VERSION;
+        String requestData = organization + "|" + safeOwner + "|" + SystemDetails.getSystemDetails() + "|" + emailTag
+                + "|" + APP_VERSION;
         String encryptedRequest = encrypt(requestData, KEY);
         String safeEmail = (email != null && !email.isBlank()) ? email : "";
         String fileLabel = !safeOwner.isEmpty() ? safeOwner : (!safeEmail.isEmpty() ? safeEmail : "request");
@@ -83,7 +84,8 @@ public class LicenseManager {
     public static String sendRequestOnline(String organization, String owner, String email) throws Exception {
         String emailTag = (email != null && !email.isBlank()) ? "email_client:" + email : "email_client:empty";
         String safeOwner = (owner != null) ? owner : "";
-        String requestData = organization + "|" + safeOwner + "|" + SystemDetails.getSystemDetails() + "|" + emailTag + "|" + APP_VERSION;
+        String requestData = organization + "|" + safeOwner + "|" + SystemDetails.getSystemDetails() + "|" + emailTag
+                + "|" + APP_VERSION;
         String encryptedRequest = encrypt(requestData, KEY);
 
         HttpClient client =
@@ -232,11 +234,10 @@ public class LicenseManager {
     }
 
     private static LicenceVal validateLicense(String decryptedContent) {
-        // Suppose the decrypted content is formatted as "PCID|expiryDate" (e.g., "PC12345|2025-12-31")
+        // .lic format: pcName|domainName|userName|expiryDate|orgKey|organization|version
+        // Minimum 4 parts required, rest optional
         String[] parts = decryptedContent.split("\\|");
-        if (parts.length != 4) return LicenceVal.MISSING; // Invalid data format
-
-        //        log.info("License:" + parts);
+        if (parts.length < 4) return LicenceVal.MISSING;
 
         String pcID = parts[0];
         String domainName = parts[1];
@@ -245,14 +246,22 @@ public class LicenseManager {
         String formatted = expiryDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
         arPropertyManager.setProperty(ARPropertyEnum.EXPIRATION.getValue(), formatted);
 
-        // log.info(" expiryDate is " + expiryDate);
-        // Check if the PC ID matches and the current date is before the expiry date
-        if (LocalDate.now().isAfter(expiryDate)) return LicenceVal.EXPIRED; // date has expired
+        // orgKey at [4] (64-char hex), organization at [5], version at [6]
+        if (parts.length >= 5) {
+            arPropertyManager.setProperty("license.orgKey", parts[4]);
+        }
+        if (parts.length >= 6) {
+            arPropertyManager.setProperty("license.organization", parts[5]);
+        }
+        if (parts.length >= 7) {
+            arPropertyManager.setProperty("license.version", parts[6]);
+        }
 
+        if (LocalDate.now().isAfter(expiryDate)) return LicenceVal.EXPIRED;
         if (!SystemDetails.getSystemComputerName().equals(pcID)) return LicenceVal.PCNOTMATCH;
         if (!SystemDetails.getSystemDomainName().equals(domainName)) return LicenceVal.DOMAINNOTMATCH;
-        if (!SystemDetails.getSystemUserName().equals(userName)) return LicenceVal.USRNOTMATCH; // PC ID does not match
-        return LicenceVal.VALID; // License is valid
+        if (!SystemDetails.getSystemUserName().equals(userName)) return LicenceVal.USRNOTMATCH;
+        return LicenceVal.VALID;
     }
 
     public String genereteResponseFile(String decryptedContent, int numDays) {
