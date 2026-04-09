@@ -15,7 +15,7 @@
 ; Source paths
 #define SrcRoot     "D:\Projects\ARWeb-Martini"
 #define SrcARWeb    "D:\Projects\ARWeb-Martini\ARWeb"
-#define SrcPlugins  "D:\Projects\ARWeb-Martini\ARWeb\plugins"
+#define SrcPlugins  "D:\Projects\ARWeb-Martini\ARWeb\plugins-Avaloq"
 #define SrcScanner  "D:\Projects\ARWeb-Martini\ARWeb-Scanner"
 #define SrcConfig   "D:\Projects\ARWeb-Martini\Config-4.2"
 #define SrcDeploy   "D:\Projects\AllinWeb\ar-web-selenium\Deploy"
