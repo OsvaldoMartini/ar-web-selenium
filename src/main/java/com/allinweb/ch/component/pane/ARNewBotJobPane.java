@@ -415,6 +415,11 @@ public class ARNewBotJobPane extends ARPane {
             createdBotJob.setHomeBankingId(homeURLChoiceBox.getValue().getHomeBankingId());
             createdBotJob.setHomeUrlId(homeURLChoiceBox.getValue().getId());
 
+            // Set the parent organization on the bot job so downstream views can access it
+            HomeBankingLoadDTO parentOrg =
+                    performLists.getHomeBankingById(homeURLChoiceBox.getValue().getHomeBankingId());
+            createdBotJob.setHomeBankingLoadDTO(parentOrg);
+
             ErrorMessage errorMessage = performDataBase.createNewBotJob(createdBotJob);
 
             int newBotJobId = performDataBase.getNewBotJobId();

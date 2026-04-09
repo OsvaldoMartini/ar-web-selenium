@@ -76,7 +76,10 @@ public class ARSaveClonePane extends ARPane {
         if (botJobName != null) {
             botJobName.setText(selecBotJobDTO.getName().trim());
             botJobDescription.setText(selecBotJobDTO.getDescription().trim());
-            newUrl.setText(selecBotJobDTO.getHomeBankingLoadDTO().getUrl());
+            newUrl.setText(
+                    selecBotJobDTO.getHomeBankingLoadDTO() != null
+                            ? selecBotJobDTO.getHomeBankingLoadDTO().getUrl()
+                            : "");
         }
 
         ErrorMessage errorMessage = null;
@@ -128,7 +131,10 @@ public class ARSaveClonePane extends ARPane {
         botJobDescription = new TextField("Description");
         botJobDescription.setPrefWidth(400);
 
-        newUrl = new TextField(selectedBotJob.getHomeBankingLoadDTO().getUrl());
+        newUrl = new TextField(
+                selectedBotJob.getHomeBankingLoadDTO() != null
+                        ? selectedBotJob.getHomeBankingLoadDTO().getUrl()
+                        : "");
         newUrl.setPrefWidth(250);
 
         // ChoiceBox + Button
@@ -179,7 +185,10 @@ public class ARSaveClonePane extends ARPane {
         organizationLabel.setMinWidth(Region.USE_PREF_SIZE); // Prevent stretching
 
         // OrgName label to the right
-        Label orgNameLabel = new Label(selectedBotJob.getHomeBankingLoadDTO().getName());
+        Label orgNameLabel = new Label(
+                selectedBotJob.getHomeBankingLoadDTO() != null
+                        ? selectedBotJob.getHomeBankingLoadDTO().getName()
+                        : "");
         orgNameLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 1.2em; -fx-text-fill: #1E90FF;"); // nice blue
 
         // Combine in an HBox
@@ -321,12 +330,15 @@ public class ARSaveClonePane extends ARPane {
                     performDBEngine.loadHomeUrls(null);
                 }
 
-                List<HomeUrlDTO> filteredHomeUrl = performLists.getHomeUrlsByBankId(
-                        selectedBotJob.getHomeBankingLoadDTO().getId());
+                int parentOrgId = selectedBotJob.getHomeBankingLoadDTO() != null
+                        ? selectedBotJob.getHomeBankingLoadDTO().getId()
+                        : selectedBotJob.getHomeBankingId();
+                String parentOrgUrl = selectedBotJob.getHomeBankingLoadDTO() != null
+                        ? selectedBotJob.getHomeBankingLoadDTO().getUrl()
+                        : "";
+                List<HomeUrlDTO> filteredHomeUrl = performLists.getHomeUrlsByBankId(parentOrgId);
 
-                if (!newUrl.getText()
-                        .trim()
-                        .equals(selectedBotJob.getHomeBankingLoadDTO().getUrl())) {
+                if (!newUrl.getText().trim().equals(parentOrgUrl)) {
 
                     // Check if homeURLList contains a HomeUrlDTO with matching id and url
                     Optional<HomeUrlDTO> matchHomeUrl = filteredHomeUrl.stream()

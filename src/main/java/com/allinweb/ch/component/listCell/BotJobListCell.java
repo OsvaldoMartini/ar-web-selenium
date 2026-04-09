@@ -80,7 +80,10 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
             botJobDescription.setMaxWidth(150); // Set minimum width
             botJobDescription.setWrapText(true);
 
-            Label homeBankingName = new Label(item.getHomeBankingLoadDTO().getName());
+            Label homeBankingName = new Label(
+                    item.getHomeBankingLoadDTO() != null
+                            ? item.getHomeBankingLoadDTO().getName()
+                            : "");
             homeBankingName.setStyle("-fx-font-size: 14px;"); // Reduced font size
             homeBankingName.setMinWidth(100); // Set minimum width
             homeBankingName.setMaxWidth(100); // Set minimum width

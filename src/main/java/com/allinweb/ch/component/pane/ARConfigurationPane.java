@@ -1131,9 +1131,10 @@ public class ARConfigurationPane extends ARPane {
                     ARPropertyEnum.PATH_APPIUM.getValue(), pathAppium.getText().trim());
             arPropertyManager.setProperty(
                     ARPropertyEnum.PATH_PLUGINS.getValue(),
-                    pathPlugins.getText().trim());
+                    pathPlugins.getText() != null ? pathPlugins.getText().trim() : "");
             arPropertyManager.setProperty(
-                    ARPropertyEnum.URL_PLUGINS.getValue(), urlPlugins.getText().trim());
+                    ARPropertyEnum.URL_PLUGINS.getValue(),
+                    urlPlugins.getText() != null ? urlPlugins.getText().trim() : "");
 
             try {
                 performInitializer.testConnection(

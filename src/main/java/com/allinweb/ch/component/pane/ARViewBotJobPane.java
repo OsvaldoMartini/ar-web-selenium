@@ -280,7 +280,9 @@ public class ARViewBotJobPane extends ARPane {
                     performLists.getHomeUrlByBankId(selectedBotJob.getHomeBankingId(), selectedBotJob.getHomeUrlId());
             String urlEntryPoint = homeUrlDTO != null
                     ? homeUrlDTO.getUrl()
-                    : selectedBotJob.getHomeBankingLoadDTO().getUrl();
+                    : (selectedBotJob.getHomeBankingLoadDTO() != null
+                            ? selectedBotJob.getHomeBankingLoadDTO().getUrl()
+                            : "");
             currentUrlLabel.setText(urlEntryPoint);
         }
 
@@ -364,13 +366,16 @@ public class ARViewBotJobPane extends ARPane {
         webEngineTasks.javaScriptEnabledProperty().set(true);
 
         sessionId = "botJobTasks";
+        String orgName = selectedBotJob.getHomeBankingLoadDTO() != null
+                ? selectedBotJob.getHomeBankingLoadDTO().getName()
+                : "";
         buildWebView(
                 webEngineTasks,
                 jsonData,
                 portInitial,
                 sessionId,
                 selectedBotJob.getHomeBankingId(),
-                selectedBotJob.getHomeBankingLoadDTO().getName(),
+                orgName,
                 selectedBotJob.getId(),
                 selectedBotJob.getName());
 
@@ -405,7 +410,7 @@ public class ARViewBotJobPane extends ARPane {
                 portInitial,
                 sessionId,
                 selectedBotJob.getHomeBankingId(),
-                selectedBotJob.getHomeBankingLoadDTO().getName(),
+                orgName,
                 selectedBotJob.getId(),
                 selectedBotJob.getName());
 
@@ -423,7 +428,7 @@ public class ARViewBotJobPane extends ARPane {
                 portInitial,
                 sessionId,
                 selectedBotJob.getHomeBankingId(),
-                selectedBotJob.getHomeBankingLoadDTO().getName(),
+                orgName,
                 selectedBotJob.getId(),
                 selectedBotJob.getName());
 
@@ -699,7 +704,9 @@ public class ARViewBotJobPane extends ARPane {
                 performLists.getHomeUrlByBankId(selectedBotJob.getHomeBankingId(), selectedBotJob.getHomeUrlId());
         String urlEntryPoint = homeUrlDTO != null
                 ? homeUrlDTO.getUrl()
-                : selectedBotJob.getHomeBankingLoadDTO().getUrl();
+                : (selectedBotJob.getHomeBankingLoadDTO() != null
+                        ? selectedBotJob.getHomeBankingLoadDTO().getUrl()
+                        : "");
 
         Label envBadge = new Label("ENV");
         envBadge.setStyle("-fx-font-size: 10px; -fx-font-weight: bold; -fx-text-fill: #1565C0; "
@@ -1153,9 +1160,12 @@ public class ARViewBotJobPane extends ARPane {
                 return;
             }
 
+            String importOrgName = selectedBotJob.getHomeBankingLoadDTO() != null
+                    ? selectedBotJob.getHomeBankingLoadDTO().getName()
+                    : "";
             arConfigurationPane.runImportBotJob(
                     selectedBotJob.getHomeBankingId(),
-                    selectedBotJob.getHomeBankingLoadDTO().getName(),
+                    importOrgName,
                     selectedBotJob.getHomeUrlId(),
                     selectedBotJob.getId(),
                     restoreDatePicker.getValue(),
@@ -1234,7 +1244,10 @@ public class ARViewBotJobPane extends ARPane {
                 "-jar",
                 "\"" + enginePath + "\"",
                 "execute/j",
-                String.valueOf(selectedBotJob.getHomeBankingLoadDTO().getId()),
+                String.valueOf(
+                        selectedBotJob.getHomeBankingLoadDTO() != null
+                                ? selectedBotJob.getHomeBankingLoadDTO().getId()
+                                : selectedBotJob.getHomeBankingId()),
                 String.valueOf(selectedBotJob.getId()),
                 String.valueOf(1), // block execution
                 "\"" + excelPath + "\"",

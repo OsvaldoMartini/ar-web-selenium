@@ -468,7 +468,10 @@ public class ARMainPane extends ARPane {
                     "-jar",
                     "\"" + enginePath + "\"",
                     "execute/j",
-                    String.valueOf(selecBotJobDTO.getHomeBankingLoadDTO().getId()),
+                    String.valueOf(
+                            selecBotJobDTO.getHomeBankingLoadDTO() != null
+                                    ? selecBotJobDTO.getHomeBankingLoadDTO().getId()
+                                    : selecBotJobDTO.getHomeBankingId()),
                     String.valueOf(selecBotJobDTO.getId()),
                     String.valueOf(1), // block execution
                     "\"" + excelPath + "\"",
