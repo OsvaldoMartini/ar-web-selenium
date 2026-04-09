@@ -32,6 +32,7 @@ import lombok.extern.slf4j.Slf4j;
 public class LicenseManager {
     private static final String KEY = "0123456789abcdef"; // 16-byte key for AES-128
     public static final String API_URL = "https://multiplugins.ch/api";
+    public static final String APP_VERSION = "4.7";
     private static final PerformMessage performMessage;
     private static final ARPropertyManager arPropertyManager;
 
@@ -60,7 +61,7 @@ public class LicenseManager {
             throws Exception {
         String emailTag = (email != null && !email.isBlank()) ? "email_client:" + email : "email_client:empty";
         String safeOwner = (owner != null) ? owner : "";
-        String requestData = organization + "|" + safeOwner + "|" + SystemDetails.getSystemDetails() + "|" + emailTag;
+        String requestData = organization + "|" + safeOwner + "|" + SystemDetails.getSystemDetails() + "|" + emailTag + "|" + APP_VERSION;
         String encryptedRequest = encrypt(requestData, KEY);
         String safeEmail = (email != null && !email.isBlank()) ? email : "";
         String fileLabel = !safeOwner.isEmpty() ? safeOwner : (!safeEmail.isEmpty() ? safeEmail : "request");
@@ -82,14 +83,14 @@ public class LicenseManager {
     public static String sendRequestOnline(String organization, String owner, String email) throws Exception {
         String emailTag = (email != null && !email.isBlank()) ? "email_client:" + email : "email_client:empty";
         String safeOwner = (owner != null) ? owner : "";
-        String requestData = organization + "|" + safeOwner + "|" + SystemDetails.getSystemDetails() + "|" + emailTag;
+        String requestData = organization + "|" + safeOwner + "|" + SystemDetails.getSystemDetails() + "|" + emailTag + "|" + APP_VERSION;
         String encryptedRequest = encrypt(requestData, KEY);
 
         HttpClient client =
                 HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(15)).build();
 
         String json = "{\"content\":\"" + escapeJson(encryptedRequest) + "\",\"organization\":\""
-                + escapeJson(organization) + "\"}";
+                + escapeJson(organization) + "\",\"app_version\":\"" + APP_VERSION + "\"}";
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(API_URL + "/client/license-request"))
