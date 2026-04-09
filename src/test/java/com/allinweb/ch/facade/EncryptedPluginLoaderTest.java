@@ -427,6 +427,11 @@ public class EncryptedPluginLoaderTest {
             String plain = new String(decrypted, StandardCharsets.UTF_8);
             String[] parts = plain.split("\\|");
             if (parts.length >= 5) {
+                System.out.println("  License format: " + parts.length + " parts");
+                System.out.println("  PC: " + parts[0] + "  Domain: " + parts[1] + "  User: " + parts[2]);
+                System.out.println("  Expiry: " + parts[3]);
+                System.out.println("  Org Key: " + parts[4].substring(0, Math.min(16, parts[4].length())) + "...");
+                if (parts.length >= 6) System.out.println("  Version: " + parts[5]);
                 return parts[4]; // org key hex
             }
             return null; // legacy format, no org key
