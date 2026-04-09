@@ -69,6 +69,10 @@ public class PluginKeyManager {
     private static final String ACTIVATED_PREFIX = "ACTIVATED:";
     private static final String PROTECTED_PREFIX = "PROTECTED:"; // legacy
 
+    // License file decryption (AES-128-ECB for ARWeb.lic)
+    private static final String LIC_KEY = "0123456789abcdef";
+    private static final String LIC_ALGORITHM = "AES/ECB/PKCS5Padding";
+
     // MultiPlugins API
     private static final String API_URL = System.getProperty("arweb.api.url", "https://multiplugins.ch/api");
 
@@ -114,7 +118,6 @@ public class PluginKeyManager {
                     return null;
                 }
 
-                Path keyFile = Paths.get(pluginsDir, "plugins.key");
                 String licenseFingerprint = getLicenseFingerprint();
                 String machId = getMachineId();
 
@@ -124,32 +127,37 @@ public class PluginKeyManager {
                     return null;
                 }
 
-                if (!Files.exists(keyFile)) {
-                    // ── First launch: online activation ──
-                    pluginKey = activateOnline(keyFile, licenseFingerprint, machId);
-                } else {
+                // Priority 1: Extract org key embedded in ARWeb.lic
+                String orgKeyHex = extractOrgKeyFromLicense();
+                if (orgKeyHex != null && !orgKeyHex.isEmpty()) {
+                    pluginKey = hexToBytes(orgKeyHex);
+                    log.info("PluginKeyManager — using org key from ARWeb.lic ({}-bit)", pluginKey.length * 8);
+                    scheduleValidation(licenseFingerprint, machId);
+                }
+
+                // Priority 2: plugins.key file (legacy fallback)
+                Path keyFile = Paths.get(pluginsDir, "plugins.key");
+                if (pluginKey == null && Files.exists(keyFile)) {
                     String content =
                             Files.readString(keyFile, StandardCharsets.UTF_8).trim();
 
                     if (content.startsWith(ACTIVATED_PREFIX)) {
-                        // ── Machine-bound key (no password needed) ──
                         String encoded = content.substring(ACTIVATED_PREFIX.length());
                         pluginKey = unwrapKey(encoded, machId, licenseFingerprint);
                         log.info("PluginKeyManager — key unlocked (machine-bound)");
-
-                        // Periodic validation in background
                         scheduleValidation(licenseFingerprint, machId);
-
                     } else if (content.startsWith(PROTECTED_PREFIX)) {
-                        // ── Legacy password-protected key ──
-                        log.info("PluginKeyManager — legacy PROTECTED key detected, re-activating online");
+                        log.info("PluginKeyManager — legacy PROTECTED key, re-activating online");
                         pluginKey = activateOnline(keyFile, licenseFingerprint, machId);
-
                     } else {
-                        // ── Plain hex key (backward compatibility) ──
                         pluginKey = hexToBytes(content);
                         log.info("PluginKeyManager — loaded plain key (not machine-bound)");
                     }
+                }
+
+                // Priority 3: Online activation
+                if (pluginKey == null) {
+                    pluginKey = activateOnline(keyFile, licenseFingerprint, machId);
                 }
             } catch (Exception e) {
                 log.error("PluginKeyManager — failed: {}", e.getMessage(), e);
@@ -518,6 +526,39 @@ public class PluginKeyManager {
             return InetAddress.getLocalHost().getHostName();
         } catch (Exception e) {
             return System.getenv("COMPUTERNAME") != null ? System.getenv("COMPUTERNAME") : "unknown";
+        }
+    }
+
+    // ── Extract org key from ARWeb.lic ────────────────────────────────────────
+
+    /**
+     * Decrypt ARWeb.lic and extract the org key from part[4].
+     * Format: pcName|domainName|userName|expiryDate|orgKey
+     * Returns null if no org key embedded (legacy 4-part format).
+     */
+    private String extractOrgKeyFromLicense() {
+        try {
+            String licensePath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.PATH_LICENSE);
+            if (licensePath == null) licensePath = System.getProperty("user.dir");
+
+            Path licFile = Paths.get(licensePath, "ARWeb.lic");
+            if (!Files.exists(licFile)) return null;
+
+            String content = Files.readString(licFile, StandardCharsets.UTF_8).trim();
+            SecretKeySpec keySpec = new SecretKeySpec(LIC_KEY.getBytes(StandardCharsets.UTF_8), "AES");
+            Cipher cipher = Cipher.getInstance(LIC_ALGORITHM);
+            cipher.init(Cipher.DECRYPT_MODE, keySpec);
+            byte[] decrypted = cipher.doFinal(Base64.getDecoder().decode(content));
+            String plain = new String(decrypted, StandardCharsets.UTF_8);
+            String[] parts = plain.split("\\|");
+            if (parts.length >= 5) {
+                log.info("PluginKeyManager — org key found in ARWeb.lic");
+                return parts[4];
+            }
+            return null;
+        } catch (Exception e) {
+            log.debug("PluginKeyManager — no org key in ARWeb.lic: {}", e.getMessage());
+            return null;
         }
     }
 

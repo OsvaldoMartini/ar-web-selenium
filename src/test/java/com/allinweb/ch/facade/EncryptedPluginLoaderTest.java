@@ -100,22 +100,21 @@ public class EncryptedPluginLoaderTest {
             String machineId = getMachineId();
             System.out.println("Machine ID:  " + machineId.substring(0, 16) + "...\n");
 
-            // ── Load / activate key ──
-            Path keyFile = Paths.get(pluginsDir, "plugins.key");
-            byte[] key;
+            // ── Load key: try ARWeb.lic org key first, then plugins.key, then online activation ──
+            byte[] key = null;
 
-            if (forceActivate || !Files.exists(keyFile)) {
-                // Online activation
-                System.out.println("=== ONLINE ACTIVATION ===\n");
-                key = activateOnline(keyFile, licenseFingerprint, machineId);
-                if (key == null) {
-                    System.out.println("\nActivation FAILED. Exiting.");
-                    System.exit(1);
-                }
-                System.out.println("\nActivation SUCCEEDED. Key saved to plugins.key\n");
-            } else {
-                String content =
-                        Files.readString(keyFile, StandardCharsets.UTF_8).trim();
+            // Priority 1: Extract org key embedded in ARWeb.lic
+            String orgKeyHex = extractOrgKeyFromLicense(licensePath);
+            if (orgKeyHex != null && !orgKeyHex.isEmpty()) {
+                key = hexToBytes(orgKeyHex);
+                System.out.println("Key from ARWeb.lic (org key): " + orgKeyHex.substring(0, 8) + "... ("
+                        + (key.length * 8) + "-bit AES)\n");
+            }
+
+            // Priority 2: plugins.key file (legacy / fallback)
+            Path keyFile = Paths.get(pluginsDir, "plugins.key");
+            if (key == null && Files.exists(keyFile) && !forceActivate) {
+                String content = Files.readString(keyFile, StandardCharsets.UTF_8).trim();
 
                 if (content.startsWith(ACTIVATED_PREFIX)) {
                     System.out.println("plugins.key is MACHINE-BOUND (ACTIVATED)\n");
@@ -130,9 +129,20 @@ public class EncryptedPluginLoaderTest {
                     System.out.println("Key UNLOCKED (" + (key.length * 8) + "-bit AES)\n");
                 } else {
                     key = hexToBytes(content);
-                    System.out.println("Key loaded (plain hex): " + content.substring(0, 8) + "... (" + (key.length * 8)
-                            + "-bit AES)\n");
+                    System.out.println("Key loaded (plain hex): " + content.substring(0, 8) + "... ("
+                            + (key.length * 8) + "-bit AES)\n");
                 }
+            }
+
+            // Priority 3: Online activation
+            if (key == null || forceActivate) {
+                System.out.println("=== ONLINE ACTIVATION ===\n");
+                key = activateOnline(keyFile, licenseFingerprint, machineId);
+                if (key == null) {
+                    System.out.println("\nActivation FAILED. Exiting.");
+                    System.exit(1);
+                }
+                System.out.println("\nActivation SUCCEEDED.\n");
             }
 
             // ── Test decrypt all plugins ──
@@ -392,6 +402,35 @@ public class EncryptedPluginLoaderTest {
         } catch (Exception e) {
             String cn = System.getenv("COMPUTERNAME");
             return cn != null ? cn : "unknown";
+        }
+    }
+
+    // ── Extract org key from ARWeb.lic ────────────────────────────────────────
+
+    private static final String LIC_KEY = "0123456789abcdef";
+    private static final String LIC_ALGORITHM = "AES/ECB/PKCS5Padding";
+
+    /**
+     * Decrypt ARWeb.lic and extract the org key from part[4].
+     * Format: pcName|domainName|userName|expiryDate|orgKey
+     * Returns null if no org key embedded (legacy 4-part format).
+     */
+    private static String extractOrgKeyFromLicense(String licensePath) {
+        try {
+            String content = Files.readString(Paths.get(licensePath), StandardCharsets.UTF_8).trim();
+            SecretKeySpec keySpec = new SecretKeySpec(LIC_KEY.getBytes(StandardCharsets.UTF_8), "AES");
+            Cipher cipher = Cipher.getInstance(LIC_ALGORITHM);
+            cipher.init(Cipher.DECRYPT_MODE, keySpec);
+            byte[] decrypted = cipher.doFinal(Base64.getDecoder().decode(content));
+            String plain = new String(decrypted, StandardCharsets.UTF_8);
+            String[] parts = plain.split("\\|");
+            if (parts.length >= 5) {
+                return parts[4]; // org key hex
+            }
+            return null; // legacy format, no org key
+        } catch (Exception e) {
+            System.err.println("[LIC] Failed to extract org key: " + e.getMessage());
+            return null;
         }
     }
 
