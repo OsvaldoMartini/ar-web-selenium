@@ -54,12 +54,15 @@ public class LicenseManager {
      *   organization|owner|pcName|domainName|userName|requestDate|email  (7 parts)
      * Owner and email are independent — both optional.
      */
+    private static final String DEFAULT_EMAIL = "o.martini@allinweb.ch";
+
     public static void generateRequestFile(String fileFolder, String organization, String owner, String email)
             throws Exception {
-        String safeEmail = (email != null) ? email : "";
+        String emailTag = (email != null && !email.isBlank()) ? "email_client:" + email : "email_client:empty";
         String safeOwner = (owner != null) ? owner : "";
-        String requestData = organization + "|" + safeOwner + "|" + SystemDetails.getSystemDetails() + "|" + safeEmail;
+        String requestData = organization + "|" + safeOwner + "|" + SystemDetails.getSystemDetails() + "|" + emailTag;
         String encryptedRequest = encrypt(requestData, KEY);
+        String safeEmail = (email != null && !email.isBlank()) ? email : "";
         String fileLabel = !safeOwner.isEmpty() ? safeOwner : (!safeEmail.isEmpty() ? safeEmail : "request");
         String fileName = organization + "-" + fileLabel + ".request";
         File newFile = new File(fileFolder, fileName);
@@ -77,9 +80,9 @@ public class LicenseManager {
      * Returns "SUCCESS" on success, or the error message on failure.
      */
     public static String sendRequestOnline(String organization, String owner, String email) throws Exception {
-        String safeEmail = (email != null) ? email : "";
+        String emailTag = (email != null && !email.isBlank()) ? "email_client:" + email : "email_client:empty";
         String safeOwner = (owner != null) ? owner : "";
-        String requestData = organization + "|" + safeOwner + "|" + SystemDetails.getSystemDetails() + "|" + safeEmail;
+        String requestData = organization + "|" + safeOwner + "|" + SystemDetails.getSystemDetails() + "|" + emailTag;
         String encryptedRequest = encrypt(requestData, KEY);
 
         HttpClient client =

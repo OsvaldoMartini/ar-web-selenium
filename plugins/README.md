@@ -2,13 +2,13 @@
 
 ## Overview
 
-Plugins are encrypted with AES-256-GCM. The encryption key is stored in `plugins.key` in one of three formats:
+Plugins are encrypted with AES-256-GCM. Three encryption modes are available:
 
-| Format | Description | Auth |
-|--------|-------------|------|
-| `PROTECTED:...` | Password + license bound | Prompts for password at runtime |
-| `ACTIVATED:...` | Machine + license bound | Automatic (no password needed) |
-| Plain hex | Raw key (dev only) | No auth |
+| Mode | Script | plugins.key format | Who can decrypt |
+|------|--------|--------------------|-----------------|
+| **Owner** | `encrypt-plugins.js` | `PROTECTED:...` | Only owner with password + license |
+| **Bank / Master Key** | `encrypt-bank.js` | Plain hex | Anyone with the key |
+| **License Bound** | `encrypt-license.js` | `ACTIVATED:...` | Only the target machine + license |
 
 ---
 
@@ -16,95 +16,93 @@ Plugins are encrypted with AES-256-GCM. The encryption key is stored in `plugins
 
 | File | Purpose |
 |------|---------|
+| `encrypt-plugins.js` | Mode 1: Owner encryption (password + license) |
+| `encrypt-bank.js` | Mode 2: Bank encryption (master key) |
+| `encrypt-license.js` | Mode 3: License-bound encryption (machine + license) |
+| `rekey-plugins.js` | Re-encrypt existing .enc files with new password |
+| `setup-key.js` | Generate a PROTECTED key without encrypting |
 | `plugins.key` | Wrapped encryption key (ship to production) |
-| `.plugin-key-raw` | Raw hex key (keep secret, delete from production) |
-| `encrypt-plugins.js` | Encrypt `.min.js` sources + optional password protection |
-| `setup-key.js` | Generate a new PROTECTED key from scratch |
-| `rekey-plugins.js` | Decrypt existing `.enc` files and re-encrypt with new password |
+| `.plugin-key-raw` | Raw hex key (owner backup, never ship) |
 
 ---
 
-## Encrypt Plugins with Password (recommended)
+## Mode 1 — Owner Encryption (PROTECTED)
 
-Use this when you have the `.min.js` source files in `{plugin}/build/`.
+**Only the owner can decrypt.** Requires password + ARWeb.lic at runtime.
 
 ```bash
-cd D:\Projects\AllinWeb\ar-web-selenium\plugins
-
 node encrypt-plugins.js --password --owner "osvaldo.martini@gmail.com"
 ```
 
-You will be prompted to type a password and confirm it (press Enter after each).
-
-The script will:
-
-1. Use the existing raw key from `.plugin-key-raw` (or generate a new one)
-2. Encrypt all `{plugin}/build/{name}.min.js` -> `{name}.min.enc`
-3. Create a `.zip` for each plugin
-4. Wrap the key as `PROTECTED:` (password + license bound)
-5. Save `plugins.key`
+Prompts for password (twice). Output:
+- `plugins.key` → `PROTECTED:...` (password + license bound)
+- `.zip` files with encrypted plugins
 
 **Options:**
+```bash
+node encrypt-plugins.js --password "secret" --owner "osvaldo.martini@gmail.com"
+node encrypt-plugins.js --password --license "D:\path\to\ARWeb.lic"
+```
+
+**Java runtime:** prompts user for password, derives key from password + license fingerprint.
+
+---
+
+## Mode 2 — Bank / Master Key
+
+**For bank distribution.** Encrypt with a hex key. Bank needs the same key to decrypt.
 
 ```bash
-# Inline password (no prompt)
-node encrypt-plugins.js --password "mysecret" --owner "you@email.com"
+# Generate a new master key
+node encrypt-bank.js --client "UBS"
 
-# Custom license path
-node encrypt-plugins.js --password --license "D:\path\to\ARWeb.lic"
-
-# Plain hex key, no password (dev only)
-node encrypt-plugins.js
-
-# Reuse a specific key
-node encrypt-plugins.js --key <64-char-hex> --password
+# Or use a specific key
+node encrypt-bank.js --key <64-char-hex> --client "UBS"
 ```
+
+Output:
+- `plugins.key` → plain hex key
+- `.zip` files with encrypted plugins
+
+**Give the bank:**
+- All `.zip` files
+- `plugins.key`
+
+**Java runtime:** uses the hex key directly, no password or license needed.
+
+---
+
+## Mode 3 — License Bound (ACTIVATED)
+
+**Locked to a specific machine + ARWeb.lic.** No password needed at runtime.
+
+```bash
+node encrypt-license.js
+node encrypt-license.js --license "D:\path\to\ARWeb.lic" --client "Credit Suisse"
+```
+
+Output:
+- `plugins.key` → `ACTIVATED:...` (machine + license bound)
+- `.zip` files with encrypted plugins
+
+**Ship to production:**
+- All `.zip` files
+- `plugins.key`
+- `ARWeb.lic` (must match the one used during encryption)
+
+**Java runtime:** derives key from machine_id + license fingerprint automatically. Only works on the machine where encryption was run.
 
 ---
 
 ## Re-Key Existing Plugins
 
-Use this when plugins are already encrypted (only `.enc` files, no `.min.js` sources)
-and you want to change the key or add password protection.
+Use when plugins are already encrypted (.enc only, no .min.js sources) and you want to change the key/password.
 
-**Prerequisites:** `.plugin-key-raw` must contain the current raw hex key.
+**Requires:** `.plugin-key-raw` with the current raw hex key.
 
 ```bash
-cd D:\Projects\ARWeb-Martini\ARWeb\plugins
-
 node rekey-plugins.js --owner "osvaldo.martini@gmail.com"
 ```
-
-The script will:
-
-1. Decrypt all `.enc` files with the old key from `.plugin-key-raw`
-2. Generate a new AES-256 key
-3. Re-encrypt all plugins with the new key
-4. Wrap the key as `PROTECTED:` (password + license bound)
-5. Save `plugins.key` and re-zip each plugin
-
----
-
-## Setup Key Only (no encryption)
-
-Use this to generate a new password-protected key without encrypting plugins.
-Useful when you want to run `encrypt-plugins.js --key <hex>` separately.
-
-```bash
-node setup-key.js --license "D:\Projects\ARWeb-Martini\ARWeb-Scanner\ARWeb.lic"
-```
-
----
-
-## Java Runtime Behavior
-
-When the Java app starts, `EncryptedPluginLoader` reads `plugins.key`:
-
-- **PROTECTED:** prompts the user for the password, derives the unwrap key from `password + license fingerprint`, decrypts the plugin key
-- **ACTIVATED:** derives the unwrap key from `machine_id + license fingerprint` automatically
-- **Plain hex:** uses the key directly (dev only)
-
-The unwrapped key is then used to decrypt each `.min.enc` file at runtime.
 
 ---
 
@@ -112,35 +110,45 @@ The unwrapped key is then used to decrypt each `.min.enc` file at runtime.
 
 ```
 plugins/
-  encrypt-plugins.js       # main encryption script
+  encrypt-plugins.js       # Mode 1: owner (password + license)
+  encrypt-bank.js          # Mode 2: bank (master key)
+  encrypt-license.js       # Mode 3: license bound (ACTIVATED)
   rekey-plugins.js         # re-key existing .enc files
   setup-key.js             # generate PROTECTED key only
   plugins.key              # wrapped key (ship to production)
-  .plugin-key-raw          # raw hex key (DO NOT ship)
+  .plugin-key-raw          # raw hex key (owner backup, NEVER ship)
   manifest.json            # plugin metadata
   hoverPick/
     build/
       hoverPick.min.js     # source (from build)
       hoverPick.min.enc    # encrypted output
   hoverPick.zip            # zip containing the .enc
-  pageScanner/
-    build/
-      scanner.min.js
-      scanner.min.enc
-  pageScanner.zip
   ...
 ```
 
 ---
 
+## Java Runtime Behavior
+
+`EncryptedPluginLoader` reads `plugins.key` and detects the format:
+
+| Format | Behavior |
+|--------|----------|
+| `PROTECTED:...` | Prompts for password, derives key from `password + license fingerprint` |
+| `ACTIVATED:...` | Automatic, derives key from `machine_id + license fingerprint` |
+| Plain hex (64 chars) | Uses the key directly |
+
+---
+
 ## Production Checklist
 
-1. Run `encrypt-plugins.js --password --owner "you@email.com"`
-2. Copy to production plugins folder:
+1. Choose your encryption mode and run the appropriate script
+2. Copy to production:
    - `plugins.key`
    - All `.zip` files
-3. **Delete** from production:
+   - `ARWeb.lic` (for Mode 1 and Mode 3)
+3. **DELETE** from production:
    - `.plugin-key-raw`
-   - `.encrypt-meta.json` / `.rekey-meta.json`
+   - `.encrypt-meta.json`
    - Source `.min.js` files
-4. The end user only needs the password to unlock plugins
+   - Encryption scripts

@@ -325,11 +325,11 @@ public class ARLicensePane extends ARPane {
                         boolean reachable = LicenseManager.pingApi();
                         Platform.runLater(() -> {
                             if (reachable) {
-                                log.info("API ping successful: {}", LicenseManager.API_URL);
+                                log.info("API ping successful");
                                 btnPingStatus.setStyle(
                                         "-fx-background-color: #4caf50; -fx-background-radius: 9; -fx-border-radius: 9; -fx-cursor: hand;");
-                                btnPingStatus.getTooltip().setText("API online: " + LicenseManager.API_URL);
-                                filePathField.setText("API connected: " + LicenseManager.API_URL);
+                                btnPingStatus.getTooltip().setText("Server online");
+                                filePathField.setText("");
                                 lblPingHint.setText("Connected to server");
                                 lblPingHint.setStyle(
                                         "-fx-font-size: 11px; -fx-padding: 2 0 0 28; -fx-text-fill: #4caf50; -fx-font-weight: bold;");
