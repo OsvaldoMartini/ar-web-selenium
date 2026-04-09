@@ -13,7 +13,7 @@
 #define MyAppCopyright "Copyright (C) 2026 Allinweb AG"
 
 ; Source paths
-#define SrcPlugins  "D:\Projects\ARWeb-Martini\ARWeb\plugins"
+#define SrcPlugins  "D:\Projects\ARWeb-Martini\ARWeb\plugins-BancaStato"
 #define SrcScanner  "D:\Projects\ARWeb-Martini\ARWeb-Scanner"
 #define SrcDeploy   "D:\Projects\AllinWeb\ar-web-selenium\Deploy"
 
@@ -46,7 +46,7 @@ DirExistsWarning=no
 AppendDefaultDirName=no
 
 ; ── Output ───────────────────────────────────────────────────────────────────
-OutputBaseFilename=ARWeb-Updates-v4-2
+OutputBaseFilename=ARWeb-BancaStato-v4.2-HotFix
 OutputDir={#SrcDeploy}
 SolidCompression=yes
 Compression=lzma2/ultra64
