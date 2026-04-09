@@ -121,7 +121,7 @@ Source: "{#SrcConfig}\ARWeb.config"; DestDir: "{app}\Config-4.2"; Components: co
 Source: "{#SrcARWeb}\Excel\Apo Bank.xlsx"; DestDir: "{app}\ARWeb\Excel"; Components: excel; Flags: ignoreversion confirmoverwrite
 
 ; ── Tesseract  ->  {app}\tesseract (recursive) ──────────────────────────────
-Source: "{#SrcScanner}\tesseract\*"; DestDir: "{app}\tesseract"; Components: tesseract; Flags: ignoreversion confirmoverwrite recursesubdirs createallsubdirs
+Source: "{#SrcScanner}\tesseract\*"; DestDir: "{app}\ARWeb-Scanner\tesseract\tessdata"; Components: tesseract; Flags: ignoreversion confirmoverwrite recursesubdirs createallsubdirs
 
 ; ── Lang  ->  {app}\lang ─────────────────────────────────────────────────────
 Source: "{#SrcScanner}\lang\labels.en.properties"; DestDir: "{app}\ARWeb-Scanner\lang"; Components: lang; Flags: ignoreversion confirmoverwrite
@@ -151,7 +151,7 @@ Name: "{app}\ARWeb\plugins"
 Name: "{app}\ARWeb-Scanner\TakedShot"
 Name: "{app}\Config-4.2"
 Name: "{app}\ARWeb-Scanner\lang"
-Name: "{app}\tesseract"
+Name: "{app}\ARWeb-Scanner\tesseract\tessdata"
 
 [Icons]
 ; No start menu shortcuts for an install
@@ -240,7 +240,7 @@ begin
     Space + 'JARs         ->  ' + ExpandConstant('{app}') + '\ARWeb-Scanner' + NewLine +
     Space + 'Config       ->  ' + ExpandConstant('{app}') + '\Config-4.2' + NewLine +
     Space + 'Excel        ->  ' + ExpandConstant('{app}') + '\ARWeb\Excel' + NewLine +
-    Space + 'Tesseract    ->  ' + ExpandConstant('{app}') + '\tesseract' + NewLine +
+    Space + 'Tesseract    ->  ' + ExpandConstant('{app}') + '\ARWeb-Scanner\tesseract\tessdata' + NewLine +
     Space + 'JavaFX       ->  ' + ExpandConstant('{app}') + '\ARWeb-Scanner\javaFX' + NewLine +
     Space + 'JavaJCE      ->  ' + ExpandConstant('{app}') + '\ARWeb-Scanner\javaJCE' + NewLine +
     Space + 'Lang         ->  ' + ExpandConstant('{app}') + '\ARWeb-Scanner\lang' + NewLine +
