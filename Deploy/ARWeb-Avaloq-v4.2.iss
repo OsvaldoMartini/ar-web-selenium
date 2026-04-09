@@ -37,9 +37,11 @@ VersionInfoCopyright={#MyAppCopyright}
 VersionInfoProductName={#MyAppName}
 VersionInfoProductVersion={#MyAppVersion}
 
+#define MyAppDefaultDir "C:\ARWeb-Martini"
+
 ; The user picks the ROOT folder (e.g. C:\ARWeb-Martini)
 ; NOT the ARWeb sub-folder
-DefaultDirName=C:\ARWeb-Martini
+DefaultDirName={#MyAppDefaultDir}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 PrivilegesRequiredOverridesAllowed=dialog
@@ -49,7 +51,7 @@ DirExistsWarning=no
 AppendDefaultDirName=no
 
 ; ── Output ───────────────────────────────────────────────────────────────────
-OutputBaseFilename=ARWeb-Avaloq-Updates-v4-2
+OutputBaseFilename=ARWeb-Avaloq-v4-2
 OutputDir={#SrcDeploy}
 SolidCompression=yes
 Compression=lzma2/ultra64
@@ -121,7 +123,7 @@ Source: "{#SrcARWeb}\Excel\Apo Bank.xlsx"; DestDir: "{app}\ARWeb\Excel"; Compone
 Source: "{#SrcScanner}\tesseract\*"; DestDir: "{app}\tesseract"; Components: tesseract; Flags: ignoreversion confirmoverwrite recursesubdirs createallsubdirs
 
 ; ── Lang  ->  {app}\lang ─────────────────────────────────────────────────────
-Source: "{#SrcScanner}\lang\labels.en.properties"; DestDir: "{app}\lang"; Components: lang; Flags: ignoreversion confirmoverwrite
+Source: "{#SrcScanner}\lang\labels.en.properties"; DestDir: "{app}\ARWeb-Scanner\lang"; Components: lang; Flags: ignoreversion confirmoverwrite
 
 ; ── JavaJCE  ->  {app}\ARWeb-Scanner\javaJCE (recursive) ────────────────────
 Source: "{#SrcScanner}\javaJCE\*"; DestDir: "{app}\ARWeb-Scanner\javaJCE"; Components: javajce; Flags: ignoreversion confirmoverwrite recursesubdirs createallsubdirs
@@ -147,7 +149,7 @@ Name: "{app}\ARWeb\Excel"
 Name: "{app}\ARWeb\plugins"
 Name: "{app}\ARWeb-Scanner\TakedShot"
 Name: "{app}\Config-4.2"
-Name: "{app}\lang"
+Name: "{app}\ARWeb-Scanner\lang"
 Name: "{app}\tesseract"
 
 [Icons]
@@ -240,7 +242,7 @@ begin
     Space + 'Tesseract    ->  ' + ExpandConstant('{app}') + '\tesseract' + NewLine +
     Space + 'JavaFX       ->  ' + ExpandConstant('{app}') + '\ARWeb-Scanner\javaFX' + NewLine +
     Space + 'JavaJCE      ->  ' + ExpandConstant('{app}') + '\ARWeb-Scanner\javaJCE' + NewLine +
-    Space + 'Lang         ->  ' + ExpandConstant('{app}') + '\lang' + NewLine +
+    Space + 'Lang         ->  ' + ExpandConstant('{app}') + '\ARWeb-Scanner\lang' + NewLine +
     Space + 'Edge Driver  ->  ' + ExpandConstant('{app}') + '\ARWeb-Scanner\edgedriver-versions' + NewLine +
     Space + 'App Config   ->  ' + ExpandConstant('{app}') + '\ARWeb-Scanner\config' + NewLine + NewLine;
 
@@ -306,4 +308,107 @@ function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
   SanitizeAppDir;
   Result := '';
+end;
+
+// ── String replace helper (Inno Setup Pascal has no built-in replace) ───────
+
+function MyStringReplace(const S, OldStr, NewStr: String): String;
+var
+  Pos: Integer;
+begin
+  Result := S;
+  Pos := 1;
+  while Pos <= Length(Result) do
+  begin
+    Pos := Pos;
+    if Copy(Result, Pos, Length(OldStr)) = OldStr then
+    begin
+      Delete(Result, Pos, Length(OldStr));
+      Insert(NewStr, Result, Pos);
+      Pos := Pos + Length(NewStr);
+    end
+    else
+      Pos := Pos + 1;
+  end;
+end;
+
+// ── Update paths inside a config/bat file after install ─────────────────────
+//
+//  originFilePath : full path to the installed file
+//  toBeReplaced   : the old path fragment to find (e.g. 'D\:\\Projects\\ARWeb-Martini\\')
+//  AppNewPath     : the new root path ({app})
+//  newWords       : path separator to use ('\\' for .config, '\' for .bat)
+//  alsoColon      : true = escape colons (Java .properties format)
+
+procedure UpdateConfigFile(originFilePath, toBeReplaced, AppNewPath, newWords: String; alsoColon: Boolean);
+var
+  Lines: TArrayOfString;
+  i: Integer;
+  NL: String;
+begin
+  NL := Chr(13) + Chr(10);
+  AppNewPath := MyStringReplace(AppNewPath, '\', '|');
+  AppNewPath := MyStringReplace(AppNewPath, '|', newWords);
+  if alsoColon then
+  begin
+    AppNewPath := MyStringReplace(AppNewPath, ':', '|');
+    AppNewPath := MyStringReplace(AppNewPath, '|', '\:') + newWords;
+  end
+  else
+  begin
+    AppNewPath := AppNewPath + newWords;
+  end;
+
+  if LoadStringsFromFile(originFilePath, Lines) then
+  begin
+    for i := 0 to GetArrayLength(Lines) - 1 do
+    begin
+      Log('Before: ' + Lines[i]);
+      Lines[i] := MyStringReplace(Lines[i], toBeReplaced, AppNewPath);
+      Log('After:  ' + Lines[i]);
+    end;
+    SaveStringsToFile(originFilePath, Lines, False);
+    if alsoColon then
+    begin
+      MsgBox('File updated:' + NL +
+        '"ARWeb.config"' + NL + NL +
+        'Paths updated to:' + NL +
+        ExpandConstant('{app}'),
+        mbInformation, MB_OK);
+    end;
+  end
+  else
+  begin
+    MsgBox('Failed to load:' + NL + originFilePath, mbError, MB_OK);
+  end;
+end;
+
+// ── Post-install: rewrite paths in config and launcher ──────────────────────
+
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  AppNewPath, ExpectedPath: String;
+begin
+  if CurStep = ssPostInstall then
+  begin
+    AppNewPath := ExpandConstant('{app}');
+    ExpectedPath := ExpandConstant('{#MyAppDefaultDir}');
+
+    if not SameText(AppNewPath, ExpectedPath) then
+    begin
+      // ARWeb.config: replace escaped Java .properties paths
+      // D\:\\Projects\\ARWeb-Martini\\  ->  <root>\\
+      UpdateConfigFile(
+        AppNewPath + '\Config-4.2\ARWeb.config',
+        'D\:\\Projects\\ARWeb-Martini\\',
+        AppNewPath, '\\', True);
+
+      // exec_launcher-4.2.bat: replace plain paths
+      // D:\Projects\ARWeb-Martini\  ->  <root>\
+      UpdateConfigFile(
+        AppNewPath + '\ARWeb-Scanner\exec_launcher-4.2.bat',
+        'D:\Projects\ARWeb-Martini\',
+        AppNewPath, '\', False);
+    end;
+  end;
 end;
