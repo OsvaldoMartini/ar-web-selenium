@@ -1,59 +1,170 @@
-; ARWeb BancaStato v4.2 HotFix Installer
-; Deploys plugins to ARWeb\plugins and JAR files to ARWeb-Scanner
+; ============================================================================
+;  ARWeb BancaStato v4.2 - Update Installer
+;
+;  Final structure (user selects the ROOT, e.g. C:\ARWeb-Martini):
+;     <root>\ARWeb\plugins\        <- plugin zips + manifest
+;     <root>\ARWeb-Scanner\        <- JAR files
+; ============================================================================
 
-#define MyAppName "ARWeb BancaStato HotFix"
-#define MyAppVersion "4.2"
+#define MyAppName      "ARWeb"
+#define MyAppVersion   "4.2"
 #define MyAppPublisher "Allinweb AG"
-#define MyAppURL "https://www.allinweb.ch/"
+#define MyAppURL       "https://www.allinweb.ch/"
+#define MyAppCopyright "Copyright (C) 2026 Allinweb AG"
 
 ; Source paths
-#define SrcPlugins "D:\Projects\ARWeb-Martini\ARWeb\plugins"
-#define SrcScanner "D:\Projects\ARWeb-Martini\ARWeb-Scanner"
+#define SrcPlugins  "D:\Projects\ARWeb-Martini\ARWeb\plugins"
+#define SrcScanner  "D:\Projects\ARWeb-Martini\ARWeb-Scanner"
+#define SrcDeploy   "D:\Projects\AllinWeb\ar-web-selenium\Deploy"
 
 [Setup]
 AppId={{A3F7B2D1-9C4E-4A8B-B6D2-1E5F3A7C9D42}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
+AppVerName={#MyAppName} {#MyAppVersion} Update
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
-DefaultDirName=C:\ARWeb
-DefaultGroupName={#MyAppName} v{#MyAppVersion}
+AppCopyright={#MyAppCopyright}
+VersionInfoVersion={#MyAppVersion}.0.0
+VersionInfoCompany={#MyAppPublisher}
+VersionInfoDescription=ARWeb BancaStato v{#MyAppVersion} Update
+VersionInfoCopyright={#MyAppCopyright}
+VersionInfoProductName={#MyAppName}
+VersionInfoProductVersion={#MyAppVersion}
+
+; The user picks the ROOT folder (e.g. C:\ARWeb-Martini)
+; NOT the ARWeb sub-folder
+DefaultDirName=C:\ARWeb-Martini
+DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 PrivilegesRequiredOverridesAllowed=dialog
-OutputBaseFilename=ARWeb-Updates-v4-2
-OutputDir=D:\Projects\AllinWeb\ar-web-selenium\Deploy
-SolidCompression=yes
-WizardStyle=modern
-UninstallDisplayName=uninstall-ARWeb-BancaStato-HotFix-v4.2
-; Let the user pick the base folder; we create sub-folders from there
-UsePreviousAppDir=yes
-DirExistsWarning=no
 CreateUninstallRegKey=no
+UsePreviousAppDir=no
+DirExistsWarning=no
+
+; ── Output ───────────────────────────────────────────────────────────────────
+OutputBaseFilename=ARWeb-Updates-v4-2
+OutputDir={#SrcDeploy}
+SolidCompression=yes
+Compression=lzma2/ultra64
+
+; ── Branding ─────────────────────────────────────────────────────────────────
+SetupIconFile={#SrcDeploy}\arweb.ico
+WizardStyle=modern
+WizardSizePercent=110,110
+WindowVisible=no
+DisableWelcomePage=no
+DisableDirPage=no
+DisableProgramGroupPage=yes
+DisableReadyPage=no
+DisableFinishedPage=no
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Messages]
-SelectDirLabel3=Select the base ARWeb folder.%nPlugins will be installed to <selected folder>\ARWeb\plugins%nJAR files will be installed to <selected folder>\ARWeb-Scanner
+WelcomeLabel1=Welcome to the {#MyAppName} v{#MyAppVersion} Update
+WelcomeLabel2=This will install the latest plugins and application files for ARWeb BancaStato v{#MyAppVersion}.%n%n  - 7 encrypted plugin packages%n  - AR Web Scanner v4.2%n  - AR Web Engine v4.2%n%nPlease close ARWeb before continuing.
+SelectDirBrowseLabel=Select the ROOT installation folder (e.g. C:\ARWeb-Martini).%nDo NOT select the ARWeb sub-folder.
+SelectDirLabel3=The installer will create:%n%n   <dir>\ARWeb\plugins%n   <dir>\ARWeb-Scanner
+ReadyLabel1=Ready to Update
+ReadyLabel2a=Click Install to deploy the update files to the selected folder.
+FinishedHeadingLabel=Update Complete
+FinishedLabel={#MyAppName} v{#MyAppVersion} has been successfully updated.%n%nYou can now launch ARWeb.
+
+[Types]
+Name: "full";   Description: "Full update (Plugins + JAR files)"
+Name: "custom"; Description: "Custom"; Flags: iscustom
+
+[Components]
+Name: "plugins";    Description: "Encrypted plugin packages (7 files + manifest)"; Types: full custom; Flags: fixed
+Name: "scanner";    Description: "AR_Web_Scanner-4.2.jar";                         Types: full custom
+Name: "engine";     Description: "AR_Web_Engine-4.2.jar";                          Types: full custom
 
 [Files]
 ; ── Plugins  ->  {app}\ARWeb\plugins ─────────────────────────────────────────
-Source: "{#SrcPlugins}\manifest.json";       DestDir: "{app}\ARWeb\plugins"; Flags: ignoreversion
-Source: "{#SrcPlugins}\pageScanner.zip";     DestDir: "{app}\ARWeb\plugins"; Flags: ignoreversion
-Source: "{#SrcPlugins}\hoverPick.zip";       DestDir: "{app}\ARWeb\plugins"; Flags: ignoreversion
-Source: "{#SrcPlugins}\searchList.zip";      DestDir: "{app}\ARWeb\plugins"; Flags: ignoreversion
-Source: "{#SrcPlugins}\searchListAsync.zip"; DestDir: "{app}\ARWeb\plugins"; Flags: ignoreversion
-Source: "{#SrcPlugins}\actionExecutor.zip";  DestDir: "{app}\ARWeb\plugins"; Flags: ignoreversion
-Source: "{#SrcPlugins}\pluginTest.zip";      DestDir: "{app}\ARWeb\plugins"; Flags: ignoreversion
+; confirmoverwrite asks the user before replacing existing files
+Source: "{#SrcPlugins}\manifest.json";       DestDir: "{app}\ARWeb\plugins"; Components: plugins; Flags: ignoreversion confirmoverwrite
+Source: "{#SrcPlugins}\pageScanner.zip";     DestDir: "{app}\ARWeb\plugins"; Components: plugins; Flags: ignoreversion confirmoverwrite
+Source: "{#SrcPlugins}\hoverPick.zip";       DestDir: "{app}\ARWeb\plugins"; Components: plugins; Flags: ignoreversion confirmoverwrite
+Source: "{#SrcPlugins}\searchList.zip";      DestDir: "{app}\ARWeb\plugins"; Components: plugins; Flags: ignoreversion confirmoverwrite
+Source: "{#SrcPlugins}\searchListAsync.zip"; DestDir: "{app}\ARWeb\plugins"; Components: plugins; Flags: ignoreversion confirmoverwrite
+Source: "{#SrcPlugins}\actionExecutor.zip";  DestDir: "{app}\ARWeb\plugins"; Components: plugins; Flags: ignoreversion confirmoverwrite
+Source: "{#SrcPlugins}\pluginTest.zip";      DestDir: "{app}\ARWeb\plugins"; Components: plugins; Flags: ignoreversion confirmoverwrite
 
 ; ── JAR files  ->  {app}\ARWeb-Scanner ───────────────────────────────────────
-Source: "{#SrcScanner}\AR_Web_Engine-4.2.jar";  DestDir: "{app}\ARWeb-Scanner"; Flags: ignoreversion
-Source: "{#SrcScanner}\AR_Web_Scanner-4.2.jar"; DestDir: "{app}\ARWeb-Scanner"; Flags: ignoreversion
+Source: "{#SrcScanner}\AR_Web_Engine-4.2.jar";  DestDir: "{app}\ARWeb-Scanner"; Components: engine;  Flags: ignoreversion confirmoverwrite
+Source: "{#SrcScanner}\AR_Web_Scanner-4.2.jar"; DestDir: "{app}\ARWeb-Scanner"; Components: scanner; Flags: ignoreversion confirmoverwrite
 
 [Icons]
-; No shortcuts needed for a hotfix
+; No start menu shortcuts for an update
 
-[Run]
-; No post-install steps
+[Code]
+
+// ── Custom "What's included" info on the Ready page ─────────────────────────
+
+function UpdateReadyMemo(Space, NewLine, MemoUserInfoInfo, MemoDirInfo,
+  MemoTypeInfo, MemoComponentsInfo, MemoGroupInfo, MemoTasksInfo: String): String;
+begin
+  Result :=
+    'Root folder:' + NewLine +
+    Space + ExpandConstant('{app}') + NewLine + NewLine +
+
+    'Destination paths:' + NewLine +
+    Space + 'Plugins  ->  ' + ExpandConstant('{app}') + '\ARWeb\plugins' + NewLine +
+    Space + 'JARs     ->  ' + ExpandConstant('{app}') + '\ARWeb-Scanner' + NewLine + NewLine;
+
+  if MemoComponentsInfo <> '' then
+    Result := Result + 'Selected components:' + NewLine + MemoComponentsInfo + NewLine + NewLine;
+
+  Result := Result +
+    'Existing files:' + NewLine +
+    Space + 'You will be asked before overwriting each file.' + NewLine;
+end;
+
+// ── Validate the chosen folder is the ROOT, not a sub-folder ────────────────
+
+function NextButtonClick(CurPageID: Integer): Boolean;
+var
+  AppDir, LastPart, NL, Msg: String;
+begin
+  Result := True;
+  NL := Chr(13) + Chr(10);
+
+  if CurPageID = wpSelectDir then
+  begin
+    AppDir := ExpandConstant('{app}');
+    LastPart := ExtractFileName(RemoveBackslashUnlessRoot(AppDir));
+
+    // Warn if user accidentally selected the ARWeb sub-folder
+    if (CompareText(LastPart, 'ARWeb') = 0) or
+       (CompareText(LastPart, 'plugins') = 0) or
+       (CompareText(LastPart, 'ARWeb-Scanner') = 0) then
+    begin
+      Msg := 'It looks like you selected a sub-folder instead of the root.' + NL + NL +
+        'You selected:  ' + AppDir + NL + NL +
+        'This will create:' + NL +
+        '   ' + AppDir + '\ARWeb\plugins' + NL +
+        '   ' + AppDir + '\ARWeb-Scanner' + NL + NL +
+        'If your existing layout is:' + NL +
+        '   C:\ARWeb-Martini\ARWeb\plugins' + NL +
+        '   C:\ARWeb-Martini\ARWeb-Scanner' + NL +
+        'then select C:\ARWeb-Martini instead.' + NL + NL +
+        'Continue with the current selection?';
+      Result := (MsgBox(Msg, mbConfirmation, MB_YESNO) = IDYES);
+    end
+
+    // Warn if neither sub-folder exists (fresh location)
+    else if not DirExists(AppDir + '\ARWeb') and not DirExists(AppDir + '\ARWeb-Scanner') then
+    begin
+      Msg := 'No existing ARWeb installation found in this folder.' + NL + NL +
+        'The update will create:' + NL +
+        '   ' + AppDir + '\ARWeb\plugins' + NL +
+        '   ' + AppDir + '\ARWeb-Scanner' + NL + NL +
+        'Continue?';
+      Result := (MsgBox(Msg, mbConfirmation, MB_YESNO) = IDYES);
+    end;
+  end;
+end;
