@@ -329,7 +329,7 @@ public class EncryptedPluginLoaderTest {
 
     private static String decrypt(byte[] fileData, byte[] key) throws Exception {
         if (fileData.length < IV_LENGTH + TAG_LENGTH_BYTES) {
-            throw new IllegalArgumentException("File too short — invalid .enc format");
+            throw new IllegalArgumentException("File too short - invalid .enc format");
         }
 
         byte[] iv = Arrays.copyOfRange(fileData, 0, IV_LENGTH);
@@ -455,7 +455,7 @@ public class EncryptedPluginLoaderTest {
         }
     }
 
-    // ── Key wrapping (ACTIVATED — machine-bound) ────────────────────────────
+    // ── Key wrapping (ACTIVATED - machine-bound) ────────────────────────────
 
     private static String wrapKeyActivated(byte[] pluginKey, String machineId, String fingerprint) throws Exception {
         byte[] salt = new byte[SALT_LENGTH];

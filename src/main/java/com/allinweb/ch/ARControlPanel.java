@@ -157,7 +157,7 @@ public class ARControlPanel extends Application {
         }
         System.setProperty("LOG_PATH", logDir.getAbsolutePath());
 
-        // Single-instance check — lock file at the logs path
+        // Single-instance check - lock file at the logs path
         if (!SingleInstance.acquire("ARWebScanner", logDir.getAbsolutePath())) {
             log.warn("Another instance is already running. Exiting.");
             performMessage.showCustomModalDialogDragWin11(

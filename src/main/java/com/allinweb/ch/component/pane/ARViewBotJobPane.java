@@ -527,7 +527,7 @@ public class ARViewBotJobPane extends ARPane {
         restoreDatePicker.setPrefWidth(120);
         restoreDatePicker.setMinWidth(Region.USE_PREF_SIZE);
 
-        // ── Uniform height (toolbar controls only — Save/Edit sized separately) ───
+        // ── Uniform height (toolbar controls only - Save/Edit sized separately) ───
         Node[] toolbarControls = {
             refreshButton,
             openScannerButton,
@@ -593,7 +593,7 @@ public class ARViewBotJobPane extends ARPane {
         }
 
         // ════════════════════════════════════════════════════════════════════════
-        //  TOOLBAR ROW  — Save/Edit NOT here, they live in the info bar
+        //  TOOLBAR ROW  - Save/Edit NOT here, they live in the info bar
         // ════════════════════════════════════════════════════════════════════════
         HBox toolbarRow = new HBox(3);
         toolbarRow.setAlignment(Pos.CENTER_LEFT);
@@ -714,7 +714,7 @@ public class ARViewBotJobPane extends ARPane {
         pathExport.setMaxWidth(Double.MAX_VALUE);
 
         // ════════════════════════════════════════════════════════════════════════
-        //  INFO BAR  — two fixed rows, right column always visible
+        //  INFO BAR  - two fixed rows, right column always visible
         //
         //  Row 0: [Name/Id labels | textfield]  [Save][Edit]  [Export][Import][Date]  [🔥🧊]
         //  Row 1: [Description    | textfield]  [ENV url | ChoiceBox ↺ Orgs]  [📁][Path────]  [🔥🧊]

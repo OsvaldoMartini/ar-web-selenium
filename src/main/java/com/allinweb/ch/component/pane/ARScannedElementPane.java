@@ -6985,7 +6985,7 @@ public class ARScannedElementPane extends ARPane {
     /**
      * Inject the actionExecutor plugin into the current browser page.
      * The plugin stays alive as a WebSocket listener and executes DOM
-     * actions (click, type, ...) sent from Java — no Selenium visibility checks.
+     * actions (click, type, ...) sent from Java - no Selenium visibility checks.
      * Safe to call multiple times: the JS guards against double injection.
      */
     private void injectActionExecutor() {
@@ -7004,16 +7004,16 @@ public class ARScannedElementPane extends ARPane {
 
         if (error != null) {
             logOperations.warn(
-                    "actionExecutor injection failed: {} — falling back to Selenium", error.getErrorMessage());
+                    "actionExecutor injection failed: {} - falling back to Selenium", error.getErrorMessage());
         } else {
             // Configure the client so performWebActions can use it
             actionExecutorClient.configure(this.currentBotJob.getHomeBankingId(), sessionId);
         }
 
         // Wire callbacks so the plugin is re-injected automatically:
-        // 1. After refreshPage() — page reload kills the JS plugin
+        // 1. After refreshPage() - page reload kills the JS plugin
         performActions.setOnPageRefresh(this::injectActionExecutor);
-        // 2. Before any action step — ensureActionExecutor() checks if alive, re-injects if not
+        // 2. Before any action step - ensureActionExecutor() checks if alive, re-injects if not
         performActions.setActionExecutorInjector(this::injectActionExecutor);
     }
 
@@ -7205,8 +7205,8 @@ public class ARScannedElementPane extends ARPane {
      * Builds the "Plugin Update" button.
      *
      * Visual states:
-     *   Green  — all plugins from manifest are present locally.
-     *   Orange — some or all plugins are missing locally.
+     *   Green  - all plugins from manifest are present locally.
+     *   Orange - some or all plugins are missing locally.
      *
      * Clicking the button opens a dialog that shows all plugins declared in the
      * local manifest.json (or scanned from disk), their local availability status,
@@ -7234,7 +7234,7 @@ public class ARScannedElementPane extends ARPane {
                     + "-fx-background-radius: 6;"
                     + "-fx-padding: 6 14 6 14;"
                     + "-fx-cursor: hand;");
-            btn.setTooltip(new Tooltip("All " + installed + " plugins installed — click to manage"));
+            btn.setTooltip(new Tooltip("All " + installed + " plugins installed - click to manage"));
         } else if (total > 0) {
             btn.setText("⚠  Plugin Update (" + installed + "/" + total + ")");
             btn.setStyle("-fx-background-color: #7c2d12;"
@@ -7244,7 +7244,7 @@ public class ARScannedElementPane extends ARPane {
                     + "-fx-background-radius: 6;"
                     + "-fx-padding: 6 14 6 14;"
                     + "-fx-cursor: hand;");
-            btn.setTooltip(new Tooltip(installed + " of " + total + " plugins installed — click to download missing"));
+            btn.setTooltip(new Tooltip(installed + " of " + total + " plugins installed - click to download missing"));
         } else {
             btn.setText("⚠  Plugin Update");
             btn.setStyle("-fx-background-color: #7c2d12;"
@@ -7254,7 +7254,7 @@ public class ARScannedElementPane extends ARPane {
                     + "-fx-background-radius: 6;"
                     + "-fx-padding: 6 14 6 14;"
                     + "-fx-cursor: hand;");
-            btn.setTooltip(new Tooltip("No plugins found — click to scan or download"));
+            btn.setTooltip(new Tooltip("No plugins found - click to scan or download"));
         }
 
         btn.setOnAction(e -> showPluginUpdateDialog());
@@ -7271,7 +7271,7 @@ public class ARScannedElementPane extends ARPane {
         try {
             Path manifestPath = Paths.get(pluginsDir, "manifest.json");
             if (!Files.exists(manifestPath)) {
-                // No manifest — fall back to counting plugin subdirectories
+                // No manifest - fall back to counting plugin subdirectories
                 return countPluginFolders(pluginsDir);
             }
             String json = Files.readString(manifestPath, StandardCharsets.UTF_8).trim();
@@ -7292,7 +7292,7 @@ public class ARScannedElementPane extends ARPane {
             }
             return new int[] {installed, total};
         } catch (Exception e) {
-            log.warn("countLocalPlugins — failed to read manifest: {}", e.getMessage());
+            log.warn("countLocalPlugins - failed to read manifest: {}", e.getMessage());
             return countPluginFolders(pluginsDir);
         }
     }
@@ -7330,15 +7330,15 @@ public class ARScannedElementPane extends ARPane {
         Path pluginDir = Paths.get(pluginsDir, pluginId);
         Path zipFile = Paths.get(pluginsDir, pluginId + ".zip");
 
-        // Always extract ZIP if it exists — overwrites old files with latest version
+        // Always extract ZIP if it exists - overwrites old files with latest version
         // Extract directly into the plugin's folder (e.g. plugins/hoverPick/)
         if (Files.exists(zipFile)) {
-            log.info("PluginUpdate — extracting {}.zip (overwriting existing files)...", pluginId);
+            log.info("PluginUpdate - extracting {}.zip (overwriting existing files)...", pluginId);
             try {
                 Files.createDirectories(pluginDir);
                 extractPluginZip(zipFile, pluginDir);
             } catch (Exception e) {
-                log.error("PluginUpdate — failed to extract {}: {}", zipFile, e.getMessage());
+                log.error("PluginUpdate - failed to extract {}: {}", zipFile, e.getMessage());
             }
         }
 
@@ -7386,7 +7386,7 @@ public class ARScannedElementPane extends ARPane {
             while ((entry = zis.getNextEntry()) != null) {
                 Path target = targetDir.resolve(entry.getName()).normalize();
                 if (!target.startsWith(targetDir)) {
-                    log.warn("PluginUpdate — SKIPPED zip-slip entry: {}", entry.getName());
+                    log.warn("PluginUpdate - SKIPPED zip-slip entry: {}", entry.getName());
                     continue;
                 }
                 if (entry.isDirectory()) {
@@ -7404,7 +7404,7 @@ public class ARScannedElementPane extends ARPane {
                 }
                 zis.closeEntry();
             }
-            log.info("PluginUpdate — extracted {} files from {}", fileCount, zipFile.getFileName());
+            log.info("PluginUpdate - extracted {} files from {}", fileCount, zipFile.getFileName());
         }
     }
 
@@ -7419,7 +7419,7 @@ public class ARScannedElementPane extends ARPane {
             Path scriptPath = Paths.get(pluginsDir, relativePath);
             return Files.exists(scriptPath) && Files.isReadable(scriptPath);
         } catch (Exception e) {
-            log.warn("PluginCheck — could not check plugin path: {}", relativePath, e);
+            log.warn("PluginCheck - could not check plugin path: {}", relativePath, e);
             return false;
         }
     }
@@ -7438,7 +7438,7 @@ public class ARScannedElementPane extends ARPane {
     private void showPluginUpdateDialog() {
         // Always clear plugin caches so next injection reads fresh .min.js from disk
         PerformPreLoad.reloadAllPlugins();
-        logOperations.info("Plugin Update — all plugin caches cleared");
+        logOperations.info("Plugin Update - all plugin caches cleared");
 
         String pluginsDir = arPropertyManager.resolvePluginsDir();
         String urlBase = arPropertyManager.getProperty(ARPropertyEnum.URL_PLUGINS);
@@ -7470,7 +7470,7 @@ public class ARScannedElementPane extends ARPane {
                 }
             }
         } catch (Exception e) {
-            log.warn("PluginUpdate — could not read local manifest: {}", e.getMessage());
+            log.warn("PluginUpdate - could not read local manifest: {}", e.getMessage());
         }
 
         // If no manifest, scan folders
@@ -7489,7 +7489,7 @@ public class ARScannedElementPane extends ARPane {
                     }
                 }
             } catch (Exception e) {
-                log.warn("PluginUpdate — could not scan plugins folder: {}", e.getMessage());
+                log.warn("PluginUpdate - could not scan plugins folder: {}", e.getMessage());
             }
         }
 
@@ -7555,7 +7555,7 @@ public class ARScannedElementPane extends ARPane {
                     downloadChecks.add(cb);
                     downloadableRows.add(row);
                 } else {
-                    cb.setDisable(true); // no server configured — cannot download
+                    cb.setDisable(true); // no server configured - cannot download
                 }
                 line.getChildren().addAll(cb, lName, lVer, lSize, lStatus);
             }
@@ -7675,7 +7675,7 @@ public class ARScannedElementPane extends ARPane {
         String manifestUrl = baseUrl + "manifest.json";
         Path pluginsDir = Paths.get(pathPlugins);
 
-        log.info("UpdatePlugins — fetching manifest from: {}", manifestUrl);
+        log.info("UpdatePlugins - fetching manifest from: {}", manifestUrl);
 
         // ── Fetch manifest on background thread, then show picker on FX thread ──
         Thread fetchThread = new Thread(() -> {
@@ -7696,7 +7696,7 @@ public class ARScannedElementPane extends ARPane {
                     throw new IOException("Server returned HTTP " + resp.statusCode() + " for: " + manifestUrl);
                 }
 
-                // Strip BOM and parse JSON (lenient mode — some servers add BOM or trailing whitespace)
+                // Strip BOM and parse JSON (lenient mode - some servers add BOM or trailing whitespace)
                 String jsonBody = resp.body().trim();
                 if (jsonBody.startsWith("\uFEFF")) {
                     jsonBody = jsonBody.substring(1); // strip UTF-8 BOM
@@ -7725,13 +7725,13 @@ public class ARScannedElementPane extends ARPane {
                     });
                 }
 
-                log.info("UpdatePlugins — manifest loaded: {} plugins available", plugins.size());
+                log.info("UpdatePlugins - manifest loaded: {} plugins available", plugins.size());
 
                 // Show picker on FX thread
                 Platform.runLater(() -> showPluginPicker(plugins, baseUrl, pluginsDir));
 
             } catch (Exception ex) {
-                log.error("UpdatePlugins — failed to fetch manifest from: {}", manifestUrl, ex);
+                log.error("UpdatePlugins - failed to fetch manifest from: {}", manifestUrl, ex);
                 Platform.runLater(() -> showPluginTestAlert(
                         Alert.AlertType.ERROR,
                         "Cannot load plugin list",
@@ -7748,12 +7748,12 @@ public class ARScannedElementPane extends ARPane {
      * User picks one, clicks Download, and the ZIP is downloaded + extracted.
      */
     private void showPluginPicker(List<String[]> plugins, String baseUrl, Path pluginsDir) {
-        // Build ComboBox items: "Name (version) — size"
+        // Build ComboBox items: "Name (version) - size"
         ComboBox<String> comboBox = new ComboBox<>();
         for (String[] p : plugins) {
             String label = p[0]; // name
             if (!p[2].isEmpty()) label += "  (v" + p[2] + ")";
-            if (!p[3].isEmpty()) label += "  —  " + p[3];
+            if (!p[3].isEmpty()) label += "  -  " + p[3];
             comboBox.getItems().add(label);
         }
         comboBox.getSelectionModel().selectFirst();
@@ -7800,7 +7800,7 @@ public class ARScannedElementPane extends ARPane {
                 }
 
                 String downloadUrl = baseUrl + fileName;
-                log.info("UpdatePlugins — user selected: {} -> {}", pluginName, downloadUrl);
+                log.info("UpdatePlugins - user selected: {} -> {}", pluginName, downloadUrl);
                 downloadAndExtractPlugin(downloadUrl, fileName, pluginName, pluginsDir);
             }
         }
@@ -7830,7 +7830,7 @@ public class ARScannedElementPane extends ARPane {
         Task<String> downloadTask = new Task<>() {
             @Override
             protected String call() throws Exception {
-                log.info("UpdatePlugins — downloading: {}", downloadUrl);
+                log.info("UpdatePlugins - downloading: {}", downloadUrl);
 
                 HttpClient client = HttpClient.newBuilder()
                         .connectTimeout(Duration.ofSeconds(15))
@@ -7855,7 +7855,7 @@ public class ARScannedElementPane extends ARPane {
                         .orElse(-1L);
 
                 log.info(
-                        "UpdatePlugins — HTTP {} | Content-Type: {} | Content-Length: {}",
+                        "UpdatePlugins - HTTP {} | Content-Type: {} | Content-Length: {}",
                         statusCode,
                         contentType,
                         contentLength);
@@ -7892,7 +7892,7 @@ public class ARScannedElementPane extends ARPane {
                 }
 
                 long fileSize = Files.size(tempZip);
-                log.info("UpdatePlugins — downloaded {} to: {}", formatBytes(fileSize), tempZip);
+                log.info("UpdatePlugins - downloaded {} to: {}", formatBytes(fileSize), tempZip);
 
                 // Validate ZIP
                 if (fileSize == 0) {
@@ -7908,7 +7908,7 @@ public class ARScannedElementPane extends ARPane {
                         throw new IOException("Not a valid ZIP file.\nFirst 200 chars: " + preview);
                     }
                 }
-                log.info("UpdatePlugins — ZIP validated OK");
+                log.info("UpdatePlugins - ZIP validated OK");
 
                 // Extract
                 updateMessage("Extracting " + pluginName + "...");
@@ -7921,13 +7921,13 @@ public class ARScannedElementPane extends ARPane {
                     while ((entry = zis.getNextEntry()) != null) {
                         Path target = pluginsDir.resolve(entry.getName()).normalize();
                         if (!target.startsWith(pluginsDir)) {
-                            log.warn("UpdatePlugins — SKIPPED zip-slip: {}", entry.getName());
+                            log.warn("UpdatePlugins - SKIPPED zip-slip: {}", entry.getName());
                             continue;
                         }
                         if (entry.isDirectory()) {
                             Files.createDirectories(target);
                             dirCount++;
-                            log.info("UpdatePlugins — DIR:  {}", target);
+                            log.info("UpdatePlugins - DIR:  {}", target);
                         } else {
                             Files.createDirectories(target.getParent());
                             long entrySize = 0;
@@ -7940,7 +7940,7 @@ public class ARScannedElementPane extends ARPane {
                                 }
                             }
                             fileCount++;
-                            log.info("UpdatePlugins — FILE: {} ({})", target, formatBytes(entrySize));
+                            log.info("UpdatePlugins - FILE: {} ({})", target, formatBytes(entrySize));
                         }
                         zis.closeEntry();
                     }
@@ -7966,7 +7966,7 @@ public class ARScannedElementPane extends ARPane {
                 String summary = pluginName + ": " + fileCount + " files, " + dirCount + " dirs";
                 updateMessage("Done! " + summary);
                 updateProgress(1, 1);
-                log.info("UpdatePlugins — SUCCESS: {}", summary);
+                log.info("UpdatePlugins - SUCCESS: {}", summary);
                 return summary;
             }
         };
@@ -7985,7 +7985,7 @@ public class ARScannedElementPane extends ARPane {
                         grid.add(pluginUpdateButton, 1, 0);
                     }
                 } catch (Exception ex) {
-                    log.warn("UpdatePlugins — could not refresh pluginUpdateButton", ex);
+                    log.warn("UpdatePlugins - could not refresh pluginUpdateButton", ex);
                 }
             });
             showPluginTestAlert(
@@ -7997,7 +7997,7 @@ public class ARScannedElementPane extends ARPane {
         downloadTask.setOnFailed(e -> {
             progressDialog.close();
             Throwable ex = downloadTask.getException();
-            log.error("UpdatePlugins — failed", ex);
+            log.error("UpdatePlugins - failed", ex);
             showPluginTestAlert(Alert.AlertType.ERROR, "Download failed", ex.getMessage());
         });
 
@@ -8031,7 +8031,7 @@ public class ARScannedElementPane extends ARPane {
     }
 
     // ════════════════════════════════════════════════════════════════════════════
-    // PLUGIN MANIFEST SYSTEM  — add these methods to ARScannedElementPane.java
+    // PLUGIN MANIFEST SYSTEM  - add these methods to ARScannedElementPane.java
     //
     // Placement:  paste the entire block just BEFORE the closing brace of the class,
     //             replacing (or appending after) the existing showPluginTestAlert method.
@@ -8089,7 +8089,7 @@ public class ARScannedElementPane extends ARPane {
      * @throws Exception   on HTTP error, timeout, or JSON parse failure
      */
     private PluginManifestDTO fetchManifest(String manifestUrl) throws Exception {
-        log.info("PluginManifest — fetching: {}", manifestUrl);
+        log.info("PluginManifest - fetching: {}", manifestUrl);
 
         HttpClient client = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
@@ -8116,7 +8116,7 @@ public class ARScannedElementPane extends ARPane {
         }
 
         log.debug(
-                "PluginManifest — raw JSON ({} chars): {}",
+                "PluginManifest - raw JSON ({} chars): {}",
                 body.length(),
                 body.substring(0, Math.min(200, body.length())));
 
@@ -8124,14 +8124,14 @@ public class ARScannedElementPane extends ARPane {
         PluginManifestDTO manifest = gson.fromJson(body, PluginManifestDTO.class);
 
         if (manifest == null) {
-            throw new IOException("Gson returned null — invalid JSON from: " + manifestUrl);
+            throw new IOException("Gson returned null - invalid JSON from: " + manifestUrl);
         }
         if (manifest.getPlugins() == null || manifest.getPlugins().isEmpty()) {
             throw new IOException("Manifest parsed but 'plugins' array is missing or empty.");
         }
 
         log.info(
-                "PluginManifest — loaded {} plugins (manifest v{})",
+                "PluginManifest - loaded {} plugins (manifest v{})",
                 manifest.getPlugins().size(),
                 manifest.getVersion());
         return manifest;
@@ -8186,7 +8186,7 @@ public class ARScannedElementPane extends ARPane {
 
         fetchTask.setOnFailed(evt -> {
             Throwable cause = fetchTask.getException();
-            log.error("PluginManifest — fetch failed", cause);
+            log.error("PluginManifest - fetch failed", cause);
             showPluginTestAlert(
                     Alert.AlertType.ERROR,
                     "Cannot load plugin list",
@@ -8291,7 +8291,7 @@ public class ARScannedElementPane extends ARPane {
         dialog.setHeaderText("Available Plugins");
         dialog.getDialogPane().setContent(content);
         dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
-        // Hide the built-in close button — we use our own btnClose
+        // Hide the built-in close button - we use our own btnClose
         dialog.getDialogPane().lookupButton(ButtonType.CLOSE).setVisible(false);
 
         // ── Button actions ────────────────────────────────────────────────────
@@ -8369,7 +8369,7 @@ public class ARScannedElementPane extends ARPane {
                     Platform.runLater(
                             () -> counterLabel.setText((plugins.indexOf(plugin) + 1) + " / " + plugins.size()));
 
-                    log.info("PluginDownload — GET {}", zipUrl);
+                    log.info("PluginDownload - GET {}", zipUrl);
 
                     HttpRequest req = HttpRequest.newBuilder()
                             .uri(URI.create(zipUrl))
@@ -8379,7 +8379,7 @@ public class ARScannedElementPane extends ARPane {
                     HttpResponse<InputStream> resp = client.send(req, HttpResponse.BodyHandlers.ofInputStream());
 
                     if (resp.statusCode() != 200) {
-                        log.warn("PluginDownload — HTTP {} for {}", resp.statusCode(), zipUrl);
+                        log.warn("PluginDownload - HTTP {} for {}", resp.statusCode(), zipUrl);
                         updateMessage("⚠  Skipped " + plugin.getName() + " (HTTP " + resp.statusCode() + ")");
                         Thread.sleep(600);
                         continue;
@@ -8400,7 +8400,7 @@ public class ARScannedElementPane extends ARPane {
                         while ((entry = zis.getNextEntry()) != null) {
                             Path target = pluginsDir.resolve(entry.getName()).normalize();
                             if (!target.startsWith(pluginsDir)) {
-                                log.warn("PluginDownload — zip-slip blocked: {}", entry.getName());
+                                log.warn("PluginDownload - zip-slip blocked: {}", entry.getName());
                                 continue;
                             }
                             if (entry.isDirectory()) {
@@ -8419,7 +8419,7 @@ public class ARScannedElementPane extends ARPane {
                     Files.deleteIfExists(tempZip);
                     successCount++;
                     updateProgress(i + 1, plugins.size());
-                    log.info("PluginDownload — installed: {}", plugin.getName());
+                    log.info("PluginDownload - installed: {}", plugin.getName());
                 }
 
                 return successCount;
@@ -8447,13 +8447,13 @@ public class ARScannedElementPane extends ARPane {
                     Alert.AlertType.INFORMATION,
                     "Download complete",
                     count + " of " + plugins.size() + " plugin(s) downloaded and extracted to:\n" + pathPlugins);
-            log.info("PluginDownload — finished: {}/{} plugins", count, plugins.size());
+            log.info("PluginDownload - finished: {}/{} plugins", count, plugins.size());
         });
 
         downloadTask.setOnFailed(evt -> {
             progressDialog.close();
             Throwable ex = downloadTask.getException();
-            log.error("PluginDownload — failed", ex);
+            log.error("PluginDownload - failed", ex);
             showPluginTestAlert(Alert.AlertType.ERROR, "Download failed", ex.getMessage());
         });
 

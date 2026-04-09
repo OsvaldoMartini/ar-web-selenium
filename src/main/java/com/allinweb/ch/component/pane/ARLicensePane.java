@@ -311,7 +311,7 @@ public class ARLicensePane extends ARPane {
             }
         };
 
-        // Ping helper — updates the status indicator + shows fade-away hint
+        // Ping helper - updates the status indicator + shows fade-away hint
         Runnable doPing = () -> {
             btnPingStatus.setStyle(
                     "-fx-background-color: #ff9800; -fx-background-radius: 9; -fx-border-radius: 9; -fx-cursor: hand;");

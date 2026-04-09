@@ -53,7 +53,7 @@ public class LicenseManager {
     /**
      * Encrypted format:
      *   organization|owner|pcName|domainName|userName|requestDate|email  (7 parts)
-     * Owner and email are independent — both optional.
+     * Owner and email are independent both optional.
      */
     private static final String DEFAULT_EMAIL = "o.martini@allinweb.ch";
 
