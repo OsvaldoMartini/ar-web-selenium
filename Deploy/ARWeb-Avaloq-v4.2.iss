@@ -13,8 +13,11 @@
 #define MyAppCopyright "Copyright (C) 2026 Allinweb AG"
 
 ; Source paths
+#define SrcRoot     "D:\Projects\ARWeb-Martini"
+#define SrcARWeb    "D:\Projects\ARWeb-Martini\ARWeb"
 #define SrcPlugins  "D:\Projects\ARWeb-Martini\ARWeb\plugins"
 #define SrcScanner  "D:\Projects\ARWeb-Martini\ARWeb-Scanner"
+#define SrcConfig   "D:\Projects\ARWeb-Martini\Config-4.2"
 #define SrcDeploy   "D:\Projects\AllinWeb\ar-web-selenium\Deploy"
 
 [Setup]
@@ -67,7 +70,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Messages]
 WelcomeLabel1=Welcome to the {#MyAppName} v{#MyAppVersion} Avaloq Install
-WelcomeLabel2=This will install the plugins and application files for ARWeb Avaloq v{#MyAppVersion}.%n%n  - 7 encrypted plugin packages%n  - AR Web Scanner v4.2%n  - AR Web Engine v4.2%n%nPlease close ARWeb before continuing.
+WelcomeLabel2=This will install the full ARWeb Avaloq v{#MyAppVersion} environment.%n%n  - 7 encrypted plugin packages%n  - AR Web Scanner + Engine v4.2%n  - ARWeb.config, Edge WebDriver%n  - JavaFX, JavaJCE, Tesseract, Lang%n  - Excel template (Apo Bank)%n%nPlease close ARWeb before continuing.
 SelectDirBrowseLabel=Select the ROOT installation folder (e.g. C:\ARWeb-Martini).%nDo NOT select the ARWeb sub-folder.
 SelectDirLabel3=The installer will create:%n%n   <dir>\ARWeb\plugins%n   <dir>\ARWeb-Scanner
 ReadyLabel1=Ready to Install
@@ -83,6 +86,15 @@ Name: "custom"; Description: "Custom"; Flags: iscustom
 Name: "plugins";    Description: "Encrypted plugin packages (7 files + manifest)"; Types: full custom; Flags: fixed
 Name: "scanner";    Description: "AR_Web_Scanner-4.2.jar";                         Types: full custom
 Name: "engine";     Description: "AR_Web_Engine-4.2.jar";                          Types: full custom
+Name: "config";     Description: "ARWeb.config";                                   Types: full custom
+Name: "excel";      Description: "Apo Bank.xlsx (Excel template)";                 Types: full custom
+Name: "edgedriver"; Description: "Edge WebDriver (146.0.3856.62)";                 Types: full custom
+Name: "tesseract";  Description: "Tesseract OCR";                                  Types: full custom
+Name: "javafx";     Description: "JavaFX runtime";                                 Types: full custom
+Name: "javajce";    Description: "Java JCE extensions";                            Types: full custom
+Name: "lang";       Description: "Language files";                                 Types: full custom
+Name: "appconfig";  Description: "configuration.properties";                       Types: full custom
+Name: "launcher";   Description: "exec_launcher-4.2.bat";                         Types: full custom
 
 [Files]
 ; ── Plugins  ->  {app}\ARWeb\plugins ─────────────────────────────────────────
@@ -99,8 +111,47 @@ Source: "{#SrcPlugins}\pluginTest.zip";      DestDir: "{app}\ARWeb\plugins"; Com
 Source: "{#SrcScanner}\AR_Web_Engine-4.2.jar";  DestDir: "{app}\ARWeb-Scanner"; Components: engine;  Flags: ignoreversion confirmoverwrite
 Source: "{#SrcScanner}\AR_Web_Scanner-4.2.jar"; DestDir: "{app}\ARWeb-Scanner"; Components: scanner; Flags: ignoreversion confirmoverwrite
 
+; ── Config  ->  {app}\Config-4.2 ─────────────────────────────────────────────
+Source: "{#SrcConfig}\ARWeb.config"; DestDir: "{app}\Config-4.2"; Components: config; Flags: ignoreversion confirmoverwrite
+
+; ── Excel  ->  {app}\ARWeb\Excel ─────────────────────────────────────────────
+Source: "{#SrcARWeb}\Excel\Apo Bank.xlsx"; DestDir: "{app}\ARWeb\Excel"; Components: excel; Flags: ignoreversion confirmoverwrite
+
+; ── Tesseract  ->  {app}\tesseract (recursive) ──────────────────────────────
+Source: "{#SrcScanner}\tesseract\*"; DestDir: "{app}\tesseract"; Components: tesseract; Flags: ignoreversion confirmoverwrite recursesubdirs createallsubdirs
+
+; ── Lang  ->  {app}\lang ─────────────────────────────────────────────────────
+Source: "{#SrcScanner}\lang\labels.en.properties"; DestDir: "{app}\lang"; Components: lang; Flags: ignoreversion confirmoverwrite
+
+; ── JavaJCE  ->  {app}\ARWeb-Scanner\javaJCE (recursive) ────────────────────
+Source: "{#SrcScanner}\javaJCE\*"; DestDir: "{app}\ARWeb-Scanner\javaJCE"; Components: javajce; Flags: ignoreversion confirmoverwrite recursesubdirs createallsubdirs
+
+; ── JavaFX  ->  {app}\ARWeb-Scanner\javaFX (recursive) ──────────────────────
+Source: "{#SrcScanner}\javaFX\*"; DestDir: "{app}\ARWeb-Scanner\javaFX"; Components: javafx; Flags: ignoreversion confirmoverwrite recursesubdirs createallsubdirs
+
+; ── Edge WebDriver  ->  {app}\ARWeb-Scanner\edgedriver-versions ──────────────
+Source: "{#SrcScanner}\edgedriver-versions\msedgedriver_64-(146.0.3856.62).exe"; DestDir: "{app}\ARWeb-Scanner\edgedriver-versions"; Components: edgedriver; Flags: ignoreversion confirmoverwrite
+
+; ── configuration.properties  ->  {app}\ARWeb-Scanner\config ────────────────
+Source: "{#SrcScanner}\config\configuration.properties"; DestDir: "{app}\ARWeb-Scanner\config"; Components: appconfig; Flags: ignoreversion confirmoverwrite
+
+; ── Launcher bat  ->  {app}\ARWeb-Scanner ────────────────────────────────────
+Source: "{#SrcScanner}\exec_launcher-4.2.bat"; DestDir: "{app}\ARWeb-Scanner"; Components: launcher; Flags: ignoreversion confirmoverwrite
+
+; ── Create empty directories ──────────────────────────────────────────────────
+[Dirs]
+Name: "{app}\ARWeb\Reports"
+Name: "{app}\ARWeb\Export"
+Name: "{app}\ARWeb\Logs"
+Name: "{app}\ARWeb\Excel"
+Name: "{app}\ARWeb\plugins"
+Name: "{app}\ARWeb-Scanner\TakedShot"
+Name: "{app}\Config-4.2"
+Name: "{app}\lang"
+Name: "{app}\tesseract"
+
 [Icons]
-; No start menu shortcuts for an update
+; No start menu shortcuts for an install
 
 [Code]
 
@@ -182,8 +233,16 @@ begin
     Space + ExpandConstant('{app}') + NewLine + NewLine +
 
     'Destination paths:' + NewLine +
-    Space + 'Plugins  ->  ' + ExpandConstant('{app}') + '\ARWeb\plugins' + NewLine +
-    Space + 'JARs     ->  ' + ExpandConstant('{app}') + '\ARWeb-Scanner' + NewLine + NewLine;
+    Space + 'Plugins      ->  ' + ExpandConstant('{app}') + '\ARWeb\plugins' + NewLine +
+    Space + 'JARs         ->  ' + ExpandConstant('{app}') + '\ARWeb-Scanner' + NewLine +
+    Space + 'Config       ->  ' + ExpandConstant('{app}') + '\Config-4.2' + NewLine +
+    Space + 'Excel        ->  ' + ExpandConstant('{app}') + '\ARWeb\Excel' + NewLine +
+    Space + 'Tesseract    ->  ' + ExpandConstant('{app}') + '\tesseract' + NewLine +
+    Space + 'JavaFX       ->  ' + ExpandConstant('{app}') + '\ARWeb-Scanner\javaFX' + NewLine +
+    Space + 'JavaJCE      ->  ' + ExpandConstant('{app}') + '\ARWeb-Scanner\javaJCE' + NewLine +
+    Space + 'Lang         ->  ' + ExpandConstant('{app}') + '\lang' + NewLine +
+    Space + 'Edge Driver  ->  ' + ExpandConstant('{app}') + '\ARWeb-Scanner\edgedriver-versions' + NewLine +
+    Space + 'App Config   ->  ' + ExpandConstant('{app}') + '\ARWeb-Scanner\config' + NewLine + NewLine;
 
   if MemoComponentsInfo <> '' then
     Result := Result + 'Selected components:' + NewLine + MemoComponentsInfo + NewLine + NewLine;
