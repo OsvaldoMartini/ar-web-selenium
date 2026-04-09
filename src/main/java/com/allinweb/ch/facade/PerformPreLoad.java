@@ -268,15 +268,18 @@ public class PerformPreLoad {
                     botJobId); // arguments[7] - botJobId
             return null;
         } catch (PluginLoadException ple) {
-            log.error("PerformPreLoad - plugin load failed: {}", ple.getUserTitle(), ple);
+            log.error("PerformPreLoad — plugin [pageScanner] load failed: {}", ple.getUserTitle());
             return new ErrorMessage(
                     ple.getUserTitle(),
                     "Page Scanner Plugin",
                     ple.getMsg1() + "\n" + (ple.getMsg2() != null ? ple.getMsg2() : "") + "\n"
                             + (ple.getMsg3() != null ? ple.getMsg3() : ""));
         } catch (Exception error) {
-            log.error("PerformPreLoad - scanner injection failed: {}", error.getMessage(), error);
-            return new ErrorMessage("Error running Scanner", "Dynamic Load ElementsDTO error", error.getMessage());
+            log.error("PerformPreLoad — plugin [pageScanner] injection failed: {}", error.getMessage(), error);
+            return new ErrorMessage(
+                    "Plugin injection failed",
+                    "Page Scanner Plugin",
+                    "The pageScanner plugin could not be injected into the page. " + error.getMessage());
         }
     }
 }

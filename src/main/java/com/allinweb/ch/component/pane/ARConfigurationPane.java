@@ -461,8 +461,12 @@ public class ARConfigurationPane extends ARPane {
         AnchorPane pluginsGroup = new AnchorPane(pathPlugins, pathPluginsButton);
 
         urlPluginsLabel = new Label("URL Plugins:");
+        urlPluginsLabel.setVisible(false);
+        urlPluginsLabel.setManaged(false);
         urlPlugins = createPathTextField(ARPropertyEnum.URL_PLUGINS);
         urlPlugins.setPromptText("https://yourserver.com/plugins/latest.zip");
+        urlPlugins.setVisible(false);
+        urlPlugins.setManaged(false);
 
         Label organizationsLabel = new Label("Organizations");
         organizationsLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #1565C0;");
