@@ -93,13 +93,31 @@ public class EncryptedPluginLoader {
                     "Plugins folder not configured", "path_plugins is not set in ARWeb.config", null, null);
         }
 
-        Path encPath = Paths.get(pluginsDir).resolve(relativePath);
+        Path pluginsDirPath = Paths.get(pluginsDir);
+        Path encPath = pluginsDirPath.resolve(relativePath);
+
+        // Auto-extract: if .enc not found, try extracting from .zip
+        if (!Files.exists(encPath)) {
+            String pluginId = relativePath.split("[/\\\\]")[0];
+            Path zipFile = pluginsDirPath.resolve(pluginId + ".zip");
+            Path pluginDir = pluginsDirPath.resolve(pluginId);
+            if (Files.exists(zipFile)) {
+                log.info("EncryptedPluginLoader — auto-extracting {}.zip", pluginId);
+                try {
+                    Files.createDirectories(pluginDir);
+                    extractZip(zipFile, pluginDir);
+                } catch (Exception e) {
+                    log.warn("EncryptedPluginLoader — failed to extract {}: {}", zipFile.getFileName(), e.getMessage());
+                }
+            }
+        }
+
         if (!Files.exists(encPath)) {
             // Fallback: try plain .min.js (for backward compatibility)
             String jsPath = relativePath.replace(".min.enc", ".min.js");
-            Path plainPath = Paths.get(pluginsDir).resolve(jsPath);
+            Path plainPath = pluginsDirPath.resolve(jsPath);
             if (Files.exists(plainPath)) {
-                log.info("EncryptedPluginLoader - no .enc found, falling back to plain .min.js: {}", jsPath);
+                log.info("EncryptedPluginLoader — falling back to plain .min.js: {}", jsPath);
                 try {
                     String js = Files.readString(plainPath, StandardCharsets.UTF_8);
                     cache.put(relativePath, js);
@@ -183,6 +201,35 @@ public class EncryptedPluginLoader {
             } else {
                 log.warn("EncryptedPluginLoader - no key available, encrypted plugins will fail to load");
             }
+        }
+    }
+
+    // ── Auto-extract ZIP ────────────────────────────────────────────────────
+
+    private void extractZip(Path zipFile, Path targetDir) throws IOException {
+        try (ZipInputStream zis = new ZipInputStream(Files.newInputStream(zipFile), StandardCharsets.UTF_8)) {
+            ZipEntry entry;
+            int count = 0;
+            while ((entry = zis.getNextEntry()) != null) {
+                Path target = targetDir.resolve(entry.getName()).normalize();
+                if (!target.startsWith(targetDir)) {
+                    log.warn("EncryptedPluginLoader — zip-slip blocked: {}", entry.getName());
+                    continue;
+                }
+                if (entry.isDirectory()) {
+                    Files.createDirectories(target);
+                } else {
+                    Files.createDirectories(target.getParent());
+                    try (OutputStream out = Files.newOutputStream(target)) {
+                        byte[] buf = new byte[8192];
+                        int len;
+                        while ((len = zis.read(buf)) != -1) out.write(buf, 0, len);
+                    }
+                    count++;
+                }
+                zis.closeEntry();
+            }
+            log.info("EncryptedPluginLoader — extracted {} files from {}", count, zipFile.getFileName());
         }
     }
 }
