@@ -37,9 +37,9 @@ VersionInfoCopyright={#MyAppCopyright}
 VersionInfoProductName={#MyAppName}
 VersionInfoProductVersion={#MyAppVersion}
 
-#define MyAppDefaultDir "C:\ARWeb-Martini"
+#define MyAppDefaultDir "C:\ARWeb"
 
-; The user picks the ROOT folder (e.g. C:\ARWeb-Martini)
+; The user picks the ROOT folder (e.g. C:\ARWeb)
 ; NOT the ARWeb sub-folder
 DefaultDirName={#MyAppDefaultDir}
 DefaultGroupName={#MyAppName}
@@ -74,7 +74,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 [Messages]
 WelcomeLabel1=Welcome to the {#MyAppName} v{#MyAppVersion} Avaloq Install
 WelcomeLabel2=This will install the full ARWeb Avaloq v{#MyAppVersion} environment.%n%n  - 7 encrypted plugin packages%n  - AR Web Scanner + Engine v4.2%n  - ARWeb.config, Edge WebDriver%n  - JavaFX, JavaJCE, Tesseract, Lang%n  - Excel template (Apo Bank)%n%nPlease close ARWeb before continuing.
-SelectDirBrowseLabel=Select the ROOT installation folder (e.g. C:\ARWeb-Martini).%nDo NOT select the ARWeb sub-folder.
+SelectDirBrowseLabel=Select the ROOT installation folder (e.g. C:\ARWeb).%nDo NOT select the ARWeb sub-folder.
 SelectDirLabel3=The installer will create:%n%n   <dir>\ARWeb\plugins%n   <dir>\ARWeb-Scanner
 ReadyLabel1=Ready to Install
 ReadyLabel2a=Click Install to deploy the files to the selected folder.
