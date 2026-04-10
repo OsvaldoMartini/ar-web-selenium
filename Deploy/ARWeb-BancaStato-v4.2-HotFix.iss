@@ -40,7 +40,8 @@ DefaultDirName=C:\ARWeb
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 PrivilegesRequiredOverridesAllowed=dialog
-CreateUninstallRegKey=no
+CreateUninstallRegKey=yes
+UninstallDisplayName={#MyAppName} v{#MyAppVersion} BancaStato
 UsePreviousAppDir=no
 DirExistsWarning=no
 AppendDefaultDirName=no
@@ -247,4 +248,28 @@ function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
   SanitizeAppDir;
   Result := '';
+end;
+
+// ── Post-install: rename uninstaller ───────────────────────────────────────
+
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  AppNewPath: String;
+begin
+  if CurStep = ssPostInstall then
+  begin
+    AppNewPath := ExpandConstant('{app}');
+
+    // Rename unins000.exe to ARWeb-Uninstall.exe
+    if FileExists(AppNewPath + '\unins000.exe') then
+    begin
+      RenameFile(AppNewPath + '\unins000.exe', AppNewPath + '\ARWeb-Uninstall.exe');
+      Log('Renamed unins000.exe -> ARWeb-Uninstall.exe');
+    end;
+    if FileExists(AppNewPath + '\unins000.dat') then
+    begin
+      RenameFile(AppNewPath + '\unins000.dat', AppNewPath + '\ARWeb-Uninstall.dat');
+      Log('Renamed unins000.dat -> ARWeb-Uninstall.dat');
+    end;
+  end;
 end;
