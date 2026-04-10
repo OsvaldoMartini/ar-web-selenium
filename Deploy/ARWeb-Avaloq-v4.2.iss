@@ -1,7 +1,7 @@
 ; ============================================================================
 ;  ARWeb Avaloq v4.2 - Update Installer
 ;
-;  Final structure (user selects the ROOT, e.g. C:\ARWeb-Martini):
+;  Final structure (user selects the ROOT, e.g. C:\ARWeb):
 ;     <root>\ARWeb\plugins\        <- plugin zips + manifest
 ;     <root>\ARWeb-Scanner\        <- JAR files
 ; ============================================================================

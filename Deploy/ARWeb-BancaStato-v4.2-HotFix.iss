@@ -1,7 +1,7 @@
 ; ============================================================================
 ;  ARWeb BancaStato v4.2 - Update Installer
 ;
-;  Final structure (user selects the ROOT, e.g. C:\ARWeb-Martini):
+;  Final structure (user selects the ROOT, e.g. C:\ARWeb):
 ;     <root>\ARWeb\plugins\        <- plugin zips + manifest
 ;     <root>\ARWeb-Scanner\        <- JAR files
 ; ============================================================================
@@ -34,9 +34,9 @@ VersionInfoCopyright={#MyAppCopyright}
 VersionInfoProductName={#MyAppName}
 VersionInfoProductVersion={#MyAppVersion}
 
-; The user picks the ROOT folder (e.g. C:\ARWeb-Martini)
+; The user picks the ROOT folder (e.g. C:\ARWeb)
 ; NOT the ARWeb sub-folder
-DefaultDirName=C:\ARWeb-Martini
+DefaultDirName=C:\ARWeb
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 PrivilegesRequiredOverridesAllowed=dialog
@@ -68,7 +68,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 [Messages]
 WelcomeLabel1=Welcome to the {#MyAppName} v{#MyAppVersion} Update
 WelcomeLabel2=This will install the latest plugins and application files for ARWeb BancaStato v{#MyAppVersion}.%n%n  - 7 encrypted plugin packages%n  - AR Web Scanner v4.2%n  - AR Web Engine v4.2%n%nPlease close ARWeb before continuing.
-SelectDirBrowseLabel=Select the ROOT installation folder (e.g. C:\ARWeb-Martini).%nDo NOT select the ARWeb sub-folder.
+SelectDirBrowseLabel=Select the ROOT installation folder (e.g. C:\ARWeb).%nDo NOT select the ARWeb sub-folder.
 SelectDirLabel3=The installer will create:%n%n   <dir>\ARWeb\plugins%n   <dir>\ARWeb-Scanner
 ReadyLabel1=Ready to Update
 ReadyLabel2a=Click Install to deploy the update files to the selected folder.
