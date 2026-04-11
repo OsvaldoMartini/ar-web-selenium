@@ -170,6 +170,7 @@ public class ARScannedElementPane extends ARPane {
     private Button updatePluginsButton;
     private Label lblPluginHint;
     private Button refreshWebPageButton;
+    private Button sendDomButton;
     private Button leftButton;
     private Button rightButton;
     private Button cleanListButton;
@@ -1475,6 +1476,11 @@ public class ARScannedElementPane extends ARPane {
         refreshWebPageButton = builder.buildButton(
                 "Refresh Web Page", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
 
+        sendDomButton = builder.buildButton(
+                "Send DOM for Review", ARConstants.SPACE_ZERO, "/warning_red.png", ARConstants.SPACE_M, new Insets(5.0D));
+        sendDomButton.setTooltip(new javafx.scene.control.Tooltip(
+                "Upload the current page DOM to MultiPlugins support for scanner review."));
+
         cleanListButton = builder.buildButton(
                 "Clear Grid", // No text
                 25.0, // Smaller height
@@ -1547,6 +1553,8 @@ public class ARScannedElementPane extends ARPane {
 
         leftButton.setOnAction(e -> switchToLeftTab());
         rightButton.setOnAction(e -> switchToRightTab());
+
+        sendDomButton.setOnAction(e -> sendCurrentDomForReview());
 
         refreshWebPageButton.setOnAction(e -> {
             if (!lastBrowserTab()) {
@@ -1793,6 +1801,8 @@ public class ARScannedElementPane extends ARPane {
                             createSpacerHoriz(),
                             refreshWebPageButton,
                             createSpacerHoriz(),
+                            sendDomButton,
+                            createSpacerHoriz(),
                             cleanListButton);
             stackLabelOthers.getChildren().addAll(othersBox);
 
@@ -1839,6 +1849,58 @@ public class ARScannedElementPane extends ARPane {
                     comboBoxBlocks.getSelectionModel().select(1);
                 }
             });
+        }
+    }
+
+    private void sendCurrentDomForReview() {
+        try {
+            org.openqa.selenium.WebDriver driver = performActions.getCurrentDriver();
+            if (driver == null) {
+                javafx.scene.control.Alert a = new javafx.scene.control.Alert(
+                        javafx.scene.control.Alert.AlertType.INFORMATION);
+                a.setHeaderText("No active browser session");
+                a.setContentText("There is no open browser to capture.");
+                a.showAndWait();
+                return;
+            }
+
+            String organization = com.allinweb.ch.util.ARPropertyManager.getInstance()
+                    .getProperty("license.organization");
+            String currentUrl;
+            try { currentUrl = driver.getCurrentUrl(); } catch (Exception ex) { currentUrl = "(unknown)"; }
+
+            javafx.scene.control.Alert confirm = new javafx.scene.control.Alert(
+                    javafx.scene.control.Alert.AlertType.CONFIRMATION);
+            confirm.setTitle("Send DOM for Review");
+            confirm.setHeaderText("Upload this page to MultiPlugins support?");
+            confirm.setContentText(
+                    "The current DOM will be uploaded to support for scanner review.\n\n" +
+                    "Organization: " + (organization != null ? organization : "UNKNOWN") + "\n" +
+                    "URL:          " + currentUrl);
+            java.util.Optional<javafx.scene.control.ButtonType> result = confirm.showAndWait();
+            if (result.isEmpty() || result.get() != javafx.scene.control.ButtonType.OK) return;
+
+            // Phase 1: we do not yet track per-operation failure context in the pane.
+            // Future phases will wire currentBotJobId / operationId / last failed plugin.
+            com.allinweb.ch.facade.SupportCapture.CaptureResult r =
+                    new com.allinweb.ch.facade.SupportCapture().captureAndSend(
+                            driver, null, null, null, null);
+
+            javafx.scene.control.Alert out = new javafx.scene.control.Alert(
+                    r.isOk()
+                            ? javafx.scene.control.Alert.AlertType.INFORMATION
+                            : javafx.scene.control.Alert.AlertType.ERROR);
+            if (r.isOk()) {
+                out.setHeaderText("DOM capture sent");
+                out.setContentText("Ticket: " + r.ticketId());
+            } else {
+                out.setHeaderText("Could not send DOM capture");
+                out.setContentText(r.error());
+            }
+            out.showAndWait();
+
+        } catch (Exception ex) {
+            log.error("sendCurrentDomForReview failed", ex);
         }
     }
 

@@ -109,10 +109,15 @@
         <appender-ref ref="WEB_OPERATIONS_FILE"/>
     </logger>
 
+    <!-- In-memory ring buffer of last N log lines, read by SupportCapture
+         when uploading a DOM capture. Adds no I/O. -->
+    <appender name="RINGBUFFER" class="com.allinweb.ch.util.ConsoleRingBufferAppender"/>
+
     <!-- Root Logger -->
     <root level="INFO">
 <!--        <appender-ref ref="CONSOLE"/>-->
         <appender-ref ref="ROLLING_FILE"/>
+        <appender-ref ref="RINGBUFFER"/>
     </root>
 
 </configuration>
