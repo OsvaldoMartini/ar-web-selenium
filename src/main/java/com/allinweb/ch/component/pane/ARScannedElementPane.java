@@ -1477,7 +1477,11 @@ public class ARScannedElementPane extends ARPane {
                 "Refresh Web Page", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
 
         sendDomButton = builder.buildButton(
-                "Send DOM for Review", ARConstants.SPACE_ZERO, "/warning_red.png", ARConstants.SPACE_M, new Insets(5.0D));
+                "Send DOM for Review",
+                ARConstants.SPACE_ZERO,
+                "/warning_red.png",
+                ARConstants.SPACE_M,
+                new Insets(5.0D));
         sendDomButton.setTooltip(new javafx.scene.control.Tooltip(
                 "Upload the current page DOM to MultiPlugins support for scanner review."));
 
@@ -1856,35 +1860,37 @@ public class ARScannedElementPane extends ARPane {
         try {
             org.openqa.selenium.WebDriver driver = performActions.getCurrentDriver();
             if (driver == null) {
-                javafx.scene.control.Alert a = new javafx.scene.control.Alert(
-                        javafx.scene.control.Alert.AlertType.INFORMATION);
+                javafx.scene.control.Alert a =
+                        new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
                 a.setHeaderText("No active browser session");
                 a.setContentText("There is no open browser to capture.");
                 a.showAndWait();
                 return;
             }
 
-            String organization = com.allinweb.ch.util.ARPropertyManager.getInstance()
-                    .getProperty(com.allinweb.ch.util.ARPropertyEnum.LICENSE_ORGANIZATION.getValue());
+            String organization = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.LICENSE_ORGANIZATION);
             String currentUrl;
-            try { currentUrl = driver.getCurrentUrl(); } catch (Exception ex) { currentUrl = "(unknown)"; }
+            try {
+                currentUrl = driver.getCurrentUrl();
+            } catch (Exception ex) {
+                currentUrl = "(unknown)";
+            }
 
-            javafx.scene.control.Alert confirm = new javafx.scene.control.Alert(
-                    javafx.scene.control.Alert.AlertType.CONFIRMATION);
+            javafx.scene.control.Alert confirm =
+                    new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.CONFIRMATION);
             confirm.setTitle("Send DOM for Review");
             confirm.setHeaderText("Upload this page to MultiPlugins support?");
             confirm.setContentText(
-                    "The current DOM will be uploaded to support for scanner review.\n\n" +
-                    "Organization: " + (organization != null ? organization : "UNKNOWN") + "\n" +
-                    "URL:          " + currentUrl);
+                    "The current DOM will be uploaded to support for scanner review.\n\n" + "Organization: "
+                            + (organization != null ? organization : "UNKNOWN") + "\n" + "URL:          "
+                            + currentUrl);
             java.util.Optional<javafx.scene.control.ButtonType> result = confirm.showAndWait();
             if (result.isEmpty() || result.get() != javafx.scene.control.ButtonType.OK) return;
 
             // Phase 1: we do not yet track per-operation failure context in the pane.
             // Future phases will wire currentBotJobId / operationId / last failed plugin.
             com.allinweb.ch.facade.SupportCapture.CaptureResult r =
-                    new com.allinweb.ch.facade.SupportCapture().captureAndSend(
-                            driver, null, null, null, null);
+                    new com.allinweb.ch.facade.SupportCapture().captureAndSend(driver, null, null, null, null);
 
             javafx.scene.control.Alert out = new javafx.scene.control.Alert(
                     r.isOk()

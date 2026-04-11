@@ -13,11 +13,9 @@ public class ConsoleRingBufferAppender extends AppenderBase<ILoggingEvent> {
     @Override
     protected void append(ILoggingEvent event) {
         try {
-            String line = String.format("%s [%s] %s - %s",
-                    event.getLevel(),
-                    event.getLoggerName(),
-                    event.getThreadName(),
-                    event.getFormattedMessage());
+            String line = String.format(
+                    "%s [%s] %s - %s",
+                    event.getLevel(), event.getLoggerName(), event.getThreadName(), event.getFormattedMessage());
             ConsoleRingBuffer.append(line);
         } catch (Throwable t) {
             // Never throw from inside the logging pipeline.

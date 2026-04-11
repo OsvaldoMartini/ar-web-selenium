@@ -7,7 +7,6 @@ import com.allinweb.ch.util.ConsoleRingBuffer;
 import com.allinweb.ch.util.LicenseFingerprint;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-
 import java.io.ByteArrayOutputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -21,7 +20,6 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.zip.GZIPOutputStream;
-
 import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.WebDriver;
@@ -52,16 +50,11 @@ public class SupportCapture {
 
     private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
 
-    private final HttpClient http = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(10))
-            .build();
+    private final HttpClient http =
+            HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
 
     public CaptureResult captureAndSend(
-            WebDriver driver,
-            String failedPlugin,
-            String failureReason,
-            Long botJobId,
-            String operationId) {
+            WebDriver driver, String failedPlugin, String failureReason, Long botJobId, String operationId) {
 
         if (driver == null) return CaptureResult.error("No active driver");
 
@@ -71,13 +64,11 @@ public class SupportCapture {
                 return CaptureResult.error("Empty page source");
             }
 
-            String organization = ARPropertyManager.getInstance()
-                    .getProperty(ARPropertyEnum.LICENSE_ORGANIZATION.getValue());
+            String organization = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.LICENSE_ORGANIZATION);
             if (organization == null || organization.isBlank()) organization = "UNKNOWN";
             organization = sanitize(organization);
 
-            String appVersion = ARPropertyManager.getInstance()
-                    .getProperty(ARPropertyEnum.VERSION);
+            String appVersion = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.VERSION);
             String licenseFp = LicenseFingerprint.compute();
             if (licenseFp == null) {
                 return CaptureResult.error("Missing ARWeb.lic — cannot authenticate");
@@ -86,7 +77,10 @@ public class SupportCapture {
             String url = safeString(driver.getCurrentUrl());
             String title = safeString(driver.getTitle());
             Dimension vp = null;
-            try { vp = driver.manage().window().getSize(); } catch (Exception ignored) {}
+            try {
+                vp = driver.manage().window().getSize();
+            } catch (Exception ignored) {
+            }
 
             Map<String, Object> env = new HashMap<>();
             env.put("schemaVersion", "1");
@@ -150,11 +144,13 @@ public class SupportCapture {
         return cleaned.length() > 120 ? cleaned.substring(0, 120) : cleaned;
     }
 
-    private static String safeString(String s) { return s != null ? s : ""; }
+    private static String safeString(String s) {
+        return s != null ? s : "";
+    }
 
     private static String gzipAndBase64(String s) throws Exception {
         try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
-             GZIPOutputStream gz = new GZIPOutputStream(bos)) {
+                GZIPOutputStream gz = new GZIPOutputStream(bos)) {
             gz.write(s.getBytes(StandardCharsets.UTF_8));
             gz.finish();
             return Base64.getEncoder().encodeToString(bos.toByteArray());
@@ -194,11 +190,25 @@ public class SupportCapture {
             this.ticketId = ticketId;
             this.error = error;
         }
-        public static CaptureResult ok(String id) { return new CaptureResult(true, id, null); }
-        public static CaptureResult error(String msg) { return new CaptureResult(false, null, msg); }
 
-        public boolean isOk() { return ok; }
-        public String ticketId() { return ticketId; }
-        public String error() { return error; }
+        public static CaptureResult ok(String id) {
+            return new CaptureResult(true, id, null);
+        }
+
+        public static CaptureResult error(String msg) {
+            return new CaptureResult(false, null, msg);
+        }
+
+        public boolean isOk() {
+            return ok;
+        }
+
+        public String ticketId() {
+            return ticketId;
+        }
+
+        public String error() {
+            return error;
+        }
     }
 }

@@ -4,7 +4,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
-
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -24,8 +23,7 @@ public final class LicenseFingerprint {
      */
     public static String compute() {
         try {
-            String licensePath = ARPropertyManager.getInstance()
-                    .getProperty(ARPropertyEnum.PATH_LICENSE);
+            String licensePath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.PATH_LICENSE);
             if (licensePath == null || licensePath.isBlank()) {
                 licensePath = System.getProperty("user.dir");
             }
