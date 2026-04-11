@@ -1865,7 +1865,7 @@ public class ARScannedElementPane extends ARPane {
             }
 
             String organization = com.allinweb.ch.util.ARPropertyManager.getInstance()
-                    .getProperty("license.organization");
+                    .getProperty(com.allinweb.ch.util.ARPropertyEnum.LICENSE_ORGANIZATION.getValue());
             String currentUrl;
             try { currentUrl = driver.getCurrentUrl(); } catch (Exception ex) { currentUrl = "(unknown)"; }
 

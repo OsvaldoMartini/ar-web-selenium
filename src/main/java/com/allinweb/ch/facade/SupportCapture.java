@@ -72,7 +72,7 @@ public class SupportCapture {
             }
 
             String organization = ARPropertyManager.getInstance()
-                    .getProperty("license.organization");
+                    .getProperty(ARPropertyEnum.LICENSE_ORGANIZATION.getValue());
             if (organization == null || organization.isBlank()) organization = "UNKNOWN";
             organization = sanitize(organization);
 
