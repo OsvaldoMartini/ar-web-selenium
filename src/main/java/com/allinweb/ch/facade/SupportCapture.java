@@ -134,8 +134,10 @@ public class SupportCapture {
             }
 
             String ticketId = extractJsonString(resp.body(), "ticketId");
-            log.info("SupportCapture — upload OK, ticketId={}", ticketId);
-            return CaptureResult.ok(ticketId);
+            String ticketCode = extractJsonString(resp.body(), "ticketCode");
+            String displayId = ticketCode != null ? ticketCode : ticketId;
+            log.info("SupportCapture — upload OK, ticketCode={}, ticketId={}", ticketCode, ticketId);
+            return CaptureResult.ok(displayId);
 
         } catch (Exception e) {
             log.error("SupportCapture — failed: {}", e.getMessage(), e);
