@@ -110,13 +110,19 @@ public class SupportCapture {
 
             String json = GSON.toJson(env);
 
+            String orgKey = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.LICENSE_ORG_KEY);
+
             String apiBase = System.getProperty("multiplugins.api.url", DEFAULT_API);
-            HttpRequest req = HttpRequest.newBuilder()
+            HttpRequest.Builder reqBuilder = HttpRequest.newBuilder()
                     .uri(URI.create(apiBase + "/support/dom-capture"))
                     .timeout(Duration.ofSeconds(30))
                     .header("Content-Type", "application/json")
                     .header("X-MP-License-Fingerprint", licenseFp)
-                    .header("X-MP-Email", licenseEmail)
+                    .header("X-MP-Email", licenseEmail);
+            if (orgKey != null && !orgKey.isBlank()) {
+                reqBuilder.header("X-MP-OrgKey", orgKey);
+            }
+            HttpRequest req = reqBuilder
                     .POST(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8))
                     .build();
 
