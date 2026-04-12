@@ -251,7 +251,7 @@ public class LicenseManager {
             arPropertyManager.setProperty(ARPropertyEnum.LICENSE_ORG_KEY.getValue(), parts[4]);
         }
         if (parts.length >= 6) {
-            arPropertyManager.setProperty(ARPropertyEnum.LICENSE_ORGANIZATION.getValue(), parts[5]);
+            arPropertyManager.setProperty(ARPropertyEnum.LICENSE_EMAIL.getValue(), parts[5]);
         }
         if (parts.length >= 7) {
             arPropertyManager.setProperty(ARPropertyEnum.LICENSE_VERSION.getValue(), parts[6]);

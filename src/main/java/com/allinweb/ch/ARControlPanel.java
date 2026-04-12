@@ -309,11 +309,16 @@ public class ARControlPanel extends Application {
             msgColorExp = "#C62828";
         }
 
+        String licEmail = arPropertyManager.getProperty(ARPropertyEnum.LICENSE_EMAIL);
+        String emailLine = (licEmail != null && !licEmail.isBlank())
+                ? "Licensed for: <span style='color: #0277BD; font-weight: bold;'>" + licEmail + "</span><br>"
+                : "";
+
         performMessage.showCustomModalDialogDragWin11(
                 "License Status Verification",
                 "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>License status has been successfully verified.</span>",
                 "<span style='color: " + msgColor + "; font-weight: bold;'>" + msgValid + "</span>",
-                "<span style='color: #E65100; font-weight: bold;'>Current license status:</span> <span style='font-weight: bold;'>"
+                emailLine + "<span style='color: #E65100; font-weight: bold;'>Current license status:</span> <span style='font-weight: bold;'>"
                         + licenseStatus.getStaus() + "</span>",
                 "Expiration: <span style='color: " + msgColorExp + "; font-weight: bold;'>"
                         + arPropertyManager.getProperty(ARPropertyEnum.EXPIRATION) + "</span>",

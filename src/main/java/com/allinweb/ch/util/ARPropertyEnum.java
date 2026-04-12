@@ -27,7 +27,7 @@ public enum ARPropertyEnum {
     BUILD("build"),
     EXPIRATION("expiration"),
     LICENSE_ORG_KEY("license.orgKey"),
-    LICENSE_ORGANIZATION("license.organization"),
+    LICENSE_EMAIL("license.email"),
     LICENSE_VERSION("license.version"),
     WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC("page_update_timeout_sec"),
     WEBDRIVER_INTERACTION_TIMEOUT_SEC("interaction_timeout_sec"),

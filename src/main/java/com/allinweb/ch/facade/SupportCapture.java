@@ -41,7 +41,7 @@ import org.openqa.selenium.WebDriver;
  * Endpoint: POST  ${multiplugins.api.url}/support/dom-capture
  * Auth:
  *   X-MP-License-Fingerprint  sha256 of ARWeb.lic bytes
- *   X-MP-Organization         license.organization
+ *   X-MP-Email                license.email (requester email from ARWeb.lic parts[5])
  */
 @Slf4j
 public class SupportCapture {
@@ -64,9 +64,10 @@ public class SupportCapture {
                 return CaptureResult.error("Empty page source");
             }
 
-            String organization = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.LICENSE_ORGANIZATION);
-            if (organization == null || organization.isBlank()) organization = "UNKNOWN";
-            organization = sanitize(organization);
+            String licenseEmail = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.LICENSE_EMAIL);
+            if (licenseEmail == null || licenseEmail.isBlank()) {
+                return CaptureResult.error("No email in license — regenerate ARWeb.lic");
+            }
 
             String appVersion = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.VERSION);
             String licenseFp = LicenseFingerprint.compute();
@@ -115,7 +116,7 @@ public class SupportCapture {
                     .timeout(Duration.ofSeconds(30))
                     .header("Content-Type", "application/json")
                     .header("X-MP-License-Fingerprint", licenseFp)
-                    .header("X-MP-Organization", organization)
+                    .header("X-MP-Email", licenseEmail)
                     .POST(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8))
                     .build();
 

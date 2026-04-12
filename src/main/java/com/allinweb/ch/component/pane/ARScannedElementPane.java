@@ -1868,7 +1868,7 @@ public class ARScannedElementPane extends ARPane {
                 return;
             }
 
-            String organization = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.LICENSE_ORGANIZATION);
+            String licenseEmail = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.LICENSE_EMAIL);
             String currentUrl;
             try {
                 currentUrl = driver.getCurrentUrl();
@@ -1881,8 +1881,8 @@ public class ARScannedElementPane extends ARPane {
             confirm.setTitle("Send DOM for Review");
             confirm.setHeaderText("Upload this page to MultiPlugins support?");
             confirm.setContentText(
-                    "The current DOM will be uploaded to support for scanner review.\n\n" + "Organization: "
-                            + (organization != null ? organization : "UNKNOWN") + "\n" + "URL:          "
+                    "The current DOM will be uploaded to support for scanner review.\n\n" + "Email: "
+                            + (licenseEmail != null ? licenseEmail : "N/A") + "\n" + "URL:   "
                             + currentUrl);
             java.util.Optional<javafx.scene.control.ButtonType> result = confirm.showAndWait();
             if (result.isEmpty() || result.get() != javafx.scene.control.ButtonType.OK) return;
