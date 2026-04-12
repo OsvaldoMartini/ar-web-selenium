@@ -2106,7 +2106,7 @@ public class ARScannedElementPane extends ARPane {
                 } else if ("save".equals(action)) {
                     String timestamp = java.time.LocalDateTime.now()
                             .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
-                    String suggestedName = timestamp + "_direct_request.support";
+                    String suggestedName = timestamp + "_ticket.support";
 
                     javafx.stage.FileChooser fc = new javafx.stage.FileChooser();
                     fc.setTitle("Save Support Request");
