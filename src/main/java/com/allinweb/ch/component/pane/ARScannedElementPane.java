@@ -2122,6 +2122,7 @@ public class ARScannedElementPane extends ARPane {
                     support.addProperty("capturedAt", java.time.Instant.now().toString());
                     support.addProperty("pcName", pcName);
                     support.addProperty("email", email != null ? email : "");
+                    support.addProperty("orgKey", orgKey != null ? orgKey : "");
                     support.addProperty("appVersion", appVersion != null ? appVersion : "");
                     support.addProperty("subject", "[Support Request] " + pcName + " — " + (email != null ? email : ""));
                     support.addProperty("message", message);
