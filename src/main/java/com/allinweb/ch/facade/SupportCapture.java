@@ -88,7 +88,7 @@ public class SupportCapture {
             env.put("capturedAt", Instant.now().toString());
             env.put("pcName", SystemDetails.getSystemComputerName());
             env.put("appVersion", appVersion);
-            env.put("failedPlugin", failedPlugin != null ? failedPlugin : "user-initiated");
+            env.put("failedPlugin", failedPlugin != null ? failedPlugin : "pageScanner");
             env.put("failureReason", failureReason != null ? failureReason : "User-initiated capture");
             env.put("botJobId", botJobId);
             env.put("operationId", operationId);

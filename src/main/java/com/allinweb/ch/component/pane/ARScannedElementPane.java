@@ -1960,7 +1960,7 @@ public class ARScannedElementPane extends ARPane {
                     support.addProperty("pcName", com.allinweb.ch.license.SystemDetails.getSystemComputerName());
                     support.addProperty("email", email != null ? email : "");
                     support.addProperty("appVersion", appVersion != null ? appVersion : "");
-                    support.addProperty("failedPlugin", "user-initiated");
+                    support.addProperty("failedPlugin", "pageScanner");
                     support.addProperty("failureReason", "User-initiated local capture");
 
                     com.google.gson.JsonObject browser = new com.google.gson.JsonObject();
