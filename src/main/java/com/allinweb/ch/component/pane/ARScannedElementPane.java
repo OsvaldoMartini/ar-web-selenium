@@ -1488,10 +1488,10 @@ public class ARScannedElementPane extends ARPane {
                 "Send sanitized HTML for review — personal data is replaced with synthetic test data."));
 
         requestSupportButton = builder.buildButton(
-                "Request Support", ARConstants.SPACE_ZERO, "/info.png", ARConstants.SPACE_M,
+                "", ARConstants.SPACE_ZERO, "/info.png", ARConstants.SPACE_M,
                 new Insets(5.0D));
         requestSupportButton.setTooltip(new javafx.scene.control.Tooltip(
-                "Send a text support request to the MultiPlugins support team."));
+                "Request Support — send a text message to the MultiPlugins support team."));
 
         cleanListButton = builder.buildButton(
                 "Clear Grid", // No text
@@ -1685,6 +1685,7 @@ public class ARScannedElementPane extends ARPane {
             gridPaneTop.add(turnOnOffButton, 6, 0);
             gridPaneTop.add(leftButton, 7, 0);
             gridPaneTop.add(rightButton, 8, 0);
+            gridPaneTop.add(requestSupportButton, 9, 0);
 
             VBox vBoxCheckBox = new VBox();
             vBoxCheckBox
@@ -1815,8 +1816,6 @@ public class ARScannedElementPane extends ARPane {
                             refreshWebPageButton,
                             createSpacerHoriz(),
                             sendDomButton,
-                            createSpacerHoriz(),
-                            requestSupportButton,
                             createSpacerHoriz(),
                             cleanListButton);
             stackLabelOthers.getChildren().addAll(othersBox);
