@@ -172,6 +172,7 @@ public class ARScannedElementPane extends ARPane {
     private Label lblPluginHint;
     private Button refreshWebPageButton;
     private Button sendDomButton;
+    private Button requestSupportButton;
     private Button leftButton;
     private Button rightButton;
     private Button cleanListButton;
@@ -1486,6 +1487,12 @@ public class ARScannedElementPane extends ARPane {
         sendDomButton.setTooltip(new javafx.scene.control.Tooltip(
                 "Send sanitized HTML for review — personal data is replaced with synthetic test data."));
 
+        requestSupportButton = builder.buildButton(
+                "Request Support", ARConstants.SPACE_ZERO, "/info.png", ARConstants.SPACE_M,
+                new Insets(5.0D));
+        requestSupportButton.setTooltip(new javafx.scene.control.Tooltip(
+                "Send a text support request to the MultiPlugins support team."));
+
         cleanListButton = builder.buildButton(
                 "Clear Grid", // No text
                 25.0, // Smaller height
@@ -1560,6 +1567,7 @@ public class ARScannedElementPane extends ARPane {
         rightButton.setOnAction(e -> switchToRightTab());
 
         sendDomButton.setOnAction(e -> sendCurrentDomForReview());
+        requestSupportButton.setOnAction(e -> requestSupport());
 
         refreshWebPageButton.setOnAction(e -> {
             if (!lastBrowserTab()) {
@@ -1808,6 +1816,8 @@ public class ARScannedElementPane extends ARPane {
                             createSpacerHoriz(),
                             sendDomButton,
                             createSpacerHoriz(),
+                            requestSupportButton,
+                            createSpacerHoriz(),
                             cleanListButton);
             stackLabelOthers.getChildren().addAll(othersBox);
 
@@ -2001,6 +2011,124 @@ public class ARScannedElementPane extends ARPane {
                 }
             } catch (Exception ex) {
                 log.error("handleDomReviewResponse failed", ex);
+            }
+        });
+    }
+
+    private void requestSupport() {
+        try {
+            String licenseEmail = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.LICENSE_EMAIL);
+            String pcName = com.allinweb.ch.license.SystemDetails.getSystemComputerName();
+            String currentUrl = "(no browser)";
+            try {
+                org.openqa.selenium.WebDriver driver = performActions.getCurrentDriver();
+                if (driver != null) currentUrl = driver.getCurrentUrl();
+            } catch (Exception ignored) {}
+
+            com.google.gson.JsonObject body = new com.google.gson.JsonObject();
+            body.addProperty("url", currentUrl);
+            body.addProperty("pcName", pcName);
+            body.addProperty("email", licenseEmail != null ? licenseEmail : "");
+
+            int hbId = this.currentBotJob != null ? this.currentBotJob.getHomeBankingId() : 0;
+            webSocketSessionManager.sendMessageJson(hbId, "scannerGrid", body.toString(), "REQUEST_SUPPORT");
+            log.info("requestSupport — WS message sent to scannerGrid");
+
+        } catch (Exception ex) {
+            log.error("requestSupport failed", ex);
+        }
+    }
+
+    public void handleSupportRequestResponse(String action, String message) {
+        if ("cancel".equals(action) || message == null || message.isBlank()) {
+            log.info("Support request cancelled");
+            return;
+        }
+
+        javafx.application.Platform.runLater(() -> {
+            try {
+                String email = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.LICENSE_EMAIL);
+                String orgKey = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.LICENSE_ORG_KEY);
+                String pcName = com.allinweb.ch.license.SystemDetails.getSystemComputerName();
+                String appVersion = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.VERSION);
+
+                if ("send".equals(action)) {
+                    String fingerprint = com.allinweb.ch.util.LicenseFingerprint.compute();
+                    if (fingerprint == null || email == null || email.isBlank()) {
+                        javafx.scene.control.Alert err = new javafx.scene.control.Alert(
+                                javafx.scene.control.Alert.AlertType.ERROR);
+                        err.setHeaderText("Cannot send support request");
+                        err.setContentText("Missing license or email. Regenerate ARWeb.lic.");
+                        err.showAndWait();
+                        return;
+                    }
+
+                    String apiBase = System.getProperty("multiplugins.api.url", "https://multiplugins.ch/api");
+                    com.google.gson.JsonObject payload = new com.google.gson.JsonObject();
+                    payload.addProperty("subject", "[Support Request] " + pcName + " — " + email);
+                    payload.addProperty("message", message);
+                    payload.addProperty("email", email);
+                    payload.addProperty("pcName", pcName);
+                    payload.addProperty("appVersion", appVersion != null ? appVersion : "");
+
+                    java.net.http.HttpRequest req = java.net.http.HttpRequest.newBuilder()
+                            .uri(java.net.URI.create(apiBase + "/support/tickets"))
+                            .timeout(java.time.Duration.ofSeconds(15))
+                            .header("Content-Type", "application/json")
+                            .POST(java.net.http.HttpRequest.BodyPublishers.ofString(
+                                    new com.google.gson.Gson().toJson(payload),
+                                    java.nio.charset.StandardCharsets.UTF_8))
+                            .build();
+
+                    java.net.http.HttpResponse<String> resp = java.net.http.HttpClient.newHttpClient()
+                            .send(req, java.net.http.HttpResponse.BodyHandlers.ofString());
+
+                    javafx.scene.control.Alert out = new javafx.scene.control.Alert(
+                            resp.statusCode() < 300
+                                    ? javafx.scene.control.Alert.AlertType.INFORMATION
+                                    : javafx.scene.control.Alert.AlertType.ERROR);
+                    out.setHeaderText(resp.statusCode() < 300 ? "Support request sent" : "Failed to send");
+                    out.setContentText(resp.statusCode() < 300
+                            ? "Your support request has been submitted."
+                            : "Server returned HTTP " + resp.statusCode());
+                    out.showAndWait();
+
+                } else if ("save".equals(action)) {
+                    String timestamp = java.time.LocalDateTime.now()
+                            .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
+                    String suggestedName = timestamp + "_support-request.support";
+
+                    javafx.stage.FileChooser fc = new javafx.stage.FileChooser();
+                    fc.setTitle("Save Support Request");
+                    fc.setInitialFileName(suggestedName);
+                    fc.getExtensionFilters().add(
+                            new javafx.stage.FileChooser.ExtensionFilter("Support Files (*.support)", "*.support"));
+                    java.io.File chosen = fc.showSaveDialog(stage);
+                    if (chosen == null) return;
+
+                    com.google.gson.JsonObject support = new com.google.gson.JsonObject();
+                    support.addProperty("schemaVersion", "1");
+                    support.addProperty("type", "support-request");
+                    support.addProperty("capturedAt", java.time.Instant.now().toString());
+                    support.addProperty("pcName", pcName);
+                    support.addProperty("email", email != null ? email : "");
+                    support.addProperty("appVersion", appVersion != null ? appVersion : "");
+                    support.addProperty("subject", "[Support Request] " + pcName + " — " + (email != null ? email : ""));
+                    support.addProperty("message", message);
+
+                    java.nio.file.Files.writeString(chosen.toPath(),
+                            new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(support),
+                            java.nio.charset.StandardCharsets.UTF_8);
+
+                    javafx.scene.control.Alert out = new javafx.scene.control.Alert(
+                            javafx.scene.control.Alert.AlertType.INFORMATION);
+                    out.setHeaderText("Support request saved");
+                    out.setContentText("File: " + chosen.getAbsolutePath()
+                            + "\n\nDrag & drop this file on the Support Portal to submit.");
+                    out.showAndWait();
+                }
+            } catch (Exception ex) {
+                log.error("handleSupportRequestResponse failed", ex);
             }
         });
     }
