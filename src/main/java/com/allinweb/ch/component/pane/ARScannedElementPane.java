@@ -1983,7 +1983,7 @@ public class ARScannedElementPane extends ARPane {
                     // File chooser
                     String timestamp = java.time.LocalDateTime.now()
                             .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
-                    String suggestedName = timestamp + "_" + safeHost + ".support";
+                    String suggestedName = timestamp + "_page_review.support";
 
                     javafx.stage.FileChooser fc = new javafx.stage.FileChooser();
                     fc.setTitle("Save Support File");
@@ -2106,7 +2106,7 @@ public class ARScannedElementPane extends ARPane {
                 } else if ("save".equals(action)) {
                     String timestamp = java.time.LocalDateTime.now()
                             .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
-                    String suggestedName = timestamp + "_support-request.support";
+                    String suggestedName = timestamp + "_direct_request.support";
 
                     javafx.stage.FileChooser fc = new javafx.stage.FileChooser();
                     fc.setTitle("Save Support Request");
@@ -2118,7 +2118,7 @@ public class ARScannedElementPane extends ARPane {
 
                     com.google.gson.JsonObject support = new com.google.gson.JsonObject();
                     support.addProperty("schemaVersion", "1");
-                    support.addProperty("type", "support-request");
+                    support.addProperty("type", "direct-request");
                     support.addProperty("capturedAt", java.time.Instant.now().toString());
                     support.addProperty("pcName", pcName);
                     support.addProperty("email", email != null ? email : "");
