@@ -1,3 +1,5 @@
+package com.allinweb.ch.license;
+
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -13,17 +15,18 @@ import javax.crypto.spec.SecretKeySpec;
  *  2. AES-128-ECB decrypt with the shared key (matches LicenseManager + crypto.cjs).
  *  3. Split the plaintext by '|' and show every part.
  *  4. Simulate LicenseManager.validateLicense() storing parts[4]=orgKey,
- *     parts[5]=organization, parts[6]=version into a local map.
+ *     parts[5]=email, parts[6]=version into a local map.
  *  5. Compute SHA-256 fingerprint the way LicenseFingerprint.compute() does.
  *
- * Run:
- *   cd C:\Martini\abr-web-selenium
- *   javac LicenseReadTest.java
- *   java LicenseReadTest "C:\Martini\ARWeb.lic"
+ * Run from IntelliJ or CLI:
+ *   mvn -pl . -Dtest=com.allinweb.ch.license.LicenseReadTest test
+ * Or standalone:
+ *   javac -d out src/test/java/com/allinweb/ch/license/LicenseReadTest.java
+ *   java -cp out com.allinweb.ch.license.LicenseReadTest "C:\Martini\ARWeb.lic"
  */
 public class LicenseReadTest {
 
-    private static final String KEY = "0123456789abcdef"; // 16 bytes → AES-128
+    private static final String KEY = "0123456789abcdef"; // 16 bytes, AES-128
 
     public static void main(String[] args) throws Exception {
         String path = args.length > 0 ? args[0] : "C:\\Martini\\ARWeb.lic";
@@ -32,14 +35,14 @@ public class LicenseReadTest {
         System.out.println("License path : " + licFile.toAbsolutePath());
         System.out.println("Exists       : " + Files.exists(licFile));
         if (!Files.exists(licFile)) {
-            System.err.println("FATAL — file not found");
+            System.err.println("FATAL -- file not found");
             System.exit(1);
         }
 
         byte[] raw = Files.readAllBytes(licFile);
         System.out.println("Size (bytes) : " + raw.length);
 
-        // SHA-256 fingerprint — matches LicenseFingerprint.compute()
+        // SHA-256 fingerprint -- matches LicenseFingerprint.compute()
         MessageDigest sha = MessageDigest.getInstance("SHA-256");
         byte[] digest = sha.digest(raw);
         StringBuilder hex = new StringBuilder(digest.length * 2);
@@ -62,7 +65,7 @@ public class LicenseReadTest {
             System.out.println("  [" + i + "] \"" + parts[i] + "\"");
         }
 
-        // Simulate LicenseManager.validateLicense — exactly the fields we care about
+        // Simulate LicenseManager.validateLicense
         System.out.println();
         System.out.println("Simulated ARPropertyManager values after validateLicense():");
         if (parts.length >= 5) {
@@ -87,16 +90,16 @@ public class LicenseReadTest {
         boolean looksLikeEmail = emailGuess.contains("@");
         boolean looksLikeVersion = emailGuess.matches("^\\d+(\\.\\d+)*$");
         if (parts.length < 6) {
-            System.out.println("VERDICT: FAIL .lic has fewer than 6 parts — email not set.");
+            System.out.println("VERDICT: FAIL .lic has fewer than 6 parts -- email not set.");
         } else if (looksLikeVersion) {
             System.out.println("VERDICT: FAIL parts[5] = \"" + emailGuess + "\" looks like a version number.");
             System.out.println("         Server-side crypto.cjs fix is NOT live yet.");
             System.out.println("         Rebuild the API (restart.bat), then refresh the .lic from the portal.");
         } else if (looksLikeEmail) {
-            System.out.println("VERDICT: OK parts[5] = \"" + emailGuess + "\" — valid email.");
+            System.out.println("VERDICT: OK parts[5] = \"" + emailGuess + "\" -- valid email.");
             System.out.println("         Java will send X-MP-Email: " + emailGuess);
         } else {
-            System.out.println("VERDICT: WARN parts[5] = \"" + emailGuess + "\" — not an email. Check the .lic.");
+            System.out.println("VERDICT: WARN parts[5] = \"" + emailGuess + "\" -- not an email. Check the .lic.");
         }
     }
 }
