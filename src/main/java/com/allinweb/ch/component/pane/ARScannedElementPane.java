@@ -1931,27 +1931,72 @@ public class ARScannedElementPane extends ARPane {
 
                 } else if ("save".equals(action)) {
                     String email = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.LICENSE_EMAIL);
+                    String appVersion = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.VERSION);
                     String url = "(unknown)";
-                    try { if (driver != null) url = driver.getCurrentUrl(); } catch (Exception ignored) {}
+                    String title = "";
+                    try {
+                        if (driver != null) { url = driver.getCurrentUrl(); title = driver.getTitle(); }
+                    } catch (Exception ignored) {}
                     String safeHost;
                     try { safeHost = new java.net.URL(url).getHost().replaceAll("[^a-zA-Z0-9.-]", "_"); }
                     catch (Exception e) { safeHost = "unknown"; }
 
+                    // Gzip + base64 the HTML
+                    byte[] htmlBytes = html.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                    java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+                    try (java.util.zip.GZIPOutputStream gz = new java.util.zip.GZIPOutputStream(bos)) {
+                        gz.write(htmlBytes);
+                    }
+                    String htmlB64 = java.util.Base64.getEncoder().encodeToString(bos.toByteArray());
+                    java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+                    byte[] digest = md.digest(htmlBytes);
+                    StringBuilder hexHash = new StringBuilder(digest.length * 2);
+                    for (byte b : digest) hexHash.append(String.format("%02x", b));
+
+                    // Build .support JSON envelope
+                    com.google.gson.JsonObject support = new com.google.gson.JsonObject();
+                    support.addProperty("schemaVersion", "1");
+                    support.addProperty("capturedAt", java.time.Instant.now().toString());
+                    support.addProperty("pcName", com.allinweb.ch.license.SystemDetails.getSystemComputerName());
+                    support.addProperty("email", email != null ? email : "");
+                    support.addProperty("appVersion", appVersion != null ? appVersion : "");
+                    support.addProperty("failedPlugin", "user-initiated");
+                    support.addProperty("failureReason", "User-initiated local capture");
+
+                    com.google.gson.JsonObject browser = new com.google.gson.JsonObject();
+                    browser.addProperty("url", url);
+                    browser.addProperty("title", title != null ? title : "");
+                    support.add("browser", browser);
+
+                    support.addProperty("html", htmlB64);
+                    support.addProperty("htmlSha256", "sha256:" + hexHash);
+
+                    // File chooser
                     String timestamp = java.time.LocalDateTime.now()
                             .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
-                    String baseName = timestamp + "_" + safeHost + ".html";
+                    String suggestedName = timestamp + "_" + safeHost + ".support";
 
-                    java.nio.file.Path capturesDir = java.nio.file.Paths.get(
-                            System.getProperty("user.dir"), "dom-captures");
-                    java.nio.file.Files.createDirectories(capturesDir);
-                    java.nio.file.Path htmlFile = capturesDir.resolve(baseName);
-                    java.nio.file.Files.writeString(htmlFile, html, java.nio.charset.StandardCharsets.UTF_8);
+                    javafx.stage.FileChooser fc = new javafx.stage.FileChooser();
+                    fc.setTitle("Save Support File");
+                    fc.setInitialFileName(suggestedName);
+                    fc.getExtensionFilters().add(
+                            new javafx.stage.FileChooser.ExtensionFilter("Support Files (*.support)", "*.support"));
+                    java.io.File chosen = fc.showSaveDialog(stage);
+                    if (chosen == null) {
+                        log.info("DOM capture save cancelled by user");
+                        return;
+                    }
 
-                    log.info("DOM capture saved to {}", htmlFile);
+                    java.nio.file.Files.writeString(chosen.toPath(),
+                            new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(support),
+                            java.nio.charset.StandardCharsets.UTF_8);
+
+                    log.info("DOM capture saved to {}", chosen.getAbsolutePath());
                     javafx.scene.control.Alert out = new javafx.scene.control.Alert(
                             javafx.scene.control.Alert.AlertType.INFORMATION);
-                    out.setHeaderText("DOM capture saved");
-                    out.setContentText("File: " + htmlFile.toAbsolutePath());
+                    out.setHeaderText("Support file saved");
+                    out.setContentText("File: " + chosen.getAbsolutePath()
+                            + "\n\nDrag & drop this file on the Support Portal to create a ticket.");
                     out.showAndWait();
                 }
             } catch (Exception ex) {
