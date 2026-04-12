@@ -2067,6 +2067,7 @@ public class ARScannedElementPane extends ARPane {
                     payload.addProperty("subject", "[Support Request] " + pcName + " — " + email);
                     payload.addProperty("message", message);
                     payload.addProperty("email", email);
+                    payload.addProperty("orgKey", orgKey != null ? orgKey : "");
                     payload.addProperty("pcName", pcName);
                     payload.addProperty("appVersion", appVersion != null ? appVersion : "");
 
@@ -2098,8 +2099,7 @@ public class ARScannedElementPane extends ARPane {
                     out.setHeaderText(resp.statusCode() < 300 ? "Support request sent" : "Failed to send");
                     out.setContentText(resp.statusCode() < 300
                             ? "Ticket: " + ticketCode + "\n\n"
-                              + "A confirmation email has been sent to " + email + ".\n"
-                              + "Follow your ticket at: https://multiplugins.ch/portal"
+                              + "A confirmation email has been sent to " + email + "."
                             : "Server returned HTTP " + resp.statusCode());
                     out.showAndWait();
 
