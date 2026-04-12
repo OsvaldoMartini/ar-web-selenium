@@ -256,16 +256,11 @@ public class PerformPreLoad {
         try {
             log.info(">> Injecting plugin [pageScanner] - session={}, botJob={}", sessionId, botJobId);
             JavascriptExecutor executor = (JavascriptExecutor) driver;
-            executor.executeScript(
-                    getJsScanner(),
-                    dataList, // arguments[0] - searchTerms
-                    searchHiddenFields, // arguments[1] - searchHiddenFields
-                    port, // arguments[2] - WS port
-                    sessionId, // arguments[3] - sessionId
-                    destination, // arguments[4] - destination
-                    operationId, // arguments[5] - operationId
-                    homeBankingId, // arguments[6] - homeBankingId
-                    botJobId); // arguments[7] - botJobId
+            PluginContext ctx = PluginContext.forPageScanner(
+                    dataList, searchHiddenFields, port,
+                    sessionId, destination, operationId,
+                    homeBankingId, botJobId);
+            executor.executeScript(getJsScanner(), ctx.toJsContext());
             return null;
         } catch (PluginLoadException ple) {
             log.error("PerformPreLoad — plugin [pageScanner] load failed: {}", ple.getUserTitle());
