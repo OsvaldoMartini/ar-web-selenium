@@ -2082,13 +2082,24 @@ public class ARScannedElementPane extends ARPane {
                     java.net.http.HttpResponse<String> resp = java.net.http.HttpClient.newHttpClient()
                             .send(req, java.net.http.HttpResponse.BodyHandlers.ofString());
 
+                    String ticketCode = "";
+                    if (resp.statusCode() < 300) {
+                        try {
+                            com.google.gson.JsonObject respJson = com.google.gson.JsonParser
+                                    .parseString(resp.body()).getAsJsonObject();
+                            if (respJson.has("ticket_code")) ticketCode = respJson.get("ticket_code").getAsString();
+                        } catch (Exception ignored) {}
+                    }
+
                     javafx.scene.control.Alert out = new javafx.scene.control.Alert(
                             resp.statusCode() < 300
                                     ? javafx.scene.control.Alert.AlertType.INFORMATION
                                     : javafx.scene.control.Alert.AlertType.ERROR);
                     out.setHeaderText(resp.statusCode() < 300 ? "Support request sent" : "Failed to send");
                     out.setContentText(resp.statusCode() < 300
-                            ? "Your support request has been submitted."
+                            ? "Ticket: " + ticketCode + "\n\n"
+                              + "A confirmation email has been sent to " + email + ".\n"
+                              + "Follow your ticket at: https://multiplugins.ch/portal"
                             : "Server returned HTTP " + resp.statusCode());
                     out.showAndWait();
 
