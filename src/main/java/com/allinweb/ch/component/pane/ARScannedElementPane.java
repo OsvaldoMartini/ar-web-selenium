@@ -142,6 +142,7 @@ public class ARScannedElementPane extends ARPane {
     private ScheduledFuture<?> screenshotFuture;
 
     private int portSocketInitial = 54525;
+    private volatile String pendingDomReviewHtml;
     private BotJobLoadDTO currentBotJob;
     private static String currentBotJobName = null;
     private int currentBlockId;
@@ -1477,13 +1478,13 @@ public class ARScannedElementPane extends ARPane {
                 "Refresh Web Page", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
 
         sendDomButton = builder.buildButton(
-                "Send DOM for Review",
+                "Send Pure HTML Review",
                 ARConstants.SPACE_ZERO,
                 "/warning_red.png",
                 ARConstants.SPACE_M,
                 new Insets(5.0D));
         sendDomButton.setTooltip(new javafx.scene.control.Tooltip(
-                "Upload the current page DOM to MultiPlugins support for scanner review."));
+                "Send sanitized HTML for review — personal data is replaced with synthetic test data."));
 
         cleanListButton = builder.buildButton(
                 "Clear Grid", // No text
@@ -1868,46 +1869,95 @@ public class ARScannedElementPane extends ARPane {
                 return;
             }
 
+            String rawHtml = driver.getPageSource();
+            if (rawHtml == null || rawHtml.isBlank()) {
+                log.warn("sendCurrentDomForReview — empty page source");
+                return;
+            }
+            pendingDomReviewHtml = rawHtml;
+
             String licenseEmail = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.LICENSE_EMAIL);
             String currentUrl;
-            try {
-                currentUrl = driver.getCurrentUrl();
-            } catch (Exception ex) {
-                currentUrl = "(unknown)";
-            }
+            try { currentUrl = driver.getCurrentUrl(); } catch (Exception ex) { currentUrl = "(unknown)"; }
+            String pageTitle;
+            try { pageTitle = driver.getTitle(); } catch (Exception ex) { pageTitle = ""; }
+            String pcName = com.allinweb.ch.license.SystemDetails.getSystemComputerName();
+            int htmlSizeKb = rawHtml.getBytes(java.nio.charset.StandardCharsets.UTF_8).length / 1024;
 
-            javafx.scene.control.Alert confirm =
-                    new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.CONFIRMATION);
-            confirm.setTitle("Send DOM for Review");
-            confirm.setHeaderText("Upload this page to MultiPlugins support?");
-            confirm.setContentText(
-                    "The current DOM will be uploaded to support for scanner review.\n\n" + "Email: "
-                            + (licenseEmail != null ? licenseEmail : "N/A") + "\n" + "URL:   "
-                            + currentUrl);
-            java.util.Optional<javafx.scene.control.ButtonType> result = confirm.showAndWait();
-            if (result.isEmpty() || result.get() != javafx.scene.control.ButtonType.OK) return;
+            com.google.gson.JsonObject body = new com.google.gson.JsonObject();
+            body.addProperty("url", currentUrl);
+            body.addProperty("title", pageTitle != null ? pageTitle : "");
+            body.addProperty("pcName", pcName);
+            body.addProperty("email", licenseEmail != null ? licenseEmail : "");
+            body.addProperty("htmlSizeKb", htmlSizeKb);
 
-            // Phase 1: we do not yet track per-operation failure context in the pane.
-            // Future phases will wire currentBotJobId / operationId / last failed plugin.
-            com.allinweb.ch.facade.SupportCapture.CaptureResult r =
-                    new com.allinweb.ch.facade.SupportCapture().captureAndSend(driver, null, null, null, null);
-
-            javafx.scene.control.Alert out = new javafx.scene.control.Alert(
-                    r.isOk()
-                            ? javafx.scene.control.Alert.AlertType.INFORMATION
-                            : javafx.scene.control.Alert.AlertType.ERROR);
-            if (r.isOk()) {
-                out.setHeaderText("DOM capture sent");
-                out.setContentText("Ticket: " + r.ticketId());
-            } else {
-                out.setHeaderText("Could not send DOM capture");
-                out.setContentText(r.error());
-            }
-            out.showAndWait();
+            int hbId = this.currentBotJob != null ? this.currentBotJob.getHomeBankingId() : 0;
+            webSocketSessionManager.sendMessageJson(hbId, "scannerGrid", body.toString(), "SEND_DOM_REVIEW");
+            log.info("sendCurrentDomForReview — WS message sent to scannerGrid, waiting for user response");
 
         } catch (Exception ex) {
             log.error("sendCurrentDomForReview failed", ex);
+            pendingDomReviewHtml = null;
         }
+    }
+
+    public void handleDomReviewResponse(String action) {
+        String html = pendingDomReviewHtml;
+        pendingDomReviewHtml = null;
+
+        if (html == null || "cancel".equals(action)) {
+            log.info("DOM review cancelled or no pending HTML");
+            return;
+        }
+
+        javafx.application.Platform.runLater(() -> {
+            try {
+                org.openqa.selenium.WebDriver driver = performActions.getCurrentDriver();
+                if ("send".equals(action)) {
+                    com.allinweb.ch.facade.SupportCapture.CaptureResult r =
+                            new com.allinweb.ch.facade.SupportCapture().captureAndSend(
+                                    driver, null, null, null, null);
+                    javafx.scene.control.Alert out = new javafx.scene.control.Alert(
+                            r.isOk() ? javafx.scene.control.Alert.AlertType.INFORMATION
+                                     : javafx.scene.control.Alert.AlertType.ERROR);
+                    if (r.isOk()) {
+                        out.setHeaderText("DOM capture sent");
+                        out.setContentText("Ticket: " + r.ticketId());
+                    } else {
+                        out.setHeaderText("Could not send DOM capture");
+                        out.setContentText(r.error());
+                    }
+                    out.showAndWait();
+
+                } else if ("save".equals(action)) {
+                    String email = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.LICENSE_EMAIL);
+                    String url = "(unknown)";
+                    try { if (driver != null) url = driver.getCurrentUrl(); } catch (Exception ignored) {}
+                    String safeHost;
+                    try { safeHost = new java.net.URL(url).getHost().replaceAll("[^a-zA-Z0-9.-]", "_"); }
+                    catch (Exception e) { safeHost = "unknown"; }
+
+                    String timestamp = java.time.LocalDateTime.now()
+                            .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
+                    String baseName = timestamp + "_" + safeHost + ".html";
+
+                    java.nio.file.Path capturesDir = java.nio.file.Paths.get(
+                            System.getProperty("user.dir"), "dom-captures");
+                    java.nio.file.Files.createDirectories(capturesDir);
+                    java.nio.file.Path htmlFile = capturesDir.resolve(baseName);
+                    java.nio.file.Files.writeString(htmlFile, html, java.nio.charset.StandardCharsets.UTF_8);
+
+                    log.info("DOM capture saved to {}", htmlFile);
+                    javafx.scene.control.Alert out = new javafx.scene.control.Alert(
+                            javafx.scene.control.Alert.AlertType.INFORMATION);
+                    out.setHeaderText("DOM capture saved");
+                    out.setContentText("File: " + htmlFile.toAbsolutePath());
+                    out.showAndWait();
+                }
+            } catch (Exception ex) {
+                log.error("handleDomReviewResponse failed", ex);
+            }
+        });
     }
 
     // Enable or disable the tab switching buttons based on the number of tabs

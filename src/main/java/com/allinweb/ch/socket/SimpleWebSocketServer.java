@@ -1,5 +1,6 @@
 package com.allinweb.ch.socket;
 
+import com.allinweb.ch.component.pane.ARScannedElementPane;
 import com.allinweb.ch.component.scene.ARExcelFileScene;
 import com.allinweb.ch.component.scene.ARSaveComponentScene;
 import com.allinweb.ch.facade.*;
@@ -391,6 +392,12 @@ public class SimpleWebSocketServer {
                                 homeBankingId, "mobileScannerGrid", jsonData, "validateFields");
                         performDataBase.setMobileDevices(false);
                     }
+                    alreadySentMgsSocket = true;
+                    break;
+                case "DOM_REVIEW_RESPONSE":
+                    String reviewAction = jsonEntry.has("action") ? jsonEntry.get("action").getAsString() : "cancel";
+                    log.info("DOM_REVIEW_RESPONSE received: action={}", reviewAction);
+                    ARScannedElementPane.getInstance().handleDomReviewResponse(reviewAction);
                     alreadySentMgsSocket = true;
                     break;
                 case "CLOSE_BROWSER":
