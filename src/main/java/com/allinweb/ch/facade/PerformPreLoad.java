@@ -257,9 +257,7 @@ public class PerformPreLoad {
             log.info(">> Injecting plugin [pageScanner] - session={}, botJob={}", sessionId, botJobId);
             JavascriptExecutor executor = (JavascriptExecutor) driver;
             PluginContext ctx = PluginContext.forPageScanner(
-                    dataList, searchHiddenFields, port,
-                    sessionId, destination, operationId,
-                    homeBankingId, botJobId);
+                    dataList, searchHiddenFields, port, sessionId, destination, operationId, homeBankingId, botJobId);
             executor.executeScript(getJsScanner(), ctx.toJsContext());
             return null;
         } catch (PluginLoadException ple) {

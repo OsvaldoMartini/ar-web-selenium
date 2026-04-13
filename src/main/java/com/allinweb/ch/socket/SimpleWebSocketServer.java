@@ -395,15 +395,21 @@ public class SimpleWebSocketServer {
                     alreadySentMgsSocket = true;
                     break;
                 case "DOM_REVIEW_RESPONSE":
-                    String reviewAction = jsonEntry.has("action") ? jsonEntry.get("action").getAsString() : "cancel";
+                    String reviewAction =
+                            jsonEntry.has("action") ? jsonEntry.get("action").getAsString() : "cancel";
                     log.info("DOM_REVIEW_RESPONSE received: action={}", reviewAction);
                     ARScannedElementPane.getInstance().handleDomReviewResponse(reviewAction);
                     alreadySentMgsSocket = true;
                     break;
                 case "SUPPORT_REQUEST_RESPONSE":
-                    String supportAction = jsonEntry.has("action") ? jsonEntry.get("action").getAsString() : "cancel";
-                    String supportMessage = jsonEntry.has("message") ? jsonEntry.get("message").getAsString() : "";
-                    log.info("SUPPORT_REQUEST_RESPONSE received: action={}, messageLen={}", supportAction, supportMessage.length());
+                    String supportAction =
+                            jsonEntry.has("action") ? jsonEntry.get("action").getAsString() : "cancel";
+                    String supportMessage =
+                            jsonEntry.has("message") ? jsonEntry.get("message").getAsString() : "";
+                    log.info(
+                            "SUPPORT_REQUEST_RESPONSE received: action={}, messageLen={}",
+                            supportAction,
+                            supportMessage.length());
                     ARScannedElementPane.getInstance().handleSupportRequestResponse(supportAction, supportMessage);
                     alreadySentMgsSocket = true;
                     break;

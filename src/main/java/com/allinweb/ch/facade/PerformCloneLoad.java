@@ -105,10 +105,15 @@ public class PerformCloneLoad {
             log.info(">> Injecting plugin [hoverPick] - session={}, botJob={}", sessionId, botJobId);
             JavascriptExecutor executor = (JavascriptExecutor) driver;
             PluginContext ctx = PluginContext.forHoverPick(
-                    searchHiddenFields, port,
-                    sessionId, destination, operationId,
-                    homeBankingId, botJobId,
-                    currentUrl, currentUrl);
+                    searchHiddenFields,
+                    port,
+                    sessionId,
+                    destination,
+                    operationId,
+                    homeBankingId,
+                    botJobId,
+                    currentUrl,
+                    currentUrl);
             executor.executeScript(getJsHoverPick(), ctx.toJsContext());
             return null;
         } catch (PerformPreLoad.PluginLoadException ple) {

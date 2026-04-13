@@ -25,9 +25,14 @@ public class PluginContext {
     }
 
     public static PluginContext forPageScanner(
-            List<String> searchTerms, boolean hiddenFields, int port,
-            String sessionId, String destination, String operationId,
-            int homeBankingId, int botJobId) {
+            List<String> searchTerms,
+            boolean hiddenFields,
+            int port,
+            String sessionId,
+            String destination,
+            String operationId,
+            int homeBankingId,
+            int botJobId) {
         PluginContext ctx = new PluginContext("pageScanner");
         ctx.fields.put("searchTerms", searchTerms);
         ctx.fields.put("hiddenFields", hiddenFields);
@@ -41,10 +46,15 @@ public class PluginContext {
     }
 
     public static PluginContext forHoverPick(
-            boolean hiddenFields, int port,
-            String sessionId, String destination, String operationId,
-            int homeBankingId, int botJobId,
-            String targetOriginURL, String trustedOriginURL) {
+            boolean hiddenFields,
+            int port,
+            String sessionId,
+            String destination,
+            String operationId,
+            int homeBankingId,
+            int botJobId,
+            String targetOriginURL,
+            String trustedOriginURL) {
         PluginContext ctx = new PluginContext("hoverPick");
         ctx.fields.put("hiddenFields", hiddenFields);
         ctx.fields.put("port", port);
@@ -59,9 +69,14 @@ public class PluginContext {
     }
 
     public static PluginContext forSearchList(
-            List<String> searchTerms, boolean hiddenFields, int port,
-            String sessionId, String destination, String operationId,
-            int homeBankingId, int botJobId) {
+            List<String> searchTerms,
+            boolean hiddenFields,
+            int port,
+            String sessionId,
+            String destination,
+            String operationId,
+            int homeBankingId,
+            int botJobId) {
         PluginContext ctx = new PluginContext("searchList");
         ctx.fields.put("searchTerms", searchTerms);
         ctx.fields.put("hiddenFields", hiddenFields);
@@ -75,9 +90,14 @@ public class PluginContext {
     }
 
     public static PluginContext forSearchListAsync(
-            List<String> searchTerms, boolean hiddenFields, int port,
-            String sessionId, String destination, String operationId,
-            int homeBankingId, int botJobId) {
+            List<String> searchTerms,
+            boolean hiddenFields,
+            int port,
+            String sessionId,
+            String destination,
+            String operationId,
+            int homeBankingId,
+            int botJobId) {
         PluginContext ctx = new PluginContext("searchListAsync");
         ctx.fields.put("searchTerms", searchTerms);
         ctx.fields.put("hiddenFields", hiddenFields);

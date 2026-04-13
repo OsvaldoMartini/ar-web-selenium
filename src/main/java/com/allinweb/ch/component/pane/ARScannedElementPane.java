@@ -1487,9 +1487,8 @@ public class ARScannedElementPane extends ARPane {
         sendDomButton.setTooltip(new javafx.scene.control.Tooltip(
                 "Send sanitized HTML for review — personal data is replaced with synthetic test data."));
 
-        requestSupportButton = builder.buildButton(
-                "", ARConstants.SPACE_ZERO, "/info.png", ARConstants.SPACE_M,
-                new Insets(5.0D));
+        requestSupportButton =
+                builder.buildButton("", ARConstants.SPACE_ZERO, "/info.png", ARConstants.SPACE_M, new Insets(5.0D));
         requestSupportButton.setTooltip(new javafx.scene.control.Tooltip(
                 "Request Support — send a text message to the MultiPlugins support team."));
 
@@ -1887,9 +1886,17 @@ public class ARScannedElementPane extends ARPane {
 
             String licenseEmail = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.LICENSE_EMAIL);
             String currentUrl;
-            try { currentUrl = driver.getCurrentUrl(); } catch (Exception ex) { currentUrl = "(unknown)"; }
+            try {
+                currentUrl = driver.getCurrentUrl();
+            } catch (Exception ex) {
+                currentUrl = "(unknown)";
+            }
             String pageTitle;
-            try { pageTitle = driver.getTitle(); } catch (Exception ex) { pageTitle = ""; }
+            try {
+                pageTitle = driver.getTitle();
+            } catch (Exception ex) {
+                pageTitle = "";
+            }
             String pcName = com.allinweb.ch.license.SystemDetails.getSystemComputerName();
             int htmlSizeKb = rawHtml.getBytes(java.nio.charset.StandardCharsets.UTF_8).length / 1024;
 
@@ -1924,11 +1931,11 @@ public class ARScannedElementPane extends ARPane {
                 org.openqa.selenium.WebDriver driver = performActions.getCurrentDriver();
                 if ("send".equals(action)) {
                     com.allinweb.ch.facade.SupportCapture.CaptureResult r =
-                            new com.allinweb.ch.facade.SupportCapture().captureAndSend(
-                                    driver, null, null, null, null);
+                            new com.allinweb.ch.facade.SupportCapture().captureAndSend(driver, null, null, null, null);
                     javafx.scene.control.Alert out = new javafx.scene.control.Alert(
-                            r.isOk() ? javafx.scene.control.Alert.AlertType.INFORMATION
-                                     : javafx.scene.control.Alert.AlertType.ERROR);
+                            r.isOk()
+                                    ? javafx.scene.control.Alert.AlertType.INFORMATION
+                                    : javafx.scene.control.Alert.AlertType.ERROR);
                     if (r.isOk()) {
                         out.setHeaderText("DOM capture sent");
                         out.setContentText("Ticket: " + r.ticketId());
@@ -1944,11 +1951,18 @@ public class ARScannedElementPane extends ARPane {
                     String url = "(unknown)";
                     String title = "";
                     try {
-                        if (driver != null) { url = driver.getCurrentUrl(); title = driver.getTitle(); }
-                    } catch (Exception ignored) {}
+                        if (driver != null) {
+                            url = driver.getCurrentUrl();
+                            title = driver.getTitle();
+                        }
+                    } catch (Exception ignored) {
+                    }
                     String safeHost;
-                    try { safeHost = new java.net.URL(url).getHost().replaceAll("[^a-zA-Z0-9.-]", "_"); }
-                    catch (Exception e) { safeHost = "unknown"; }
+                    try {
+                        safeHost = new java.net.URL(url).getHost().replaceAll("[^a-zA-Z0-9.-]", "_");
+                    } catch (Exception e) {
+                        safeHost = "unknown";
+                    }
 
                     // Gzip + base64 the HTML
                     byte[] htmlBytes = html.getBytes(java.nio.charset.StandardCharsets.UTF_8);
@@ -1988,21 +2002,26 @@ public class ARScannedElementPane extends ARPane {
                     javafx.stage.FileChooser fc = new javafx.stage.FileChooser();
                     fc.setTitle("Save Support File");
                     fc.setInitialFileName(suggestedName);
-                    fc.getExtensionFilters().add(
-                            new javafx.stage.FileChooser.ExtensionFilter("Support Files (*.support)", "*.support"));
+                    fc.getExtensionFilters()
+                            .add(new javafx.stage.FileChooser.ExtensionFilter(
+                                    "Support Files (*.support)", "*.support"));
                     java.io.File chosen = fc.showSaveDialog(stage);
                     if (chosen == null) {
                         log.info("DOM capture save cancelled by user");
                         return;
                     }
 
-                    java.nio.file.Files.writeString(chosen.toPath(),
-                            new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(support),
+                    java.nio.file.Files.writeString(
+                            chosen.toPath(),
+                            new com.google.gson.GsonBuilder()
+                                    .setPrettyPrinting()
+                                    .create()
+                                    .toJson(support),
                             java.nio.charset.StandardCharsets.UTF_8);
 
                     log.info("DOM capture saved to {}", chosen.getAbsolutePath());
-                    javafx.scene.control.Alert out = new javafx.scene.control.Alert(
-                            javafx.scene.control.Alert.AlertType.INFORMATION);
+                    javafx.scene.control.Alert out =
+                            new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
                     out.setHeaderText("Support file saved");
                     out.setContentText("File: " + chosen.getAbsolutePath()
                             + "\n\nDrag & drop this file on the Support Portal to create a ticket.");
@@ -2022,7 +2041,8 @@ public class ARScannedElementPane extends ARPane {
             try {
                 org.openqa.selenium.WebDriver driver = performActions.getCurrentDriver();
                 if (driver != null) currentUrl = driver.getCurrentUrl();
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
 
             com.google.gson.JsonObject body = new com.google.gson.JsonObject();
             body.addProperty("url", currentUrl);
@@ -2054,8 +2074,8 @@ public class ARScannedElementPane extends ARPane {
                 if ("send".equals(action)) {
                     String fingerprint = com.allinweb.ch.util.LicenseFingerprint.compute();
                     if (fingerprint == null || email == null || email.isBlank()) {
-                        javafx.scene.control.Alert err = new javafx.scene.control.Alert(
-                                javafx.scene.control.Alert.AlertType.ERROR);
+                        javafx.scene.control.Alert err =
+                                new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR);
                         err.setHeaderText("Cannot send support request");
                         err.setContentText("Missing license or email. Regenerate ARWeb.lic.");
                         err.showAndWait();
@@ -2086,10 +2106,12 @@ public class ARScannedElementPane extends ARPane {
                     String ticketCode = "";
                     if (resp.statusCode() < 300) {
                         try {
-                            com.google.gson.JsonObject respJson = com.google.gson.JsonParser
-                                    .parseString(resp.body()).getAsJsonObject();
-                            if (respJson.has("ticket_code")) ticketCode = respJson.get("ticket_code").getAsString();
-                        } catch (Exception ignored) {}
+                            com.google.gson.JsonObject respJson = com.google.gson.JsonParser.parseString(resp.body())
+                                    .getAsJsonObject();
+                            if (respJson.has("ticket_code"))
+                                ticketCode = respJson.get("ticket_code").getAsString();
+                        } catch (Exception ignored) {
+                        }
                     }
 
                     javafx.scene.control.Alert out = new javafx.scene.control.Alert(
@@ -2097,10 +2119,11 @@ public class ARScannedElementPane extends ARPane {
                                     ? javafx.scene.control.Alert.AlertType.INFORMATION
                                     : javafx.scene.control.Alert.AlertType.ERROR);
                     out.setHeaderText(resp.statusCode() < 300 ? "Support request sent" : "Failed to send");
-                    out.setContentText(resp.statusCode() < 300
-                            ? "Ticket: " + ticketCode + "\n\n"
-                              + "A confirmation email has been sent to " + email + "."
-                            : "Server returned HTTP " + resp.statusCode());
+                    out.setContentText(
+                            resp.statusCode() < 300
+                                    ? "Ticket: " + ticketCode + "\n\n" + "A confirmation email has been sent to "
+                                            + email + "."
+                                    : "Server returned HTTP " + resp.statusCode());
                     out.showAndWait();
 
                 } else if ("save".equals(action)) {
@@ -2111,8 +2134,9 @@ public class ARScannedElementPane extends ARPane {
                     javafx.stage.FileChooser fc = new javafx.stage.FileChooser();
                     fc.setTitle("Save Support Request");
                     fc.setInitialFileName(suggestedName);
-                    fc.getExtensionFilters().add(
-                            new javafx.stage.FileChooser.ExtensionFilter("Support Files (*.support)", "*.support"));
+                    fc.getExtensionFilters()
+                            .add(new javafx.stage.FileChooser.ExtensionFilter(
+                                    "Support Files (*.support)", "*.support"));
                     java.io.File chosen = fc.showSaveDialog(stage);
                     if (chosen == null) return;
 
@@ -2124,15 +2148,20 @@ public class ARScannedElementPane extends ARPane {
                     support.addProperty("email", email != null ? email : "");
                     support.addProperty("orgKey", orgKey != null ? orgKey : "");
                     support.addProperty("appVersion", appVersion != null ? appVersion : "");
-                    support.addProperty("subject", "[Support Request] " + pcName + " — " + (email != null ? email : ""));
+                    support.addProperty(
+                            "subject", "[Support Request] " + pcName + " — " + (email != null ? email : ""));
                     support.addProperty("message", message);
 
-                    java.nio.file.Files.writeString(chosen.toPath(),
-                            new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(support),
+                    java.nio.file.Files.writeString(
+                            chosen.toPath(),
+                            new com.google.gson.GsonBuilder()
+                                    .setPrettyPrinting()
+                                    .create()
+                                    .toJson(support),
                             java.nio.charset.StandardCharsets.UTF_8);
 
-                    javafx.scene.control.Alert out = new javafx.scene.control.Alert(
-                            javafx.scene.control.Alert.AlertType.INFORMATION);
+                    javafx.scene.control.Alert out =
+                            new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
                     out.setHeaderText("Support request saved");
                     out.setContentText("File: " + chosen.getAbsolutePath()
                             + "\n\nDrag & drop this file on the Support Portal to submit.");

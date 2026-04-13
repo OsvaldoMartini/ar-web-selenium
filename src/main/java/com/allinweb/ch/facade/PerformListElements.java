@@ -131,11 +131,8 @@ public class PerformListElements {
             driver.manage().timeouts().setScriptTimeout(java.time.Duration.ofSeconds(25));
 
             PluginContext ctx = PluginContext.forSearchListAsync(
-                    dataList, searchHiddenFields, port,
-                    sessionId, destination, operationId,
-                    homeBankingId, botJobId);
-            Object result = executor.executeAsyncScript(
-                    getJsSearchListAsync(), ctx.toJsContext());
+                    dataList, searchHiddenFields, port, sessionId, destination, operationId, homeBankingId, botJobId);
+            Object result = executor.executeAsyncScript(getJsSearchListAsync(), ctx.toJsContext());
 
             if (result == null || !(result instanceof String)) {
                 logOperations.warn("Cannot return any elements from the page");

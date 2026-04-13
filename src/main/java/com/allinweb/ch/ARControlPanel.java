@@ -318,7 +318,8 @@ public class ARControlPanel extends Application {
                 "License Status Verification",
                 "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>License status has been successfully verified.</span>",
                 "<span style='color: " + msgColor + "; font-weight: bold;'>" + msgValid + "</span>",
-                emailLine + "<span style='color: #E65100; font-weight: bold;'>Current license status:</span> <span style='font-weight: bold;'>"
+                emailLine
+                        + "<span style='color: #E65100; font-weight: bold;'>Current license status:</span> <span style='font-weight: bold;'>"
                         + licenseStatus.getStaus() + "</span>",
                 "Expiration: <span style='color: " + msgColorExp + "; font-weight: bold;'>"
                         + arPropertyManager.getProperty(ARPropertyEnum.EXPIRATION) + "</span>",
