@@ -29,7 +29,7 @@ public class LicenseReadTest {
     private static final String KEY = "0123456789abcdef"; // 16 bytes, AES-128
 
     public static void main(String[] args) throws Exception {
-//        String path = args.length > 0 ? args[0] : "C:\\Martini\\ARWeb.lic";
+        //        String path = args.length > 0 ? args[0] : "C:\\Martini\\ARWeb.lic";
         String path = args.length > 0 ? args[0] : "D:\\Projects\\ARWeb-Martini\\ARWeb-Scanner\\ARWeb.lic";
         Path licFile = Paths.get(path);
 
