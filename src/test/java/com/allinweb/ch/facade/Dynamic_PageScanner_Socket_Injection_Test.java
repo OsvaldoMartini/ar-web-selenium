@@ -43,7 +43,7 @@ public class Dynamic_PageScanner_Socket_Injection_Test {
      *   - SCANNER_RELATIVE_PATH_NOT_MIN → readable, easier to debug
      *   - SCANNER_RELATIVE_PATH_MIN     → minified production bundle
      */
-    private static final String SCRIPT_PATH = PerformPreLoad.SCANNER_RELATIVE_PATH_MIN;
+    private static final String SCRIPT_PATH = PerformPreLoad.SCANNER_RELATIVE_PATH_NOT_MIN;
     //    private static final String SCRIPT_PATH = PerformPreLoad.SCANNER_RELATIVE_PATH_ORIG_MIN;
 
     public static void main(String[] args) throws Exception {

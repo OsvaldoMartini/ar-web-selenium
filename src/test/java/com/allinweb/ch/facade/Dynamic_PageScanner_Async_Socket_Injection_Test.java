@@ -8,29 +8,20 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
-import java.net.ServerSocket;
 import java.time.Duration;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 
 /**
- * End-to-end injection test for the searchListAsync plugin via PerformListElements.
+ * Async test variant of the page scanner. Uses
+ * pageScanner/build/script-search-in-use-async.js which is the regular
+ * page-scanner script with a WebSocket MOCK in front: every chunk the script
+ * tries to send is captured in-page and forwarded to Selenium's
+ * executeAsyncScript callback as a single JSON payload.
  *
- * Unlike the page-scanner and hover-pick scripts (which use {@code executeScript}),
- * the searchListAsync bundle is an ASYNC Selenium script: it reads the Selenium
- * callback from {@code arguments[arguments.length-1]} and invokes it with a JSON
- * string when it's done. We must call {@link JavascriptExecutor#executeAsyncScript}
- * and set a script timeout that's longer than the script's internal 20-second guard.
- *
- * Argument order (8 positional args, matching the IIFE signature):
- *   0 searchTerms        Array<String>
- *   1 hiddenFields       boolean
- *   2 socketPort         int
- *   3 sessionId          string
- *   4 destination        string
- *   5 operationId        string
- *   6 homeBankingId      int
- *   7 botJobId           int
+ * No external WS server, no port, no manual cleanup — Selenium gets the
+ * scanned elements as the script's return value, just like the searchListAsync
+ * test pattern but using the page-scanner DOM walker.
  *
  * Driver:  D:\Projects\ARWeb-Martini\ARWeb-Scanner\edgedriver-versions\msedgedriver_64-(147.0.3912.60).exe
  * Plugins: D:\Projects\ARWeb-Martini\ARWeb\plugins
@@ -38,7 +29,7 @@ import org.openqa.selenium.WebDriver;
  *
  * Run as a plain main — no JUnit needed.
  */
-public class Dynamic_SearchListAsync_Socket_Injection_Test {
+public class Dynamic_PageScanner_Async_Socket_Injection_Test {
 
     private static final String EDGE_DRIVER =
             "D:\\Projects\\ARWeb-Martini\\ARWeb-Scanner\\edgedriver-versions\\msedgedriver_64-(147.0.3912.60).exe";
@@ -47,22 +38,8 @@ public class Dynamic_SearchListAsync_Socket_Injection_Test {
 
     private static final String TEST_PAGE = "https://www.inlinea.ch/auth/ui/app/auth/flow/web-app/password";
 
-    /**
-     * Which searchListAsync bundle to inject.
-     *   - SEARCH_LIST_ASYNC_RELATIVE_PATH_MIN      → minified production bundle
-     *   - SEARCH_LIST_ASYNC_RELATIVE_PATH_ORIG_MIN → original minified script-search-in-use-list-async.min.js
-     *   - SEARCH_LIST_ASYNC_RELATIVE_PATH_NOT_MIN  → readable, easier to debug (if present)
-     */
-    private static final String SCRIPT_PATH = PerformListElements.SEARCH_LIST_ASYNC_RELATIVE_PATH_MIN;
-    // private static final String SCRIPT_PATH = PerformListElements.SEARCH_LIST_ASYNC_RELATIVE_PATH_ORIG_MIN;
-
-    /**
-     * WebSocket port the injected script will connect to.
-     *   FIXED_PORT = 0 → dynamic: pick a free port AND start the local WS server in this JVM
-     *   FIXED_PORT > 0 → use that port and DO NOT start a local server
-     *                    (assumes you're running your own WS server / React component on it)
-     */
-    private static final int FIXED_PORT = 62408;
+    /** Async page-scanner variant with WebSocket mock prelude. */
+    private static final String SCRIPT_PATH = PerformPreLoad.SCANNER_RELATIVE_PATH_ASYNC;
 
     public static void main(String[] args) throws Exception {
 
@@ -74,43 +51,23 @@ public class Dynamic_SearchListAsync_Socket_Injection_Test {
         props.setProperty(ARPropertyEnum.PATH_LOG.getValue(), System.getProperty("java.io.tmpdir"));
         System.out.println("[setup] path_plugins = " + PLUGINS_DIR);
 
-        // ── 2. Resolve the WS port and (only if dynamic) start a local WS server ─
-        int port;
-        if (FIXED_PORT > 0) {
-            port = FIXED_PORT;
-            System.out.println("[setup] using FIXED_PORT=" + port + " — local WS server NOT started");
-            System.out.println("[setup] make sure your own server is listening on ws://localhost:" + port);
-        } else {
-            port = pickFreePort();
-            Thread wsServer = new Thread(
-                    () -> {
-                        try {
-                            ManualScriptWebSocketTest.main(new String[] {String.valueOf(port)});
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    },
-                    "ws-server");
-            wsServer.setDaemon(true);
-            wsServer.start();
-            Thread.sleep(300);
-            System.out.println("[setup] dynamic WS server listening on port " + port);
-        }
+        // No WS server needed — script returns via Selenium callback.
 
-        // ── 3. Load the searchListAsync script via PerformPreLoad ───────────────
+        // ── 2. Load the async page-scanner script via PerformPreLoad ────────────
         String script = PerformPreLoad.loadPluginScript(SCRIPT_PATH);
         System.out.println("[setup] loaded script (" + SCRIPT_PATH + "): " + script.length() + " chars");
 
-        // ── 4. Launch Edge via ARWebDriver ──────────────────────────────────────
+        // ── 3. Launch Edge via ARWebDriver ──────────────────────────────────────
+        // Pass dummy port (0) — the script doesn't use it, the WS is mocked.
         WebDriver driver = ARWebDriver.getInstance()
                 .openDriver(
                         ARConstantsEngine.EDGE,
                         EDGE_DRIVER,
                         TEST_PAGE,
-                        "", // optionsConfig (no extra config lines)
+                        "", // optionsConfig
                         new String[] {"button", "input", "a", "select"},
                         false,
-                        port);
+                        0);
 
         if (driver == null) {
             System.out.println("[error] ARWebDriver.openDriver returned null — aborting");
@@ -120,10 +77,8 @@ public class Dynamic_SearchListAsync_Socket_Injection_Test {
         try {
             Thread.sleep(500);
 
-            // ── 5. Inject the searchListAsync script (executeAsyncScript) ───────
-            // The script reads its callback from arguments[arguments.length-1],
-            // so we must pass our 8 args first; Selenium appends the callback.
-            // Set a script timeout > 20s (the script's internal timeout fallback).
+            // ── 4. Inject (executeAsyncScript) ──────────────────────────────────
+            // Script timeout > 20s (matches the in-script safety net).
             driver.manage().timeouts().scriptTimeout(Duration.ofSeconds(30));
 
             String sessionId = "scannerTool";
@@ -134,7 +89,7 @@ public class Dynamic_SearchListAsync_Socket_Injection_Test {
                     script,
                     java.util.Arrays.asList("button", "textarea", "input", "label", "a", "select"), // searchTerms
                     false, // hiddenFields
-                    port, // socketPort
+                    0, // socketPort (unused — WebSocket is mocked)
                     sessionId, // sessionId
                     "scannerGrid", // destination
                     "searchTerms", // operationId
@@ -161,20 +116,14 @@ public class Dynamic_SearchListAsync_Socket_Injection_Test {
                 }
             }
 
-            // Hold open briefly so the WS server has a chance to flush any frames
-            Thread.sleep(3_000);
+            // Brief hold so any console logs in the page have time to flush
+            Thread.sleep(1_000);
 
         } finally {
             driver.quit();
             System.out.println("[done] browser closed");
             Thread.sleep(200);
             System.exit(0);
-        }
-    }
-
-    private static int pickFreePort() throws Exception {
-        try (ServerSocket s = new ServerSocket(0)) {
-            return s.getLocalPort();
         }
     }
 }
