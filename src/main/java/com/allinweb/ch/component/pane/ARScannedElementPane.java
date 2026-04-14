@@ -2058,6 +2058,117 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
+    /**
+     * Same context payload as {@link #requestSupport()} but emitted under
+     * operationId {@code REQUEST_SUPPORT_ELEMENTS} so the React grid opens
+     * the elements-scoped support modal (carries the full element list back
+     * via {@code SUPPORT_REQUEST_ELEMENTS_RESPONSE}).
+     */
+    public void requestSupportElements() {
+        try {
+            String licenseEmail = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.LICENSE_EMAIL);
+            String pcName = com.allinweb.ch.license.SystemDetails.getSystemComputerName();
+            String currentUrl = "(no browser)";
+            try {
+                org.openqa.selenium.WebDriver driver = performActions.getCurrentDriver();
+                if (driver != null) currentUrl = driver.getCurrentUrl();
+            } catch (Exception ignored) {
+            }
+
+            com.google.gson.JsonObject body = new com.google.gson.JsonObject();
+            body.addProperty("url", currentUrl);
+            body.addProperty("pcName", pcName);
+            body.addProperty("email", licenseEmail != null ? licenseEmail : "");
+
+            int hbId = this.currentBotJob != null ? this.currentBotJob.getHomeBankingId() : 0;
+            webSocketSessionManager.sendMessageJson(
+                    hbId, "scannerGrid", body.toString(), "REQUEST_SUPPORT_ELEMENTS");
+            log.info("requestSupportElements — WS message sent to scannerGrid");
+
+        } catch (Exception ex) {
+            log.error("requestSupportElements failed", ex);
+        }
+    }
+
+    /**
+     * Elements counterpart of {@link #handleDomReviewResponse}: reuses the
+     * Page-Review endpoint/envelope ({@code /support/dom-capture}) but the
+     * payload carries the scanned {@code elementDetails} plus a best-effort
+     * live WebDriver snapshot per element — no HTML page. Same classification
+     * on the portal, just {@code kind: "elements-review"}.
+     */
+    public void handleSupportRequestElementsResponse(String action, String message, String elementDetailsJson) {
+        if ("cancel".equals(action) || message == null || message.isBlank()) {
+            log.info("Support request (elements) cancelled");
+            return;
+        }
+
+        javafx.application.Platform.runLater(() -> {
+            try {
+                org.openqa.selenium.WebDriver driver = performActions.getCurrentDriver();
+
+                if ("send".equals(action)) {
+                    com.allinweb.ch.facade.SupportCapture.CaptureResult r = new com.allinweb.ch.facade.SupportCapture()
+                            .captureElementsAndSend(driver, elementDetailsJson, message, null);
+
+                    javafx.scene.control.Alert out = new javafx.scene.control.Alert(
+                            r.isOk()
+                                    ? javafx.scene.control.Alert.AlertType.INFORMATION
+                                    : javafx.scene.control.Alert.AlertType.ERROR);
+                    if (r.isOk()) {
+                        out.setHeaderText("Elements review sent");
+                        out.setContentText("Ticket: " + r.ticketId());
+                    } else {
+                        out.setHeaderText("Could not send elements review");
+                        out.setContentText(r.error());
+                    }
+                    out.showAndWait();
+
+                } else if ("save".equals(action)) {
+                    String email = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.LICENSE_EMAIL);
+                    String orgKey = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.LICENSE_ORG_KEY);
+
+                    // Page-Review envelope, elements-review variant. Same kind as Send path.
+                    com.allinweb.ch.facade.SupportCapture capture = new com.allinweb.ch.facade.SupportCapture();
+                    com.google.gson.JsonObject support = capture.buildElementsReviewEnvelope(
+                            driver, elementDetailsJson, message, null);
+                    support.addProperty("email", email != null ? email : "");
+                    support.addProperty("orgKey", orgKey != null ? orgKey : "");
+
+                    String timestamp = java.time.LocalDateTime.now()
+                            .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
+                    String suggestedName = timestamp + "_elements_review.support";
+
+                    javafx.stage.FileChooser fc = new javafx.stage.FileChooser();
+                    fc.setTitle("Save Elements Review");
+                    fc.setInitialFileName(suggestedName);
+                    fc.getExtensionFilters()
+                            .add(new javafx.stage.FileChooser.ExtensionFilter(
+                                    "Support Files (*.support)", "*.support"));
+                    java.io.File chosen = fc.showSaveDialog(stage);
+                    if (chosen == null) return;
+
+                    java.nio.file.Files.writeString(
+                            chosen.toPath(),
+                            new com.google.gson.GsonBuilder()
+                                    .setPrettyPrinting()
+                                    .create()
+                                    .toJson(support),
+                            java.nio.charset.StandardCharsets.UTF_8);
+
+                    javafx.scene.control.Alert out =
+                            new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
+                    out.setHeaderText("Elements review saved");
+                    out.setContentText("File: " + chosen.getAbsolutePath()
+                            + "\n\nDrag & drop this file on the Support Portal to submit.");
+                    out.showAndWait();
+                }
+            } catch (Exception ex) {
+                log.error("handleSupportRequestElementsResponse failed", ex);
+            }
+        });
+    }
+
     public void handleSupportRequestResponse(String action, String message) {
         if ("cancel".equals(action) || message == null || message.isBlank()) {
             log.info("Support request cancelled");

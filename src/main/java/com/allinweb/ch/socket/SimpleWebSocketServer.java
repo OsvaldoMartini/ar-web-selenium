@@ -413,6 +413,29 @@ public class SimpleWebSocketServer {
                     ARScannedElementPane.getInstance().handleSupportRequestResponse(supportAction, supportMessage);
                     alreadySentMgsSocket = true;
                     break;
+                case "REQUEST_SUPPORT_ELEMENTS":
+                    log.info("REQUEST_SUPPORT_ELEMENTS received");
+                    ARScannedElementPane.getInstance().requestSupportElements();
+                    alreadySentMgsSocket = true;
+                    break;
+                case "SUPPORT_REQUEST_ELEMENTS_RESPONSE":
+                    String elementsSupportAction =
+                            jsonEntry.has("action") ? jsonEntry.get("action").getAsString() : "cancel";
+                    String elementsSupportMessage =
+                            jsonEntry.has("message") ? jsonEntry.get("message").getAsString() : "";
+                    String elementsJson = jsonEntry.has("elementDetails")
+                            ? jsonEntry.get("elementDetails").toString()
+                            : "[]";
+                    log.info(
+                            "SUPPORT_REQUEST_ELEMENTS_RESPONSE received: action={}, messageLen={}, elementsJsonLen={}",
+                            elementsSupportAction,
+                            elementsSupportMessage.length(),
+                            elementsJson.length());
+                    ARScannedElementPane.getInstance()
+                            .handleSupportRequestElementsResponse(
+                                    elementsSupportAction, elementsSupportMessage, elementsJson);
+                    alreadySentMgsSocket = true;
+                    break;
                 case "CLOSE_BROWSER":
                     if (sessionIdToSend.equals("scanner-element-pane")) {
                         splitDTO.setOperationId("closeBrowser");
