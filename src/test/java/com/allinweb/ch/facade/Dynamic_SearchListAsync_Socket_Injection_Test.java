@@ -4,6 +4,10 @@ import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.util.ARConstantsEngine;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
 import java.net.ServerSocket;
 import java.time.Duration;
 import org.openqa.selenium.JavascriptExecutor;
@@ -128,7 +132,17 @@ public class Dynamic_SearchListAsync_Socket_Injection_Test {
             } else {
                 String s = String.valueOf(result);
                 System.out.println("[result] type=" + result.getClass().getSimpleName() + ", length=" + s.length());
-                System.out.println("[result] preview: " + s.substring(0, Math.min(500, s.length())));
+                try {
+                    Gson pretty = new GsonBuilder()
+                            .setPrettyPrinting()
+                            .disableHtmlEscaping()
+                            .create();
+                    JsonElement parsed = JsonParser.parseString(s);
+                    System.out.println("[result] pretty JSON:");
+                    System.out.println(pretty.toJson(parsed));
+                } catch (Exception parseErr) {
+                    System.out.println("[result] (not JSON) preview: " + s.substring(0, Math.min(500, s.length())));
+                }
             }
 
             // Hold open briefly so the WS server has a chance to flush any frames

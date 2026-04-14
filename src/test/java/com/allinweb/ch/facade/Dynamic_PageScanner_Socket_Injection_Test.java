@@ -24,7 +24,7 @@ import org.openqa.selenium.WebDriver;
  *
  * Run as a plain main — no JUnit needed.
  */
-public class DynamicSocketInjectionTest {
+public class Dynamic_PageScanner_Socket_Injection_Test {
 
     private static final String EDGE_DRIVER =
             "D:\\Projects\\ARWeb-Martini\\ARWeb-Scanner\\edgedriver-versions\\msedgedriver_64-(147.0.3912.60).exe";
@@ -40,6 +40,8 @@ public class DynamicSocketInjectionTest {
      *   - SCANNER_RELATIVE_PATH_MIN     → minified production bundle
      */
     private static final String SCRIPT_PATH = PerformPreLoad.SCANNER_RELATIVE_PATH_MIN;
+//    private static final String SCRIPT_PATH = PerformPreLoad.SCANNER_RELATIVE_PATH_ORIG_MIN;
+
 
     public static void main(String[] args) throws Exception {
 
