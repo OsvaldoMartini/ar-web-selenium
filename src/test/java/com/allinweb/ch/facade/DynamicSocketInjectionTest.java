@@ -33,6 +33,14 @@ public class DynamicSocketInjectionTest {
 
     private static final String TEST_PAGE = "https://www.inlinea.ch/auth/ui/app/auth/flow/web-app/password";
 
+    /**
+     * Which scanner bundle to inject. Both end with `})( arguments[0..7] );`
+     * so they accept the same 8 executeScript args.
+     *   - SCANNER_RELATIVE_PATH_NOT_MIN → readable, easier to debug
+     *   - SCANNER_RELATIVE_PATH_MIN     → minified production bundle
+     */
+    private static final String SCRIPT_PATH = PerformPreLoad.SCANNER_RELATIVE_PATH_MIN;
+
     public static void main(String[] args) throws Exception {
 
         // ── 1. Configure ARPropertyManager so PerformPreLoad can resolve plugins ─
@@ -64,8 +72,8 @@ public class DynamicSocketInjectionTest {
         System.out.println("[setup] WS server listening on port " + port);
 
         // ── 3. Load the dynamic script via PerformPreLoad ───────────────────────
-        String script = PerformPreLoad.loadPluginScript(PerformPreLoad.SCANNER_RELATIVE_PATH_NOT_MIN);
-        System.out.println("[setup] loaded dynamic script: " + script.length() + " chars");
+        String script = PerformPreLoad.loadPluginScript(SCRIPT_PATH);
+        System.out.println("[setup] loaded script (" + SCRIPT_PATH + "): " + script.length() + " chars");
 
         // ── 4. Launch Edge via ARWebDriver (the project's own driver wrapper) ──
         WebDriver driver = ARWebDriver.getInstance()
