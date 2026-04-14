@@ -25,7 +25,7 @@ public class PerformCloneLoad {
     private static volatile String jsHoverPick = null;
 
     /** Relative path within the plugins folder */
-    private static final boolean useNoEncrypted = true;
+    private static final boolean useNoEncrypted = false;
 
     public static final String HOVER_PICK_RELATIVE_PATH = "hoverPick/hoverPick.min.enc";
     public static final String HOVER_PICK_RELATIVE_PATH_MIN = "hoverPick/build/hoverPick.min.js";

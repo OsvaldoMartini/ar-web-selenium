@@ -26,7 +26,7 @@ public class PerformActionExecutorLoad {
     /** Cached bundle - null until first injection. */
     private static volatile String jsActionExecutor = null;
 
-    private static final boolean useNoEncrypted = true;
+    private static final boolean useNoEncrypted = false;
 
     public static final String ACTION_EXECUTION_RELATIVE_PATH = "actionExecutor/actionExecutor.min.enc";
     public static final String ACTION_EXECUTION_RELATIVE_PATH_MIN = "actionExecutor/build/actionExecutor.min.js";
