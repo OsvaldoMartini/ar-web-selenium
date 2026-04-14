@@ -29,7 +29,8 @@ public class PerformCloneLoad {
 
     public static final String HOVER_PICK_RELATIVE_PATH = "hoverPick/hoverPick.min.enc";
     public static final String HOVER_PICK_RELATIVE_PATH_MIN = "hoverPick/build/hoverPick.min.js";
-    public static final String HOVER_RELATIVE_PATH_NOT_MIN = "hoverPick/build/script-hover-pick-in-use.min.js";
+    public static final String HOVER_RELATIVE_PATH_ORIG_MIN = "hoverPick/build/script-hover-pick-in-use.min.js";
+    public static final String HOVER_RELATIVE_PATH_NOT_MIN = "hoverPick/build/script-hover-pick-in-use.js";
     public static final String HOVE_RELATIVE_PATH_MANUAL = "hoverPick/build/script-hover-pick-in-use-manual.js";
 
     /**

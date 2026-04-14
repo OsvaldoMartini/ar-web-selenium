@@ -41,6 +41,7 @@ public class PerformPreLoad {
 
     public static final String SCANNER_RELATIVE_PATH = "pageScanner/scanner.min.enc";
     public static final String SCANNER_RELATIVE_PATH_MIN = "pageScanner/build/scanner.min.js";
+    public static final String SCANNER_RELATIVE_PATH_ORIG_MIN = "pageScanner/build/script-search-in-use.min.js";
     public static final String SCANNER_RELATIVE_PATH_NOT_MIN = "pageScanner/build/script-search-in-use.js";
     public static final String SCANNER_RELATIVE_PATH_MANUAL = "pageScanner/build/script-search-in-use-manual.js";
 

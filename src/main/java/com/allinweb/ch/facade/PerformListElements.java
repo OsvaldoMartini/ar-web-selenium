@@ -50,8 +50,14 @@ public class PerformListElements {
     /** Relative path within the plugins folder */
     private static final boolean useNoEncrypted = true;
 
-    private static final String SEARCH_LIST_ASYNC_RELATIVE_PATH = "searchListAsync/searchListAsync.min.enc";
-    private static final String SEARCH_LIST_ASYNC_RELATIVE_PATH_MIN = "searchListAsync/build/searchListAsync.min.js";
+    public static final String SEARCH_LIST_ASYNC_RELATIVE_PATH = "searchListAsync/searchListAsync.min.enc";
+    public static final String SEARCH_LIST_ASYNC_RELATIVE_PATH_MIN = "searchListAsync/build/searchListAsync.min.js";
+    public static final String SEARCH_LIST_ASYNC_RELATIVE_PATH_ORIG_MIN =
+            "searchListAsync/build/script-search-in-use-list-async.min.js";
+    public static final String SEARCH_LIST_ASYNC_RELATIVE_PATH_NOT_MIN =
+            "searchListAsync/build/script-search-in-use-list-async.js";
+    public static final String SEARCH_LIST_ASYNC_RELATIVE_PATH_MANUAL =
+            "searchListAsync/build/script-search-in-use-list-async-manual.js";
 
     /**
      * Loads (and caches) the minified searchListAsync bundle from the PATH_PLUGINS folder.
@@ -137,9 +143,21 @@ public class PerformListElements {
 
             driver.manage().timeouts().setScriptTimeout(java.time.Duration.ofSeconds(25));
 
-            PluginContext ctx = PluginContext.forSearchListAsync(
-                    dataList, searchHiddenFields, port, sessionId, destination, operationId, homeBankingId, botJobId);
-            Object result = executor.executeAsyncScript(getJsSearchListAsync(), ctx.toJsContext());
+            // searchListAsync (script-search-in-use-list-async.min.js) is an async IIFE that
+            // captures the Selenium callback via `arguments[arguments.length-1]` and ends with
+            //   })( arguments[0], arguments[1], ..., arguments[7] );
+            // so it expects 8 positional executeAsyncScript args, not a single ctx object.
+            // (Selenium appends the async callback as arguments[8] automatically.)
+            Object result = executor.executeAsyncScript(
+                    getJsSearchListAsync(),
+                    dataList, // searchTerms
+                    searchHiddenFields, // hiddenFields
+                    port, // socketPort
+                    sessionId, // sessionId
+                    destination, // destination
+                    operationId, // operationId
+                    homeBankingId, // homeBankingId
+                    botJobId); // botJobId
 
             if (result == null || !(result instanceof String)) {
                 logOperations.warn("Cannot return any elements from the page");
