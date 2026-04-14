@@ -70,7 +70,27 @@ public class ManualScriptWebSocketTest {
 
             String key = headers.get("sec-websocket-key");
             if (key == null) {
-                System.out.println("    not a WebSocket handshake, closing");
+                System.out.println("    not a WebSocket handshake, headers received:");
+                headers.forEach((k, v) -> {
+                    if (!"__request__".equals(k)) System.out.println("      " + k + ": " + v);
+                });
+                // If this is a PNA / CORS preflight, answer it so the real handshake follows.
+                if ("OPTIONS"
+                        .equalsIgnoreCase(requestLine == null ? "" : requestLine.split(" ")[0])) {
+                    String origin = headers.getOrDefault("origin", "*");
+                    String reqHeaders =
+                            headers.getOrDefault("access-control-request-headers", "content-type, upgrade, connection");
+                    String resp = "HTTP/1.1 204 No Content\r\n"
+                            + "Access-Control-Allow-Origin: " + origin + "\r\n"
+                            + "Access-Control-Allow-Methods: GET, OPTIONS\r\n"
+                            + "Access-Control-Allow-Headers: " + reqHeaders + "\r\n"
+                            + "Access-Control-Allow-Private-Network: true\r\n"
+                            + "Access-Control-Max-Age: 86400\r\n"
+                            + "\r\n";
+                    out.write(resp.getBytes(StandardCharsets.UTF_8));
+                    out.flush();
+                    System.out.println("    answered CORS/PNA preflight (204) — next connect should be the real WS");
+                }
                 return;
             }
 
