@@ -2985,17 +2985,9 @@ public class ARScannedElementPane extends ARPane {
                 + "    outline-offset:3px;"
                 + "    box-shadow:0 0 0 6px rgba(255,23,68,.55), 0 0 18px 4px rgba(255,23,68,.8) !important;"
                 + "    background-color:rgba(255,23,68,.12) !important;"
-                + "    transition:outline .1s ease, box-shadow .1s ease, background-color .1s ease;}';"
+                + "    transition:outline .08s ease, box-shadow .08s ease, background-color .08s ease;}';"
                 + "  document.head.appendChild(style);"
                 + "  var i=0;"
-                + "  function pulse(el, done){"
-                + "    el.classList.add('__mp_scan_flash');"
-                + "    setTimeout(function(){ el.classList.remove('__mp_scan_flash');"
-                + "      setTimeout(function(){ el.classList.add('__mp_scan_flash');"
-                + "        setTimeout(function(){ el.classList.remove('__mp_scan_flash'); done(); }, holdMs);"
-                + "      }, 120);"
-                + "    }, holdMs);"
-                + "  }"
                 + "  function step(){"
                 + "    if(i>=xs.length){ style.remove(); return; }"
                 + "    var r=document.evaluate(xs[i],document,null,XPathResult.FIRST_ORDERED_NODE_TYPE,null);"
@@ -3003,12 +2995,16 @@ public class ARScannedElementPane extends ARPane {
                 + "    i++;"
                 + "    if(!el||!el.classList){ return step(); }"
                 + "    try{ el.scrollIntoView({behavior:'smooth',block:'center',inline:'center'}); }catch(e){}"
-                + "    setTimeout(function(){ pulse(el, function(){ setTimeout(step, 150); }); }, 200);"
+                + "    el.classList.add('__mp_scan_flash');"
+                + "    setTimeout(function(){"
+                + "      el.classList.remove('__mp_scan_flash');"
+                + "      setTimeout(step, 20);"
+                + "    }, holdMs);"
                 + "  }"
                 + "  step();"
                 + "})(arguments[0], arguments[1]);";
         try {
-            ((JavascriptExecutor) driver).executeScript(js, xPaths, 450);
+            ((JavascriptExecutor) driver).executeScript(js, xPaths, 160);
         } catch (Exception ignore) {
         }
     }
