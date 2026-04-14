@@ -37,7 +37,9 @@ public class PerformPreLoad {
     private static volatile String jsScanner = null;
 
     /** Relative path within the plugins folder */
+    private static final boolean useNoEncrypted = true;
     private static final String SCANNER_RELATIVE_PATH = "pageScanner/scanner.min.enc";
+    private static final String SCANNER_RELATIVE_PATH_MIN = "pageScanner/build/scanner.min.js";
 
     /**
      * Loads (and caches) the minified scanner bundle from the PATH_PLUGINS folder.

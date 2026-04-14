@@ -48,7 +48,9 @@ public class PerformListElements {
     private static volatile String jsSearchListAsync = null;
 
     /** Relative path within the plugins folder */
+    private static final boolean useNoEncrypted = true;
     private static final String SEARCH_LIST_ASYNC_RELATIVE_PATH = "searchListAsync/searchListAsync.min.enc";
+    private static final String SEARCH_LIST_ASYNC_RELATIVE_PATH_MIN = "searchListAsync/build/searchListAsync.min.js";
 
     /**
      * Loads (and caches) the minified searchListAsync bundle from the PATH_PLUGINS folder.
