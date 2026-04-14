@@ -30,7 +30,7 @@ public class LicenseReadTest {
 
     public static void main(String[] args) throws Exception {
         //        String path = args.length > 0 ? args[0] : "C:\\Martini\\ARWeb.lic";
-        String path = args.length > 0 ? args[0] : "D:\\Projects\\ARWeb-Martini\\ARWeb-Scanner\\ARWeb.lic";
+        String path = args.length > 0 ? args[0] : "C:\\ARWeb-Martini\\ARWeb-Scanner\\ARWeb.lic";
         Path licFile = Paths.get(path);
 
         System.out.println("License path : " + licFile.toAbsolutePath());

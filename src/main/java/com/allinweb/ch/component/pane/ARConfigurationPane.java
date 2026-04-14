@@ -348,7 +348,7 @@ public class ARConfigurationPane extends ARPane {
 
         databaseChoiceBox.setItems(databaseList);
         databaseChoiceBox.setMinWidth(Region.USE_PREF_SIZE);
-        databaseChoiceBox.setDisable(true);
+        databaseChoiceBox.setDisable(false);
 
         HBox buttonRow = new HBox(10); // spacing between columns
         buttonRow.setAlignment(Pos.CENTER);

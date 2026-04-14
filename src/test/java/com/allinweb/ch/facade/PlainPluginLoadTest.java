@@ -19,7 +19,7 @@ import java.nio.file.Paths;
  */
 public class PlainPluginLoadTest {
 
-    private static final String DEFAULT_PLUGINS_DIR = "D:\\Projects\\ARWeb-Martini\\ARWeb\\plugins";
+    private static final String DEFAULT_PLUGINS_DIR = "C:\\ARWeb-Martini\\ARWeb\\plugins";
 
     /** Mirror of the *_RELATIVE_PATH_MIN constants in the Perform*Load classes. */
     private static final String[][] PLUGINS = {

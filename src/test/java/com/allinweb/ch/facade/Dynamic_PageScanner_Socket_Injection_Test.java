@@ -31,9 +31,9 @@ import org.openqa.selenium.WebDriver;
 public class Dynamic_PageScanner_Socket_Injection_Test {
 
     private static final String EDGE_DRIVER =
-            "D:\\Projects\\ARWeb-Martini\\ARWeb-Scanner\\edgedriver-versions\\msedgedriver_64-(147.0.3912.60).exe";
+            "C:\\ARWeb-Martini\\ARWeb-Scanner\\edgedriver-versions\\msedgedriver_64-(147.0.3912.60).exe";
 
-    private static final String PLUGINS_DIR = "D:\\Projects\\ARWeb-Martini\\ARWeb\\plugins";
+    private static final String PLUGINS_DIR = "C:\\ARWeb-Martini\\ARWeb\\plugins";
 
     private static final String TEST_PAGE = "https://www.inlinea.ch/auth/ui/app/auth/flow/web-app/password";
 

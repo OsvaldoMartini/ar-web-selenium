@@ -23,8 +23,8 @@ import org.openqa.selenium.WebDriver;
  * scanned elements as the script's return value, just like the searchListAsync
  * test pattern but using the page-scanner DOM walker.
  *
- * Driver:  D:\Projects\ARWeb-Martini\ARWeb-Scanner\edgedriver-versions\msedgedriver_64-(147.0.3912.60).exe
- * Plugins: D:\Projects\ARWeb-Martini\ARWeb\plugins
+ * Driver:  C:\Projects\ARWeb-Martini\ARWeb-Scanner\edgedriver-versions\msedgedriver_64-(147.0.3912.60).exe
+ * Plugins: C:\Projects\ARWeb-Martini\ARWeb\plugins
  * Page:    https://www.inlinea.ch/auth/ui/app/auth/flow/web-app/password
  *
  * Run as a plain main — no JUnit needed.
@@ -32,9 +32,9 @@ import org.openqa.selenium.WebDriver;
 public class Dynamic_PageScanner_Async_Socket_Injection_Test {
 
     private static final String EDGE_DRIVER =
-            "D:\\Projects\\ARWeb-Martini\\ARWeb-Scanner\\edgedriver-versions\\msedgedriver_64-(147.0.3912.60).exe";
+            "C:\\ARWeb-Martini\\ARWeb-Scanner\\edgedriver-versions\\msedgedriver_64-(147.0.3912.60).exe";
 
-    private static final String PLUGINS_DIR = "D:\\Projects\\ARWeb-Martini\\ARWeb\\plugins";
+    private static final String PLUGINS_DIR = "C:\\ARWeb-Martini\\ARWeb\\plugins";
 
     private static final String TEST_PAGE = "https://www.inlinea.ch/auth/ui/app/auth/flow/web-app/password";
 
