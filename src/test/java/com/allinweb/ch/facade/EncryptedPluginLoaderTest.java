@@ -78,9 +78,8 @@ public class EncryptedPluginLoaderTest {
         //        String pluginsDir = args.length > 0 && !args[0].startsWith("--") ? args[0] :
         // "C:/ARWeb-ANDROMEDA/ARWeb/plugins";
 
-        String pluginsDir = args.length > 0 && !args[0].startsWith("--")
-                ? args[0]
-                : "C:\\ARWeb-Martini\\ARWeb\\plugins-Avaloq";
+        String pluginsDir =
+                args.length > 0 && !args[0].startsWith("--") ? args[0] : "C:\\ARWeb-Martini\\ARWeb\\plugins-Avaloq";
 
         boolean forceActivate = Arrays.asList(args).contains("--activate");
 

@@ -46,7 +46,8 @@ public class Dynamic_SearchListAsync_Socket_Injection_Test {
     private static final String PLUGINS_DIR = "C:\\ARWeb-Martini\\ARWeb\\plugins";
 
     private static final String TEST_PAGE = "https://www.inlinea.ch/auth/ui/app/auth/flow/web-app/password";
-//    private static final String TEST_PAGE ="https://www.vpbank.com/en/private-banking/investing/vp-vida-wealth-management";
+    //    private static final String TEST_PAGE
+    // ="https://www.vpbank.com/en/private-banking/investing/vp-vida-wealth-management";
 
     /**
      * Which searchListAsync bundle to inject.
@@ -162,8 +163,9 @@ public class Dynamic_SearchListAsync_Socket_Injection_Test {
                 }
             }
 
-            // Hold open briefly so the WS server has a chance to flush any frames
-            Thread.sleep(3_000);
+            // Hold open so the WS server has time to flush frames and so you can
+            // inspect the grid in the browser before it closes.
+            Thread.sleep(60_000);
 
         } finally {
             driver.quit();
