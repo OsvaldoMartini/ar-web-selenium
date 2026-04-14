@@ -49,6 +49,7 @@ public class PerformListElements {
 
     /** Relative path within the plugins folder */
     private static final boolean useNoEncrypted = true;
+
     private static final String SEARCH_LIST_ASYNC_RELATIVE_PATH = "searchListAsync/searchListAsync.min.enc";
     private static final String SEARCH_LIST_ASYNC_RELATIVE_PATH_MIN = "searchListAsync/build/searchListAsync.min.js";
 
@@ -62,7 +63,11 @@ public class PerformListElements {
         if (jsSearchListAsync == null) {
             synchronized (PerformListElements.class) {
                 if (jsSearchListAsync == null) {
-                    jsSearchListAsync = EncryptedPluginLoader.getInstance().loadPlugin(SEARCH_LIST_ASYNC_RELATIVE_PATH);
+                    jsSearchListAsync = EncryptedPluginLoader.getInstance()
+                            .loadPlugin(
+                                    useNoEncrypted
+                                            ? SEARCH_LIST_ASYNC_RELATIVE_PATH_MIN
+                                            : SEARCH_LIST_ASYNC_RELATIVE_PATH);
                     log.info(
                             "PerformListElements - searchListAsync script loaded from plugins folder ({} chars)",
                             jsSearchListAsync.length());

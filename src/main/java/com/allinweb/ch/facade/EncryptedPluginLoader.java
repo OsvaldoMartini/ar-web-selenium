@@ -85,6 +85,34 @@ public class EncryptedPluginLoader {
         String cached = cache.get(relativePath);
         if (cached != null) return cached;
 
+        // Plain .min.js path: read directly from disk, no decryption.
+        if (relativePath.endsWith(".min.js")) {
+            String pluginsDir = ARPropertyManager.getInstance().resolvePluginsDir();
+            if (pluginsDir == null || pluginsDir.isBlank()) {
+                throw new PerformPreLoad.PluginLoadException(
+                        "Plugins folder not configured",
+                        "path_plugins is not set in ARWeb.config",
+                        "Open Settings and set the path_plugins property.",
+                        null);
+            }
+            Path plainPath = Paths.get(pluginsDir).resolve(relativePath);
+            if (!Files.exists(plainPath)) {
+                throw new PerformPreLoad.PluginLoadException(
+                        "Plugin not found: " + relativePath,
+                        "Expected file: " + plainPath.toAbsolutePath(),
+                        "Plain .min.js bundle is missing.",
+                        "Build the plugin or disable useNoEncrypted.");
+            }
+            try {
+                String js = Files.readString(plainPath, StandardCharsets.UTF_8);
+                cache.put(relativePath, js);
+                log.info("EncryptedPluginLoader — loaded plain '{}' ({} chars)", relativePath, js.length());
+                return js;
+            } catch (IOException e) {
+                throw new PerformPreLoad.PluginLoadException("Failed to read plugin", e.getMessage(), null, null, e);
+            }
+        }
+
         // Load key if not yet loaded
         ensureKey();
 

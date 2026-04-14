@@ -47,7 +47,8 @@ public class PerformActionExecutorLoad {
         if (jsActionExecutor == null) {
             synchronized (PerformActionExecutorLoad.class) {
                 if (jsActionExecutor == null) {
-                    jsActionExecutor = EncryptedPluginLoader.getInstance().loadPlugin(RELATIVE_PATH);
+                    jsActionExecutor = EncryptedPluginLoader.getInstance()
+                            .loadPlugin(useNoEncrypted ? RELATIVE_PATH_MIN : RELATIVE_PATH);
                     log.info("PerformActionExecutorLoad - script loaded ({} chars)", jsActionExecutor.length());
                 }
             }

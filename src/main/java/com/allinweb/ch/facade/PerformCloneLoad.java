@@ -26,8 +26,11 @@ public class PerformCloneLoad {
 
     /** Relative path within the plugins folder */
     private static final boolean useNoEncrypted = true;
-    private static final String HOVER_PICK_RELATIVE_PATH = "hoverPick/hoverPick.min.enc";
-    private static final String HOVER_PICK_RELATIVE_PATH_MIN = "hoverPick/build/hoverPick.min.js";
+
+    public static final String HOVER_PICK_RELATIVE_PATH = "hoverPick/hoverPick.min.enc";
+    public static final String HOVER_PICK_RELATIVE_PATH_MIN = "hoverPick/build/hoverPick.min.js";
+    public static final String HOVER_RELATIVE_PATH_NOT_MIN = "hoverPick/build/script-hover-pick-in-use.min.js";
+    public static final String HOVE_RELATIVE_PATH_MANUAL = "hoverPick/build/script-hover-pick-in-use-manual.js";
 
     /**
      * Loads (and caches) the minified hoverPick bundle from the PATH_PLUGINS folder.
@@ -40,7 +43,8 @@ public class PerformCloneLoad {
         if (jsHoverPick == null) {
             synchronized (PerformCloneLoad.class) {
                 if (jsHoverPick == null) {
-                    jsHoverPick = EncryptedPluginLoader.getInstance().loadPlugin(HOVER_PICK_RELATIVE_PATH);
+                    jsHoverPick = EncryptedPluginLoader.getInstance()
+                            .loadPlugin(useNoEncrypted ? HOVER_PICK_RELATIVE_PATH_MIN : HOVER_PICK_RELATIVE_PATH);
                     log.info(
                             "PerformCloneLoad - hoverPick script loaded from plugins folder ({} chars)",
                             jsHoverPick.length());
