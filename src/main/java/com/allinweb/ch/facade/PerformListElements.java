@@ -1,10 +1,12 @@
 package com.allinweb.ch.facade;
 
+import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.util.ErrorMessage;
 import com.allinweb.ch.util.JsScanResultDTO;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.JavascriptExecutor;
@@ -131,6 +133,59 @@ public class PerformListElements {
             String operationId,
             int homeBankingId,
             int botJobId) {
+        return runScan(
+                        driver,
+                        dataArray,
+                        searchHiddenFields,
+                        port,
+                        sessionId,
+                        destination,
+                        operationId,
+                        homeBankingId,
+                        botJobId)
+                .error;
+    }
+
+    /**
+     * Same scan as {@link #dynamicLoadElementsDTO}, but also returns the parsed
+     * element list so callers can forward it (e.g. push directly to scannerGrid
+     * via WebSocket) without re-running the JS.
+     *
+     * Side effects are identical: resets and repopulates {@code performLists}
+     * target-element cache on success.
+     */
+    public ScanResult scanElements(
+            WebDriver driver,
+            String[] dataArray,
+            boolean searchHiddenFields,
+            int port,
+            String sessionId,
+            String destination,
+            String operationId,
+            int homeBankingId,
+            int botJobId) {
+        return runScan(
+                driver,
+                dataArray,
+                searchHiddenFields,
+                port,
+                sessionId,
+                destination,
+                operationId,
+                homeBankingId,
+                botJobId);
+    }
+
+    private ScanResult runScan(
+            WebDriver driver,
+            String[] dataArray,
+            boolean searchHiddenFields,
+            int port,
+            String sessionId,
+            String destination,
+            String operationId,
+            int homeBankingId,
+            int botJobId) {
 
         List<String> dataList = Arrays.asList(dataArray);
         try {
@@ -161,10 +216,10 @@ public class PerformListElements {
 
             if (result == null || !(result instanceof String)) {
                 logOperations.warn("Cannot return any elements from the page");
-                return new ErrorMessage(
+                return ScanResult.ofError(new ErrorMessage(
                         "Dynamic Scanner Web Page",
                         "Dynamic Load ElementsDTO error",
-                        "Cannot return any elements from the page");
+                        "Cannot return any elements from the page"));
             }
 
             logOperations.info("JS async result: {}", result);
@@ -172,21 +227,42 @@ public class PerformListElements {
             String jsonScript = String.valueOf(result);
 
             JsScanResultDTO dto = gson.fromJson(jsonScript, JsScanResultDTO.class);
+            List<ElementDTO> elements = dto.getElements() != null ? dto.getElements() : Collections.emptyList();
 
             // Replace current list and load new one
             performLists.resetListElements();
-            performLists.addMapElementsTarget(dto.getElements());
+            performLists.addMapElementsTarget(elements);
 
-            return null;
+            return ScanResult.ofElements(elements);
         } catch (PerformPreLoad.PluginLoadException ple) {
             log.error("PerformListElements - plugin load failed: {}", ple.getUserTitle(), ple);
-            return new ErrorMessage(
+            return ScanResult.ofError(new ErrorMessage(
                     ple.getUserTitle(),
                     "Search List Async Plugin",
                     ple.getMsg1() + "\n" + (ple.getMsg2() != null ? ple.getMsg2() : "") + "\n"
-                            + (ple.getMsg3() != null ? ple.getMsg3() : ""));
+                            + (ple.getMsg3() != null ? ple.getMsg3() : "")));
         } catch (Exception error) {
-            return new ErrorMessage("Error running Scanner", "Dynamic Load ElementsDTO error", error.getMessage());
+            return ScanResult.ofError(
+                    new ErrorMessage("Error running Scanner", "Dynamic Load ElementsDTO error", error.getMessage()));
+        }
+    }
+
+    /** Result bundle for {@link #scanElements}: either an error or the parsed list. */
+    public static final class ScanResult {
+        public final ErrorMessage error;
+        public final List<ElementDTO> elements;
+
+        private ScanResult(ErrorMessage error, List<ElementDTO> elements) {
+            this.error = error;
+            this.elements = elements;
+        }
+
+        static ScanResult ofError(ErrorMessage error) {
+            return new ScanResult(error, Collections.emptyList());
+        }
+
+        static ScanResult ofElements(List<ElementDTO> elements) {
+            return new ScanResult(null, elements);
         }
     }
 }

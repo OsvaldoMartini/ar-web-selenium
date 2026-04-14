@@ -2797,7 +2797,7 @@ public class ARScannedElementPane extends ARPane {
             int homeBankingId,
             int botJobId) {
         // "scannerTool", "scannerGrid", "searchTerms"
-        ErrorMessage errorMessage = performPreLoad.dynamicLoadElementsDTO(
+        PerformListElements.ScanResult scan = performListElements.scanElements(
                 driver,
                 dataArray,
                 searchHiddenFields,
@@ -2808,14 +2808,33 @@ public class ARScannedElementPane extends ARPane {
                 homeBankingId,
                 botJobId);
 
-        if (errorMessage != null) {
+        if (scan.error != null) {
             logOperations.error(
                     "Error: periodicSearchThread - {} - {} - {}",
-                    errorMessage.getErrorTitle(),
-                    errorMessage.getErrorHeader(),
-                    errorMessage.getErrorMessage());
-            showPluginHint(errorMessage.getErrorTitle() + " - " + errorMessage.getErrorHeader(), "#f44336", 6);
+                    scan.error.getErrorTitle(),
+                    scan.error.getErrorHeader(),
+                    scan.error.getErrorMessage());
+            showPluginHint(scan.error.getErrorTitle() + " - " + scan.error.getErrorHeader(), "#f44336", 6);
+            return;
         }
+
+        List<ElementDTO> elements = scan.elements;
+        if (elements == null || elements.isEmpty()) {
+            appendLog("Page Scanner returned 0 elements.", "warn");
+            return;
+        }
+
+        SplitDTO payload = new SplitDTO();
+        payload.setHomeBankingId(homeBankingId);
+        payload.setBotJobId(botJobId);
+        payload.setBotJobName(this.currentBotJob.getName());
+        payload.setType("SEARCH_TOOL");
+        payload.setSessionId("scannerGrid");
+        payload.setOperationId("searchTerms");
+        payload.setElementDetails(elements.toArray(new ElementDTO[0]));
+
+        sendChunks(elements, 25, payload, webSocketSessionManager, "scannerGrid", "searchTerms");
+        appendLog("Page Scanner: sent " + elements.size() + " elements to scannerGrid.", "info");
     }
 
     public void revertCloneInjections(WebDriver driver) {
