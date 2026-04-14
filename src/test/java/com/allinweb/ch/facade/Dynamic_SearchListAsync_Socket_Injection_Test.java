@@ -45,10 +45,12 @@ public class Dynamic_SearchListAsync_Socket_Injection_Test {
 
     private static final String PLUGINS_DIR = "C:\\ARWeb-Martini\\ARWeb\\plugins";
 
-    private static final String TEST_PAGE = "https://www.inlinea.ch/auth/ui/app/auth/flow/web-app/password";
+    //    private static final String TEST_PAGE = "https://www.inlinea.ch/auth/ui/app/auth/flow/web-app/password";
+    //        private static final String TEST_PAGE
+    // ="https://www.vpbank.com/en/private-banking/investing/vp-vida-wealth-management";
     //    private static final String TEST_PAGE
     // ="https://www.vpbank.com/en/private-banking/investing/vp-vida-wealth-management";
-
+    private static final String TEST_PAGE = "https://www.apobank.de/";
     /**
      * Which searchListAsync bundle to inject.
      *   - SEARCH_LIST_ASYNC_RELATIVE_PATH_MIN      → minified production bundle
