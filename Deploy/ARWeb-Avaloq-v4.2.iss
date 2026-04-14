@@ -91,7 +91,6 @@ Name: "scanner";    Description: "AR_Web_Scanner-4.2.jar";                      
 Name: "engine";     Description: "AR_Web_Engine-4.2.jar";                          Types: full custom
 Name: "config";     Description: "ARWeb.config";                                   Types: full custom
 Name: "excel";      Description: "Apo Bank.xlsx (Excel template)";                 Types: full custom
-Name: "database";   Description: "database.db";                                    Types: full custom
 Name: "edgedriver"; Description: "Edge WebDriver (146.0.3856.62)";                 Types: full custom
 Name: "javafx";     Description: "JavaFX runtime";                                 Types: full custom
 Name: "javajce";    Description: "Java JCE extensions";                            Types: full custom
@@ -117,9 +116,6 @@ Source: "{#SrcConfig}\ARWeb.config"; DestDir: "{app}\Config-4.2"; Components: co
 
 ; ── Excel  ->  {app}\ARWeb\Excel ─────────────────────────────────────────────
 Source: "{#SrcARWeb}\Excel\Apo Bank.xlsx"; DestDir: "{app}\ARWeb\Excel"; Components: excel; Flags: ignoreversion confirmoverwrite
-
-; ── Database  ->  {app}\ARWeb ────────────────────────────────────────────────
-Source: "{#SrcARWeb}\database.db"; DestDir: "{app}\ARWeb"; Components: database; Flags: ignoreversion confirmoverwrite
 
 ; ── Lang  ->  {app}\lang ─────────────────────────────────────────────────────
 Source: "{#SrcScanner}\lang\labels.en.properties"; DestDir: "{app}\ARWeb-Scanner\lang"; Components: lang; Flags: ignoreversion confirmoverwrite
@@ -240,7 +236,6 @@ begin
     Space + 'JARs         ->  ' + ExpandConstant('{app}') + '\ARWeb-Scanner' + NewLine +
     Space + 'Config       ->  ' + ExpandConstant('{app}') + '\Config-4.2' + NewLine +
     Space + 'Excel        ->  ' + ExpandConstant('{app}') + '\ARWeb\Excel' + NewLine +
-    Space + 'Database     ->  ' + ExpandConstant('{app}') + '\ARWeb\database.db' + NewLine +
     Space + 'JavaFX       ->  ' + ExpandConstant('{app}') + '\ARWeb-Scanner\javaFX' + NewLine +
     Space + 'JavaJCE      ->  ' + ExpandConstant('{app}') + '\ARWeb-Scanner\javaJCE' + NewLine +
     Space + 'Java RT      ->  ' + ExpandConstant('{app}') + '\ARWeb-Scanner\java' + NewLine +
