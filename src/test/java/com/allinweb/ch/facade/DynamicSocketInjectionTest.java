@@ -10,19 +10,21 @@ import org.openqa.selenium.WebDriver;
 
 /**
  * End-to-end injection test using PerformPreLoad to load
- * pageScanner/build/script-search-in-use-manual.js, then injecting it
- * into a real Edge browser pointed at a local test page. The manual script
- * connects to a WebSocket server started in this same JVM
- * (ManualScriptWebSocketTest), so every frame the script sends is logged
- * to the console.
+ * pageScanner/build/script-search-in-use.js (the dynamic, non-minified bundle),
+ * then injecting it into a real Edge browser pointed at a live page.
+ *
+ * Unlike ManualSocketInjectionTest (which uses the manual bundle with a hardcoded
+ * port 55687 and hardcoded args), this dynamic script reads its 8 parameters from
+ * Selenium's executeScript `arguments[0..7]`, so we pick a free WS port and pass
+ * everything in.
  *
  * Driver:  D:\Projects\ARWeb-Martini\ARWeb-Scanner\edgedriver-versions\msedgedriver_64-(147.0.3912.60).exe
  * Plugins: D:\Projects\ARWeb-Martini\ARWeb\plugins
- * Page:    src/main/resources/build/input_page.html (file:// URL)
+ * Page:    https://www.inlinea.ch/auth/ui/app/auth/flow/web-app/password
  *
  * Run as a plain main — no JUnit needed.
  */
-public class PerformPreLoadInjectionTest {
+public class DynamicSocketInjectionTest {
 
     private static final String EDGE_DRIVER =
             "D:\\Projects\\ARWeb-Martini\\ARWeb-Scanner\\edgedriver-versions\\msedgedriver_64-(147.0.3912.60).exe";
@@ -44,6 +46,8 @@ public class PerformPreLoadInjectionTest {
         System.out.println("[setup] path_plugins = " + PLUGINS_DIR);
 
         // ── 2. Pick a free port and start the WS server in a background thread ──
+        //       The dynamic script reads the port from executeScript arguments,
+        //       so we can use any free port.
         int port = pickFreePort();
         Thread wsServer = new Thread(
                 () -> {
@@ -59,9 +63,9 @@ public class PerformPreLoadInjectionTest {
         Thread.sleep(300);
         System.out.println("[setup] WS server listening on port " + port);
 
-        // ── 3. Load the manual script via PerformPreLoad (the whole point) ──────
-        String script = PerformPreLoad.loadPluginScript(PerformPreLoad.SCANNER_RELATIVE_PATH_MANUAL);
-        System.out.println("[setup] loaded manual script: " + script.length() + " chars");
+        // ── 3. Load the dynamic script via PerformPreLoad ───────────────────────
+        String script = PerformPreLoad.loadPluginScript(PerformPreLoad.SCANNER_RELATIVE_PATH_NOT_MIN);
+        System.out.println("[setup] loaded dynamic script: " + script.length() + " chars");
 
         // ── 4. Launch Edge via ARWebDriver (the project's own driver wrapper) ──
         WebDriver driver = ARWebDriver.getInstance()
@@ -82,36 +86,23 @@ public class PerformPreLoadInjectionTest {
         try {
             Thread.sleep(500);
 
-            // ── 5. Inject the manual script ─────────────────────────────────────
-            // The file is a function expression (not auto-invoked), so wrap it as
-            //   (function(...){...})(arg0, arg1, ...)
-            // Selenium passes our Java args as arguments[0..N] inside executeScript,
-            // so we forward them positionally.
-            String wrapped = "(" + script + ")("
-                    + " arguments[0]," // searchTerms
-                    + " arguments[1]," // hiddenFields
-                    + " arguments[2]," // socketPort
-                    + " arguments[3]," // sessionId
-                    + " arguments[4]," // destination
-                    + " arguments[5]," // operationId
-                    + " arguments[6]," // homeBankingId
-                    + " arguments[7]" // botJobId
-                    + ");";
-
-            String sessionId = "manual-test-1";
+            // ── 5. Inject the dynamic script ────────────────────────────────────
+            // The script ends with `})( arguments[0], ..., arguments[7] );` so
+            // Selenium's executeScript args become the IIFE parameters directly.
+            String sessionId = "scannerTool";
             JavascriptExecutor js = (JavascriptExecutor) driver;
             js.executeScript(
-                    wrapped,
-                    java.util.Arrays.asList("button", "input", "a", "select"), // searchTerms
-                    java.util.Collections.emptyList(), // hiddenFields
+                    script,
+                    java.util.Arrays.asList("button", "textarea", "input", "label", "a", "select"), // searchTerms
+                    false, // hiddenFields
                     port, // socketPort
                     sessionId, // sessionId
                     "scannerGrid", // destination
-                    "manual-injection-test", // operationId
-                    1L, // homeBankingId
-                    1L); // botJobId
+                    "searchTerms", // operationId
+                    184L, // homeBankingId
+                    310L); // botJobId
 
-            System.out.println("[inject] script injected, session=" + sessionId);
+            System.out.println("[inject] script injected, session=" + sessionId + ", port=" + port);
             System.out.println("[inject] holding browser open for 20s — watch the WS log above");
 
             // ── 6. Give the script time to scan + send WS frames ────────────────
