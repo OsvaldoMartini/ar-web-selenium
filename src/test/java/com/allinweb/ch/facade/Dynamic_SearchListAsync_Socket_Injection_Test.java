@@ -145,6 +145,7 @@ public class Dynamic_SearchListAsync_Socket_Injection_Test {
             long elapsed = System.currentTimeMillis() - t0;
 
             System.out.println("[inject] async script returned in " + elapsed + " ms, session=" + sessionId);
+            java.util.List<String> foundXPaths = new java.util.ArrayList<>();
             if (result == null) {
                 System.out.println("[result] null");
             } else {
@@ -158,13 +159,78 @@ public class Dynamic_SearchListAsync_Socket_Injection_Test {
                     JsonElement parsed = JsonParser.parseString(s);
                     System.out.println("[result] pretty JSON:");
                     System.out.println(pretty.toJson(parsed));
+
+                    // Extract xPaths for the visual flash pass below.
+                    if (parsed.isJsonObject() && parsed.getAsJsonObject().has("elements")) {
+                        JsonElement arr = parsed.getAsJsonObject().get("elements");
+                        if (arr.isJsonArray()) {
+                            for (JsonElement e : arr.getAsJsonArray()) {
+                                if (e.isJsonObject() && e.getAsJsonObject().has("xPath")) {
+                                    String xp = e.getAsJsonObject().get("xPath").getAsString();
+                                    if (xp != null && !xp.isBlank()) foundXPaths.add(xp);
+                                }
+                            }
+                        }
+                    }
                 } catch (Exception parseErr) {
                     System.out.println("[result] (not JSON) preview: " + s.substring(0, Math.min(500, s.length())));
                 }
             }
 
-            // Hold open so the WS server has time to flush frames and so you can
-            // inspect the grid in the browser before it closes.
+            // ── Visual flash pass ──────────────────────────────────────────────
+            // Same pincer sweep used in ARScannedElementPane: one cursor walks
+            // from the start of the list, the other from the end, meeting in
+            // the middle. Lets you see every element the scanner picked up.
+            if (!foundXPaths.isEmpty()) {
+                System.out.println("[flash] highlighting " + foundXPaths.size() + " elements");
+                String flashJs = "(function(xs, holdMs){"
+                        + "  if(!xs||!xs.length) return;"
+                        + "  var style=document.createElement('style');"
+                        + "  style.id='__mp_scan_hl';"
+                        + "  style.textContent='.__mp_scan_flash{outline:4px solid #ff1744 !important;"
+                        + "    outline-offset:3px;"
+                        + "    box-shadow:0 0 0 6px rgba(255,23,68,.55), 0 0 18px 4px rgba(255,23,68,.8) !important;"
+                        + "    background-color:rgba(255,23,68,.12) !important;"
+                        + "    transition:outline .08s ease, box-shadow .08s ease, background-color .08s ease;}';"
+                        + "  document.head.appendChild(style);"
+                        + "  var lo=0, hi=xs.length-1, done=0;"
+                        + "  function cleanup(){ if(done>=2){ style.remove(); } }"
+                        + "  function flash(idx, next){"
+                        + "    if(idx<0||idx>=xs.length||lo>hi){ done++; cleanup(); return; }"
+                        + "    var r=document.evaluate(xs[idx],document,null,XPathResult.FIRST_ORDERED_NODE_TYPE,null);"
+                        + "    var el=r&&r.singleNodeValue;"
+                        + "    if(!el||!el.classList){ return next(); }"
+                        + "    try{ el.scrollIntoView({behavior:'smooth',block:'center',inline:'center'}); }catch(e){}"
+                        + "    el.classList.add('__mp_scan_flash');"
+                        + "    setTimeout(function(){"
+                        + "      el.classList.remove('__mp_scan_flash');"
+                        + "      setTimeout(next, 20);"
+                        + "    }, holdMs);"
+                        + "  }"
+                        + "  function stepFwd(){"
+                        + "    if(lo>hi){ done++; cleanup(); return; }"
+                        + "    var idx=lo++;"
+                        + "    flash(idx, stepFwd);"
+                        + "  }"
+                        + "  function stepBwd(){"
+                        + "    if(lo>hi){ done++; cleanup(); return; }"
+                        + "    var idx=hi--;"
+                        + "    flash(idx, stepBwd);"
+                        + "  }"
+                        + "  stepFwd();"
+                        + "  setTimeout(stepBwd, Math.max(40, holdMs/3));"
+                        + "  if(xs.length<2){ done++; cleanup(); }"
+                        + "})(arguments[0], arguments[1]);";
+                try {
+                    js.executeScript(flashJs, foundXPaths, 160);
+                } catch (Exception flashErr) {
+                    System.out.println("[flash] error: " + flashErr.getMessage());
+                }
+            }
+
+            // Hold open so the WS server has time to flush frames, the flash
+            // sweep can complete, and so you can inspect the grid in the
+            // browser before it closes.
             Thread.sleep(60_000);
 
         } finally {
