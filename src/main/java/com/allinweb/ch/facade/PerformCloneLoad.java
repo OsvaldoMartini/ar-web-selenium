@@ -110,17 +110,20 @@ public class PerformCloneLoad {
         try {
             log.info(">> Injecting plugin [hoverPick] - session={}, botJob={}", sessionId, botJobId);
             JavascriptExecutor executor = (JavascriptExecutor) driver;
-            PluginContext ctx = PluginContext.forHoverPick(
-                    searchHiddenFields,
-                    port,
-                    sessionId,
-                    destination,
-                    operationId,
-                    homeBankingId,
-                    botJobId,
-                    currentUrl,
-                    currentUrl);
-            executor.executeScript(getJsHoverPick(), ctx.toJsContext());
+            // hoverPick.min.js (and script-hover-pick-in-use.min.js) is an IIFE that ends with
+            //   })( arguments[0], arguments[1], ..., arguments[8] );
+            // so it expects 9 positional executeScript args, not a single ctx object.
+            executor.executeScript(
+                    getJsHoverPick(),
+                    searchHiddenFields, // hiddenFields
+                    port, // socketPort
+                    sessionId, // sessionId
+                    destination, // destination
+                    operationId, // operationId
+                    homeBankingId, // homeBankingId
+                    botJobId, // botJobId
+                    currentUrl, // targetOriginURL
+                    currentUrl); // trustedOriginURL
             return null;
         } catch (PerformPreLoad.PluginLoadException ple) {
             log.error("PerformCloneLoad - plugin load failed: {}", ple.getUserTitle(), ple);
