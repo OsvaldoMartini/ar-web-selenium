@@ -1,7 +1,7 @@
 ; ============================================================================
 ;  ARWeb Avaloq v4.2 - Update Installer
 ;
-;  Final structure (user selects the ROOT, e.g. C:\ARWebAvaloq):
+;  Final structure (user selects the ROOT, e.g. C:\ARWebBancaStato):
 ;     <root>\ARWeb\plugins\        <- plugin zips + manifest
 ;     <root>\ARWeb-Scanner\        <- JAR files
 ; ============================================================================
@@ -13,11 +13,11 @@
 #define MyAppCopyright "Copyright (C) 2026 Allinweb AG"
 
 ; Source paths (read from the working tree — the installer is built off this)
-#define SrcRoot     "C:\ARWebAvaloq"
-#define SrcARWeb    "C:\ARWebAvaloq\ARWeb"
-#define SrcPlugins  "C:\ARWebAvaloq\ARWeb\plugins"
-#define SrcScanner  "C:\ARWebAvaloq\ARWeb-Scanner"
-#define SrcConfig   "C:\ARWebAvaloq\Config-4.2"
+#define SrcRoot     "C:\ARWebBancaStato"
+#define SrcARWeb    "C:\ARWebBancaStato\ARWeb"
+#define SrcPlugins  "C:\ARWebBancaStato\ARWeb\plugins"
+#define SrcScanner  "C:\ARWebBancaStato\ARWeb-Scanner"
+#define SrcConfig   "C:\ARWebBancaStato\Config-4.2"
 #define SrcDeploy   "C:\Martini\abr-web-selenium\Deploy"
 
 [Setup]
@@ -37,9 +37,9 @@ VersionInfoCopyright={#MyAppCopyright}
 VersionInfoProductName={#MyAppName}
 VersionInfoProductVersion={#MyAppVersion}
 
-#define MyAppDefaultDir "C:\ARWebAvaloq"
+#define MyAppDefaultDir "C:\ARWebBancaStato"
 
-; The user picks the ROOT folder (e.g. C:\ARWebAvaloq)
+; The user picks the ROOT folder (e.g. C:\ARWebBancaStato)
 ; NOT the ARWeb sub-folder
 DefaultDirName={#MyAppDefaultDir}
 DefaultGroupName={#MyAppName}
@@ -74,7 +74,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 [Messages]
 WelcomeLabel1=Welcome to the {#MyAppName} v{#MyAppVersion} Avaloq Install
 WelcomeLabel2=This will install the full ARWeb Avaloq v{#MyAppVersion} environment.%n%n  - 7 encrypted plugin packages%n  - AR Web Scanner + Engine v4.2%n  - ARWeb.config, Edge WebDriver%n  - JavaFX, JavaJCE, Lang%n  - Excel template (Apo Bank)%n%nPlease close ARWeb before continuing.
-SelectDirBrowseLabel=Select the ROOT installation folder (e.g. C:\ARWebAvaloq).%nDo NOT select the ARWeb sub-folder.
+SelectDirBrowseLabel=Select the ROOT installation folder (e.g. C:\ARWebBancaStato).%nDo NOT select the ARWeb sub-folder.
 SelectDirLabel3=The installer will create:%n%n   <dir>\ARWeb\plugins%n   <dir>\ARWeb-Scanner
 ReadyLabel1=Ready to Install
 ReadyLabel2a=Click Install to deploy the files to the selected folder.
@@ -91,7 +91,6 @@ Name: "scanner";    Description: "AR_Web_Scanner-4.2.jar";                      
 Name: "engine";     Description: "AR_Web_Engine-4.2.jar";                          Types: full custom
 Name: "config";     Description: "ARWeb.config";                                   Types: full custom
 Name: "excel";      Description: "Apo Bank.xlsx (Excel template)";                 Types: full custom
-Name: "database";   Description: "database.db";                                    Types: full custom
 Name: "edgedriver"; Description: "Edge WebDriver (146.0.3856.62)";                 Types: full custom
 Name: "javafx";     Description: "JavaFX runtime";                                 Types: full custom
 Name: "javajce";    Description: "Java JCE extensions";                            Types: full custom
@@ -117,9 +116,6 @@ Source: "{#SrcConfig}\ARWeb.config"; DestDir: "{app}\Config-4.2"; Components: co
 
 ; ── Excel  ->  {app}\ARWeb\Excel ─────────────────────────────────────────────
 Source: "{#SrcARWeb}\Excel\Apo Bank.xlsx"; DestDir: "{app}\ARWeb\Excel"; Components: excel; Flags: ignoreversion confirmoverwrite
-
-; ── Database  ->  {app}\ARWeb ────────────────────────────────────────────────
-Source: "{#SrcARWeb}\database.db"; DestDir: "{app}\ARWeb"; Components: database; Flags: ignoreversion confirmoverwrite
 
 ; ── Lang  ->  {app}\lang ─────────────────────────────────────────────────────
 Source: "{#SrcScanner}\lang\labels.en.properties"; DestDir: "{app}\ARWeb-Scanner\lang"; Components: lang; Flags: ignoreversion confirmoverwrite
@@ -159,9 +155,9 @@ Name: "{app}\ARWeb-Scanner\lang"
 [Code]
 
 // ── Strip duplicated path segments before install ───────────────────────────
-//  C:\ARWebAvaloq\ARWeb\ARWeb          ->  C:\ARWebAvaloq\ARWeb
-//  C:\ARWebAvaloq\ARWeb-ARWeb-Scanner  ->  C:\ARWebAvaloq\ARWeb-Scanner
-//  C:\ARWebAvaloq\ARWeb\ARWeb          ->  C:\ARWebAvaloq
+//  C:\ARWebBancaStato\ARWeb\ARWeb          ->  C:\ARWebBancaStato\ARWeb
+//  C:\ARWebBancaStato\ARWeb-ARWeb-Scanner  ->  C:\ARWebBancaStato\ARWeb-Scanner
+//  C:\ARWebBancaStato\ARWeb\ARWeb          ->  C:\ARWebBancaStato
 
 function StripTrailingBackslash(const S: String): String;
 begin
@@ -240,7 +236,6 @@ begin
     Space + 'JARs         ->  ' + ExpandConstant('{app}') + '\ARWeb-Scanner' + NewLine +
     Space + 'Config       ->  ' + ExpandConstant('{app}') + '\Config-4.2' + NewLine +
     Space + 'Excel        ->  ' + ExpandConstant('{app}') + '\ARWeb\Excel' + NewLine +
-    Space + 'Database     ->  ' + ExpandConstant('{app}') + '\ARWeb\database.db' + NewLine +
     Space + 'JavaFX       ->  ' + ExpandConstant('{app}') + '\ARWeb-Scanner\javaFX' + NewLine +
     Space + 'JavaJCE      ->  ' + ExpandConstant('{app}') + '\ARWeb-Scanner\javaJCE' + NewLine +
     Space + 'Java RT      ->  ' + ExpandConstant('{app}') + '\ARWeb-Scanner\java' + NewLine +
@@ -284,9 +279,9 @@ begin
         '   ' + AppDir + '\ARWeb\plugins' + NL +
         '   ' + AppDir + '\ARWeb-Scanner' + NL + NL +
         'If your existing layout is:' + NL +
-        '   C:\ARWebAvaloq\ARWeb\plugins' + NL +
-        '   C:\ARWebAvaloq\ARWeb-Scanner' + NL +
-        'then select C:\ARWebAvaloq instead.' + NL + NL +
+        '   C:\ARWebBancaStato\ARWeb\plugins' + NL +
+        '   C:\ARWebBancaStato\ARWeb-Scanner' + NL +
+        'then select C:\ARWebBancaStato instead.' + NL + NL +
         'Continue with the current selection?';
       Result := (MsgBox(Msg, mbConfirmation, MB_YESNO) = IDYES);
     end
@@ -337,7 +332,7 @@ end;
 // ── Update paths inside a config/bat file after install ─────────────────────
 //
 //  originFilePath : full path to the installed file
-//  toBeReplaced   : the old path fragment to find (e.g. 'C\:\\ARWebAvaloq\\')
+//  toBeReplaced   : the old path fragment to find (e.g. 'C\:\\ARWebBancaStato\\')
 //  AppNewPath     : the new root path ({app})
 //  newWords       : path separator to use ('\\' for .config, '\' for .bat)
 //  alsoColon      : true = escape colons (Java .properties format)
@@ -413,19 +408,19 @@ begin
     ExpectedPath := ExpandConstant('{#MyAppDefaultDir}');
 
     // ARWeb.config: replace escaped Java .properties paths
-    // C\:\\ARWebAvaloq\\  ->  <root>\\
+    // C\:\\ARWebBancaStato\\  ->  <root>\\
     if not SameText(AppNewPath, ExpectedPath) then
     begin
       UpdateConfigFile(
         AppNewPath + '\Config-4.2\ARWeb.config',
-        'C\:\\ARWebAvaloq\\',
+        'C\:\\ARWebBancaStato\\',
         AppNewPath, '\\', True);
 
       // exec_launcher-4.2.bat: replace plain paths
-      // C:\ARWebAvaloq\  ->  <root>\
+      // C:\ARWebBancaStato\  ->  <root>\
       UpdateConfigFile(
         AppNewPath + '\ARWeb-Scanner\exec_launcher-4.2.bat',
-        'C:\ARWebAvaloq\',
+        'C:\ARWebBancaStato\',
         AppNewPath, '\', False);
     end;
 
