@@ -13,9 +13,9 @@
 #define MyAppCopyright "Copyright (C) 2026 Allinweb AG"
 
 ; Source paths
-#define SrcPlugins  "D:\Projects\ARWeb-Martini\ARWeb\plugins-BancaStato"
-#define SrcScanner  "D:\Projects\ARWeb-Martini\ARWeb-Scanner"
-#define SrcDeploy   "D:\Projects\AllinWeb\ar-web-selenium\Deploy"
+#define SrcPlugins  "C:\ARWebBancaStato\ARWeb\plugins"
+#define SrcScanner  "C:\ARWebBancaStato\ARWeb-Scanner"
+#define SrcDeploy   "C:\Martini\ar-web-selenium\Deploy"
 
 [Setup]
 AppId={{A3F7B2D1-9C4E-4A8B-B6D2-1E5F3A7C9D42}
@@ -106,8 +106,8 @@ Source: "{#SrcScanner}\AR_Web_Scanner-4.2.jar"; DestDir: "{app}\ARWeb-Scanner"; 
 [Code]
 
 // ── Strip duplicated path segments before install ───────────────────────────
-//  C:\ARWeb-Martini\ARWeb\ARWeb        ->  C:\ARWeb-Martini\ARWeb
-//  C:\ARWeb-Martini\ARWeb-ARWeb-Scanner -> C:\ARWeb-Martini\ARWeb-Scanner
+//  C:\ARWebBancaStato\ARWeb\ARWeb        ->  C:\ARWebBancaStato\ARWeb
+//  C:\ARWebBancaStato\ARWeb-ARWeb-Scanner -> C:\ARWebBancaStato\ARWeb-Scanner
 //  C:\ARWeb\ARWeb\ARWeb                ->  C:\ARWeb
 
 function StripTrailingBackslash(const S: String): String;
@@ -222,9 +222,9 @@ begin
         '   ' + AppDir + '\ARWeb\plugins' + NL +
         '   ' + AppDir + '\ARWeb-Scanner' + NL + NL +
         'If your existing layout is:' + NL +
-        '   C:\ARWeb-Martini\ARWeb\plugins' + NL +
-        '   C:\ARWeb-Martini\ARWeb-Scanner' + NL +
-        'then select C:\ARWeb-Martini instead.' + NL + NL +
+        '   C:\ARWebBancaStato\ARWeb\plugins' + NL +
+        '   C:\ARWebBancaStato\ARWeb-Scanner' + NL +
+        'then select C:\ARWebBancaStato instead.' + NL + NL +
         'Continue with the current selection?';
       Result := (MsgBox(Msg, mbConfirmation, MB_YESNO) = IDYES);
     end
