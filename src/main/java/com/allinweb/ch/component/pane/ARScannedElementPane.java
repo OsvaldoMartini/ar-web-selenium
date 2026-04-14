@@ -7856,28 +7856,22 @@ public class ARScannedElementPane extends ARPane {
     }
 
     /**
-     * Checks if a plugin is installed locally by looking for its folder
-     * and at least one .js file inside (either build/*.min.js or index.js).
+     * Checks whether a plugin is installed locally. Pure read-only probe —
+     * never extracts or writes anything.
      *
-     * If a ZIP file ({pluginId}.zip) is found but the folder does not exist,
-     * it is automatically extracted in place so the plugin becomes available.
+     * Installed means any of:
+     *   - {pluginsDir}/{pluginId}.zip exists (canonical layout — EncryptedPluginLoader
+     *     reads the .enc straight out of the zip in memory)
+     *   - {pluginsDir}/{pluginId}/{pluginId}.min.enc or .min.js exists (legacy
+     *     loose-file layout, still supported by the loader)
+     *   - {pluginsDir}/{pluginId}/build/*.min.enc or .min.js exists (older legacy)
+     *   - {pluginsDir}/{pluginId}/index.js or any .js source (dev layout)
      */
     private boolean isPluginInstalledLocally(String pluginsDir, String pluginId) {
-        Path pluginDir = Paths.get(pluginsDir, pluginId);
         Path zipFile = Paths.get(pluginsDir, pluginId + ".zip");
+        if (Files.exists(zipFile)) return true;
 
-        // Always extract ZIP if it exists - overwrites old files with latest version
-        // Extract directly into the plugin's folder (e.g. plugins/hoverPick/)
-        if (Files.exists(zipFile)) {
-            log.info("PluginUpdate - extracting {}.zip (overwriting existing files)...", pluginId);
-            try {
-                Files.createDirectories(pluginDir);
-                extractPluginZip(zipFile, pluginDir);
-            } catch (Exception e) {
-                log.error("PluginUpdate - failed to extract {}: {}", zipFile, e.getMessage());
-            }
-        }
-
+        Path pluginDir = Paths.get(pluginsDir, pluginId);
         if (!Files.isDirectory(pluginDir)) return false;
 
         // Check for .min.enc or .min.js directly in the plugin folder
@@ -8035,12 +8029,87 @@ public class ARScannedElementPane extends ARPane {
     }
 
     /**
+     * Banner shown at the top of the Plugin Update dialog when plugins are
+     * missing (or none are installed at all). Includes a clickable link to
+     * the MultiPlugins portal that opens in the system default browser.
+     */
+    private VBox buildPortalBanner(boolean noPlugins, boolean anyMissing) {
+        VBox banner = new VBox(6);
+        banner.setPadding(new Insets(10, 12, 10, 12));
+        banner.setStyle("-fx-background-color:#fff7ed;"
+                + "-fx-border-color:#fb923c;"
+                + "-fx-border-width:1;"
+                + "-fx-background-radius:6;"
+                + "-fx-border-radius:6;");
+
+        String title = noPlugins ? "No plugins installed yet" : "Some mandatory plugins are missing";
+        Label head = new Label("⚠  " + title);
+        head.setStyle("-fx-font-size:13px;-fx-font-weight:bold;-fx-text-fill:#9a3412;");
+
+        Label body = new Label(
+                noPlugins
+                        ? "To run the scanner you need to install the plugin bundle first."
+                        : "The scanner requires all plugins to be present to work correctly.");
+        body.setStyle("-fx-font-size:12px;-fx-text-fill:#7c2d12;");
+        body.setWrapText(true);
+
+        HBox linkRow = new HBox(6);
+        Label prompt = new Label("Get them from the portal:");
+        prompt.setStyle("-fx-font-size:12px;-fx-text-fill:#7c2d12;");
+
+        javafx.scene.control.Hyperlink portalLink = new javafx.scene.control.Hyperlink("www.multiplugins.ch");
+        portalLink.setStyle("-fx-font-size:12px;-fx-font-weight:bold;-fx-text-fill:#0b5394;-fx-padding:0;");
+        portalLink.setOnAction(e -> openInDefaultBrowser("https://www.multiplugins.ch/portal"));
+
+        linkRow.getChildren().addAll(prompt, portalLink);
+        banner.getChildren().addAll(head, body, linkRow);
+        return banner;
+    }
+
+    /**
+     * Opens a URL in the user's default browser. Tries {@link java.awt.Desktop}
+     * first, falls back to Windows {@code rundll32 url.dll,FileProtocolHandler}.
+     * Silent on failure — cosmetic feature, must never block the UI.
+     */
+    private void openInDefaultBrowser(String url) {
+        try {
+            java.awt.Desktop desktop = java.awt.Desktop.isDesktopSupported() ? java.awt.Desktop.getDesktop() : null;
+            if (desktop != null && desktop.isSupported(java.awt.Desktop.Action.BROWSE)) {
+                desktop.browse(java.net.URI.create(url));
+                return;
+            }
+        } catch (Exception ignored) {
+        }
+        try {
+            String os = System.getProperty("os.name", "").toLowerCase();
+            if (os.contains("win")) {
+                new ProcessBuilder("rundll32", "url.dll,FileProtocolHandler", url)
+                        .inheritIO()
+                        .start();
+            } else if (os.contains("mac")) {
+                new ProcessBuilder("open", url).start();
+            } else {
+                new ProcessBuilder("xdg-open", url).start();
+            }
+        } catch (Exception ex) {
+            log.warn("openInDefaultBrowser - failed to open {}: {}", url, ex.getMessage());
+        }
+    }
+
+    /**
      * Builds and shows the Plugin Update UI dialog with a table of plugins and action buttons.
      */
     private void buildPluginUpdateUI(List<String[]> rows, String pluginsDir, String urlBase, boolean serverConfigured) {
         // ── Table ──
         VBox tableBox = new VBox(4);
         tableBox.setPadding(new Insets(5));
+
+        // ── Missing-plugins banner (shown when no plugins OR any are missing) ──
+        boolean noPlugins = rows.isEmpty();
+        boolean anyMissing = rows.stream().anyMatch(r -> "MISSING".equals(r[5]));
+        if (noPlugins || anyMissing) {
+            tableBox.getChildren().add(buildPortalBanner(noPlugins, anyMissing));
+        }
 
         // Header
         HBox header = new HBox(10);
