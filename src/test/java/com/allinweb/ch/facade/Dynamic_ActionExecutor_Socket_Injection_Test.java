@@ -9,28 +9,26 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import java.net.ServerSocket;
-import java.time.Duration;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 
 /**
- * End-to-end injection test for the searchListAsync plugin via PerformListElements.
+ * End-to-end injection test for the actionExecutor plugin via PerformActionExecutorLoad.
  *
- * Unlike the page-scanner and hover-pick scripts (which use {@code executeScript}),
- * the searchListAsync bundle is an ASYNC Selenium script: it reads the Selenium
- * callback from {@code arguments[arguments.length-1]} and invokes it with a JSON
- * string when it's done. We must call {@link JavascriptExecutor#executeAsyncScript}
- * and set a script timeout that's longer than the script's internal 20-second guard.
+ * The actionExecutor differs from the page scanner / hover-pick / search-list bundles:
+ * it does NOT scan the DOM and return data. Instead it stays alive as a long-lived
+ * WebSocket listener that waits for ACTION commands from Java (click, type, select,
+ * scroll, …) and executes them on the page, sending back result frames.
  *
- * Argument order (8 positional args, matching the IIFE signature):
- *   0 searchTerms        Array<String>
- *   1 hiddenFields       boolean
- *   2 socketPort         int
- *   3 sessionId          string
- *   4 destination        string
- *   5 operationId        string
- *   6 homeBankingId      int
- *   7 botJobId           int
+ * The IIFE signature (6 positional args, matching the trailing
+ *   })( arguments[0..5] );
+ * call):
+ *   0 socketPort      int
+ *   1 sessionId       string
+ *   2 destination     string  (target session for routing)
+ *   3 operationId     string  (fixed "actionExecutor")
+ *   4 homeBankingId   int
+ *   5 botJobId        int
  *
  * Driver:  D:\Projects\ARWeb-Martini\ARWeb-Scanner\edgedriver-versions\msedgedriver_64-(147.0.3912.60).exe
  * Plugins: D:\Projects\ARWeb-Martini\ARWeb\plugins
@@ -38,7 +36,7 @@ import org.openqa.selenium.WebDriver;
  *
  * Run as a plain main — no JUnit needed.
  */
-public class Dynamic_SearchListAsync_Socket_Injection_Test {
+public class Dynamic_ActionExecutor_Socket_Injection_Test {
 
     private static final String EDGE_DRIVER =
             "D:\\Projects\\ARWeb-Martini\\ARWeb-Scanner\\edgedriver-versions\\msedgedriver_64-(147.0.3912.60).exe";
@@ -48,13 +46,12 @@ public class Dynamic_SearchListAsync_Socket_Injection_Test {
     private static final String TEST_PAGE = "https://www.inlinea.ch/auth/ui/app/auth/flow/web-app/password";
 
     /**
-     * Which searchListAsync bundle to inject.
-     *   - SEARCH_LIST_ASYNC_RELATIVE_PATH_MIN      → minified production bundle
-     *   - SEARCH_LIST_ASYNC_RELATIVE_PATH_ORIG_MIN → original minified script-search-in-use-list-async.min.js
-     *   - SEARCH_LIST_ASYNC_RELATIVE_PATH_NOT_MIN  → readable, easier to debug (if present)
+     * Which actionExecutor bundle to inject.
+     *   - ACTION_EXECUTION_RELATIVE_PATH_MIN      → production minified bundle
+     *   - ACTION_EXECUTION_RELATIVE_PATH_ORIG_MIN → action-executor-in-use.min.js
+     *   - ACTION_EXECUTION_RELATIVE_PATH_NOT_MIN  → action-executor-in-use.js (readable)
      */
-    private static final String SCRIPT_PATH = PerformListElements.SEARCH_LIST_ASYNC_RELATIVE_PATH_MIN;
-    // private static final String SCRIPT_PATH = PerformListElements.SEARCH_LIST_ASYNC_RELATIVE_PATH_ORIG_MIN;
+    private static final String SCRIPT_PATH = PerformActionExecutorLoad.ACTION_EXECUTION_RELATIVE_PATH_MIN;
 
     public static void main(String[] args) throws Exception {
 
@@ -82,7 +79,7 @@ public class Dynamic_SearchListAsync_Socket_Injection_Test {
         Thread.sleep(300);
         System.out.println("[setup] WS server listening on port " + port);
 
-        // ── 3. Load the searchListAsync script via PerformPreLoad ───────────────
+        // ── 3. Load the actionExecutor script via PerformPreLoad ────────────────
         String script = PerformPreLoad.loadPluginScript(SCRIPT_PATH);
         System.out.println("[setup] loaded script (" + SCRIPT_PATH + "): " + script.length() + " chars");
 
@@ -105,31 +102,22 @@ public class Dynamic_SearchListAsync_Socket_Injection_Test {
         try {
             Thread.sleep(500);
 
-            // ── 5. Inject the searchListAsync script (executeAsyncScript) ───────
-            // The script reads its callback from arguments[arguments.length-1],
-            // so we must pass our 8 args first; Selenium appends the callback.
-            // Set a script timeout > 20s (the script's internal timeout fallback).
-            driver.manage().timeouts().scriptTimeout(Duration.ofSeconds(30));
-
-            String sessionId = "scannerTool";
+            // ── 5. Inject the actionExecutor (executeScript, 6 positional args) ─
+            String sessionId = "actionExec-test-1";
             JavascriptExecutor js = (JavascriptExecutor) driver;
-
-            long t0 = System.currentTimeMillis();
-            Object result = js.executeAsyncScript(
+            Object result = js.executeScript(
                     script,
-                    java.util.Arrays.asList("button", "textarea", "input", "label", "a", "select"), // searchTerms
-                    false, // hiddenFields
                     port, // socketPort
                     sessionId, // sessionId
                     "scannerGrid", // destination
-                    "searchTerms", // operationId
+                    "actionExecutor", // operationId
                     184L, // homeBankingId
                     310L); // botJobId
-            long elapsed = System.currentTimeMillis() - t0;
 
-            System.out.println("[inject] async script returned in " + elapsed + " ms, session=" + sessionId);
+            System.out.println("[inject] script injected, session=" + sessionId + ", port=" + port);
             if (result == null) {
-                System.out.println("[result] null");
+                System.out.println(
+                        "[result] null (actionExecutor stays alive — sends/receives via WebSocket, watch the WS log)");
             } else {
                 String s = String.valueOf(result);
                 System.out.println("[result] type=" + result.getClass().getSimpleName() + ", length=" + s.length());
@@ -146,8 +134,14 @@ public class Dynamic_SearchListAsync_Socket_Injection_Test {
                 }
             }
 
-            // Hold open briefly so the WS server has a chance to flush any frames
-            Thread.sleep(3_000);
+            System.out.println("[inject] holding browser open for 30s — actionExecutor will:");
+            System.out.println("           - connect to ws://localhost:" + port);
+            System.out.println("           - send `subscribe` echo");
+            System.out.println("           - emit ping-action every 15s");
+            System.out.println("           - wait for ACTION commands (none sent here, so it just stays connected)");
+
+            // ── 6. Hold so we can observe the WS handshake + ping frames ────────
+            Thread.sleep(30_000);
 
         } finally {
             driver.quit();

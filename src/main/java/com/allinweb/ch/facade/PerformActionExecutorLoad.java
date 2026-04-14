@@ -27,8 +27,13 @@ public class PerformActionExecutorLoad {
     private static volatile String jsActionExecutor = null;
 
     private static final boolean useNoEncrypted = true;
-    private static final String RELATIVE_PATH = "actionExecutor/actionExecutor.min.enc";
-    private static final String RELATIVE_PATH_MIN = "actionExecutor/build/actionExecutor.min.js";
+
+    public static final String ACTION_EXECUTION_RELATIVE_PATH = "actionExecutor/actionExecutor.min.enc";
+    public static final String ACTION_EXECUTION_RELATIVE_PATH_MIN = "actionExecutor/build/actionExecutor.min.js";
+    public static final String ACTION_EXECUTION_RELATIVE_PATH_ORIG_MIN =
+            "actionExecutor/build/action-executor-in-use.min.js";
+    public static final String ACTION_EXECUTION_RELATIVE_PATH_NOT_MIN =
+            "actionExecutor/build/action-executor-in-use.js";
 
     private PerformActionExecutorLoad() {}
 
@@ -48,7 +53,10 @@ public class PerformActionExecutorLoad {
             synchronized (PerformActionExecutorLoad.class) {
                 if (jsActionExecutor == null) {
                     jsActionExecutor = EncryptedPluginLoader.getInstance()
-                            .loadPlugin(useNoEncrypted ? RELATIVE_PATH_MIN : RELATIVE_PATH);
+                            .loadPlugin(
+                                    useNoEncrypted
+                                            ? ACTION_EXECUTION_RELATIVE_PATH_MIN
+                                            : ACTION_EXECUTION_RELATIVE_PATH);
                     log.info("PerformActionExecutorLoad - script loaded ({} chars)", jsActionExecutor.length());
                 }
             }
