@@ -53,7 +53,8 @@ public class Dynamic_SearchListAsync_Socket_Injection_Test {
      *   - SEARCH_LIST_ASYNC_RELATIVE_PATH_ORIG_MIN → original minified script-search-in-use-list-async.min.js
      *   - SEARCH_LIST_ASYNC_RELATIVE_PATH_NOT_MIN  → readable, easier to debug (if present)
      */
-    private static final String SCRIPT_PATH = PerformListElements.SEARCH_LIST_ASYNC_RELATIVE_PATH_MIN;
+    //    private static final String SCRIPT_PATH = PerformListElements.SEARCH_LIST_ASYNC_RELATIVE_PATH_MIN;
+    private static final String SCRIPT_PATH = PerformListElements.SEARCH_LIST_ASYNC_RELATIVE_PATH_ORIG_MIN;
 
     public static void main(String[] args) throws Exception {
 
