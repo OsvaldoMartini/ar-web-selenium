@@ -2081,8 +2081,7 @@ public class ARScannedElementPane extends ARPane {
             body.addProperty("email", licenseEmail != null ? licenseEmail : "");
 
             int hbId = this.currentBotJob != null ? this.currentBotJob.getHomeBankingId() : 0;
-            webSocketSessionManager.sendMessageJson(
-                    hbId, "scannerGrid", body.toString(), "REQUEST_SUPPORT_ELEMENTS");
+            webSocketSessionManager.sendMessageJson(hbId, "scannerGrid", body.toString(), "REQUEST_SUPPORT_ELEMENTS");
             log.info("requestSupportElements — WS message sent to scannerGrid");
 
         } catch (Exception ex) {
@@ -2130,8 +2129,8 @@ public class ARScannedElementPane extends ARPane {
 
                     // Page-Review envelope, elements-review variant. Same kind as Send path.
                     com.allinweb.ch.facade.SupportCapture capture = new com.allinweb.ch.facade.SupportCapture();
-                    com.google.gson.JsonObject support = capture.buildElementsReviewEnvelope(
-                            driver, elementDetailsJson, message, null);
+                    com.google.gson.JsonObject support =
+                            capture.buildElementsReviewEnvelope(driver, elementDetailsJson, message, null);
                     support.addProperty("email", email != null ? email : "");
                     support.addProperty("orgKey", orgKey != null ? orgKey : "");
 
@@ -2945,8 +2944,7 @@ public class ARScannedElementPane extends ARPane {
         reset.setSessionId("scannerGrid");
         reset.setOperationId("searchTerms");
         reset.setElementDetails(new ElementDTO[0]);
-        webSocketSessionManager.sendMessageJson(
-                homeBankingId, "scannerGrid", new Gson().toJson(reset), "searchTerms");
+        webSocketSessionManager.sendMessageJson(homeBankingId, "scannerGrid", new Gson().toJson(reset), "searchTerms");
 
         SplitDTO payload = new SplitDTO();
         payload.setHomeBankingId(homeBankingId);
@@ -2959,6 +2957,60 @@ public class ARScannedElementPane extends ARPane {
 
         sendChunks(elements, 25, payload, webSocketSessionManager, "scannerGrid", "searchTerms");
         appendLog("Page Scanner: sent " + elements.size() + " elements to scannerGrid.", "info");
+
+        flashFoundElements(driver, elements);
+    }
+
+    /**
+     * Visual sweep: briefly pulses a red outline on each scanned element so
+     * the user can see which nodes the scanner picked up. Runs entirely in the
+     * browser (one executeScript call) to avoid per-element WebDriver RTTs.
+     * Best-effort — failures are swallowed since this is purely cosmetic.
+     */
+    private void flashFoundElements(WebDriver driver, List<ElementDTO> elements) {
+        if (driver == null || elements == null || elements.isEmpty()) return;
+
+        java.util.List<String> xPaths = new java.util.ArrayList<>(elements.size());
+        for (ElementDTO el : elements) {
+            String xp = el != null ? el.getXPath() : null;
+            if (xp != null && !xp.isBlank()) xPaths.add(xp);
+        }
+        if (xPaths.isEmpty()) return;
+
+        String js = "(function(xs, holdMs){"
+                + "  if(!xs||!xs.length) return;"
+                + "  var style=document.createElement('style');"
+                + "  style.id='__mp_scan_hl';"
+                + "  style.textContent='.__mp_scan_flash{outline:4px solid #ff1744 !important;"
+                + "    outline-offset:3px;"
+                + "    box-shadow:0 0 0 6px rgba(255,23,68,.55), 0 0 18px 4px rgba(255,23,68,.8) !important;"
+                + "    background-color:rgba(255,23,68,.12) !important;"
+                + "    transition:outline .1s ease, box-shadow .1s ease, background-color .1s ease;}';"
+                + "  document.head.appendChild(style);"
+                + "  var i=0;"
+                + "  function pulse(el, done){"
+                + "    el.classList.add('__mp_scan_flash');"
+                + "    setTimeout(function(){ el.classList.remove('__mp_scan_flash');"
+                + "      setTimeout(function(){ el.classList.add('__mp_scan_flash');"
+                + "        setTimeout(function(){ el.classList.remove('__mp_scan_flash'); done(); }, holdMs);"
+                + "      }, 120);"
+                + "    }, holdMs);"
+                + "  }"
+                + "  function step(){"
+                + "    if(i>=xs.length){ style.remove(); return; }"
+                + "    var r=document.evaluate(xs[i],document,null,XPathResult.FIRST_ORDERED_NODE_TYPE,null);"
+                + "    var el=r&&r.singleNodeValue;"
+                + "    i++;"
+                + "    if(!el||!el.classList){ return step(); }"
+                + "    try{ el.scrollIntoView({behavior:'smooth',block:'center',inline:'center'}); }catch(e){}"
+                + "    setTimeout(function(){ pulse(el, function(){ setTimeout(step, 150); }); }, 200);"
+                + "  }"
+                + "  step();"
+                + "})(arguments[0], arguments[1]);";
+        try {
+            ((JavascriptExecutor) driver).executeScript(js, xPaths, 450);
+        } catch (Exception ignore) {
+        }
     }
 
     public void revertCloneInjections(WebDriver driver) {

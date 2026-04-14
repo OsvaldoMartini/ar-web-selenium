@@ -7,6 +7,10 @@ import com.allinweb.ch.util.ConsoleRingBuffer;
 import com.allinweb.ch.util.LicenseFingerprint;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import java.io.ByteArrayOutputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -18,14 +22,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.zip.GZIPOutputStream;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import java.util.ArrayList;
-import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Dimension;
@@ -175,9 +174,18 @@ public class SupportCapture {
         String title = "";
         Dimension vp = null;
         if (driver != null) {
-            try { url = safeString(driver.getCurrentUrl()); } catch (Exception ignored) {}
-            try { title = safeString(driver.getTitle()); } catch (Exception ignored) {}
-            try { vp = driver.manage().window().getSize(); } catch (Exception ignored) {}
+            try {
+                url = safeString(driver.getCurrentUrl());
+            } catch (Exception ignored) {
+            }
+            try {
+                title = safeString(driver.getTitle());
+            } catch (Exception ignored) {
+            }
+            try {
+                vp = driver.manage().window().getSize();
+            } catch (Exception ignored) {
+            }
         }
 
         JsonArray elements;
@@ -302,13 +310,18 @@ public class SupportCapture {
      * in those cases the page still includes the DTO metadata with an error note.
      */
     private String buildClickedElementHtml(WebDriver driver, JsonObject clicked, String pageUrl, String pageTitle) {
-        String xPath = clicked != null && clicked.has("xPath") && !clicked.get("xPath").isJsonNull()
-                ? clicked.get("xPath").getAsString()
-                : "";
-        String tagName = clicked != null && clicked.has("tagName") && !clicked.get("tagName").isJsonNull()
+        String xPath =
+                clicked != null && clicked.has("xPath") && !clicked.get("xPath").isJsonNull()
+                        ? clicked.get("xPath").getAsString()
+                        : "";
+        String tagName = clicked != null
+                        && clicked.has("tagName")
+                        && !clicked.get("tagName").isJsonNull()
                 ? clicked.get("tagName").getAsString()
                 : "";
-        String definedName = clicked != null && clicked.has("definedName") && !clicked.get("definedName").isJsonNull()
+        String definedName = clicked != null
+                        && clicked.has("definedName")
+                        && !clicked.get("definedName").isJsonNull()
                 ? clicked.get("definedName").getAsString()
                 : "";
 
@@ -326,14 +339,27 @@ public class SupportCapture {
                     locateError = "No element matched xPath";
                 } else {
                     WebElement we = matches.get(0);
-                    try { displayed = we.isDisplayed(); } catch (Exception ignored) {}
-                    try { enabled = we.isEnabled(); } catch (Exception ignored) {}
-                    try { outerHtml = we.getAttribute("outerHTML"); } catch (Exception ignored) {}
-                    try { innerHtml = we.getAttribute("innerHTML"); } catch (Exception ignored) {}
+                    try {
+                        displayed = we.isDisplayed();
+                    } catch (Exception ignored) {
+                    }
+                    try {
+                        enabled = we.isEnabled();
+                    } catch (Exception ignored) {
+                    }
+                    try {
+                        outerHtml = we.getAttribute("outerHTML");
+                    } catch (Exception ignored) {
+                    }
+                    try {
+                        innerHtml = we.getAttribute("innerHTML");
+                    } catch (Exception ignored) {
+                    }
                     try {
                         WebElement parent = we.findElement(By.xpath(".."));
                         if (parent != null) parentHtml = parent.getAttribute("outerHTML");
-                    } catch (Exception ignored) {}
+                    } catch (Exception ignored) {
+                    }
                 }
             } catch (Exception ex) {
                 locateError = ex.getClass().getSimpleName() + ": " + ex.getMessage();
@@ -346,7 +372,9 @@ public class SupportCapture {
 
         StringBuilder sb = new StringBuilder(8192);
         sb.append("<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\">");
-        sb.append("<title>Element Review — ").append(htmlEscape(definedName.isBlank() ? tagName : definedName)).append("</title>");
+        sb.append("<title>Element Review — ")
+                .append(htmlEscape(definedName.isBlank() ? tagName : definedName))
+                .append("</title>");
         sb.append("<style>body{font-family:system-ui,Segoe UI,Arial,sans-serif;margin:20px;color:#222}"
                 + "h1{font-size:18px;margin:0 0 6px}"
                 + "h2{font-size:14px;color:#0b5394;margin:18px 0 6px;border-bottom:1px solid #eee;padding-bottom:4px}"
@@ -359,22 +387,39 @@ public class SupportCapture {
 
         sb.append("<h1>Element Review</h1>");
         sb.append("<div class=\"meta\">")
-                .append("<span><b>Page:</b> ").append(htmlEscape(pageTitle)).append("</span>")
-                .append("<span><b>URL:</b> ").append(htmlEscape(pageUrl)).append("</span>")
-                .append("<span><b>Captured:</b> ").append(htmlEscape(Instant.now().toString())).append("</span>")
+                .append("<span><b>Page:</b> ")
+                .append(htmlEscape(pageTitle))
+                .append("</span>")
+                .append("<span><b>URL:</b> ")
+                .append(htmlEscape(pageUrl))
+                .append("</span>")
+                .append("<span><b>Captured:</b> ")
+                .append(htmlEscape(Instant.now().toString()))
+                .append("</span>")
                 .append("</div>");
 
         sb.append("<h2>Target DTO</h2><pre>")
-                .append(htmlEscape(clicked != null ? new GsonBuilder().setPrettyPrinting().create().toJson(clicked) : "(none)"))
+                .append(htmlEscape(
+                        clicked != null
+                                ? new GsonBuilder().setPrettyPrinting().create().toJson(clicked)
+                                : "(none)"))
                 .append("</pre>");
 
         sb.append("<h2>Live Locate</h2><div class=\"meta\">")
-                .append("<span><b>xPath:</b> ").append(htmlEscape(xPath)).append("</span>")
-                .append("<span><b>displayed:</b> ").append(displayed).append("</span>")
-                .append("<span><b>enabled:</b> ").append(enabled).append("</span>")
+                .append("<span><b>xPath:</b> ")
+                .append(htmlEscape(xPath))
+                .append("</span>")
+                .append("<span><b>displayed:</b> ")
+                .append(displayed)
+                .append("</span>")
+                .append("<span><b>enabled:</b> ")
+                .append(enabled)
+                .append("</span>")
                 .append("</div>");
         if (locateError != null) {
-            sb.append("<p class=\"err\">Locate failed: ").append(htmlEscape(locateError)).append("</p>");
+            sb.append("<p class=\"err\">Locate failed: ")
+                    .append(htmlEscape(locateError))
+                    .append("</p>");
         }
 
         appendSection(sb, "outerHTML (rendered)", outerHtml, true);
@@ -426,9 +471,14 @@ public class SupportCapture {
             JsonObject el = raw.getAsJsonObject();
 
             JsonObject live = new JsonObject();
-            String xPath = el.has("xPath") && !el.get("xPath").isJsonNull() ? el.get("xPath").getAsString() : "";
-            String tag = el.has("tagName") && !el.get("tagName").isJsonNull() ? el.get("tagName").getAsString() : "";
-            Integer id = el.has("id") && !el.get("id").isJsonNull() ? el.get("id").getAsInt() : null;
+            String xPath = el.has("xPath") && !el.get("xPath").isJsonNull()
+                    ? el.get("xPath").getAsString()
+                    : "";
+            String tag = el.has("tagName") && !el.get("tagName").isJsonNull()
+                    ? el.get("tagName").getAsString()
+                    : "";
+            Integer id =
+                    el.has("id") && !el.get("id").isJsonNull() ? el.get("id").getAsInt() : null;
             if (id != null) live.addProperty("id", id);
             live.addProperty("tagName", tag);
             live.addProperty("xPath", xPath);
@@ -449,35 +499,49 @@ public class SupportCapture {
                     WebElement we = matches.get(0);
                     live.addProperty("found", true);
                     live.addProperty("matchCount", matches.size());
-                    try { live.addProperty("displayed", we.isDisplayed()); } catch (Exception ignored) {}
-                    try { live.addProperty("enabled", we.isEnabled()); } catch (Exception ignored) {}
-                    try { live.addProperty("selected", we.isSelected()); } catch (Exception ignored) {}
+                    try {
+                        live.addProperty("displayed", we.isDisplayed());
+                    } catch (Exception ignored) {
+                    }
+                    try {
+                        live.addProperty("enabled", we.isEnabled());
+                    } catch (Exception ignored) {
+                    }
+                    try {
+                        live.addProperty("selected", we.isSelected());
+                    } catch (Exception ignored) {
+                    }
                     try {
                         Point p = we.getLocation();
                         JsonObject loc = new JsonObject();
                         loc.addProperty("x", p.getX());
                         loc.addProperty("y", p.getY());
                         live.add("location", loc);
-                    } catch (Exception ignored) {}
+                    } catch (Exception ignored) {
+                    }
                     try {
                         Dimension d = we.getSize();
                         JsonObject sz = new JsonObject();
                         sz.addProperty("w", d.getWidth());
                         sz.addProperty("h", d.getHeight());
                         live.add("size", sz);
-                    } catch (Exception ignored) {}
+                    } catch (Exception ignored) {
+                    }
                     try {
                         String text = we.getText();
                         if (text != null) live.addProperty("text", sanitize(text));
-                    } catch (Exception ignored) {}
+                    } catch (Exception ignored) {
+                    }
                     try {
                         String outer = we.getAttribute("outerHTML");
                         if (outer != null) live.addProperty("outerHTML", outer);
-                    } catch (Exception ignored) {}
+                    } catch (Exception ignored) {
+                    }
                     try {
                         String inner = we.getAttribute("innerHTML");
                         if (inner != null) live.addProperty("innerHTML", inner);
-                    } catch (Exception ignored) {}
+                    } catch (Exception ignored) {
+                    }
                 }
             } catch (Exception ex) {
                 live.addProperty("found", false);
