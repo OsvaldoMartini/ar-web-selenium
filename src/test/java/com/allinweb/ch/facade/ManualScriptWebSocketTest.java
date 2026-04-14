@@ -157,7 +157,8 @@ public class ManualScriptWebSocketTest {
         for (int i = 1; i < lines.length; i++) {
             int idx = lines[i].indexOf(':');
             if (idx > 0) {
-                out.put(lines[i].substring(0, idx).trim().toLowerCase(),
+                out.put(
+                        lines[i].substring(0, idx).trim().toLowerCase(),
                         lines[i].substring(idx + 1).trim());
             }
         }
