@@ -2824,6 +2824,19 @@ public class ARScannedElementPane extends ARPane {
             return;
         }
 
+        // Reset the grid before streaming chunks so a fresh scan doesn't
+        // accumulate on top of a previous page's results.
+        SplitDTO reset = new SplitDTO();
+        reset.setHomeBankingId(homeBankingId);
+        reset.setBotJobId(botJobId);
+        reset.setBotJobName(this.currentBotJob.getName());
+        reset.setType("SEARCH_TOOL");
+        reset.setSessionId("scannerGrid");
+        reset.setOperationId("searchTerms");
+        reset.setElementDetails(new ElementDTO[0]);
+        webSocketSessionManager.sendMessageJson(
+                homeBankingId, "scannerGrid", new Gson().toJson(reset), "searchTerms");
+
         SplitDTO payload = new SplitDTO();
         payload.setHomeBankingId(homeBankingId);
         payload.setBotJobId(botJobId);
