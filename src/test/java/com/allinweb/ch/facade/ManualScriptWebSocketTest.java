@@ -140,18 +140,36 @@ public class ManualScriptWebSocketTest {
         }
     }
 
+    private static final com.google.gson.Gson PRETTY = new com.google.gson.GsonBuilder()
+            .setPrettyPrinting()
+            .disableHtmlEscaping()
+            .create();
+
     private static void handleText(String payload, OutputStream out) throws IOException {
         System.out.println("[TXT] " + truncate(payload, 200));
         // Try to base64-decode (the manual script sends everything base64-wrapped)
         try {
             String decoded = new String(Base64.getDecoder().decode(payload), StandardCharsets.UTF_8);
-            System.out.println("      decoded: " + truncate(decoded, 400));
+            System.out.println("      decoded (" + decoded.length() + " chars):");
+            try {
+                com.google.gson.JsonElement parsed = com.google.gson.JsonParser.parseString(decoded);
+                System.out.println(indent(PRETTY.toJson(parsed), "        "));
+            } catch (Exception notJson) {
+                System.out.println("        " + decoded);
+            }
         } catch (IllegalArgumentException ignored) {
             // not base64, that's fine
         }
         // Simple ack so the script can observe round-trip
         String ack = "{\"type\":\"ack\",\"body\":\"received " + payload.length() + " chars\"}";
         sendFrame(out, 0x1, ack.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static String indent(String s, String prefix) {
+        StringBuilder sb = new StringBuilder(s.length() + 64);
+        for (String line : s.split("\n", -1)) sb.append(prefix).append(line).append('\n');
+        if (sb.length() > 0) sb.setLength(sb.length() - 1);
+        return sb.toString();
     }
 
     // ── HTTP header reader ──────────────────────────────────────────────────

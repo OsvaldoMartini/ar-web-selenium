@@ -4,6 +4,10 @@ import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.util.ARConstantsEngine;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
 import java.net.ServerSocket;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
@@ -40,8 +44,7 @@ public class Dynamic_PageScanner_Socket_Injection_Test {
      *   - SCANNER_RELATIVE_PATH_MIN     → minified production bundle
      */
     private static final String SCRIPT_PATH = PerformPreLoad.SCANNER_RELATIVE_PATH_MIN;
-//    private static final String SCRIPT_PATH = PerformPreLoad.SCANNER_RELATIVE_PATH_ORIG_MIN;
-
+    //    private static final String SCRIPT_PATH = PerformPreLoad.SCANNER_RELATIVE_PATH_ORIG_MIN;
 
     public static void main(String[] args) throws Exception {
 
@@ -101,7 +104,7 @@ public class Dynamic_PageScanner_Socket_Injection_Test {
             // Selenium's executeScript args become the IIFE parameters directly.
             String sessionId = "scannerTool";
             JavascriptExecutor js = (JavascriptExecutor) driver;
-            js.executeScript(
+            Object result = js.executeScript(
                     script,
                     java.util.Arrays.asList("button", "textarea", "input", "label", "a", "select"), // searchTerms
                     false, // hiddenFields
@@ -113,6 +116,23 @@ public class Dynamic_PageScanner_Socket_Injection_Test {
                     310L); // botJobId
 
             System.out.println("[inject] script injected, session=" + sessionId + ", port=" + port);
+            if (result == null) {
+                System.out.println("[result] null (page scanner sends elements via WebSocket — watch the WS log)");
+            } else {
+                String s = String.valueOf(result);
+                System.out.println("[result] type=" + result.getClass().getSimpleName() + ", length=" + s.length());
+                try {
+                    Gson pretty = new GsonBuilder()
+                            .setPrettyPrinting()
+                            .disableHtmlEscaping()
+                            .create();
+                    JsonElement parsed = JsonParser.parseString(s);
+                    System.out.println("[result] pretty JSON:");
+                    System.out.println(pretty.toJson(parsed));
+                } catch (Exception parseErr) {
+                    System.out.println("[result] (not JSON) preview: " + s.substring(0, Math.min(500, s.length())));
+                }
+            }
             System.out.println("[inject] holding browser open for 20s — watch the WS log above");
 
             // ── 6. Give the script time to scan + send WS frames ────────────────
