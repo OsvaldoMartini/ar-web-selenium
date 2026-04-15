@@ -94,7 +94,6 @@ Name: "excel";      Description: "Apo Bank.xlsx (Excel template)";              
 Name: "edgedriver"; Description: "Edge WebDriver (146.0.3856.62)";                 Types: full custom
 Name: "javafx";     Description: "JavaFX runtime";                                 Types: full custom
 Name: "javajce";    Description: "Java JCE extensions";                            Types: full custom
-Name: "javart";     Description: "Java runtime (java/ folder)";                    Types: full custom
 Name: "lang";       Description: "Language files";                                 Types: full custom
 Name: "appconfig";  Description: "configuration.properties";                       Types: full custom
 Name: "launcher";   Description: "exec_launcher-4.2.bat";                         Types: full custom
@@ -125,9 +124,6 @@ Source: "{#SrcScanner}\javaJCE\*"; DestDir: "{app}\ARWeb-Scanner\javaJCE"; Compo
 
 ; ── JavaFX  ->  {app}\ARWeb-Scanner\javaFX (recursive) ──────────────────────
 Source: "{#SrcScanner}\javaFX\*"; DestDir: "{app}\ARWeb-Scanner\javaFX"; Components: javafx; Flags: ignoreversion confirmoverwrite recursesubdirs createallsubdirs
-
-; ── Java runtime  ->  {app}\ARWeb-Scanner\java (recursive) ──────────────────
-Source: "{#SrcScanner}\java\*"; DestDir: "{app}\ARWeb-Scanner\java"; Components: javart; Flags: ignoreversion confirmoverwrite recursesubdirs createallsubdirs
 
 ; ── Edge WebDriver  ->  {app}\ARWeb-Scanner\edgedriver-versions ──────────────
 Source: "{#SrcScanner}\edgedriver-versions\*"; DestDir: "{app}\ARWeb-Scanner\edgedriver-versions"; Components: edgedriver; Flags: ignoreversion confirmoverwrite recursesubdirs createallsubdirs
