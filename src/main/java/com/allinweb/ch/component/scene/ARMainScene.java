@@ -20,7 +20,7 @@ import org.openqa.selenium.WebDriver;
 public class ARMainScene extends ARScene {
 
     private static final Double SCENE_HEIGHT = 600D;
-    private static final Double SCENE_WIDTH = 700D;
+    private static final Double SCENE_WIDTH = 960D;
     private static final String TITLE = "AR Web Bot Job List";
     private static final ARMainPane arMainPane;
     private static final ARPropertyManager arPropertyManager;

@@ -207,8 +207,12 @@ public class LicenseActivationApp extends Application {
                                 }
                                 String desktopDir = getDesktopDir();
 
-                                LicenseManager.generateRequestFile(
-                                        desktopDir, tfOrganization.getText().trim(), owner, email);
+                                String orgName = tfOrganization.getText().trim();
+                                LicenseManager.generateRequestFile(desktopDir, orgName, owner, email);
+                                ARPropertyManager.getInstance()
+                                        .setProperty(ARPropertyEnum.LICENSE_ORG_NAME.getValue(), orgName);
+                                ARPropertyManager.getInstance()
+                                        .setProperty(ARPropertyEnum.LICENSE_OWNER.getValue(), owner);
                                 performMessage.showCustomModalDialogDragWin11(
                                         "Request File Generated Successfully!",
                                         "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>The request file for license generation has been successfully created.</span>",

@@ -490,6 +490,11 @@ public class ARLicensePane extends ARPane {
                             String owner = tfLicenseOwner.getText().trim();
                             String email = tfEmail.getText().trim();
 
+                            ARPropertyManager.getInstance()
+                                    .setProperty(ARPropertyEnum.LICENSE_ORG_NAME.getValue(), organization);
+                            ARPropertyManager.getInstance()
+                                    .setProperty(ARPropertyEnum.LICENSE_OWNER.getValue(), owner);
+
                             if (tbOnlineRequest.isSelected()) {
                                 // ── Online request: send to API ──
                                 String result = LicenseManager.sendRequestOnline(organization, owner, email);

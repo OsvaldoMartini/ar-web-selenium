@@ -2125,14 +2125,27 @@ public class ARScannedElementPane extends ARPane {
 
                 } else if ("save".equals(action)) {
                     String email = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.LICENSE_EMAIL);
-                    String orgKey = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.LICENSE_ORG_KEY);
+                    String orgName = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.LICENSE_ORG_NAME);
+                    String ownerName = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.LICENSE_OWNER);
 
                     // Page-Review envelope, elements-review variant. Same kind as Send path.
                     com.allinweb.ch.facade.SupportCapture capture = new com.allinweb.ch.facade.SupportCapture();
                     com.google.gson.JsonObject support =
                             capture.buildElementsReviewEnvelope(driver, elementDetailsJson, message, null);
                     support.addProperty("email", email != null ? email : "");
-                    support.addProperty("orgKey", orgKey != null ? orgKey : "");
+                    support.addProperty("requesterName", ownerName != null ? ownerName : "");
+                    support.addProperty("userName", com.allinweb.ch.license.SystemDetails.getSystemUserName());
+                    support.addProperty("organizationName", orgName != null ? orgName : "");
+
+                    // Mask URLs for compliance — replace real URLs with placeholder
+                    if (support.has("browser") && support.get("browser").isJsonObject()) {
+                        com.google.gson.JsonObject browser = support.getAsJsonObject("browser");
+                        browser.addProperty("url", "www.example.com");
+                        if (browser.has("title")) {
+                            String title = browser.get("title").getAsString();
+                            browser.addProperty("title", title.replaceAll("https?://[^\\s/]+", "www.example.com"));
+                        }
+                    }
 
                     String timestamp = java.time.LocalDateTime.now()
                             .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));

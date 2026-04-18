@@ -52,6 +52,7 @@ public class ARMainPane extends ARPane {
     private static final ARViewBotJobScene arViewBotJobScene;
     private static final ARSaveCloneScene arSaveCloneScene;
     private static final ARNewBotJobScene arNewBotJobScene;
+    private static final ARNewHomeBankingScene arNewHomeBankingScene;
     private static final ARWebDriver arWebDriver;
     private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
     protected static volatile ARMainPane instance;
@@ -69,6 +70,7 @@ public class ARMainPane extends ARPane {
         arConfigurationScene = ARConfigurationScene.getInstance();
         arViewBotJobScene = ARViewBotJobScene.getInstance();
         arSaveCloneScene = ARSaveCloneScene.getInstance();
+        arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
         arWebDriver = ARWebDriver.getInstance();
     }
 
@@ -76,6 +78,7 @@ public class ARMainPane extends ARPane {
     public final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
     public final String CONNECTION_TYPE_SQLITE = "jdbc:sqlite:"; // no parameters needed
     // UI components
+    Button organizationsButton;
     Button newBotJobButton;
     Button cloneBotJobButton;
     // Button viewBotJobButton;
@@ -148,7 +151,14 @@ public class ARMainPane extends ARPane {
         double smallIconSize = ARConstants.SPACE_S; // smaller icon size
         Insets smallPadding = new Insets(4, 6, 4, 6);
 
-        newBotJobButton = builder.buildButton("New", smallHeight, ARConstants.ICON_NEW, smallIconSize, smallPadding);
+        String smallFont = "-fx-font-size: 11px;";
+
+        organizationsButton =
+                builder.buildButton("Organizations", smallHeight, ARConstants.ICON_ORGS, smallIconSize, smallPadding);
+        organizationsButton.setStyle(
+                "-fx-background-color: #FFD580; -fx-text-fill: #333; -fx-font-weight: bold; -fx-background-radius: 4; " + smallFont);
+
+        newBotJobButton = builder.buildButton("New Bot Job", smallHeight, ARConstants.ICON_NEW, smallIconSize, smallPadding);
         cloneBotJobButton =
                 builder.buildButton("Clone Job", smallHeight, ARConstants.ICON_SAVE, smallIconSize, smallPadding);
         configureButton =
@@ -177,9 +187,18 @@ public class ARMainPane extends ARPane {
         aiTextArea.setManaged(false); // ensures space is not reserved when hidden
         aiTextArea.setPrefRowCount(4);
 
-        int buttonWidth = 100;
+        newBotJobButton.setStyle(smallFont);
+        cloneBotJobButton.setStyle(smallFont);
+        configureButton.setStyle(smallFont);
+        infoButton.setStyle(smallFont);
+        launchBotJobButton.setStyle(smallFont);
+        openBotJobButton.setStyle(smallFont);
+        exitButton.setStyle(smallFont);
+
+        int buttonWidth = 112;
 
         aiButton.setPrefWidth(buttonWidth);
+        organizationsButton.setPrefWidth(buttonWidth);
         newBotJobButton.setPrefWidth(buttonWidth);
         cloneBotJobButton.setPrefWidth(buttonWidth);
         configureButton.setPrefWidth(buttonWidth);
@@ -190,6 +209,7 @@ public class ARMainPane extends ARPane {
 
         buttonPane = new HBox(
                 //                aiButton,
+                organizationsButton,
                 newBotJobButton,
                 cloneBotJobButton,
                 configureButton,
@@ -256,6 +276,13 @@ public class ARMainPane extends ARPane {
             boolean visible = aiTextArea.isVisible();
             aiTextArea.setVisible(!visible);
             aiTextArea.setManaged(!visible);
+        });
+
+        organizationsButton.setOnMouseClicked(e -> {
+            var homeBank = performLists.getFirstHomeBanking();
+            arNewHomeBankingScene.initialize(homeBank);
+            Stage currentStage = (Stage) organizationsButton.getScene().getWindow();
+            arNewHomeBankingScene.showModal(currentStage);
         });
 
         newBotJobButton.setOnMouseClicked(e -> {

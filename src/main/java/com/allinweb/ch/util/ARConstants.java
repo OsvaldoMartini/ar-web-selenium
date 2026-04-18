@@ -94,6 +94,7 @@ public class ARConstants {
     public static final String ICON_RIGHT = "/right.png";
     public static final String ICON_DOCS = "/docs.png";
     public static final String ICON_CUBES = "/Cubes.png";
+    public static final String ICON_ORGS = "/organization-6.png";
     public static final String ICON_SCREEN = "/screen.png";
     public static final String ICON_TICK = "/tick.png";
     public static final String ICON_EQUAL = "/equal.png";
