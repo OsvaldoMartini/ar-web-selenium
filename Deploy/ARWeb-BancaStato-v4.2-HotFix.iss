@@ -15,7 +15,7 @@
 ; Source paths
 #define SrcPlugins  "C:\ARWebBancaStato\ARWeb\plugins"
 #define SrcScanner  "C:\ARWebBancaStato\ARWeb-Scanner"
-#define SrcDeploy   "C:\Martini\ar-web-selenium\Deploy"
+#define SrcDeploy   "C:\Martini\abr-web-selenium\Deploy"
 
 [Setup]
 AppId={{A3F7B2D1-9C4E-4A8B-B6D2-1E5F3A7C9D42}
@@ -89,12 +89,9 @@ Name: "engine";     Description: "AR_Web_Engine-4.2.jar";                       
 ; ── Plugins  ->  {app}\ARWeb\plugins ─────────────────────────────────────────
 ; confirmoverwrite asks the user before replacing existing files
 Source: "{#SrcPlugins}\manifest.json";       DestDir: "{app}\ARWeb\plugins"; Components: plugins; Flags: ignoreversion confirmoverwrite
-Source: "{#SrcPlugins}\pageScanner.zip";     DestDir: "{app}\ARWeb\plugins"; Components: plugins; Flags: ignoreversion confirmoverwrite
 Source: "{#SrcPlugins}\hoverPick.zip";       DestDir: "{app}\ARWeb\plugins"; Components: plugins; Flags: ignoreversion confirmoverwrite
-Source: "{#SrcPlugins}\searchList.zip";      DestDir: "{app}\ARWeb\plugins"; Components: plugins; Flags: ignoreversion confirmoverwrite
 Source: "{#SrcPlugins}\searchListAsync.zip"; DestDir: "{app}\ARWeb\plugins"; Components: plugins; Flags: ignoreversion confirmoverwrite
 Source: "{#SrcPlugins}\actionExecutor.zip";  DestDir: "{app}\ARWeb\plugins"; Components: plugins; Flags: ignoreversion confirmoverwrite
-Source: "{#SrcPlugins}\pluginTest.zip";      DestDir: "{app}\ARWeb\plugins"; Components: plugins; Flags: ignoreversion confirmoverwrite
 
 ; ── JAR files  ->  {app}\ARWeb-Scanner ───────────────────────────────────────
 Source: "{#SrcScanner}\AR_Web_Engine-4.2.jar";  DestDir: "{app}\ARWeb-Scanner"; Components: engine;  Flags: ignoreversion confirmoverwrite
