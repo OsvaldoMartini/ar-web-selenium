@@ -152,26 +152,23 @@ public final class MigrationRunner {
     private void ensureSchemaMigrationsTable() throws SQLException {
         String ddl;
         switch (dialect) {
-            case POSTGRES -> ddl =
-                    "CREATE TABLE IF NOT EXISTS schema_migrations ("
-                            + "version VARCHAR(20) PRIMARY KEY, "
-                            + "name VARCHAR(200) NOT NULL, "
-                            + "checksum CHAR(64) NOT NULL, "
-                            + "applied_at TIMESTAMP NOT NULL, "
-                            + "success BOOLEAN NOT NULL)";
-            case SQLITE -> ddl =
-                    "CREATE TABLE IF NOT EXISTS schema_migrations ("
-                            + "version TEXT PRIMARY KEY, name TEXT NOT NULL, "
-                            + "checksum TEXT NOT NULL, applied_at TEXT NOT NULL, "
-                            + "success INTEGER NOT NULL)";
+            case POSTGRES -> ddl = "CREATE TABLE IF NOT EXISTS schema_migrations ("
+                    + "version VARCHAR(20) PRIMARY KEY, "
+                    + "name VARCHAR(200) NOT NULL, "
+                    + "checksum CHAR(64) NOT NULL, "
+                    + "applied_at TIMESTAMP NOT NULL, "
+                    + "success BOOLEAN NOT NULL)";
+            case SQLITE -> ddl = "CREATE TABLE IF NOT EXISTS schema_migrations ("
+                    + "version TEXT PRIMARY KEY, name TEXT NOT NULL, "
+                    + "checksum TEXT NOT NULL, applied_at TEXT NOT NULL, "
+                    + "success INTEGER NOT NULL)";
             case ACCESS -> ddl =
                     // UCanAccess does not support IF NOT EXISTS — use defensive check
                     null;
-            default -> ddl =
-                    "CREATE TABLE schema_migrations ("
-                            + "version VARCHAR(20) PRIMARY KEY, name VARCHAR(200) NOT NULL, "
-                            + "checksum CHAR(64) NOT NULL, applied_at DATETIME NOT NULL, "
-                            + "success BIT NOT NULL)";
+            default -> ddl = "CREATE TABLE schema_migrations ("
+                    + "version VARCHAR(20) PRIMARY KEY, name VARCHAR(200) NOT NULL, "
+                    + "checksum CHAR(64) NOT NULL, applied_at DATETIME NOT NULL, "
+                    + "success BIT NOT NULL)";
         }
         if (dialect == Dialect.ACCESS && !tableExists("schema_migrations")) {
             ddl = "CREATE TABLE schema_migrations ("
@@ -197,32 +194,29 @@ public final class MigrationRunner {
     private Set<String> loadAppliedVersions() throws SQLException {
         Set<String> out = new HashSet<>();
         try (Statement s = conn.createStatement();
-                ResultSet rs = s.executeQuery(
-                        "SELECT version FROM schema_migrations WHERE success = "
-                                + (dialect == Dialect.SQLITE ? "1" : "TRUE"))) {
+                ResultSet rs = s.executeQuery("SELECT version FROM schema_migrations WHERE success = "
+                        + (dialect == Dialect.SQLITE ? "1" : "TRUE"))) {
             while (rs.next()) out.add(rs.getString(1));
         }
         return out;
     }
 
     private void verifyChecksum(Migration m) throws SQLException {
-        try (PreparedStatement ps = conn.prepareStatement(
-                        "SELECT checksum FROM schema_migrations WHERE version = ?")) {
+        try (PreparedStatement ps = conn.prepareStatement("SELECT checksum FROM schema_migrations WHERE version = ?")) {
             ps.setString(1, m.version());
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next()) return;
                 String stored = rs.getString(1);
                 if (!stored.equals(m.checksum())) {
-                    throw new SQLException(
-                            "Checksum drift on migration "
-                                    + m.version()
-                                    + " ("
-                                    + m.name()
-                                    + "). stored="
-                                    + stored
-                                    + " computed="
-                                    + m.checksum()
-                                    + ". Refusing to start.");
+                    throw new SQLException("Checksum drift on migration "
+                            + m.version()
+                            + " ("
+                            + m.name()
+                            + "). stored="
+                            + stored
+                            + " computed="
+                            + m.checksum()
+                            + ". Refusing to start.");
                 }
             }
         }
@@ -255,8 +249,7 @@ public final class MigrationRunner {
                 conn.commit();
             } catch (SQLException ignore) {
             }
-            throw new SQLException(
-                    "Migration " + m.version() + " (" + m.name() + ") failed: " + e.getMessage(), e);
+            throw new SQLException("Migration " + m.version() + " (" + m.name() + ") failed: " + e.getMessage(), e);
         } finally {
             conn.setAutoCommit(previousAutoCommit);
         }

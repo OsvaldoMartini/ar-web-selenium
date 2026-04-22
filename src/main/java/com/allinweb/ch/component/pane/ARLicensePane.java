@@ -492,8 +492,7 @@ public class ARLicensePane extends ARPane {
 
                             ARPropertyManager.getInstance()
                                     .setProperty(ARPropertyEnum.LICENSE_ORG_NAME.getValue(), organization);
-                            ARPropertyManager.getInstance()
-                                    .setProperty(ARPropertyEnum.LICENSE_OWNER.getValue(), owner);
+                            ARPropertyManager.getInstance().setProperty(ARPropertyEnum.LICENSE_OWNER.getValue(), owner);
 
                             if (tbOnlineRequest.isSelected()) {
                                 // ── Online request: send to API ──

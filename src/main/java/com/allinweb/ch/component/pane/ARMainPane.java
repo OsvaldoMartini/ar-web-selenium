@@ -156,9 +156,11 @@ public class ARMainPane extends ARPane {
         organizationsButton =
                 builder.buildButton("Organizations", smallHeight, ARConstants.ICON_ORGS, smallIconSize, smallPadding);
         organizationsButton.setStyle(
-                "-fx-background-color: #FFD580; -fx-text-fill: #333; -fx-font-weight: bold; -fx-background-radius: 4; " + smallFont);
+                "-fx-background-color: #FFD580; -fx-text-fill: #333; -fx-font-weight: bold; -fx-background-radius: 4; "
+                        + smallFont);
 
-        newBotJobButton = builder.buildButton("New Bot Job", smallHeight, ARConstants.ICON_NEW, smallIconSize, smallPadding);
+        newBotJobButton =
+                builder.buildButton("New Bot Job", smallHeight, ARConstants.ICON_NEW, smallIconSize, smallPadding);
         cloneBotJobButton =
                 builder.buildButton("Clone Job", smallHeight, ARConstants.ICON_SAVE, smallIconSize, smallPadding);
         configureButton =
