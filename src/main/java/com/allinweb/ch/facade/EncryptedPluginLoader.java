@@ -139,8 +139,8 @@ public class EncryptedPluginLoader {
             }
             try {
                 String js = decrypt(looseData);
-                cache.put(relativePath, js);
-                log.info("EncryptedPluginLoader — decrypted '{}' ({} chars) from {} [unzipped]",
+                // Intentionally NOT cached — dev mode, we want the alert to fire every call.
+                log.info("EncryptedPluginLoader — decrypted '{}' ({} chars) from {} [unzipped, dev]",
                         pluginId, js.length(), encPath);
                 return js;
             } catch (javax.crypto.AEADBadTagException e) {
@@ -171,8 +171,8 @@ public class EncryptedPluginLoader {
                     "Script will be injected without decryption. DO NOT ship this layout to production.");
             try {
                 String js = Files.readString(plainPath, StandardCharsets.UTF_8);
-                cache.put(relativePath, js);
-                log.info("EncryptedPluginLoader — loaded plaintext '{}' ({} chars) from {}",
+                // Intentionally NOT cached — dev mode, we want the alert to fire every call.
+                log.info("EncryptedPluginLoader — loaded plaintext '{}' ({} chars) from {} [dev]",
                         pluginId, js.length(), plainPath);
                 return js;
             } catch (IOException e) {
@@ -249,18 +249,13 @@ public class EncryptedPluginLoader {
 
     // ── Developer alert banner ──────────────────────────────────────────────
 
-    /** Plugins already alerted for in this JVM — one banner per plugin per mode. */
-    private final java.util.Set<String> alertedOnce = java.util.concurrent.ConcurrentHashMap.newKeySet();
-
     /**
      * Pop a developer-visible dialog when a non-production plugin layout is
-     * being used (loose .enc, or plain .min.js fallback). Shown once per
-     * (pluginId, mode) to avoid spamming.
+     * being used (loose .enc, or plain .min.js fallback). Fires on EVERY call
+     * so the developer always knows they are not running the production flow.
+     * Only the zip-in-memory production path is silent.
      */
     private void alertDeveloper(String mode, String pluginId, Path path, String detail) {
-        String tag = mode + "|" + pluginId;
-        if (!alertedOnce.add(tag)) return;
-
         String fileName = path.getFileName() != null ? path.getFileName().toString() : path.toString();
         String folder   = path.getParent() != null ? path.getParent().toString() : "";
 
@@ -286,7 +281,6 @@ public class EncryptedPluginLoader {
      */
     public void reloadAll() {
         cache.clear();
-        alertedOnce.clear();
         key = null; // force re-authentication on next load
         log.info("EncryptedPluginLoader - cache and key cleared");
     }
