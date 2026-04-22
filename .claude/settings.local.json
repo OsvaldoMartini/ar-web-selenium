@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(javac -d /tmp/plaintest src/test/java/com/allinweb/ch/facade/PlainPluginLoadTest.java)",
+      "Bash(java -cp /tmp/plaintest com.allinweb.ch.facade.PlainPluginLoadTest)",
+      "Bash(javac -d /tmp/wstest src/test/java/com/allinweb/ch/facade/ManualScriptWebSocketTest.java)",
+      "Bash(java:*)",
+      "Bash(javac -d /tmp/wstest src/test/java/com/allinweb/ch/facade/_WsSmokeClient.java)",
+      "Bash(mvn -q test-compile)",
+      "Bash(mvn -q spotless:apply)",
+      "Bash(mvn -q spotless:apply test-compile)",
+      "Bash(git mv:*)",
+      "Bash(mvn -q spotless:apply compile)",
+      "Bash(mvn -q spotless:apply compile test-compile)",
+      "Bash(ls -la script-search-in-use-list-async*)",
+      "Bash(cp searchListAsync.min.js searchListAsync.min.js.BACKUP)",
+      "Bash(cp script-search-in-use-list-async.min.js searchListAsync.min.js)",
+      "Bash(ls -la searchListAsync.min.js* script-search-in-use-list-async.min.js)",
+      "Bash(npx --version)",
+      "Bash(npx prettier:*)",
+      "Bash(cp actionExecutor.min.js action-executor-in-use.min.js)",
+      "Bash(ls -la action-executor-in-use*)",
+      "Bash(npx esbuild:*)",
+      "Bash(cp action-executor-in-use.min.js actionExecutor.min.js)",
+      "Bash(wc -l action-executor-in-use*.js)",
+      "Bash(node -c action-executor-in-use-BACKUP.js)",
+      "Read(//d/Projects_DevOps/MultiPlugins/original_scripts/versions/v1.0.0/actionExecutor/build/**)",
+      "Bash(npx --quiet esbuild action-executor-in-use.js --minify --outfile=action-executor-in-use.min.js)",
+      "Read(//d/Projects_DevOps/MultiPlugins/original_scripts/versions/v1.0.1/**)",
+      "Read(//d/Projects_DevOps/MultiPlugins/original_scripts/versions/v1.0.2/**)",
+      "Bash(node -c \"D:/Projects/ARWeb-Martini/ARWeb/plugins/pageScanner/build/script-search-in-use-async.js\")",
+      "Bash(node *)",
+      "Bash(javac -d out-vcl src/test/java/com/allinweb/ch/license/Verify_And_Create_License.java)"
+    ]
+  }
+}

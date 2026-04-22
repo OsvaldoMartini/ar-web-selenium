@@ -267,7 +267,7 @@ public class ARConfigurationPane extends ARPane {
         GridPane.setMargin(pathLogButton, new Insets(0, 0, 0, 5));
 
         // DB Type
-        pathAccessDBLabel = new Label("Access Database Path:");
+        pathAccessDBLabel = new Label("Database Path:");
         pathAccessDB = createPathTextField(ARPropertyEnum.PATH_DB);
         pathAccessDBButton = createPathButton();
 
@@ -361,7 +361,7 @@ public class ARConfigurationPane extends ARPane {
         // Column 2: DB Type
         VBox databaseColumn = new VBox(2);
         databaseColumn.getChildren().addAll(databaseLabel, databaseChoiceBox);
-        databaseColumn.setDisable(true);
+        databaseColumn.setDisable(false);
 
         // Column 3: Reload DB
         VBox reloadColumn = new VBox(2);
@@ -609,7 +609,7 @@ public class ARConfigurationPane extends ARPane {
 
         // Add listener to databaseChoiceBox
         databaseChoiceBox.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
-            if (ARConstants.ACCESS.equals(newVal)) {
+            if (ARConstants.ACCESS.equals(newVal) || ARConstants.SQLITE.equals(newVal)) {
                 pathAccessDB.setDisable(false);
                 dbUrl.setDisable(true);
                 dbUser.setDisable(true);
