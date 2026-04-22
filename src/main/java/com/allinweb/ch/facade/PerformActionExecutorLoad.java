@@ -99,7 +99,7 @@ public class PerformActionExecutorLoad {
                     botJobId); // arguments[5]
             return null;
         } catch (PerformPreLoad.PluginLoadException ple) {
-            log.error("PerformActionExecutorLoad - plugin load failed: {}", ple.getUserTitle(), ple);
+            PerformPreLoad.logPluginLoadFailure("PerformActionExecutorLoad", ple);
             return new ErrorMessage(
                     ple.getUserTitle(),
                     "Action Executor Plugin",

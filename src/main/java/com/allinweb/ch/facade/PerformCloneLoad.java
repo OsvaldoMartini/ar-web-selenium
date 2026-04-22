@@ -127,7 +127,7 @@ public class PerformCloneLoad {
                     currentUrl); // trustedOriginURL
             return null;
         } catch (PerformPreLoad.PluginLoadException ple) {
-            log.error("PerformCloneLoad - plugin load failed: {}", ple.getUserTitle(), ple);
+            PerformPreLoad.logPluginLoadFailure("PerformCloneLoad", ple);
             return new ErrorMessage(
                     ple.getUserTitle(),
                     "Hover Pick Plugin",

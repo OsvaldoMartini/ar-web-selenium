@@ -1,5 +1,10 @@
-package com.allinweb.ch.facade;
+package com.allinweb.ch.license;
 
+import javax.crypto.Cipher;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.PBEKeySpec;
+import javax.crypto.spec.SecretKeySpec;
 import java.io.Console;
 import java.io.OutputStream;
 import java.net.InetAddress;
@@ -9,7 +14,9 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.security.spec.KeySpec;
@@ -20,11 +27,6 @@ import java.util.Enumeration;
 import java.util.Scanner;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
-import javax.crypto.Cipher;
-import javax.crypto.SecretKeyFactory;
-import javax.crypto.spec.GCMParameterSpec;
-import javax.crypto.spec.PBEKeySpec;
-import javax.crypto.spec.SecretKeySpec;
 
 /**
  * Full pipeline test: ACTIVATE → UNZIP → DECRYPT → VALIDATE
@@ -58,7 +60,7 @@ public class EncryptedPluginLoaderTest {
     // MultiPlugins API (local PostgreSQL backend)
     private static final String API_URL = "https://multiplugins.ch/api";
 
-    private static final String DEFAULT_LICENSE = "D:/Projects/ARWeb-Martini/ARWeb-Scanner/ARWeb.lic";
+    private static final String DEFAULT_LICENSE = "D:\\Projects\\ARWeb-Martini\\ARWeb-Scanner\\ARWeb.lic";
     //    private static final String DEFAULT_LICENSE = "C:/ARWeb-ANDROMEDA/ARWeb-Scanner/ARWeb.lic";
     //    private static final String DEFAULT_LICENSE = "C:/Users/osval/Downloads/files/ARWeb-v4-2-1.lic";
     /** Plugin ID → expected .enc filename inside the zip */
@@ -79,7 +81,7 @@ public class EncryptedPluginLoaderTest {
         // "C:/ARWeb-ANDROMEDA/ARWeb/plugins";
 
         String pluginsDir =
-                args.length > 0 && !args[0].startsWith("--") ? args[0] : "C:\\ARWeb-Martini\\ARWeb\\plugins-Avaloq";
+                args.length > 0 && !args[0].startsWith("--") ? args[0] : "D:\\Projects\\ARWeb-Martini\\ARWeb\\plugins";
 
         boolean forceActivate = Arrays.asList(args).contains("--activate");
 

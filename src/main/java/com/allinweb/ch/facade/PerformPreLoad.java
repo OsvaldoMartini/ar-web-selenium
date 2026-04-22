@@ -220,6 +220,23 @@ public class PerformPreLoad {
         }
     }
 
+    /**
+     * Pretty one-block log for a {@link PluginLoadException}. No stack trace —
+     * the exception carries the same info in its fields, so a clean banner is
+     * enough for the operator. Use this from every caller that catches
+     * {@code PluginLoadException} to keep the logs uniform.
+     */
+    static void logPluginLoadFailure(String caller, PluginLoadException ple) {
+        String sep   = "──────────────────────────────────────────────────────────────";
+        String title = ple.getUserTitle();
+        String m1    = ple.getMsg1() != null ? ple.getMsg1() : "";
+        String m2    = ple.getMsg2() != null ? ple.getMsg2() : "";
+        String m3    = ple.getMsg3() != null ? ple.getMsg3() : "";
+        log.error(
+                "\n┌{}\n│ [plugin load failed] {}\n│   caller : {}\n│   reason : {}\n│   detail : {}\n│   fix    : {}\n└{}",
+                sep, title, caller, m1, m2, m3, sep);
+    }
+
     // Private constructor - use getInstance()
     private PerformPreLoad() {}
 

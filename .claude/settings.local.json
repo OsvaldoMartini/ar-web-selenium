@@ -30,7 +30,17 @@
       "Read(//d/Projects_DevOps/MultiPlugins/original_scripts/versions/v1.0.2/**)",
       "Bash(node -c \"D:/Projects/ARWeb-Martini/ARWeb/plugins/pageScanner/build/script-search-in-use-async.js\")",
       "Bash(node *)",
-      "Bash(javac -d out-vcl src/test/java/com/allinweb/ch/license/Verify_And_Create_License.java)"
+      "Bash(javac -d out-vcl src/test/java/com/allinweb/ch/license/Verify_And_Create_License.java)",
+      "Read(//c/Users/osval/Downloads/files/**)",
+      "Read(//c/ARWeb-ANDROMEDA/ARWeb-Scanner/**)",
+      "Read(//d/Projects/ARWebAvaloq/**)",
+      "Bash(javac -encoding UTF-8 -d /tmp/vcl-check src/test/java/com/allinweb/ch/license/Verify_And_Create_License.java)",
+      "Bash(rm -rf /tmp/vcl-check)",
+      "Bash(mvn -q -o compile -pl . -am)",
+      "Read(//tmp/**)",
+      "Bash(mvn -q dependency:build-classpath -Dmdep.outputFile=/tmp/cp2.txt)",
+      "Bash(mvn -q -o compile -Dspotless.check.skip=true -Dspotless.apply.skip=true)",
+      "Bash(echo \"EXIT=$?\")"
     ]
   }
 }

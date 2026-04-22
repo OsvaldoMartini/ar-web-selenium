@@ -235,7 +235,7 @@ public class PerformListElements {
 
             return ScanResult.ofElements(elements);
         } catch (PerformPreLoad.PluginLoadException ple) {
-            log.error("PerformListElements - plugin load failed: {}", ple.getUserTitle(), ple);
+            logPluginLoadFailure("PerformListElements", ple);
             return ScanResult.ofError(new ErrorMessage(
                     ple.getUserTitle(),
                     "Search List Async Plugin",
