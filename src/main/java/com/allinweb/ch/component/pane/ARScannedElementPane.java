@@ -1531,7 +1531,7 @@ public class ARScannedElementPane extends ARPane {
         countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
         countdownTextField.setEditable(true);
 
-        checkCloneElement = new CheckBox("PICK ONE ");
+        checkCloneElement = new CheckBox("HOVER PICK ");
 
         searchTermsLabel = new Label("Search by :");
         defineNameLabel = new Label("DEFINE ELEMENT NAME");

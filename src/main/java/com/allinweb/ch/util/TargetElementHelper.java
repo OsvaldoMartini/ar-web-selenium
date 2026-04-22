@@ -104,11 +104,11 @@ public class TargetElementHelper {
             TargetElement targetValidated = checkValidateSearchPriorities(targetLocal);
 
             if (targetValidated.getElement() == null) {
-                log.error("Cannot define this element. Try to get it again via 'Hover Pick Element' or 'Pick One'.");
+                log.error("Cannot define this element. Try to get it again via 'Hover Pick'.");
                 performMessage.errorMessage(
                         "I Cannot define this element",
                         "I will use the Locator 'COORDINATES'",
-                        "Try again using 'HOVER PICK ELEMENT' or 'PICK ONE'",
+                        "Try again using 'HOVER PICK'",
                         null,
                         null,
                         0);
