@@ -1515,7 +1515,7 @@ public class PerformDataBase {
                     instruction.setName(rs.getString("instruction_name"));
                     instruction.setXpath(rs.getString("xpath"));
                     instruction.setCoordinates(rs.getString("coordinates"));
-                    instruction.setForceCoordinates(rs.getBoolean("force_coordinates"));
+                    instruction.setForceCoordinates(rs.getString("force_coordinates"));
                     instruction.setIFrameXPath(rs.getString("iframe_xpath"));
 
                     instruction.setTagName(rs.getString("tag_name"));
@@ -2086,6 +2086,55 @@ public class PerformDataBase {
         }
     }
 
+    /**
+     * Update the force_coordinates flag column for a single instruction. Accepts
+     * any combination of {@code F}, {@code E}, {@code T}, {@code N} (order-insensitive).
+     * Passed value is stored verbatim — callers are responsible for canonicalising.
+     */
+    public ErrorMessage updateInstructionForceCoordinates(
+            String tableName, // "instruction" or "component_instruction"
+            int whereId, // bot_job_id or home_banking_id
+            int instructionId,
+            int blockId,
+            String forceCoordinates) {
+
+        if (!"instruction".equalsIgnoreCase(tableName) && !"component_instruction".equalsIgnoreCase(tableName)) {
+            return new ErrorMessage("Invalid table", "Unsupported tableName", tableName);
+        }
+
+        String idColumn = tableName.equalsIgnoreCase("instruction") ? "bot_job_id" : "home_banking_id";
+        String sql = "UPDATE " + tableName
+                + " SET force_coordinates = ? WHERE id = ? AND block_id = ? AND " + idColumn + " = ?";
+
+        try (Connection conn = getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, forceCoordinates == null ? "" : forceCoordinates);
+            pstmt.setInt(2, instructionId);
+            pstmt.setInt(3, blockId);
+            pstmt.setInt(4, whereId);
+
+            int rowsAffected = pstmt.executeUpdate();
+
+            if (rowsAffected == 0) {
+                logDB.warn("No instruction force_coordinates updated. InstructionId: " + instructionId);
+            } else {
+                logDB.info("Instruction force_coordinates updated. InstructionId: " + instructionId
+                        + ", Flags: '" + forceCoordinates + "'");
+            }
+
+            return null;
+
+        } catch (SQLException e) {
+            logDB.error("Error updating instruction force_coordinates. InstructionId: " + instructionId
+                    + ", Error: " + e.getMessage());
+            return new ErrorMessage(
+                    "Update Instruction ForceCoordinates Error",
+                    "Failed to update instruction force_coordinates",
+                    e.getMessage());
+        }
+    }
+
     public ErrorMessage updateBlockStatus(
             String tableName, // "block" or "component_block"
             int whereId, // bot_job_id or home_banking_id
@@ -2422,9 +2471,7 @@ public class PerformDataBase {
                         instructionLoad.getLoopOnly() != null ? (instructionLoad.getLoopOnly() ? 1 : 0) : null);
                 addColumnValue.accept(
                         "force_coordinates",
-                        instructionLoad.getForceCoordinates() != null
-                                ? (instructionLoad.getForceCoordinates() ? 1 : 0)
-                                : null);
+                        instructionLoad.getForceCoordinates() != null ? instructionLoad.getForceCoordinates() : "");
 
                 // Final insert
                 String insertSQL = String.format("INSERT INTO %s (%s) VALUES (%s)", tableName, columns, values);
@@ -2711,9 +2758,7 @@ public class PerformDataBase {
                         instructionLoad.getLoopOnly() != null ? (instructionLoad.getLoopOnly() ? 1 : 0) : null);
                 addColumnValue.accept(
                         "force_coordinates",
-                        instructionLoad.getForceCoordinates() != null
-                                ? (instructionLoad.getForceCoordinates() ? 1 : 0)
-                                : null);
+                        instructionLoad.getForceCoordinates() != null ? instructionLoad.getForceCoordinates() : "");
                 // Final SQL
                 String insertSQL = String.format("INSERT INTO %s (%s) VALUES (%s)", tableName, columns, values);
                 stmt.addBatch(insertSQL);
@@ -2873,9 +2918,7 @@ public class PerformDataBase {
                     InstructionOperation.getLoopOnly() != null ? (InstructionOperation.getLoopOnly() ? 1 : 0) : null);
             addColumnValue.accept(
                     "force_coordinates",
-                    InstructionOperation.getForceCoordinates() != null
-                            ? (InstructionOperation.getForceCoordinates() ? 1 : 0)
-                            : null);
+                    InstructionOperation.getForceCoordinates() != null ? InstructionOperation.getForceCoordinates() : "");
 
             if (setClause.isEmpty()) {
 
@@ -7177,7 +7220,7 @@ public class PerformDataBase {
                         instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
                         instruction.setXpath(rs.getString("xpath"));
                         instruction.setCoordinates(rs.getString("coordinates"));
-                        instruction.setForceCoordinates(rs.getBoolean("force_coordinates"));
+                        instruction.setForceCoordinates(rs.getString("force_coordinates"));
                         instruction.setIFrameXPath(rs.getString("iframe_xpath"));
                         instruction.setTagName(rs.getString("tag_name"));
                         instruction.setShadowHost(rs.getString("shadow_host"));

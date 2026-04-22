@@ -40,7 +40,12 @@
       "Read(//tmp/**)",
       "Bash(mvn -q dependency:build-classpath -Dmdep.outputFile=/tmp/cp2.txt)",
       "Bash(mvn -q -o compile -Dspotless.check.skip=true -Dspotless.apply.skip=true)",
-      "Bash(echo \"EXIT=$?\")"
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(git -C \"D:/Projects/AllinWeb/ar-web-selenium\" status --short)",
+      "Bash(git -C \"D:/Projects/AllinWeb/abr-react-ts-grid\" status --short)",
+      "Bash(git *)",
+      "Read(//d/Projects/AllinWeb/abr-react-ts-grid/**)",
+      "Bash(npx tsc *)"
     ]
   }
 }

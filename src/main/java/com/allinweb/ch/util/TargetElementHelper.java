@@ -184,7 +184,7 @@ public class TargetElementHelper {
         WebElement elementValid = null;
         if (!Strings.isNullOrEmpty(target.getCurrentXPath())) {
 
-            if (target.getForceCoordinates() != null && target.getForceCoordinates()) {
+            if (InputFlags.of(target.getForceCoordinates()).hasForce()) {
                 // Try by coordinates
                 try {
                     FieldData filedData = new FieldData("&EMPTY", "&EMPTY");

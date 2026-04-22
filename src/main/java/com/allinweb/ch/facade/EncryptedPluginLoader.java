@@ -120,32 +120,38 @@ public class EncryptedPluginLoader {
         //   Zip         → {plugins}/{pluginId}.zip
         int lastSep = Math.max(relativePath.lastIndexOf('/'), relativePath.lastIndexOf('\\'));
         String encBasename = lastSep >= 0 ? relativePath.substring(lastSep + 1) : relativePath;
-        String jsBasename  = encBasename.replaceAll("\\.min\\.enc$", ".min.js");
-        Path encPath   = pluginsDirPath.resolve(pluginId).resolve(encBasename);
+        String jsBasename = encBasename.replaceAll("\\.min\\.enc$", ".min.js");
+        Path encPath = pluginsDirPath.resolve(pluginId).resolve(encBasename);
         Path plainPath = pluginsDirPath.resolve(pluginId).resolve("build").resolve(jsBasename);
-        Path zipFile   = pluginsDirPath.resolve(pluginId + ".zip");
+        Path zipFile = pluginsDirPath.resolve(pluginId + ".zip");
 
         // ── Tier 1: loose .enc on disk (dev convenience: unzipped encrypted) ──
         if (Files.exists(encPath)) {
-            alertDeveloper("UNZIPPED ENCRYPTED FILE", pluginId, encPath,
+            alertDeveloper(
+                    "UNZIPPED ENCRYPTED FILE",
+                    pluginId,
+                    encPath,
                     "Production flow reads the same .enc from " + zipFile.getFileName() + " in memory.");
             ensureKey();
             byte[] looseData;
             try {
                 looseData = Files.readAllBytes(encPath);
             } catch (IOException e) {
-                throw new PerformPreLoad.PluginLoadException(
-                        "Failed to read plugin", e.getMessage(), null, null, e);
+                throw new PerformPreLoad.PluginLoadException("Failed to read plugin", e.getMessage(), null, null, e);
             }
             try {
                 String js = decrypt(looseData);
                 // Intentionally NOT cached — dev mode, we want the alert to fire every call.
-                log.info("EncryptedPluginLoader — decrypted '{}' ({} chars) from {} [unzipped, dev]",
-                        pluginId, js.length(), encPath);
+                log.info(
+                        "EncryptedPluginLoader — decrypted '{}' ({} chars) from {} [unzipped, dev]",
+                        pluginId,
+                        js.length(),
+                        encPath);
                 return js;
             } catch (javax.crypto.AEADBadTagException e) {
-                log.error("EncryptedPluginLoader — key mismatch for loose .enc '{}'. "
-                        + "The org key in ARWeb.lic does not match the key used to encrypt this file.",
+                log.error(
+                        "EncryptedPluginLoader — key mismatch for loose .enc '{}'. "
+                                + "The org key in ARWeb.lic does not match the key used to encrypt this file.",
                         pluginId);
                 throw new PerformPreLoad.PluginLoadException(
                         "Plugin key mismatch: " + pluginId,
@@ -154,8 +160,7 @@ public class EncryptedPluginLoader {
                         "Re-export the plugin with the matching org key, or request a new license.",
                         e);
             } catch (Exception e) {
-                log.error("EncryptedPluginLoader — failed to decrypt loose .enc '{}': {}",
-                        pluginId, e.getMessage());
+                log.error("EncryptedPluginLoader — failed to decrypt loose .enc '{}': {}", pluginId, e.getMessage());
                 throw new PerformPreLoad.PluginLoadException(
                         "Plugin decryption failed: " + pluginId,
                         "Could not decrypt: " + encPath,
@@ -167,13 +172,19 @@ public class EncryptedPluginLoader {
 
         // ── Tier 2: loose plaintext .min.js on disk (dev fallback, NO decrypt) ──
         if (Files.exists(plainPath)) {
-            alertDeveloper("NON-ENCRYPTED (dev) FILE", pluginId, plainPath,
+            alertDeveloper(
+                    "NON-ENCRYPTED (dev) FILE",
+                    pluginId,
+                    plainPath,
                     "Script will be injected without decryption. DO NOT ship this layout to production.");
             try {
                 String js = Files.readString(plainPath, StandardCharsets.UTF_8);
                 // Intentionally NOT cached — dev mode, we want the alert to fire every call.
-                log.info("EncryptedPluginLoader — loaded plaintext '{}' ({} chars) from {} [dev]",
-                        pluginId, js.length(), plainPath);
+                log.info(
+                        "EncryptedPluginLoader — loaded plaintext '{}' ({} chars) from {} [dev]",
+                        pluginId,
+                        js.length(),
+                        plainPath);
                 return js;
             } catch (IOException e) {
                 throw new PerformPreLoad.PluginLoadException(
@@ -257,22 +268,23 @@ public class EncryptedPluginLoader {
      */
     private void alertDeveloper(String mode, String pluginId, Path path, String detail) {
         String fileName = path.getFileName() != null ? path.getFileName().toString() : path.toString();
-        String folder   = path.getParent() != null ? path.getParent().toString() : "";
+        String folder = path.getParent() != null ? path.getParent().toString() : "";
 
-        PerformMessage.getInstance().showCustomModalDialogDragWin11(
-                "Developer Mode Active ⚠️",
-                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Unzipped plugin files detected — "
-                        + mode + "</span>",
-                "<span style='color: #1565C0; font-weight: bold;'>DEVELOPER MODE ACTIVATED.</span> "
-                        + "Do NOT forget to delete these files for production.",
-                "<span style='color: #6A1B9A; font-weight: bold;'>Plugin:</span> " + pluginId + "<br/>"
-                        + "<span style='color: #6A1B9A; font-weight: bold;'>File:</span> " + fileName,
-                "<span style='color: #6A1B9A; font-weight: bold;'>Folder:</span> " + folder + "<br/>"
-                        + "<span style='color: #E65100; font-weight: bold;'>💡 Note:</span> " + detail,
-                false,
-                "OK",
-                null,
-                0);
+        PerformMessage.getInstance()
+                .showCustomModalDialogDragWin11(
+                        "Developer Mode Active ⚠️",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Unzipped plugin files detected — "
+                                + mode + "</span>",
+                        "<span style='color: #1565C0; font-weight: bold;'>DEVELOPER MODE ACTIVATED.</span> "
+                                + "Do NOT forget to delete these files for production.",
+                        "<span style='color: #6A1B9A; font-weight: bold;'>Plugin:</span> " + pluginId + "<br/>"
+                                + "<span style='color: #6A1B9A; font-weight: bold;'>File:</span> " + fileName,
+                        "<span style='color: #6A1B9A; font-weight: bold;'>Folder:</span> " + folder + "<br/>"
+                                + "<span style='color: #E65100; font-weight: bold;'>💡 Note:</span> " + detail,
+                        false,
+                        "OK",
+                        null,
+                        0);
     }
 
     /**

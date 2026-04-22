@@ -43,7 +43,7 @@ public class TargetElement {
     String searchAttributeValue;
     String autoScroll;
     String autoEnter;
-    Boolean forceCoordinates = true;
+    String forceCoordinates = "F"; // F=force, E=enter, T=tab, N=next — combinable, e.g. "FE"
     Map<String, String> savedReferences = new HashMap<>();
     Integer instructionId;
     Boolean clickElement = true;
@@ -110,7 +110,7 @@ public class TargetElement {
         this.isElementHidden = null;
         this.cloned = false;
         this.searchAttributeValue = null;
-        this.forceCoordinates = false;
+        this.forceCoordinates = "";
         this.savedReferences = new HashMap<>();
         this.instructionId = null;
         this.clickElement = false;

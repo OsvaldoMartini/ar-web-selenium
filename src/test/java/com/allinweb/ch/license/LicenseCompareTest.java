@@ -286,8 +286,8 @@ public class LicenseCompareTest {
                         System.out.println("Key UNLOCKED (" + (key.length * 8) + "-bit AES)\n");
                     } else {
                         key = hexToBytes(content);
-                        System.out.println("Key loaded (plain hex): " + content.substring(0, 8) + "... (" + (key.length * 8)
-                                + "-bit AES)\n");
+                        System.out.println("Key loaded (plain hex): " + content.substring(0, 8) + "... ("
+                                + (key.length * 8) + "-bit AES)\n");
                     }
                 }
 
@@ -368,8 +368,10 @@ public class LicenseCompareTest {
 
                     try {
                         String js = decrypt(fileData, key);
-                        boolean validJs =
-                                js.contains("function") || js.contains("var ") || js.contains("const ") || js.contains("(");
+                        boolean validJs = js.contains("function")
+                                || js.contains("var ")
+                                || js.contains("const ")
+                                || js.contains("(");
 
                         if (validJs) {
                             System.out.println("  DECRYPT: OK (" + js.length() + " chars JavaScript)");
@@ -414,7 +416,8 @@ public class LicenseCompareTest {
 
         // ── Online activation via Supabase ──────────────────────────────────────
 
-        private static byte[] activateOnline(Path keyFile, String licenseFingerprint, String machineId) throws Exception {
+        private static byte[] activateOnline(Path keyFile, String licenseFingerprint, String machineId)
+                throws Exception {
             String hostname = getHostname();
             String osInfo = System.getProperty("os.name") + " " + System.getProperty("os.version");
             String javaVersion = System.getProperty("java.version");
@@ -433,8 +436,9 @@ public class LicenseCompareTest {
                     escapeJson(osInfo),
                     escapeJson(javaVersion));
 
-            HttpClient client =
-                    HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(15)).build();
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(15))
+                    .build();
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(API_URL + "/client/activate"))
                     .header("Content-Type", "application/json")
@@ -539,8 +543,8 @@ public class LicenseCompareTest {
                 sb.append(System.getProperty("os.name")).append("|");
                 sb.append(System.getProperty("user.name"));
 
-                return bytesToHex(
-                        MessageDigest.getInstance("SHA-256").digest(sb.toString().getBytes(StandardCharsets.UTF_8)));
+                return bytesToHex(MessageDigest.getInstance("SHA-256")
+                        .digest(sb.toString().getBytes(StandardCharsets.UTF_8)));
             } catch (Exception e) {
                 // Fallback
                 String fallback = getHostname() + "|" + System.getProperty("user.name");
@@ -613,7 +617,8 @@ public class LicenseCompareTest {
 
         // ── Key wrapping (ACTIVATED - machine-bound) ────────────────────────────
 
-        private static String wrapKeyActivated(byte[] pluginKey, String machineId, String fingerprint) throws Exception {
+        private static String wrapKeyActivated(byte[] pluginKey, String machineId, String fingerprint)
+                throws Exception {
             byte[] salt = new byte[SALT_LENGTH];
             new SecureRandom().nextBytes(salt);
             byte[] iv = new byte[IV_LENGTH];
@@ -622,7 +627,9 @@ public class LicenseCompareTest {
             byte[] wrapperKey = deriveKey(machineId, fingerprint, salt);
             Cipher cipher = Cipher.getInstance(ALGORITHM);
             cipher.init(
-                    Cipher.ENCRYPT_MODE, new SecretKeySpec(wrapperKey, "AES"), new GCMParameterSpec(TAG_LENGTH_BITS, iv));
+                    Cipher.ENCRYPT_MODE,
+                    new SecretKeySpec(wrapperKey, "AES"),
+                    new GCMParameterSpec(TAG_LENGTH_BITS, iv));
             byte[] encrypted = cipher.doFinal(pluginKey);
 
             byte[] combined = new byte[salt.length + iv.length + encrypted.length];
@@ -644,7 +651,9 @@ public class LicenseCompareTest {
             byte[] wrapperKey = deriveKey(secret, fingerprint, salt);
             Cipher cipher = Cipher.getInstance(ALGORITHM);
             cipher.init(
-                    Cipher.DECRYPT_MODE, new SecretKeySpec(wrapperKey, "AES"), new GCMParameterSpec(TAG_LENGTH_BITS, iv));
+                    Cipher.DECRYPT_MODE,
+                    new SecretKeySpec(wrapperKey, "AES"),
+                    new GCMParameterSpec(TAG_LENGTH_BITS, iv));
             return cipher.doFinal(encrypted);
         }
 
@@ -694,7 +703,8 @@ public class LicenseCompareTest {
             int len = hex.length();
             byte[] bytes = new byte[len / 2];
             for (int i = 0; i < len; i += 2) {
-                bytes[i / 2] = (byte) ((Character.digit(hex.charAt(i), 16) << 4) + Character.digit(hex.charAt(i + 1), 16));
+                bytes[i / 2] =
+                        (byte) ((Character.digit(hex.charAt(i), 16) << 4) + Character.digit(hex.charAt(i + 1), 16));
             }
             return bytes;
         }

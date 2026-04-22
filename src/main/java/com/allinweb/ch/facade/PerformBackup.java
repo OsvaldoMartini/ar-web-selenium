@@ -282,7 +282,7 @@ public class PerformBackup {
                     String name = toSqlValue(rs.getString("name"));
                     String xpath = toSqlValue(rs.getString("xpath"));
                     String coordinates = toSqlValue(rs.getString("coordinates"));
-                    boolean forceCoordinates = rs.getBoolean("force_coordinates");
+                    String forceCoordinates = toSqlValue(rs.getString("force_coordinates"));
                     String iframeXpath = toSqlValue(rs.getString("iframe_xpath"));
                     String tagName = toSqlValue(rs.getString("tag_name"));
                     String shadowHost = toSqlValue(rs.getString("shadow_host"));
@@ -313,14 +313,14 @@ public class PerformBackup {
 
                     String insert = String.format(
                             "INSERT INTO instruction (id, instruction_order_number, actions, name, xpath, coordinates, force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root, css_selector, description, operation, optional, block_marked, default_value, action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr, active, block_id, variable_id, parent_block_id, parent_id, bot_job_id) "
-                                    + "VALUES (%d, %d, '%s', '%s', '%s', '%s', %d, '%s', '%s', '%s', '%s', '%s', '%s', '%s', %d, %d, '%s', %s, %s, %d, %d, %d, %s, %s, %s, %s, %s);",
+                                    + "VALUES (%d, %d, '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', %d, %d, '%s', %s, %s, %d, %d, %d, %s, %s, %s, %s, %s);",
                             id,
                             order,
                             actions,
                             name,
                             xpath,
                             coordinates,
-                            forceCoordinates ? 1 : 0,
+                            forceCoordinates,
                             iframeXpath,
                             tagName,
                             shadowHost,
@@ -640,7 +640,7 @@ public class PerformBackup {
                 String xpath = toSqlValue(rs.getString("xpath"));
                 String coordinates = toSqlValue(rs.getString("coordinates"));
 
-                Boolean forceCoordinates = rs.getBoolean("force_coordinates");
+                String forceCoordinatesRaw = rs.getString("force_coordinates");
                 boolean forceCoordinatesWasNull = rs.wasNull();
 
                 String iframeXpath = toSqlValue(rs.getString("iframe_xpath"));
@@ -701,7 +701,7 @@ public class PerformBackup {
                         name,
                         xpath,
                         coordinates,
-                        forceCoordinatesWasNull ? "NULL" : (forceCoordinates ? "1" : "0"),
+                        forceCoordinatesWasNull ? "NULL" : ("'" + (forceCoordinatesRaw == null ? "" : forceCoordinatesRaw) + "'"),
                         iframeXpath,
                         tagName,
                         shadowHost,
@@ -1670,7 +1670,7 @@ public class PerformBackup {
                             } // name
                             case 4 -> setSafeParam(pstmt, 4, values.get(4), Types.VARCHAR); // xpath
                             case 5 -> setSafeParam(pstmt, 5, values.get(5), Types.VARCHAR); // coordinates
-                            case 6 -> setSafeParam(pstmt, 6, values.get(6), Types.INTEGER); // force_coordinates
+                            case 6 -> setSafeParam(pstmt, 6, values.get(6), Types.VARCHAR); // force_coordinates
                             case 7 -> setSafeParam(pstmt, 7, values.get(7), Types.VARCHAR); // iframe_xpath
                             case 8 -> setSafeParam(pstmt, 8, values.get(8), Types.VARCHAR); // tag_name
                             case 9 -> setSafeParam(pstmt, 9, values.get(9), Types.VARCHAR); // shadow_host
@@ -2464,7 +2464,7 @@ public class PerformBackup {
                             } // name
                             case 4 -> setSafeParam(pstmt, 4, values.get(4), Types.VARCHAR); // xpath
                             case 5 -> setSafeParam(pstmt, 5, values.get(5), Types.VARCHAR); // coordinates
-                            case 6 -> setSafeParam(pstmt, 6, values.get(6), Types.INTEGER); // force_coordinates
+                            case 6 -> setSafeParam(pstmt, 6, values.get(6), Types.VARCHAR); // force_coordinates
                             case 7 -> setSafeParam(pstmt, 7, values.get(7), Types.VARCHAR); // iframe_xpath
                             case 8 -> setSafeParam(pstmt, 8, values.get(8), Types.VARCHAR); // tag_name
                             case 9 -> setSafeParam(pstmt, 9, values.get(9), Types.VARCHAR); // shadow_host

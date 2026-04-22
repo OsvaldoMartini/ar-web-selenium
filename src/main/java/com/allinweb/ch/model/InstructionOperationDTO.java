@@ -28,5 +28,5 @@ public class InstructionOperationDTO {
     private Boolean blockActive;
     private Boolean refreshLoop;
     private Boolean loopOnly;
-    private Boolean forceCoordinates;
+    private String forceCoordinates; // F/E/T/N combinable, e.g. "FE"
 }

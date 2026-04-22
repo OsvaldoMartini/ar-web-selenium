@@ -182,6 +182,8 @@ public class ARScannedElementPane extends ARPane {
     private Label testActionLabel;
     private CheckBox checkForceEnterText;
     private CheckBox checkForceCoordText;
+    private CheckBox checkForceTabText;
+    private CheckBox checkForceNextText;
     private Label searchTermsLabel;
     private Label defineNameLabel;
     private Label coordsTextFieldLabel;
@@ -603,16 +605,20 @@ public class ARScannedElementPane extends ARPane {
 
         targetInsert.setClickElement(checkClickElement.isSelected());
         WebElementTagNameEnum tagType = targetInsert.getTagType();
-        if (checkForceEnterText.isSelected() && tagType.equals(WebElementTagNameEnum.INPUT)) {
-            tagType = WebElementTagNameEnum.INPUT_ENTER;
-        }
 
         Integer currentBotJobId = currentBotJob.getId();
 
         InstructionLoad instruction =
                 performActions.buildNewInstruction(tagType, actionReq, false, nextInstOrderNumber, targetInsert);
 
-        instruction.setForceCoordinates(true); // default
+        // Compose the force_coordinates flag string from the 4 checkboxes.
+        // Order F → E → T → N keeps storage deterministic. Empty string if none checked.
+        StringBuilder flags = new StringBuilder(4);
+        if (checkForceCoordText.isSelected()) flags.append('F');
+        if (checkForceEnterText.isSelected()) flags.append('E');
+        if (checkForceTabText.isSelected())   flags.append('T');
+        if (checkForceNextText.isSelected())  flags.append('N');
+        instruction.setForceCoordinates(flags.toString());
         instruction.setCoordinates(targetInsert.getCoordinates());
         instruction.setIFrameXPath(targetInsert.getIFrameXPath());
         instruction.setShadowHost(targetInsert.getShadowHost());
@@ -1506,11 +1512,17 @@ public class ARScannedElementPane extends ARPane {
         checkInputText = new CheckBox("For Input");
         checkOutputText = new CheckBox("For Output (Excel Export)");
 
-        checkForceEnterText = new CheckBox("With <PRESS ENTER> Action");
+        checkForceEnterText = new CheckBox("ENTER");
         checkForceEnterText.setStyle("-fx-font-size: 12px; -fx-fill: blue;");
 
         checkForceCoordText = new CheckBox("Force Coordinates");
         checkForceCoordText.setStyle("-fx-font-size: 12px; -fx-fill: blue;");
+
+        checkForceTabText = new CheckBox("TAB");
+        checkForceTabText.setStyle("-fx-font-size: 12px; -fx-fill: blue;");
+
+        checkForceNextText = new CheckBox("NEXT (mobile)");
+        checkForceNextText.setStyle("-fx-font-size: 12px; -fx-fill: blue;");
 
         iFrameText = new Text("");
         iFrameText.setStyle("-fx-font-size: 12px; -fx-fill: blue;");
@@ -1695,8 +1707,10 @@ public class ARScannedElementPane extends ARPane {
                             checkInputText,
                             checkOutputText,
                             createCustomSeparator(Color.DARKBLUE, 2),
-                            checkForceEnterText,
                             checkForceCoordText,
+                            checkForceEnterText,
+                            checkForceTabText,
+                            checkForceNextText,
                             iFrameText);
             vBoxCheckBox.setSpacing(6); // Adjust spacing between CheckBoxes
 
@@ -4758,8 +4772,8 @@ public class ARScannedElementPane extends ARPane {
                                             currentInstruction.getCodified());
 
                                     //                                    webElementFound = null;
-                                    boolean forceCoordinates = currentInstruction.getForceCoordinates() != null
-                                            && currentInstruction.getForceCoordinates();
+                                    boolean forceCoordinates = InputFlags.of(currentInstruction.getForceCoordinates())
+                                            .hasForce();
 
                                     if (!isMobileApp) {
 

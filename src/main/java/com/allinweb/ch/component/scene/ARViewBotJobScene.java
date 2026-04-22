@@ -654,15 +654,14 @@ public class ARViewBotJobScene extends ARScene {
 
         //        targetInsert.setClickElement(checkClickElement.isSelected());
         WebElementTagNameEnum tagType = targetInsert.getTagType();
-        //        if (checkForceEnterText.isSelected() && tagType.equals(WebElementTagNameEnum.INPUT)) {
-        //            tagType = WebElementTagNameEnum.INPUT_ENTER;
-        //        }
+        // Enter-after-insert is now carried by the force_coordinates 'E' flag
+        // (see InputFlags) — no longer a distinct tag-type variant.
 
         Integer currentBotJobId = selectedBotJob.getId();
 
         InstructionLoad instruction = buildNewInstruction(tagType, actionReq, false, nextInstOrderNumber, targetInsert);
 
-        instruction.setForceCoordinates(true); // default
+        instruction.setForceCoordinates("F"); // default — "F" means force coordinates
         instruction.setCoordinates(targetInsert.getCoordinates());
         instruction.setIFrameXPath(targetInsert.getIFrameXPath());
         instruction.setShadowHost(targetInsert.getShadowHost());
@@ -807,11 +806,9 @@ public class ARViewBotJobScene extends ARScene {
     }
 
     private String buildInsertAction(WebElementTagNameEnum forceTag, String nameLabel) {
-        if (forceTag.equals(WebElementTagNameEnum.INPUT_ENTER)) {
-            return ARConstantsEngine.INSERT_ENTER + ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER + nameLabel;
-        } else {
-            return ARConstantsEngine.INSERT + ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER + nameLabel;
-        }
+        // Action is always plain "I:<field>". The "press ENTER after" behaviour now lives
+        // in the force_coordinates flag column ('E' bit), not the action code.
+        return ARConstantsEngine.INSERT + ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER + nameLabel;
     }
 
     private String handleTargetBuildAction(

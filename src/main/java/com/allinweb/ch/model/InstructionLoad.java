@@ -20,7 +20,7 @@ public class InstructionLoad {
     private String name;
     private String xpath;
     private String coordinates;
-    private Boolean forceCoordinates;
+    private String forceCoordinates; // F/E/T/N combinable, e.g. "FE"
     private String iFrameXPath;
     private String tagName;
     private String shadowHost;

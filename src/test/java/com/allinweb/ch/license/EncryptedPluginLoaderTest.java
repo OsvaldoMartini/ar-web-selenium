@@ -1,10 +1,5 @@
 package com.allinweb.ch.license;
 
-import javax.crypto.Cipher;
-import javax.crypto.SecretKeyFactory;
-import javax.crypto.spec.GCMParameterSpec;
-import javax.crypto.spec.PBEKeySpec;
-import javax.crypto.spec.SecretKeySpec;
 import java.io.Console;
 import java.io.OutputStream;
 import java.net.InetAddress;
@@ -27,6 +22,11 @@ import java.util.Enumeration;
 import java.util.Scanner;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import javax.crypto.Cipher;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.PBEKeySpec;
+import javax.crypto.spec.SecretKeySpec;
 
 /**
  * Full pipeline test: ACTIVATE → UNZIP → DECRYPT → VALIDATE

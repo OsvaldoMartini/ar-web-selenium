@@ -38,13 +38,12 @@ public class Verify_And_Create_License {
 
     private static final String KEY = "0123456789abcdef";
 
-//    private static final String DEFAULT_REQUEST =
-//            "C:\\Users\\osval\\OneDrive\\\u00c1rea de Trabalho\\Avaloq-O Martini.request";
+    //    private static final String DEFAULT_REQUEST =
+    //            "C:\\Users\\osval\\OneDrive\\\u00c1rea de Trabalho\\Avaloq-O Martini.request";
 
-    private static final String DEFAULT_REQUEST ="D:\\ARWeb-Licenses-Backup\\Avaloq-Rahul Amrutkar.request";
+    private static final String DEFAULT_REQUEST = "D:\\ARWeb-Licenses-Backup\\Avaloq-Rahul Amrutkar.request";
 
-    private static final String DEFAULT_OUTPUT =
-            "D:\\Projects\\ARWebAvaloq\\ARWeb-Scanner\\ARWeb.lic";
+    private static final String DEFAULT_OUTPUT = "D:\\Projects\\ARWebAvaloq\\ARWeb-Scanner\\ARWeb.lic";
     private static final int DEFAULT_DAYS = 365;
 
     /**
@@ -53,13 +52,13 @@ public class Verify_And_Create_License {
      * so EncryptedPluginLoaderTest can decrypt the plugin zips.
      * Leave empty to generate a random one (will NOT decrypt pre-encrypted plugins).
      */
-    private static final String PINNED_ORG_KEY = ""; //IT MUST BE THE SAME ORG
+    private static final String PINNED_ORG_KEY = ""; // IT MUST BE THE SAME ORG
 
     public static void main(String[] args) throws Exception {
         String requestPath = args.length > 0 ? args[0] : DEFAULT_REQUEST;
-        String outputPath  = args.length > 1 ? args[1] : DEFAULT_OUTPUT;
-        int days           = args.length > 2 ? Integer.parseInt(args[2]) : DEFAULT_DAYS;
-        String cliOrgKey   = args.length > 3 ? args[3] : null;
+        String outputPath = args.length > 1 ? args[1] : DEFAULT_OUTPUT;
+        int days = args.length > 2 ? Integer.parseInt(args[2]) : DEFAULT_DAYS;
+        String cliOrgKey = args.length > 3 ? args[3] : null;
 
         System.out.println("=== Verify_And_Create_License ===\n");
 
@@ -73,13 +72,13 @@ public class Verify_And_Create_License {
 
         // 2. Extract fields
         String organization = parts[0];
-        String owner        = parts[1];
-        String pcName       = parts[2];
-        String domainName   = parts[3];
-        String userName     = parts[4];
-        String requestDate  = parts[5];
-        String email        = stripEmailTag(parts[6]);
-        String version      = parts.length > 7 ? parts[7] : "4.2";
+        String owner = parts[1];
+        String pcName = parts[2];
+        String domainName = parts[3];
+        String userName = parts[4];
+        String requestDate = parts[5];
+        String email = stripEmailTag(parts[6]);
+        String version = parts.length > 7 ? parts[7] : "4.2";
 
         System.out.println();
         System.out.println("Extracted fields:");
@@ -94,12 +93,12 @@ public class Verify_And_Create_License {
 
         // 3. Build license plaintext
         String expiryDate = LocalDate.now().plusDays(days).format(DateTimeFormatter.ISO_LOCAL_DATE);
-        String orgKey     = resolveOrgKey(cliOrgKey);
-        System.out.printf("  orgKey src   : %s%n",
+        String orgKey = resolveOrgKey(cliOrgKey);
+        System.out.printf(
+                "  orgKey src   : %s%n",
                 cliOrgKey != null ? "CLI arg" : (!PINNED_ORG_KEY.isEmpty() ? "PINNED_ORG_KEY" : "random"));
 
-        String licPlain = String.join("|",
-                pcName, domainName, userName, expiryDate, orgKey, email, version);
+        String licPlain = String.join("|", pcName, domainName, userName, expiryDate, orgKey, email, version);
 
         System.out.println();
         System.out.println("--- Creating license ---");
@@ -173,7 +172,7 @@ public class Verify_And_Create_License {
 
     private static String resolveOrgKey(String cliOrgKey) {
         if (cliOrgKey != null && !cliOrgKey.isBlank()) return validateHex64(cliOrgKey);
-        if (!PINNED_ORG_KEY.isBlank())                 return validateHex64(PINNED_ORG_KEY);
+        if (!PINNED_ORG_KEY.isBlank()) return validateHex64(PINNED_ORG_KEY);
         return generateOrgKey();
     }
 

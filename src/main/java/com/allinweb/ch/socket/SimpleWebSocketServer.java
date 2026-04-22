@@ -824,6 +824,25 @@ public class SimpleWebSocketServer {
 
                     alreadySentMgsSocket = false;
                     break;
+                case "FORCE_COORDINATES_UPDATE":
+                    // Flag-column update (F / E / T / N bits) — analogous to ACTIONS_UPDATE
+                    // but writes to the force_coordinates column introduced by the
+                    // 2026-04-25__force_coordinates_varchar migration.
+                    errorMessage = performDataBase.updateInstructionForceCoordinates(
+                            instrTable,
+                            whereId,
+                            instructionId,
+                            blockId,
+                            splitDTO.getForceCoordinates());
+
+                    if (instrTable.equals("instruction")) {
+                        performLists.getListBotJob().clear();
+                    } else {
+                        performLists.getListBotJobComp().clear();
+                    }
+
+                    alreadySentMgsSocket = false;
+                    break;
                 case "BLOCK_STATUS":
                     errorMessage = performDataBase.updateBlockStatus(blockTable, whereId, blockId, blockActive);
 

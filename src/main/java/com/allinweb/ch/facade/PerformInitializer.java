@@ -1,5 +1,6 @@
 package com.allinweb.ch.facade;
 
+import com.allinweb.ch.db.MigrationRunner;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
@@ -37,7 +38,15 @@ public class PerformInitializer {
         return instance;
     }
 
-    public void initialize() {}
+    public void initialize() {
+        // Apply any pending schema migrations before anything else touches the DB.
+        // Safe to call on every boot — idempotent by name.
+        try (Connection conn = performDataBase.getConnection()) {
+            MigrationRunner.getInstance().runPending(conn);
+        } catch (Exception e) {
+            log.error("PerformInitializer — migration check failed: {}", e.getMessage());
+        }
+    }
 
     public ErrorMessage initializeMainDatabasePostgres() {
         try (Connection conn = performDataBase.getConnection()) {
@@ -110,7 +119,7 @@ public class PerformInitializer {
                         + "name TEXT, "
                         + "xpath TEXT, "
                         + "coordinates TEXT, "
-                        + "force_coordinates INTEGER, "
+                        + "force_coordinates VARCHAR(8), "
                         + "iframe_xpath TEXT, "
                         + "tag_name TEXT, "
                         + "shadow_host TEXT, "
@@ -171,7 +180,7 @@ public class PerformInitializer {
                         + "name TEXT, "
                         + "xpath TEXT, "
                         + "coordinates TEXT, "
-                        + "force_coordinates INTEGER, "
+                        + "force_coordinates VARCHAR(8), "
                         + "iframe_xpath TEXT, "
                         + "tag_name TEXT, "
                         + "shadow_host TEXT, "
@@ -300,7 +309,7 @@ public class PerformInitializer {
                         + "name TEXT, "
                         + "xpath MEMO, "
                         + "coordinates TEXT, "
-                        + "force_coordinates YESNO, "
+                        + "force_coordinates TEXT(8), "
                         + "iframe_xpath MEMO, "
                         + "tag_name TEXT, "
                         + "shadow_host MEMO, "
@@ -357,7 +366,7 @@ public class PerformInitializer {
                         + "name TEXT, "
                         + "xpath MEMO, "
                         + "coordinates TEXT, "
-                        + "force_coordinates YESNO, "
+                        + "force_coordinates TEXT(8), "
                         + "iframe_xpath MEMO, "
                         + "tag_name TEXT, "
                         + "shadow_host MEMO, "
@@ -537,7 +546,7 @@ public class PerformInitializer {
                         + "name TEXT, "
                         + "xpath TEXT, "
                         + "coordinates TEXT, "
-                        + "force_coordinates INTEGER, "
+                        + "force_coordinates VARCHAR(8), "
                         + "iframe_xpath TEXT, "
                         + "tag_name TEXT, "
                         + "shadow_host TEXT, "
@@ -608,7 +617,7 @@ public class PerformInitializer {
                         + "name TEXT, "
                         + "xpath TEXT, "
                         + "coordinates TEXT, "
-                        + "force_coordinates INTEGER, "
+                        + "force_coordinates VARCHAR(8), "
                         + "iframe_xpath TEXT, "
                         + "tag_name TEXT, "
                         + "shadow_host TEXT, "

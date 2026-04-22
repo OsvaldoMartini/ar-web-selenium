@@ -261,9 +261,7 @@ public class PerformListElements {
                             "attributeValue");
                     performMessage.outputJsonElementDTO(asArray, aiExcludeList, "AI-ElementDTO-PS", jsonPath);
                 } catch (Exception jsonError) {
-                    log.warn(
-                            "PerformListElements - failed to persist element JSON: {}",
-                            jsonError.getMessage());
+                    log.warn("PerformListElements - failed to persist element JSON: {}", jsonError.getMessage());
                 }
             }
 

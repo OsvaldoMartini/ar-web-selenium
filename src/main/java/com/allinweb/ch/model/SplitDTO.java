@@ -29,6 +29,7 @@ public class SplitDTO {
     private Boolean instructionActive;
 
     private String actions;
+    private String forceCoordinates; // F/E/T/N combinable, e.g. "FE"
     private String operation;
 
     private Integer variableId;
