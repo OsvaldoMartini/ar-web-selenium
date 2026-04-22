@@ -1,6 +1,8 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.model.ElementDTO;
+import com.allinweb.ch.util.ARPropertyEnum;
+import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ErrorMessage;
 import com.allinweb.ch.util.JsScanResultDTO;
 import com.google.gson.Gson;
@@ -232,6 +234,38 @@ public class PerformListElements {
             // Replace current list and load new one
             performLists.resetListElements();
             performLists.addMapElementsTarget(elements);
+
+            // Mirror the hoverPick pipeline (SimpleWebSocketServer case "SEARCH_TOOL"):
+            // persist the element list to disk as JSON for the UI / AI pipelines.
+            if (!elements.isEmpty()) {
+                try {
+                    ElementDTO[] asArray = elements.toArray(new ElementDTO[0]);
+                    String jsonPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.PATH_DB);
+                    PerformMessage performMessage = PerformMessage.getInstance();
+
+                    List<String> excludeList = List.of("optional", "blockMarked", "editMode");
+                    performMessage.outputJsonElementDTO(asArray, excludeList, "elementDTO-PS", jsonPath);
+
+                    List<String> aiExcludeList = List.of(
+                            "optional",
+                            "blockMarked",
+                            "editMode",
+                            "id",
+                            "attributeData",
+                            "typeElement",
+                            "customXPath",
+                            "shadowRoot",
+                            "nestedShadow",
+                            "searchAttributeValue",
+                            "attributeType",
+                            "attributeValue");
+                    performMessage.outputJsonElementDTO(asArray, aiExcludeList, "AI-ElementDTO-PS", jsonPath);
+                } catch (Exception jsonError) {
+                    log.warn(
+                            "PerformListElements - failed to persist element JSON: {}",
+                            jsonError.getMessage());
+                }
+            }
 
             return ScanResult.ofElements(elements);
         } catch (PerformPreLoad.PluginLoadException ple) {
