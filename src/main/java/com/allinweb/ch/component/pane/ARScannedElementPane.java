@@ -5072,6 +5072,16 @@ public class ARScannedElementPane extends ARPane {
                                                 isOperationValid = false;
                                                 invalidValues = "Invalid Numbers";
                                             }
+                                        } else if (operations[1].equalsIgnoreCase("contains")) {
+                                            // Case-insensitive substring match — consistent with "=" / "!="
+                                            // which compare via equalsIgnoreCase above.
+                                            String actual = mapOperators
+                                                    .get(variableField)
+                                                    .trim()
+                                                    .toLowerCase();
+                                            String expected =
+                                                    operations[2].trim().toLowerCase();
+                                            isOperationValid = actual.contains(expected);
                                         }
 
                                         if (isOperationValid) {

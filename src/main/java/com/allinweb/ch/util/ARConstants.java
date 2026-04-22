@@ -101,6 +101,7 @@ public class ARConstants {
     public static final String ICON_GREATER = "/greater.png";
     public static final String ICON_LESS = "/less.png";
     public static final String ICON_DIFFERENT = "/different.png";
+    public static final String ICON_CONTAINS = "/contains.png";
     // ACTION CODES
     public static final String EXIT = "EXIT";
     public static final String IGNORE = "IGNORE";

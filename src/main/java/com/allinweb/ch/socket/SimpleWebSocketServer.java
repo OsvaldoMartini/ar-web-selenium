@@ -461,7 +461,7 @@ public class SimpleWebSocketServer {
                         List<String> excludeList = List.of("optional", "blockMarked", "editMode");
                         String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
                         performMessage.outputJsonElementDTO(
-                                splitDTO.getElementDetails(), excludeList, "elementDTO", jsonPath);
+                                splitDTO.getElementDetails(), excludeList, "elementDTO-HP", jsonPath);
                         excludeList = List.of(
                                 "optional",
                                 "blockMarked",
@@ -476,7 +476,7 @@ public class SimpleWebSocketServer {
                                 "attributeType",
                                 "attributeValue");
                         performMessage.outputJsonElementDTO(
-                                splitDTO.getElementDetails(), excludeList, "AI-ElementDTO", jsonPath);
+                                splitDTO.getElementDetails(), excludeList, "AI-ElementDTO-HP", jsonPath);
                     } else if (sessionIdToSend.equals("mobile-return-server")) {
                         String jsonData = gson.toJson(splitDTO);
                         webSocketSessionManager.sendMessageJson(
@@ -485,7 +485,7 @@ public class SimpleWebSocketServer {
                         List<String> excludeList = List.of("optional", "blockMarked", "editMode");
                         String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
                         performMessage.outputJsonElementDTO(
-                                splitDTO.getElementDetails(), excludeList, "elementDTO", jsonPath);
+                                splitDTO.getElementDetails(), excludeList, "elementDTO-HP", jsonPath);
                         excludeList = List.of(
                                 "optional",
                                 "blockMarked",
@@ -500,7 +500,7 @@ public class SimpleWebSocketServer {
                                 "attributeType",
                                 "attributeValue");
                         performMessage.outputJsonElementDTO(
-                                splitDTO.getElementDetails(), excludeList, "AI-ElementDTO", jsonPath);
+                                splitDTO.getElementDetails(), excludeList, "AI-ElementDTO-HP", jsonPath);
                     }
                     alreadySentMgsSocket = true;
                     break;

@@ -283,7 +283,8 @@ public class ARNewCommandPane extends ARPane {
                     new ComboBoxOperator("Equals", new Image(ARConstants.ICON_EQUAL), "="),
                     new ComboBoxOperator("Greater", new Image(ARConstants.ICON_GREATER), ">"),
                     new ComboBoxOperator("Less", new Image(ARConstants.ICON_LESS), "<"),
-                    new ComboBoxOperator("!=", new Image(ARConstants.ICON_DIFFERENT), "!="));
+                    new ComboBoxOperator("!=", new Image(ARConstants.ICON_DIFFERENT), "!="),
+                    new ComboBoxOperator("Contains", new Image(ARConstants.ICON_CONTAINS), "contains"));
         } catch (Exception ex) {
 
             log.error("Error creating \"DropBox Operators\"\nError: " + ex.getMessage());
