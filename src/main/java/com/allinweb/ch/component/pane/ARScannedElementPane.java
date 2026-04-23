@@ -611,14 +611,22 @@ public class ARScannedElementPane extends ARPane {
         InstructionLoad instruction =
                 performActions.buildNewInstruction(tagType, actionReq, false, nextInstOrderNumber, targetInsert);
 
-        // Compose the force_coordinates flag string from the 4 checkboxes.
-        // Order F → E → T → N keeps storage deterministic. Empty string if none checked.
-        StringBuilder flags = new StringBuilder(4);
-        if (checkForceCoordText.isSelected()) flags.append('F');
-        if (checkForceEnterText.isSelected()) flags.append('E');
-        if (checkForceTabText.isSelected()) flags.append('T');
-        if (checkForceNextText.isSelected()) flags.append('N');
-        instruction.setForceCoordinates(flags.toString());
+        // force_coordinates priority:
+        //   1) Per-element flags toggled in GridItemScann (set on the TargetElement
+        //      by stepsInsertManyDTO from ElementDTO.forceCoordinates) — use as-is.
+        //   2) Fall back to the pane's four checkboxes. Order F → E → T → N keeps
+        //      storage deterministic; empty string if none checked.
+        String perElementFlags = targetInsert.getForceCoordinates();
+        if (!Strings.isNullOrEmpty(perElementFlags)) {
+            instruction.setForceCoordinates(perElementFlags);
+        } else {
+            StringBuilder flags = new StringBuilder(4);
+            if (checkForceCoordText.isSelected()) flags.append('F');
+            if (checkForceEnterText.isSelected()) flags.append('E');
+            if (checkForceTabText.isSelected()) flags.append('T');
+            if (checkForceNextText.isSelected()) flags.append('N');
+            instruction.setForceCoordinates(flags.toString());
+        }
         instruction.setCoordinates(targetInsert.getCoordinates());
         instruction.setIFrameXPath(targetInsert.getIFrameXPath());
         instruction.setShadowHost(targetInsert.getShadowHost());

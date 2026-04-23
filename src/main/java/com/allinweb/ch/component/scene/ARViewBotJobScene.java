@@ -433,6 +433,13 @@ public class ARViewBotJobScene extends ARScene {
             for (ElementDTO elementDTO : processDTO.getElementDetails()) {
                 TargetElement targetEach = targetElementHelper.extractPickClone(elementDTO, true);
 
+                // Propagate per-element F/E/T/N/S flags toggled in GridItemScann so
+                // prepareToInsertElementDTO can honour them instead of the pane's
+                // single-pick checkboxes. Empty string/null is "use checkboxes".
+                if (!Strings.isNullOrEmpty(elementDTO.getForceCoordinates())) {
+                    targetEach.setForceCoordinates(elementDTO.getForceCoordinates());
+                }
+
                 //                WebElement elementFound = performActions.findWebElement(targetEach);
                 //                if (targetEach.getElement() == null && elementFound != null) {
                 //                    targetEach.setElement(elementFound);

@@ -722,6 +722,13 @@ public class ARScannedElementScene extends ARScene {
                 // FallBack React Computed
                 performActions.defineSavedReferenced(targetEach);
 
+                // Propagate per-element F/E/T/N/S flags toggled in GridItemScann so
+                // prepareToInsertElementDTO can honour them instead of the pane's
+                // single-pick checkboxes. Empty string/null is "use checkboxes".
+                if (!Strings.isNullOrEmpty(elementDTO.getForceCoordinates())) {
+                    targetEach.setForceCoordinates(elementDTO.getForceCoordinates());
+                }
+
                 if (!isMany) {
                     if (!Strings.isNullOrEmpty(arScannedElementPane
                                     .defineNameField
