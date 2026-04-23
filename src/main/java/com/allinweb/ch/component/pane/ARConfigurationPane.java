@@ -745,8 +745,15 @@ public class ARConfigurationPane extends ARPane {
             return;
         }
 
+        // File name carries the dialect used to produce it, so a folder can hold
+        // snapshots from each engine side-by-side without colliding:
+        //   backup_sqlite_all_YYYY_MM_DD.sql   (DATABASE_TYPE = TEXT)
+        //   backup_access_all_YYYY_MM_DD.sql   (DATABASE_TYPE = Access)
+        //   backup_postgres_all_YYYY_MM_DD.sql (DATABASE_TYPE = Postgres / PostGres)
+        String backupFileName = "backup_" + dbDialectSlug(dataBaseType) + "_all_" + date + ".sql";
+
         Label newInstruction = new Label("DB BACKUP\nDatabase: \"" + dataBaseType + "\"\nTarget Folder: \""
-                + chosenBackupFolder + "\"\nFile: \"backup_all_" + date + ".sql\"");
+                + chosenBackupFolder + "\"\nFile: \"" + backupFileName + "\"");
         newInstruction.setStyle("-fx-font-size: 14px; -fx-text-fill: red;");
 
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION, null, ButtonType.YES, ButtonType.NO);
@@ -762,7 +769,7 @@ public class ARConfigurationPane extends ARPane {
 
                 // Single-file backup: one .sql containing every table and every row in
                 // FK-safe order, byte-compatible with the legacy per-table format.
-                String backupFilePath = chosenBackupFolder + File.separator + "backup_all_" + date + ".sql";
+                String backupFilePath = chosenBackupFolder + File.separator + backupFileName;
                 ErrorMessage errorMessage = performBackup.dumpAllToSingleFile(conn, backupFilePath);
 
                 if (errorMessage == null) {
@@ -854,22 +861,31 @@ public class ARConfigurationPane extends ARPane {
             return;
         }
 
-        // Detect which backup format is present in the chosen folder for the given date:
-        //   1. New single-file backup:    <folder>/backup_all_<date>.sql
-        //   2. Legacy per-table backups:  <folder>/backup_home_banking_<date>.sql (proxy marker)
-        File singleFile = new File(chosenRestoreFolder, "backup_all_" + formattedDate + ".sql");
+        // Detect which backup format is present in the chosen folder for the given date.
+        // Probed in order of preference:
+        //   1. Dialect-prefixed single file: <folder>/backup_<dialect>_all_<date>.sql
+        //                                    (written by the current backup code)
+        //   2. Dialect-less single file:     <folder>/backup_all_<date>.sql
+        //                                    (previous single-file naming, kept for compat)
+        //   3. Legacy per-table backups:     <folder>/backup_home_banking_<date>.sql (marker)
+        File dialectSingleFile = new File(
+                chosenRestoreFolder, "backup_" + dbDialectSlug(dataBaseType) + "_all_" + formattedDate + ".sql");
+        File plainSingleFile = new File(chosenRestoreFolder, "backup_all_" + formattedDate + ".sql");
         File legacyMarker = new File(chosenRestoreFolder, "backup_home_banking_" + formattedDate + ".sql");
 
-        boolean useSingleFile = singleFile.exists();
+        File singleFile =
+                dialectSingleFile.exists() ? dialectSingleFile : (plainSingleFile.exists() ? plainSingleFile : null);
+        boolean useSingleFile = singleFile != null;
         boolean useLegacyFiles = !useSingleFile && legacyMarker.exists();
 
         if (!useSingleFile && !useLegacyFiles) {
             performMessage.showCustomModalDialogDragWin11(
                     "No Backup Found ⚠️",
                     "<span style='color: #D32F2F; font-weight: bold;'>No backup for that date was found in the chosen folder.</span>",
-                    "<span style='color: #1565C0;'>Looked for</span> <b>backup_all_" + formattedDate
-                            + ".sql</b> <span style='color: #1565C0;'>and the legacy</span> <b>backup_home_banking_"
-                            + formattedDate + ".sql</b>.",
+                    "<span style='color: #1565C0;'>Looked for</span> <b>" + dialectSingleFile.getName() + "</b>, <b>"
+                            + plainSingleFile.getName()
+                            + "</b>, <span style='color: #1565C0;'>and the legacy</span> <b>"
+                            + legacyMarker.getName() + "</b>.",
                     "<span style='color: #6A1B9A;'>Folder:</span> " + chosenRestoreFolder,
                     "<span style='font-style: italic;'>Pick another folder or date and try again.</span>",
                     false,
@@ -884,7 +900,8 @@ public class ARConfigurationPane extends ARPane {
                 : "Legacy per-table backups (11 files for <b>" + formattedDate + "</b>)";
         String formatNote = useSingleFile
                 ? "The database will be fully restored from one .sql file (FK-safe order, IDs preserved)."
-                : "No <b>backup_all_" + formattedDate + ".sql</b> found — falling back to the legacy 11-file restore.";
+                : "No <b>" + dialectSingleFile.getName() + "</b> or <b>" + plainSingleFile.getName()
+                        + "</b> found — falling back to the legacy 11-file restore.";
 
         ARExecution.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
                 "Restore Database Confirmation",
@@ -1349,6 +1366,27 @@ public class ARConfigurationPane extends ARPane {
         // Make sure the dialog is shown in front of the provided stage
         File chosenPath = chooser.showDialog(ownerStage);
         return chosenPath != null ? chosenPath.getAbsolutePath() : null;
+    }
+
+    /**
+     * Translates the {@code DATABASE_TYPE} property value into a short lowercase
+     * slug suitable for embedding in backup file names:
+     *   <ul>
+     *     <li>{@code "TEXT"}                 → {@code "sqlite"}</li>
+     *     <li>{@code "Access"}               → {@code "access"}</li>
+     *     <li>{@code "Postgres" / "PostGres"} → {@code "postgres"}</li>
+     *     <li>anything else / null           → {@code "db"} (safe fallback)</li>
+     *   </ul>
+     * Kept forgiving so a stray casing in {@code config.properties} can't crash
+     * the backup flow — the worst case is a file named {@code backup_db_all_...sql}.
+     */
+    private String dbDialectSlug(String dataBaseType) {
+        if (dataBaseType == null) return "db";
+        String t = dataBaseType.trim();
+        if (t.equalsIgnoreCase("TEXT")) return "sqlite";
+        if (t.equalsIgnoreCase("Access")) return "access";
+        if (t.equalsIgnoreCase("Postgres") || t.equalsIgnoreCase("PostGres")) return "postgres";
+        return "db";
     }
 
     private void showAlertTimer(
