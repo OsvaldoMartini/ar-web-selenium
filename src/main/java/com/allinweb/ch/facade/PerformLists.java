@@ -1523,39 +1523,34 @@ public class PerformLists {
 
                 List<InstructionLoad> blockLoopInstructions = listInstruction.get(0).getBlockLoadDTOList().stream()
                         .flatMap(itemBlock -> itemBlock.getInstructionLoad().stream()
-                                .map(loopInstLoad -> {
-                                    InstructionLoad flat = new InstructionLoad(
-                                            listInstruction.get(0).getHomeBankingId(), // homBankingId
-                                            itemBlock.getBotJobId(), // botJobId
-                                            itemBlock.getBotJobName(), // botJob Name
-                                            loopInstLoad.getId(), // Instruction Id
-                                            loopInstLoad.getInstructionOrderNumber(), // Instruction Order
-                                            loopInstLoad.getName(), // Instruction Name
-                                            loopInstLoad.getDescription(), // Instruction Description
-                                            itemBlock.getId(), // block ID
-                                            itemBlock.getBlockOrderNumber(), // block Order
-                                            itemBlock.getName(), // block Name
-                                            itemBlock.getActive(),
-                                            loopInstLoad.getInstructionActive(),
-                                            itemBlock.getWait(),
-                                            loopInstLoad.getActions(),
-                                            loopInstLoad.getParentBlockId(), // Parent Block Id
-                                            loopInstLoad.getParentId(),
-                                            loopInstLoad.getVariableId(),
-                                            loopInstLoad.getOperation(),
-                                            loopInstLoad.getDefaultValue(),
-                                            itemBlock.getExportFile(),
-                                            loopInstLoad.getTagName(),
-                                            loopInstLoad.getForceCoordinates());
-                                    // The 21-arg constructor does NOT copy force_coordinates; copy it
-                                    // here so the frontend sees the current F/E/T/N flags and can
-                                    // accumulate toggles instead of overwriting on each click.
-                                    flat.setForceCoordinates(
-                                            loopInstLoad.getForceCoordinates() == null
-                                                    ? ""
-                                                    : loopInstLoad.getForceCoordinates());
-                                    return flat;
-                                }))
+                                .map(loopInstLoad -> new InstructionLoad(
+                                        listInstruction.get(0).getHomeBankingId(), // homBankingId
+                                        itemBlock.getBotJobId(), // botJobId
+                                        itemBlock.getBotJobName(), // botJob Name
+                                        loopInstLoad.getId(), // Instruction Id
+                                        loopInstLoad.getInstructionOrderNumber(), // Instruction Order
+                                        loopInstLoad.getName(), // Instruction Name
+                                        loopInstLoad.getDescription(), // Instruction Description
+                                        itemBlock.getId(), // block ID
+                                        itemBlock.getBlockOrderNumber(), // block Order
+                                        itemBlock.getName(), // block Name
+                                        itemBlock.getActive(),
+                                        loopInstLoad.getInstructionActive(),
+                                        itemBlock.getWait(),
+                                        loopInstLoad.getActions(),
+                                        loopInstLoad.getParentBlockId(), // Parent Block Id
+                                        loopInstLoad.getParentId(),
+                                        loopInstLoad.getVariableId(),
+                                        loopInstLoad.getOperation(),
+                                        loopInstLoad.getDefaultValue(),
+                                        itemBlock.getExportFile(),
+                                        loopInstLoad.getTagName(),
+                                        // Normalise null "" so Gson actually emits the field and
+                                        // the frontend toggle can accumulate F/E/T/N/S flags instead
+                                        // of reading undefined and overwriting on every click.
+                                        loopInstLoad.getForceCoordinates() == null
+                                                ? ""
+                                                : loopInstLoad.getForceCoordinates())))
                         .collect(Collectors.toList());
 
                 // Step 1: Filter rows where actions = "REFRESH_LOOP" and collect their parent IDs

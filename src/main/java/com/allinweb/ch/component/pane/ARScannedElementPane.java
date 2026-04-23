@@ -638,20 +638,12 @@ public class ARScannedElementPane extends ARPane {
             instruction.setName(targetInsert.getNameLabel());
         }
 
-        // Fix action string
+        // Normalise the INSERT action to "I:<fieldName>". The legacy ":E:" / ":S:"
+        // tokens are no longer embedded in actions — F/E/T/N/S now live in
+        // instruction.force_coordinates (see InputFlags + migration 2026-04-26).
         String actions = instruction.getActions();
-        String[] parts = actions.split(",");
-        if (actions.startsWith("I:")) {
-            for (int i = 0; i < parts.length; i++) {
-                parts[i] = parts[i].trim();
-                if (parts[i].startsWith("I:")) {
-                    parts[i] = parts[i].contains(":E:")
-                            ? "I:E:" + targetInsert.getDefinedName()
-                            : "I:" + targetInsert.getDefinedName();
-                    break;
-                }
-            }
-            instruction.setActions(parts[0]);
+        if (actions != null && actions.startsWith("I:")) {
+            instruction.setActions("I:" + targetInsert.getDefinedName());
         }
 
         // Set references
@@ -4255,12 +4247,11 @@ public class ARScannedElementPane extends ARPane {
                             }
 
                             // Case for Inputs
+                            // Post-migration 2026-04-26, INSERT actions are always "I:<reference>".
+                            // The legacy "I:E:<reference>" shape (ENTER-after-input) no longer
+                            // exists in actions — ENTER is a bit in force_coordinates now.
                             String valueInsert = "CHANGE ME";
-                            if (actions[0].equals(ARConstantsEngine.INSERT)
-                                    && actions[1].equals(ARConstantsEngine.ENTER)) {
-                                String reference = actions[2];
-                                valueInsert = dataExcel.get(reference);
-                            } else if (actions[0].equals(ARConstantsEngine.INSERT)) {
+                            if (actions[0].equals(ARConstantsEngine.INSERT)) {
                                 String reference = actions[1];
                                 valueInsert = dataExcel.get(reference);
                             }
@@ -4866,11 +4857,11 @@ public class ARScannedElementPane extends ARPane {
 
                                     if (webElementFound == null && forceCoordinates && !isMobileApp) {
 
-                                        Boolean pressEnterAfter = false;
-                                        if (actions[0].equals(ARConstantsEngine.INSERT)
-                                                && actions[1].equals(ARConstantsEngine.ENTER)) {
-                                            pressEnterAfter = true;
-                                        }
+                                        // Enter-after-input flag now lives in force_coordinates,
+                                        // not in the actions string. See migration 2026-04-26.
+                                        Boolean pressEnterAfter = InputFlags.of(
+                                                        currentInstruction.getForceCoordinates())
+                                                .hasEnter();
                                         if (actions[0].equalsIgnoreCase(ARConstantsEngine.VISUALIZE)
                                                 || actions[0].equalsIgnoreCase(ARConstantsEngine.CLICK)
                                                 || actions[0].equalsIgnoreCase(ARConstantsEngine.INSERT)) {

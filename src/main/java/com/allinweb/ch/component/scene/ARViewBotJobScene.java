@@ -685,12 +685,15 @@ public class ARViewBotJobScene extends ARScene {
             instruction.setName(targetInsert.getTagName());
         }
 
-        // Normalize actions string
-        String actions = instruction.getActions();
+        // Normalize actions string — drop any legacy ":S"/":E" tokens.
+        // S/E flags now live in force_coordinates (see InputFlags).
+        instruction.setActions(stripLegacyFlagTokens(instruction.getActions()));
+
+        // Merge the target's AutoScroll / AutoEnter intent into force_coordinates.
         boolean enter = "active".equals(targetInsert.getAutoEnter());
         boolean scroll = "active".equals(targetInsert.getAutoScroll());
-
-        instruction.setActions(normalizeActions(actions, enter, scroll));
+        instruction.setForceCoordinates(
+                mergeFlags(instruction.getForceCoordinates(), scroll ? "S" : "", enter ? "E" : ""));
 
         // Set references
         List<ReferenceLoadDTO> referenceList = new ArrayList<>();
@@ -706,44 +709,36 @@ public class ARViewBotJobScene extends ARScene {
         instructionList.add(instruction);
     }
 
-    private static String normalizeActions(String actions, boolean autoEnter, boolean autoScroll) {
+    /**
+     * Strip legacy {@code :S} and {@code :E} flag tokens from an actions string so
+     * the post-flag-migration format is preserved (e.g. {@code "I:Password"} rather
+     * than {@code "I:S:Password"}). Any other tokens are retained in order.
+     */
+    private static String stripLegacyFlagTokens(String actions) {
         if (actions == null) return null;
         if (actions.isBlank()) return actions;
-
         String[] parts = actions.trim().split(":");
         if (parts.length == 0) return actions;
-
-        String base = parts[0].trim();
-
-        // Detect tail (the "XXXX..." you want to keep last).
-        // If the string has more than one token, we treat the last token as tail unless it's a known flag.
-        String last = (parts.length > 1) ? parts[parts.length - 1].trim() : null;
-        boolean lastIsFlag = "E".equalsIgnoreCase(last) || "S".equalsIgnoreCase(last);
-
-        String tail = (!lastIsFlag && last != null) ? last : null;
-
-        // Collect existing flags from the middle tokens (and also from last if it was a flag)
-        boolean hasE = false, hasS = false;
+        StringBuilder sb = new StringBuilder(parts[0].trim());
         for (int i = 1; i < parts.length; i++) {
             String t = parts[i].trim();
-            if ("E".equalsIgnoreCase(t)) hasE = true;
-            if ("S".equalsIgnoreCase(t)) hasS = true;
+            if ("E".equalsIgnoreCase(t) || "S".equalsIgnoreCase(t)) continue;
+            sb.append(':').append(t);
         }
+        return sb.toString();
+    }
 
-        // Add auto flags
-        hasE = hasE || autoEnter;
-        hasS = hasS || autoScroll;
-
-        // Build output. Choose a fixed order so results are stable (no UI flicker / diff noise).
-        StringBuilder sb = new StringBuilder(base);
-
-        // Example fixed order: S then E (pick the one you prefer and keep it consistent)
-        if (hasS) sb.append(":S");
-        if (hasE) sb.append(":E");
-
-        // Append tail last (only if it exists)
-        if (tail != null && !tail.isBlank()) sb.append(":").append(tail);
-
+    /** Merge one or more flag characters into an existing force_coordinates value
+     *  without introducing duplicates. */
+    private static String mergeFlags(String current, String... toAdd) {
+        StringBuilder sb = new StringBuilder(current == null ? "" : current);
+        for (String add : toAdd) {
+            if (add == null) continue;
+            for (int i = 0; i < add.length(); i++) {
+                char c = add.charAt(i);
+                if (sb.indexOf(String.valueOf(c)) < 0) sb.append(c);
+            }
+        }
         return sb.toString();
     }
 

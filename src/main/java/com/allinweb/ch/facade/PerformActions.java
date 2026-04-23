@@ -456,10 +456,10 @@ public class PerformActions {
                 switchedToIframe = true;
             }
 
-            Boolean pressEnterAfter = false;
-            if (actions[0].equals(ARConstantsEngine.INSERT) && actions[1].equals(ARConstantsEngine.ENTER)) {
-                pressEnterAfter = true;
-            }
+            // The legacy "I:E:..." token in actions is gone; Enter is now a bit in
+            // force_coordinates. See InputFlags + migration 2026-04-26.
+            Boolean pressEnterAfter =
+                    InputFlags.of(currentInstruction.getForceCoordinates()).hasEnter();
 
             if (instructionElement != null) {
                 boolean passed = true;

@@ -20,7 +20,15 @@ public class InstructionLoad {
     private String name;
     private String xpath;
     private String coordinates;
-    private String forceCoordinates; // F/E/T/N combinable, e.g. "FE"
+    // Combinable post-input flags (any subset, any order). The engines split this
+    // down to individual bits (via InputFlags) only at execution time.
+    //   F = force coordinates (use elementFromPoint even when XPath matches)
+    //   E = press ENTER after input
+    //   T = press TAB after input
+    //   N = press NEXT after input (mobile IME "Next"; cascades N-T-E when solo)
+    //   S = scroll target into view before typing
+    // Examples: "", "S", "FE", "FETN", "ETNFS".
+    private String forceCoordinates;
     private String iFrameXPath;
     private String tagName;
     private String shadowHost;

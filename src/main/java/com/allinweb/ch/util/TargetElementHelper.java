@@ -306,6 +306,18 @@ public class TargetElementHelper {
             targetDefine.setAutoScroll(elemenDTO.getAutoScroll());
             targetDefine.setAutoEnter(elemenDTO.getAutoEnter());
 
+            // Compose target.forceCoordinates from the five per-bit sentinels on
+            // the ElementDTO. Without this the target would keep its default
+            // (empty) value and the engine's InputFlags parse would miss every
+            // flag the user had toggled. Canonical order: F → E → T → N → S.
+            StringBuilder fc = new StringBuilder();
+            if ("F".equals(elemenDTO.getAutoForceCoords())) fc.append('F');
+            if ("E".equals(elemenDTO.getAutoEnter())) fc.append('E');
+            if ("T".equals(elemenDTO.getAutoTab())) fc.append('T');
+            if ("N".equals(elemenDTO.getAutoNext())) fc.append('N');
+            if ("S".equals(elemenDTO.getAutoScroll())) fc.append('S');
+            targetDefine.setForceCoordinates(fc.toString());
+
             targetDefine.setAttributeData(elemenDTO.getAttributeData());
             targetDefine.setCustomXPath(elemenDTO.getCustomXPath());
 

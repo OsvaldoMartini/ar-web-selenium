@@ -1,6 +1,7 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.db.MigrationRunner;
+import com.allinweb.ch.db.migrations.M20260426_ScrollFromActionsVarchar;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
@@ -43,6 +44,12 @@ public class PerformInitializer {
         // Safe to call on every boot — idempotent by name.
         try (Connection conn = performDataBase.getConnection()) {
             MigrationRunner.getInstance().runPending(conn);
+
+            // Safety net: re-run the scroll/enter-from-actions rewrite even if the
+            // migration is already recorded as applied. Protects against the failure
+            // mode where schema_migrations was written but the actual UPDATE was
+            // silently dropped by a driver on a prior boot. No-op on a clean DB.
+            M20260426_ScrollFromActionsVarchar.selfHealIfLegacyRemains(conn);
         } catch (Exception e) {
             log.error("PerformInitializer — migration check failed: {}", e.getMessage());
         }

@@ -43,7 +43,18 @@ public class TargetElement {
     String searchAttributeValue;
     String autoScroll;
     String autoEnter;
-    String forceCoordinates = "F"; // F=force, E=enter, T=tab, N=next — combinable, e.g. "FE"
+    // force_coordinates holds ALL post-input behaviour flags as a combinable string.
+    // Any subset, any order: F=force-coords, E=enter, T=tab, N=next, S=scroll-before-type.
+    // Examples: "", "S", "FE", "FETN", "ETNFS". The engines split it down to individual
+    // bits (via InputFlags) only at execution time.
+    //
+    // Default is "" — a brand-new target has no flags until something explicitly
+    // sets them. The old default of "F" was a leftover from when this column was
+    // a boolean ("force coordinates = true" → the single letter F); under the
+    // multi-flag model that default silently made every fresh target opt into
+    // force-coords, which is almost never what callers want. Populated from
+    // the source ElementDTO's five per-bit sentinels by TargetElementHelper.
+    String forceCoordinates = "";
     Map<String, String> savedReferences = new HashMap<>();
     Integer instructionId;
     Boolean clickElement = true;

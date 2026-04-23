@@ -48,8 +48,9 @@ public class MigrationRunner {
     /**
      * Registered migrations, in execution order. Never reorder; only APPEND new ones.
      */
-    private static final List<Migration> MIGRATIONS =
-            List.of(new com.allinweb.ch.db.migrations.M20260425_ForceCoordinatesVarchar());
+    private static final List<Migration> MIGRATIONS = List.of(
+            new com.allinweb.ch.db.migrations.M20260425_ForceCoordinatesVarchar(),
+            new com.allinweb.ch.db.migrations.M20260426_ScrollFromActionsVarchar());
 
     private static volatile MigrationRunner instance;
 
