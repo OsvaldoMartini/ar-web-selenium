@@ -2179,11 +2179,13 @@ public class ARScannedElementPane extends ARPane {
 
             if (performLists.getListBotJob().isEmpty()) {
                 log.error("Cannot find Bot Jobs with this Id:" + this.currentBotJob.getId());
+                reenableLaunchButton();
                 return;
             }
             HomeBankingLoadDTO homeBanking = performLists.getHomeBankingById(this.currentBotJob.getHomeBankingId());
             if (homeBanking == null || StringUtils.isNullOrEmpty(homeBanking.getUrl())) {
                 log.error("Cannot find Home Banking Environment Id:" + this.currentBotJob.getHomeBankingId());
+                reenableLaunchButton();
                 return;
             }
 
@@ -2222,6 +2224,7 @@ public class ARScannedElementPane extends ARPane {
             if (extractedData != null && extractedData.getErrorMessage() != null) {
                 performMessage.errorMessage(
                         "Excel Error", "Could Not Execute Excel File", extractedData.getErrorMessage(), null, null, 0);
+                reenableLaunchButton();
                 return;
             }
 
@@ -2246,10 +2249,12 @@ public class ARScannedElementPane extends ARPane {
                     performActions.setInterceptBotJob(true);
                     setInterceptBotJob(true);
                     isJobRunning.set(false);
+                    reenableLaunchButton();
 
                     if (!lastBrowserTab()) {
                         return;
                     }
+                    return;
                 }
             }
 
@@ -2802,14 +2807,28 @@ public class ARScannedElementPane extends ARPane {
                 executorServicePreLaunch.submit(() -> {
                     try {
                         executeJob();
+                    } catch (Throwable t) {
+                        // executeJob() returns boolean but can still propagate
+                        // uncaught exceptions from deep helpers / driver calls.
+                        // Log here — the executor would otherwise swallow it
+                        // silently since we never look at the Future — and let
+                        // the finally block re-enable the UI so the user can
+                        // launch again instead of being stuck on a dead button.
+                        log.error("executeJob() terminated with exception: {}", t.getMessage(), t);
                     } finally {
                         isJobRunning.set(false);
                         stopScreenshotLoop();
+                        // Always re-enable Launch so the user can restart after
+                        // success, failure, Stop button, client-side Pause /
+                        // Continue Scan, Close Browser, exception — every way
+                        // executeJob can end.
+                        reenableLaunchButton();
                     }
                 });
             } catch (Exception e) {
                 isJobRunning.set(false);
                 stopScreenshotLoop();
+                reenableLaunchButton();
                 log.error("Error submitting to executorServicePreLaunch: {}", e.getMessage(), e);
             }
         } else {
@@ -3018,6 +3037,16 @@ public class ARScannedElementPane extends ARPane {
         if (isJobRunning.get()) {
             setInterceptBotJob(true);
         }
+    }
+
+    /**
+     * Re-enable the Launch button on the JavaFX thread. Safe to call from the
+     * background executor (recallJob's submit) or from the FX event handler —
+     * Platform.runLater is a no-op wrapper when already on FX. Used by every
+     * executeJob termination path so the user can start another run.
+     */
+    private void reenableLaunchButton() {
+        Platform.runLater(() -> launchBotJobButton.setDisable(false));
     }
 
     private FieldData updateMSGInstruction(FieldData msgInstruction, String failedMessage) {
