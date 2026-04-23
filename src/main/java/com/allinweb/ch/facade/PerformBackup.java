@@ -3255,152 +3255,37 @@ public class PerformBackup {
     }
 
     /**
-     * Restore a single-file backup produced by {@link #dumpAllToSingleFile}. The
-     * current database is wiped (all rows in every backed-up table deleted, in
-     * reverse FK-dependency order) before the INSERTs run. ID columns are reused
-     * verbatim from the file so every FK reference remains valid.
+     * Single-file restore that works uniformly across Access, SQLite and
+     * Postgres. Every backed-up table is wiped, the per-dialect identity
+     * counter is reset to 1, then the per-table restore methods replay the
+     * INSERTs without their original ids — the database assigns fresh ids
+     * starting at 1 on each table, and FK columns on children are rewritten
+     * using the old&nbsp;→&nbsp;new id maps ({@link #homeBankMap},
+     * {@link #botJobMap}, {@link #blockMap}, etc.) captured as each parent
+     * table is loaded.
      *
-     * <p>Per-dialect handling:
+     * <p>Counter reset is dialect-specific:
      * <ul>
-     *   <li><b>SQLite</b>: {@code PRAGMA foreign_keys = OFF} for the duration of
-     *       the restore, then {@code ON} at the end.</li>
-     *   <li><b>Postgres</b>: {@code SET session_replication_role = 'replica'} to
-     *       suppress FK checks, then {@code 'origin'} at the end. Sequences for
-     *       every restored table are re-synced with {@code setval(pg_get_serial_sequence(...))}
-     *       so future auto-increments don't collide with restored ids.</li>
-     *   <li><b>Access</b>: nothing special — ucanaccess respects the insertion
-     *       order and the declared schema has no self-referential FKs.</li>
+     *   <li><b>SQLite</b>: {@code DELETE FROM sqlite_sequence} for each
+     *       backed-up table so the first INSERT seeds the counter at 1.</li>
+     *   <li><b>Postgres</b>: {@code setval(pg_get_serial_sequence('t','id'), 1, false)}
+     *       so {@code nextval()} returns 1 on the first INSERT.</li>
+     *   <li><b>Access</b>: no-op — ucanaccess's COUNTER naturally restarts
+     *       after the per-table wipe that {@link #restoreHomeBanking} performs
+     *       at the head of the chain.</li>
      * </ul>
-     */
-    public ErrorMessage restoreAllFromSingleFile(Connection conn, String sqlFilePath) {
-        File sqlFile = new File(sqlFilePath);
-        if (!sqlFile.exists()) {
-            return new ErrorMessage(
-                    "Restore file not found", "Single-file backup not present on disk", sqlFile.getAbsolutePath());
-        }
-        BackupDialect dialect = BackupDialect.detect();
-        boolean originalAutoCommit = true;
-        try {
-            originalAutoCommit = conn.getAutoCommit();
-        } catch (SQLException ignore) {
-            // some drivers forbid reading autoCommit on a closed tx; default is true
-        }
-
-        try {
-            conn.setAutoCommit(false);
-            setFkEnforcement(conn, dialect, false);
-
-            // 1. Wipe every backed-up table in reverse insertion order (child tables first).
-            for (int i = BACKUP_TABLES_IN_ORDER.size() - 1; i >= 0; i--) {
-                BackupTableSpec spec = BACKUP_TABLES_IN_ORDER.get(i);
-                try (Statement st = conn.createStatement()) {
-                    int n = st.executeUpdate("DELETE FROM " + spec.tableName);
-                    log.info("restoreAllFromSingleFile — wiped {}: {} row(s)", spec.tableName, n);
-                }
-            }
-
-            // 1b. SQLite: clear sqlite_sequence for the wiped tables so AUTOINCREMENT
-            // is reset. Without this, inserting rows with explicit ids lower than the
-            // previous max still leaves the counter at the OLD max — future auto-ids
-            // would skip well past the restored data.
-            if (dialect == BackupDialect.SQLITE) {
-                try (Statement st = conn.createStatement()) {
-                    for (BackupTableSpec spec : BACKUP_TABLES_IN_ORDER) {
-                        try {
-                            int n = st.executeUpdate(
-                                    "DELETE FROM sqlite_sequence WHERE name = '" + spec.tableName + "'");
-                            log.info(
-                                    "restoreAllFromSingleFile — cleared sqlite_sequence for {} ({} row)",
-                                    spec.tableName,
-                                    n);
-                        } catch (SQLException seqEx) {
-                            // sqlite_sequence only exists if at least one AUTOINCREMENT column
-                            // was ever used in the DB. Missing table is harmless — log once.
-                            log.warn(
-                                    "restoreAllFromSingleFile — sqlite_sequence reset skipped for {}: {}",
-                                    spec.tableName,
-                                    seqEx.getMessage());
-                            break;
-                        }
-                    }
-                }
-            }
-
-            // 2. Replay every INSERT from the file. Comments / blanks are skipped.
-            long executed = runSqlScript(conn, sqlFile);
-            log.info("restoreAllFromSingleFile — executed {} statement(s)", executed);
-
-            // 3. Postgres only: resync sequences so new inserts don't collide.
-            if (dialect == BackupDialect.POSTGRES) {
-                for (BackupTableSpec spec : BACKUP_TABLES_IN_ORDER) {
-                    try (Statement st = conn.createStatement()) {
-                        st.executeUpdate("SELECT setval(pg_get_serial_sequence('" + spec.tableName + "', 'id'), "
-                                + "COALESCE((SELECT MAX(id) FROM " + spec.tableName + "), 1))");
-                    } catch (SQLException e) {
-                        // If a table has no sequence (shouldn't happen here), just log and continue.
-                        log.warn(
-                                "restoreAllFromSingleFile — sequence resync skipped for {}: {}",
-                                spec.tableName,
-                                e.getMessage());
-                    }
-                }
-            }
-
-            setFkEnforcement(conn, dialect, true);
-            conn.commit();
-            log.info("restoreAllFromSingleFile — complete: {}", sqlFile.getAbsolutePath());
-            return null;
-        } catch (Exception error) {
-            log.error("restoreAllFromSingleFile — failed: {}", error.getMessage(), error);
-            try {
-                conn.rollback();
-            } catch (SQLException rbEx) {
-                log.warn("restoreAllFromSingleFile — rollback failed: {}", rbEx.getMessage());
-            }
-            // Best-effort re-enable of FK enforcement so the connection isn't left in an odd state.
-            try {
-                setFkEnforcement(conn, dialect, true);
-            } catch (Exception ignore) {
-                // already logged upstream
-            }
-            return new ErrorMessage("Error in restore process", "Error during single-file restore", error.getMessage());
-        } finally {
-            try {
-                conn.setAutoCommit(originalAutoCommit);
-            } catch (SQLException ignore) {
-                // noop
-            }
-        }
-    }
-
-    /**
-     * Access-specific single-file restore. ucanaccess's COUNTER columns don't
-     * honour explicit id values on INSERT, so the verbatim-id path used by
-     * {@link #restoreAllFromSingleFile} corrupts FKs (child rows end up pointing
-     * at parent ids that were re-generated by the driver and no longer exist).
      *
-     * <p>This method splits the single {@code backup_access_all_*.sql} dump into
-     * one per-table temp file and hands each to the legacy per-table restore
-     * methods, which already know how to:
-     * <ul>
-     *   <li>strip the old id from every INSERT,</li>
-     *   <li>let Access auto-assign fresh ids (restarting from 1 on a wiped
-     *       table),</li>
-     *   <li>record old&nbsp;→&nbsp;new id maps ({@link #homeBankMap},
-     *       {@link #botJobMap}, {@link #blockMap}, etc.), and</li>
-     *   <li>translate FK columns on the children using those maps.</li>
-     * </ul>
-     * The calling sequence here mirrors
+     * <p>The calling sequence mirrors
      * {@code ARConfigurationPane.runLegacyPerTableRestore} exactly — including
      * the two map-only "update" passes that patch
      * {@code instruction.parent_id} / {@code instruction.variable_id} and the
      * {@code component_instruction} equivalents after their targets exist.
      *
-     * @param conn an open ucanaccess connection
+     * @param conn an open JDBC connection to the current database
      * @param sqlFilePath path to the single-file {@code .sql} dump
      * @return {@code null} on success, {@link ErrorMessage} on any failure
      */
-    public ErrorMessage restoreAccessWithRemap(Connection conn, String sqlFilePath) {
+    public ErrorMessage restoreWithRemap(Connection conn, String sqlFilePath) {
         File sqlFile = new File(sqlFilePath);
         if (!sqlFile.exists()) {
             return new ErrorMessage(
@@ -3409,7 +3294,10 @@ public class PerformBackup {
 
         Path tempDir = null;
         try {
-            tempDir = Files.createTempDirectory("ar-access-restore-");
+            BackupDialect dialect = BackupDialect.detect();
+            resetIdentityCountersToOne(conn, dialect);
+
+            tempDir = Files.createTempDirectory("ar-restore-");
             Map<String, Path> perTableFiles = splitSingleFileByTable(sqlFile, tempDir);
 
             // Chain the legacy per-table restore methods in the same FK-safe
@@ -3457,15 +3345,69 @@ public class PerformBackup {
             error = restoreComponentReference(conn, pathOrEmpty(perTableFiles, "component_reference"));
             if (error != null) return error;
 
-            log.info("restoreAccessWithRemap — complete: {}", sqlFile.getAbsolutePath());
+            log.info("restoreWithRemap — complete: {}", sqlFile.getAbsolutePath());
             return null;
         } catch (Exception error) {
-            log.error("restoreAccessWithRemap — failed: {}", error.getMessage(), error);
-            return new ErrorMessage(
-                    "Error in restore process", "Error during Access single-file restore", error.getMessage());
+            log.error("restoreWithRemap — failed: {}", error.getMessage(), error);
+            return new ErrorMessage("Error in restore process", "Error during single-file restore", error.getMessage());
         } finally {
             if (tempDir != null) {
                 deleteRecursively(tempDir);
+            }
+        }
+    }
+
+    /**
+     * Reset the identity counter for every backed-up table so the next INSERT
+     * (done with no explicit id by the per-table restore methods) starts at 1.
+     *
+     * <p>For SQLite this is {@code DELETE FROM sqlite_sequence WHERE name = ?};
+     * the counter row is re-created by SQLite the first time a row is inserted
+     * into an AUTOINCREMENT column, with seed 1. For Postgres we call
+     * {@code setval(pg_get_serial_sequence(...), 1, false)} so the next
+     * {@code nextval()} returns 1. For Access we do nothing — ucanaccess's
+     * COUNTER column naturally restarts at 1 after the table is emptied by
+     * {@link #restoreHomeBanking}'s opening {@code DELETE FROM} cascade.
+     */
+    private void resetIdentityCountersToOne(Connection conn, BackupDialect dialect) {
+        if (dialect == BackupDialect.ACCESS) {
+            return;
+        }
+        if (dialect == BackupDialect.SQLITE) {
+            try (Statement st = conn.createStatement()) {
+                for (BackupTableSpec spec : BACKUP_TABLES_IN_ORDER) {
+                    try {
+                        int n = st.executeUpdate("DELETE FROM sqlite_sequence WHERE name = '" + spec.tableName + "'");
+                        log.info("resetIdentityCountersToOne — SQLite {} ({} sequence row cleared)", spec.tableName, n);
+                    } catch (SQLException seqEx) {
+                        // sqlite_sequence only exists once a row has been inserted into
+                        // any AUTOINCREMENT column. On a pristine DB it's missing — that
+                        // is already "next id will be 1", so the miss is harmless.
+                        log.warn(
+                                "resetIdentityCountersToOne — SQLite reset skipped for {}: {}",
+                                spec.tableName,
+                                seqEx.getMessage());
+                        return;
+                    }
+                }
+            } catch (SQLException e) {
+                log.warn("resetIdentityCountersToOne — SQLite statement open failed: {}", e.getMessage());
+            }
+            return;
+        }
+        if (dialect == BackupDialect.POSTGRES) {
+            for (BackupTableSpec spec : BACKUP_TABLES_IN_ORDER) {
+                try (Statement st = conn.createStatement()) {
+                    st.executeUpdate("SELECT setval(pg_get_serial_sequence('" + spec.tableName + "', 'id'), 1, false)");
+                    log.info("resetIdentityCountersToOne — Postgres {} seq -> 1", spec.tableName);
+                } catch (SQLException e) {
+                    // Table with no declared sequence shouldn't exist in this list,
+                    // but tolerate it so one missing sequence doesn't block the rest.
+                    log.warn(
+                            "resetIdentityCountersToOne — Postgres reset skipped for {}: {}",
+                            spec.tableName,
+                            e.getMessage());
+                }
             }
         }
     }
@@ -3541,117 +3483,165 @@ public class PerformBackup {
         }
     }
 
-    /** Toggle FK enforcement for the current connection in a dialect-aware way. */
-    private void setFkEnforcement(Connection conn, BackupDialect dialect, boolean enabled) throws SQLException {
-        switch (dialect) {
-            case SQLITE:
-                try (Statement st = conn.createStatement()) {
-                    st.execute("PRAGMA foreign_keys = " + (enabled ? "ON" : "OFF"));
+    /**
+     * Single-file export of one bot job + every row it transitively depends on.
+     * Writes a file in the same {@code -- TABLE: <name>} section format used by
+     * {@link #dumpAllToSingleFile}, but restricted to the six tables touched by
+     * a bot-job scoped backup: {@code home_banking}, {@code bot_job},
+     * {@code block}, {@code instruction}, {@code variable}, {@code reference}.
+     *
+     * <p>Under the hood the existing per-table backup methods
+     * ({@link #backupHomeBanking}, {@link #backupBotJob}, …) are invoked into
+     * temp files (preserving their exact WHERE filters and formatting) and
+     * then concatenated with section markers. This keeps row-byte output
+     * identical to the legacy 6-file format for a given table.
+     */
+    public ErrorMessage dumpBotJobToSingleFile(
+            Connection conn, String backupFilePath, int homeBankingId, int botJobId) {
+        Path tempDir = null;
+        try {
+            tempDir = Files.createTempDirectory("ar-export-botjob-");
+            Path hb = tempDir.resolve("home_banking.sql");
+            Path bj = tempDir.resolve("bot_job.sql");
+            Path bl = tempDir.resolve("block.sql");
+            Path in = tempDir.resolve("instruction.sql");
+            Path vr = tempDir.resolve("variable.sql");
+            Path rf = tempDir.resolve("reference.sql");
+
+            ErrorMessage err = backupHomeBanking(conn, hb.toString(), homeBankingId);
+            if (err != null) return err;
+            err = backupBotJob(conn, bj.toString(), homeBankingId, botJobId);
+            if (err != null) return err;
+            err = backupBlock(conn, bl.toString(), botJobId);
+            if (err != null) return err;
+            err = backupInstruction(conn, in.toString(), botJobId);
+            if (err != null) return err;
+            err = backupVariable(conn, vr.toString(), botJobId);
+            if (err != null) return err;
+            err = backupReference(conn, rf.toString(), botJobId);
+            if (err != null) return err;
+
+            Map<String, Path> sections = new java.util.LinkedHashMap<>();
+            sections.put("home_banking", hb);
+            sections.put("bot_job", bj);
+            sections.put("block", bl);
+            sections.put("instruction", in);
+            sections.put("variable", vr);
+            sections.put("reference", rf);
+
+            File outFile = new File(backupFilePath);
+            try (BufferedWriter writer = new BufferedWriter(
+                    new OutputStreamWriter(new FileOutputStream(outFile), Charset.forName("windows-1252")))) {
+                writer.write("-- AR-WEB BOT JOB SNAPSHOT v1 — "
+                        + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+                writer.write(System.lineSeparator());
+                writer.write(
+                        "-- dialect (informational): " + BackupDialect.detect().name());
+                writer.write(System.lineSeparator());
+                writer.write("-- home_banking_id: " + homeBankingId + ", bot_job_id: " + botJobId);
+                writer.write(System.lineSeparator());
+                writer.write(System.lineSeparator());
+
+                for (Map.Entry<String, Path> e : sections.entrySet()) {
+                    writer.write("-- TABLE: " + e.getKey());
+                    writer.write(System.lineSeparator());
+                    try (BufferedReader r = new BufferedReader(new InputStreamReader(
+                            new FileInputStream(e.getValue().toFile()), Charset.forName("windows-1252")))) {
+                        String line;
+                        while ((line = r.readLine()) != null) {
+                            writer.write(line);
+                            writer.write(System.lineSeparator());
+                        }
+                    }
+                    writer.write(System.lineSeparator());
                 }
-                break;
-            case POSTGRES:
-                try (Statement st = conn.createStatement()) {
-                    // session_replication_role = 'replica' disables all FK triggers for this session
-                    st.execute("SET session_replication_role = '" + (enabled ? "origin" : "replica") + "'");
-                }
-                break;
-            case ACCESS:
-            default:
-                // ucanaccess doesn't expose a session-level FK toggle, and the insertion
-                // order already satisfies every declared FK — no action needed.
-                break;
+            }
+            log.info("dumpBotJobToSingleFile — complete: {}", outFile.getAbsolutePath());
+            return null;
+        } catch (Exception error) {
+            log.error("dumpBotJobToSingleFile — failed: {}", error.getMessage(), error);
+            return new ErrorMessage(
+                    "Error in export process", "Error during bot job single-file export", error.getMessage());
+        } finally {
+            if (tempDir != null) {
+                deleteRecursively(tempDir);
+            }
         }
     }
 
     /**
-     * Quote-aware SQL script runner. Each statement is terminated by a {@code ';'}
-     * appearing <em>outside</em> any single-quoted string literal; the {@code ';'}
-     * may land on the same line or on any subsequent line, so multi-line string
-     * values (which appear in the legacy backup files — e.g. {@code search_config}
-     * on {@code home_banking} rows) are reassembled correctly into one statement.
+     * Single-file import that restores one bot job into the currently-open DB,
+     * re-keying every FK so the job folds into the existing {@code home_banking}
+     * (and its {@code home_url}) row whose ids are passed in. The file is
+     * split into the six per-table sections produced by
+     * {@link #dumpBotJobToSingleFile} and each section is handed to its legacy
+     * restore method — which strips old ids, lets the engine assign fresh
+     * ones, and remaps child FK columns via {@link #botJobMap} /
+     * {@link #blockMap} / {@link #instructionMap} / {@link #variableMap}.
      *
-     * <p>Handling:
-     * <ul>
-     *   <li>Lines starting with {@code --} are treated as comments and skipped
-     *       ONLY when we are not inside a quoted string. Inside a string, the
-     *       {@code '--'} is real data and must be preserved.</li>
-     *   <li>Single quotes toggle the quote state. The standard SQL {@code ''}
-     *       escape — a doubled single quote inside a quoted literal — is consumed
-     *       as two characters without flipping the state.</li>
-     *   <li>A trailing {@code ';'} is stripped before execution, because some
-     *       JDBC drivers object to it while most tolerate it.</li>
-     *   <li>If the file ends mid-statement (no final {@code ';'}), whatever was
-     *       accumulated is executed as a best-effort last statement.</li>
-     * </ul>
+     * <p>The {@code home_banking} section is NOT re-inserted — the caller's
+     * current home_banking row is reused. That section is only read to check
+     * the exported org name matches the target org (prevents cross-tenant
+     * imports), same as the legacy 6-file flow did.
      */
-    private long runSqlScript(Connection conn, File sqlFile) throws IOException, SQLException {
-        long executed = 0;
-        StringBuilder current = new StringBuilder();
-        boolean inQuote = false;
+    public ErrorMessage restoreBotJobFromSingleFile(
+            Connection conn,
+            String sqlFilePath,
+            Integer homeBankIdImported,
+            Integer homeUrlIdImported,
+            Integer botJobIdImported,
+            String organizationName) {
+        File sqlFile = new File(sqlFilePath);
+        if (!sqlFile.exists()) {
+            return new ErrorMessage(
+                    "Import Failed: File Not Found",
+                    "Import attempt failed: " + sqlFilePath,
+                    "The file was not found. Please execute the Export Bot Job first or select the correct directory.");
+        }
 
-        try (BufferedReader reader = new BufferedReader(
-                        new InputStreamReader(new FileInputStream(sqlFile), Charset.forName("windows-1252")));
-                Statement st = conn.createStatement()) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                // Comment / blank line handling — only applies OUTSIDE a quoted literal.
-                if (!inQuote) {
-                    String trimmed = line.trim();
-                    if (trimmed.isEmpty()) continue;
-                    if (trimmed.startsWith("--")) continue;
-                }
+        Path tempDir = null;
+        try {
+            tempDir = Files.createTempDirectory("ar-import-botjob-");
+            Map<String, Path> perTableFiles = splitSingleFileByTable(sqlFile, tempDir);
 
-                int i = 0;
-                int n = line.length();
-                while (i < n) {
-                    char c = line.charAt(i);
-                    if (c == '\'') {
-                        if (inQuote && i + 1 < n && line.charAt(i + 1) == '\'') {
-                            // '' escape inside a quoted literal — keep both, stay in quote
-                            current.append('\'').append('\'');
-                            i += 2;
-                            continue;
-                        }
-                        inQuote = !inQuote;
-                        current.append('\'');
-                        i++;
-                    } else if (c == ';' && !inQuote) {
-                        String stmt = current.toString().trim();
-                        current.setLength(0);
-                        if (!stmt.isEmpty()) {
-                            try {
-                                st.executeUpdate(stmt);
-                                executed++;
-                            } catch (SQLException e) {
-                                log.error(
-                                        "runSqlScript — statement #{} failed: {} | stmt head: {}",
-                                        executed + 1,
-                                        e.getMessage(),
-                                        stmt.length() > 300 ? stmt.substring(0, 300) + "…" : stmt);
-                                throw e;
-                            }
-                        }
-                        i++;
-                    } else {
-                        current.append(c);
-                        i++;
-                    }
-                }
-                // Preserve the original newline when the line ended inside a string —
-                // multi-line values round-trip cleanly.
-                if (inQuote) {
-                    current.append('\n');
-                }
-            }
+            ErrorMessage error =
+                    getHomeBankingNameFromFile(pathOrEmpty(perTableFiles, "home_banking"), organizationName);
+            if (error != null) return error;
 
-            // File ended; if there's a trailing statement without ';', try it.
-            String tail = current.toString().trim();
-            if (!tail.isEmpty()) {
-                st.executeUpdate(tail);
-                executed++;
+            error = restoreBotJob(
+                    conn,
+                    pathOrEmpty(perTableFiles, "bot_job"),
+                    homeBankIdImported,
+                    homeUrlIdImported,
+                    botJobIdImported);
+            if (error != null) return error;
+
+            error = restoreBlock(conn, pathOrEmpty(perTableFiles, "block"), botJobIdImported);
+            if (error != null) return error;
+
+            error = restoreInstruction(conn, pathOrEmpty(perTableFiles, "instruction"), botJobIdImported);
+            if (error != null) return error;
+
+            error = restoreVariable(conn, pathOrEmpty(perTableFiles, "variable"), botJobIdImported);
+            if (error != null) return error;
+
+            error = restoreUpdateInstruction(conn, botJobIdImported);
+            if (error != null) return error;
+
+            error = restoreReference(conn, pathOrEmpty(perTableFiles, "reference"), botJobIdImported);
+            if (error != null) return error;
+
+            log.info("restoreBotJobFromSingleFile — complete: {}", sqlFile.getAbsolutePath());
+            return null;
+        } catch (Exception error) {
+            log.error("restoreBotJobFromSingleFile — failed: {}", error.getMessage(), error);
+            return new ErrorMessage(
+                    "Error in import process", "Error during bot job single-file import", error.getMessage());
+        } finally {
+            if (tempDir != null) {
+                deleteRecursively(tempDir);
             }
         }
-        return executed;
     }
 
     /**
@@ -3662,7 +3652,7 @@ public class PerformBackup {
      * <p>Naming:
      * <ul>
      *   <li>Access &rarr; {@code access_backup_YYYYMMDD_HHMMSS.mdb}</li>
-     *   <li>SQLite (TEXT) &rarr; {@code sqllite_backup_YYYYMMDD_HHMMSS.db}</li>
+     *   <li>SQLite (TEXT) &rarr; {@code sqlite_backup_YYYYMMDD_HHMMSS.db}</li>
      * </ul>
      */
     public ErrorMessage copyDbFileTo(String dataBaseType, String dbFolder, String destFolder) {
@@ -3689,7 +3679,7 @@ public class PerformBackup {
         }
 
         String ts = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
-        String copyName = isAccess ? "/access_backup_" + ts + ".mdb" : "/sqllite_backup_" + ts + ".db";
+        String copyName = isAccess ? "/access_backup_" + ts + ".mdb" : "/sqlite_backup_" + ts + ".db";
         File destFile = new File(destFolder + copyName);
 
         try {

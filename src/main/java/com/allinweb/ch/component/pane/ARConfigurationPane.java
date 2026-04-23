@@ -907,7 +907,7 @@ public class ARConfigurationPane extends ARPane {
                 ? "Single-file backup: <b>" + singleFile.getName() + "</b>"
                 : "Legacy per-table backups (11 files for <b>" + formattedDate + "</b>)";
         String formatNote = useSingleFile
-                ? "The database will be fully restored from one .sql file (FK-safe order, IDs preserved)."
+                ? "The database will be fully restored from one .sql file (FK-safe order, row ids restart at 1 and all FKs re-keyed)."
                 : "No <b>" + dialectSingleFile.getName() + "</b> or <b>" + plainSingleFile.getName()
                         + "</b> found — falling back to the legacy 11-file restore.";
 
@@ -924,18 +924,14 @@ public class ARConfigurationPane extends ARPane {
                 0);
 
         if (!respModal.equals(ARExecution.DialogModal.STOP)) {
-            // Both file-backed engines (Access, SQLite) restore in-place now —
-            // the binary safety copy taken at BACKUP time lives in the chosen
-            // backup folder and is enough for emergency recovery, so we no
-            // longer physically delete the .mdb/.db at restore time.
-            //
-            // restoreAllFromSingleFile wipes every backed-up table and replays
-            // the INSERTs with their original ids. For SQLite it also clears
-            // sqlite_sequence so AUTOINCREMENT resumes at max(id)+1 of the
-            // restored rows. Access's COUNTER columns naturally seed the next
-            // value from MAX(id)+1 after explicit-id INSERTs, so no extra reset
-            // is required. Postgres is handled the same way (replica-mode FK
-            // off + sequence resync) as before.
+            // One restore path for every dialect: restoreWithRemap wipes the
+            // backed-up tables, resets the identity counter to 1 (SQLite via
+            // sqlite_sequence, Postgres via setval, Access via COUNTER's
+            // post-DELETE behaviour) and replays the dump through the legacy
+            // per-table methods that re-key FKs using old→new id maps.
+            // Fresh ids start at 1 on every table. The binary safety copy
+            // taken at BACKUP time lives in the chosen backup folder and is
+            // enough for emergency recovery.
             try (Connection conn = performDataBase.getConnection()) {
 
                 performBackup.initialize(conn);
@@ -943,26 +939,7 @@ public class ARConfigurationPane extends ARPane {
                 ErrorMessage errorMessage = null;
 
                 if (useSingleFile) {
-                    if ("Access".equalsIgnoreCase(dataBaseType)) {
-                        // Access path: ucanaccess ignores explicit id values on
-                        // AUTOINCREMENT/COUNTER columns, so the "preserve ids"
-                        // strategy breaks FKs (child rows point at stale parent
-                        // ids). restoreAccessWithRemap splits the single .sql
-                        // into per-table chunks and hands each to the legacy
-                        // restore methods, which re-key everything via
-                        // old→new maps. Access ids start at 1 on the freshly
-                        // wiped tables.
-                        errorMessage = performBackup.restoreAccessWithRemap(conn, singleFile.getAbsolutePath());
-                    } else {
-                        // SQLite / Postgres: wipes every backed-up table then
-                        // replays all INSERTs from the .sql file in FK-safe
-                        // order. IDs are preserved verbatim so variable_id /
-                        // block_id / parent_id / parent_block_id / bot_job_id /
-                        // home_banking_id references stay valid. SQLite also
-                        // clears sqlite_sequence so AUTOINCREMENT resumes at
-                        // max(id)+1 of the restored rows.
-                        errorMessage = performBackup.restoreAllFromSingleFile(conn, singleFile.getAbsolutePath());
-                    }
+                    errorMessage = performBackup.restoreWithRemap(conn, singleFile.getAbsolutePath());
                 } else if (!useSingleFile) {
                     // Legacy 11-file path — preserved for restoring backups taken before
                     // backup_all_<date>.sql existed. Delegates to the old per-table
@@ -1625,36 +1602,19 @@ public class ARConfigurationPane extends ARPane {
         try (Connection conn = performDataBase.getConnection()) {
             performBackup.initialize(conn);
 
-            String backupFilePath = exportPath + File.separator + "backup_(BY_BOT_JOB)_home_banking_" + date + ".sql";
-            ErrorMessage errorMessage = performBackup.backupHomeBanking(conn, backupFilePath, homeBankingId);
-
-            // 1) bot_job (filtered)
-            if (errorMessage == null) {
-                backupFilePath = exportPath + File.separator + "backup_(BY_BOT_JOB)_bot_job_" + date + ".sql";
-                errorMessage = performBackup.backupBotJob(conn, backupFilePath, homeBankingId, botJobId);
-            }
-
-            // 2) block (filtered by bot_job_id)
-            if (errorMessage == null) {
-                backupFilePath = exportPath + File.separator + "backup_(BY_BOT_JOB)_block_" + date + ".sql";
-                errorMessage = performBackup.backupBlock(conn, backupFilePath, botJobId);
-            }
-
-            // 3) instruction (filtered by bot_job_id)
-            if (errorMessage == null) {
-                backupFilePath = exportPath + File.separator + "backup_(BY_BOT_JOB)_instruction_" + date + ".sql";
-                errorMessage = performBackup.backupInstruction(conn, backupFilePath, botJobId);
-            }
-
-            if (errorMessage == null) {
-                backupFilePath = exportPath + File.separator + "backup_(BY_BOT_JOB)_variable_" + date + ".sql";
-                errorMessage = performBackup.backupVariable(conn, backupFilePath, botJobId);
-            }
-
-            if (errorMessage == null) {
-                backupFilePath = exportPath + File.separator + "backup_(BY_BOT_JOB)_reference_" + date + ".sql";
-                errorMessage = performBackup.backupReference(conn, backupFilePath, botJobId);
-            }
+            // One file per export: backup_(BY_BOT_JOB)_<dialect>_<date>.sql
+            // Holds the six tables a bot-job export touches (home_banking,
+            // bot_job, block, instruction, variable, reference) in -- TABLE:
+            // sections, same envelope as the full DB single-file backup.
+            String backupFilePath = exportPath
+                    + File.separator
+                    + "backup_(BY_BOT_JOB)_"
+                    + dbDialectSlug(dataBaseType)
+                    + "_"
+                    + date
+                    + ".sql";
+            ErrorMessage errorMessage =
+                    performBackup.dumpBotJobToSingleFile(conn, backupFilePath, homeBankingId, botJobId);
 
             if (errorMessage == null) {
 
@@ -1735,44 +1695,26 @@ public class ARConfigurationPane extends ARPane {
 
                 performBackup.initialize(conn);
 
-                String backupFilePath =
-                        importPath + File.separator + "backup_(BY_BOT_JOB)_home_banking_" + formattedDate + ".sql";
-                ErrorMessage errorMessage = performBackup.getHomeBankingNameFromFile(backupFilePath, organizationName);
-
-                if (errorMessage == null) {
-                    backupFilePath =
-                            importPath + File.separator + "backup_(BY_BOT_JOB)_bot_job_" + formattedDate + ".sql";
-                    errorMessage = performBackup.restoreBotJob(
-                            conn, backupFilePath, homeBankIdImported, homeUrlIdImported, botJobIdImported);
-                }
-
-                if (errorMessage == null) {
-                    backupFilePath =
-                            importPath + File.separator + "backup_(BY_BOT_JOB)_block_" + formattedDate + ".sql";
-                    errorMessage = performBackup.restoreBlock(conn, backupFilePath, botJobIdImported);
-                }
-
-                if (errorMessage == null) {
-                    backupFilePath =
-                            importPath + File.separator + "backup_(BY_BOT_JOB)_instruction_" + formattedDate + ".sql";
-                    errorMessage = performBackup.restoreInstruction(conn, backupFilePath, botJobIdImported);
-                }
-
-                if (errorMessage == null) {
-                    backupFilePath =
-                            importPath + File.separator + "backup_(BY_BOT_JOB)_variable_" + formattedDate + ".sql";
-                    errorMessage = performBackup.restoreVariable(conn, backupFilePath, botJobIdImported);
-                }
-
-                if (errorMessage == null) {
-                    errorMessage = performBackup.restoreUpdateInstruction(conn, botJobIdImported);
-                }
-
-                if (errorMessage == null) {
-                    backupFilePath =
-                            importPath + File.separator + "backup_(BY_BOT_JOB)_reference_" + formattedDate + ".sql";
-                    errorMessage = performBackup.restoreReference(conn, backupFilePath, botJobIdImported);
-                }
+                // Looks for backup_(BY_BOT_JOB)_<dialect>_<date>.sql in the
+                // import folder. restoreBotJobFromSingleFile splits the file
+                // into per-table temp pieces and runs the legacy restore chain
+                // (bot_job → block → instruction → variable → update →
+                // reference) with the provided home_banking / home_url /
+                // bot_job id remaps, re-keying every FK via the old→new maps.
+                String backupFilePath = importPath
+                        + File.separator
+                        + "backup_(BY_BOT_JOB)_"
+                        + dbDialectSlug(dataBaseType)
+                        + "_"
+                        + formattedDate
+                        + ".sql";
+                ErrorMessage errorMessage = performBackup.restoreBotJobFromSingleFile(
+                        conn,
+                        backupFilePath,
+                        homeBankIdImported,
+                        homeUrlIdImported,
+                        botJobIdImported,
+                        organizationName);
 
                 if (errorMessage == null) {
                     //                        closeAllScenes();
