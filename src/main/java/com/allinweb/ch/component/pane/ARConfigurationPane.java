@@ -924,60 +924,45 @@ public class ARConfigurationPane extends ARPane {
                 0);
 
         if (!respModal.equals(ARExecution.DialogModal.STOP)) {
-            // Access-only pre-step for the single-file path: physically delete the
-            // current database.mdb so the restore starts from a brand-new file
-            // (schema re-created below, ids replayed from the .sql dump). The
-            // binary safety copy that protects this destructive step was taken
-            // at backup time and lives in the chosen backup folder.
+            // Both file-backed engines (Access, SQLite) restore in-place now —
+            // the binary safety copy taken at BACKUP time lives in the chosen
+            // backup folder and is enough for emergency recovery, so we no
+            // longer physically delete the .mdb/.db at restore time.
             //
-            // SQLite keeps its file and gets wiped row-by-row inside
-            // restoreAllFromSingleFile (which also clears sqlite_sequence so
-            // AUTOINCREMENT resumes at max(id)+1 of the restored data).
-            // Postgres is a no-op here — server-managed storage.
-            if (useSingleFile && "Access".equalsIgnoreCase(dataBaseType)) {
-                ErrorMessage prepError = performBackup.deleteDbFileWithRetry(dataBaseType, dataBaseFolder);
-                if (prepError != null) {
-                    log.error("Restore preparation failed: {}", prepError.getErrorMessage());
-                    performMessage.errorMessage(
-                            "Restore Database error",
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>"
-                                    + prepError.getErrorTitle() + "</span> ❌",
-                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
-                                    + prepError.getErrorHeader(),
-                            "<span style='font-style: italic;'>Detail:</span> " + prepError.getErrorMessage(),
-                            null,
-                            0);
-                    return;
-                }
-            }
-
+            // restoreAllFromSingleFile wipes every backed-up table and replays
+            // the INSERTs with their original ids. For SQLite it also clears
+            // sqlite_sequence so AUTOINCREMENT resumes at max(id)+1 of the
+            // restored rows. Access's COUNTER columns naturally seed the next
+            // value from MAX(id)+1 after explicit-id INSERTs, so no extra reset
+            // is required. Postgres is handled the same way (replica-mode FK
+            // off + sequence resync) as before.
             try (Connection conn = performDataBase.getConnection()) {
 
                 performBackup.initialize(conn);
 
                 ErrorMessage errorMessage = null;
-                if (useSingleFile && "Access".equalsIgnoreCase(dataBaseType)) {
-                    // Access only: the .mdb was just deleted above and the fresh
-                    // connection on the line above auto-created an empty file.
-                    // Re-create the schema so restoreAllFromSingleFile has tables
-                    // to INSERT into, then let MigrationRunner bring the schema
-                    // up to the current state before replaying data.
-                    String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-                    File dbFile = new File(dbPath + ARConstants.FILE_NAME_ACCESS);
-                    errorMessage = performInitializer.initializeMainDatabaseAccess(dbFile);
-                    if (errorMessage == null) {
-                        // Re-apply migrations on the fresh schema so schema_migrations
-                        // reflects reality and any post-V001 deltas are present.
-                        performInitializer.initialize();
-                    }
-                }
 
-                if (errorMessage == null && useSingleFile) {
-                    // Single-file restore: wipes every backed-up table then replays all
-                    // INSERTs from the .sql file in FK-safe order. IDs are preserved
-                    // verbatim so variable_id / block_id / parent_id / parent_block_id /
-                    // bot_job_id / home_banking_id references stay valid.
-                    errorMessage = performBackup.restoreAllFromSingleFile(conn, singleFile.getAbsolutePath());
+                if (useSingleFile) {
+                    if ("Access".equalsIgnoreCase(dataBaseType)) {
+                        // Access path: ucanaccess ignores explicit id values on
+                        // AUTOINCREMENT/COUNTER columns, so the "preserve ids"
+                        // strategy breaks FKs (child rows point at stale parent
+                        // ids). restoreAccessWithRemap splits the single .sql
+                        // into per-table chunks and hands each to the legacy
+                        // restore methods, which re-key everything via
+                        // old→new maps. Access ids start at 1 on the freshly
+                        // wiped tables.
+                        errorMessage = performBackup.restoreAccessWithRemap(conn, singleFile.getAbsolutePath());
+                    } else {
+                        // SQLite / Postgres: wipes every backed-up table then
+                        // replays all INSERTs from the .sql file in FK-safe
+                        // order. IDs are preserved verbatim so variable_id /
+                        // block_id / parent_id / parent_block_id / bot_job_id /
+                        // home_banking_id references stay valid. SQLite also
+                        // clears sqlite_sequence so AUTOINCREMENT resumes at
+                        // max(id)+1 of the restored rows.
+                        errorMessage = performBackup.restoreAllFromSingleFile(conn, singleFile.getAbsolutePath());
+                    }
                 } else if (!useSingleFile) {
                     // Legacy 11-file path — preserved for restoring backups taken before
                     // backup_all_<date>.sql existed. Delegates to the old per-table
