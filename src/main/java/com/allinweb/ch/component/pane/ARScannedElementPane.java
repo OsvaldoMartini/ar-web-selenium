@@ -180,10 +180,6 @@ public class ARScannedElementPane extends ARPane {
     private Button searchButton;
     private CheckBox checkCloneElement;
     private Label testActionLabel;
-    private CheckBox checkForceEnterText;
-    private CheckBox checkForceCoordText;
-    private CheckBox checkForceTabText;
-    private CheckBox checkForceNextText;
     private Label searchTermsLabel;
     private Label defineNameLabel;
     private Label coordsTextFieldLabel;
@@ -611,22 +607,12 @@ public class ARScannedElementPane extends ARPane {
         InstructionLoad instruction =
                 performActions.buildNewInstruction(tagType, actionReq, false, nextInstOrderNumber, targetInsert);
 
-        // force_coordinates priority:
-        //   1) Per-element flags toggled in GridItemScann (set on the TargetElement
-        //      by stepsInsertManyDTO from ElementDTO.forceCoordinates) — use as-is.
-        //   2) Fall back to the pane's four checkboxes. Order F → E → T → N keeps
-        //      storage deterministic; empty string if none checked.
+        // force_coordinates now comes exclusively from the per-element S/N/T/E/F
+        // badges in GridItemScann — stepsInsertManyDTO copies ElementDTO.forceCoordinates
+        // onto the TargetElement before we get here. Empty string means the user
+        // didn't toggle anything on this element.
         String perElementFlags = targetInsert.getForceCoordinates();
-        if (!Strings.isNullOrEmpty(perElementFlags)) {
-            instruction.setForceCoordinates(perElementFlags);
-        } else {
-            StringBuilder flags = new StringBuilder(4);
-            if (checkForceCoordText.isSelected()) flags.append('F');
-            if (checkForceEnterText.isSelected()) flags.append('E');
-            if (checkForceTabText.isSelected()) flags.append('T');
-            if (checkForceNextText.isSelected()) flags.append('N');
-            instruction.setForceCoordinates(flags.toString());
-        }
+        instruction.setForceCoordinates(Strings.nullToEmpty(perElementFlags));
         instruction.setCoordinates(targetInsert.getCoordinates());
         instruction.setIFrameXPath(targetInsert.getIFrameXPath());
         instruction.setShadowHost(targetInsert.getShadowHost());
@@ -668,471 +654,198 @@ public class ARScannedElementPane extends ARPane {
         instructionList.add(instruction);
     }
 
+    /**
+     * Run a single realistic exercise of the selected element using the exact
+     * same code path {@code EngineRunner} takes during a live bot execution.
+     *
+     * <p>Instead of calling a parallel set of low-level helpers (which was the
+     * old behaviour and diverged from the runner — a test could pass while the
+     * real run failed), this delegates to
+     * {@link PerformActions#performWebActions} which in turn:
+     * <ul>
+     *   <li>ensures the {@code actionExecutor} JS plugin is injected (loaded
+     *       from {@link ARConstants#ACTION_EXECUTION_RELATIVE_PATH_MIN}),</li>
+     *   <li>switches into the iframe if the xpath carries one,</li>
+     *   <li>reads the {@code F / E / T / N / S} bits from {@code force_coordinates}
+     *       via {@link InputFlags} — honouring whatever the user toggled on the
+     *       GridItemScann badge row,</li>
+     *   <li>runs Selenium primary, then actionExecutor JS fallback, then the
+     *       coordinate fallback — same order the runner uses.</li>
+     * </ul>
+     *
+     * <p>The result is shown once at the end via the modal helper, red on
+     * failure, green on success.
+     *
+     * @param originTarget the element the user picked; we deep-copy so the
+     *                     live pane state isn't mutated
+     * @param testType     {@code "TEST_CLICK_DTO"} or {@code "TEST_INPUT_DTO"}
+     */
     public void testingActions(TargetElement originTarget, String testType) {
         WebDriver driverTestActions = performActions.getCurrentDriver();
-
+        logOperations.info(
+                "testingActions - entry: testType={}, originTarget.forceCoordinates='{}'",
+                testType,
+                originTarget == null ? "(null target)" : originTarget.getForceCoordinates());
         TargetElement targetDeepCopy = originTarget.deepCopy();
+        String displayAction = "TEST_CLICK_DTO".equals(testType) ? "CLICK" : "INSERT";
+        String inputValue = testActionsField.getText() == null ? "" : testActionsField.getText();
+
         try {
+            // Resolve via shadow-DOM locator if we only have a CSS selector inside a shadow host.
+            if (targetDeepCopy.getElement() == null
+                    && !Strings.isNullOrEmpty(targetDeepCopy.getShadowHost())
+                    && !Strings.isNullOrEmpty(targetDeepCopy.getCssSelector())) {
+                WebElement elementFound = performActions.findShadowElementByCssSelector(
+                        targetDeepCopy.getShadowHost(), targetDeepCopy.getCssSelector());
+                targetDeepCopy.setElement(elementFound);
+            }
 
             if (targetDeepCopy.getElement() == null) {
-                if (!Strings.isNullOrEmpty(targetDeepCopy.getShadowHost())
-                        && !Strings.isNullOrEmpty(targetDeepCopy.getCssSelector())) {
-                    WebElement elementFound = performActions.findShadowElementByCssSelector(
-                            targetDeepCopy.getShadowHost(), targetDeepCopy.getCssSelector());
-
-                    targetDeepCopy.setElement(elementFound);
-                }
+                performMessage.errorMessage(
+                        "Test Action Failed ❌",
+                        "<span style='color:#D32F2F;font-weight:bold;font-size:1.1em;'>Element not found in live DOM</span>",
+                        "<span style='color:#E65100;'>Could not resolve the element before running the test.</span>",
+                        "<span style='font-style:italic;'>Try Hover Pick again, or verify the page is loaded.</span>",
+                        null,
+                        0);
+                return;
             }
 
-            if (targetDeepCopy.getElement() != null) {
+            // Initialise the shared WebDriverWait singletons on PerformActions.
+            // performWebActions and every helper it calls use waitForAction.until(...),
+            // which NPEs if executeJob() hasn't run yet (previously the only
+            // initialiser). Safe to call on every test click.
+            ensureWaitsInitialized();
 
-                //                            arWebDriver.dehighlightElement(targetDeepCopy.getElement());
-
-                //                            WebElement elementXPath =
-                //
-                // performActions.getCurrentDriver().findElement(By.xpath(arWebElement.getTargetElement().getXPath()));
-                //                            if (elementXPath != null) {
-                //                                elementXPath.click();
-                //                            }
-
-                FieldData fieldData = new FieldData("Test", testActionsField.getText());
-
-                String mainCoordenates = targetDeepCopy.getCoordinates();
-                String savedCoordenates = targetDeepCopy.getSavedReferences().get("coordinates");
-                if (Strings.isNullOrEmpty(mainCoordenates)) {
-                    mainCoordenates = targetDeepCopy.getCoordinates();
-                }
-
-                if (Strings.isNullOrEmpty(savedCoordenates)) {
-                    savedCoordenates = mainCoordenates;
-                }
-
-                String mainCoordinates = targetDeepCopy.getCoordinates();
-                //                String savedCoordinates = targetDeepCopy.getSavedReferences().get("coordinates");
-
-                if (Strings.isNullOrEmpty(mainCoordinates)) {
-                    mainCoordinates = targetDeepCopy.getCoordinates();
-                }
-
-                //                if (Strings.isNullOrEmpty(savedCoordinates)) {
-                //                    savedCoordinates = mainCoordinates;
-                //                }
-
-                List<String> coordinatesList = new ArrayList<>();
-                if (!Strings.isNullOrEmpty(mainCoordinates)) {
-                    coordinatesList.add(mainCoordinates);
-                }
-                //                if (!Strings.isNullOrEmpty(savedCoordinates) &&
-                // !savedCoordinates.equals(mainCoordinates)) {
-                //                    coordinatesList.add(savedCoordinates);
-                //                }
-
-                String[] coordinates = coordinatesList.toArray(new String[0]);
-
-                //                            if (checkTestCoordinates.isSelected()) {
-                //                                performActions.executeActionsAtCoordinates(
-                //                                        coordinates[1], fieldData, ARConstants.VISUALIZE,
-                // false);
-                //                                performActions.executeActionsAtCoordinates(
-                //                                        coordinates[0], fieldData, ARConstants.VISUALIZE,
-                // false);
-                //
-                //                                performActions.executeActionsAtCoordinates(
-                //                                        coordinates[1], fieldData, ARConstants.CLICK,
-                // false);
-                //                                performActions.executeActionsAtCoordinates(
-                //                                        coordinates[0], fieldData, ARConstants.CLICK,
-                // false);
-                //
-                //                                performActions.executeActionsAtCoordinates(
-                //                                        coordinates[1], fieldData, ARConstants.INSERT,
-                // false);
-                //                                performActions.executeActionsAtCoordinates(
-                //                                        coordinates[0], fieldData, ARConstants.INSERT,
-                // false);
-                //
-                //                                performActions.executeActionsAtCoordinates(
-                //                                        coordinates[1], fieldData, ARConstants.INSERT,
-                // true);
-                //                                performActions.executeActionsAtCoordinates(
-                //                                        coordinates[0], fieldData, ARConstants.INSERT,
-                // true);
-                //
-                //                                performActions.moveAndClickAtCoordinates(coordinates[1],
-                // performActions.getCurrentDriver());
-                //                                performActions.moveAndClickAtCoordinates(coordinates[0],
-                // performActions.getCurrentDriver());
-                //                            }
-
-                Text actionText1;
-                Text actionText2;
-                Text actionText3;
-                Text actionText4;
-                Text actionText5;
-                Text actionText6;
-                Text actionText7;
-                Text actionText8;
-                Text actionText9;
-                Text actionText10;
-                Text actionText11;
-                Text actionText12;
-                Text actionText13;
-
-                StringBuilder actionsTested = new StringBuilder();
-                actionsTested.append("Actions Tested:" + System.lineSeparator());
-
-                actionText1 = new Text("Actions Tested:");
-                actionText1.setStyle("-fx-font-size: 12px; -fx-fill: blue;");
-
-                if (!Strings.isNullOrEmpty(targetDeepCopy.getIFrameXPath())) {
-                    try {
-                        // Locate and switch to the iframe first
-                        WebElement iframe = driverTestActions.findElement(By.xpath(targetDeepCopy.getIFrameXPath()));
-                        driverTestActions.switchTo().frame(iframe);
-
-                        logOperations.info("Found iFrame XPath: " + targetDeepCopy.getIFrameXPath());
-                    } catch (Exception e) {
-                        logOperations.info("iFrame Not Found with XPath: " + targetDeepCopy.getIFrameXPath());
-                        //                performMessage.generalErrorIFrame(currentInstruction.getName());
-                        //                        return null;
-                    }
-                }
-
-                String result = performActions.sequenceOfCommands(
-                        targetDeepCopy.getElement(),
-                        ARConstants.SELECT,
-                        coordinates,
-                        fieldData,
-                        driverTestActions,
-                        false);
-                logOperations.info(result);
-                actionsTested.append(result + System.lineSeparator());
-                actionText2 = new Text(result);
-                if (result.contains("Failed")) {
-                    actionText2.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                } else {
-                    actionText2.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                }
-
-                if (testType.equals("TEST_CLICK_DTO")) {
-                    result = performActions.sequenceOfCommands(
-                            targetDeepCopy.getElement(),
-                            ARConstants.CLICK,
-                            coordinates,
-                            fieldData,
-                            driverTestActions,
-                            false);
-                    logOperations.info(result);
-                    actionsTested.append(result + System.lineSeparator());
-                    actionText3 = new Text(result);
-                    if (result.contains("Failed")) {
-                        actionText3.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                    } else {
-                        actionText3.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                    }
-                }
-                //                result = performActions.sequenceOfCommands(
-                //                        targetDeepCopy.getElement(),
-                //                        ARConstants.GET_VALUE,
-                //                        coordinates,
-                //                        fieldData,
-                //                        driverTestActions,
-                //                        false);
-                //                logOperations.info(result);
-                //                actionsTested.append(result + System.lineSeparator());
-                //                actionText4 = new Text(result);
-                //                if (result.contains("Failed")) {
-                //                    actionText4.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                //                } else {
-                //                    actionText4.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                //                }
-
-                if (testType.equals("TEST_INPUT_DTO")) {
-                    result = performActions.sequenceOfCommands(
-                            targetDeepCopy.getElement(),
-                            ARConstants.CLICK,
-                            coordinates,
-                            fieldData,
-                            driverTestActions,
-                            false);
-                    logOperations.info(result);
-                    actionsTested.append(result + System.lineSeparator());
-                    actionText3 = new Text(result);
-                    if (result.contains("Failed")) {
-                        actionText3.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                    } else {
-                        actionText3.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                    }
-                    performActions.onHoldInSeconds(1);
-
-                    result = performActions.sequenceOfCommands(
-                            targetDeepCopy.getElement(),
-                            ARConstants.CLEAR,
-                            coordinates,
-                            fieldData,
-                            driverTestActions,
-                            false);
-                    logOperations.info(result);
-                    actionsTested.append(result + System.lineSeparator());
-                    actionText5 = new Text(result);
-                    if (result.contains("Failed")) {
-                        actionText5.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                    } else {
-                        actionText5.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                    }
-
-                    result = performActions.sequenceOfCommands(
-                            targetDeepCopy.getElement(),
-                            ARConstants.INSERT,
-                            coordinates,
-                            fieldData,
-                            driverTestActions,
-                            false);
-                    logOperations.info(result);
-                    actionsTested.append(result + System.lineSeparator());
-                    actionText6 = new Text(result);
-                    if (result.contains("Failed")) {
-                        actionText6.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                    } else {
-                        actionText6.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                    }
-
-                    performActions.onHoldInSeconds(1);
-                    result = performActions.sequenceOfCommands(
-                            targetDeepCopy.getElement(),
-                            ARConstants.CLEAR,
-                            coordinates,
-                            fieldData,
-                            driverTestActions,
-                            false);
-                    logOperations.info(result);
-                    actionsTested.append(result + System.lineSeparator());
-                    actionText5 = new Text(result);
-                    if (result.contains("Failed")) {
-                        actionText5.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                    } else {
-                        actionText5.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                    }
-
-                    result = performActions.sequenceOfCommands(
-                            targetDeepCopy.getElement(),
-                            ARConstants.COORD_CLICK,
-                            coordinates,
-                            fieldData,
-                            driverTestActions,
-                            false);
-                    logOperations.info(result);
-                    actionsTested.append(result + System.lineSeparator());
-                    actionText5 = new Text(result);
-                    if (result.contains("Failed")) {
-                        actionText5.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                    } else {
-                        actionText5.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                    }
-
-                    result = performActions.sequenceOfCommands(
-                            targetDeepCopy.getElement(),
-                            ARConstants.COORD_INSERT,
-                            coordinates,
-                            fieldData,
-                            driverTestActions,
-                            false);
-                    logOperations.info(result);
-                    actionsTested.append(result + System.lineSeparator());
-                    actionText5 = new Text(result);
-                    if (result.contains("Failed")) {
-                        actionText5.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                    } else {
-                        actionText5.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                    }
-
-                    performActions.onHoldInSeconds(1);
-
-                    result = performActions.sequenceOfCommands(
-                            targetDeepCopy.getElement(),
-                            ARConstants.CLEAR,
-                            coordinates,
-                            fieldData,
-                            driverTestActions,
-                            false);
-                    logOperations.info(result);
-                    actionsTested.append(result + System.lineSeparator());
-                    actionText5 = new Text(result);
-                    if (result.contains("Failed")) {
-                        actionText5.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                    } else {
-                        actionText5.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                    }
-                }
-
-                //                result = performActions.sequenceOfCommands(
-                //                        targetDeepCopy.getElement(), ARConstants.FOCUS, coordinates, fieldData,
-                // driverTestActions, false);
-                //                logOperations.info(result);
-                //
-                //                actionsTested.append(result + System.lineSeparator());
-                //
-                //                actionText7 = new Text(result);
-                //                if (result.contains("Failed")) {
-                //                    actionText7.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                //                } else {
-                //                    actionText7.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                //                }
-                //
-                //                result = performActions.sequenceOfCommands(
-                //                        targetDeepCopy.getElement(), ARConstants.TAB, coordinates, fieldData,
-                // driverTestActions, false);
-                //                logOperations.info(result);
-                //
-                //                actionsTested.append(result + System.lineSeparator());
-                //
-                //                actionText8 = new Text(result);
-                //                if (result.contains("Failed")) {
-                //                    actionText8.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                //                } else {
-                //                    actionText8.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                //                }
-
-                //                result = performActions.sequenceOfCommands(
-                //                        targetDeepCopy.getElement(),
-                //                        ARConstants.COORD_VISUALIZA,
-                //                        coordinates,
-                //                        fieldData,
-                //                        driverTestActions,
-                //                        false);
-                //                logOperations.info(result);
-                //                actionsTested.append(result + System.lineSeparator());
-                //                actionText9 = new Text(result);
-                //                if (result.contains("Failed")) {
-                //                    actionText9.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                //                } else {
-                //                    actionText9.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                //                }
-
-                //                result = performActions.sequenceOfCommands(
-                //                        targetDeepCopy.getElement(),
-                //                        ARConstants.COORD_CLICK,
-                //                        coordinates,
-                //                        fieldData,
-                //                        driverTestActions,
-                //                        false);
-                //                logOperations.info(result);
-                //
-                //                actionsTested.append(result + System.lineSeparator());
-                //
-                //                actionText10 = new Text(result);
-                //                if (result.contains("Failed")) {
-                //                    actionText10.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                //                } else {
-                //                    actionText10.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                //                }
-                //
-                //                result = performActions.sequenceOfCommands(
-                //                        targetDeepCopy.getElement(),
-                //                        ARConstants.COORD_INSERT,
-                //                        coordinates,
-                //                        fieldData,
-                //                        driverTestActions,
-                //                        false);
-                //                logOperations.info(result);
-                //                actionsTested.append(result + System.lineSeparator());
-                //                actionText11 = new Text(result);
-                //                if (result.contains("Failed")) {
-                //                    actionText11.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                //                } else {
-                //                    actionText11.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                //                }
-
-                //                result = performActions.sequenceOfCommands(
-                //                        targetDeepCopy.getElement(),
-                //                        ARConstants.COORD_INSERT,
-                //                        coordinates,
-                //                        fieldData,
-                //                        driverTestActions,
-                //                        true);
-                //                logOperations.info(result);
-                //                actionsTested.append(result + System.lineSeparator());
-                //                actionText12 = new Text(result);
-                //                if (result.contains("Failed")) {
-                //                    actionText12.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                //                } else {
-                //                    actionText12.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                //                }
-
-                //                result = performActions.sequenceOfCommands(
-                //                        targetDeepCopy.getElement(),
-                //                        ARConstants.COORD_MOVE_CLICK_RED,
-                //                        coordinates,
-                //                        fieldData,
-                //                        driverTestActions,
-                //                        true);
-                //                logOperations.info(result);
-                //                actionsTested.append(result + System.lineSeparator());
-                //                actionText13 = new Text(result);
-                //                if (result.contains("Failed")) {
-                //                    actionText13.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                //                } else {
-                //                    actionText13.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                //                }
-                //
-                //                logOperations.info(actionsTested);
-
-                //                VBox vertical = new VBox();
-                //                vertical.getChildren()
-                //                        .addAll(
-                //                                actionText1,
-                //                                actionText2,
-                //                                actionText3,
-                //                                actionText4,
-                //                                actionText5,
-                //                                actionText6,
-                //                                actionText7,
-                //                                actionText8,
-                //                                actionText9,
-                //                                actionText10,
-                //                                actionText11,
-                //                                actionText12,
-                //                                actionText13);
-
-                //                Platform.runLater(() -> {
-                //                    textFlowResult.getChildren().clear();
-                //                    textFlowResult.getChildren().addAll(vertical);
-                //
-                //                    textFlowResult.requestLayout();
-                //
-                //                    //                                boxListViews.requestLayout();
-                //                    //                                verticalBox.requestLayout();
-                //                    //                                getChildren().addAll(blockAndUrl, boxListViews);
-                //                    contentPane.requestLayout();
-                //                    VBox vBoxResult = new VBox();
-                //                    vBoxResult.getChildren().addAll(textFlowResult);
-                //                    performMessage.showAlertCombinedVBOX(
-                //                            Alert.AlertType.INFORMATION,
-                //                            "Test Actions Results",
-                //                            "Web Actions Tested:",
-                //                            null,
-                //                            vBoxResult);
-                //
-                //                    //
-                // countdownTextField.setText(actionsTested.toString());
-                //                    //                                countdownTextField.setStyle("-fx-font-size:
-                // 12px;
-                //                    // -fx-text-fill: blue;");
-                //                });
+            // Arm the actionExecutor WITHOUT loading the JS plugin — just
+            // configure the ActionExecutorClient session and wire the two
+            // PerformActions callbacks (setOnPageRefresh / setActionExecutorInjector).
+            // The first real injection happens lazily inside
+            // PerformActions.ensureActionExecutor() when the runner actually
+            // needs the plugin. This avoids the double "Injecting plugin"
+            // log you saw when we called injectActionExecutor() here and then
+            // ensureActionExecutor() re-ran it because the window flag wasn't
+            // observable yet.
+            if (currentBotJob != null) {
+                armActionExecutorCallbacks();
+            } else {
+                logOperations.warn("testingActions - currentBotJob is null, skipping actionExecutor priming");
             }
-            //                                arWebElement.getElement().click();
+
+            // Synthetic InstructionLoad carrying the same xpath / shadow / css /
+            // force_coordinates / iframe info that the engine reads at run time.
+            // force_coordinates was set on the TargetElement from the GridItemScann
+            // S/N/T/E/F badges by stepsInsertManyDTO.
+            InstructionLoad synthetic = performActions.buildNewInstruction(
+                    targetDeepCopy.getTagType(),
+                    "TEST_CLICK_DTO".equals(testType) ? ARConstantsEngine.CLICK : ARConstantsEngine.INSERT,
+                    false,
+                    0,
+                    targetDeepCopy);
+            synthetic.setForceCoordinates(Strings.nullToEmpty(targetDeepCopy.getForceCoordinates()));
+            synthetic.setCoordinates(targetDeepCopy.getCoordinates());
+            synthetic.setIFrameXPath(targetDeepCopy.getIFrameXPath());
+
+            String[] actions = synthetic.getActions().split(ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER);
+            FieldData fieldData = new FieldData("Test", inputValue);
+            String savedCoords = !Strings.isNullOrEmpty(targetDeepCopy.getCoordinates())
+                    ? targetDeepCopy.getCoordinates()
+                    : "coordinates";
+
+            // Single real exercise — Selenium + actionExecutor.min.js plugin + coord fallback.
+            boolean success = performActions.performWebActions(
+                    true, // byPassNotFound: log and continue on not-found, don't abort
+                    savedCoords,
+                    fieldData,
+                    synthetic,
+                    new HashMap<>(), // empty mapOperators — OUTPUT isn't tested here
+                    targetDeepCopy.getElement(),
+                    actions,
+                    false, // not a mobile app
+                    null); // no SplitDTO context
+
+            InputFlags flags = InputFlags.of(synthetic.getForceCoordinates());
+            String flagsLine = describeInputFlags(flags);
+            String elementLine = safeTargetLabel(targetDeepCopy);
+
+            if (success) {
+                StringBuilder body = new StringBuilder();
+                body.append("<span style='color:#6A1B9A;font-weight:bold;'>Element:</span> ")
+                        .append(elementLine)
+                        .append("<br/><span style='color:#6A1B9A;font-weight:bold;'>Flags honoured:</span> ")
+                        .append(flagsLine);
+                if ("INSERT".equals(displayAction)) {
+                    body.append("<br/><span style='color:#6A1B9A;font-weight:bold;'>Input value:</span> ")
+                            .append(Strings.isNullOrEmpty(inputValue) ? "(empty)" : inputValue);
+                }
+                performMessage.showCustomModalDialogDragWin11(
+                        "Test Action Success ✅",
+                        "<span style='color:#2E7D32;font-weight:bold;font-size:1.1em;'>" + displayAction
+                                + " performed successfully!</span>",
+                        "<span style='color:#1565C0;font-weight:bold;'>Same code path a bot run uses: actionExecutor JS plugin + Selenium + coordinate fallback.</span>",
+                        body.toString(),
+                        "<span style='font-style:italic;'>If this passes, the live bot run will take the same route.</span>",
+                        false,
+                        "OK",
+                        null,
+                        0);
+            } else {
+                performMessage.errorMessage(
+                        "Test Action Failed ❌",
+                        "<span style='color:#D32F2F;font-weight:bold;font-size:1.1em;'>" + displayAction
+                                + " could not be performed</span>",
+                        "<span style='color:#E65100;font-weight:bold;'>All fallback layers exhausted (Selenium + actionExecutor JS + coordinates).</span>",
+                        "<span style='color:#6A1B9A;font-weight:bold;'>Flags tried:</span> " + flagsLine
+                                + "<br/><span style='color:#6A1B9A;font-weight:bold;'>Element:</span> " + elementLine,
+                        null,
+                        0);
+            }
         } catch (Exception e) {
-            performMessage.couldNotFindElement("No TagName");
+            logOperations.error("testingActions failed: {}", e.getMessage(), e);
+            performMessage.errorMessage(
+                    "Test Action Error ❌",
+                    "<span style='color:#D32F2F;font-weight:bold;font-size:1.1em;'>An exception was thrown during the test</span>",
+                    "<span style='color:#E65100;font-weight:bold;'>Details:</span> " + e.getMessage(),
+                    null,
+                    null,
+                    0);
         } finally {
             if (driverTestActions != null) {
-                driverTestActions.switchTo().defaultContent();
+                try {
+                    driverTestActions.switchTo().defaultContent();
+                } catch (Exception ignore) {
+                    // driver may be gone — nothing actionable here
+                }
             }
-
             Platform.runLater(() -> {
                 defineNameField.clear();
                 searchAttribValueField.clear();
             });
         }
+    }
+
+    /** Human-readable list of active F/E/T/N/S bits for the result modal. */
+    private String describeInputFlags(InputFlags flags) {
+        List<String> parts = new ArrayList<>(5);
+        if (flags.hasScroll()) parts.add("Scroll");
+        if (flags.hasNext()) parts.add("Next (mobile)");
+        if (flags.hasTab()) parts.add("Tab");
+        if (flags.hasEnter()) parts.add("Enter");
+        if (flags.hasForce()) parts.add("Force Coordinates");
+        return parts.isEmpty() ? "(no flags)" : String.join(", ", parts);
+    }
+
+    /** Short label for the result modal: defined-name + tag, or just tag, or "(unnamed)". */
+    private String safeTargetLabel(TargetElement t) {
+        String def = t.getDefinedName();
+        String tag = t.getTagName();
+        if (!Strings.isNullOrEmpty(def)) {
+            return def + (Strings.isNullOrEmpty(tag) ? "" : " &lt;" + tag + "&gt;");
+        }
+        if (!Strings.isNullOrEmpty(tag)) {
+            return "&lt;" + tag + "&gt;";
+        }
+        return "(unnamed)";
     }
 
     public BooleanProperty interceptBotJobProperty() {
@@ -1512,18 +1225,6 @@ public class ARScannedElementPane extends ARPane {
         checkInputText = new CheckBox("For Input");
         checkOutputText = new CheckBox("For Output (Excel Export)");
 
-        checkForceEnterText = new CheckBox("ENTER");
-        checkForceEnterText.setStyle("-fx-font-size: 12px; -fx-fill: blue;");
-
-        checkForceCoordText = new CheckBox("Force Coordinates");
-        checkForceCoordText.setStyle("-fx-font-size: 12px; -fx-fill: blue;");
-
-        checkForceTabText = new CheckBox("TAB");
-        checkForceTabText.setStyle("-fx-font-size: 12px; -fx-fill: blue;");
-
-        checkForceNextText = new CheckBox("NEXT (mobile)");
-        checkForceNextText.setStyle("-fx-font-size: 12px; -fx-fill: blue;");
-
         iFrameText = new Text("");
         iFrameText.setStyle("-fx-font-size: 12px; -fx-fill: blue;");
 
@@ -1701,17 +1402,7 @@ public class ARScannedElementPane extends ARPane {
             VBox vBoxCheckBox = new VBox();
             vBoxCheckBox
                     .getChildren()
-                    .addAll(
-                            createSpacerVert(),
-                            checkClickElement,
-                            checkInputText,
-                            checkOutputText,
-                            createCustomSeparator(Color.DARKBLUE, 2),
-                            checkForceCoordText,
-                            checkForceEnterText,
-                            checkForceTabText,
-                            checkForceNextText,
-                            iFrameText);
+                    .addAll(createSpacerVert(), checkClickElement, checkInputText, checkOutputText, iFrameText);
             vBoxCheckBox.setSpacing(6); // Adjust spacing between CheckBoxes
 
             topPane.getChildren().addAll(gridPaneTop, lblPluginHint); // Add gridPaneTop + hint to topPane
@@ -3654,18 +3345,36 @@ public class ARScannedElementPane extends ARPane {
                 this.currentBotJob.getHomeBankingId(), sessionRowStatus, jsonStatus, "rowStatus");
     }
 
+    /**
+     * Lazily create the two shared {@link WebDriverWait} singletons on
+     * {@link PerformActions}. They are required by every helper that calls
+     * {@code waitForAction.until(...)} or {@code waitForPage.until(...)} —
+     * running a DOM action before they exist NPEs deep inside Selenium.
+     *
+     * <p>Previously this block lived only in {@link #executeJob()}, which meant
+     * a user could hit "Test Input" or "Test Click" on a scanned element
+     * before ever starting a bot job and crash the test path. Extracted so
+     * {@code testingActions} can share the same init.
+     */
+    private void ensureWaitsInitialized() {
+        if (PerformActions.waitForPage != null && PerformActions.waitForAction != null) return;
+        String updateTimeout = arPropertyManager.getProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
+        String interactionTimeout = arPropertyManager.getProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
+        WebDriver driver = performActions.getCurrentDriver();
+        if (PerformActions.waitForPage == null) {
+            PerformActions.waitForPage = new WebDriverWait(driver, Duration.ofSeconds(Integer.parseInt(updateTimeout)));
+        }
+        if (PerformActions.waitForAction == null) {
+            PerformActions.waitForAction =
+                    new WebDriverWait(driver, Duration.ofSeconds(Integer.parseInt(interactionTimeout)));
+        }
+    }
+
     private boolean executeJob() {
         // Reset the first-call log flag so the first searchListAsync injection is logged
         performListElements.resetFirstCallLog();
 
-        if (PerformActions.waitForPage == null) {
-            String updateTimeout = arPropertyManager.getProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
-            String interactionTimeout = arPropertyManager.getProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
-            PerformActions.waitForPage = new WebDriverWait(
-                    performActions.getCurrentDriver(), Duration.ofSeconds(Integer.parseInt(updateTimeout)));
-            PerformActions.waitForAction = new WebDriverWait(
-                    performActions.getCurrentDriver(), Duration.ofSeconds(Integer.parseInt(interactionTimeout)));
-        }
+        ensureWaitsInitialized();
 
         Labels.initializeLabelsInSpecLang("en");
         Properties labelsValue = Labels.labelsValue;
@@ -7560,6 +7269,25 @@ public class ARScannedElementPane extends ARPane {
      * actions (click, type, ...) sent from Java - no Selenium visibility checks.
      * Safe to call multiple times: the JS guards against double injection.
      */
+    /**
+     * Configure the {@link ActionExecutorClient} session and wire the two
+     * {@link PerformActions} callbacks — but do NOT load the JS plugin.
+     *
+     * <p>Lets {@link PerformActions#ensureActionExecutor()} perform the first
+     * real injection lazily when the plugin is actually needed. Callers that
+     * want the runner's fallback chain wired up (test path, any pre-run
+     * priming) should use this instead of {@link #injectActionExecutor()} to
+     * avoid a double "Injecting plugin" log — once from the caller, once from
+     * the lazy check — on every action.
+     */
+    private void armActionExecutorCallbacks() {
+        if (this.currentBotJob == null) return;
+        String sessionId = String.valueOf(this.currentBotJob.getHomeBankingId());
+        actionExecutorClient.configure(this.currentBotJob.getHomeBankingId(), sessionId);
+        performActions.setOnPageRefresh(this::injectActionExecutor);
+        performActions.setActionExecutorInjector(this::injectActionExecutor);
+    }
+
     private void injectActionExecutor() {
         if (performActions == null || performActions.getCurrentDriver() == null) return;
 

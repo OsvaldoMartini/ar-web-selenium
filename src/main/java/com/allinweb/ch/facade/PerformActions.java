@@ -1330,6 +1330,9 @@ public class PerformActions {
         try {
             waitForAction.until(ExpectedConditions.visibilityOf(element));
         } catch (Exception e) {
+            if (waitForAction == null) {
+                logOperations.warn("WaitForAction is null");
+            }
 
             logOperations.warn(
                     String.format("Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));

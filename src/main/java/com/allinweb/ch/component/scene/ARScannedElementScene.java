@@ -441,6 +441,8 @@ public class ARScannedElementScene extends ARScene {
                                 ElementDTO elementDTO = performActions.buildElementDTO(instruction);
                                 targetElementHelper.initialize(performActions, arScannedElementPane);
                                 arScannedElementPane.targetSelected = targetElementHelper.extractPickClone(elementDTO);
+                                applyForceCoordinatesFromIncomingDto(
+                                        arScannedElementPane.targetSelected, splitDTO.getElementDetails()[0]);
                                 arScannedElementPane.itPrintsElementDTO();
                                 arScannedElementPane.testingActions(
                                         arScannedElementPane.targetSelected, splitDTO.getType());
@@ -448,6 +450,8 @@ public class ARScannedElementScene extends ARScene {
                                 targetElementHelper.initialize(performActions, arScannedElementPane);
                                 arScannedElementPane.targetSelected =
                                         targetElementHelper.extractPickClone(splitDTO.getElementDetails()[0]);
+                                applyForceCoordinatesFromIncomingDto(
+                                        arScannedElementPane.targetSelected, splitDTO.getElementDetails()[0]);
                                 arScannedElementPane.itPrintsElementDTO();
                                 arScannedElementPane.testingActions(
                                         arScannedElementPane.targetSelected, splitDTO.getType());
@@ -456,6 +460,8 @@ public class ARScannedElementScene extends ARScene {
                             targetElementHelper.initialize(performActions, arScannedElementPane);
                             arScannedElementPane.targetSelected =
                                     targetElementHelper.extractPickClone(splitDTO.getElementDetails()[0]);
+                            applyForceCoordinatesFromIncomingDto(
+                                    arScannedElementPane.targetSelected, splitDTO.getElementDetails()[0]);
                             arScannedElementPane.itPrintsElementDTO();
                             arScannedElementPane.testingActions(
                                     arScannedElementPane.targetSelected, splitDTO.getType());
@@ -694,6 +700,26 @@ public class ARScannedElementScene extends ARScene {
             modalStage = null;
         } catch (Exception error) {
             log.error("Browser Closed Before Web Scanner. Error: " + error.getMessage());
+        }
+    }
+
+    /**
+     * Copy the per-element F/E/T/N/S bits from the incoming ElementDTO onto
+     * the already-built TargetElement so the test path honours the badges the
+     * user toggled in GridItemScann. {@code extractPickClone} doesn't read
+     * {@code forceCoordinates}, so without this the TargetElement always has
+     * an empty flag string and pressAfter/performWebActions fall back to the
+     * legacy TAB default. Empty/null is left alone.
+     */
+    private void applyForceCoordinatesFromIncomingDto(TargetElement target, ElementDTO elementDTO) {
+        if (target == null || elementDTO == null) return;
+        String incoming = elementDTO.getForceCoordinates();
+        log.info(
+                "applyForceCoordinatesFromIncomingDto - incoming='{}', existingOnTarget='{}'",
+                incoming,
+                target.getForceCoordinates());
+        if (!Strings.isNullOrEmpty(incoming)) {
+            target.setForceCoordinates(incoming);
         }
     }
 
