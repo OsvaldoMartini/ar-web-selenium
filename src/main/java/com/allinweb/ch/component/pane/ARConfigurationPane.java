@@ -752,17 +752,20 @@ public class ARConfigurationPane extends ARPane {
         //   backup_postgres_all_YYYY_MM_DD.sql (DATABASE_TYPE = Postgres / PostGres)
         String backupFileName = "backup_" + dbDialectSlug(dataBaseType) + "_all_" + date + ".sql";
 
-        Label newInstruction = new Label("DB BACKUP\nDatabase: \"" + dataBaseType + "\"\nTarget Folder: \""
-                + chosenBackupFolder + "\"\nFile: \"" + backupFileName + "\"");
-        newInstruction.setStyle("-fx-font-size: 14px; -fx-text-fill: red;");
+        ARExecution.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
+                "Backup Database Confirmation",
+                "<span style='font-weight: bold; color: #D32F2F;'>Are you sure you want to execute a database backup?</span>",
+                "Target database: <b>" + dataBaseType + "</b>",
+                "<span style='color: #6A1B9A;'>Destination folder:</span> " + chosenBackupFolder,
+                "<span style='font-style: italic;'>Output file: <b>" + backupFileName
+                        + "</b>. For Access / SQLite a timestamped binary copy of the database file is dropped in the"
+                        + " same folder for emergency recovery.</span>",
+                false,
+                "Execute Backup",
+                "Cancel",
+                0);
 
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION, null, ButtonType.YES, ButtonType.NO);
-        alert.setHeaderText("Are you sure you want to EXECUTE BACKUP DB (\"" + dataBaseType + "\")?");
-        alert.getDialogPane().setContent(newInstruction);
-
-        Optional<ButtonType> result = alert.showAndWait();
-        if (result.isPresent() && result.get() == ButtonType.YES) {
-
+        if (!respModal.equals(ARExecution.DialogModal.STOP)) {
             try (Connection conn = performDataBase.getConnection()) {
 
                 performBackup.initialize(conn);
@@ -781,29 +784,33 @@ public class ARConfigurationPane extends ARPane {
                 }
 
                 if (errorMessage == null) {
-                    showAlertTimer(
-                            Alert.AlertType.INFORMATION,
-                            "Backup DB Success!",
-                            "Check the DATABASE folder!",
-                            "Database",
-                            databaseChoiceBox.getValue(),
+                    performMessage.showCustomModalDialogDragWin11(
+                            "Backup DB Success! ✅",
+                            "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>Database backup completed successfully!</span>",
+                            "<span style='color: #1565C0; font-weight: bold;'>All tables were dumped in FK-safe order.</span>",
+                            "<span style='color: #6A1B9A; font-weight: bold;'>Database:</span> "
+                                    + databaseChoiceBox.getValue()
+                                    + "<br/><span style='color: #6A1B9A; font-weight: bold;'>Folder:</span> "
+                                    + chosenBackupFolder
+                                    + "<br/><span style='color: #6A1B9A; font-weight: bold;'>File:</span> "
+                                    + backupFileName,
+                            "<span style='color: #E65100; font-weight: bold;'>💡 Tip:</span> Keep this folder safe —"
+                                    + " you can use it with <span style='text-decoration: underline;'>Restore DB</span> to recover this snapshot.",
+                            false,
+                            "OK",
                             null,
-                            null);
-
+                            0);
                 } else {
-                    String errorType = "Backup Database error";
-                    String errorDetail = "Verify the backup script";
-
-                    String detailedMessage = "Type: " + errorType + "\nDetail: " + errorDetail;
-
-                    showAlertTimer(
-                            Alert.AlertType.ERROR,
-                            errorMessage.getErrorTitle(),
-                            errorMessage.getErrorHeader(),
-                            detailedMessage,
-                            "Backup DB Scripts error",
-                            databaseChoiceBox.getValue(),
-                            null);
+                    log.error("Backup Database error: " + errorMessage.getErrorMessage());
+                    performMessage.errorMessage(
+                            "Backup Database error",
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>"
+                                    + errorMessage.getErrorTitle() + "</span> ❌",
+                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                    + errorMessage.getErrorHeader(),
+                            "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                            null,
+                            0);
                 }
 
             } catch (SQLException ex) {
@@ -1583,19 +1590,23 @@ public class ARConfigurationPane extends ARPane {
         String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
         String date = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy_MM_dd"));
 
-        Label newInstruction = new Label("DB EXPORT (ONLY BOT JOB)\n"
-                + "Database Selected: \"" + dataBaseType + "\"\n"
-                + "homeBankingId: " + homeBankingId + "\n"
-                + "botJobId: " + botJobId);
-        newInstruction.setStyle("-fx-font-size: 18px; -fx-text-fill: red;");
+        String backupFileName = "backup_(BY_BOT_JOB)_" + dbDialectSlug(dataBaseType) + "_" + date + ".sql";
 
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION, null, ButtonType.YES, ButtonType.NO);
-        alert.setHeaderText(
-                "Execute EXPORT ONLY for bot_job_id=" + botJobId + " (home_banking_id=" + homeBankingId + ")?");
-        alert.getDialogPane().setContent(newInstruction);
+        ARExecution.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
+                "Export Bot Job Confirmation",
+                "<span style='font-weight: bold; color: #D32F2F;'>Are you sure you want to export this bot job?</span>",
+                "Target database: <b>" + dataBaseType + "</b>",
+                "<span style='color: #6A1B9A;'>home_banking_id:</span> <b>" + homeBankingId
+                        + "</b> &nbsp;&nbsp; <span style='color: #6A1B9A;'>bot_job_id:</span> <b>" + botJobId + "</b>",
+                "<span style='font-style: italic;'>Destination folder: <b>" + exportPath
+                        + "</b><br/>Output file: <b>" + backupFileName
+                        + "</b> — holds home_banking, bot_job, block, instruction, variable and reference rows scoped to this job.</span>",
+                false,
+                "Execute Export",
+                "Cancel",
+                0);
 
-        Optional<ButtonType> result = alert.showAndWait();
-        if (result.isEmpty() || result.get() != ButtonType.YES) {
+        if (respModal.equals(ARExecution.DialogModal.STOP)) {
             return;
         }
 
@@ -1606,35 +1617,39 @@ public class ARConfigurationPane extends ARPane {
             // Holds the six tables a bot-job export touches (home_banking,
             // bot_job, block, instruction, variable, reference) in -- TABLE:
             // sections, same envelope as the full DB single-file backup.
-            String backupFilePath = exportPath
-                    + File.separator
-                    + "backup_(BY_BOT_JOB)_"
-                    + dbDialectSlug(dataBaseType)
-                    + "_"
-                    + date
-                    + ".sql";
+            String backupFilePath = exportPath + File.separator + backupFileName;
             ErrorMessage errorMessage =
                     performBackup.dumpBotJobToSingleFile(conn, backupFilePath, homeBankingId, botJobId);
 
             if (errorMessage == null) {
-
-                showAlertTimer(
-                        Alert.AlertType.INFORMATION,
-                        "Export Bot Job  Success!",
-                        "Exported files created for botJob=" + botJobId,
-                        "homeBankingId= " + homeBankingId + "\nbotJob = " + +botJobId,
-                        dataBaseType,
+                performMessage.showCustomModalDialogDragWin11(
+                        "Export Bot Job Success! ✅",
+                        "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>Bot job exported successfully!</span>",
+                        "<span style='color: #1565C0; font-weight: bold;'>All six tables (home_banking, bot_job, block, instruction, variable, reference) were dumped in FK-safe order.</span>",
+                        "<span style='color: #6A1B9A; font-weight: bold;'>Database:</span> " + dataBaseType
+                                + "<br/><span style='color: #6A1B9A; font-weight: bold;'>home_banking_id:</span> "
+                                + homeBankingId
+                                + " &nbsp;&nbsp; <span style='color: #6A1B9A; font-weight: bold;'>bot_job_id:</span> "
+                                + botJobId
+                                + "<br/><span style='color: #6A1B9A; font-weight: bold;'>Folder:</span> " + exportPath
+                                + "<br/><span style='color: #6A1B9A; font-weight: bold;'>File:</span> "
+                                + backupFileName,
+                        "<span style='color: #E65100; font-weight: bold;'>💡 Tip:</span> Point <span style='text-decoration: underline;'>Import Bot Job</span> at this folder and date to bring it back.",
+                        false,
+                        "OK",
                         null,
-                        null);
+                        0);
             } else {
-                showAlertTimer(
-                        Alert.AlertType.ERROR,
-                        errorMessage.getErrorTitle(),
-                        errorMessage.getErrorHeader(),
-                        errorMessage.getErrorMessage(),
-                        "Export Bot Job Scripts error",
-                        dataBaseType,
-                        null);
+                log.error("Export Bot Job error: " + errorMessage.getErrorMessage());
+                performMessage.errorMessage(
+                        "Export Bot Job error",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>"
+                                + errorMessage.getErrorTitle() + "</span> ❌",
+                        "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                + errorMessage.getErrorHeader(),
+                        "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
+                        null,
+                        0);
             }
 
         } catch (SQLException ex) {
