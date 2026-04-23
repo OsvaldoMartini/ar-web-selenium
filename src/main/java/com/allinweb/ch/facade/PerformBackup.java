@@ -701,7 +701,9 @@ public class PerformBackup {
                         name,
                         xpath,
                         coordinates,
-                        forceCoordinatesWasNull ? "NULL" : ("'" + (forceCoordinatesRaw == null ? "" : forceCoordinatesRaw) + "'"),
+                        forceCoordinatesWasNull
+                                ? "NULL"
+                                : ("'" + (forceCoordinatesRaw == null ? "" : forceCoordinatesRaw) + "'"),
                         iframeXpath,
                         tagName,
                         shadowHost,

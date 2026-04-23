@@ -24,11 +24,11 @@ package com.allinweb.ch.util;
  */
 public final class InputFlags {
 
-    public static final int NONE  = 0;
+    public static final int NONE = 0;
     public static final int FORCE = 1 << 0; // 1
     public static final int ENTER = 1 << 1; // 2
-    public static final int TAB   = 1 << 2; // 4
-    public static final int NEXT  = 1 << 3; // 8
+    public static final int TAB = 1 << 2; // 4
+    public static final int NEXT = 1 << 3; // 8
 
     private final int value;
 
@@ -54,11 +54,20 @@ public final class InputFlags {
         for (int i = 0; i < flags.length(); i++) {
             char c = Character.toUpperCase(flags.charAt(i));
             switch (c) {
-                case 'F': v |= FORCE; break;
-                case 'E': v |= ENTER; break;
-                case 'T': v |= TAB;   break;
-                case 'N': v |= NEXT;  break;
-                default:  /* ignore stray chars */ break;
+                case 'F':
+                    v |= FORCE;
+                    break;
+                case 'E':
+                    v |= ENTER;
+                    break;
+                case 'T':
+                    v |= TAB;
+                    break;
+                case 'N':
+                    v |= NEXT;
+                    break;
+                default: /* ignore stray chars */
+                    break;
             }
         }
         return new InputFlags(v);
@@ -71,11 +80,25 @@ public final class InputFlags {
         return new InputFlags(v);
     }
 
-    public int asInt()        { return value; }
-    public boolean hasForce() { return (value & FORCE) != 0; }
-    public boolean hasEnter() { return (value & ENTER) != 0; }
-    public boolean hasTab()   { return (value & TAB)   != 0; }
-    public boolean hasNext()  { return (value & NEXT)  != 0; }
+    public int asInt() {
+        return value;
+    }
+
+    public boolean hasForce() {
+        return (value & FORCE) != 0;
+    }
+
+    public boolean hasEnter() {
+        return (value & ENTER) != 0;
+    }
+
+    public boolean hasTab() {
+        return (value & TAB) != 0;
+    }
+
+    public boolean hasNext() {
+        return (value & NEXT) != 0;
+    }
 
     /**
      * True when NEXT is set AND no other key flag is set — triggers the
@@ -91,8 +114,8 @@ public final class InputFlags {
         StringBuilder sb = new StringBuilder(4);
         if (hasForce()) sb.append('F');
         if (hasEnter()) sb.append('E');
-        if (hasTab())   sb.append('T');
-        if (hasNext())  sb.append('N');
+        if (hasTab()) sb.append('T');
+        if (hasNext()) sb.append('N');
         return sb.toString();
     }
 

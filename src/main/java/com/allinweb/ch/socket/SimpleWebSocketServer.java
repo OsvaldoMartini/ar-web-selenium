@@ -829,11 +829,13 @@ public class SimpleWebSocketServer {
                     // but writes to the force_coordinates column introduced by the
                     // 2026-04-25__force_coordinates_varchar migration.
                     errorMessage = performDataBase.updateInstructionForceCoordinates(
-                            instrTable,
-                            whereId,
-                            instructionId,
-                            blockId,
-                            splitDTO.getForceCoordinates());
+                            instrTable, whereId, instructionId, blockId, splitDTO.getForceCoordinates());
+
+                    // MEMORY UPDATE
+                    if (errorMessage == null) {
+                        performLists.updateMemoryInstructionForceCoordinatesUpdate(
+                                instrTable, whereId, instructionId, splitDTO.getForceCoordinates());
+                    }
 
                     if (instrTable.equals("instruction")) {
                         performLists.getListBotJob().clear();

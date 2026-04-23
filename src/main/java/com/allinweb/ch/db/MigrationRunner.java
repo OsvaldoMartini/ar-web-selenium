@@ -48,8 +48,8 @@ public class MigrationRunner {
     /**
      * Registered migrations, in execution order. Never reorder; only APPEND new ones.
      */
-    private static final List<Migration> MIGRATIONS = List.of(
-            new com.allinweb.ch.db.migrations.M20260425_ForceCoordinatesVarchar());
+    private static final List<Migration> MIGRATIONS =
+            List.of(new com.allinweb.ch.db.migrations.M20260425_ForceCoordinatesVarchar());
 
     private static volatile MigrationRunner instance;
 
@@ -93,8 +93,7 @@ public class MigrationRunner {
                 }
             }
             if (ran == 0) {
-                log.info("MigrationRunner — nothing to apply (dialect={}, registered={})",
-                        dialect, MIGRATIONS.size());
+                log.info("MigrationRunner — nothing to apply (dialect={}, registered={})", dialect, MIGRATIONS.size());
             } else {
                 log.info("MigrationRunner — {} migration(s) applied", ran);
             }
@@ -129,8 +128,8 @@ public class MigrationRunner {
                 break;
             default: // Access
                 if (!tableExists(conn, "schema_migrations")) {
-                    createSql = "CREATE TABLE schema_migrations ("
-                            + "name VARCHAR(255) PRIMARY KEY, applied_at DATETIME)";
+                    createSql =
+                            "CREATE TABLE schema_migrations (" + "name VARCHAR(255) PRIMARY KEY, applied_at DATETIME)";
                 }
                 break;
         }
@@ -151,15 +150,15 @@ public class MigrationRunner {
     private Set<String> loadApplied(Connection conn) throws SQLException {
         Set<String> applied = new HashSet<>();
         try (Statement st = conn.createStatement();
-             ResultSet rs = st.executeQuery("SELECT name FROM schema_migrations")) {
+                ResultSet rs = st.executeQuery("SELECT name FROM schema_migrations")) {
             while (rs.next()) applied.add(rs.getString("name"));
         }
         return applied;
     }
 
     private void recordApplied(Connection conn, String name) throws SQLException {
-        try (PreparedStatement ps = conn.prepareStatement(
-                "INSERT INTO schema_migrations (name, applied_at) VALUES (?, ?)")) {
+        try (PreparedStatement ps =
+                conn.prepareStatement("INSERT INTO schema_migrations (name, applied_at) VALUES (?, ?)")) {
             ps.setString(1, name);
             ps.setTimestamp(2, new Timestamp(System.currentTimeMillis()));
             ps.executeUpdate();

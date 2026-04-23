@@ -77,7 +77,8 @@ public class InstructionLoad {
             String operation,
             String defaultValue,
             String exportFile,
-            String tagName) {
+            String tagName,
+            String forceCoordinates) {
         this.homeBankingId = homeBankingId;
         this.botJobId = botJobId;
         this.botJobName = botJobName;
@@ -99,5 +100,6 @@ public class InstructionLoad {
         this.defaultValue = defaultValue;
         this.exportFile = exportFile;
         this.tagName = tagName;
+        this.forceCoordinates = forceCoordinates;
     }
 }

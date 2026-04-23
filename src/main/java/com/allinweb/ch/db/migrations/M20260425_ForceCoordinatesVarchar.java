@@ -95,17 +95,21 @@ public class M20260425_ForceCoordinatesVarchar implements Migration {
 
     private void applyPostgres(Connection conn) throws SQLException {
         for (String table : TABLES) {
-            exec(conn, "ALTER TABLE " + table
-                    + " ALTER COLUMN force_coordinates TYPE VARCHAR(8)"
-                    + " USING CASE WHEN force_coordinates = 1 THEN 'F' ELSE '' END");
+            exec(
+                    conn,
+                    "ALTER TABLE " + table
+                            + " ALTER COLUMN force_coordinates TYPE VARCHAR(8)"
+                            + " USING CASE WHEN force_coordinates = 1 THEN 'F' ELSE '' END");
         }
     }
 
     private void applySqlite(Connection conn) throws SQLException {
         for (String table : TABLES) {
             exec(conn, "ALTER TABLE " + table + " ADD COLUMN force_coordinates_new VARCHAR(8)");
-            exec(conn, "UPDATE " + table
-                    + " SET force_coordinates_new = CASE WHEN force_coordinates = 1 THEN 'F' ELSE '' END");
+            exec(
+                    conn,
+                    "UPDATE " + table
+                            + " SET force_coordinates_new = CASE WHEN force_coordinates = 1 THEN 'F' ELSE '' END");
             // SQLite >= 3.35 supports DROP COLUMN; if older, the app's embedded SQLite build may not.
             exec(conn, "ALTER TABLE " + table + " DROP COLUMN force_coordinates");
             exec(conn, "ALTER TABLE " + table + " RENAME COLUMN force_coordinates_new TO force_coordinates");
@@ -115,8 +119,10 @@ public class M20260425_ForceCoordinatesVarchar implements Migration {
     private void applySqlServer(Connection conn) throws SQLException {
         for (String table : TABLES) {
             exec(conn, "ALTER TABLE " + table + " ADD force_coordinates_new VARCHAR(8)");
-            exec(conn, "UPDATE " + table
-                    + " SET force_coordinates_new = CASE WHEN force_coordinates = 1 THEN 'F' ELSE '' END");
+            exec(
+                    conn,
+                    "UPDATE " + table
+                            + " SET force_coordinates_new = CASE WHEN force_coordinates = 1 THEN 'F' ELSE '' END");
             exec(conn, "ALTER TABLE " + table + " DROP COLUMN force_coordinates");
             exec(conn, "EXEC sp_rename '" + table + ".force_coordinates_new', 'force_coordinates', 'COLUMN'");
         }
@@ -158,7 +164,8 @@ public class M20260425_ForceCoordinatesVarchar implements Migration {
         //    To keep this migration self-contained we rebuild the column list from the snapshot,
         //    changing only force_coordinates' type. Types other than force_coordinates are kept
         //    verbatim using their DB-reported type name.
-        StringBuilder createSql = new StringBuilder("CREATE TABLE ").append(table).append(" (");
+        StringBuilder createSql =
+                new StringBuilder("CREATE TABLE ").append(table).append(" (");
         for (int i = 0; i < cols.size(); i++) {
             if (i > 0) createSql.append(", ");
             ColumnDef c = cols.get(i);
@@ -171,7 +178,8 @@ public class M20260425_ForceCoordinatesVarchar implements Migration {
 
         // 3. INSERT rows back, transforming force_coordinates on the way.
         if (rows.isEmpty()) return;
-        StringBuilder insertSql = new StringBuilder("INSERT INTO ").append(table).append(" (");
+        StringBuilder insertSql =
+                new StringBuilder("INSERT INTO ").append(table).append(" (");
         for (int i = 0; i < cols.size(); i++) {
             if (i > 0) insertSql.append(", ");
             insertSql.append(cols.get(i).name);
@@ -203,7 +211,7 @@ public class M20260425_ForceCoordinatesVarchar implements Migration {
     private String transformLegacyForceCoord(Object raw) {
         if (raw == null) return "";
         if (raw instanceof Boolean) return ((Boolean) raw) ? "F" : "";
-        if (raw instanceof Number)  return ((Number) raw).intValue() != 0 ? "F" : "";
+        if (raw instanceof Number) return ((Number) raw).intValue() != 0 ? "F" : "";
         String s = raw.toString().trim();
         return s.equals("1") || s.equalsIgnoreCase("true") || s.equals("-1") ? "F" : "";
     }
@@ -229,8 +237,10 @@ public class M20260425_ForceCoordinatesVarchar implements Migration {
         } catch (IOException e) {
             // The connection may be holding a read lock on the file. We log and proceed —
             // the in-memory migration path below is still safe; the file copy is a belt-and-braces.
-            log.warn("{} — Access safety backup failed ({}). Proceeding with in-memory migration.",
-                    NAME, e.getMessage());
+            log.warn(
+                    "{} — Access safety backup failed ({}). Proceeding with in-memory migration.",
+                    NAME,
+                    e.getMessage());
         }
     }
 
@@ -249,7 +259,7 @@ public class M20260425_ForceCoordinatesVarchar implements Migration {
                 // Postgres, SQLite, Access all accept || for concat in their supported dialects.
                 // Access also accepts & — we use || which is standards-SQL-ish and works on ucanaccess.
                 if ("Access".equals(dialect)) concatSql = "(force_coordinates & 'E')";
-                else                          concatSql = "(COALESCE(force_coordinates, '') || 'E')";
+                else concatSql = "(COALESCE(force_coordinates, '') || 'E')";
                 break;
             case "Postgres":
             case "TEXT":

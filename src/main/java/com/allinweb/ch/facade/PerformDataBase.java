@@ -2103,8 +2103,8 @@ public class PerformDataBase {
         }
 
         String idColumn = tableName.equalsIgnoreCase("instruction") ? "bot_job_id" : "home_banking_id";
-        String sql = "UPDATE " + tableName
-                + " SET force_coordinates = ? WHERE id = ? AND block_id = ? AND " + idColumn + " = ?";
+        String sql = "UPDATE " + tableName + " SET force_coordinates = ? WHERE id = ? AND block_id = ? AND " + idColumn
+                + " = ?";
 
         try (Connection conn = getConnection();
                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -2119,15 +2119,15 @@ public class PerformDataBase {
             if (rowsAffected == 0) {
                 logDB.warn("No instruction force_coordinates updated. InstructionId: " + instructionId);
             } else {
-                logDB.info("Instruction force_coordinates updated. InstructionId: " + instructionId
-                        + ", Flags: '" + forceCoordinates + "'");
+                logDB.info("Instruction force_coordinates updated. InstructionId: " + instructionId + ", Flags: '"
+                        + forceCoordinates + "'");
             }
 
             return null;
 
         } catch (SQLException e) {
-            logDB.error("Error updating instruction force_coordinates. InstructionId: " + instructionId
-                    + ", Error: " + e.getMessage());
+            logDB.error("Error updating instruction force_coordinates. InstructionId: " + instructionId + ", Error: "
+                    + e.getMessage());
             return new ErrorMessage(
                     "Update Instruction ForceCoordinates Error",
                     "Failed to update instruction force_coordinates",
@@ -2918,7 +2918,9 @@ public class PerformDataBase {
                     InstructionOperation.getLoopOnly() != null ? (InstructionOperation.getLoopOnly() ? 1 : 0) : null);
             addColumnValue.accept(
                     "force_coordinates",
-                    InstructionOperation.getForceCoordinates() != null ? InstructionOperation.getForceCoordinates() : "");
+                    InstructionOperation.getForceCoordinates() != null
+                            ? InstructionOperation.getForceCoordinates()
+                            : "");
 
             if (setClause.isEmpty()) {
 

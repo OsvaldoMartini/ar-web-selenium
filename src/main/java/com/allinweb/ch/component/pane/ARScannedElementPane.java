@@ -616,8 +616,8 @@ public class ARScannedElementPane extends ARPane {
         StringBuilder flags = new StringBuilder(4);
         if (checkForceCoordText.isSelected()) flags.append('F');
         if (checkForceEnterText.isSelected()) flags.append('E');
-        if (checkForceTabText.isSelected())   flags.append('T');
-        if (checkForceNextText.isSelected())  flags.append('N');
+        if (checkForceTabText.isSelected()) flags.append('T');
+        if (checkForceNextText.isSelected()) flags.append('N');
         instruction.setForceCoordinates(flags.toString());
         instruction.setCoordinates(targetInsert.getCoordinates());
         instruction.setIFrameXPath(targetInsert.getIFrameXPath());

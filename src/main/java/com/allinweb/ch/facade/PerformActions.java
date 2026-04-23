@@ -550,8 +550,7 @@ public class PerformActions {
                                             currentInstruction.getDefaultValue(),
                                             currentInstruction.getCodified(),
                                             InputFlags.ofLegacy(
-                                                    currentInstruction.getForceCoordinates(),
-                                                    pressEnterAfter));
+                                                    currentInstruction.getForceCoordinates(), pressEnterAfter));
                                 } catch (Exception insertEx) {
                                     logOperations.warn(
                                             "Selenium insert threw: {} - trying fallbacks", insertEx.getMessage());
@@ -1411,12 +1410,20 @@ public class PerformActions {
         boolean anyExplicit = flags.hasNext() || flags.hasEnter() || flags.hasTab();
         if (!anyExplicit) {
             // Legacy default: TAB to move focus and commit the field.
-            try { element.sendKeys(Keys.TAB); } catch (Exception ignored) {}
+            try {
+                element.sendKeys(Keys.TAB);
+            } catch (Exception ignored) {
+            }
             return;
         }
-        if (flags.hasNext())  tryPressNext(element);      // explicit combo: no cascade
+        if (flags.hasNext()) tryPressNext(element); // explicit combo: no cascade
         if (flags.hasEnter()) pressEnterStrong(element);
-        if (flags.hasTab())   { try { element.sendKeys(Keys.TAB); } catch (Exception ignored) {} }
+        if (flags.hasTab()) {
+            try {
+                element.sendKeys(Keys.TAB);
+            } catch (Exception ignored) {
+            }
+        }
     }
 
     /**
@@ -1428,16 +1435,19 @@ public class PerformActions {
      *   3) {@code form.requestSubmit()} if the element is inside a &lt;form&gt;.
      */
     private void pressEnterStrong(WebElement element) {
-        try { element.sendKeys(Keys.ENTER); } catch (Exception ignored) {}
+        try {
+            element.sendKeys(Keys.ENTER);
+        } catch (Exception ignored) {
+        }
         try {
             ((JavascriptExecutor) currentDriver)
                     .executeScript(
                             "var el = arguments[0];"
-                                + "var opts = {key:'Enter', code:'Enter', keyCode:13, which:13, bubbles:true, cancelable:true};"
-                                + "el.dispatchEvent(new KeyboardEvent('keydown', opts));"
-                                + "el.dispatchEvent(new KeyboardEvent('keypress', opts));"
-                                + "el.dispatchEvent(new KeyboardEvent('keyup', opts));"
-                                + "try { if (el.form && el.form.requestSubmit) el.form.requestSubmit(); } catch(_) {}",
+                                    + "var opts = {key:'Enter', code:'Enter', keyCode:13, which:13, bubbles:true, cancelable:true};"
+                                    + "el.dispatchEvent(new KeyboardEvent('keydown', opts));"
+                                    + "el.dispatchEvent(new KeyboardEvent('keypress', opts));"
+                                    + "el.dispatchEvent(new KeyboardEvent('keyup', opts));"
+                                    + "try { if (el.form && el.form.requestSubmit) el.form.requestSubmit(); } catch(_) {}",
                             element);
         } catch (Exception e) {
             logOperations.debug("pressEnterStrong JS dispatch failed: {}", e.getMessage());
@@ -1451,7 +1461,7 @@ public class PerformActions {
     private void pressNextWithFallback(WebElement element) {
         WebElement before = safeActiveElement();
         if (tryPressNext(element) && focusMoved(before)) return;
-        if (tryPressTab(element)  && focusMoved(before)) return;
+        if (tryPressTab(element) && focusMoved(before)) return;
         pressEnterStrong(element);
     }
 
@@ -1464,7 +1474,8 @@ public class PerformActions {
      */
     private boolean tryPressNext(WebElement element) {
         try {
-            String driverClass = currentDriver == null ? "" : currentDriver.getClass().getSimpleName();
+            String driverClass =
+                    currentDriver == null ? "" : currentDriver.getClass().getSimpleName();
             if (driverClass.contains("Android") || driverClass.contains("IOS") || driverClass.contains("Appium")) {
                 try {
                     // Try tapping an on-screen "Next" button (iOS/Android soft keyboards commonly expose this).
@@ -1482,11 +1493,11 @@ public class PerformActions {
             ((JavascriptExecutor) currentDriver)
                     .executeScript(
                             "var el = arguments[0], f = el.form;"
-                                + "if (f) { var els = Array.from(f.elements), i = els.indexOf(el);"
-                                + "  for (var k = i + 1; k < els.length; k++) {"
-                                + "    var n = els[k]; if (n && !n.disabled && n.offsetParent !== null) { n.focus(); return; }"
-                                + "  }"
-                                + "}",
+                                    + "if (f) { var els = Array.from(f.elements), i = els.indexOf(el);"
+                                    + "  for (var k = i + 1; k < els.length; k++) {"
+                                    + "    var n = els[k]; if (n && !n.disabled && n.offsetParent !== null) { n.focus(); return; }"
+                                    + "  }"
+                                    + "}",
                             element);
             return true;
         } catch (Exception e) {
@@ -1496,17 +1507,30 @@ public class PerformActions {
     }
 
     private boolean tryPressTab(WebElement element) {
-        try { element.sendKeys(Keys.TAB); return true; } catch (Exception e) { return false; }
+        try {
+            element.sendKeys(Keys.TAB);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private WebElement safeActiveElement() {
-        try { return currentDriver.switchTo().activeElement(); } catch (Exception e) { return null; }
+        try {
+            return currentDriver.switchTo().activeElement();
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private boolean focusMoved(WebElement before) {
         WebElement after = safeActiveElement();
         if (before == null || after == null) return false;
-        try { return !before.equals(after); } catch (Exception e) { return false; }
+        try {
+            return !before.equals(after);
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     /**
