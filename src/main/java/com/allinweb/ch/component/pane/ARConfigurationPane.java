@@ -733,9 +733,21 @@ public class ARConfigurationPane extends ARPane {
             }
         }
 
-        Label newInstruction = new Label(
-                "DB BACKUP\nDatabase Selected: \"" + dataBaseType + "\" \nDatabase Folder : \"v4.2g Beta Test\"");
-        newInstruction.setStyle("-fx-font-size: 18px; -fx-text-fill: red;");
+        // Let the user choose the destination folder for the backup file.
+        // Default to PATH_DB so repeated backups land in the same place unless
+        // the user says otherwise.
+        String defaultDbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        File defaultDir = (defaultDbPath == null || defaultDbPath.isBlank()) ? null : new File(defaultDbPath);
+        Stage ownerStageBackup = (Stage) backupDBButton.getScene().getWindow();
+        String chosenBackupFolder = openDirectoryChooserFor(defaultDir, ownerStageBackup);
+        if (chosenBackupFolder == null || chosenBackupFolder.isBlank()) {
+            // User cancelled the folder picker — abort silently.
+            return;
+        }
+
+        Label newInstruction = new Label("DB BACKUP\nDatabase: \"" + dataBaseType + "\"\nTarget Folder: \""
+                + chosenBackupFolder + "\"\nFile: \"backup_all_" + date + ".sql\"");
+        newInstruction.setStyle("-fx-font-size: 14px; -fx-text-fill: red;");
 
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION, null, ButtonType.YES, ButtonType.NO);
         alert.setHeaderText("Are you sure you want to EXECUTE BACKUP DB (\"" + dataBaseType + "\")?");
@@ -748,66 +760,16 @@ public class ARConfigurationPane extends ARPane {
 
                 performBackup.initialize(conn);
 
-                String databasePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-
-                String backupFilePath = databasePath + File.separator + "backup_home_banking_" + date + ".sql";
-                ErrorMessage errorMessage = performBackup.backupHomeBanking(conn, backupFilePath, null);
-
-                if (errorMessage == null) {
-                    backupFilePath = databasePath + File.separator + "backup_home_url_" + date + ".sql";
-                    errorMessage = performBackup.backupHomeUrl(conn, backupFilePath);
-                }
-
-                if (errorMessage == null) {
-                    backupFilePath = databasePath + File.separator + "backup_bot_job_" + date + ".sql";
-                    errorMessage = performBackup.backupBotJob(conn, backupFilePath, null, null);
-                }
-
-                if (errorMessage == null) {
-                    backupFilePath = databasePath + File.separator + "backup_block_" + date + ".sql";
-                    errorMessage = performBackup.backupBlock(conn, backupFilePath, null);
-                }
-
-                if (errorMessage == null) {
-                    backupFilePath = databasePath + File.separator + "backup_instruction_" + date + ".sql";
-                    errorMessage = performBackup.backupInstruction(conn, backupFilePath, null);
-                }
-
-                if (errorMessage == null) {
-                    backupFilePath = databasePath + File.separator + "backup_variable_" + date + ".sql";
-                    errorMessage = performBackup.backupVariable(conn, backupFilePath, null);
-                }
-
-                if (errorMessage == null) {
-                    backupFilePath = databasePath + File.separator + "backup_reference_" + date + ".sql";
-                    errorMessage = performBackup.backupReference(conn, backupFilePath, null);
-                }
-
-                if (errorMessage == null) {
-                    backupFilePath = databasePath + File.separator + "backup_component_block_" + date + ".sql";
-                    errorMessage = performBackup.backupComponentBlock(conn, backupFilePath);
-                }
-
-                if (errorMessage == null) {
-                    backupFilePath = databasePath + File.separator + "backup_component_instruction_" + date + ".sql";
-                    errorMessage = performBackup.backupComponentInstruction(conn, backupFilePath);
-                }
-
-                if (errorMessage == null) {
-                    backupFilePath = databasePath + File.separator + "backup_component_variable_" + date + ".sql";
-                    errorMessage = performBackup.backupComponentVariable(conn, backupFilePath);
-                }
-
-                if (errorMessage == null) {
-                    backupFilePath = databasePath + File.separator + "backup_component_reference_" + date + ".sql";
-                    errorMessage = performBackup.backupComponentReference(conn, backupFilePath);
-                }
+                // Single-file backup: one .sql containing every table and every row in
+                // FK-safe order, byte-compatible with the legacy per-table format.
+                String backupFilePath = chosenBackupFolder + File.separator + "backup_all_" + date + ".sql";
+                ErrorMessage errorMessage = performBackup.dumpAllToSingleFile(conn, backupFilePath);
 
                 if (errorMessage == null) {
                     showAlertTimer(
                             Alert.AlertType.INFORMATION,
                             "Backup DB Success!",
-                            "Check the LOGS folder!",
+                            "Check the DATABASE folder!",
                             "Database",
                             databaseChoiceBox.getValue(),
                             null,
@@ -883,21 +845,54 @@ public class ARConfigurationPane extends ARPane {
             return;
         }
 
-        Label newInstruction = new Label(
-                "DB RESTORE\nDatabase Selected: \"" + dataBaseType + "\" \nDatabase Folder : \"v4.2g Beta Test\"");
-        newInstruction.setStyle("-fx-font-size: 18px; -fx-text-fill: red;");
+        // Let the user choose the source folder to restore from. Default to PATH_DB.
+        File defaultRestoreDir = (dataBaseFolder == null || dataBaseFolder.isBlank()) ? null : new File(dataBaseFolder);
+        Stage ownerStageRestore = (Stage) restoreDBButton.getScene().getWindow();
+        String chosenRestoreFolder = openDirectoryChooserFor(defaultRestoreDir, ownerStageRestore);
+        if (chosenRestoreFolder == null || chosenRestoreFolder.isBlank()) {
+            // User cancelled the folder picker — abort silently.
+            return;
+        }
 
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION, null, ButtonType.YES, ButtonType.NO);
-        alert.setHeaderText("Are you sure you want to EXECUTE RESTORE DB (\"" + dataBaseType + "\")?");
-        alert.getDialogPane().setContent(newInstruction);
+        // Detect which backup format is present in the chosen folder for the given date:
+        //   1. New single-file backup:    <folder>/backup_all_<date>.sql
+        //   2. Legacy per-table backups:  <folder>/backup_home_banking_<date>.sql (proxy marker)
+        File singleFile = new File(chosenRestoreFolder, "backup_all_" + formattedDate + ".sql");
+        File legacyMarker = new File(chosenRestoreFolder, "backup_home_banking_" + formattedDate + ".sql");
+
+        boolean useSingleFile = singleFile.exists();
+        boolean useLegacyFiles = !useSingleFile && legacyMarker.exists();
+
+        if (!useSingleFile && !useLegacyFiles) {
+            performMessage.showCustomModalDialogDragWin11(
+                    "No Backup Found ⚠️",
+                    "<span style='color: #D32F2F; font-weight: bold;'>No backup for that date was found in the chosen folder.</span>",
+                    "<span style='color: #1565C0;'>Looked for</span> <b>backup_all_" + formattedDate
+                            + ".sql</b> <span style='color: #1565C0;'>and the legacy</span> <b>backup_home_banking_"
+                            + formattedDate + ".sql</b>.",
+                    "<span style='color: #6A1B9A;'>Folder:</span> " + chosenRestoreFolder,
+                    "<span style='font-style: italic;'>Pick another folder or date and try again.</span>",
+                    false,
+                    "OK",
+                    null,
+                    0);
+            return;
+        }
+
+        String formatLabel = useSingleFile
+                ? "Single-file backup: <b>" + singleFile.getName() + "</b>"
+                : "Legacy per-table backups (11 files for <b>" + formattedDate + "</b>)";
+        String formatNote = useSingleFile
+                ? "The database will be fully restored from one .sql file (FK-safe order, IDs preserved)."
+                : "No <b>backup_all_" + formattedDate + ".sql</b> found — falling back to the legacy 11-file restore.";
 
         ARExecution.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
                 "Restore Database Confirmation",
                 "<span style='font-weight: bold; color: #D32F2F;'>Are you sure you want to execute a database restore?</span>",
-                "The database type selected is: <span style='color: #1565C0; font-weight: bold;'>" + dataBaseType
-                        + "</span>.",
-                "<span style='color: #6A1B9A; font-weight: bold;'>The restore will apply to the folder: </span>.",
-                "<span style='font-style: italic;'>Details: " + dataBaseFolder + "</span>",
+                "Detected format: " + formatLabel,
+                "<span style='color: #6A1B9A;'>Source folder:</span> " + chosenRestoreFolder,
+                "<span style='font-style: italic;'>" + formatNote + " Target database: <b>" + dataBaseType
+                        + "</b> at <b>" + dataBaseFolder + "</b>.</span>",
                 false,
                 "Execute Restore",
                 "Cancel",
@@ -908,69 +903,18 @@ public class ARConfigurationPane extends ARPane {
 
                 performBackup.initialize(conn);
 
-                String databasePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-
-                String backupFilePath = databasePath + File.separator + "backup_home_banking_" + formattedDate + ".sql";
-                ErrorMessage errorMessage = performBackup.restoreHomeBanking(conn, backupFilePath);
-
-                if (errorMessage == null) {
-                    backupFilePath = databasePath + File.separator + "backup_home_url_" + formattedDate + ".sql";
-                    errorMessage = performBackup.restoreHomeUrl(conn, backupFilePath);
-                }
-
-                if (errorMessage == null) {
-                    backupFilePath = databasePath + File.separator + "backup_bot_job_" + formattedDate + ".sql";
-                    errorMessage = performBackup.restoreBotJob(conn, backupFilePath, null, null, null);
-                }
-                if (errorMessage == null) {
-                    backupFilePath = databasePath + File.separator + "backup_block_" + formattedDate + ".sql";
-                    errorMessage = performBackup.restoreBlock(conn, backupFilePath, null);
-                }
-
-                if (errorMessage == null) {
-                    backupFilePath = databasePath + File.separator + "backup_instruction_" + formattedDate + ".sql";
-                    errorMessage = performBackup.restoreInstruction(conn, backupFilePath, null);
-                }
-
-                if (errorMessage == null) {
-                    backupFilePath = databasePath + File.separator + "backup_variable_" + formattedDate + ".sql";
-                    errorMessage = performBackup.restoreVariable(conn, backupFilePath, null);
-                }
-
-                if (errorMessage == null) {
-                    errorMessage = performBackup.restoreUpdateInstruction(conn, null);
-                }
-
-                if (errorMessage == null) {
-                    backupFilePath = databasePath + File.separator + "backup_reference_" + formattedDate + ".sql";
-                    errorMessage = performBackup.restoreReference(conn, backupFilePath, null);
-                }
-
-                if (errorMessage == null) {
-                    backupFilePath = databasePath + File.separator + "backup_component_block_" + formattedDate + ".sql";
-                    errorMessage = performBackup.restoreComponentBlock(conn, backupFilePath);
-                }
-
-                if (errorMessage == null) {
-                    backupFilePath =
-                            databasePath + File.separator + "backup_component_instruction_" + formattedDate + ".sql";
-                    errorMessage = performBackup.restoreComponentInstruction(conn, backupFilePath);
-                }
-
-                if (errorMessage == null) {
-                    backupFilePath =
-                            databasePath + File.separator + "backup_component_variable_" + formattedDate + ".sql";
-                    errorMessage = performBackup.restoreComponentVariable(conn, backupFilePath);
-                }
-
-                if (errorMessage == null) {
-                    errorMessage = performBackup.restoreComponentUpdateInstruction(conn);
-                }
-
-                if (errorMessage == null) {
-                    backupFilePath =
-                            databasePath + File.separator + "backup_component_reference_" + formattedDate + ".sql";
-                    errorMessage = performBackup.restoreComponentReference(conn, backupFilePath);
+                ErrorMessage errorMessage;
+                if (useSingleFile) {
+                    // Single-file restore: wipes every backed-up table then replays all
+                    // INSERTs from the .sql file in FK-safe order. IDs are preserved
+                    // verbatim so variable_id / block_id / parent_id / parent_block_id /
+                    // bot_job_id / home_banking_id references stay valid.
+                    errorMessage = performBackup.restoreAllFromSingleFile(conn, singleFile.getAbsolutePath());
+                } else {
+                    // Legacy 11-file path — preserved for restoring backups taken before
+                    // backup_all_<date>.sql existed. Delegates to the old per-table
+                    // methods in the same order they were called historically.
+                    errorMessage = runLegacyPerTableRestore(conn, chosenRestoreFolder, formattedDate);
                 }
 
                 if (errorMessage == null) {
@@ -1025,6 +969,65 @@ public class ARConfigurationPane extends ARPane {
                 log.error("Restore Database error: " + error.getMessage());
             }
         }
+    }
+
+    /**
+     * Legacy 11-file restore chain — kept so the UI can fall back to restoring
+     * backups taken before {@code backup_all_<date>.sql} existed. This is the
+     * exact sequence {@link #runRestoreScripts()} used to call inline before the
+     * single-file path was introduced.
+     */
+    private ErrorMessage runLegacyPerTableRestore(Connection conn, String folder, String formattedDate) {
+        String backupFilePath = folder + File.separator + "backup_home_banking_" + formattedDate + ".sql";
+        ErrorMessage errorMessage = performBackup.restoreHomeBanking(conn, backupFilePath);
+
+        if (errorMessage == null) {
+            backupFilePath = folder + File.separator + "backup_home_url_" + formattedDate + ".sql";
+            errorMessage = performBackup.restoreHomeUrl(conn, backupFilePath);
+        }
+        if (errorMessage == null) {
+            backupFilePath = folder + File.separator + "backup_bot_job_" + formattedDate + ".sql";
+            errorMessage = performBackup.restoreBotJob(conn, backupFilePath, null, null, null);
+        }
+        if (errorMessage == null) {
+            backupFilePath = folder + File.separator + "backup_block_" + formattedDate + ".sql";
+            errorMessage = performBackup.restoreBlock(conn, backupFilePath, null);
+        }
+        if (errorMessage == null) {
+            backupFilePath = folder + File.separator + "backup_instruction_" + formattedDate + ".sql";
+            errorMessage = performBackup.restoreInstruction(conn, backupFilePath, null);
+        }
+        if (errorMessage == null) {
+            backupFilePath = folder + File.separator + "backup_variable_" + formattedDate + ".sql";
+            errorMessage = performBackup.restoreVariable(conn, backupFilePath, null);
+        }
+        if (errorMessage == null) {
+            errorMessage = performBackup.restoreUpdateInstruction(conn, null);
+        }
+        if (errorMessage == null) {
+            backupFilePath = folder + File.separator + "backup_reference_" + formattedDate + ".sql";
+            errorMessage = performBackup.restoreReference(conn, backupFilePath, null);
+        }
+        if (errorMessage == null) {
+            backupFilePath = folder + File.separator + "backup_component_block_" + formattedDate + ".sql";
+            errorMessage = performBackup.restoreComponentBlock(conn, backupFilePath);
+        }
+        if (errorMessage == null) {
+            backupFilePath = folder + File.separator + "backup_component_instruction_" + formattedDate + ".sql";
+            errorMessage = performBackup.restoreComponentInstruction(conn, backupFilePath);
+        }
+        if (errorMessage == null) {
+            backupFilePath = folder + File.separator + "backup_component_variable_" + formattedDate + ".sql";
+            errorMessage = performBackup.restoreComponentVariable(conn, backupFilePath);
+        }
+        if (errorMessage == null) {
+            errorMessage = performBackup.restoreComponentUpdateInstruction(conn);
+        }
+        if (errorMessage == null) {
+            backupFilePath = folder + File.separator + "backup_component_reference_" + formattedDate + ".sql";
+            errorMessage = performBackup.restoreComponentReference(conn, backupFilePath);
+        }
+        return errorMessage;
     }
 
     private void saveConfigurations() throws SQLException {

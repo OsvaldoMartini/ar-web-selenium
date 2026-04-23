@@ -2965,4 +2965,493 @@ public class PerformBackup {
         }
         return escapeSql(val);
     }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    //  One-file backup / restore (added 2026-04).
+    //
+    //  These two methods write and read a single .sql file that carries every row
+    //  of every table, in FK-safe dependency order, using the same INSERT format
+    //  as the legacy per-table backup files:
+    //   - strings wrapped in '…' with '' to escape single-quotes; NULL strings
+    //     serialised as the literal '[null]' (matching the legacy toSqlValue quirk)
+    //   - integers written raw; NULL integers written as the bare keyword NULL
+    //   - booleans written as 0 / 1 (schema stores them as INTEGER across all
+    //     three dialects: Access, SQLite, Postgres)
+    //   - one INSERT statement per row, terminated by ';' + line separator
+    //
+    //  The file is therefore a concatenation of the legacy backup_<table>.sql
+    //  outputs; a legacy reader that only knows per-table files could still
+    //  scan this file line-by-line.
+    //
+    //  IDs are preserved verbatim — every INSERT names the id column explicitly,
+    //  so variable_id / block_id / parent_id / parent_block_id / bot_job_id /
+    //  home_banking_id references stay valid after restore.
+    //
+    //  The existing per-table backupX / restoreX methods are left in place for
+    //  callers that still rely on them; these new methods are purely additive.
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Descriptor for one table in the backup. The column order here defines the
+     * column order written into every INSERT for that table and must match the
+     * order used by the legacy per-table backup methods (so that existing backup
+     * files remain format-compatible with this unified format).
+     */
+    private static final class BackupTableSpec {
+        final String tableName;
+        final List<String> columns;
+
+        BackupTableSpec(String tableName, List<String> columns) {
+            this.tableName = tableName;
+            this.columns = columns;
+        }
+    }
+
+    /**
+     * Insert order: parents first. Respects every declared FK in the SQLite and
+     * Postgres schemas. {@code variable} sits AFTER {@code instruction} because
+     * its {@code instruction_id} column has a FK to instruction(id);
+     * {@code instruction.variable_id} has no FK declared (on purpose — breaks the
+     * would-be cycle), so there is nothing to patch up in a second pass.
+     */
+    private static final List<BackupTableSpec> BACKUP_TABLES_IN_ORDER = List.of(
+            new BackupTableSpec(
+                    "home_banking",
+                    List.of(
+                            "id",
+                            "url",
+                            "name",
+                            "priority",
+                            "search_config",
+                            "options_config",
+                            "cookies",
+                            "driver_session",
+                            "username",
+                            "password")),
+            new BackupTableSpec("home_url", List.of("id", "url", "home_banking_id")),
+            new BackupTableSpec(
+                    "bot_job",
+                    List.of("id", "name", "description", "priority", "home_banking_id", "home_url_id", "active")),
+            new BackupTableSpec(
+                    "block",
+                    List.of(
+                            "id",
+                            "block_order_number",
+                            "name",
+                            "description",
+                            "type_id",
+                            "export_file",
+                            "active",
+                            "wait",
+                            "bot_job_id")),
+            new BackupTableSpec(
+                    "instruction",
+                    List.of(
+                            "id",
+                            "instruction_order_number",
+                            "actions",
+                            "name",
+                            "xpath",
+                            "coordinates",
+                            "force_coordinates",
+                            "iframe_xpath",
+                            "tag_name",
+                            "shadow_host",
+                            "shadow_root",
+                            "css_selector",
+                            "description",
+                            "operation",
+                            "optional",
+                            "block_marked",
+                            "default_value",
+                            "action_custom_max_wait_sec",
+                            "on_hold_seconds",
+                            "codified",
+                            "export_to_abr",
+                            "active",
+                            "block_id",
+                            "variable_id",
+                            "parent_block_id",
+                            "parent_id",
+                            "bot_job_id")),
+            new BackupTableSpec("reference", List.of("id", "reference_type", "value", "instruction_id", "bot_job_id")),
+            new BackupTableSpec(
+                    "variable",
+                    List.of(
+                            "id",
+                            "type",
+                            "name",
+                            "value",
+                            "instruction_id",
+                            "bot_job_id",
+                            "local_format",
+                            "delimiter")),
+            // ─── component_* tables: these reference home_banking_id (not bot_job_id) ──
+            new BackupTableSpec(
+                    "component_block",
+                    List.of(
+                            "id",
+                            "home_banking_id",
+                            "block_order_number",
+                            "name",
+                            "description",
+                            "type_id",
+                            "export_file",
+                            "active",
+                            "wait")),
+            new BackupTableSpec(
+                    "component_instruction",
+                    List.of(
+                            "id",
+                            "instruction_order_number",
+                            "actions",
+                            "name",
+                            "xpath",
+                            "coordinates",
+                            "force_coordinates",
+                            "iframe_xpath",
+                            "tag_name",
+                            "shadow_host",
+                            "shadow_root",
+                            "css_selector",
+                            "description",
+                            "operation",
+                            "optional",
+                            "block_marked",
+                            "default_value",
+                            "action_custom_max_wait_sec",
+                            "on_hold_seconds",
+                            "codified",
+                            "export_to_abr",
+                            "active",
+                            "block_id",
+                            "variable_id",
+                            "parent_block_id",
+                            "parent_id",
+                            "home_banking_id")),
+            new BackupTableSpec(
+                    "component_reference",
+                    List.of("id", "reference_type", "value", "instruction_id", "home_banking_id")),
+            new BackupTableSpec(
+                    "component_variable",
+                    List.of(
+                            "id",
+                            "type",
+                            "name",
+                            "value",
+                            "instruction_id",
+                            "home_banking_id",
+                            "local_format",
+                            "delimiter")));
+
+    /** Dialect detection for the three supported engines. */
+    private enum BackupDialect {
+        POSTGRES,
+        SQLITE,
+        ACCESS;
+
+        static BackupDialect detect() {
+            String t = com.allinweb.ch.util.ARPropertyManager.getInstance()
+                    .getProperty(com.allinweb.ch.util.ARPropertyEnum.DATABASE_TYPE);
+            if (t == null) return ACCESS;
+            if ("Postgres".equalsIgnoreCase(t)) return POSTGRES;
+            if ("TEXT".equalsIgnoreCase(t)) return SQLITE;
+            return ACCESS;
+        }
+    }
+
+    /**
+     * Dump every row of every backed-up table into a single SQL file. FK-safe
+     * insertion order. Format is byte-compatible with the legacy per-table
+     * backup files (same quoting, same {@code [null]} placeholder for null
+     * strings, same {@code 0/1} booleans, same {@code NULL} for null integers).
+     *
+     * @return {@code null} on success, {@link ErrorMessage} on failure
+     */
+    public ErrorMessage dumpAllToSingleFile(Connection conn, String backupFilePath) {
+        File sqlFile = new File(backupFilePath);
+        try (BufferedWriter writer = new BufferedWriter(
+                new OutputStreamWriter(new FileOutputStream(sqlFile), Charset.forName("windows-1252")))) {
+
+            String header = "-- AR-WEB SNAPSHOT v1 — "
+                    + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                    + System.lineSeparator()
+                    + "-- dialect (informational): " + BackupDialect.detect().name()
+                    + System.lineSeparator();
+            writer.write(header);
+            writer.write(System.lineSeparator());
+
+            for (BackupTableSpec spec : BACKUP_TABLES_IN_ORDER) {
+                long rows = dumpOneTableToWriter(conn, writer, spec);
+                log.info("dumpAllToSingleFile — {}: {} row(s)", spec.tableName, rows);
+            }
+
+            writer.flush();
+            log.info("dumpAllToSingleFile — complete: {}", sqlFile.getAbsolutePath());
+            return null;
+        } catch (Exception error) {
+            log.error("dumpAllToSingleFile — failed: {}", error.getMessage(), error);
+            return new ErrorMessage("Error in backup process", "Error during single-file backup", error.getMessage());
+        }
+    }
+
+    private long dumpOneTableToWriter(Connection conn, BufferedWriter writer, BackupTableSpec spec) throws Exception {
+        String select = "SELECT " + String.join(", ", spec.columns) + " FROM " + spec.tableName + " ORDER BY id ASC";
+        String insertPrefix = "INSERT INTO " + spec.tableName + " (" + String.join(", ", spec.columns) + ") VALUES (";
+
+        long count = 0;
+        writer.write("-- TABLE: " + spec.tableName + System.lineSeparator());
+        try (Statement st = conn.createStatement();
+                ResultSet rs = st.executeQuery(select)) {
+            ResultSetMetaData md = rs.getMetaData();
+            while (rs.next()) {
+                StringBuilder line = new StringBuilder(insertPrefix);
+                for (int i = 0; i < spec.columns.size(); i++) {
+                    if (i > 0) line.append(", ");
+                    line.append(renderValueForBackup(rs, md, i + 1));
+                }
+                line.append(");");
+                writer.write(line.toString());
+                writer.write(System.lineSeparator());
+                count++;
+            }
+        }
+        writer.write(System.lineSeparator());
+        return count;
+    }
+
+    /**
+     * Render one column value of the current row using the legacy format. Integer
+     * columns become either the raw number or the bare {@code NULL} keyword;
+     * anything else is treated as a string — quoted, single-quotes escaped as
+     * {@code ''}, and null/blank values written as the literal {@code '[null]'}
+     * exactly like {@link #toSqlValue(String)} does.
+     */
+    private String renderValueForBackup(ResultSet rs, ResultSetMetaData md, int index) throws SQLException {
+        int type = md.getColumnType(index);
+        switch (type) {
+            case Types.INTEGER:
+            case Types.SMALLINT:
+            case Types.TINYINT:
+            case Types.BIGINT:
+            case Types.BIT:
+            case Types.BOOLEAN: {
+                long v = rs.getLong(index);
+                if (rs.wasNull()) return "NULL";
+                // BIT / BOOLEAN normalise to 0/1 (Postgres BOOLEAN columns map here too).
+                if (type == Types.BIT || type == Types.BOOLEAN) return v == 0 ? "0" : "1";
+                return Long.toString(v);
+            }
+            default: {
+                String s = rs.getString(index);
+                if (s == null || s.isBlank()) return "'[null]'";
+                return "'" + s.replace("'", "''") + "'";
+            }
+        }
+    }
+
+    /**
+     * Restore a single-file backup produced by {@link #dumpAllToSingleFile}. The
+     * current database is wiped (all rows in every backed-up table deleted, in
+     * reverse FK-dependency order) before the INSERTs run. ID columns are reused
+     * verbatim from the file so every FK reference remains valid.
+     *
+     * <p>Per-dialect handling:
+     * <ul>
+     *   <li><b>SQLite</b>: {@code PRAGMA foreign_keys = OFF} for the duration of
+     *       the restore, then {@code ON} at the end.</li>
+     *   <li><b>Postgres</b>: {@code SET session_replication_role = 'replica'} to
+     *       suppress FK checks, then {@code 'origin'} at the end. Sequences for
+     *       every restored table are re-synced with {@code setval(pg_get_serial_sequence(...))}
+     *       so future auto-increments don't collide with restored ids.</li>
+     *   <li><b>Access</b>: nothing special — ucanaccess respects the insertion
+     *       order and the declared schema has no self-referential FKs.</li>
+     * </ul>
+     */
+    public ErrorMessage restoreAllFromSingleFile(Connection conn, String sqlFilePath) {
+        File sqlFile = new File(sqlFilePath);
+        if (!sqlFile.exists()) {
+            return new ErrorMessage(
+                    "Restore file not found", "Single-file backup not present on disk", sqlFile.getAbsolutePath());
+        }
+        BackupDialect dialect = BackupDialect.detect();
+        boolean originalAutoCommit = true;
+        try {
+            originalAutoCommit = conn.getAutoCommit();
+        } catch (SQLException ignore) {
+            // some drivers forbid reading autoCommit on a closed tx; default is true
+        }
+
+        try {
+            conn.setAutoCommit(false);
+            setFkEnforcement(conn, dialect, false);
+
+            // 1. Wipe every backed-up table in reverse insertion order (child tables first).
+            for (int i = BACKUP_TABLES_IN_ORDER.size() - 1; i >= 0; i--) {
+                BackupTableSpec spec = BACKUP_TABLES_IN_ORDER.get(i);
+                try (Statement st = conn.createStatement()) {
+                    int n = st.executeUpdate("DELETE FROM " + spec.tableName);
+                    log.info("restoreAllFromSingleFile — wiped {}: {} row(s)", spec.tableName, n);
+                }
+            }
+
+            // 2. Replay every INSERT from the file. Comments / blanks are skipped.
+            long executed = runSqlScript(conn, sqlFile);
+            log.info("restoreAllFromSingleFile — executed {} statement(s)", executed);
+
+            // 3. Postgres only: resync sequences so new inserts don't collide.
+            if (dialect == BackupDialect.POSTGRES) {
+                for (BackupTableSpec spec : BACKUP_TABLES_IN_ORDER) {
+                    try (Statement st = conn.createStatement()) {
+                        st.executeUpdate("SELECT setval(pg_get_serial_sequence('" + spec.tableName + "', 'id'), "
+                                + "COALESCE((SELECT MAX(id) FROM " + spec.tableName + "), 1))");
+                    } catch (SQLException e) {
+                        // If a table has no sequence (shouldn't happen here), just log and continue.
+                        log.warn(
+                                "restoreAllFromSingleFile — sequence resync skipped for {}: {}",
+                                spec.tableName,
+                                e.getMessage());
+                    }
+                }
+            }
+
+            setFkEnforcement(conn, dialect, true);
+            conn.commit();
+            log.info("restoreAllFromSingleFile — complete: {}", sqlFile.getAbsolutePath());
+            return null;
+        } catch (Exception error) {
+            log.error("restoreAllFromSingleFile — failed: {}", error.getMessage(), error);
+            try {
+                conn.rollback();
+            } catch (SQLException rbEx) {
+                log.warn("restoreAllFromSingleFile — rollback failed: {}", rbEx.getMessage());
+            }
+            // Best-effort re-enable of FK enforcement so the connection isn't left in an odd state.
+            try {
+                setFkEnforcement(conn, dialect, true);
+            } catch (Exception ignore) {
+                // already logged upstream
+            }
+            return new ErrorMessage("Error in restore process", "Error during single-file restore", error.getMessage());
+        } finally {
+            try {
+                conn.setAutoCommit(originalAutoCommit);
+            } catch (SQLException ignore) {
+                // noop
+            }
+        }
+    }
+
+    /** Toggle FK enforcement for the current connection in a dialect-aware way. */
+    private void setFkEnforcement(Connection conn, BackupDialect dialect, boolean enabled) throws SQLException {
+        switch (dialect) {
+            case SQLITE:
+                try (Statement st = conn.createStatement()) {
+                    st.execute("PRAGMA foreign_keys = " + (enabled ? "ON" : "OFF"));
+                }
+                break;
+            case POSTGRES:
+                try (Statement st = conn.createStatement()) {
+                    // session_replication_role = 'replica' disables all FK triggers for this session
+                    st.execute("SET session_replication_role = '" + (enabled ? "origin" : "replica") + "'");
+                }
+                break;
+            case ACCESS:
+            default:
+                // ucanaccess doesn't expose a session-level FK toggle, and the insertion
+                // order already satisfies every declared FK — no action needed.
+                break;
+        }
+    }
+
+    /**
+     * Quote-aware SQL script runner. Each statement is terminated by a {@code ';'}
+     * appearing <em>outside</em> any single-quoted string literal; the {@code ';'}
+     * may land on the same line or on any subsequent line, so multi-line string
+     * values (which appear in the legacy backup files — e.g. {@code search_config}
+     * on {@code home_banking} rows) are reassembled correctly into one statement.
+     *
+     * <p>Handling:
+     * <ul>
+     *   <li>Lines starting with {@code --} are treated as comments and skipped
+     *       ONLY when we are not inside a quoted string. Inside a string, the
+     *       {@code '--'} is real data and must be preserved.</li>
+     *   <li>Single quotes toggle the quote state. The standard SQL {@code ''}
+     *       escape — a doubled single quote inside a quoted literal — is consumed
+     *       as two characters without flipping the state.</li>
+     *   <li>A trailing {@code ';'} is stripped before execution, because some
+     *       JDBC drivers object to it while most tolerate it.</li>
+     *   <li>If the file ends mid-statement (no final {@code ';'}), whatever was
+     *       accumulated is executed as a best-effort last statement.</li>
+     * </ul>
+     */
+    private long runSqlScript(Connection conn, File sqlFile) throws IOException, SQLException {
+        long executed = 0;
+        StringBuilder current = new StringBuilder();
+        boolean inQuote = false;
+
+        try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(new FileInputStream(sqlFile), Charset.forName("windows-1252")));
+                Statement st = conn.createStatement()) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                // Comment / blank line handling — only applies OUTSIDE a quoted literal.
+                if (!inQuote) {
+                    String trimmed = line.trim();
+                    if (trimmed.isEmpty()) continue;
+                    if (trimmed.startsWith("--")) continue;
+                }
+
+                int i = 0;
+                int n = line.length();
+                while (i < n) {
+                    char c = line.charAt(i);
+                    if (c == '\'') {
+                        if (inQuote && i + 1 < n && line.charAt(i + 1) == '\'') {
+                            // '' escape inside a quoted literal — keep both, stay in quote
+                            current.append('\'').append('\'');
+                            i += 2;
+                            continue;
+                        }
+                        inQuote = !inQuote;
+                        current.append('\'');
+                        i++;
+                    } else if (c == ';' && !inQuote) {
+                        String stmt = current.toString().trim();
+                        current.setLength(0);
+                        if (!stmt.isEmpty()) {
+                            try {
+                                st.executeUpdate(stmt);
+                                executed++;
+                            } catch (SQLException e) {
+                                log.error(
+                                        "runSqlScript — statement #{} failed: {} | stmt head: {}",
+                                        executed + 1,
+                                        e.getMessage(),
+                                        stmt.length() > 300 ? stmt.substring(0, 300) + "…" : stmt);
+                                throw e;
+                            }
+                        }
+                        i++;
+                    } else {
+                        current.append(c);
+                        i++;
+                    }
+                }
+                // Preserve the original newline when the line ended inside a string —
+                // multi-line values round-trip cleanly.
+                if (inQuote) {
+                    current.append('\n');
+                }
+            }
+
+            // File ended; if there's a trailing statement without ';', try it.
+            String tail = current.toString().trim();
+            if (!tail.isEmpty()) {
+                st.executeUpdate(tail);
+                executed++;
+            }
+        }
+        return executed;
+    }
 }
