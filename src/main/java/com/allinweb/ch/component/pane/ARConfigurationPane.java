@@ -772,6 +772,14 @@ public class ARConfigurationPane extends ARPane {
                 String backupFilePath = chosenBackupFolder + File.separator + backupFileName;
                 ErrorMessage errorMessage = performBackup.dumpAllToSingleFile(conn, backupFilePath);
 
+                // For Access / SQLite also drop a timestamped binary copy of the
+                // DB file into the backup folder alongside the SQL dump, so the
+                // folder is self-contained for emergency recovery. No-op for Postgres.
+                if (errorMessage == null) {
+                    String defaultDbFolder = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+                    errorMessage = performBackup.copyDbFileTo(dataBaseType, defaultDbFolder, chosenBackupFolder);
+                }
+
                 if (errorMessage == null) {
                     showAlertTimer(
                             Alert.AlertType.INFORMATION,
@@ -916,18 +924,61 @@ public class ARConfigurationPane extends ARPane {
                 0);
 
         if (!respModal.equals(ARExecution.DialogModal.STOP)) {
+            // Access-only pre-step for the single-file path: physically delete the
+            // current database.mdb so the restore starts from a brand-new file
+            // (schema re-created below, ids replayed from the .sql dump). The
+            // binary safety copy that protects this destructive step was taken
+            // at backup time and lives in the chosen backup folder.
+            //
+            // SQLite keeps its file and gets wiped row-by-row inside
+            // restoreAllFromSingleFile (which also clears sqlite_sequence so
+            // AUTOINCREMENT resumes at max(id)+1 of the restored data).
+            // Postgres is a no-op here — server-managed storage.
+            if (useSingleFile && "Access".equalsIgnoreCase(dataBaseType)) {
+                ErrorMessage prepError = performBackup.deleteDbFileWithRetry(dataBaseType, dataBaseFolder);
+                if (prepError != null) {
+                    log.error("Restore preparation failed: {}", prepError.getErrorMessage());
+                    performMessage.errorMessage(
+                            "Restore Database error",
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>"
+                                    + prepError.getErrorTitle() + "</span> ❌",
+                            "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> "
+                                    + prepError.getErrorHeader(),
+                            "<span style='font-style: italic;'>Detail:</span> " + prepError.getErrorMessage(),
+                            null,
+                            0);
+                    return;
+                }
+            }
+
             try (Connection conn = performDataBase.getConnection()) {
 
                 performBackup.initialize(conn);
 
-                ErrorMessage errorMessage;
-                if (useSingleFile) {
+                ErrorMessage errorMessage = null;
+                if (useSingleFile && "Access".equalsIgnoreCase(dataBaseType)) {
+                    // Access only: the .mdb was just deleted above and the fresh
+                    // connection on the line above auto-created an empty file.
+                    // Re-create the schema so restoreAllFromSingleFile has tables
+                    // to INSERT into, then let MigrationRunner bring the schema
+                    // up to the current state before replaying data.
+                    String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+                    File dbFile = new File(dbPath + ARConstants.FILE_NAME_ACCESS);
+                    errorMessage = performInitializer.initializeMainDatabaseAccess(dbFile);
+                    if (errorMessage == null) {
+                        // Re-apply migrations on the fresh schema so schema_migrations
+                        // reflects reality and any post-V001 deltas are present.
+                        performInitializer.initialize();
+                    }
+                }
+
+                if (errorMessage == null && useSingleFile) {
                     // Single-file restore: wipes every backed-up table then replays all
                     // INSERTs from the .sql file in FK-safe order. IDs are preserved
                     // verbatim so variable_id / block_id / parent_id / parent_block_id /
                     // bot_job_id / home_banking_id references stay valid.
                     errorMessage = performBackup.restoreAllFromSingleFile(conn, singleFile.getAbsolutePath());
-                } else {
+                } else if (!useSingleFile) {
                     // Legacy 11-file path — preserved for restoring backups taken before
                     // backup_all_<date>.sql existed. Delegates to the old per-table
                     // methods in the same order they were called historically.

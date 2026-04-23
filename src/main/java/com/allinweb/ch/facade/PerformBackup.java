@@ -1,9 +1,12 @@
 package com.allinweb.ch.facade;
 
+import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
 import java.io.*;
 import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.sql.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -3295,6 +3298,33 @@ public class PerformBackup {
                 }
             }
 
+            // 1b. SQLite: clear sqlite_sequence for the wiped tables so AUTOINCREMENT
+            // is reset. Without this, inserting rows with explicit ids lower than the
+            // previous max still leaves the counter at the OLD max — future auto-ids
+            // would skip well past the restored data.
+            if (dialect == BackupDialect.SQLITE) {
+                try (Statement st = conn.createStatement()) {
+                    for (BackupTableSpec spec : BACKUP_TABLES_IN_ORDER) {
+                        try {
+                            int n = st.executeUpdate(
+                                    "DELETE FROM sqlite_sequence WHERE name = '" + spec.tableName + "'");
+                            log.info(
+                                    "restoreAllFromSingleFile — cleared sqlite_sequence for {} ({} row)",
+                                    spec.tableName,
+                                    n);
+                        } catch (SQLException seqEx) {
+                            // sqlite_sequence only exists if at least one AUTOINCREMENT column
+                            // was ever used in the DB. Missing table is harmless — log once.
+                            log.warn(
+                                    "restoreAllFromSingleFile — sqlite_sequence reset skipped for {}: {}",
+                                    spec.tableName,
+                                    seqEx.getMessage());
+                            break;
+                        }
+                    }
+                }
+            }
+
             // 2. Replay every INSERT from the file. Comments / blanks are skipped.
             long executed = runSqlScript(conn, sqlFile);
             log.info("restoreAllFromSingleFile — executed {} statement(s)", executed);
@@ -3453,5 +3483,117 @@ public class PerformBackup {
             }
         }
         return executed;
+    }
+
+    /**
+     * At backup time, drop a timestamped binary copy of the current DB file
+     * into {@code destFolder} alongside the SQL dump. No-op for Postgres
+     * (server-managed storage) and any other non-file engine.
+     *
+     * <p>Naming:
+     * <ul>
+     *   <li>Access &rarr; {@code access_backup_YYYYMMDD_HHMMSS.mdb}</li>
+     *   <li>SQLite (TEXT) &rarr; {@code sqllite_backup_YYYYMMDD_HHMMSS.db}</li>
+     * </ul>
+     */
+    public ErrorMessage copyDbFileTo(String dataBaseType, String dbFolder, String destFolder) {
+        if (dataBaseType == null) return null;
+        String type = dataBaseType.trim();
+        boolean isAccess = "Access".equalsIgnoreCase(type);
+        boolean isSqlite = "TEXT".equalsIgnoreCase(type);
+        if (!isAccess && !isSqlite) {
+            log.info("copyDbFileTo — {} is not a file-backed DB, skipping", type);
+            return null;
+        }
+        if (dbFolder == null || dbFolder.isBlank() || destFolder == null || destFolder.isBlank()) {
+            return new ErrorMessage(
+                    "Backup copy failed",
+                    "Database folder or destination folder is empty",
+                    "dbFolder='" + dbFolder + "', destFolder='" + destFolder + "'");
+        }
+
+        String fileName = isAccess ? ARConstants.FILE_NAME_ACCESS : ARConstants.FILE_NAME_SQLITE;
+        File dbFile = new File(dbFolder + fileName);
+        if (!dbFile.exists()) {
+            log.info("copyDbFileTo — {} not found, nothing to copy", dbFile.getAbsolutePath());
+            return null;
+        }
+
+        String ts = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+        String copyName = isAccess ? "/access_backup_" + ts + ".mdb" : "/sqllite_backup_" + ts + ".db";
+        File destFile = new File(destFolder + copyName);
+
+        try {
+            Files.copy(dbFile.toPath(), destFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            log.info("copyDbFileTo — copied {} -> {}", dbFile.getAbsolutePath(), destFile.getAbsolutePath());
+            return null;
+        } catch (IOException e) {
+            log.error("copyDbFileTo — copy failed: {}", e.getMessage(), e);
+            return new ErrorMessage(
+                    "Backup copy failed", "Could not copy " + dbFile.getName() + " to backup folder", e.getMessage());
+        }
+    }
+
+    /**
+     * Delete the current Access/SQLite DB file with retry-with-backoff. Used
+     * by the Access restore path to start from a brand-new file. The caller
+     * must have closed every connection it owns before invoking this method.
+     *
+     * <p>Retries (10 × 500 ms ≈ 5 s) cover the window during which the JDBC
+     * driver (ucanaccess in particular) may still hold a native file handle
+     * after {@link Connection#close()}. A single {@code System.gc()} nudge is
+     * issued before the first attempt to encourage finaliser-driven cleanup.
+     *
+     * <p>No-op for Postgres and any other non-file engine, and for SQLite —
+     * SQLite restores keep their file and wipe rows instead.
+     */
+    public ErrorMessage deleteDbFileWithRetry(String dataBaseType, String dataBaseFolder) {
+        if (dataBaseType == null) return null;
+        String type = dataBaseType.trim();
+        if (!"Access".equalsIgnoreCase(type)) {
+            log.info("deleteDbFileWithRetry — {} is not a drop-file engine, skipping", type);
+            return null;
+        }
+        if (dataBaseFolder == null || dataBaseFolder.isBlank()) {
+            return new ErrorMessage(
+                    "Restore preparation failed",
+                    "Database folder is not configured",
+                    "ARPropertyEnum.PATH_DB is empty");
+        }
+
+        File dbFile = new File(dataBaseFolder + ARConstants.FILE_NAME_ACCESS);
+        if (!dbFile.exists()) {
+            log.info("deleteDbFileWithRetry — {} not found, nothing to delete", dbFile.getAbsolutePath());
+            return null;
+        }
+
+        System.gc();
+
+        final int attempts = 10;
+        final long backoffMs = 500L;
+        for (int i = 1; i <= attempts; i++) {
+            if (dbFile.delete() || !dbFile.exists()) {
+                log.info("deleteDbFileWithRetry — deleted {} on attempt {}", dbFile.getAbsolutePath(), i);
+                return null;
+            }
+            log.warn(
+                    "deleteDbFileWithRetry — delete attempt {}/{} failed for {} (locked?), retry in {} ms",
+                    i,
+                    attempts,
+                    dbFile.getAbsolutePath(),
+                    backoffMs);
+            try {
+                Thread.sleep(backoffMs);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+
+        return new ErrorMessage(
+                "Database file in use",
+                "Could not delete " + dbFile.getName() + " after " + attempts
+                        + " attempts — the file appears to be locked by another process or connection.",
+                "Close any other app holding the database open and try again.");
     }
 }
