@@ -67,6 +67,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javax.swing.*;
 import javax.xml.XMLConstants;
@@ -1348,6 +1349,23 @@ public class ARScannedElementPane extends ARPane {
         comboBoxBlocks = new ComboBox<>();
         comboBoxBlocks.setPrefWidth(comboWidth);
         comboBoxBlocks.getSelectionModel().selectFirst();
+
+        // "+ Create new block…" sentinel handler. When the user picks the sentinel,
+        // roll the selection back to the previous real block (so the dropdown never
+        // stays on the sentinel) and open the create-block modal — no PendingInsert
+        // here, this is the proactive "I want to add a block now" flow.
+        comboBoxBlocks.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal == null) return;
+            if (newVal.getBlockId() == null || newVal.getBlockId() != SENTINEL_CREATE_BLOCK_ID) return;
+            Platform.runLater(() -> {
+                if (oldVal != null && oldVal.getBlockId() != null && oldVal.getBlockId() != SENTINEL_CREATE_BLOCK_ID) {
+                    comboBoxBlocks.getSelectionModel().select(oldVal);
+                } else {
+                    comboBoxBlocks.getSelectionModel().clearSelection();
+                }
+                openCreateBlockModal(null);
+            });
+        });
         comboBoxBlocks.setButtonCell(new ListCell<>() {
             @Override
             protected void updateItem(BlockOptions item, boolean empty) {
@@ -3125,18 +3143,306 @@ public class ARScannedElementPane extends ARPane {
         return sb.toString();
     }
 
+    /** Sentinel {@code BlockOptions.blockId} that identifies the "+ Create new block…" entry
+     *  appended to the dropdown. Selecting it rolls the selection back and opens the
+     *  create-block modal — see {@link #openCreateBlockModal(Runnable)}. */
+    private static final int SENTINEL_CREATE_BLOCK_ID = -999;
+
+    private static final String SENTINEL_CREATE_BLOCK_TEXT = "+ Create new block…";
+
     private void loadAllBlocks() {
         if (comboBoxBlocks != null) {
             Platform.runLater(() -> {
                 comboBoxBlocks.getItems().clear();
                 List<BlockOptions> listOptions = performLists.loadComboOptions("block", "ScannerPane");
+                // Append the create-new-block sentinel at the end. It's flagged by
+                // blockId == SENTINEL_CREATE_BLOCK_ID; picking it opens the modal.
+                listOptions.add(new BlockOptions(
+                        SENTINEL_CREATE_BLOCK_TEXT, SENTINEL_CREATE_BLOCK_TEXT, null, SENTINEL_CREATE_BLOCK_ID, null));
                 comboBoxBlocks.setItems(FXCollections.observableArrayList(listOptions));
 
                 if (!listOptions.isEmpty()) {
-                    comboBoxBlocks.getSelectionModel().selectFirst();
+                    // Select the first real block (skipping the sentinel if it was the only item).
+                    BlockOptions first = listOptions.get(0);
+                    if (first != null && first.getBlockId() != null && first.getBlockId() == SENTINEL_CREATE_BLOCK_ID) {
+                        comboBoxBlocks.getSelectionModel().clearSelection();
+                    } else {
+                        comboBoxBlocks.getSelectionModel().selectFirst();
+                    }
                 }
             });
         }
+    }
+
+    /** Returns true when {@code comboBoxBlocks} has a real (non-sentinel) block selected. */
+    public boolean isRealBlockSelectedForInsert() {
+        BlockOptions v = comboBoxBlocks == null ? null : comboBoxBlocks.getValue();
+        return v != null && v.getBlockId() != null && v.getBlockId() > 0 && v.getBlockId() != SENTINEL_CREATE_BLOCK_ID;
+    }
+
+    /**
+     * Entry point used by the save-on-grid flow to ensure a valid block is
+     * selected BEFORE executing {@code afterBlockReady}. If a real block is
+     * already selected the runnable fires synchronously. If the user has no
+     * selection but ≥1 block exists, the create-block modal opens in
+     * "reactive" mode (red banner) and {@code afterBlockReady} fires when
+     * the user clicks Create. If the user cancels, the runnable is dropped.
+     *
+     * <p>Must be called on the JavaFX thread. The websocket-originated call
+     * site in {@code ARScannedElementScene.stepsInsertManyDTO} wraps this in
+     * {@code Platform.runLater}.
+     */
+    public void ensureBlockSelectedOrPrompt(Runnable afterBlockReady) {
+        if (isRealBlockSelectedForInsert()) {
+            if (afterBlockReady != null) afterBlockReady.run();
+            return;
+        }
+        openCreateBlockModal(afterBlockReady);
+    }
+
+    /**
+     * Create-new-block modal. Called from two places:
+     * <ul>
+     *   <li><b>Proactive</b>: user picks the "+ Create new block…" sentinel in
+     *       {@code comboBoxBlocks}. {@code afterCreate} is {@code null}; the
+     *       block is created and selected, and the user then clicks Save.</li>
+     *   <li><b>Reactive</b>: user pressed Save on GridItemScann with no block
+     *       selected. {@code afterCreate} is the pending insert; the modal
+     *       shows a red banner and chains the insert on the Create click.</li>
+     * </ul>
+     *
+     * <p>Block creation reuses the same plumbing as {@code splitBlocks} in
+     * {@code SimpleWebSocketServer}: shift existing blocks at/after the chosen
+     * order, insert the new row, refresh {@link PerformLists} + complete-jobs
+     * tree, then broadcast {@code UPDATE_BLOCKS} so every other Java pane's
+     * dropdown refreshes.
+     */
+    private void openCreateBlockModal(Runnable afterCreate) {
+        final boolean reactive = afterCreate != null;
+
+        List<BlockLoadDTO> existingSorted = performLists.getListBlock().stream()
+                .filter(b -> b.getBotJobId() != null && b.getBotJobId().equals(currentBotJob.getId()))
+                .filter(b -> b.getBlockOrderNumber() != null)
+                .sorted(java.util.Comparator.comparingInt(BlockLoadDTO::getBlockOrderNumber))
+                .collect(java.util.stream.Collectors.toList());
+
+        javafx.scene.control.Dialog<javafx.scene.control.ButtonType> dialog = new javafx.scene.control.Dialog<>();
+        dialog.setTitle(reactive ? "No block selected — create one" : "Create new block");
+        dialog.initModality(Modality.APPLICATION_MODAL);
+
+        VBox root = new VBox(10);
+        root.setPadding(new Insets(15));
+        root.setMinWidth(460);
+
+        if (reactive) {
+            Label banner = new Label("No Block Selected — pick an existing block below or create a new one.");
+            banner.setWrapText(true);
+            banner.setMaxWidth(Double.MAX_VALUE);
+            banner.setStyle("-fx-background-color:#ffebee; -fx-text-fill:#C62828; -fx-font-weight:bold; "
+                    + "-fx-padding:8; -fx-border-color:#EF9A9A; -fx-border-width:1; -fx-border-radius:4;");
+            root.getChildren().add(banner);
+        }
+
+        Label nameLabel = new Label("Block name:");
+        TextField nameField = new TextField();
+        nameField.setPromptText("e.g. Login Flow");
+
+        Label posLabel = new Label("Insert position:");
+        final String AT_END = "At end";
+        ComboBox<String> posCombo = new ComboBox<>();
+        posCombo.setMaxWidth(Double.MAX_VALUE);
+        List<String> posOptions = new java.util.ArrayList<>();
+        posOptions.add(AT_END);
+        for (BlockLoadDTO b : existingSorted) {
+            posOptions.add("Before " + b.getBlockOrderNumber() + "# " + b.getName());
+        }
+        posCombo.setItems(FXCollections.observableArrayList(posOptions));
+        posCombo.getSelectionModel().selectFirst();
+
+        Label previewLabel = new Label();
+        previewLabel.setWrapText(true);
+        previewLabel.setStyle("-fx-text-fill:#6A1B9A; -fx-font-style:italic;");
+
+        Runnable updatePreview = () -> {
+            int targetOrder = computeInsertOrderNumber(posCombo.getValue(), existingSorted);
+            previewLabel.setText(buildCreateBlockPreview(targetOrder, existingSorted));
+        };
+        posCombo.valueProperty().addListener((o, ov, nv) -> updatePreview.run());
+        updatePreview.run();
+
+        root.getChildren()
+                .addAll(
+                        nameLabel,
+                        nameField,
+                        posLabel,
+                        posCombo,
+                        new javafx.scene.control.Separator(),
+                        new Label("Preview:"),
+                        previewLabel);
+
+        dialog.getDialogPane().setContent(root);
+
+        javafx.scene.control.ButtonType createBtn =
+                new javafx.scene.control.ButtonType("Create", javafx.scene.control.ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(createBtn, javafx.scene.control.ButtonType.CANCEL);
+
+        // Disable Create until there's a name.
+        javafx.scene.Node createNode = dialog.getDialogPane().lookupButton(createBtn);
+        createNode.setDisable(true);
+        nameField
+                .textProperty()
+                .addListener((o, ov, nv) ->
+                        createNode.setDisable(nv == null || nv.trim().isEmpty()));
+
+        java.util.Optional<javafx.scene.control.ButtonType> result = dialog.showAndWait();
+        if (result.isEmpty() || result.get() != createBtn) {
+            // User cancelled — drop the pending insert (if any).
+            return;
+        }
+
+        String name = nameField.getText().trim();
+        int orderNumber = computeInsertOrderNumber(posCombo.getValue(), existingSorted);
+        ErrorMessage err = createAndBroadcastNewBlock(name, orderNumber);
+        if (err != null) {
+            performMessage.errorMessageOperationFailed(err);
+            return;
+        }
+
+        // Refresh the combo and auto-select the just-created block so the
+        // downstream insert code sees the right currentBlockId.
+        loadAllBlocks();
+        Platform.runLater(() -> {
+            for (BlockOptions opt : comboBoxBlocks.getItems()) {
+                if (opt != null
+                        && opt.getBlockId() != null
+                        && opt.getBlockId() != SENTINEL_CREATE_BLOCK_ID
+                        && name.equalsIgnoreCase(opt.getValue())) {
+                    comboBoxBlocks.getSelectionModel().select(opt);
+                    break;
+                }
+            }
+            if (afterCreate != null) afterCreate.run();
+        });
+    }
+
+    /**
+     * Resolve the chosen position label to an absolute {@code block_order_number}.
+     * "At end" → max(existing) + 1. "Before N# Name" → N (the existing row at
+     * position N and every row after it shift down by one).
+     */
+    private int computeInsertOrderNumber(String positionLabel, List<BlockLoadDTO> existingSorted) {
+        if (positionLabel == null || positionLabel.startsWith("At end")) {
+            int max = 0;
+            for (BlockLoadDTO b : existingSorted) {
+                if (b.getBlockOrderNumber() != null && b.getBlockOrderNumber() > max) {
+                    max = b.getBlockOrderNumber();
+                }
+            }
+            return max + 1;
+        }
+        // "Before N# ..." — parse the number between "Before " and "#".
+        try {
+            int hash = positionLabel.indexOf('#');
+            int start = "Before ".length();
+            if (hash > start) {
+                return Integer.parseInt(positionLabel.substring(start, hash).trim());
+            }
+        } catch (NumberFormatException ignore) {
+            // fall through to the end
+        }
+        return existingSorted.size() + 1;
+    }
+
+    /** Human-readable preview of which blocks will have their order number shifted. */
+    private String buildCreateBlockPreview(int targetOrder, List<BlockLoadDTO> existingSorted) {
+        List<BlockLoadDTO> shifted = new java.util.ArrayList<>();
+        for (BlockLoadDTO b : existingSorted) {
+            if (b.getBlockOrderNumber() != null && b.getBlockOrderNumber() >= targetOrder) {
+                shifted.add(b);
+            }
+        }
+        if (shifted.isEmpty()) {
+            return "New block will be #" + targetOrder + ". No existing blocks are affected.";
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append("New block will be #").append(targetOrder).append(". Existing blocks will shift down by one:");
+        for (BlockLoadDTO b : shifted) {
+            sb.append(System.lineSeparator())
+                    .append("  • ")
+                    .append(b.getBlockOrderNumber())
+                    .append("# ")
+                    .append(b.getName())
+                    .append("  →  ")
+                    .append(b.getBlockOrderNumber() + 1)
+                    .append("# ")
+                    .append(b.getName());
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Persist a new block at {@code targetOrder}, shifting every existing block
+     * at or after that position by +1. Mirrors {@code splitBlocks} in
+     * {@code SimpleWebSocketServer} — same DB calls, same memory refresh, same
+     * {@code UPDATE_BLOCKS} broadcast so sibling panes re-populate their combos.
+     */
+    private ErrorMessage createAndBroadcastNewBlock(String name, int targetOrder) {
+        int botJobId = currentBotJob.getId();
+
+        // 1. Renumber existing blocks at or after targetOrder (shift +1).
+        List<BlockLoadDTO> toRenumber = new java.util.ArrayList<>();
+        for (BlockLoadDTO b : performLists.getListBlock()) {
+            if (b.getBotJobId() == null || !b.getBotJobId().equals(botJobId)) continue;
+            if (b.getBlockOrderNumber() == null) continue;
+            if (b.getBlockOrderNumber() >= targetOrder) {
+                BlockLoadDTO shifted = new BlockLoadDTO();
+                shifted.setId(b.getId());
+                shifted.setBlockOrderNumber(b.getBlockOrderNumber() + 1);
+                // updateSwiftBlockOrderNumber reads botJobId as the WHERE
+                // predicate for the UPDATE — without it the JDBC setInt(3, ...)
+                // NPEs. Also copy homeBankingId for symmetry with the
+                // component_block path.
+                shifted.setBotJobId(botJobId);
+                shifted.setHomeBankingId(b.getHomeBankingId());
+                toRenumber.add(shifted);
+            }
+        }
+        if (!toRenumber.isEmpty()) {
+            ErrorMessage err = performDataBase.updateSwiftBlockOrderNumber("block", botJobId, toRenumber);
+            if (err != null) return err;
+            performLists.updateMemorySwiftBlockOrder("block", botJobId, toRenumber);
+        }
+
+        // 2. Insert the new block row.
+        BlockDetailsDTO newBlock = new BlockDetailsDTO();
+        newBlock.setBlockName(name);
+        newBlock.setBlockOrderNumber(targetOrder);
+        newBlock.setBotJobId(botJobId);
+        newBlock.setActive(true);
+        newBlock.setForceOrder(true);
+        ErrorMessage err = performDataBase.insertNewBlock("block", botJobId, newBlock);
+        if (err != null) return err;
+
+        // 3. Refresh memory (same calls splitBlocks makes).
+        performDataBase.loadBlocks(botJobId, "", "block");
+        performDBEngine.loadCompleteJobs(botJobId);
+
+        // 4. Broadcast to sibling Java panes so their combos rebuild.
+        try {
+            BlockMoveDTO signal = new BlockMoveDTO();
+            String json = gson.toJson(signal);
+            webSocketSessionManager.sendMessageJson(
+                    currentBotJob.getHomeBankingId(), "bot-job-scene", json, "UPDATE_BLOCKS");
+            webSocketSessionManager.sendMessageJson(
+                    currentBotJob.getHomeBankingId(), "scanner-element-pane", json, "UPDATE_BLOCKS");
+        } catch (Exception broadcastErr) {
+            // Broadcast failure is non-fatal — the DB is consistent and this pane's
+            // own combo will refresh via loadAllBlocks() in the caller.
+            logOperations.warn(
+                    "createAndBroadcastNewBlock — UPDATE_BLOCKS broadcast failed (non-fatal): {}",
+                    broadcastErr.getMessage());
+        }
+        return null;
     }
 
     // Allow the stage to be set from outside when pane is shown
