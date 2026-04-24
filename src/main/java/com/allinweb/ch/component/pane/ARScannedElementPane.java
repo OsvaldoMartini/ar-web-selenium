@@ -181,6 +181,11 @@ public class ARScannedElementPane extends ARPane {
     private Button searchButton;
     private CheckBox checkCloneElement;
     private Label testActionLabel;
+    /** Suppresses the green "Test Action Success" modal when checked. Defaults
+     *  to selected so testers can click Test Input / Test Click repeatedly
+     *  without dismissing a popup every time. Failures still surface normally. */
+    private CheckBox checkNotShowTestMsg;
+
     private Label searchTermsLabel;
     private Label defineNameLabel;
     private Label coordsTextFieldLabel;
@@ -781,17 +786,23 @@ public class ARScannedElementPane extends ARPane {
                     body.append("<br/><span style='color:#6A1B9A;font-weight:bold;'>Input value:</span> ")
                             .append(Strings.isNullOrEmpty(inputValue) ? "(empty)" : inputValue);
                 }
-                performMessage.showCustomModalDialogDragWin11(
-                        "Test Action Success ✅",
-                        "<span style='color:#2E7D32;font-weight:bold;font-size:1.1em;'>" + displayAction
-                                + " performed successfully!</span>",
-                        "<span style='color:#1565C0;font-weight:bold;'>Same code path a bot run uses: actionExecutor JS plugin + Selenium + coordinate fallback.</span>",
-                        body.toString(),
-                        "<span style='font-style:italic;'>If this passes, the live bot run will take the same route.</span>",
-                        false,
-                        "OK",
-                        null,
-                        0);
+                // "Not Show Test Message" — when ticked (default) the green success
+                // modal is suppressed so testers can click Test Input / Test Click
+                // repeatedly without dismissing a popup every time. Failures still
+                // show via performMessage.errorMessage below.
+                if (checkNotShowTestMsg == null || !checkNotShowTestMsg.isSelected()) {
+                    performMessage.showCustomModalDialogDragWin11(
+                            "Test Action Success ✅",
+                            "<span style='color:#2E7D32;font-weight:bold;font-size:1.1em;'>" + displayAction
+                                    + " performed successfully!</span>",
+                            "<span style='color:#1565C0;font-weight:bold;'>Same code path a bot run uses: actionExecutor JS plugin + Selenium + coordinate fallback.</span>",
+                            body.toString(),
+                            "<span style='font-style:italic;'>If this passes, the live bot run will take the same route.</span>",
+                            false,
+                            "OK",
+                            null,
+                            0);
+                }
             } else {
                 performMessage.errorMessage(
                         "Test Action Failed ❌",
@@ -1222,6 +1233,9 @@ public class ARScannedElementPane extends ARPane {
                 new Insets(2.0) // Reduced padding
                 );
 
+        checkNotShowTestMsg = new CheckBox("Not Show Test Message");
+        checkNotShowTestMsg.setSelected(true);
+
         testActionLabel = new Label("Test Actions :");
 
         checkClickElement = new CheckBox("For Click");
@@ -1501,6 +1515,7 @@ public class ARScannedElementPane extends ARPane {
                             createCustomSeparator(Color.DARKBLUE, 2),
                             createSpacerVert(),
                             countdownTextField,
+                            checkNotShowTestMsg,
                             boxActions,
                             boxCoordinates,
                             createSpacerVert(),
@@ -2497,7 +2512,7 @@ public class ARScannedElementPane extends ARPane {
                         || !Strings.isNullOrEmpty(targetSelected.getAttribName())
                         || !Strings.isNullOrEmpty(targetSelected.getSomeText())) {
                     nameDefined = (!Strings.isNullOrEmpty(targetSelected.getSomeText())
-                            ? PerformActions.truncateAndNormalize(targetSelected.getSomeText(), 30)
+                            ? PerformActions.truncateAndNormalize(targetSelected.getSomeText(), 250)
                             : !Strings.isNullOrEmpty(targetSelected.getAttribId())
                                     ? targetSelected.getAttribId()
                                     : !Strings.isNullOrEmpty(targetSelected.getAttribName())
@@ -2511,7 +2526,7 @@ public class ARScannedElementPane extends ARPane {
 
                     String finalNameDefined = nameDefined;
                     Platform.runLater(
-                            () -> defineNameField.setText(PerformActions.truncateAndNormalize(finalNameDefined, 30)));
+                            () -> defineNameField.setText(PerformActions.truncateAndNormalize(finalNameDefined, 250)));
 
                 } else if (targetSelected.getAttributeData() != null && targetSelected.getAttributeData().length > 0) {
 
@@ -2554,7 +2569,7 @@ public class ARScannedElementPane extends ARPane {
 
                     String finalSomeText = nameDefined;
                     Platform.runLater(
-                            () -> defineNameField.setText(PerformActions.truncateAndNormalize(finalSomeText, 30)));
+                            () -> defineNameField.setText(PerformActions.truncateAndNormalize(finalSomeText, 250)));
 
                 } else if (!Strings.isNullOrEmpty(targetSelected.getTagName())) {
 
@@ -3248,7 +3263,10 @@ public class ARScannedElementPane extends ARPane {
         dialog.initModality(Modality.APPLICATION_MODAL);
 
         VBox root = new VBox(10);
-        root.setPadding(new Insets(15));
+        // Insets(top, right, bottom, left) — +20 on the bottom vs. the uniform
+        // 15 we had before, so the dialog ends up 20px taller without
+        // touching the dialog pane directly.
+        root.setPadding(new Insets(15, 15, 35, 15));
         root.setMinWidth(460);
 
         if (reactive) {
