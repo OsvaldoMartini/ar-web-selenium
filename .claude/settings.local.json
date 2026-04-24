@@ -45,7 +45,23 @@
       "Bash(git -C \"D:/Projects/AllinWeb/abr-react-ts-grid\" status --short)",
       "Bash(git *)",
       "Read(//d/Projects/AllinWeb/abr-react-ts-grid/**)",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(mvn compile *)",
+      "Read(//d/Projects/AllinWeb/ar-web-engine/src/main/java/com/allinweb/ch/util/**)",
+      "Read(//d/Projects/AllinWeb/ar-web-engine/**)",
+      "Bash(mvn -f 'D:\\\\Projects\\\\AllinWeb\\\\ar-web-selenium\\\\pom.xml' -q help:evaluate -Dexpression=project.build.outputDirectory -DforceStdout)",
+      "Bash(mvn -f 'D:\\\\Projects\\\\AllinWeb\\\\ar-web-selenium\\\\pom.xml' -q dependency:build-classpath -Dmdep.outputFile=/tmp/cp.txt)",
+      "Bash(mvn -q -o compile)",
+      "Bash(mvn -q -o spotless:apply)",
+      "Bash(sed -n '3682,5782p' \"D:/Projects/AllinWeb/ar-web-selenium/src/main/java/com/allinweb/ch/component/pane/ARScannedElementPane.java\")",
+      "Bash(sed -n '650,2751p' \"D:/Projects/AllinWeb/ar-web-engine/src/main/java/com/allinweb/ch/runner/EngineRunner.java\")",
+      "Bash(awk *)",
+      "Bash(grep -n \"^    }$\\\\|^    public\\\\|^    private\\\\|public BooleanProperty\")",
+      "Bash(echo \"EXIT_SELENIUM=$?\")",
+      "Bash(echo \"EXIT_ENGINE=$?\")",
+      "Bash(grep -iE \"encrypt|script|build|\\\\.sh$|\\\\.bat$|\\\\.ps1$\")",
+      "Bash(xargs grep *)",
+      "Bash(mvn -q compile -DskipTests)"
     ]
   }
 }

@@ -2336,6 +2336,11 @@ public class ARScannedElementPane extends ARPane {
             revertHoverPickInjections(performActions.getCurrentDriver());
 
             if (checkCloneElement.isSelected()) {
+                PageDiagnosticDumper.dumpAll(
+                        performActions.getCurrentDriver(),
+                        arPropertyManager.getProperty(ARPropertyEnum.PATH_DB),
+                        "page-HP");
+
                 // String[] dataArrayClone = {"*"};
                 int finalPort = portSocketInitial;
                 String socketSessionId = "scannerTool";

@@ -41,9 +41,9 @@ public class Verify_And_Create_License {
     //    private static final String DEFAULT_REQUEST =
     //            "C:\\Users\\osval\\OneDrive\\\u00c1rea de Trabalho\\Avaloq-O Martini.request";
 
-    private static final String DEFAULT_REQUEST = "D:\\ARWeb-Licenses-Backup\\Avaloq-Rahul Amrutkar.request";
+    private static final String DEFAULT_REQUEST = "D:\\ARWeb-Licenses-Backup\\Avaloq Philippines Inc.-request.request";
 
-    private static final String DEFAULT_OUTPUT = "D:\\Projects\\ARWebAvaloq\\ARWeb-Scanner\\ARWeb.lic";
+    private static final String DEFAULT_OUTPUT = "D:\\Projects\\ARWebAvaloq\\ARWeb-Scanner\\ARWeb-Test.lic";
     private static final int DEFAULT_DAYS = 365;
 
     /**

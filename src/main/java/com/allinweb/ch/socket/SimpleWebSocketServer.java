@@ -28,6 +28,7 @@ public class SimpleWebSocketServer {
     private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
     private static final PerformMessage performMessage = PerformMessage.getInstance();
+    private static final PerformActions performActions = PerformActions.getInstance();
     protected static volatile SimpleWebSocketServer instance;
     private static WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static ARExcelFileScene arExcelFileScene = ARExcelFileScene.getInstance();
@@ -477,6 +478,9 @@ public class SimpleWebSocketServer {
                                 "attributeValue");
                         performMessage.outputJsonElementDTO(
                                 splitDTO.getElementDetails(), excludeList, "AI-ElementDTO-HP", jsonPath);
+
+                        PageDiagnosticDumper.dumpRectsFromElements(
+                                performActions.getCurrentDriver(), splitDTO.getElementDetails(), jsonPath, "page-HP");
                     } else if (sessionIdToSend.equals("mobile-return-server")) {
                         String jsonData = gson.toJson(splitDTO);
                         webSocketSessionManager.sendMessageJson(
@@ -501,6 +505,9 @@ public class SimpleWebSocketServer {
                                 "attributeValue");
                         performMessage.outputJsonElementDTO(
                                 splitDTO.getElementDetails(), excludeList, "AI-ElementDTO-HP", jsonPath);
+
+                        PageDiagnosticDumper.dumpRectsFromElements(
+                                performActions.getCurrentDriver(), splitDTO.getElementDetails(), jsonPath, "page-HP");
                     }
                     alreadySentMgsSocket = true;
                     break;
