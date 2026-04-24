@@ -190,6 +190,8 @@ public class ARScannedElementPane extends ARPane {
     //    private TextFlow textFlowResult;
     private TextArea countdownTextField;
     private TextField searchTermsField;
+    private TextField matchRulesField;
+    private Label matchRulesLabel;
     private TextField testActionsField;
     private TextField coordsTextField;
     private Map<String, String> mapOperators = new HashMap<>();
@@ -1255,6 +1257,14 @@ public class ARScannedElementPane extends ARPane {
         searchTermsField.setPromptText("button, label, input, with id, with text");
         searchTermsField.setPrefWidth(300);
 
+        // "Match rules:" — second scanner input for tagPrefix / tagSuffix / attr /
+        // attrPrefix rules. Parsed comma-split and sent to searchListAsync as the
+        // new 9th positional arg. Empty = legacy behaviour, searchTerms only.
+        matchRulesLabel = new Label("Match rules :");
+        matchRulesField = new TextField();
+        matchRulesField.setPromptText("tagPrefix:avq, attr:data-test-id");
+        matchRulesField.setPrefWidth(300);
+
         defineNameField = new TextField();
         defineNameField.setPromptText("DEFINE A NAME");
 
@@ -1411,6 +1421,8 @@ public class ARScannedElementPane extends ARPane {
             gridPaneTop.add(updatePluginsButton, 2, 0);
             gridPaneTop.add(searchTermsLabel, 3, 0);
             gridPaneTop.add(searchTermsField, 4, 0);
+            gridPaneTop.add(matchRulesLabel, 3, 1);
+            gridPaneTop.add(matchRulesField, 4, 1);
             gridPaneTop.add(searchButton, 5, 0);
             gridPaneTop.add(turnOnOffButton, 6, 0);
             gridPaneTop.add(leftButton, 7, 0);
@@ -2359,9 +2371,12 @@ public class ARScannedElementPane extends ARPane {
             }
         });
 
-        pageScannerButton.setOnAction(e -> searchTermsBtn(null));
+        pageScannerButton.setOnAction(e -> searchTermsBtn(
+                null, matchRulesField == null ? null : matchRulesField.getText().trim()));
 
-        searchButton.setOnAction(e -> searchTermsBtn(searchTermsField.getText().trim()));
+        searchButton.setOnAction(e -> searchTermsBtn(
+                searchTermsField.getText().trim(),
+                matchRulesField == null ? null : matchRulesField.getText().trim()));
 
         turnOnOffButton.setVisible(false);
     }
@@ -2646,7 +2661,8 @@ public class ARScannedElementPane extends ARPane {
             String destinationId,
             String operationId,
             int homeBankingId,
-            int botJobId) {
+            int botJobId,
+            List<String> extendedRules) {
         // "scannerTool", "scannerGrid", "searchTerms"
         PerformListElements.ScanResult scan = performListElements.scanElements(
                 driver,
@@ -2657,7 +2673,8 @@ public class ARScannedElementPane extends ARPane {
                 destinationId,
                 operationId,
                 homeBankingId,
-                botJobId);
+                botJobId,
+                extendedRules);
 
         if (scan.error != null) {
             logOperations.error(
@@ -3460,7 +3477,7 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private void searchTermsBtn(String searchTerms) {
+    private void searchTermsBtn(String searchTerms, String matchRules) {
         //        readAllElementsWithWebDriver();
 
         if (!lastBrowserTab()) {
@@ -3481,7 +3498,18 @@ public class ARScannedElementPane extends ARPane {
             dataArray = new String[] {"input", "textarea", "button", "a", "select", "label"}; // Default values
         }
 
-        handleSearchTermClick(dataArray);
+        // Parse the new "Match rules:" field. Same comma-split as searchTerms;
+        // each non-empty token is forwarded to searchListAsync.js as one of its
+        // extendedRules entries (tagPrefix: / tagSuffix: / attr: / attrPrefix:).
+        List<String> rulesList = new ArrayList<>();
+        if (matchRules != null && !matchRules.trim().isEmpty()) {
+            for (String token : matchRules.split("\\s*,\\s*")) {
+                String trimmed = token.trim();
+                if (!trimmed.isEmpty()) rulesList.add(trimmed);
+            }
+        }
+
+        handleSearchTermClick(dataArray, rulesList);
 
         try {
             Thread.sleep(2000);
@@ -3491,7 +3519,7 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private void handleSearchTermClick(String[] dataArray) {
+    private void handleSearchTermClick(String[] dataArray, List<String> extendedRules) {
         //        webElementObservableList1.clear();
 
         performActions.getCurrentDriver().switchTo().defaultContent();
@@ -3514,7 +3542,8 @@ public class ARScannedElementPane extends ARPane {
                 destinationId,
                 "searchTerms",
                 this.currentBotJob.getHomeBankingId(),
-                this.currentBotJob.getId());
+                this.currentBotJob.getId(),
+                extendedRules);
 
         //        Platform.runLater(() -> periodicSearchThread(
         //                performActions.getCurrentDriver(),

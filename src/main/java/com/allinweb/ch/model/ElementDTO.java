@@ -44,7 +44,7 @@ public class ElementDTO {
 
     // Combined F/E/T/N/S bitstring sent from GridItemScann so the user can set
     // per-element flags before the DTO is promoted to an InstructionLoad on
-    // NEW_ELEMENT_DTO / SEND_ALL_ELEMENTS_DTO. Empty/null means "no flags —
+    // NEW_ELEMENT_DTO / SEND_ALL_ELEMENTS_DTO. Empty/null means "no flags
     // fall back to the pane's checkbox state".
     private String forceCoordinates;
 

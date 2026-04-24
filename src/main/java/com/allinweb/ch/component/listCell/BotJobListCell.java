@@ -68,32 +68,40 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
             HBox uiBotJob = new HBox(10); // 10 pixels spacing
             uiBotJob.setPadding(new Insets(5));
 
+            // Column widths — MUST match the header in ARMainPane.initHeader()
+            // so the row aligns with the column titles above. Keep in sync if
+            // one side changes.
+            final double W_NAME = 220;
+            final double W_DESCRIPTION = 320;
+            final double W_ORGANIZATION = 140;
+            final double W_STATUS = 70;
+
             Label botJobName = new Label(item.getName());
-            botJobName.setStyle("-fx-font-size: 14px;"); // Reduced font size
-            botJobName.setMinWidth(150); // Set minimum width
-            botJobName.setMaxWidth(150); // Set minimum width
+            botJobName.setStyle("-fx-font-size: 14px;");
+            botJobName.setMinWidth(W_NAME);
+            botJobName.setMaxWidth(W_NAME);
             botJobName.setWrapText(true);
 
             Label botJobDescription = new Label(item.getDescription());
-            botJobDescription.setStyle("-fx-font-size: 14px;"); // Reduced font size
-            botJobDescription.setMinWidth(150); // Set minimum width
-            botJobDescription.setMaxWidth(150); // Set minimum width
+            botJobDescription.setStyle("-fx-font-size: 14px;");
+            botJobDescription.setMinWidth(W_DESCRIPTION);
+            botJobDescription.setMaxWidth(W_DESCRIPTION);
             botJobDescription.setWrapText(true);
 
             Label homeBankingName = new Label(
                     item.getHomeBankingLoadDTO() != null
                             ? item.getHomeBankingLoadDTO().getName()
                             : "");
-            homeBankingName.setStyle("-fx-font-size: 14px;"); // Reduced font size
-            homeBankingName.setMinWidth(100); // Set minimum width
-            homeBankingName.setMaxWidth(100); // Set minimum width
+            homeBankingName.setStyle("-fx-font-size: 14px;");
+            homeBankingName.setMinWidth(W_ORGANIZATION);
+            homeBankingName.setMaxWidth(W_ORGANIZATION);
             homeBankingName.setWrapText(true);
 
             Label statusLabel = new Label(item.isActive() ? "Active" : "Inactive");
             statusLabel.setTextFill(item.isActive() ? Color.BLACK : Color.GREY);
-            statusLabel.setStyle("-fx-font-size: 14px;"); // Reduced font size
-            statusLabel.setMinWidth(50); // Set minimum width
-            statusLabel.setMaxWidth(50); // Set minimum width
+            statusLabel.setStyle("-fx-font-size: 14px;");
+            statusLabel.setMinWidth(W_STATUS);
+            statusLabel.setMaxWidth(W_STATUS);
 
             Button deleteBotJobButton = builder.buildButton(
                     "", ARConstants.SPACE_L, ARConstants.ICON_CROSS, ARConstants.SPACE_M, Insets.EMPTY);

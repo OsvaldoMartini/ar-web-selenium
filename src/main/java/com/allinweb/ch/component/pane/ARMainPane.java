@@ -564,30 +564,38 @@ public class ARMainPane extends ARPane {
         HBox headerHBox = new HBox(10);
         headerHBox.setPadding(new Insets(5D, 10D, 5D, 20D)); // Added padding to the left (20D)
 
+        // Column widths — these MUST match the per-row widths in
+        // BotJobListCell.java so the header aligns with every cell below.
+        final double W_NAME = 220;
+        final double W_DESCRIPTION = 320;
+        final double W_ORGANIZATION = 140;
+        final double W_STATUS = 70;
+        final double W_ACTIONS = 40;
+
         // Create labels for each column header
         Label nameLabel = new Label("Name");
-        nameLabel.setMinWidth(150); // Set minimum width
-        nameLabel.setMaxWidth(150); // Set maximum width
+        nameLabel.setMinWidth(W_NAME);
+        nameLabel.setMaxWidth(W_NAME);
         nameLabel.setWrapText(true);
 
         Label descriptionLabel = new Label("Description");
-        descriptionLabel.setMinWidth(150); // Set minimum width
-        descriptionLabel.setMaxWidth(150); // Set maximum width
+        descriptionLabel.setMinWidth(W_DESCRIPTION);
+        descriptionLabel.setMaxWidth(W_DESCRIPTION);
         descriptionLabel.setWrapText(true);
 
         Label environmentLabel = new Label("Organization");
-        environmentLabel.setMinWidth(100); // Set minimum width
-        environmentLabel.setMaxWidth(100); // Set maximum width
+        environmentLabel.setMinWidth(W_ORGANIZATION);
+        environmentLabel.setMaxWidth(W_ORGANIZATION);
         environmentLabel.setWrapText(true);
 
         Label statusLabel = new Label("Status");
-        statusLabel.setMinWidth(50); // Set minimum width
-        statusLabel.setMaxWidth(50); // Set maximum width
+        statusLabel.setMinWidth(W_STATUS);
+        statusLabel.setMaxWidth(W_STATUS);
         statusLabel.setWrapText(true);
 
         Label actionsLabel = new Label("Actions");
-        actionsLabel.setMinWidth(50); // Set minimum width
-        actionsLabel.setMaxWidth(50); // Set maximum width
+        actionsLabel.setMinWidth(W_ACTIONS);
+        actionsLabel.setMaxWidth(W_ACTIONS);
         actionsLabel.setWrapText(true);
 
         // Create spacers
