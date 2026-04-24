@@ -5,6 +5,8 @@ import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ErrorMessage;
 import com.allinweb.ch.util.JsScanResultDTO;
+import com.allinweb.ch.util.PageDiagnosticDumper;
+import com.allinweb.ch.vision.PageOcrDumper;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import java.util.Arrays;
@@ -255,6 +257,9 @@ public class PerformListElements {
                 loggedFirstCall = true;
             }
 
+            PageDiagnosticDumper.dumpAll(
+                    driver, ARPropertyManager.getInstance().getProperty(ARPropertyEnum.PATH_DB), "page-HP");
+
             JavascriptExecutor executor = (JavascriptExecutor) driver;
 
             driver.manage().timeouts().setScriptTimeout(java.time.Duration.ofSeconds(25));
@@ -321,6 +326,10 @@ public class PerformListElements {
                             "attributeType",
                             "attributeValue");
                     performMessage.outputJsonElementDTO(asArray, aiExcludeList, "AI-ElementDTO-PS", jsonPath);
+
+                    // Per-pick rects + OCR correlation — mirror the hoverPick SEARCH_TOOL pipeline.
+                    PageDiagnosticDumper.dumpRectsFromElements(driver, asArray, jsonPath, "page-HP");
+                    PageOcrDumper.runAndDump(driver, asArray, jsonPath, "page-HP");
                 } catch (Exception jsonError) {
                     log.warn("PerformListElements - failed to persist element JSON: {}", jsonError.getMessage());
                 }

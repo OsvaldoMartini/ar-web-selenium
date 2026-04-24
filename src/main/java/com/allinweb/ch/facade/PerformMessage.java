@@ -4,6 +4,7 @@ import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.util.ARExecution;
 import com.allinweb.ch.util.ErrorMessage;
+import com.allinweb.ch.util.PageDiagnosticDumper;
 import com.google.common.base.Strings;
 import com.google.gson.ExclusionStrategy;
 import com.google.gson.FieldAttributes;
@@ -13,6 +14,9 @@ import java.awt.*;
 import java.awt.event.*;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -1155,10 +1159,17 @@ public class PerformMessage {
         // Serialize the list of elementDTO to JSON
         String jsonData = gson.toJson(elementDTO);
 
-        // Create the file path
-        String outputFilePath = jsonPath + "/" + fileName + ".json";
+        // Write into PATH_DB/page_diagnostics/ so all pick-time artifacts live together.
+        String outputFilePath;
+        try {
+            Path diagDir = Paths.get(jsonPath, PageDiagnosticDumper.SUBFOLDER);
+            Files.createDirectories(diagDir);
+            outputFilePath = diagDir.resolve(fileName + ".json").toString();
+        } catch (IOException dirEx) {
+            log.error("Could not create diagnostics folder, falling back to root: " + dirEx.getMessage());
+            outputFilePath = jsonPath + "/" + fileName + ".json";
+        }
 
-        // Write the JSON data to the file
         try (FileWriter writer = new FileWriter(outputFilePath)) {
             writer.write(jsonData);
             log.info("JSON file saved to: " + outputFilePath);
