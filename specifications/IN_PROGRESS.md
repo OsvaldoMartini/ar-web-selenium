@@ -11,17 +11,10 @@
 - ✅ `definedName` column added to the test review grid (second column, monospace blue) so the resolver output is visible at a glance.
 - ✅ New `com.allinweb.scanner` logger → `<LOG_PATH>/ar_web_scanner_scanner.log`. Captures (a) every OCR pipeline run from `PageOcrDumper.runAndDump` with `profile / hbId / homeUrlId / word + element + correlation counts + per-tier breakdown`, and (b) every `TEST_ON_CURRENT_PAGE` summary from the editor.
 
-## Known gotcha to fix on resume (small, quick)
+## Tier 1 fixes — ✅ delivered 2026-04-26
 
-**`Test On Current Page` reads only `elementDTO-HP.json`.**
-
-If you click **Page Scanner** (writes `elementDTO-PS.json`) and then **Test**, the test grid loads stale hover-pick DTOs — or none at all when no hover-pick has run.
-
-Fix sketch (`AROcrConfigPane.onTest`, ~10 lines):
-- Look at both `elementDTO-HP.json` and `elementDTO-PS.json` in `<PATH_DB>/page_diagnostics/`.
-- Pick whichever has the more recent `Files.getLastModifiedTime`.
-- Show the chosen filename in the test header so the user sees which run is being evaluated.
-- Add a small caption in the results scene: "Test ran against {filename, mtime}".
+- ✅ `Test On Current Page` now reads whichever of `elementDTO-HP.json` or `elementDTO-PS.json` has the most recent mtime. The summary line includes `[filename]` so the user sees which run was evaluated. Solves the "Page Scanner ran but test grid is empty / stale" gotcha.
+- ✅ Approved checkboxes persist via a new `output.approved_xpaths` canonical param (json array of xPaths). Toggling a row writes back to the loaded profile's param value; clicking Save / Save As New on the editor persists it to DB. Survives modal reopen — the next time the profile loads, the same xPaths show as ticked. `Mark All` / `Clear All` route through the same listener so they persist too.
 
 ## Active code state — files touched this session
 
@@ -58,8 +51,8 @@ You build, not me.
 
 ### High priority — small fixes
 
-1. **Test reads both `-HP` and `-PS` DTOs** (~10 lines, see "Known gotcha" above).
-2. **Persist Approved checkbox state** to the profile as `output.approved_xpaths` JSON array. Survives modal close. (~30 lines.)
+1. ✅ DONE — Test reads latest of `-HP` / `-PS`.
+2. ✅ DONE — Approved checkboxes persist via `output.approved_xpaths`.
 3. **`output.log_level` knob is currently dead** — wire it to a custom logger if you actually want runtime log filtering, otherwise remove from `OcrConfigDefaults` to avoid misleading users.
 
 ### High priority — Roadmap 3 continuation

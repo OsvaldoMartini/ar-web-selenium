@@ -1,10 +1,15 @@
 package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.pane.base.ARPane;
+import com.allinweb.ch.model.OcrConfigParam;
 import com.allinweb.ch.vision.OcrTestResultRow;
+import com.google.gson.Gson;
 import java.io.File;
 import java.nio.file.Path;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -25,7 +30,14 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class AROcrTestResultsPane extends ARPane {
 
+    private static final Gson GSON = new Gson();
+
     private static volatile AROcrTestResultsPane instance;
+
+    /** Reference to the {@code output.approved_xpaths} param of the editor's currently-loaded profile;
+     * when a checkbox toggles we rewrite this param's JSON value so the user's QA persists across
+     * Save / Save As New. Null when the editor has no profile loaded yet. */
+    private OcrConfigParam approvalsParam;
 
     private VBox root;
     private Label headerLabel;
@@ -50,14 +62,57 @@ public class AROcrTestResultsPane extends ARPane {
         return instance;
     }
 
-    /** Populate the grid + image. Safe to call from any thread. */
-    public void populate(String headerSummary, List<OcrTestResultRow> rows, Path annotatedImagePath) {
+    /**
+     * Populate the grid + image. Safe to call from any thread. {@code approvedXPathsParam}
+     * is the editor's {@code output.approved_xpaths} param (nullable); when non-null,
+     * checkbox toggles rewrite its {@code value} so saving the profile persists approvals.
+     */
+    public void populate(
+            String headerSummary,
+            List<OcrTestResultRow> rows,
+            Path annotatedImagePath,
+            OcrConfigParam approvedXPathsParam) {
         Platform.runLater(() -> {
+            this.approvalsParam = approvedXPathsParam;
             headerLabel.setText(headerSummary == null ? "" : headerSummary);
+
+            // 1. Pre-populate Approved state from persisted JSON before binding listeners
+            //    (so the initial setApproved doesn't trigger a no-op write back).
+            Set<String> approvedSet = parseApprovedSet(approvedXPathsParam);
+            if (rows != null) {
+                for (OcrTestResultRow r : rows) {
+                    r.setApproved(approvedSet.contains(r.getxPath()));
+                }
+                // 2. Bind toggle → param.value JSON.
+                for (OcrTestResultRow r : rows) {
+                    r.approvedProperty().addListener((obs, ov, nv) -> persistToggle(r.getxPath(), nv));
+                }
+            }
+
             resultsTable.setItems(rows == null ? FXCollections.observableArrayList() : FXCollections.observableArrayList(rows));
             updateApprovedCount();
             loadImage(annotatedImagePath);
         });
+    }
+
+    private void persistToggle(String xpath, boolean approved) {
+        if (approvalsParam == null || xpath == null || xpath.isBlank()) return;
+        Set<String> set = parseApprovedSet(approvalsParam);
+        if (approved) set.add(xpath);
+        else set.remove(xpath);
+        approvalsParam.setValue(GSON.toJson(set.toArray(new String[0])));
+    }
+
+    private static Set<String> parseApprovedSet(OcrConfigParam p) {
+        Set<String> out = new HashSet<>();
+        if (p == null || p.getValue() == null || p.getValue().isBlank()) return out;
+        try {
+            String[] arr = GSON.fromJson(p.getValue(), String[].class);
+            if (arr != null) Collections.addAll(out, arr);
+        } catch (Exception ex) {
+            log.debug("approved_xpaths JSON parse failed: {}", ex.getMessage());
+        }
+        return out;
     }
 
     @Override

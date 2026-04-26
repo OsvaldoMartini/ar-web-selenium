@@ -588,7 +588,16 @@ public class AROcrConfigPane extends ARPane {
 
             OcrResult ocr = WebPageOcrService.recognizeMultiPass(img, cfg);
 
-            ElementDTO[] elements = readElementDTOs(diagDir.resolve("elementDTO-HP.json"));
+            // Use whichever DTO file is most recently modified — Page Scanner writes -PS,
+            // hover-pick writes -HP. Either path produces the same diagnostic side-files.
+            Path elementsPath = chooseLatest(
+                    diagDir.resolve("elementDTO-HP.json"), diagDir.resolve("elementDTO-PS.json"));
+            if (elementsPath == null) {
+                status("No cached element DTOs — run Page Scanner or hover-pick first.", false);
+                return;
+            }
+            String sourceLabel = elementsPath.getFileName().toString();
+            ElementDTO[] elements = readElementDTOs(elementsPath);
             List<OcrDomCorrelator.RectEntry> rects = readRects(diagDir.resolve("page-HP-rects.json"));
             double dpr = readDprFromMeta(diagDir.resolve("page-HP-meta.json"));
             List<OcrCorrelationResult> corr = OcrDomCorrelator.correlate(elements, rects, ocr, dpr, cfg);
@@ -611,8 +620,8 @@ public class AROcrConfigPane extends ARPane {
                 }
             }
             String summary = String.format(
-                    "Test: %d OCR words · %d EXACT · %d OVERLAP · %d PROX · %d NONE (profile not saved)",
-                    ocr.getWords().size(), exact, overlap, prox, none);
+                    "Test [%s]: %d OCR words · %d EXACT · %d OVERLAP · %d PROX · %d NONE (profile not saved)",
+                    sourceLabel, ocr.getWords().size(), exact, overlap, prox, none);
             statusInfo(summary);
             logScanner.info(
                     "TEST_ON_CURRENT_PAGE — {} (profile name in editor: '{}')",
@@ -650,11 +659,41 @@ public class AROcrConfigPane extends ARPane {
             // Sort: EXACT_CONTAIN first, OVERLAP, PROXIMITY, NONE — easier to scan good ones at the top.
             rows.sort((a, b) -> qualityRank(a.getMatchQuality()) - qualityRank(b.getMatchQuality()));
 
-            AROcrTestResultsScene.getInstance().openWith(summary, rows, annotated);
+            // The output.approved_xpaths param holds the user's persisted QA ticks for this profile.
+            // Passing it through means toggles in the review grid mutate this param's value, so the
+            // next Save / Save As New persists the approvals to DB.
+            OcrConfigParam approvalsParam = null;
+            for (OcrConfigParam p : currentParams) {
+                if ("output".equals(p.getCategory()) && "approved_xpaths".equals(p.getName())) {
+                    approvalsParam = p;
+                    break;
+                }
+            }
+
+            AROcrTestResultsScene.getInstance().openWith(summary, rows, annotated, approvalsParam);
         } catch (Exception ex) {
             log.warn("Test On Current Page failed", ex);
             status("Test failed: " + ex.getMessage(), false);
         }
+    }
+
+    /** Among existing candidate paths, return the one with the most recent mtime. Null when none exist. */
+    private static Path chooseLatest(Path... candidates) {
+        Path latest = null;
+        long latestMs = -1L;
+        for (Path p : candidates) {
+            if (p == null || !Files.exists(p)) continue;
+            try {
+                long ms = Files.getLastModifiedTime(p).toMillis();
+                if (ms > latestMs) {
+                    latestMs = ms;
+                    latest = p;
+                }
+            } catch (Exception ignore) {
+                // skip unreadable
+            }
+        }
+        return latest;
     }
 
     private static int qualityRank(String q) {

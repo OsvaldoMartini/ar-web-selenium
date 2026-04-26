@@ -48,6 +48,7 @@ public final class OcrConfigDefaults {
         p.add(param("output", "save_correlation", "bool", "true"));
         p.add(param("output", "save_annotated_png", "bool", "false"));
         p.add(param("output", "log_level", "string", "INFO"));
+        p.add(param("output", "approved_xpaths", "json", "[]"));
 
         CANONICAL = Collections.unmodifiableList(p);
     }

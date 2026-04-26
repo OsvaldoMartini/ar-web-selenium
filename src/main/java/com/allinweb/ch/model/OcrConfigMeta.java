@@ -116,6 +116,9 @@ public final class OcrConfigMeta {
         d.put(
                 "output.log_level",
                 "Log level for the OCR pipeline logger. Not yet consumed; reserved for future fine-grained control.");
+        d.put(
+                "output.approved_xpaths",
+                "JSON array of xPaths the user marked as 'approved' in the Test On Current Page review grid. Persists user QA across modal sessions. Read by the editor only — not consumed by the OCR pipeline.");
 
         DESCRIPTIONS = Collections.unmodifiableMap(d);
 

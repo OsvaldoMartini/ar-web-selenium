@@ -3,6 +3,7 @@ package com.allinweb.ch.component.scene;
 import com.allinweb.ch.component.pane.AROcrTestResultsPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
+import com.allinweb.ch.model.OcrConfigParam;
 import com.allinweb.ch.vision.OcrTestResultRow;
 import java.nio.file.Path;
 import java.util.List;
@@ -61,8 +62,12 @@ public class AROcrTestResultsScene extends ARScene {
     }
 
     /** Convenience: load data into the pane and show the modal. */
-    public void openWith(String headerSummary, List<OcrTestResultRow> rows, Path annotatedImagePath) {
-        AROcrTestResultsPane.getInstance().populate(headerSummary, rows, annotatedImagePath);
+    public void openWith(
+            String headerSummary,
+            List<OcrTestResultRow> rows,
+            Path annotatedImagePath,
+            OcrConfigParam approvedXPathsParam) {
+        AROcrTestResultsPane.getInstance().populate(headerSummary, rows, annotatedImagePath, approvedXPathsParam);
         show();
     }
 }
