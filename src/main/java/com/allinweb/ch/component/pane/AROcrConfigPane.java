@@ -2,6 +2,7 @@ package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.AROcrTestResultsScene;
+import com.allinweb.ch.facade.LocatorCleanupService;
 import com.allinweb.ch.facade.OcrConfigRepository;
 import com.allinweb.ch.facade.OcrConfigService;
 import com.allinweb.ch.facade.PerformLists;
@@ -91,6 +92,7 @@ public class AROcrConfigPane extends ARPane {
     private Button saveButton;
     private Button saveAsNewButton;
     private Button testButton;
+    private Button cleanOrphansButton;
     private Button deleteButton;
     private Button closeButton;
     private Label statusLabel;
@@ -171,6 +173,10 @@ public class AROcrConfigPane extends ARPane {
         saveButton = new Button("Save");
         saveAsNewButton = new Button("Save As New");
         testButton = new Button("Test On Current Page");
+        cleanOrphansButton = new Button("Clean Orphan Locators");
+        cleanOrphansButton.setTooltip(new Tooltip(
+                "Scan the element_locator table for this scope and remove rows that are clearly orphans"
+                        + " (short slugs, <label> tags, CSRF-like random tokens, fuzzy duplicates with lower pick_count)."));
         deleteButton = new Button("Delete");
         closeButton = new Button("Close");
         statusLabel = new Label();
@@ -179,7 +185,8 @@ public class AROcrConfigPane extends ARPane {
         statusLabel.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(statusLabel, Priority.ALWAYS);
 
-        HBox buttons = new HBox(8, saveButton, saveAsNewButton, testButton, deleteButton, closeButton, statusLabel);
+        HBox buttons =
+                new HBox(8, saveButton, saveAsNewButton, testButton, cleanOrphansButton, deleteButton, closeButton, statusLabel);
         buttons.setAlignment(Pos.CENTER_LEFT);
 
         GridPane form = new GridPane();
@@ -218,6 +225,7 @@ public class AROcrConfigPane extends ARPane {
         saveButton.setOnAction(e -> onSave(false));
         saveAsNewButton.setOnAction(e -> onSave(true));
         testButton.setOnAction(e -> onTest());
+        cleanOrphansButton.setOnAction(e -> onCleanOrphans());
         deleteButton.setOnAction(e -> onDelete());
         closeButton.setOnAction(e -> {
             if (root.getScene() != null && root.getScene().getWindow() != null) {
@@ -567,6 +575,59 @@ public class AROcrConfigPane extends ARPane {
                 }
             }
         });
+    }
+
+    private void onCleanOrphans() {
+        try {
+            LocatorCleanupService svc = LocatorCleanupService.getInstance();
+            LocatorCleanupService.ScanReport report = svc.scan(currentHomebankingId, currentHomeUrlId);
+            if (report.candidates.isEmpty()) {
+                statusInfo("No orphan locators found in this scope (" + report.totalRows + " rows scanned).");
+                return;
+            }
+            StringBuilder body = new StringBuilder();
+            body.append("Scanned ")
+                    .append(report.totalRows)
+                    .append(" locator row(s) in this scope.\n\nProposed deletions (")
+                    .append(report.candidates.size())
+                    .append("):\n\n");
+            int shown = 0;
+            for (LocatorCleanupService.OrphanCandidate c : report.candidates) {
+                if (shown++ >= 30) {
+                    body.append("\n… ").append(report.candidates.size() - 30).append(" more — full list in the log.");
+                    break;
+                }
+                body.append("• [")
+                        .append(c.reason)
+                        .append("] ")
+                        .append(c.locator.getDefinedName())
+                        .append("\n      ")
+                        .append(c.detail)
+                        .append("\n");
+            }
+            body.append("\nDelete all ").append(report.candidates.size()).append(" row(s)?");
+
+            Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, "", ButtonType.YES, ButtonType.NO);
+            confirm.setHeaderText("Clean orphan locators");
+            TextArea ta = new TextArea(body.toString());
+            ta.setEditable(false);
+            ta.setWrapText(false);
+            ta.setPrefRowCount(20);
+            ta.setPrefColumnCount(80);
+            ta.setStyle("-fx-font-family: 'Consolas', monospace; -fx-font-size: 11px;");
+            confirm.getDialogPane().setContent(ta);
+            confirm.showAndWait().ifPresent(bt -> {
+                if (bt == ButtonType.YES) {
+                    int deleted = svc.deleteCandidates(report.candidates);
+                    statusInfo("Cleanup complete — deleted " + deleted + " orphan locator(s).");
+                } else {
+                    statusInfo("Cleanup cancelled — " + report.candidates.size() + " candidate(s) untouched.");
+                }
+            });
+        } catch (Exception ex) {
+            log.warn("Locator cleanup failed", ex);
+            status("Cleanup failed: " + ex.getMessage(), false);
+        }
     }
 
     private void onTest() {

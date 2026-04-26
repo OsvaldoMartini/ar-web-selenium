@@ -273,6 +273,27 @@ public class ElementLocatorRepository {
                 truncate(safeNew, 50));
     }
 
+    // ── Delete (Phase 3 cleanup) ─────────────────────────────────────────
+
+    /**
+     * Delete a single locator row. Cascade-deletes its rename audit rows on Postgres / SQLite
+     * (FK ON DELETE CASCADE); on Access we delete the rename rows manually first because
+     * Access doesn't enforce foreign keys.
+     */
+    public void deleteLocator(long id) throws SQLException {
+        try (Connection conn = performDataBase.getConnection()) {
+            try (PreparedStatement ps =
+                    conn.prepareStatement("DELETE FROM element_locator_rename WHERE locator_id = ?")) {
+                ps.setLong(1, id);
+                ps.executeUpdate();
+            }
+            try (PreparedStatement ps = conn.prepareStatement("DELETE FROM element_locator WHERE id = ?")) {
+                ps.setLong(1, id);
+                ps.executeUpdate();
+            }
+        }
+    }
+
     // ── Rename audit ─────────────────────────────────────────────────────
 
     /** Phase 3c hook — write a single audit row when drift is detected. */

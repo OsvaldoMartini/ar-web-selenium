@@ -130,9 +130,9 @@ Nice-to-have for dev → prod profile sharing. Trivial — Gson over the entity 
 
 ## Recommended next session order
 
-1. **Finish the DOM-First resolver knobs** (steps 1–4 in the half-done section above). Estimated ~30 min once the chat is fresh.
-2. User creates the **"DOM-First (Anti-Drift)"** profile via UI and re-runs the smoke test. Verify no more orphan rows for the same logical element.
-3. **Persistent locator hygiene** — one-shot SQL or migration to drop the orphan rows that exist in DB right now (or keep them — they're inert).
+1. ✅ DONE — DOM-First resolver knobs (commit `af57400a`).
+2. **Smoke-test the "DOM-First (Anti-Drift)" profile** (user-side: Save As New in the editor with the recommended values; verify no more orphan rows for the same logical element on next pick).
+3. ✅ DONE — **Locator cleanup** (`LocatorCleanupService` + UI button "Clean Orphan Locators" on the OCR Config modal). Click → scan → confirm dialog with full candidate list → on YES the rows + their rename audit are deleted. Heuristics: SHORT_NAME, LABEL_TAG, RANDOM_TOKEN, FUZZY_DUPLICATE.
 4. **Roadmap 2 full-page screenshot** if the footer-element NONE results are biting QA.
 5. **Cross-repo Engine wire-in** when there's a real bot-run drift incident.
 
