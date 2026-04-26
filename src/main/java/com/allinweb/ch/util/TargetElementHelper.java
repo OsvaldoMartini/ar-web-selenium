@@ -294,7 +294,6 @@ public class TargetElementHelper {
             targetDefine.setNameLabel(elemenDTO.getNameLabel());
             targetDefine.setNameField(elemenDTO.getNameField());
             targetDefine.setDefinedName(elemenDTO.getDefinedName());
-            targetDefine.set...(elemenDTO.getClientNamed());
 
             // Reset Previous Values
             targetDefine.setAttribId(elemenDTO.getAttribId());
