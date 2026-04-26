@@ -169,10 +169,22 @@ public class TargetElementHelper {
                         ? elementDTO.getTagName()
                         : elementDTO.getSomeText().trim().replaceAll("\\s+", " "));
 
-        targetLocal.setDefinedName(
-                elementDTO.getSomeText() == null
-                        ? elementDTO.getTagName()
-                        : elementDTO.getSomeText().trim().replaceAll("\\s+", " "));
+        // Roadmap 3 Phase 3d: prefer the resolver-provided definedName when it travels back
+        // from the React picker — that's the canonical slug ElementTextResolver computed at
+        // pick time. Fall back to someText / tagName only when definedName is empty.
+        String inboundDefined = elementDTO.getDefinedName();
+        if (inboundDefined != null && !inboundDefined.trim().isEmpty()) {
+            targetLocal.setDefinedName(inboundDefined.trim());
+        } else {
+            targetLocal.setDefinedName(
+                    elementDTO.getSomeText() == null
+                            ? elementDTO.getTagName()
+                            : elementDTO.getSomeText().trim().replaceAll("\\s+", " "));
+        }
+
+        // Carry the user's display-only override straight through. Null is a valid value
+        // (means: no override, UI shows the resolver name).
+        targetLocal.setClientNamed(elementDTO.getClientNamed());
 
         // Validate Shadow DOM or regular CSS selectors
         targetLocal.setXPathWorkedFirst(ARConstants.REGULAR_XPATH);

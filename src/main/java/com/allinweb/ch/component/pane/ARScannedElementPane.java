@@ -631,6 +631,10 @@ public class ARScannedElementPane extends ARPane {
         instruction.setBlockId(currentBlockId);
         instruction.setBotJobId(currentBotJobId);
         instruction.setName(targetInsert.getDefinedName());
+        // Roadmap 3 Phase 3d: persist the user's display-only override the picker carried in.
+        // Null is the "no override" sentinel — the FE clears clientNamed when the typed value
+        // matches definedName / someText / is empty, and the SQL writer treats null accordingly.
+        instruction.setClientNamed(targetInsert.getClientNamed());
 
         if (instruction.getName() == null && targetInsert.getNameLabel() == null) {
             if (targetInsert.getSomeText() != null) {

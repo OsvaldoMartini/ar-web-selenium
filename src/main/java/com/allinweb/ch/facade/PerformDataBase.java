@@ -1174,13 +1174,12 @@ public class PerformDataBase {
         String whereColumn = tableName.equals("instruction") ? "bot_job_id" : "home_banking_id";
 
         String instructionTable = tableName.equals("instruction") ? "instruction" : "component_instruction";
-        // Roadmap 3 Phase 3d: rename action writes the user's display label to client_named.
-        // The canonical `name` is preserved (FE always re-sends the unchanged original) so existing
-        // recovery / matching keyed on instruction.name keeps working.
+        // Roadmap 3 Phase 3d: rename action ONLY writes client_named.
+        // `name` and `actions` are set at INSERT time from definedName/someText and never
+        // change again — they are the canonical keys used by ElementRecoveryService.findOrRecover
+        // and by the I:<name> / SET:<name> action token lookup.
         String updateSQL = "UPDATE " + instructionTable + " SET "
-                + "name = ?, "
-                + "client_named = ?, "
-                + "actions = ? "
+                + "client_named = ? "
                 + "WHERE " + idColumn + " = ? AND " + blockIdColumn + " = ? AND " + whereColumn + " = ?";
 
         try (Connection conn = getConnection();
@@ -1189,16 +1188,14 @@ public class PerformDataBase {
             conn.setAutoCommit(false);
 
             for (InstructionLoad instruction : instructions) {
-                pstmt.setString(1, instruction.getName());
                 if (instruction.getClientNamed() == null) {
-                    pstmt.setNull(2, java.sql.Types.VARCHAR);
+                    pstmt.setNull(1, java.sql.Types.VARCHAR);
                 } else {
-                    pstmt.setString(2, instruction.getClientNamed());
+                    pstmt.setString(1, instruction.getClientNamed());
                 }
-                pstmt.setString(3, instruction.getActions());
-                pstmt.setInt(4, instruction.getId());
-                pstmt.setInt(5, instruction.getBlockId());
-                pstmt.setInt(6, whereId);
+                pstmt.setInt(2, instruction.getId());
+                pstmt.setInt(3, instruction.getBlockId());
+                pstmt.setInt(4, whereId);
                 pstmt.addBatch();
             }
 
@@ -2435,6 +2432,10 @@ public class PerformDataBase {
                 addColumnValue.accept("description", instructionLoad.getDescription());
                 addColumnValue.accept("instruction_order_number", instructionLoad.getInstructionOrderNumber());
                 addColumnValue.accept("name", instructionLoad.getName());
+                // Roadmap 3 Phase 3d: addColumnValue is null-skipping by design, so when the
+                // user hasn't set a custom label the column is simply absent from the INSERT
+                // (default NULL). ROW_UPDATE explicitly sets it (or null-clears it) afterwards.
+                addColumnValue.accept("client_named", instructionLoad.getClientNamed());
                 addColumnValue.accept(
                         "on_hold_seconds",
                         instructionLoad.getOnHoldSeconds() != null ? instructionLoad.getOnHoldSeconds() : 1);
@@ -2737,6 +2738,10 @@ public class PerformDataBase {
                 addColumnValue.accept("description", instructionLoad.getDescription());
                 addColumnValue.accept("instruction_order_number", instructionLoad.getInstructionOrderNumber());
                 addColumnValue.accept("name", instructionLoad.getName());
+                // Roadmap 3 Phase 3d: addColumnValue is null-skipping by design, so when the
+                // user hasn't set a custom label the column is simply absent from the INSERT
+                // (default NULL). ROW_UPDATE explicitly sets it (or null-clears it) afterwards.
+                addColumnValue.accept("client_named", instructionLoad.getClientNamed());
                 addColumnValue.accept(
                         "on_hold_seconds",
                         instructionLoad.getOnHoldSeconds() != null ? instructionLoad.getOnHoldSeconds() : 1);
