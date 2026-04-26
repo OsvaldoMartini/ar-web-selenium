@@ -359,20 +359,20 @@ public class AROcrConfigPane extends ARPane {
 
         box.getChildren().add(grid);
 
-        if (COLOR_MAPPING_CAT.equals(category)) {
-            Button addTemplate = new Button("+ Add template op");
-            addTemplate.setTooltip(
-                    new Tooltip(
-                            "Appends a replace_in_hsv_range template to color_mapping.ops — tune its hsv_lower/hsv_upper/replacement_bgr."));
-            addTemplate.setOnAction(e -> appendColorOpTemplate());
-            VBox.setMargin(addTemplate, new Insets(8, 0, 0, 0));
-            box.getChildren().add(addTemplate);
-        }
+        // Roadmap 2: the "+ Add template op" helper used to live here. The HsvColorOpEditor
+        // inside buildControl now owns its own "+ Add HSV op" button so picker, sliders, and
+        // add/delete all live in the same widget.
     }
 
     private Node buildControl(OcrConfigParam p) {
         String type = p.getValueType() == null ? "string" : p.getValueType();
         String key = p.getCategory() + "." + p.getName();
+
+        // Roadmap 2: visual HSV picker for color_mapping.ops — replaces the raw-JSON TextArea.
+        if (COLOR_MAPPING_CAT.equals(p.getCategory()) && COLOR_MAPPING_OPS.equals(p.getName())) {
+            return new com.allinweb.ch.component.widget.HsvColorOpEditor(
+                    p.getValue() == null ? "" : p.getValue(), p::setValue);
+        }
 
         List<String> enums = OcrConfigMeta.ENUMS.get(key);
         if (enums != null) {
