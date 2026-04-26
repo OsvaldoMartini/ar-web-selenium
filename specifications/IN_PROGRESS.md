@@ -57,12 +57,8 @@ You build, not me.
 
 ### High priority — Roadmap 3 continuation
 
-4. **Phase 3b — locator DB tables** (`element_locator` + `element_locator_rename`).
-   - Migration class similar to `M20260427_OcrConfig`.
-   - `ElementLocatorEntity`, `ElementLocatorRenameEntity` model classes.
-   - `ElementLocatorRepository` (CRUD + `upsertOnPick`).
-   - Wire into `SEARCH_TOOL` and `runScan` after resolver runs — every pick persists/updates the locator row, frozen first-time fields are `*_original`, mutable fields tracked.
-5. **Phase 3c — `ElementRecoveryService.findOrRecover(locator)`** — multi-strategy lookup when xPath drifts at bot-run time. Logs renames automatically into `element_locator_rename`. Wire into the Engine-side resolution call sites (cross-repo work).
+4. ✅ DONE — Phase 3b: M20260428_ElementLocator migration, ElementLocatorEntity + Rename, ElementLocatorRepository.upsertOnPick, wired into SEARCH_TOOL + runScan after resolver.
+5. **Phase 3c — `ElementRecoveryService.findOrRecover(locator)`** — multi-strategy lookup when xPath drifts at bot-run time. Diff `*_current` vs `*_original` per pick to detect drift, write rows into `element_locator_rename` automatically. Wire into the Engine-side resolution call sites (cross-repo work).
 
 ### Medium priority
 

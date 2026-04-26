@@ -319,6 +319,24 @@ public class PerformListElements {
                                     com.allinweb.ch.util.PageDiagnosticDumper.SUBFOLDER,
                                     "ocr-correlation-HP.json"));
 
+                    // Persist locators for Roadmap 3 recovery (defined_name now stable post-resolver).
+                    try {
+                        Integer hbId = homeBankingId > 0 ? homeBankingId : null;
+                        Integer homeUrlId = null;
+                        try {
+                            com.allinweb.ch.component.scene.ARScannedElementScene scene =
+                                    com.allinweb.ch.component.scene.ARScannedElementScene.getInstance();
+                            if (scene != null && scene.getCurrentBotJob() != null) {
+                                homeUrlId = scene.getCurrentBotJob().getHomeUrlId();
+                            }
+                        } catch (Throwable ignore) {
+                            // scene unavailable — bank-level scope only
+                        }
+                        ElementLocatorRepository.getInstance().upsertOnPickBatch(asArray, hbId, homeUrlId);
+                    } catch (Exception locEx) {
+                        log.warn("Locator upsert failed (non-fatal): {}", locEx.getMessage());
+                    }
+
                     List<String> excludeList = List.of("optional", "blockMarked", "editMode");
                     performMessage.outputJsonElementDTO(asArray, excludeList, "elementDTO-PS", jsonPath);
 

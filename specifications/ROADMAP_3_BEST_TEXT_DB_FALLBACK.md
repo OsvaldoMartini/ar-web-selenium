@@ -1,6 +1,6 @@
 # ROADMAP 3 — Best-text extraction for `someText` / `definedName` + DB fallback mapping
 
-**Status:** ✅ Phase 3a delivered (text resolver, no DB). 📋 Phase 3b (locator tables) + Phase 3c (recovery on xPath drift) pending.
+**Status:** ✅ Phase 3a delivered (text resolver, no DB). ✅ Phase 3b delivered (locator tables + upsert hook). 📋 Phase 3c (recovery on xPath drift + Engine cross-repo) pending.
 **Owner:** Osvaldo Martini
 **Depends on:** Roadmaps 1 + 2 (OCR scores feed into candidate ranking)
 
@@ -55,6 +55,25 @@ After `someText` is resolved:
 ```
 
 The persisted `elementDTO-*.json` and `AI-ElementDTO-*.json` files now reflect the resolver's output. The WebSocket message to the UI grid still uses the pre-resolution snapshot; updating the live UI grid would require a follow-up refresh message and is not in scope for 3a.
+
+## Phase 3b delivered (2026-04-26)
+
+- Migration `M20260428_ElementLocator` creates two tables for all 4 dialects: `element_locator` (one row per `(homebanking_id, home_url_id, defined_name)` with frozen `*_original` columns + mutable `*_current` columns + `pick_count`) and `element_locator_rename` (append-only audit trail; written by Phase 3c, table created now).
+- `ElementLocatorEntity` + `ElementLocatorRenameEntity` (Lombok `@Data`).
+- `ElementLocatorRepository` — `findByKey`, `listForScope`, `upsertOnPick`, `upsertOnPickBatch`, `insertRename` (Phase 3c hook). `nullableEq` helper handles SQLite's NULL comparison gotcha. Logs `LOCATOR INSERT` / `LOCATOR UPDATE` lines to `com.allinweb.scanner` so the audit trail of every pick lives in `ar_web_scanner_scanner.log`.
+- Wired into `SimpleWebSocketServer.SEARCH_TOOL` (scannerGrid branch) and `PerformListElements.runScan` immediately after `ElementTextResolver.resolveAll`. `homebanking_id` comes from `splitDTO.getHomeBankingId()` / the scan param; `home_url_id` is best-effort via `ARScannedElementScene.getInstance().getCurrentBotJob().getHomeUrlId()` and falls back to null when the scene isn't initialised. Failures are logged but never fatal — locator persistence is additive, never blocking the pick flow.
+
+### What's persisted on every pick
+
+For each ElementDTO with a non-empty `definedName`:
+- **First sight** (no row matches `(hbId, homeUrlId, definedName)`): INSERT a new row with all `*_original` and `*_current` columns set to the same values, `pick_count = 1`.
+- **Subsequent sight**: UPDATE all `*_current` columns + `pick_count++` + `updated_at = CURRENT_TIMESTAMP`. The `*_original` row stays untouched — it remains the canonical reference for Phase 3c drift detection.
+
+### What's deferred to Phase 3c
+
+- Drift detection (compare `*_current` vs `*_original`, write `element_locator_rename` rows when fields change).
+- Multi-strategy `findOrRecover(locator)` that backs the bot-run resolution path when the live xPath stops matching.
+- Cross-repo: AR Web Engine consumes the recovery path.
 
 ## Goal
 

@@ -479,6 +479,16 @@ public class SimpleWebSocketServer {
                                         com.allinweb.ch.util.PageDiagnosticDumper.SUBFOLDER,
                                         "ocr-correlation-HP.json"));
 
+                        // 4b. Persist locators for Roadmap 3 recovery (no-op if defined_name is empty).
+                        try {
+                            Integer hbId = homeBankingId > 0 ? homeBankingId : null;
+                            Integer homeUrlId = currentHomeUrlIdFromScene();
+                            ElementLocatorRepository.getInstance()
+                                    .upsertOnPickBatch(splitDTO.getElementDetails(), hbId, homeUrlId);
+                        } catch (Exception locEx) {
+                            log.warn("Locator upsert failed (non-fatal): {}", locEx.getMessage());
+                        }
+
                         // 5. Persist enriched DTOs.
                         List<String> excludeList = List.of("optional", "blockMarked", "editMode");
                         performMessage.outputJsonElementDTO(
@@ -1636,5 +1646,19 @@ public class SimpleWebSocketServer {
         String jsonData = gson.toJson(webSockteSocketSignal);
 
         webSocketSessionManager.sendMessageJson(homeBankId, sessionId, jsonData, operationId);
+    }
+
+    /** Best-effort lookup of the current pick's home_url_id via the scene's currentBotJob. Null when unavailable. */
+    private static Integer currentHomeUrlIdFromScene() {
+        try {
+            com.allinweb.ch.component.scene.ARScannedElementScene scene =
+                    com.allinweb.ch.component.scene.ARScannedElementScene.getInstance();
+            if (scene == null) return null;
+            BotJobLoadDTO job = scene.getCurrentBotJob();
+            return job == null ? null : job.getHomeUrlId();
+        } catch (Throwable t) {
+            // Scene not initialised yet (early boot) or any unexpected NPE — locator scope falls back to bank-level.
+            return null;
+        }
     }
 }

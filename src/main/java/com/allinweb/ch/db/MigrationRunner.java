@@ -51,7 +51,8 @@ public class MigrationRunner {
     private static final List<Migration> MIGRATIONS = List.of(
             new com.allinweb.ch.db.migrations.M20260425_ForceCoordinatesVarchar(),
             new com.allinweb.ch.db.migrations.M20260426_ScrollFromActionsVarchar(),
-            new com.allinweb.ch.db.migrations.M20260427_OcrConfig());
+            new com.allinweb.ch.db.migrations.M20260427_OcrConfig(),
+            new com.allinweb.ch.db.migrations.M20260428_ElementLocator());
 
     private static volatile MigrationRunner instance;
 
