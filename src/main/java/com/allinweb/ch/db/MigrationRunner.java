@@ -52,7 +52,8 @@ public class MigrationRunner {
             new com.allinweb.ch.db.migrations.M20260425_ForceCoordinatesVarchar(),
             new com.allinweb.ch.db.migrations.M20260426_ScrollFromActionsVarchar(),
             new com.allinweb.ch.db.migrations.M20260427_OcrConfig(),
-            new com.allinweb.ch.db.migrations.M20260428_ElementLocator());
+            new com.allinweb.ch.db.migrations.M20260428_ElementLocator(),
+            new com.allinweb.ch.db.migrations.M20260429_ClientNamed());
 
     private static volatile MigrationRunner instance;
 

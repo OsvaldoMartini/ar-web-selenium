@@ -133,8 +133,16 @@ Nice-to-have for dev → prod profile sharing. Trivial — Gson over the entity 
 1. ✅ DONE — DOM-First resolver knobs (commit `af57400a`).
 2. **Smoke-test the "DOM-First (Anti-Drift)" profile** (user-side: Save As New in the editor with the recommended values; verify no more orphan rows for the same logical element on next pick).
 3. ✅ DONE — **Locator cleanup** (`LocatorCleanupService` + UI button "Clean Orphan Locators" on the OCR Config modal). Click → scan → confirm dialog with full candidate list → on YES the rows + their rename audit are deleted. Heuristics: SHORT_NAME, LABEL_TAG, RANDOM_TOKEN, FUZZY_DUPLICATE.
-4. **Roadmap 2 full-page screenshot** if the footer-element NONE results are biting QA.
-5. **Cross-repo Engine wire-in** when there's a real bot-run drift incident.
+4. ✅ Phase 3d backend done — **Client rename mapping**. Migration `M20260429_ClientNamed` adds `client_named VARCHAR(255) NULL` to `instruction` and `component_instruction` (4 dialects, idempotent). `InstructionLoad` carries `clientNamed`. All 7 INSERT sites in `PerformDataBase` + `PerformBackup` and all 4 SELECT sites that build `InstructionLoad` were patched to read/write the column. Backup restores accept the legacy 26 / 27 / 28-value formats.
+5. 📋 **Phase 3d front-end UI** — TypeScript interface contract added (`ElementDTO.definedName/clientNamed`, `InstructionLoad.clientNamed` in `abr-react-ts-grid/src/components/instructionsMockData.tsx`). Still pending in that repo:
+   - **`GridItemScann.tsx`** — when rendering an element name, show `clientNamed ?? definedName ?? name`. When user edits the name, write to `clientNamed` instead of mutating the script-generated `definedName`. On save (NEW_ELEMENT_DTO message): if `clientNamed === definedName`, send it as `null`; otherwise send the typed value. The backend will store `null` when the user hasn't diverged.
+   - **`GridItem.tsx`** — for already-saved instructions: display `clientNamed ?? name`. The edit field rebinds to `clientNamed`; setting it back to equal `name` should null it out client-side before sending.
+   - **`GridItemComp.tsx`** — same treatment for component instructions.
+   - **`GridItemScannMobile.tsx`** — mirror the GridItemScann logic for mobile picks.
+   - **WebSocket save handler** — make sure `client_named` is part of the JSON payload posted to the backend and gets echoed back when loading an existing instruction.
+6. **Backend semantics check** — backend ignores `clientNamed` for matching/recovery. The bot-run resolver in `ARScannedElementPane` (~line 4925) keys recovery on `currentInstruction.getName()` (the original) — confirmed unchanged.
+7. **Roadmap 2 full-page screenshot** if the footer-element NONE results are biting QA.
+8. **Cross-repo Engine wire-in** when there's a real bot-run drift incident.
 
 ---
 

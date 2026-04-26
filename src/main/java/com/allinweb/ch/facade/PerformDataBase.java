@@ -1429,6 +1429,7 @@ public class PerformDataBase {
                 + "    bli.instruction_order_number, \n"
                 + "    bli.actions, \n"
                 + "    bli.name AS instruction_name, \n"
+                + "    bli.client_named, \n"
                 + "    bli.xpath, \n"
                 + "    bli.coordinates, \n"
                 + "    bli.iframe_xpath, \n"
@@ -1513,6 +1514,7 @@ public class PerformDataBase {
                     instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
                     instruction.setActions(rs.getString("actions"));
                     instruction.setName(rs.getString("instruction_name"));
+                    instruction.setClientNamed(rs.getString("client_named"));
                     instruction.setXpath(rs.getString("xpath"));
                     instruction.setCoordinates(rs.getString("coordinates"));
                     instruction.setForceCoordinates(rs.getString("force_coordinates"));
@@ -4702,8 +4704,8 @@ public class PerformDataBase {
             try (ResultSet rsInstruction = selectStmt.executeQuery()) {
 
                 String insertSQL = "INSERT INTO component_instruction ("
-                        + "instruction_order_number, actions, name, xpath, coordinates, force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root, css_selector, description, operation, optional, block_marked, default_value, action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr, active, block_id, variable_id, parent_id, home_banking_id) "
-                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                        + "instruction_order_number, actions, name, xpath, coordinates, force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root, css_selector, description, operation, optional, block_marked, default_value, action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr, active, block_id, variable_id, parent_id, home_banking_id, client_named) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
                 instructionMap.clear();
                 instrVariablesMap.clear();
@@ -4769,6 +4771,7 @@ public class PerformDataBase {
                         insertOrNull(insertStmt, 24, rsInstruction, "parent_id");
 
                         insertStmt.setInt(25, newHomeBankId);
+                        insertStmt.setString(26, rsInstruction.getString("client_named"));
 
                         insertStmt.addBatch();
                         count++;
@@ -5372,8 +5375,8 @@ public class PerformDataBase {
             try (ResultSet rsInstruction = selectStmt.executeQuery()) {
 
                 String insertSQL = "INSERT INTO instruction ("
-                        + "instruction_order_number, actions, name, xpath, coordinates, force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root, css_selector, description, operation, optional, block_marked, default_value, action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr, active, block_id, variable_id, parent_id, bot_job_id) "
-                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                        + "instruction_order_number, actions, name, xpath, coordinates, force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root, css_selector, description, operation, optional, block_marked, default_value, action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr, active, block_id, variable_id, parent_id, bot_job_id, client_named) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
                 instructionMap.clear();
                 instrVariablesMap.clear();
@@ -5439,6 +5442,7 @@ public class PerformDataBase {
                         insertOrNull(insertStmt, 24, rsInstruction, "parent_id");
 
                         insertStmt.setInt(25, newBotJobId);
+                        insertStmt.setString(26, rsInstruction.getString("client_named"));
 
                         insertStmt.addBatch();
                         count++;
@@ -6113,8 +6117,8 @@ public class PerformDataBase {
             try (ResultSet rsInstruction = selectStmt.executeQuery()) {
 
                 String insertSQL = "INSERT INTO instruction ("
-                        + " instruction_order_number, actions, name, xpath, coordinates, force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root, css_selector, description, operation, optional, block_marked, default_value, action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr, active, block_id, variable_id, parent_id, bot_job_id) "
-                        + "VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                        + " instruction_order_number, actions, name, xpath, coordinates, force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root, css_selector, description, operation, optional, block_marked, default_value, action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr, active, block_id, variable_id, parent_id, bot_job_id, client_named) "
+                        + "VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
                 instructionMap.clear();
                 instrVariablesMap.clear();
@@ -6182,6 +6186,7 @@ public class PerformDataBase {
                         insertOrNull(insertStmt, 24, rsInstruction, "parent_id");
 
                         insertStmt.setInt(25, newBotJobId);
+                        insertStmt.setString(26, rsInstruction.getString("client_named"));
 
                         insertStmt.addBatch();
                         count++;
@@ -7142,7 +7147,7 @@ public class PerformDataBase {
         // Build SQL with JOIN
         StringBuilder querySQL = new StringBuilder()
                 .append("SELECT i.id AS instruction_id, ")
-                .append("i.block_id, i.instruction_order_number, i.actions, i.name, i.operation, ")
+                .append("i.block_id, i.instruction_order_number, i.actions, i.name, i.client_named, i.operation, ")
                 .append("i.xpath, i.coordinates, i.force_coordinates, i.iframe_xpath, ")
                 .append("i.tag_name, i.shadow_host, i.shadow_root, i.css_selector, ")
                 .append("i.description AS instruction_description, i.optional, i.action_custom_max_wait_sec, ")
@@ -7215,6 +7220,7 @@ public class PerformDataBase {
                         }
 
                         instruction.setName(rs.getString("name"));
+                        instruction.setClientNamed(rs.getString("client_named"));
                         instruction.setActions(rs.getString("actions"));
                         instruction.setOperation(rs.getString("operation"));
 

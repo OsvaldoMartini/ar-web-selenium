@@ -314,10 +314,11 @@ public class PerformBackup {
                     boolean parentIdWasNull = rs.wasNull();
                     int botJobId = rs.getInt("bot_job_id");
                     boolean botJobIdWasNull = rs.wasNull();
+                    String clientNamed = toSqlValue(rs.getString("client_named"));
 
                     String insert = String.format(
-                            "INSERT INTO instruction (id, instruction_order_number, actions, name, xpath, coordinates, force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root, css_selector, description, operation, optional, block_marked, default_value, action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr, active, block_id, variable_id, parent_block_id, parent_id, bot_job_id) "
-                                    + "VALUES (%d, %d, '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', %d, %d, '%s', %s, %s, %d, %d, %d, %s, %s, %s, %s, %s);",
+                            "INSERT INTO instruction (id, instruction_order_number, actions, name, xpath, coordinates, force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root, css_selector, description, operation, optional, block_marked, default_value, action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr, active, block_id, variable_id, parent_block_id, parent_id, bot_job_id, client_named) "
+                                    + "VALUES (%d, %d, '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', %d, %d, '%s', %s, %s, %d, %d, %d, %s, %s, %s, %s, %s, '%s');",
                             id,
                             order,
                             actions,
@@ -344,7 +345,8 @@ public class PerformBackup {
                             variableIdWasNull ? "NULL" : variableId,
                             parentBlockIdWasNull ? "NULL" : parentBlockId,
                             parentIdWasNull ? "NULL" : parentId,
-                            botJobIdWasNull ? "NULL" : botJobId);
+                            botJobIdWasNull ? "NULL" : botJobId,
+                            clientNamed);
 
                     writer.write(insert + System.lineSeparator());
                 }
@@ -691,14 +693,15 @@ public class PerformBackup {
 
                 int homeBankingId = rs.getInt("home_banking_id");
                 boolean homeBankingIdWasNull = rs.wasNull();
+                String clientNamed = toSqlValue(rs.getString("client_named"));
 
                 String insert = String.format(
                         "INSERT INTO component_instruction ("
                                 + "id, instruction_order_number, actions, name, xpath, coordinates, force_coordinates, iframe_xpath, "
                                 + "tag_name, shadow_host, shadow_root, css_selector, description, operation, optional, block_marked, "
                                 + "default_value, action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr, active, "
-                                + "block_id, variable_id, parent_block_id, parent_id, home_banking_id"
-                                + ") VALUES (%d, %d, '%s', '%s', '%s', '%s', %s, '%s', '%s', '%s', '%s', '%s', '%s', '%s', %s, %s, '%s', %s, %s, %s, %s, %d, %s, %s, %s, %s, %s);",
+                                + "block_id, variable_id, parent_block_id, parent_id, home_banking_id, client_named"
+                                + ") VALUES (%d, %d, '%s', '%s', '%s', '%s', %s, '%s', '%s', '%s', '%s', '%s', '%s', '%s', %s, %s, '%s', %s, %s, %s, %s, %d, %s, %s, %s, %s, %s, '%s');",
                         id,
                         orderNumber,
                         actions,
@@ -727,7 +730,8 @@ public class PerformBackup {
                         variableIdWasNull ? "NULL" : variableId,
                         parentBlockIdWasNull ? "NULL" : parentBlockId,
                         parentIdWasNull ? "NULL" : parentId,
-                        homeBankingIdWasNull ? "NULL" : homeBankingId);
+                        homeBankingIdWasNull ? "NULL" : homeBankingId,
+                        clientNamed);
 
                 writer.write(insert + System.lineSeparator());
             }
@@ -1523,8 +1527,9 @@ public class PerformBackup {
                             force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root,
                             css_selector, description, operation, optional, block_marked,
                             default_value, action_custom_max_wait_sec, on_hold_seconds, codified,
-                            export_to_abr, active, block_id, variable_id, parent_block_id, parent_id, bot_job_id
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                            export_to_abr, active, block_id, variable_id, parent_block_id, parent_id, bot_job_id,
+                            client_named
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                         """;
 
         String selectInstructionIdsSQL = "SELECT id FROM instruction ";
@@ -1573,10 +1578,10 @@ public class PerformBackup {
                 if (line.endsWith(";")) {
                     List<String> values = extractValuesFromInsert(currentInsert.toString());
 
-                    if (values.size() != 26 && values.size() != 27) {
+                    if (values.size() != 26 && values.size() != 27 && values.size() != 28) {
                         return new ErrorMessage(
                                 "Parse Error",
-                                "Expected 26 or 27 values for instruction, but got " + values.size(),
+                                "Expected 26, 27, or 28 values for instruction, but got " + values.size(),
                                 currentInsert.toString());
                     }
 
@@ -1663,6 +1668,20 @@ public class PerformBackup {
                     setSafeParam(pstmt, 24, null, Types.INTEGER); // parent_block_id
                     setSafeParam(pstmt, 25, null, Types.INTEGER); // parent_id
                     setSafeParam(pstmt, 26, String.valueOf(newBotJobId), Types.INTEGER);
+                    // client_named — Roadmap 3 Phase 3d. Pre-migration backups have 26/27 values; only the
+                    // 28-value format includes client_named at index 27. Treat the legacy "[null]" / "null"
+                    // sentinel produced by toSqlValue as a real NULL.
+                    {
+                        String clientNamedValue = values.size() >= 28 ? values.get(27) : null;
+                        if (clientNamedValue != null
+                                && !clientNamedValue.isBlank()
+                                && !clientNamedValue.equalsIgnoreCase("null")
+                                && !clientNamedValue.equalsIgnoreCase("[null]")) {
+                            setSafeParam(pstmt, 27, clientNamedValue, Types.VARCHAR);
+                        } else {
+                            setSafeParam(pstmt, 27, null, Types.VARCHAR);
+                        }
+                    }
 
                     for (int i = 1; i < values.size(); i++) {
                         switch (i) {
@@ -2331,8 +2350,9 @@ public class PerformBackup {
                             force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root,
                             css_selector, description, operation, optional, block_marked,
                             default_value, action_custom_max_wait_sec, on_hold_seconds, codified,
-                            export_to_abr, active, block_id, variable_id, parent_block_id, parent_id, home_banking_id
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                            export_to_abr, active, block_id, variable_id, parent_block_id, parent_id, home_banking_id,
+                            client_named
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                         """;
 
         String selectInstructionIdsSQL = "SELECT id FROM component_instruction ORDER BY id";
@@ -2369,10 +2389,10 @@ public class PerformBackup {
                 if (line.endsWith(";")) {
                     List<String> values = extractValuesFromInsert(currentInsert.toString());
 
-                    if (values.size() != 26 && values.size() != 27) {
+                    if (values.size() != 26 && values.size() != 27 && values.size() != 28) {
                         return new ErrorMessage(
                                 "Parse Error",
-                                "Expected 26 or 27 values for instruction, but got " + values.size(),
+                                "Expected 26, 27, or 28 values for instruction, but got " + values.size(),
                                 currentInsert.toString());
                     }
 
@@ -2457,6 +2477,19 @@ public class PerformBackup {
                     setSafeParam(pstmt, 24, null, Types.INTEGER); // parent_block_id
                     setSafeParam(pstmt, 25, null, Types.INTEGER); // parent_id
                     setSafeParam(pstmt, 26, String.valueOf(newHomeBankId), Types.INTEGER);
+                    // client_named — Roadmap 3 Phase 3d. Pre-migration backups have 26/27 values; only the
+                    // 28-value format includes client_named at index 27.
+                    {
+                        String clientNamedValue = values.size() >= 28 ? values.get(27) : null;
+                        if (clientNamedValue != null
+                                && !clientNamedValue.isBlank()
+                                && !clientNamedValue.equalsIgnoreCase("null")
+                                && !clientNamedValue.equalsIgnoreCase("[null]")) {
+                            setSafeParam(pstmt, 27, clientNamedValue, Types.VARCHAR);
+                        } else {
+                            setSafeParam(pstmt, 27, null, Types.VARCHAR);
+                        }
+                    }
 
                     for (int i = 1; i < values.size(); i++) {
                         switch (i) {
