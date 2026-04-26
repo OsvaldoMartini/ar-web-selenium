@@ -1174,8 +1174,12 @@ public class PerformDataBase {
         String whereColumn = tableName.equals("instruction") ? "bot_job_id" : "home_banking_id";
 
         String instructionTable = tableName.equals("instruction") ? "instruction" : "component_instruction";
+        // Roadmap 3 Phase 3d: rename action writes the user's display label to client_named.
+        // The canonical `name` is preserved (FE always re-sends the unchanged original) so existing
+        // recovery / matching keyed on instruction.name keeps working.
         String updateSQL = "UPDATE " + instructionTable + " SET "
                 + "name = ?, "
+                + "client_named = ?, "
                 + "actions = ? "
                 + "WHERE " + idColumn + " = ? AND " + blockIdColumn + " = ? AND " + whereColumn + " = ?";
 
@@ -1186,10 +1190,15 @@ public class PerformDataBase {
 
             for (InstructionLoad instruction : instructions) {
                 pstmt.setString(1, instruction.getName());
-                pstmt.setString(2, instruction.getActions());
-                pstmt.setInt(3, instruction.getId());
-                pstmt.setInt(4, instruction.getBlockId());
-                pstmt.setInt(5, whereId);
+                if (instruction.getClientNamed() == null) {
+                    pstmt.setNull(2, java.sql.Types.VARCHAR);
+                } else {
+                    pstmt.setString(2, instruction.getClientNamed());
+                }
+                pstmt.setString(3, instruction.getActions());
+                pstmt.setInt(4, instruction.getId());
+                pstmt.setInt(5, instruction.getBlockId());
+                pstmt.setInt(6, whereId);
                 pstmt.addBatch();
             }
 
