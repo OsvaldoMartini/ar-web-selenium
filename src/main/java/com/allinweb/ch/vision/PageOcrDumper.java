@@ -79,8 +79,13 @@ public final class PageOcrDumper {
             // 0. Resolve OCR config for this scope
             OcrConfig cfg = OcrConfigService.getInstance().resolveFor(homebankingId, homeUrlId);
 
-            // 1. Viewport screenshot
-            byte[] png = WebScreenshotCapture.viewportBytes(driver);
+            // 1. Screenshot — scope: viewport (default) or full_page (scroll-stitched).
+            // Roadmap 2: full_page lets footer elements (y > viewport_height) reach the OCR pass;
+            // without it the correlator returned NONE for anything below the fold.
+            String scope = cfg == null ? "viewport" : cfg.getString("screenshot", "scope", "viewport");
+            byte[] png = "full_page".equalsIgnoreCase(scope)
+                    ? WebScreenshotCapture.fullPageBytes(driver)
+                    : WebScreenshotCapture.viewportBytes(driver);
             Path pngPath = diagDir.resolve(prefix + ".png");
             Files.write(pngPath, png);
             BufferedImage image = ImageIO.read(new ByteArrayInputStream(png));

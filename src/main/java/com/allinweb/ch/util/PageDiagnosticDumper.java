@@ -243,8 +243,16 @@ public final class PageDiagnosticDumper {
                 continue;
               }
               const b = node.getBoundingClientRect();
+              // Capture both coordinate systems so OcrDomCorrelator can pick the right one
+              // based on screenshot.scope. viewport-relative for scope=viewport (default);
+              // page-relative when the OCR pass ran over a scroll-stitched full_page image.
+              const sx = (typeof window.pageXOffset === 'number' ? window.pageXOffset : window.scrollX) || 0;
+              const sy = (typeof window.pageYOffset === 'number' ? window.pageYOffset : window.scrollY) || 0;
               const rect = {x: b.x, y: b.y, width: b.width, height: b.height,
-                            top: b.top, left: b.left, bottom: b.bottom, right: b.right};
+                            top: b.top, left: b.left, bottom: b.bottom, right: b.right,
+                            pageX: b.x + sx, pageY: b.y + sy,
+                            pageTop: b.top + sy, pageLeft: b.left + sx,
+                            pageBottom: b.bottom + sy, pageRight: b.right + sx};
               const cs = getComputedStyle(node);
               const computedStyle = {
                 position: cs.position, zIndex: cs.zIndex, display: cs.display,

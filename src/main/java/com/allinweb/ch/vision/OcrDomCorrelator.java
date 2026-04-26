@@ -41,6 +41,11 @@ public final class OcrDomCorrelator {
 
         public static class Rect {
             public double x, y, width, height;
+            // Roadmap 2 full_page support: page-relative coords written by PageDiagnosticDumper.
+            // Used by the correlator when screenshot.scope=full_page so OCR words detected in a
+            // scroll-stitched image align with DOM rects shifted by the original scroll offset.
+            public Double pageX;
+            public Double pageY;
         }
     }
 
@@ -53,6 +58,12 @@ public final class OcrDomCorrelator {
             ElementDTO[] elements, List<RectEntry> domRects, OcrResult ocr, double dpr, OcrConfig cfg) {
 
         if (dpr <= 0) dpr = 1.0;
+
+        // When screenshot.scope=full_page, OCR coordinates come from a scroll-stitched image
+        // (document-relative), so DOM rects need to switch from getBoundingClientRect() viewport
+        // coords to (rect + scroll offset) page coords. PageDiagnosticDumper writes both.
+        boolean useFullPageCoords =
+                cfg != null && "full_page".equalsIgnoreCase(cfg.getString("screenshot", "scope", "viewport"));
 
         double thGlobal = cfg == null
                 ? PROXIMITY_THRESHOLD_CSS_PX
@@ -90,8 +101,8 @@ public final class OcrDomCorrelator {
                 continue;
             }
 
-            double dx = domRect.rect.x;
-            double dy = domRect.rect.y;
+            double dx = useFullPageCoords && domRect.rect.pageX != null ? domRect.rect.pageX : domRect.rect.x;
+            double dy = useFullPageCoords && domRect.rect.pageY != null ? domRect.rect.pageY : domRect.rect.y;
             double dw = domRect.rect.width;
             double dh = domRect.rect.height;
             double dcx = dx + dw / 2.0;
