@@ -472,12 +472,22 @@ public class SimpleWebSocketServer {
                                 performActions.getCurrentDriver(), splitDTO.getElementDetails(), jsonPath, "page-HP");
 
                         // 4. Resolve someText + definedName from DOM + OCR (mutates DTOs in place).
-                        ElementTextResolver.resolveAll(
-                                splitDTO.getElementDetails(),
-                                java.nio.file.Paths.get(
-                                        jsonPath,
-                                        com.allinweb.ch.util.PageDiagnosticDumper.SUBFOLDER,
-                                        "ocr-correlation-HP.json"));
+                        //    Pass the active OcrConfig so the resolver picks up the OCR weight knobs
+                        //    from the "DOM-First (Anti-Drift)" profile when the user has it active.
+                        {
+                            Integer cfgHbId = homeBankingId > 0 ? homeBankingId : null;
+                            Integer cfgHomeUrlId = currentHomeUrlIdFromScene();
+                            com.allinweb.ch.model.OcrConfig resolverCfg =
+                                    com.allinweb.ch.facade.OcrConfigService.getInstance()
+                                            .resolveFor(cfgHbId, cfgHomeUrlId);
+                            ElementTextResolver.resolveAll(
+                                    splitDTO.getElementDetails(),
+                                    java.nio.file.Paths.get(
+                                            jsonPath,
+                                            com.allinweb.ch.util.PageDiagnosticDumper.SUBFOLDER,
+                                            "ocr-correlation-HP.json"),
+                                    resolverCfg);
+                        }
 
                         // 4b. Persist locators for Roadmap 3 recovery (no-op if defined_name is empty).
                         try {

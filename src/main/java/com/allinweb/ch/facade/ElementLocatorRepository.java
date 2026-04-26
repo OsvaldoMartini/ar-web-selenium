@@ -1,8 +1,10 @@
 package com.allinweb.ch.facade;
 
+import com.allinweb.ch.model.AttributeData;
 import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.model.ElementLocatorEntity;
 import com.allinweb.ch.model.ElementLocatorRenameEntity;
+import com.allinweb.ch.model.OcrConfig;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -83,6 +85,12 @@ public class ElementLocatorRepository {
     /**
      * Insert the locator on first sight, or update {@code *_current} fields on subsequent picks.
      * No-op when the DTO has no resolved {@code definedName} (Phase 3a should always populate it).
+     *
+     * <p>Honours three skip filters from the active OcrConfig profile:
+     * {@code output.skip_hidden_inputs} (drops {@code type="hidden"}),
+     * {@code output.skip_label_only_elements} (drops {@code <label>} tags),
+     * {@code output.min_defined_name_length} (drops slugs shorter than the threshold).
+     * Defaults are all permissive — existing profiles see no change until they opt in.
      */
     public void upsertOnPick(ElementDTO dto, Integer homebankingId, Integer homeUrlId) {
         if (dto == null) return;
@@ -91,6 +99,10 @@ public class ElementLocatorRepository {
             log.debug("upsertOnPick: skipping element with empty definedName (xpath={})", dto.getXPath());
             return;
         }
+
+        // Apply the DOM-First skip filters (Phase 3a quality follow-up).
+        OcrConfig cfg = OcrConfigService.getInstance().resolveFor(homebankingId, homeUrlId);
+        if (shouldSkip(cfg, dto, definedName)) return;
 
         ElementLocatorEntity existing = findByKey(homebankingId, homeUrlId, definedName);
         try {
@@ -323,6 +335,46 @@ public class ElementLocatorRepository {
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────
+
+    /** Apply the configurable skip filters; logs the reason at debug level when skipping. */
+    private boolean shouldSkip(OcrConfig cfg, ElementDTO dto, String definedName) {
+        if (cfg == null) return false;
+        // 1) skip <input type="hidden">
+        if (cfg.getBool("output", "skip_hidden_inputs", false)) {
+            String type = readAttr(dto, "type");
+            if ("hidden".equalsIgnoreCase(type)) {
+                log.debug("upsertOnPick: skipping hidden input (xpath={})", dto.getXPath());
+                return true;
+            }
+        }
+        // 2) skip <label> tags
+        if (cfg.getBool("output", "skip_label_only_elements", false)) {
+            if ("label".equalsIgnoreCase(dto.getTagName())) {
+                log.debug("upsertOnPick: skipping <label> element (xpath={})", dto.getXPath());
+                return true;
+            }
+        }
+        // 3) skip short / nameless definedName
+        int minLen = cfg.getInt("output", "min_defined_name_length", 0);
+        if (minLen > 0 && definedName.length() < minLen) {
+            log.debug(
+                    "upsertOnPick: skipping definedName='{}' (length {} < min {})",
+                    definedName,
+                    definedName.length(),
+                    minLen);
+            return true;
+        }
+        return false;
+    }
+
+    private static String readAttr(ElementDTO dto, String name) {
+        if (dto == null || dto.getAttributeData() == null || name == null) return null;
+        for (AttributeData a : dto.getAttributeData()) {
+            if (a == null || a.getName() == null) continue;
+            if (name.equalsIgnoreCase(a.getName())) return a.getValue();
+        }
+        return null;
+    }
 
     private static String nz(String s) {
         return s == null ? "" : s;

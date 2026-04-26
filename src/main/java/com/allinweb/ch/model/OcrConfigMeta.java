@@ -51,6 +51,15 @@ public final class OcrConfigMeta {
         d.put(
                 "correlation.dedupe_iou",
                 "IoU threshold (0..1). When two OCR words from different passes overlap above this, the higher-confidence one wins. 0.6 is a good default.");
+        d.put(
+                "correlation.ocr_exact_contain_weight",
+                "Score weight for OCR EXACT_CONTAIN candidates inside ElementTextResolver. Default 0.85 means raw OCR text outscores DOM-derived text (scanner.someText 0.40 ×1.5 corroborated = 0.60). Lower to ~0.55 to make DOM-corroborated text always win when both exist — kills orphan rows from OCR misreads (e.g. 'access_oblems').");
+        d.put(
+                "correlation.ocr_overlap_weight",
+                "Score weight for OCR OVERLAP candidates. Default 0.70. Lower to ~0.45 in the DOM-First profile so OVERLAP doesn't outscore corroborated DOM text either.");
+        d.put(
+                "correlation.ocr_proximity_weight",
+                "Score weight for OCR PROXIMITY candidates. Default 0.55. Lower to ~0.35 in the DOM-First profile.");
 
         // engine
         d.put(
@@ -119,6 +128,15 @@ public final class OcrConfigMeta {
         d.put(
                 "output.approved_xpaths",
                 "JSON array of xPaths the user marked as 'approved' in the Test On Current Page review grid. Persists user QA across modal sessions. Read by the editor only — not consumed by the OCR pipeline.");
+        d.put(
+                "output.skip_hidden_inputs",
+                "When true, ElementLocatorRepository.upsertOnPick skips elements with attribute type='hidden'. Recommended ON to keep CSRF tokens / hidden state out of the locator table.");
+        d.put(
+                "output.skip_label_only_elements",
+                "When true, locator persistence skips <label> tags. Recommended ON because labels usually duplicate the data of their associated <input> via aria/for-id — persisting both creates user_number + user_number_2 noise.");
+        d.put(
+                "output.min_defined_name_length",
+                "Minimum character length a definedName must reach before the locator persists. Set to ~3 to drop nameless elements (e.g. bare <a> resolving to 'a'). 0 disables the filter.");
 
         DESCRIPTIONS = Collections.unmodifiableMap(d);
 
@@ -133,6 +151,10 @@ public final class OcrConfigMeta {
         r.put("correlation.proximity_px_input", new Range(0, 500, 5));
         r.put("correlation.proximity_px_button", new Range(0, 500, 5));
         r.put("correlation.dedupe_iou", new Range(0.0, 1.0, 0.05));
+        r.put("correlation.ocr_exact_contain_weight", new Range(0.0, 1.5, 0.05));
+        r.put("correlation.ocr_overlap_weight", new Range(0.0, 1.5, 0.05));
+        r.put("correlation.ocr_proximity_weight", new Range(0.0, 1.5, 0.05));
+        r.put("output.min_defined_name_length", new Range(0, 32, 1));
         r.put("engine.user_defined_dpi", new Range(72, 600, 10));
         r.put("screenshot.pre_capture_delay_ms", new Range(0, 10000, 100));
         r.put("preprocessing.clahe_clip", new Range(0.0, 20.0, 0.5));

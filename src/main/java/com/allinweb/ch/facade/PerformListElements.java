@@ -312,12 +312,28 @@ public class PerformListElements {
                     PageDiagnosticDumper.dumpRectsFromElements(driver, asArray, jsonPath, "page-HP");
                     PageOcrDumper.runAndDump(driver, asArray, jsonPath, "page-HP");
 
-                    ElementTextResolver.resolveAll(
-                            asArray,
-                            java.nio.file.Paths.get(
-                                    jsonPath,
-                                    com.allinweb.ch.util.PageDiagnosticDumper.SUBFOLDER,
-                                    "ocr-correlation-HP.json"));
+                    {
+                        Integer cfgHbId = homeBankingId > 0 ? homeBankingId : null;
+                        Integer cfgHomeUrlId = null;
+                        try {
+                            com.allinweb.ch.component.scene.ARScannedElementScene scene =
+                                    com.allinweb.ch.component.scene.ARScannedElementScene.getInstance();
+                            if (scene != null && scene.getCurrentBotJob() != null) {
+                                cfgHomeUrlId = scene.getCurrentBotJob().getHomeUrlId();
+                            }
+                        } catch (Throwable ignore) {
+                            // scene unavailable — bank-level scope only
+                        }
+                        com.allinweb.ch.model.OcrConfig resolverCfg =
+                                OcrConfigService.getInstance().resolveFor(cfgHbId, cfgHomeUrlId);
+                        ElementTextResolver.resolveAll(
+                                asArray,
+                                java.nio.file.Paths.get(
+                                        jsonPath,
+                                        com.allinweb.ch.util.PageDiagnosticDumper.SUBFOLDER,
+                                        "ocr-correlation-HP.json"),
+                                resolverCfg);
+                    }
 
                     // Persist locators for Roadmap 3 recovery (defined_name now stable post-resolver).
                     try {

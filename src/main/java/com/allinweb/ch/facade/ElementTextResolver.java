@@ -2,6 +2,7 @@ package com.allinweb.ch.facade;
 
 import com.allinweb.ch.model.AttributeData;
 import com.allinweb.ch.model.ElementDTO;
+import com.allinweb.ch.model.OcrConfig;
 import com.allinweb.ch.util.TextSimilarity;
 import com.allinweb.ch.vision.OcrCorrelationResult;
 import com.google.gson.Gson;
@@ -57,12 +58,25 @@ public final class ElementTextResolver {
     private ElementTextResolver() {}
 
     /**
-     * Resolve {@code someText} + {@code definedName} for every element in the batch.
-     * Reads OCR correlation results from {@code ocrCorrelationFile} when present;
-     * falls back to DOM-only sources when OCR is missing or empty.
+     * Legacy entry: resolve with hardcoded weights. Equivalent to {@code resolveAll(elements, file, null)}.
      */
     public static void resolveAll(ElementDTO[] elements, Path ocrCorrelationFile) {
+        resolveAll(elements, ocrCorrelationFile, null);
+    }
+
+    /**
+     * Resolve {@code someText} + {@code definedName} for every element in the batch.
+     * When {@code cfg} is non-null, OCR candidate weights come from the
+     * {@code correlation.ocr_*_weight} params (see {@code OcrConfigDefaults}); the
+     * "DOM-First (Anti-Drift)" profile lowers them so DOM text wins when both exist.
+     * When {@code cfg} is null, the hardcoded defaults (0.85 / 0.70 / 0.55) apply.
+     */
+    public static void resolveAll(ElementDTO[] elements, Path ocrCorrelationFile, OcrConfig cfg) {
         if (elements == null || elements.length == 0) return;
+
+        double exactWeight = cfg == null ? 0.85 : cfg.getDouble("correlation", "ocr_exact_contain_weight", 0.85);
+        double overlapWeight = cfg == null ? 0.70 : cfg.getDouble("correlation", "ocr_overlap_weight", 0.70);
+        double proxWeight = cfg == null ? 0.55 : cfg.getDouble("correlation", "ocr_proximity_weight", 0.55);
 
         Map<String, OcrCorrelationResult> ocrByXPath = readOcrByXPath(ocrCorrelationFile);
 
@@ -85,7 +99,8 @@ public final class ElementTextResolver {
         for (ElementDTO e : elements) {
             if (e == null) continue;
             try {
-                List<TextCandidate> cands = gather(e, elementsById, labelsForId, ocrByXPath);
+                List<TextCandidate> cands =
+                        gather(e, elementsById, labelsForId, ocrByXPath, exactWeight, overlapWeight, proxWeight);
                 applyOcrCorroboration(cands, ocrByXPath.get(e.getXPath()));
                 cands.sort((a, b) -> Double.compare(b.score, a.score));
 
@@ -129,7 +144,10 @@ public final class ElementTextResolver {
             ElementDTO e,
             Map<String, ElementDTO> elementsById,
             Map<String, ElementDTO> labelsForId,
-            Map<String, OcrCorrelationResult> ocrByXPath) {
+            Map<String, OcrCorrelationResult> ocrByXPath,
+            double ocrExactWeight,
+            double ocrOverlapWeight,
+            double ocrProxWeight) {
         List<TextCandidate> out = new ArrayList<>();
 
         // S1 — <label for=this.id>
@@ -184,7 +202,7 @@ public final class ElementTextResolver {
             if (!h.isBlank()) out.add(new TextCandidate(h, 0.30, "name-humanized"));
         }
 
-        // S7 / S8 — OCR
+        // S7 / S8 — OCR (weights from cfg, default 0.85 / 0.70 / 0.55)
         OcrCorrelationResult ocr = ocrByXPath.get(e.getXPath());
         if (ocr != null) {
             String quality = ocr.matchQuality == null ? "" : ocr.matchQuality;
@@ -192,13 +210,13 @@ public final class ElementTextResolver {
             if (!text.isBlank()) {
                 switch (quality) {
                     case "EXACT_CONTAIN":
-                        out.add(new TextCandidate(text, 0.85, "ocr.EXACT_CONTAIN"));
+                        out.add(new TextCandidate(text, ocrExactWeight, "ocr.EXACT_CONTAIN"));
                         break;
                     case "OVERLAP":
-                        out.add(new TextCandidate(text, 0.70, "ocr.OVERLAP"));
+                        out.add(new TextCandidate(text, ocrOverlapWeight, "ocr.OVERLAP"));
                         break;
                     case "PROXIMITY":
-                        out.add(new TextCandidate(text, 0.55, "ocr.PROXIMITY"));
+                        out.add(new TextCandidate(text, ocrProxWeight, "ocr.PROXIMITY"));
                         break;
                     default:
                         // NONE — skip
@@ -207,7 +225,8 @@ public final class ElementTextResolver {
             // Even when no primary OCR word was joined, ocrNearestText might exist for PROXIMITY
             String near = ocr.ocrNearestText == null ? "" : ocr.ocrNearestText;
             if (!near.isBlank() && !"PROXIMITY".equals(quality) && text.isBlank()) {
-                out.add(new TextCandidate(near, 0.45, "ocr.nearest"));
+                // Weighted slightly below PROXIMITY since it's never inside the bbox.
+                out.add(new TextCandidate(near, ocrProxWeight * 0.85, "ocr.nearest"));
             }
         }
 
@@ -309,7 +328,7 @@ public final class ElementTextResolver {
             Map<String, ElementDTO> elementsById,
             Map<String, ElementDTO> labelsForId,
             Map<String, OcrCorrelationResult> ocrByXPath) {
-        return gather(e, elementsById, labelsForId, ocrByXPath);
+        return gather(e, elementsById, labelsForId, ocrByXPath, 0.85, 0.70, 0.55);
     }
 
     @SuppressWarnings("unused")

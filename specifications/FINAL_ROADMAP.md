@@ -59,31 +59,38 @@ All `outputJsonElementDTO` outputs (elementDTO-HP/-PS/-PG, AI-ElementDTO-*) also
 
 ---
 
-## 🟡 Half-done — DOM-First resolver knobs (started 2026-04-26)
+## ✅ DOM-First resolver knobs — fully wired (2026-04-26)
 
-User asked to make these resolver-quality fixes configurable so they could create a tuned profile via the UI:
+User asked to make these resolver-quality fixes configurable so a tuned profile can be created via the UI:
 - Lower OCR weights so DOM text wins when both exist (fixes orphan rows like `access_oblems` / `forgotten_password2` / `minimum_req_te`).
 - Skip `<input type="hidden">` (CSRF tokens) and `<label>`-only elements in `upsertOnPick`.
 - Refuse to persist locators with `definedName` shorter than N chars.
 
-### What's done
-- `OcrConfigDefaults.CANONICAL` extended with 6 new entries (no behavior change — defaults match current hardcoded values):
+### What landed end-to-end
+- `OcrConfigDefaults.CANONICAL` carries 6 new canonical params (defaults match current hardcoded values — no behavior change):
   - `correlation.ocr_exact_contain_weight` (double, default 0.85)
   - `correlation.ocr_overlap_weight` (double, default 0.70)
   - `correlation.ocr_proximity_weight` (double, default 0.55)
   - `output.skip_hidden_inputs` (bool, default false)
   - `output.skip_label_only_elements` (bool, default false)
   - `output.min_defined_name_length` (int, default 0)
+- `OcrConfigMeta` carries descriptions for all 6 + `RANGES` for the 3 doubles + 1 int.
+- `ElementTextResolver` has `resolveAll(ElementDTO[], Path, OcrConfig)` overload that reads the 3 OCR weights from cfg. The legacy 2-arg signature delegates with cfg=null.
+- `ElementLocatorRepository.upsertOnPick` looks up the active cfg via `OcrConfigService.resolveFor(hbId, homeUrlId)` and applies the three skip filters before any DB write. Skips are logged at DEBUG.
+- `SimpleWebSocketServer.SEARCH_TOOL` (both branches) and `PerformListElements.runScan` resolve cfg once and pass it to `ElementTextResolver.resolveAll(...)` so OCR weight knobs take effect at pick time.
 
-### What's NOT done — pick up here next session
-1. **`OcrConfigMeta.java`** — add `DESCRIPTIONS` entries for the 6 new keys + `RANGES` for the 3 doubles + 1 int. Otherwise the editor renders them with no help text.
-2. **`ElementTextResolver`** — add overload `resolveAll(ElementDTO[], Path, OcrConfig)`. Inside `gather`, replace hardcoded `0.85 / 0.70 / 0.55` with `cfg.getDouble("correlation", "ocr_exact_contain_weight", 0.85)` (and the other two). The legacy `resolveAll(elements, path)` delegates with `cfg=null`.
-3. **`ElementLocatorRepository.upsertOnPick`** — at the top, look up `OcrConfig` via `OcrConfigService.getInstance().resolveFor(hbId, homeUrlId)` and apply three filters before the existing logic:
-   - skip when `cfg.getBool("output", "skip_hidden_inputs", false)` AND `getAttribute(dto, "type")` equals `"hidden"`.
-   - skip when `cfg.getBool("output", "skip_label_only_elements", false)` AND `dto.getTagName()` is `"label"`.
-   - skip when `cfg.getInt("output", "min_defined_name_length", 0)` is positive AND `dto.getDefinedName().length()` is below it.
-4. **Wire-in** — `SimpleWebSocketServer.SEARCH_TOOL` (both branches) and `PerformListElements.runScan` need to resolve cfg once and pass it to `ElementTextResolver.resolveAll(...)`. The repo handles its own cfg lookup so no extra plumbing there.
-5. **User instruction** — once the 4 above are wired, the user opens OCR Config → Save As New → name it **"DOM-First (Anti-Drift)"** → tab `correlation` set the 3 ocr_*_weight to `0.55 / 0.45 / 0.35`, tab `output` set `skip_hidden_inputs=true`, `skip_label_only_elements=true`, `min_defined_name_length=3` → Save.
+### How to use it
+1. Open **OCR Config** on the AR Web Factory page.
+2. Click **Save As New**, name the profile e.g. `DOM-First (Anti-Drift)`.
+3. Tab **correlation** → set:
+   - `ocr_exact_contain_weight = 0.55`
+   - `ocr_overlap_weight = 0.45`
+   - `ocr_proximity_weight = 0.35`
+4. Tab **output** → set:
+   - `skip_hidden_inputs = true`
+   - `skip_label_only_elements = true`
+   - `min_defined_name_length = 3`
+5. Click **Save**. Next Page Scanner / hover-pick uses the new values.
 
 ### Quality bug evidence (smoke output 2026-04-26)
 The default profile produced these orphan rows that the DOM-First profile is designed to eliminate:
