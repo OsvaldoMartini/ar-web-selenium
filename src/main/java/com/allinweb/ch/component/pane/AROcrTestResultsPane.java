@@ -45,6 +45,7 @@ public class AROcrTestResultsPane extends ARPane {
     private TableView<OcrTestResultRow> resultsTable;
     private ImageView annotatedImage;
     private Label imageHint;
+    private TextField xPathField;
     private Button markAllButton;
     private Button clearAllButton;
     private Button closeButton;
@@ -92,6 +93,11 @@ public class AROcrTestResultsPane extends ARPane {
             resultsTable.setItems(rows == null ? FXCollections.observableArrayList() : FXCollections.observableArrayList(rows));
             updateApprovedCount();
             loadImage(annotatedImagePath);
+            // Reset xPath field; auto-select first row so the user immediately sees something there.
+            if (xPathField != null) xPathField.clear();
+            if (rows != null && !rows.isEmpty()) {
+                resultsTable.getSelectionModel().select(0);
+            }
         });
     }
 
@@ -231,6 +237,16 @@ public class AROcrTestResultsPane extends ARPane {
         split.setDividerPositions(0.55);
         VBox.setVgrow(split, Priority.ALWAYS);
 
+        xPathField = new TextField();
+        xPathField.setEditable(false);
+        xPathField.setPromptText("Click any row above to see its full xPath here (selectable / copyable).");
+        xPathField.setStyle("-fx-font-family: 'Consolas', monospace; -fx-font-size: 11px;");
+        Label xpLabel = new Label("Full xPath:");
+        xpLabel.setStyle("-fx-font-weight: bold;");
+        HBox xpRow = new HBox(8, xpLabel, xPathField);
+        xpRow.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(xPathField, Priority.ALWAYS);
+
         approvedCounterLabel = new Label("Approved: 0 / 0");
         approvedCounterLabel.setStyle("-fx-font-weight: bold;");
 
@@ -241,12 +257,18 @@ public class AROcrTestResultsPane extends ARPane {
         HBox bottom = new HBox(8, approvedCounterLabel, markAllButton, clearAllButton, closeButton);
         bottom.setAlignment(Pos.CENTER_LEFT);
 
-        root = new VBox(10, headerLabel, split, bottom);
+        root = new VBox(10, headerLabel, split, xpRow, bottom);
         root.setPadding(new Insets(14));
     }
 
     @Override
     public void initUIBehaviour() {
+        resultsTable.getSelectionModel().selectedItemProperty().addListener((obs, old, sel) -> {
+            if (sel != null && xPathField != null) {
+                xPathField.setText(sel.getxPath());
+                xPathField.positionCaret(0);
+            }
+        });
         markAllButton.setOnAction(e -> {
             for (OcrTestResultRow r : resultsTable.getItems()) r.setApproved(true);
             updateApprovedCount();
