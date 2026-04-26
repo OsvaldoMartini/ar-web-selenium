@@ -455,6 +455,15 @@ public class SimpleWebSocketServer {
                     }
                     alreadySentMgsSocket = true;
                     break;
+                case "CLEAR_HOVER_PICK_FILE": {
+                    // Picker UI's "Clear Grid All" button when Hover Pick mode is on.
+                    // Truncates elementDTO-HP.json + AI-ElementDTO-HP.json so the next pick
+                    // starts a fresh cumulative list.
+                    String hpClearPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+                    performMessage.clearHoverPickJson(hpClearPath);
+                    alreadySentMgsSocket = true;
+                    break;
+                }
                 case "SEARCH_TOOL":
                     if (sessionIdToSend.equals("scannerGrid")) {
                         // 1. UI gets the raw DTOs immediately (resolver enrichment is async-from-UI's POV).
@@ -499,10 +508,12 @@ public class SimpleWebSocketServer {
                             log.warn("Locator upsert failed (non-fatal): {}", locEx.getMessage());
                         }
 
-                        // 5. Persist enriched DTOs.
+                        // 5. Persist enriched DTOs in CUMULATIVE mode — each hover-pick appends
+                        // to the running list (deduped by xPath). The picker UI clears the file
+                        // via the new "Clear Grid All" button when Hover Pick mode is on.
                         List<String> excludeList = List.of("optional", "blockMarked", "editMode");
                         performMessage.outputJsonElementDTO(
-                                splitDTO.getElementDetails(), excludeList, "elementDTO-HP", jsonPath);
+                                splitDTO.getElementDetails(), excludeList, "elementDTO-HP", jsonPath, true);
                         excludeList = List.of(
                                 "optional",
                                 "blockMarked",
@@ -517,7 +528,7 @@ public class SimpleWebSocketServer {
                                 "attributeType",
                                 "attributeValue");
                         performMessage.outputJsonElementDTO(
-                                splitDTO.getElementDetails(), excludeList, "AI-ElementDTO-HP", jsonPath);
+                                splitDTO.getElementDetails(), excludeList, "AI-ElementDTO-HP", jsonPath, true);
                     } else if (sessionIdToSend.equals("mobile-return-server")) {
                         String jsonData = gson.toJson(splitDTO);
                         webSocketSessionManager.sendMessageJson(
