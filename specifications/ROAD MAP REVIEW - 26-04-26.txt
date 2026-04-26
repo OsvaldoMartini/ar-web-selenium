@@ -1,0 +1,196 @@
+show me what is missing from our roadmaps                                                                                                                           
+  if I run now i can get all features implemented?                                                                                                                    
+                                                                                                                                                                      
+● Roadmap status — full audit                                                                                                                                         
+                                                                                                                                                                      
+  Roadmap 1 — Page Diagnostics ✅ Done                                                                                                                                
+                                                                                                                                                                      
+  ┌───────────────────────────────────────────────────────────────────────────┬────────┐                                                                              
+  │                                Capability                                 │ Status │                                                                              
+  ├───────────────────────────────────────────────────────────────────────────┼────────┤
+  │ page-HP.html, -live.html, -meta.json, -shadow.json, -rects.json           │ ✅     │
+  ├───────────────────────────────────────────────────────────────────────────┼────────┤
+  │ page-HP-iframes.json + per-iframe HTML                                    │ ✅     │
+  ├───────────────────────────────────────────────────────────────────────────┼────────┤
+  │ page-HP-overlays.json (cookie/consent/modal fingerprint)                  │ ✅     │
+  ├───────────────────────────────────────────────────────────────────────────┼────────┤
+  │ getBoundingClientRect, elementFromPoint occlusion, stacking-context chain │ ✅     │
+  ├───────────────────────────────────────────────────────────────────────────┼────────┤
+  │ iframe-aware xPath resolution in JS_RECTS (same-origin)                   │ ✅     │
+  ├───────────────────────────────────────────────────────────────────────────┼────────┤
+  │ Wired into hoverPick + Page Scanner + SEARCH_TOOL                         │ ✅     │
+  ├───────────────────────────────────────────────────────────────────────────┼────────┤
+  │ All outputJsonElementDTO outputs redirected to page_diagnostics/          │ ✅     │
+  └───────────────────────────────────────────────────────────────────────────┴────────┘
+
+  Nothing pending.
+
+  Roadmap 2 — OCR + CV Correlation ✅ Done (2a + 2b)
+
+  ┌───────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────────────────────────────────────┐
+  │                          Capability                           │                                            Status                                             │
+  ├───────────────────────────────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ Viewport screenshot via Selenium                              │ ✅                                                                                            │
+  ├───────────────────────────────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ Tess4J full-image OCR (eng+ita+fra+deu, PSM_AUTO)             │ ✅                                                                                            │
+  ├───────────────────────────────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ OcrDomCorrelator with EXACT_CONTAIN / OVERLAP / PROXIMITY /   │ ✅                                                                                            │
+  │ NONE                                                          │                                                                                               │
+  ├───────────────────────────────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ CLAHE preprocessing pass                                      │ ✅ (config-gated)                                                                             │
+  ├───────────────────────────────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ Red / blue / any button detection + per-ROI OCR               │ ✅ (config-gated)                                                                             │
+  ├───────────────────────────────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ IoU dedupe                                                    │ ✅                                                                                            │
+  ├───────────────────────────────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ page-HP-annotated.png debug overlay                           │ ✅ (config-gated)                                                                             │
+  ├───────────────────────────────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ ColorMapper (4 HSV op modes)                                  │ ✅                                                                                            │
+  ├───────────────────────────────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ Per-tag proximity thresholds (input / button / global)        │ ✅                                                                                            │
+  ├───────────────────────────────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ Full-page scroll-stitched screenshot                          │ 📋 Pending — config knob exists, not wired. Footer elements (y > viewport) currently come     │
+  │ (screenshot.scope=full_page)                                  │ back as NONE.                                                                                 │
+  ├───────────────────────────────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ Cross-platform OCR / OpenCV natives (mac .dylib, linux .so)   │ 📋 Pending — Windows-only DLL bundled.                                                        │
+  └───────────────────────────────────────────────────────────────┴───────────────────────────────────────────────────────────────────────────────────────────────┘
+
+  Roadmap 3 — Best-text + DB fallback locator 📋 NOT STARTED
+
+  This entire roadmap is unimplemented. Nothing works in this dimension yet.
+
+  ┌───────────────────────────────────────────────────────────────────┬────────┐
+  │                            Capability                             │ Status │
+  ├───────────────────────────────────────────────────────────────────┼────────┤
+  │ TextSimilarity (Levenshtein / Jaro-Winkler / token-set)           │ ❌     │
+  ├───────────────────────────────────────────────────────────────────┼────────┤
+  │ ElementTextResolver with 9-source text ranking                    │ ❌     │
+  ├───────────────────────────────────────────────────────────────────┼────────┤
+  │ OCR-corroboration ×1.5 score multiplier                           │ ❌     │
+  ├───────────────────────────────────────────────────────────────────┼────────┤
+  │ element_locator + element_locator_rename DB tables                │ ❌     │
+  ├───────────────────────────────────────────────────────────────────┼────────┤
+  │ ElementLocatorRepository + ElementRecoveryService.findOrRecover() │ ❌     │
+  ├───────────────────────────────────────────────────────────────────┼────────┤
+  │ Wire at SEARCH_TOOL pick time + bot-run resolution                │ ❌     │
+  ├───────────────────────────────────────────────────────────────────┼────────┤
+  │ Cross-repo: AR Web Engine consumes the recovery path              │ ❌     │
+  └───────────────────────────────────────────────────────────────────┴────────┘
+
+  Impact today: when an xPath stops resolving (bank restructures the page), the bot fails. There is no fuzzy-text or coordinate-based recovery yet. Roadmap 2's OCR
+  results are written to disk but not consumed by anything programmatic.
+
+  Roadmap 4 — OCR Config System ✅ Done (4a + 4b + 4c)
+
+  ┌─────────────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────┐
+  │                                       Capability                                        │                               Status                                │
+  ├─────────────────────────────────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
+  │ Migration M20260427_OcrConfig for all 4 dialects                                        │ ✅                                                                  │
+  ├─────────────────────────────────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
+  │ MigrationRunner runs on every boot (was gated to first-time only)                       │ ✅ (fixed earlier this week)                                        │
+  ├─────────────────────────────────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
+  │ Default profile seeded with 23 canonical params                                         │ ✅                                                                  │
+  ├─────────────────────────────────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
+  │ OcrConfigService.reconcileDefaultProfile() on boot — adds new canonical params          │ ✅                                                                  │
+  │ automatically                                                                           │                                                                     │
+  ├─────────────────────────────────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
+  │ Per-scope resolution: home_url_id > homebanking_id > default                            │ ✅                                                                  │
+  ├─────────────────────────────────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
+  │ OcrConfig threaded through OCR pipeline                                                 │ ✅                                                                  │
+  ├─────────────────────────────────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
+  │ Modal with profiles table (Name/Scope/Created/Modified)                                 │ ✅                                                                  │
+  ├─────────────────────────────────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
+  │ Auto profile-name versioning (v1 → v2 → …)                                              │ ✅                                                                  │
+  ├─────────────────────────────────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
+  │ Type-aware controls (CheckBox / Spinner / ComboBox / TextField / TextArea)              │ ✅                                                                  │
+  ├─────────────────────────────────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
+  │ Per-param tooltips from OcrConfigMeta.DESCRIPTIONS                                      │ ✅                                                                  │
+  ├─────────────────────────────────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
+  │ ComboBox enums for psm_mode, scope, log_level                                           │ ✅                                                                  │
+  ├─────────────────────────────────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
+  │ + Add template op helper for color_mapping.ops                                          │ ✅                                                                  │
+  ├─────────────────────────────────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
+  │ Test On Current Page (offline preview)                                                  │ ✅                                                                  │
+  ├─────────────────────────────────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
+  │ NEW PARAMS DETECTED blue banner on profile load                                         │ ✅                                                                  │
+  ├─────────────────────────────────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
+  │ Profile Name cannot be repeated. friendly error                                         │ ✅                                                                  │
+  ├─────────────────────────────────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
+  │ specifications/OCR_CONFIG_PARAMS.md reference doc                                       │ ✅                                                                  │
+  ├─────────────────────────────────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
+  │ Visual HSV color-picker widget for color_mapping.ops                                    │ 📋 Pending (small, ~100 LOC) — currently JSON textarea + template   │
+  │                                                                                         │ helper                                                              │
+  ├─────────────────────────────────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
+  │ output.log_level is consumed by code                                                    │ 📋 Pending — knob persists but nothing reads it                     │
+  ├─────────────────────────────────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
+  │ Profile export/import as JSON file                                                      │ 📋 Nice-to-have, deferred                                           │
+  └─────────────────────────────────────────────────────────────────────────────────────────┴─────────────────────────────────────────────────────────────────────┘
+
+  ---
+  "If I run now, will all features work?"
+
+  Yes for everything green-checked above. Specifically:
+
+  ✅ Migration creates the OCR config tables + seeds default profile.
+  ✅ Page Scanner button writes all Roadmap 1 + Roadmap 2 diagnostics into <PATH_DB>/page_diagnostics/.
+  ✅ OCR Config modal opens, all 23 params are editable with the right control type, tooltips work.
+  ✅ Test On Current Page button reruns OCR offline against cached files.
+  ✅ Save As New creates a new profile, auto-bumps version on clash, takes effect on next pick.
+  ✅ NEW PARAMS DETECTED banner appears if you load a stale profile after a code update that adds new canonical params.
+  ✅ ColorMapper ops work end-to-end — append a template, edit HSV ranges, Save As New, next Page Scanner uses them.
+
+  What WON'T work yet (in order of importance):
+
+  🚫 Roadmap 3 — locator drift recovery. If a bank renames the password input from id="password" to id="pwd", the bot will fail to find it. There's no fuzzy-text or
+  OCR-based fallback yet. This is the biggest gap and the highest-value thing left.
+
+  🚫 Footer / off-screen elements get NONE. The iam-loginapp validation showed footer items at y≥926 returning NONE correlation because the screenshot is
+  viewport-only. Wire screenshot.scope=full_page to a scroll-stitching capture to fix.
+
+  🚫 Visual HSV picker. You can edit color-mapping ops as JSON (template helper makes it bearable), but no slider-based picker. Not blocking — just polish.
+
+  🚫 macOS / Linux runtime. Windows-only natives bundled. Cross-platform installs would fail on the OpenCV DLL load.
+
+  🚫 output.log_level is decorative right now.
+
+  ---
+  Suggested order from here
+
+  1. Roadmap 3 — biggest payoff. Makes the scanner survive bank rebrands. Roadmap 2's OCR output finally gets consumed.
+  2. Full-page scroll stitch for screenshot.scope=full_page — small change, closes a known accuracy gap.
+  3. Visual HSV picker — UX polish, low priority.
+  4. Cross-platform natives — defer until a non-Windows install is on the table.
+
+  Want me to scope Roadmap 3 into phases like 4a/4b/4c so we can ship it incrementally?
+  
+  
+  
+  
+  
+  NEXT STESP DONE
+  
+  I understood what you are doing
+
+
+  If you want more, three add-ons we can wire (rank by usefulness)
+
+  1. Write ocr-test.json + ocr-correlation-test.json alongside the originals so you can diff in your editor. ~10 lines.
+  2. Render page-HP-annotated-test.png when output.save_annotated_png=true in the form. ~5 lines (just call AnnotatedImageRenderer.render after correlation).
+  3. Per-element diff table in the modal: a popup or side-panel comparing saved-profile vs. current-form correlation row-by-row, colored green/yellow/red for
+  improved/same/regressed. ~80 lines, biggest UX value.
+
+I think 3 is the best
+mY GOAL IS
+
+iF I ACNA RAN THE test  get the blus incication and antone grid wiht these ressukte test  and I can see in a grid the best words from the lext what undestood and putting the rigr th good ones I can pick the image  and see in advance what i am gtting
+
+why this...
+
+when isee lets say password  it was well resolved
+
+and click ath at end and togle this as done   and good to go to say that it was a excellent text  and the element found
+
+
+thi swill my my end goal
+
+and all the add ons i can get and colors indicators will increase  the value of the ocr work

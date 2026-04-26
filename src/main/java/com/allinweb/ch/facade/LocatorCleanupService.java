@@ -88,8 +88,10 @@ public final class LocatorCleanupService {
         for (ElementLocatorEntity loc : all) {
             String name = loc.getDefinedName();
             if (name == null || name.length() >= 3) continue;
-            hits.putIfAbsent(loc.getId(), new OrphanCandidate(
-                    loc, "SHORT_NAME", "definedName length " + name.length() + " < 3 (bare tag fallback)"));
+            hits.putIfAbsent(
+                    loc.getId(),
+                    new OrphanCandidate(
+                            loc, "SHORT_NAME", "definedName length " + name.length() + " < 3 (bare tag fallback)"));
         }
 
         // 2. LABEL_TAG
@@ -127,8 +129,7 @@ public final class LocatorCleanupService {
                 if (bn == null || bn.isBlank()) continue;
                 if (an.equalsIgnoreCase(bn)) continue;
 
-                double ratio =
-                        Math.max(TextSimilarity.levenshteinRatio(an, bn), TextSimilarity.tokenSetRatio(an, bn));
+                double ratio = Math.max(TextSimilarity.levenshteinRatio(an, bn), TextSimilarity.tokenSetRatio(an, bn));
                 if (ratio < FUZZY_THRESHOLD || ratio >= 1.0) continue;
 
                 int aCount = a.getPickCount() == null ? 0 : a.getPickCount();

@@ -174,9 +174,10 @@ public class AROcrConfigPane extends ARPane {
         saveAsNewButton = new Button("Save As New");
         testButton = new Button("Test On Current Page");
         cleanOrphansButton = new Button("Clean Orphan Locators");
-        cleanOrphansButton.setTooltip(new Tooltip(
-                "Scan the element_locator table for this scope and remove rows that are clearly orphans"
-                        + " (short slugs, <label> tags, CSRF-like random tokens, fuzzy duplicates with lower pick_count)."));
+        cleanOrphansButton.setTooltip(
+                new Tooltip(
+                        "Scan the element_locator table for this scope and remove rows that are clearly orphans"
+                                + " (short slugs, <label> tags, CSRF-like random tokens, fuzzy duplicates with lower pick_count)."));
         deleteButton = new Button("Delete");
         closeButton = new Button("Close");
         statusLabel = new Label();
@@ -185,8 +186,8 @@ public class AROcrConfigPane extends ARPane {
         statusLabel.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(statusLabel, Priority.ALWAYS);
 
-        HBox buttons =
-                new HBox(8, saveButton, saveAsNewButton, testButton, cleanOrphansButton, deleteButton, closeButton, statusLabel);
+        HBox buttons = new HBox(
+                8, saveButton, saveAsNewButton, testButton, cleanOrphansButton, deleteButton, closeButton, statusLabel);
         buttons.setAlignment(Pos.CENTER_LEFT);
 
         GridPane form = new GridPane();
