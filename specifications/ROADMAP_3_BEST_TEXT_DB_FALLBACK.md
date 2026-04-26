@@ -1,8 +1,60 @@
 # ROADMAP 3 — Best-text extraction for `someText` / `definedName` + DB fallback mapping
 
-**Status:** draft — DB schema needs approval before build
+**Status:** ✅ Phase 3a delivered (text resolver, no DB). 📋 Phase 3b (locator tables) + Phase 3c (recovery on xPath drift) pending.
 **Owner:** Osvaldo Martini
 **Depends on:** Roadmaps 1 + 2 (OCR scores feed into candidate ranking)
+
+## Phase 3a delivered (2026-04-26)
+
+- `com.allinweb.ch.util.TextSimilarity` — Levenshtein distance + ratio, token-set Jaccard ratio, `humanize` (camelCase / snake / kebab → "Title Case"), `slug`, `uniquify`.
+- `com.allinweb.ch.facade.ElementTextResolver.resolveAll(ElementDTO[], Path)` — gathers candidates from 7 sources, applies OCR-corroboration ×1.5 multiplier (Roadmap 2 reminder rule), picks the highest-scoring text, mutates `someText` and `definedName` in place.
+
+### Sources implemented
+
+| # | Source | Score | Notes |
+|---|---|---|---|
+| 1 | `<label for=this.id>` resolved within the same pick batch | 1.00 | Highest weight — canonical a11y pairing |
+| 2a | `aria-label` attribute | 1.00 | |
+| 2b | `aria-labelledby` resolved to target's `someText` within the batch | 0.95 | |
+| 3 | Scanner-provided `someText` (whatever the JS scanner extracted) | 0.40 | Medium — defers to label / aria when present, but wins over the fallback humanizer when no other source applies |
+| 4a | `placeholder` | 0.65 | |
+| 4b | `title` | 0.60 | |
+| 4c | `alt` | 0.60 | |
+| 4d | `value` (when an input has a default value) | 0.45 | |
+| 5a | Humanized `id` | 0.30 | "firstName" → "First Name" |
+| 5b | Humanized `name` | 0.30 | |
+| 7 | OCR `EXACT_CONTAIN` | 0.85 | From `ocr-correlation-HP.json` |
+| 8 | OCR `OVERLAP` | 0.70 | |
+| 9 | OCR `PROXIMITY` | 0.55 | |
+
+OCR `EXACT_CONTAIN` / `OVERLAP` / `PROXIMITY` text is also used as a corroborator: when its tokens / Levenshtein agree (≥ 0.85 ratio) with any non-OCR candidate, that candidate's score is multiplied by 1.5. This ensures DOM-derived "Password" beats raw OCR misreads like "password2" while still benefiting from the visual confirmation.
+
+### Sources deferred
+
+- **6 — Preceding visible text node within N px**: requires a JS scanner extension to surface; not crucial when `<label for>` works.
+- **9 — Ancestor card/section title**: this is exactly the bleed-through we're fighting against in the BancaStato data; intentionally not a candidate source. The scanner-provided `someText` of card ancestors keeps showing through, but those ancestor elements aren't the user-facing pick targets.
+
+### `definedName` generation
+
+After `someText` is resolved:
+1. `slug(someText)` → snake_case ASCII, max 64 chars (`"User Number"` → `"user_number"`).
+2. `uniquify` against an in-batch `Set<String>` to avoid collisions: `password`, `password_2`, `password_3`, …
+3. When every candidate is empty (e.g. an unattributed `<div>`), fall back to `slug(tagName + "_" + id-or-name)` → e.g. `div_iamcontentcontainer`.
+
+### Wire points
+
+`SimpleWebSocketServer.SEARCH_TOOL` (both `scannerGrid` and `mobile-return-server` branches) and `PerformListElements.runScan` were reordered:
+
+```
+1. webSocket.send(splitDTO)   // raw, fast — UI sees immediately
+2. PageDiagnosticDumper.dumpRectsFromElements
+3. PageOcrDumper.runAndDump   // writes ocr-correlation-HP.json
+4. ElementTextResolver.resolveAll   // mutates DTOs in place
+5. outputJsonElementDTO("elementDTO-HP" | "elementDTO-PS")
+6. outputJsonElementDTO("AI-ElementDTO-HP" | "AI-ElementDTO-PS")
+```
+
+The persisted `elementDTO-*.json` and `AI-ElementDTO-*.json` files now reflect the resolver's output. The WebSocket message to the UI grid still uses the pre-resolution snapshot; updating the live UI grid would require a follow-up refresh message and is not in scope for 3a.
 
 ## Goal
 

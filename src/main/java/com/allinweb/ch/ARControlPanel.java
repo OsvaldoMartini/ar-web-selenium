@@ -364,6 +364,8 @@ public class ARControlPanel extends Application {
                         performInitializer.initializeMainDatabasePostgres();
                     }
                 }
+                // Run pending schema migrations on every boot (idempotent by name).
+                performInitializer.initialize();
             } catch (Exception error) {
                 log.error("Error connection with Postgres: " + error.getMessage());
             }
@@ -405,6 +407,8 @@ public class ARControlPanel extends Application {
                     //                                    performDataBase.updateDatabaseSchema(dbUrl, dbFile);
 
                     log.info(String.format("Database '%s' already exists!", dbFile.getName()));
+                    // Run pending schema migrations on every boot (idempotent by name).
+                    performInitializer.initialize();
                 }
 
             } catch (Exception error) {
@@ -447,6 +451,8 @@ public class ARControlPanel extends Application {
                     //                                    performDataBase.updateDatabaseSchema(dbUrl, dbFile);
 
                     log.info(String.format("Database '%s' already exists!", dbFile.getName()));
+                    // Run pending schema migrations on every boot (idempotent by name).
+                    performInitializer.initialize();
                 }
 
             } catch (Exception error) {

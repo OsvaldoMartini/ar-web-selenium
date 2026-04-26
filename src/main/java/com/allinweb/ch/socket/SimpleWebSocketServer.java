@@ -457,11 +457,30 @@ public class SimpleWebSocketServer {
                     break;
                 case "SEARCH_TOOL":
                     if (sessionIdToSend.equals("scannerGrid")) {
+                        // 1. UI gets the raw DTOs immediately (resolver enrichment is async-from-UI's POV).
                         String jsonData = gson.toJson(splitDTO);
                         webSocketSessionManager.sendMessageJson(homeBankingId, sessionIdToSend, jsonData, "addPickOne");
 
-                        List<String> excludeList = List.of("optional", "blockMarked", "editMode");
                         String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+
+                        // 2. DOM rects (needed by OCR correlator).
+                        PageDiagnosticDumper.dumpRectsFromElements(
+                                performActions.getCurrentDriver(), splitDTO.getElementDetails(), jsonPath, "page-HP");
+
+                        // 3. OCR pipeline writes ocr-correlation-HP.json that the resolver consumes.
+                        PageOcrDumper.runAndDump(
+                                performActions.getCurrentDriver(), splitDTO.getElementDetails(), jsonPath, "page-HP");
+
+                        // 4. Resolve someText + definedName from DOM + OCR (mutates DTOs in place).
+                        ElementTextResolver.resolveAll(
+                                splitDTO.getElementDetails(),
+                                java.nio.file.Paths.get(
+                                        jsonPath,
+                                        com.allinweb.ch.util.PageDiagnosticDumper.SUBFOLDER,
+                                        "ocr-correlation-HP.json"));
+
+                        // 5. Persist enriched DTOs.
+                        List<String> excludeList = List.of("optional", "blockMarked", "editMode");
                         performMessage.outputJsonElementDTO(
                                 splitDTO.getElementDetails(), excludeList, "elementDTO-HP", jsonPath);
                         excludeList = List.of(
@@ -479,19 +498,27 @@ public class SimpleWebSocketServer {
                                 "attributeValue");
                         performMessage.outputJsonElementDTO(
                                 splitDTO.getElementDetails(), excludeList, "AI-ElementDTO-HP", jsonPath);
-
-                        PageDiagnosticDumper.dumpRectsFromElements(
-                                performActions.getCurrentDriver(), splitDTO.getElementDetails(), jsonPath, "page-HP");
-
-                        PageOcrDumper.runAndDump(
-                                performActions.getCurrentDriver(), splitDTO.getElementDetails(), jsonPath, "page-HP");
                     } else if (sessionIdToSend.equals("mobile-return-server")) {
                         String jsonData = gson.toJson(splitDTO);
                         webSocketSessionManager.sendMessageJson(
                                 homeBankingId, "mobileScannerGrid", jsonData, "addPickOne");
 
-                        List<String> excludeList = List.of("optional", "blockMarked", "editMode");
                         String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+
+                        PageDiagnosticDumper.dumpRectsFromElements(
+                                performActions.getCurrentDriver(), splitDTO.getElementDetails(), jsonPath, "page-HP");
+
+                        PageOcrDumper.runAndDump(
+                                performActions.getCurrentDriver(), splitDTO.getElementDetails(), jsonPath, "page-HP");
+
+                        ElementTextResolver.resolveAll(
+                                splitDTO.getElementDetails(),
+                                java.nio.file.Paths.get(
+                                        jsonPath,
+                                        com.allinweb.ch.util.PageDiagnosticDumper.SUBFOLDER,
+                                        "ocr-correlation-HP.json"));
+
+                        List<String> excludeList = List.of("optional", "blockMarked", "editMode");
                         performMessage.outputJsonElementDTO(
                                 splitDTO.getElementDetails(), excludeList, "elementDTO-HP", jsonPath);
                         excludeList = List.of(
@@ -509,12 +536,6 @@ public class SimpleWebSocketServer {
                                 "attributeValue");
                         performMessage.outputJsonElementDTO(
                                 splitDTO.getElementDetails(), excludeList, "AI-ElementDTO-HP", jsonPath);
-
-                        PageDiagnosticDumper.dumpRectsFromElements(
-                                performActions.getCurrentDriver(), splitDTO.getElementDetails(), jsonPath, "page-HP");
-
-                        PageOcrDumper.runAndDump(
-                                performActions.getCurrentDriver(), splitDTO.getElementDetails(), jsonPath, "page-HP");
                     }
                     alreadySentMgsSocket = true;
                     break;

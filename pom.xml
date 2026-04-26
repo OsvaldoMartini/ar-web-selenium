@@ -242,6 +242,21 @@
             <artifactId>openai-java</artifactId>
             <version>0.30.0</version>
         </dependency>
+
+        <!-- Tesseract OCR (bundles native leptonica + tesseract) -->
+        <dependency>
+            <groupId>net.sourceforge.tess4j</groupId>
+            <artifactId>tess4j</artifactId>
+            <version>5.13.0</version>
+        </dependency>
+
+        <!-- OpenCV Java bindings (install-file'd locally: see README);
+             native DLL loaded at runtime by vision.ocr.OpenCvNativeLoader -->
+        <dependency>
+            <groupId>org.opencv</groupId>
+            <artifactId>opencv</artifactId>
+            <version>4.10.0</version>
+        </dependency>
         <!-- JUnit 5 API and Engine -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>

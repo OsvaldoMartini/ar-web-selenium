@@ -5,6 +5,7 @@ import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
+import com.allinweb.ch.component.scene.AROcrConfigScene;
 import com.allinweb.ch.component.scene.ARScannedElementScene;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.driver.ARWebDriver;
@@ -168,6 +169,7 @@ public class ARScannedElementPane extends ARPane {
     private Button configureButton;
     private Button stopBotJobButton;
     private Button pageScannerButton;
+    private Button ocrConfigButton;
     private Button pluginUpdateButton;
     private Button updatePluginsButton;
     private Label lblPluginHint;
@@ -1194,6 +1196,9 @@ public class ARScannedElementPane extends ARPane {
                 "Clone", ARConstants.SPACE_L, ARConstants.ICON_TICK, ARConstants.SPACE_SM, new Insets(5));
         pageScannerButton = builder.buildButton(
                 "Page Scanner", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
+        ocrConfigButton =
+                builder.buildButton("", ARConstants.SPACE_ZERO, "/cogwheel.png", ARConstants.SPACE_M, new Insets(5.0D));
+        ocrConfigButton.setTooltip(new Tooltip("OCR Configuration"));
 
         pluginUpdateButton = buildPluginUpdateButton();
         updatePluginsButton = buildUpdatePluginsButton();
@@ -1430,7 +1435,9 @@ public class ARScannedElementPane extends ARPane {
             gridPaneTop.setHgap(10); // Set horizontal gap between columns
 
             // Add buttons and checkbox to the GridPane
-            gridPaneTop.add(pageScannerButton, 0, 0);
+            HBox pageScannerRow = new HBox(6, pageScannerButton, ocrConfigButton);
+            pageScannerRow.setAlignment(Pos.CENTER_LEFT);
+            gridPaneTop.add(pageScannerRow, 0, 0);
             gridPaneTop.add(pluginUpdateButton, 1, 0);
             gridPaneTop.add(updatePluginsButton, 2, 0);
             gridPaneTop.add(searchTermsLabel, 3, 0);
@@ -2393,6 +2400,12 @@ public class ARScannedElementPane extends ARPane {
 
         pageScannerButton.setOnAction(e -> searchTermsBtn(
                 null, matchRulesField == null ? null : matchRulesField.getText().trim()));
+
+        ocrConfigButton.setOnAction(e -> {
+            Integer hbId = currentBotJob == null ? null : currentBotJob.getHomeBankingId();
+            Integer urlId = currentBotJob == null ? null : currentBotJob.getHomeUrlId();
+            AROcrConfigScene.getInstance().openFor(hbId, urlId);
+        });
 
         searchButton.setOnAction(e -> searchTermsBtn(
                 searchTermsField.getText().trim(),

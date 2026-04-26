@@ -302,12 +302,22 @@ public class PerformListElements {
             performLists.addMapElementsTarget(elements);
 
             // Mirror the hoverPick pipeline (SimpleWebSocketServer case "SEARCH_TOOL"):
-            // persist the element list to disk as JSON for the UI / AI pipelines.
+            // 1) rects → 2) OCR → 3) text resolver → 4) persist enriched DTOs.
             if (!elements.isEmpty()) {
                 try {
                     ElementDTO[] asArray = elements.toArray(new ElementDTO[0]);
                     String jsonPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.PATH_DB);
                     PerformMessage performMessage = PerformMessage.getInstance();
+
+                    PageDiagnosticDumper.dumpRectsFromElements(driver, asArray, jsonPath, "page-HP");
+                    PageOcrDumper.runAndDump(driver, asArray, jsonPath, "page-HP");
+
+                    ElementTextResolver.resolveAll(
+                            asArray,
+                            java.nio.file.Paths.get(
+                                    jsonPath,
+                                    com.allinweb.ch.util.PageDiagnosticDumper.SUBFOLDER,
+                                    "ocr-correlation-HP.json"));
 
                     List<String> excludeList = List.of("optional", "blockMarked", "editMode");
                     performMessage.outputJsonElementDTO(asArray, excludeList, "elementDTO-PS", jsonPath);
@@ -326,10 +336,6 @@ public class PerformListElements {
                             "attributeType",
                             "attributeValue");
                     performMessage.outputJsonElementDTO(asArray, aiExcludeList, "AI-ElementDTO-PS", jsonPath);
-
-                    // Per-pick rects + OCR correlation — mirror the hoverPick SEARCH_TOOL pipeline.
-                    PageDiagnosticDumper.dumpRectsFromElements(driver, asArray, jsonPath, "page-HP");
-                    PageOcrDumper.runAndDump(driver, asArray, jsonPath, "page-HP");
                 } catch (Exception jsonError) {
                     log.warn("PerformListElements - failed to persist element JSON: {}", jsonError.getMessage());
                 }

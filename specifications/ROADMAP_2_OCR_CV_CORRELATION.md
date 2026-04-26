@@ -1,9 +1,16 @@
 # ROADMAP 2 — OCR + OpenCV screenshot correlation with `elementDTO-HP.json`
 
-**Status:** pending approval of module-wiring decision (A / B / C below)
+**Status:** ✅ Phase 2a delivered 2026-04-24. ✅ Phase 2b delivered 2026-04-24 (preprocessing pass + button detection + annotated PNG). All toggles consume Roadmap 4 config.
 **Owner:** Osvaldo Martini
-**Depends on:** Roadmap 1 (meta.json gives DPR + viewport + scroll — needed for coordinate alignment)
+**Depends on:** Roadmap 1 (meta.json gives DPR + viewport + scroll — needed for coordinate alignment), Roadmap 4 Phase 4a (runtime config lives here)
 **Feeds into:** Roadmap 3 (OCR EXACT_CONTAIN result becomes a high-weight candidate for `someText` / `definedName`)
+
+## Phase 2b delivered
+
+- `WebPageOcrService.recognizeMultiPass(image, cfg)` — raw + optional CLAHE preprocessing (×2 upscale, then mapped back) + optional button detection. All three passes merge into a single word list, deduped by IoU with threshold from `correlation.dedupe_iou` (default 0.6). Keeps the higher-confidence entry per overlapping bbox.
+- `ButtonDetectionService` — wraps `OcrPreprocessorOpenCv.detectRed/Blue/AnyButtons`, crops each detected rect, runs `preprocessButton` (×3 upscale), re-OCRs with `PSM_SINGLE_BLOCK`, and maps each word's bbox back to original-image pixel space. Gated by `button_detection.enable_red/blue/any`.
+- `AnnotatedImageRenderer` — writes `page-HP-annotated.png` when `output.save_annotated_png=true`. Draws OCR words (green), DOM rects (red), EXACT_CONTAIN matches (thick green) on top of the screenshot.
+- `PageOcrDumper` now calls `recognizeMultiPass` and renders the annotated PNG when enabled.
 
 ---
 
