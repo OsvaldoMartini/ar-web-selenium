@@ -7,9 +7,12 @@ import com.allinweb.ch.vision.OcrTestResultRow;
 import com.google.gson.Gson;
 import java.io.File;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
@@ -42,6 +45,10 @@ public class AROcrTestResultsPane extends ARPane {
      * Save / Save As New. Null when the editor has no profile loaded yet. */
     private OcrConfigParam approvalsParam;
 
+    /** Captured at populate-time so {@link #acceptOcrNamesButton} can route the WebSocket
+     *  message back to the picker (sessionId="scanner-element-pane"). */
+    private Integer homebankingId;
+
     private VBox root;
     private Label headerLabel;
     private Label approvedCounterLabel;
@@ -51,6 +58,7 @@ public class AROcrTestResultsPane extends ARPane {
     private TextField xPathField;
     private Button markAllButton;
     private Button clearAllButton;
+    private Button acceptOcrNamesButton;
     private Button closeButton;
 
     private AROcrTestResultsPane() {
@@ -75,9 +83,11 @@ public class AROcrTestResultsPane extends ARPane {
             String headerSummary,
             List<OcrTestResultRow> rows,
             Path annotatedImagePath,
-            OcrConfigParam approvedXPathsParam) {
+            OcrConfigParam approvedXPathsParam,
+            Integer homebankingId) {
         Platform.runLater(() -> {
             this.approvalsParam = approvedXPathsParam;
+            this.homebankingId = homebankingId;
             headerLabel.setText(headerSummary == null ? "" : headerSummary);
 
             // 1. Pre-populate Approved state from persisted JSON before binding listeners
@@ -267,9 +277,16 @@ public class AROcrTestResultsPane extends ARPane {
 
         markAllButton = new Button("Mark All Approved");
         clearAllButton = new Button("Clear All Approvals");
+        acceptOcrNamesButton = new Button("✓ Accept OCR Name");
+        acceptOcrNamesButton.setTooltip(new Tooltip(
+                "For every Approved row whose OCR Text differs from the current label, "
+                        + "send the OCR Text back to the picker as the suggested clientNamed. "
+                        + "The element's name column on save still uses definedName / someText (canonical)."));
+        acceptOcrNamesButton.setStyle("-fx-base: #c8e6c9; -fx-font-weight: bold;");
         closeButton = new Button("Close");
 
-        HBox bottom = new HBox(8, approvedCounterLabel, markAllButton, clearAllButton, closeButton);
+        HBox bottom = new HBox(
+                8, approvedCounterLabel, markAllButton, clearAllButton, acceptOcrNamesButton, closeButton);
         bottom.setAlignment(Pos.CENTER_LEFT);
 
         root = new VBox(10, headerLabel, split, xpRow, bottom);
@@ -295,11 +312,53 @@ public class AROcrTestResultsPane extends ARPane {
             for (OcrTestResultRow r : resultsTable.getItems()) r.setApproved(false);
             updateApprovedCount();
         });
+        acceptOcrNamesButton.setOnAction(e -> dispatchAcceptOcrNames());
         closeButton.setOnAction(e -> {
             if (root.getScene() != null && root.getScene().getWindow() != null) {
                 root.getScene().getWindow().hide();
             }
         });
+    }
+
+    /**
+     * Roadmap 2 follow-on: build a payload of {xPath, suggestedClientNamed} for every Approved row
+     * whose OCR Text is non-empty and differs from definedName, then push it to the picker
+     * (sessionId="scanner-element-pane") via WebSocket. The picker's GridItemScann handler matches
+     * elements by xPath and sets element.clientNamed locally — saved to instruction.client_named on
+     * the next big save.
+     */
+    private void dispatchAcceptOcrNames() {
+        if (resultsTable == null) return;
+        List<Map<String, String>> suggestions = new ArrayList<>();
+        for (OcrTestResultRow r : resultsTable.getItems()) {
+            if (!r.isApproved()) continue;
+            String ocr = r.getOcrText() == null ? "" : r.getOcrText().trim();
+            if (ocr.isEmpty()) continue;
+            // Skip rows where OCR adds nothing — same as definedName ignoring case.
+            String defined = r.getDefinedName() == null ? "" : r.getDefinedName().trim();
+            if (ocr.equalsIgnoreCase(defined)) continue;
+            Map<String, String> entry = new LinkedHashMap<>();
+            entry.put("xPath", r.getxPath());
+            entry.put("clientNamed", ocr);
+            suggestions.add(entry);
+        }
+        if (suggestions.isEmpty()) {
+            log.debug("Accept OCR Name: no approved rows with a meaningful OCR suggestion to send.");
+            return;
+        }
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("type", "applyOcrSuggestions");
+        body.put("suggestions", suggestions);
+        String json = GSON.toJson(body);
+
+        int hb = homebankingId == null ? 0 : homebankingId;
+        com.allinweb.ch.socket.WebSocketSessionManager.getInstance()
+                .sendMessageJson(hb, "scanner-element-pane", json, "applyOcrSuggestions");
+        log.info(
+                "Accept OCR Name: dispatched {} suggestion(s) to scanner-element-pane (hb={}).",
+                suggestions.size(),
+                hb);
     }
 
     @Override

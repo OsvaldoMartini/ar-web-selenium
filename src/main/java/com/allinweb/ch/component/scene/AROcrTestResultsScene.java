@@ -66,8 +66,10 @@ public class AROcrTestResultsScene extends ARScene {
             String headerSummary,
             List<OcrTestResultRow> rows,
             Path annotatedImagePath,
-            OcrConfigParam approvedXPathsParam) {
-        AROcrTestResultsPane.getInstance().populate(headerSummary, rows, annotatedImagePath, approvedXPathsParam);
+            OcrConfigParam approvedXPathsParam,
+            Integer homebankingId) {
+        AROcrTestResultsPane.getInstance()
+                .populate(headerSummary, rows, annotatedImagePath, approvedXPathsParam, homebankingId);
         show();
     }
 }

@@ -736,7 +736,8 @@ public class AROcrConfigPane extends ARPane {
                 }
             }
 
-            AROcrTestResultsScene.getInstance().openWith(summary, rows, annotated, approvalsParam);
+            AROcrTestResultsScene.getInstance()
+                    .openWith(summary, rows, annotated, approvalsParam, currentHomebankingId);
         } catch (Exception ex) {
             log.warn("Test On Current Page failed", ex);
             status("Test failed: " + ex.getMessage(), false);
