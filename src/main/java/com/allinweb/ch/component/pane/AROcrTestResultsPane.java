@@ -1,6 +1,7 @@
 package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.pane.base.ARPane;
+import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.model.OcrConfigParam;
 import com.allinweb.ch.vision.OcrTestResultRow;
 import com.google.gson.Gson;
@@ -21,6 +22,8 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import lombok.extern.slf4j.Slf4j;
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.WebDriver;
 
 /**
  * Phase 4c+ test review grid. SplitPane: results table on the left, annotated screenshot on the right.
@@ -132,6 +135,11 @@ public class AROcrTestResultsPane extends ARPane {
         resultsTable.setEditable(true);
         resultsTable.setPlaceholder(
                 new Label("No test results yet — run Test On Current Page from the OCR Config modal."));
+        // Default JavaFX selection paints text white on a saturated blue, which is unreadable on the
+        // light-green tint we apply to approved rows. Override to a light-blue selection bar with
+        // dark-blue text so contrast holds for both approved and non-approved rows.
+        resultsTable.setStyle("-fx-selection-bar: #bbdefb; -fx-selection-bar-text: #0d47a1;"
+                + " -fx-selection-bar-non-focused: #bbdefb;");
 
         TableColumn<OcrTestResultRow, Boolean> approvedCol = new TableColumn<>("✓");
         approvedCol.setCellValueFactory(cd -> cd.getValue().approvedProperty());
@@ -275,6 +283,9 @@ public class AROcrTestResultsPane extends ARPane {
                 xPathField.setText(sel.getxPath());
                 xPathField.positionCaret(0);
             }
+            if (sel != null) {
+                glowOnLivePage(sel.getxPath());
+            }
         });
         markAllButton.setOnAction(e -> {
             for (OcrTestResultRow r : resultsTable.getItems()) r.setApproved(true);
@@ -297,6 +308,32 @@ public class AROcrTestResultsPane extends ARPane {
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────
+
+    private static final String GLOW_JS = "(function(xpath){"
+            + "try{"
+            + "var n=document.evaluate(xpath,document,null,XPathResult.FIRST_ORDERED_NODE_TYPE,null).singleNodeValue;"
+            + "if(!n)return 'NOT_FOUND';"
+            + "var po=n.style.outline,ps=n.style.boxShadow,pt=n.style.transition;"
+            + "n.style.transition='outline 0.15s ease-in-out, box-shadow 0.15s ease-in-out';"
+            + "n.style.outline='3px solid #ff9800';"
+            + "n.style.boxShadow='0 0 18px 5px rgba(255,152,0,0.85)';"
+            + "try{n.scrollIntoView({block:'center',inline:'center',behavior:'smooth'});}catch(e){}"
+            + "setTimeout(function(){n.style.outline=po;n.style.boxShadow=ps;"
+            + "setTimeout(function(){n.style.transition=pt;},250);},3000);"
+            + "return 'OK';"
+            + "}catch(e){return 'ERR:'+e.message;}"
+            + "})(arguments[0]);";
+
+    private void glowOnLivePage(String xPath) {
+        if (xPath == null || xPath.isBlank()) return;
+        try {
+            WebDriver driver = PerformActions.getInstance().getCurrentDriver();
+            if (driver == null) return;
+            ((JavascriptExecutor) driver).executeScript(GLOW_JS, xPath);
+        } catch (Exception ex) {
+            log.debug("glowOnLivePage failed for xPath={}: {}", xPath, ex.getMessage());
+        }
+    }
 
     private void bindRowStyle(TableRow<OcrTestResultRow> row, OcrTestResultRow item) {
         if (item == null) {
