@@ -130,11 +130,7 @@ public class ElementLocatorRepository {
             upsertOnPick(e, homebankingId, homeUrlId);
             n++;
         }
-        logScanner.info(
-                "LOCATOR BATCH — hbId={} homeUrlId={} elements={}",
-                homebankingId,
-                homeUrlId,
-                n);
+        logScanner.info("LOCATOR BATCH — hbId={} homeUrlId={} elements={}", homebankingId, homeUrlId, n);
     }
 
     private void insertNew(ElementDTO dto, Integer hbId, Integer homeUrlId) throws SQLException {
@@ -165,7 +161,8 @@ public class ElementLocatorRepository {
             setNullableString(ps, i++, dto.getTagName());
             setNullableString(ps, i++, dto.getSomeText());
             setNullableString(ps, i++, dto.getCoordinates());
-            setNullableString(ps, i++, ""); // ocr_text_original: not on the DTO, will be added when Phase 3c reads it back
+            setNullableString(
+                    ps, i++, ""); // ocr_text_original: not on the DTO, will be added when Phase 3c reads it back
             setNullableString(ps, i++, dto.getIFrameXPath());
             setNullableString(ps, i++, dto.getShadowHost());
             // current = same as original on first sight
@@ -185,6 +182,9 @@ public class ElementLocatorRepository {
     }
 
     private void updateCurrent(ElementLocatorEntity existing, ElementDTO dto) throws SQLException {
+        // Phase 3c-i: detect drift before overwriting *_current. One audit row per changed field.
+        detectAndLogDrift(existing, dto);
+
         String sql = "UPDATE element_locator SET"
                 + " x_path_current = ?,"
                 + " custom_x_path_current = ?,"
@@ -215,6 +215,50 @@ public class ElementLocatorRepository {
             ps.setLong(i++, existing.getId());
             ps.executeUpdate();
         }
+    }
+
+    // ── Drift detection (Phase 3c-i) ─────────────────────────────────────
+
+    /** Compare each new pick value against the row's existing {@code *_current}; emit one rename row per change. */
+    private void detectAndLogDrift(ElementLocatorEntity existing, ElementDTO dto) {
+        if (existing == null || existing.getId() == null || dto == null) return;
+
+        maybeLogChange(existing.getId(), "XPATH", "x_path", existing.getXPathCurrent(), dto.getXPath());
+        maybeLogChange(
+                existing.getId(), "XPATH", "custom_x_path", existing.getCustomXPathCurrent(), dto.getCustomXPath());
+        maybeLogChange(
+                existing.getId(), "OTHER", "css_selector", existing.getCssSelectorCurrent(), dto.getCssSelector());
+        maybeLogChange(existing.getId(), "ATTRIB_ID", "attrib_id", existing.getAttribIdCurrent(), dto.getAttribId());
+        maybeLogChange(
+                existing.getId(), "ATTRIB_NAME", "attrib_name", existing.getAttribNameCurrent(), dto.getAttribName());
+        maybeLogChange(existing.getId(), "TEXT", "some_text", existing.getSomeTextCurrent(), dto.getSomeText());
+        maybeLogChange(existing.getId(), "COORDS", "coords", existing.getCoordsCurrent(), dto.getCoordinates());
+        maybeLogChange(
+                existing.getId(), "OTHER", "iframe_xpath", existing.getIframeXPathCurrent(), dto.getIFrameXPath());
+        maybeLogChange(existing.getId(), "OTHER", "shadow_host", existing.getShadowHostCurrent(), dto.getShadowHost());
+    }
+
+    private void maybeLogChange(long locatorId, String changeType, String fieldName, String oldVal, String newVal) {
+        String safeOld = oldVal == null ? "" : oldVal;
+        String safeNew = newVal == null ? "" : newVal;
+        if (safeOld.equals(safeNew)) return;
+
+        ElementLocatorRenameEntity row = new ElementLocatorRenameEntity();
+        row.setLocatorId(locatorId);
+        row.setChangeType(changeType);
+        row.setFieldName(fieldName);
+        row.setOldValue(safeOld);
+        row.setNewValue(safeNew);
+        row.setRecoveryStrategy("DETECTED_AT_PICK");
+        insertRename(row);
+
+        logScanner.info(
+                "LOCATOR DRIFT — id={} {} {}: '{}' -> '{}'",
+                locatorId,
+                changeType,
+                fieldName,
+                truncate(safeOld, 50),
+                truncate(safeNew, 50));
     }
 
     // ── Rename audit ─────────────────────────────────────────────────────

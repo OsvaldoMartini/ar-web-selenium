@@ -4924,6 +4924,51 @@ public class ARScannedElementPane extends ARPane {
                                                 //                                                forceCoordinates =
                                                 // false;
                                                 //                                            }
+
+                                                // ── Roadmap 3 Phase 3c-iii ────────────────────────────────
+                                                // Last-resort fallback: if every existing strategy
+                                                // (xpath match, name/text match, priorities ladder) failed,
+                                                // try the persisted locator via ElementRecoveryService.
+                                                // The recovery service walks its own ladder
+                                                // (XPATH_CURRENT > XPATH_ORIGINAL > CSS_SELECTOR >
+                                                //  ATTRIB_ID > ATTRIB_NAME > TEXT_FUZZY > COORDS) and
+                                                // writes an audit row when a non-direct strategy wins.
+                                                if (webElementFound == null
+                                                        && currentInstruction.getName() != null
+                                                        && !currentInstruction
+                                                                .getName()
+                                                                .isBlank()) {
+                                                    try {
+                                                        Integer hbId = this.currentBotJob.getHomeBankingId();
+                                                        Integer homeUrlId = this.currentBotJob.getHomeUrlId();
+                                                        com.allinweb.ch.model.ElementLocatorEntity loc =
+                                                                ElementLocatorRepository.getInstance()
+                                                                        .findByKey(
+                                                                                hbId,
+                                                                                homeUrlId,
+                                                                                currentInstruction.getName());
+                                                        if (loc != null) {
+                                                            ElementRecoveryService.Recovery r =
+                                                                    ElementRecoveryService.getInstance()
+                                                                            .findOrRecover(
+                                                                                    performActions.getCurrentDriver(),
+                                                                                    loc);
+                                                            if (r.found()) {
+                                                                webElementFound = r.element;
+                                                                logOperations.info(
+                                                                        "ElementRecoveryService recovered '{}'"
+                                                                                + " via {} (confidence={})",
+                                                                        currentInstruction.getName(),
+                                                                        r.strategy,
+                                                                        String.format("%.1f", r.confidence));
+                                                            }
+                                                        }
+                                                    } catch (Exception recoveryEx) {
+                                                        logOperations.warn(
+                                                                "ElementRecoveryService failed (non-fatal): {}",
+                                                                recoveryEx.getMessage());
+                                                    }
+                                                }
                                             } catch (Exception ex) {
                                                 success = false;
                                             }

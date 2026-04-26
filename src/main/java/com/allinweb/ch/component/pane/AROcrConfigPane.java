@@ -1,6 +1,7 @@
 package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.pane.base.ARPane;
+import com.allinweb.ch.component.scene.AROcrTestResultsScene;
 import com.allinweb.ch.facade.OcrConfigRepository;
 import com.allinweb.ch.facade.OcrConfigService;
 import com.allinweb.ch.facade.PerformLists;
@@ -15,7 +16,6 @@ import com.allinweb.ch.model.OcrConfigProfile;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.PageDiagnosticDumper;
-import com.allinweb.ch.component.scene.AROcrTestResultsScene;
 import com.allinweb.ch.vision.AnnotatedImageRenderer;
 import com.allinweb.ch.vision.OcrCorrelationResult;
 import com.allinweb.ch.vision.OcrDomCorrelator;
@@ -44,7 +44,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.imageio.ImageIO;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -53,6 +52,7 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
+import javax.imageio.ImageIO;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -66,9 +66,8 @@ public class AROcrConfigPane extends ARPane {
 
     private static final String COLOR_MAPPING_CAT = "color_mapping";
     private static final String COLOR_MAPPING_OPS = "ops";
-    private static final String COLOR_OP_TEMPLATE =
-            "{\"name\":\"new-op\",\"mode\":\"replace_in_hsv_range\","
-                    + "\"hsv_lower\":[0,80,80],\"hsv_upper\":[10,255,255],\"replacement_bgr\":[0,0,0]}";
+    private static final String COLOR_OP_TEMPLATE = "{\"name\":\"new-op\",\"mode\":\"replace_in_hsv_range\","
+            + "\"hsv_lower\":[0,80,80],\"hsv_upper\":[10,255,255],\"replacement_bgr\":[0,0,0]}";
 
     private static volatile AROcrConfigPane instance;
 
@@ -88,6 +87,7 @@ public class AROcrConfigPane extends ARPane {
     private final Map<String, VBox> categoryBoxes = new LinkedHashMap<>();
     /** Mutable live params; controls rewrite their OcrConfigParam.value on change. */
     private List<OcrConfigParam> currentParams = new ArrayList<>();
+
     private Button saveButton;
     private Button saveAsNewButton;
     private Button testButton;
@@ -352,8 +352,9 @@ public class AROcrConfigPane extends ARPane {
 
         if (COLOR_MAPPING_CAT.equals(category)) {
             Button addTemplate = new Button("+ Add template op");
-            addTemplate.setTooltip(new Tooltip(
-                    "Appends a replace_in_hsv_range template to color_mapping.ops — tune its hsv_lower/hsv_upper/replacement_bgr."));
+            addTemplate.setTooltip(
+                    new Tooltip(
+                            "Appends a replace_in_hsv_range template to color_mapping.ops — tune its hsv_lower/hsv_upper/replacement_bgr."));
             addTemplate.setOnAction(e -> appendColorOpTemplate());
             VBox.setMargin(addTemplate, new Insets(8, 0, 0, 0));
             box.getChildren().add(addTemplate);
@@ -378,7 +379,8 @@ public class AROcrConfigPane extends ARPane {
         switch (type) {
             case "bool": {
                 CheckBox c = new CheckBox();
-                c.setSelected("true".equalsIgnoreCase(String.valueOf(p.getValue()).trim()));
+                c.setSelected(
+                        "true".equalsIgnoreCase(String.valueOf(p.getValue()).trim()));
                 c.selectedProperty().addListener((o, ov, nv) -> p.setValue(nv ? "true" : "false"));
                 return c;
             }
@@ -590,8 +592,8 @@ public class AROcrConfigPane extends ARPane {
 
             // Use whichever DTO file is most recently modified — Page Scanner writes -PS,
             // hover-pick writes -HP. Either path produces the same diagnostic side-files.
-            Path elementsPath = chooseLatest(
-                    diagDir.resolve("elementDTO-HP.json"), diagDir.resolve("elementDTO-PS.json"));
+            Path elementsPath =
+                    chooseLatest(diagDir.resolve("elementDTO-HP.json"), diagDir.resolve("elementDTO-PS.json"));
             if (elementsPath == null) {
                 status("No cached element DTOs — run Page Scanner or hover-pick first.", false);
                 return;
@@ -626,7 +628,9 @@ public class AROcrConfigPane extends ARPane {
             logScanner.info(
                     "TEST_ON_CURRENT_PAGE — {} (profile name in editor: '{}')",
                     summary,
-                    nameField.getText() == null ? "<unset>" : nameField.getText().trim());
+                    nameField.getText() == null
+                            ? "<unset>"
+                            : nameField.getText().trim());
 
             // Always render the annotated PNG for the review modal — independent of the
             // saved-profile output.save_annotated_png setting; this is a one-shot diagnostic.

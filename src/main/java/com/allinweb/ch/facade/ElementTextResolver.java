@@ -137,7 +137,9 @@ public final class ElementTextResolver {
         if (myId == null || myId.isBlank()) myId = getAttribute(e, "id");
         if (myId != null && !myId.isBlank()) {
             ElementDTO label = labelsForId.get(myId);
-            if (label != null && label.getSomeText() != null && !label.getSomeText().isBlank()) {
+            if (label != null
+                    && label.getSomeText() != null
+                    && !label.getSomeText().isBlank()) {
                 out.add(new TextCandidate(label.getSomeText(), 1.00, "label[for]"));
             }
         }
@@ -152,7 +154,9 @@ public final class ElementTextResolver {
         String ariaLabelledBy = getAttribute(e, "aria-labelledby");
         if (ariaLabelledBy != null && !ariaLabelledBy.isBlank()) {
             ElementDTO target = elementsById.get(ariaLabelledBy.trim());
-            if (target != null && target.getSomeText() != null && !target.getSomeText().isBlank()) {
+            if (target != null
+                    && target.getSomeText() != null
+                    && !target.getSomeText().isBlank()) {
                 out.add(new TextCandidate(target.getSomeText(), 0.95, "aria-labelledby"));
             }
         }
@@ -247,8 +251,7 @@ public final class ElementTextResolver {
 
     private static String clean(String text) {
         if (text == null) return "";
-        String t = text
-                .replace(' ', ' ') // NBSP
+        String t = text.replace(' ', ' ') // NBSP
                 .replaceAll("\\s+", " ")
                 .trim();
         // Strip trailing colon / asterisk / exclamation often used in form labels.

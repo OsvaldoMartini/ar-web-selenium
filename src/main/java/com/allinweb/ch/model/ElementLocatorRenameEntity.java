@@ -18,6 +18,7 @@ public class ElementLocatorRenameEntity {
     private Timestamp observedAt;
     /** TEXT | XPATH | ATTRIB_ID | ATTRIB_NAME | COORDS | OTHER */
     private String changeType;
+
     private String fieldName;
     private String oldValue;
     private String newValue;

@@ -23,6 +23,9 @@ public final class OcrConfigDefaults {
         p.add(param("correlation", "proximity_px_input", "double", "30.0"));
         p.add(param("correlation", "proximity_px_button", "double", "30.0"));
         p.add(param("correlation", "dedupe_iou", "double", "0.6"));
+        p.add(param("correlation", "ocr_exact_contain_weight", "double", "0.85"));
+        p.add(param("correlation", "ocr_overlap_weight", "double", "0.70"));
+        p.add(param("correlation", "ocr_proximity_weight", "double", "0.55"));
 
         p.add(param("engine", "languages", "string", "eng+ita+fra+deu"));
         p.add(param("engine", "psm_mode", "int", "3")); // PSM_AUTO
@@ -49,6 +52,9 @@ public final class OcrConfigDefaults {
         p.add(param("output", "save_annotated_png", "bool", "false"));
         p.add(param("output", "log_level", "string", "INFO"));
         p.add(param("output", "approved_xpaths", "json", "[]"));
+        p.add(param("output", "skip_hidden_inputs", "bool", "false"));
+        p.add(param("output", "skip_label_only_elements", "bool", "false"));
+        p.add(param("output", "min_defined_name_length", "int", "0"));
 
         CANONICAL = Collections.unmodifiableList(p);
     }

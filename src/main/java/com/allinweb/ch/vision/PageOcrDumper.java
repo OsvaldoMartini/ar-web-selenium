@@ -123,8 +123,9 @@ public final class PageOcrDumper {
                         image, ocr.getWords(), correlation, dpr, diagDir.resolve(prefix + "-annotated.png"));
             }
 
-            String profileName =
-                    cfg == null || cfg.getProfile() == null ? "<none>" : cfg.getProfile().getName();
+            String profileName = cfg == null || cfg.getProfile() == null
+                    ? "<none>"
+                    : cfg.getProfile().getName();
             int exact = 0, overlap = 0, prox = 0, none = 0;
             for (OcrCorrelationResult r : correlation) {
                 switch (r.matchQuality == null ? "NONE" : r.matchQuality) {

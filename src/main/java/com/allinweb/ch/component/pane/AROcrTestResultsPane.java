@@ -90,7 +90,8 @@ public class AROcrTestResultsPane extends ARPane {
                 }
             }
 
-            resultsTable.setItems(rows == null ? FXCollections.observableArrayList() : FXCollections.observableArrayList(rows));
+            resultsTable.setItems(
+                    rows == null ? FXCollections.observableArrayList() : FXCollections.observableArrayList(rows));
             updateApprovedCount();
             loadImage(annotatedImagePath);
             // Reset xPath field; auto-select first row so the user immediately sees something there.
@@ -129,7 +130,8 @@ public class AROcrTestResultsPane extends ARPane {
 
         resultsTable = new TableView<>();
         resultsTable.setEditable(true);
-        resultsTable.setPlaceholder(new Label("No test results yet — run Test On Current Page from the OCR Config modal."));
+        resultsTable.setPlaceholder(
+                new Label("No test results yet — run Test On Current Page from the OCR Config modal."));
 
         TableColumn<OcrTestResultRow, Boolean> approvedCol = new TableColumn<>("✓");
         approvedCol.setCellValueFactory(cd -> cd.getValue().approvedProperty());
@@ -139,7 +141,8 @@ public class AROcrTestResultsPane extends ARPane {
         approvedCol.setMaxWidth(50);
 
         TableColumn<OcrTestResultRow, String> definedNameCol = new TableColumn<>("definedName");
-        definedNameCol.setCellValueFactory(cd -> new SimpleStringProperty(cd.getValue().getDefinedName()));
+        definedNameCol.setCellValueFactory(
+                cd -> new SimpleStringProperty(cd.getValue().getDefinedName()));
         definedNameCol.setCellFactory(col -> new TableCell<>() {
             @Override
             protected void updateItem(String item, boolean empty) {
@@ -156,7 +159,8 @@ public class AROcrTestResultsPane extends ARPane {
         definedNameCol.setMinWidth(160);
 
         TableColumn<OcrTestResultRow, String> qualityCol = new TableColumn<>("Quality");
-        qualityCol.setCellValueFactory(cd -> new SimpleStringProperty(cd.getValue().getMatchQuality()));
+        qualityCol.setCellValueFactory(
+                cd -> new SimpleStringProperty(cd.getValue().getMatchQuality()));
         qualityCol.setCellFactory(col -> new TableCell<>() {
             @Override
             protected void updateItem(String item, boolean empty) {
@@ -166,9 +170,8 @@ public class AROcrTestResultsPane extends ARPane {
                     setStyle("");
                 } else {
                     setText(item);
-                    setStyle(
-                            "-fx-background-color: " + colorFor(item)
-                                    + "; -fx-text-fill: white; -fx-font-weight: bold; -fx-alignment: CENTER;");
+                    setStyle("-fx-background-color: " + colorFor(item)
+                            + "; -fx-text-fill: white; -fx-font-weight: bold; -fx-alignment: CENTER;");
                 }
             }
         });
@@ -219,7 +222,8 @@ public class AROcrTestResultsPane extends ARPane {
         annotatedImage.setSmooth(true);
         annotatedImage.setFitWidth(560);
 
-        imageHint = new Label("Annotated screenshot — green = OCR words · red = DOM rects · thick green = EXACT_CONTAIN.");
+        imageHint =
+                new Label("Annotated screenshot — green = OCR words · red = DOM rects · thick green = EXACT_CONTAIN.");
         imageHint.setWrapText(true);
         imageHint.setStyle("-fx-font-size: 11px; -fx-text-fill: #555;");
 
@@ -228,12 +232,15 @@ public class AROcrTestResultsPane extends ARPane {
         imageScroll.setPrefViewportWidth(580);
 
         SplitPane split = new SplitPane();
-        split.getItems().addAll(new ScrollPane(resultsTable) {
-            {
-                setFitToWidth(true);
-                setFitToHeight(true);
-            }
-        }, imageScroll);
+        split.getItems()
+                .addAll(
+                        new ScrollPane(resultsTable) {
+                            {
+                                setFitToWidth(true);
+                                setFitToHeight(true);
+                            }
+                        },
+                        imageScroll);
         split.setDividerPositions(0.55);
         VBox.setVgrow(split, Priority.ALWAYS);
 
@@ -326,12 +333,14 @@ public class AROcrTestResultsPane extends ARPane {
         File f = imagePath.toFile();
         if (!f.exists()) {
             annotatedImage.setImage(null);
-            imageHint.setText("Annotated image not generated — enable output.save_annotated_png in the editor and re-run Test.");
+            imageHint.setText(
+                    "Annotated image not generated — enable output.save_annotated_png in the editor and re-run Test.");
             return;
         }
         try {
             annotatedImage.setImage(new Image(f.toURI().toString()));
-            imageHint.setText("Annotated screenshot — green = OCR words · red = DOM rects · thick green = EXACT_CONTAIN.");
+            imageHint.setText(
+                    "Annotated screenshot — green = OCR words · red = DOM rects · thick green = EXACT_CONTAIN.");
         } catch (Exception ex) {
             log.warn("Could not load annotated image {}: {}", imagePath, ex.getMessage());
         }

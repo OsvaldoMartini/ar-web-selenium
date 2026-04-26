@@ -1,6 +1,6 @@
 # ROADMAP 3 — Best-text extraction for `someText` / `definedName` + DB fallback mapping
 
-**Status:** ✅ Phase 3a delivered (text resolver, no DB). ✅ Phase 3b delivered (locator tables + upsert hook). 📋 Phase 3c (recovery on xPath drift + Engine cross-repo) pending.
+**Status:** ✅ Phase 3a delivered (text resolver, no DB). ✅ Phase 3b delivered (locator tables + upsert hook). ✅ Phase 3c-i delivered (drift detection during upsert). ✅ Phase 3c-ii delivered (`ElementRecoveryService.findOrRecover` with 7-strategy ladder). ✅ Phase 3c-iii delivered in `ARScannedElementPane` bot-run resolution path. 📋 Cross-repo: AR Web Engine still resolves elements with its own xPath-first ladder; consume the recovery service there too if/when an Engine drift incident occurs.
 **Owner:** Osvaldo Martini
 **Depends on:** Roadmaps 1 + 2 (OCR scores feed into candidate ranking)
 
@@ -74,6 +74,58 @@ For each ElementDTO with a non-empty `definedName`:
 - Drift detection (compare `*_current` vs `*_original`, write `element_locator_rename` rows when fields change).
 - Multi-strategy `findOrRecover(locator)` that backs the bot-run resolution path when the live xPath stops matching.
 - Cross-repo: AR Web Engine consumes the recovery path.
+
+## Phase 3c-i delivered (2026-04-26)
+
+`ElementLocatorRepository.upsertOnPick` now diffs the new pick values against the row's existing `*_current` columns BEFORE rewriting them, and inserts one `element_locator_rename` row per changed field. Each row carries:
+
+| Column | Value |
+|---|---|
+| `change_type` | `XPATH` / `ATTRIB_ID` / `ATTRIB_NAME` / `TEXT` / `COORDS` / `OTHER` |
+| `field_name` | exact column name (`x_path` / `attrib_id` / `some_text` / etc.) |
+| `old_value` | the previous `*_current` value |
+| `new_value` | the new pick value |
+| `recovery_strategy` | `DETECTED_AT_PICK` (vs `findOrRecover` strategies that come later) |
+
+Identical-value picks produce zero rename rows. First-sight INSERTs produce zero rename rows (no prior `*_current` to diff against). Each detection logs a `LOCATOR DRIFT — id={...} {changeType} {field}: 'old' -> 'new'` line to `com.allinweb.scanner`.
+
+## Phase 3c-ii delivered (2026-04-26)
+
+`com.allinweb.ch.facade.ElementRecoveryService.findOrRecover(driver, locator)` walks a confidence-ranked strategy ladder and returns the first `WebElement` it finds along with the strategy name and a confidence score:
+
+| # | Strategy | Confidence on hit | Notes |
+|---|---|---|---|
+| 1 | `XPATH_CURRENT` | 100 | Direct xPath lookup. Default path when nothing has drifted. |
+| 2 | `XPATH_ORIGINAL` | 90 | Used only when current ≠ original AND current didn't resolve. Phase 3c-i should already have detected the drift. |
+| 3 | `CSS_SELECTOR` | 85 | `By.cssSelector(css_selector_current)`. |
+| 4 | `ATTRIB_ID` | 80 | `By.id(attrib_id_current)`. |
+| 5 | `ATTRIB_NAME` | 75 | `By.name(attrib_name_current)`. |
+| 6 | `TEXT_FUZZY` | 50–70 | `By.tagName(...)` candidates scored by `TextSimilarity` (max of Levenshtein / token-set ratio). Only accepted at ratio ≥ 0.70; confidence linearly interpolates from 50 at the threshold to 70 at 1.0. |
+| 7 | `COORDS` | 60 (exact) / 55 (within ±25 px) | `document.elementFromPoint(cx, cy)` at the saved CSS-px center, with a small fallback radius for sub-pixel layout shifts. |
+
+Returns `Recovery.notFound()` when nothing reaches the configured confidence floor. When the winning strategy is anything other than `XPATH_CURRENT`, an audit row is automatically inserted into `element_locator_rename` with `recovery_strategy = <strategy_name>` and `match_confidence = <0..100>`. Logs `LOCATOR RECOVERY — id={...} defined='{...}' strategy={...} confidence={...}` to `com.allinweb.scanner` for every recovery attempt.
+
+The service is **read-only against the DOM** (only `findElement` / `JavascriptExecutor.executeScript` for `elementFromPoint`); it never clicks, scrolls, or mutates the page. Wiring it into the bot-run resolution path is Phase 3c-iii.
+
+## What's left for Phase 3c-iii
+
+Find the place(s) in this repo and the AR Web Engine repo that resolve a stored xPath into a live `WebElement` at bot-run time, and wrap that lookup in `ElementRecoveryService.findOrRecover(driver, locator)`. In this repo the candidates are likely inside `PerformActions` (see grep for `findElement`). In the Engine that's a separate codebase — the `ElementLocatorEntity` + `ElementLocatorRepository` + `ElementRecoveryService` are designed so the Engine can pull them in via Maven (or be copy-deployed).
+
+## Phase 3c-iii delivered (2026-04-26) — bot-run wire-in
+
+The existing resolution ladder in `ARScannedElementPane` runs in this order at bot-run time (around line 4886):
+
+1. `InstructionLoadMatcher.findMatchingTargetElementByXPath` — exact xPath match against the in-memory target list.
+2. `InstructionLoadMatcher.findMatchingTargetElement` — name/text match against the same list, then `immediateXPath` for the live element.
+3. `performActions.searchElement` — the Priorities-table ladder (xPath / coordinates / attribute / etc.).
+
+If all three return `null`, **`ElementRecoveryService.findOrRecover(driver, locator)` is now called as a final fallback**. The locator is fetched from `element_locator` keyed on `(currentBotJob.getHomeBankingId(), currentBotJob.getHomeUrlId(), currentInstruction.getName())` — `currentInstruction.getName()` is the run-time name of the picked element, which equals the resolver's `definedName` (matched against `el.getDefinedName()` in `findMatchingTargetElement`).
+
+The wire-in is purely additive — it only fires when the previous three strategies returned null. When xPaths are stable, recovery is never invoked. Failures are caught and logged; they never crash the bot run. On success, the `webElementFound` is set to the recovered live `WebElement` and the existing flow continues as if nothing went wrong. Recovery success is logged via `logOperations` (`com.allinweb.operations` log) and `LOCATOR RECOVERY` is logged via the scanner audit log.
+
+### Cross-repo work still pending
+
+The AR Web Engine (separate repo, runs `AR_Web_Engine.jar`) has its own resolution ladder that mirrors the in-repo one. Adding the same `findOrRecover` fallback there closes the loop on locator drift for fully-recorded bot jobs. The `ElementLocatorEntity` + `ElementLocatorRepository` + `ElementRecoveryService` classes are designed to be portable — pull them in via dependency or copy-deploy.
 
 ## Goal
 

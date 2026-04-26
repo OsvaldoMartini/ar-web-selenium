@@ -117,9 +117,7 @@ public final class TextSimilarity {
     /** Lower-case slug suitable for {@code ElementDTO.definedName}. {@code "User Number" -> "user_number"}. */
     public static String slug(String text) {
         if (text == null) return "";
-        String s = text.toLowerCase()
-                .replaceAll("[^a-z0-9]+", "_")
-                .replaceAll("^_+|_+$", "");
+        String s = text.toLowerCase().replaceAll("[^a-z0-9]+", "_").replaceAll("^_+|_+$", "");
         return s.length() > 64 ? s.substring(0, 64) : s;
     }
 

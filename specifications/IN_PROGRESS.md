@@ -58,7 +58,9 @@ You build, not me.
 ### High priority — Roadmap 3 continuation
 
 4. ✅ DONE — Phase 3b: M20260428_ElementLocator migration, ElementLocatorEntity + Rename, ElementLocatorRepository.upsertOnPick, wired into SEARCH_TOOL + runScan after resolver.
-5. **Phase 3c — `ElementRecoveryService.findOrRecover(locator)`** — multi-strategy lookup when xPath drifts at bot-run time. Diff `*_current` vs `*_original` per pick to detect drift, write rows into `element_locator_rename` automatically. Wire into the Engine-side resolution call sites (cross-repo work).
+5. ✅ DONE — Phase 3c-i (drift detection during upsert writes rename rows).
+6. ✅ DONE — Phase 3c-ii (`ElementRecoveryService.findOrRecover` with 7-strategy ladder + audit on non-direct hits).
+7. ✅ DONE — Phase 3c-iii in this repo: `ElementRecoveryService.findOrRecover` is now the final fallback after `findMatchingTargetElementByXPath` → `findMatchingTargetElement` → `searchElement` all return null in `ARScannedElementPane`'s bot-run loop (~line 4925). Cross-repo AR Web Engine wire-in remains pending — same pattern, separate codebase.
 
 ### Medium priority
 
