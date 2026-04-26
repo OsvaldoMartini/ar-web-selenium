@@ -2738,10 +2738,10 @@ public class PerformDataBase {
                 addColumnValue.accept("description", instructionLoad.getDescription());
                 addColumnValue.accept("instruction_order_number", instructionLoad.getInstructionOrderNumber());
                 addColumnValue.accept("name", instructionLoad.getName());
-                // Roadmap 3 Phase 3d: addColumnValue is null-skipping by design, so when the
-                // user hasn't set a custom label the column is simply absent from the INSERT
-                // (default NULL). ROW_UPDATE explicitly sets it (or null-clears it) afterwards.
-                addColumnValue.accept("client_named", instructionLoad.getClientNamed());
+                // Note: insertInstruction operates on InstructionOperationDTO (programmatic
+                // operation inserts: IF / LOOP / parent ops), not on user-picker payloads.
+                // client_named is only relevant on the picker INSERT path (insertInstructionsBatch
+                // above) so it's intentionally absent here — operations are not user-renameable.
                 addColumnValue.accept(
                         "on_hold_seconds",
                         instructionLoad.getOnHoldSeconds() != null ? instructionLoad.getOnHoldSeconds() : 1);
