@@ -17,7 +17,7 @@ public class ElementDTO {
     private String definedName;
     // Roadmap 3 Phase 3d. User-set display label arriving from the React picker.
     // The backend persists this into instruction.client_named on save and never uses it
-    // for matching/recovery — the canonical key stays definedName / someText.
+    // for matching/recovery the canonical key stays definedName / someText.
     private String clientNamed;
     private String xPath;
     private String someText;

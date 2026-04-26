@@ -1148,11 +1148,7 @@ public class PerformMessage {
      * "Clear Grid All" button (with the Hover Pick option checked) is what truncates the file.
      */
     public void outputJsonElementDTO(
-            ElementDTO[] elementDTO,
-            List<String> fieldsToExclude,
-            String fileName,
-            String jsonPath,
-            boolean append) {
+            ElementDTO[] elementDTO, List<String> fieldsToExclude, String fileName, String jsonPath, boolean append) {
         ExclusionStrategy strategy = new ExclusionStrategy() {
             @Override
             public boolean shouldSkipField(FieldAttributes f) {
@@ -1207,7 +1203,10 @@ public class PerformMessage {
                     }
                 }
             } catch (IOException | RuntimeException ex) {
-                log.warn("Append mode: could not merge with existing {} ({}), overwriting.", outputFilePath, ex.getMessage());
+                log.warn(
+                        "Append mode: could not merge with existing {} ({}), overwriting.",
+                        outputFilePath,
+                        ex.getMessage());
             }
         }
 

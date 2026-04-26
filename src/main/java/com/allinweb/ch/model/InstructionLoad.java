@@ -19,9 +19,9 @@ public class InstructionLoad {
     private String actions;
     private String name;
     /**
-     * Roadmap 3 Phase 3d — display-only override. When non-null, the React grid shows this
+     * Roadmap 3 Phase 3d display-only override. When non-null, the React grid shows this
      * value instead of {@link #name}. The backend (matchers, locator lookup, recovery service,
-     * bot run) ALWAYS uses {@link #name} as the canonical identifier — this column is purely
+     * bot run) ALWAYS uses {@link #name} as the canonical identifier this column is purely
      * a UI label so users can rename elements without breaking resolution.
      */
     private String clientNamed;

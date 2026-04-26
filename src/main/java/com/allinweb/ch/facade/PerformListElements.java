@@ -18,7 +18,7 @@ import org.openqa.selenium.WebDriver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// SEARCH IN USE (SENDER: scannerTool) -> UPDATE_LIST_ELEMENTS_ASYNC
+// SEARCH IN USE (SENDER: scannerTool)  UPDATE_LIST_ELEMENTS_ASYNC
 @Slf4j
 public class PerformListElements {
     private static final Logger logOperations = LoggerFactory.getLogger("com.allinweb.operations");
@@ -302,7 +302,7 @@ public class PerformListElements {
             performLists.addMapElementsTarget(elements);
 
             // Mirror the hoverPick pipeline (SimpleWebSocketServer case "SEARCH_TOOL"):
-            // 1) rects → 2) OCR → 3) text resolver → 4) persist enriched DTOs.
+            // 1) rects  2) OCR  3) text resolvers 4) persist enriched DTOs.
             if (!elements.isEmpty()) {
                 try {
                     ElementDTO[] asArray = elements.toArray(new ElementDTO[0]);
@@ -322,7 +322,7 @@ public class PerformListElements {
                                 cfgHomeUrlId = scene.getCurrentBotJob().getHomeUrlId();
                             }
                         } catch (Throwable ignore) {
-                            // scene unavailable — bank-level scope only
+                            // scene unavailable bank-level scope only
                         }
                         com.allinweb.ch.model.OcrConfig resolverCfg =
                                 OcrConfigService.getInstance().resolveFor(cfgHbId, cfgHomeUrlId);
@@ -346,7 +346,7 @@ public class PerformListElements {
                                 homeUrlId = scene.getCurrentBotJob().getHomeUrlId();
                             }
                         } catch (Throwable ignore) {
-                            // scene unavailable — bank-level scope only
+                            // scene unavailable bank-level scope only
                         }
                         ElementLocatorRepository.getInstance().upsertOnPickBatch(asArray, hbId, homeUrlId);
                     } catch (Exception locEx) {

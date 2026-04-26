@@ -51,8 +51,8 @@ public final class WebScreenshotCapture {
     public static BufferedImage fullPage(WebDriver driver) throws IOException {
         JavascriptExecutor js = (JavascriptExecutor) driver;
 
-        long initialScrollY = ((Number) js.executeScript("return window.pageYOffset || window.scrollY || 0;"))
-                .longValue();
+        long initialScrollY =
+                ((Number) js.executeScript("return window.pageYOffset || window.scrollY || 0;")).longValue();
 
         long totalHeight = ((Number) js.executeScript("return Math.max(" + "document.body.scrollHeight,"
                         + "document.documentElement.scrollHeight,"
@@ -60,10 +60,8 @@ public final class WebScreenshotCapture {
                         + "document.documentElement.offsetHeight"
                         + ");"))
                 .longValue();
-        long viewportHeight =
-                ((Number) js.executeScript("return window.innerHeight;")).longValue();
-        long viewportWidth =
-                ((Number) js.executeScript("return window.innerWidth;")).longValue();
+        long viewportHeight = ((Number) js.executeScript("return window.innerHeight;")).longValue();
+        long viewportWidth = ((Number) js.executeScript("return window.innerWidth;")).longValue();
         double dpr = ((Number) js.executeScript("return window.devicePixelRatio || 1;")).doubleValue();
 
         if (totalHeight <= viewportHeight) {
@@ -92,8 +90,8 @@ public final class WebScreenshotCapture {
                 BufferedImage tile = viewport(driver);
 
                 // Use the *actual* post-scroll y in case the browser clamped at the bottom.
-                long actualY = ((Number) js.executeScript("return window.pageYOffset || window.scrollY || 0;"))
-                        .longValue();
+                long actualY =
+                        ((Number) js.executeScript("return window.pageYOffset || window.scrollY || 0;")).longValue();
                 int tilePixelY = (int) Math.round(actualY * dpr);
                 g.drawImage(tile, 0, tilePixelY, null);
 

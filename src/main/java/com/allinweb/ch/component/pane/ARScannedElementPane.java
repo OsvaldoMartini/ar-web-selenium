@@ -4912,7 +4912,7 @@ public class ARScannedElementPane extends ARPane {
                                                     }
                                                 }
 
-                                                // VERY IMPORTANT TO VALIDAE IF THE ELEMENT IS ON TEH PAGE FIRST
+                                                // VERY IMPORTANT TO VALIDATE IF THE ELEMENT IS ON TEH PAGE FIRST
                                                 //                                            if (matchXPath != null ||
                                                 // matchScanned != null || match != null) {
                                                 if (webElementFound == null) {
@@ -4922,13 +4922,6 @@ public class ARScannedElementPane extends ARPane {
                                                             forceCoordinates,
                                                             byPassFlagLoop);
                                                 }
-                                                //                                            } else {
-                                                //                                                webElementFound =
-                                                // null;
-                                                //                                                forceCoordinates =
-                                                // false;
-                                                //                                            }
-
                                                 // ── Roadmap 3 Phase 3c-iii ────────────────────────────────
                                                 // Last-resort fallback: if every existing strategy
                                                 // (xpath match, name/text match, priorities ladder) failed,

@@ -278,15 +278,15 @@ public class AROcrTestResultsPane extends ARPane {
         markAllButton = new Button("Mark All Approved");
         clearAllButton = new Button("Clear All Approvals");
         acceptOcrNamesButton = new Button("✓ Accept OCR Name");
-        acceptOcrNamesButton.setTooltip(new Tooltip(
-                "For every Approved row whose OCR Text differs from the current label, "
+        acceptOcrNamesButton.setTooltip(
+                new Tooltip("For every Approved row whose OCR Text differs from the current label, "
                         + "send the OCR Text back to the picker as the suggested clientNamed. "
                         + "The element's name column on save still uses definedName / someText (canonical)."));
         acceptOcrNamesButton.setStyle("-fx-base: #c8e6c9; -fx-font-weight: bold;");
         closeButton = new Button("Close");
 
-        HBox bottom = new HBox(
-                8, approvedCounterLabel, markAllButton, clearAllButton, acceptOcrNamesButton, closeButton);
+        HBox bottom =
+                new HBox(8, approvedCounterLabel, markAllButton, clearAllButton, acceptOcrNamesButton, closeButton);
         bottom.setAlignment(Pos.CENTER_LEFT);
 
         root = new VBox(10, headerLabel, split, xpRow, bottom);
@@ -335,7 +335,8 @@ public class AROcrTestResultsPane extends ARPane {
             String ocr = r.getOcrText() == null ? "" : r.getOcrText().trim();
             if (ocr.isEmpty()) continue;
             // Skip rows where OCR adds nothing — same as definedName ignoring case.
-            String defined = r.getDefinedName() == null ? "" : r.getDefinedName().trim();
+            String defined =
+                    r.getDefinedName() == null ? "" : r.getDefinedName().trim();
             if (ocr.equalsIgnoreCase(defined)) continue;
             Map<String, String> entry = new LinkedHashMap<>();
             entry.put("xPath", r.getxPath());

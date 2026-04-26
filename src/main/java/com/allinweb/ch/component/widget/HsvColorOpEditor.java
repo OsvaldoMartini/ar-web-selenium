@@ -44,8 +44,8 @@ import javafx.scene.paint.Color;
 public final class HsvColorOpEditor extends VBox {
 
     private static final Gson GSON = new Gson();
-    private static final List<String> MODES = List.of(
-            "replace_in_hsv_range", "keep_in_range_binarize", "desaturate_to_black_white", "invert");
+    private static final List<String> MODES =
+            List.of("replace_in_hsv_range", "keep_in_range_binarize", "desaturate_to_black_white", "invert");
 
     private final VBox cardsBox = new VBox(6);
     private final Consumer<String> onChange;
@@ -149,8 +149,8 @@ public final class HsvColorOpEditor extends VBox {
         VBox upperRow = hsvRow("hsv_upper", op, "hsv_upper", prevHigh);
         VBox bgrRow = bgrRow("replacement_bgr (B G R, 0-255)", op, "replacement_bgr", prevReplace);
 
-        HBox previewRow = new HBox(8,
-                labelled("lower", prevLow), labelled("upper", prevHigh), labelled("replace", prevReplace));
+        HBox previewRow =
+                new HBox(8, labelled("lower", prevLow), labelled("upper", prevHigh), labelled("replace", prevReplace));
         previewRow.setAlignment(Pos.CENTER_LEFT);
 
         Button delete = new Button("Delete op");
@@ -189,8 +189,8 @@ public final class HsvColorOpEditor extends VBox {
             arr.add((int) sSlider.getValue());
             arr.add((int) vSlider.getValue());
             op.add(key, arr);
-            preview.setStyle("-fx-background-color: " + hsvCss(
-                    (int) hSlider.getValue(), (int) sSlider.getValue(), (int) vSlider.getValue())
+            preview.setStyle("-fx-background-color: "
+                    + hsvCss((int) hSlider.getValue(), (int) sSlider.getValue(), (int) vSlider.getValue())
                     + "; -fx-border-color: #555; -fx-border-width: 1;");
             emit();
         };
@@ -198,7 +198,8 @@ public final class HsvColorOpEditor extends VBox {
         sSlider.valueProperty().addListener((o, ov, nv) -> push.run());
         vSlider.valueProperty().addListener((o, ov, nv) -> push.run());
 
-        VBox box = new VBox(2,
+        VBox box = new VBox(
+                2,
                 new Label(title),
                 new HBox(6, new Label("H"), hSlider, hVal),
                 new HBox(6, new Label("S"), sSlider, sVal),
@@ -230,7 +231,8 @@ public final class HsvColorOpEditor extends VBox {
         gSlider.valueProperty().addListener((o, ov, nv) -> push.run());
         rSlider.valueProperty().addListener((o, ov, nv) -> push.run());
 
-        VBox box = new VBox(2,
+        VBox box = new VBox(
+                2,
                 new Label(title),
                 new HBox(6, new Label("B"), bSlider, bVal),
                 new HBox(6, new Label("G"), gSlider, gVal),
@@ -274,8 +276,8 @@ public final class HsvColorOpEditor extends VBox {
         int[] b = readTriple(op, "replacement_bgr", new int[] {0, 0, 0});
         low.setStyle("-fx-background-color: " + hsvCss(l[0], l[1], l[2]) + "; -fx-border-color: #555;");
         high.setStyle("-fx-background-color: " + hsvCss(u[0], u[1], u[2]) + "; -fx-border-color: #555;");
-        replace.setStyle(String.format(
-                "-fx-background-color: rgb(%d,%d,%d); -fx-border-color: #555;", b[2], b[1], b[0]));
+        replace.setStyle(
+                String.format("-fx-background-color: rgb(%d,%d,%d); -fx-border-color: #555;", b[2], b[1], b[0]));
     }
 
     /** OpenCV H is 0-179, S/V 0-255. JavaFX Color expects H 0-360, S/V 0-1. */
@@ -286,9 +288,8 @@ public final class HsvColorOpEditor extends VBox {
         Color c = Color.hsb(hueDeg, sat, val);
         return String.format(
                 "rgb(%d,%d,%d)",
-                (int) Math.round(c.getRed() * 255),
-                (int) Math.round(c.getGreen() * 255),
-                (int) Math.round(c.getBlue() * 255));
+                (int) Math.round(c.getRed() * 255), (int) Math.round(c.getGreen() * 255), (int)
+                        Math.round(c.getBlue() * 255));
     }
 
     private static int[] readTriple(JsonObject op, String key, int[] fallback) {
