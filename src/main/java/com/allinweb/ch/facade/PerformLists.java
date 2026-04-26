@@ -1550,7 +1550,8 @@ public class PerformLists {
                                         // of reading undefined and overwriting on every click.
                                         loopInstLoad.getForceCoordinates() == null
                                                 ? ""
-                                                : loopInstLoad.getForceCoordinates())))
+                                                : loopInstLoad.getForceCoordinates(),
+                                        loopInstLoad.getClientNamed())))
                         .collect(Collectors.toList());
 
                 // Step 1: Filter rows where actions = "REFRESH_LOOP" and collect their parent IDs
