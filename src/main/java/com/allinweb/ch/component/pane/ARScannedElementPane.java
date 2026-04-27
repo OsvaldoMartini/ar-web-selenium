@@ -123,7 +123,8 @@ public class ARScannedElementPane extends ARPane {
     public CheckBox checkClickElement;
     public CheckBox checkInputText;
     public CheckBox checkOutputText;
-    public TextField defineNameField;
+    private static final String DEFINED_NAME_PLACEHOLDER = "PICK AN ELEMENT";
+    public Label definedNameLabel;
     public TextField searchAttribValueField;
     public String xpathTextPrevious;
     protected BooleanProperty interceptBotJob = new SimpleBooleanProperty(false);
@@ -838,7 +839,7 @@ public class ARScannedElementPane extends ARPane {
                 }
             }
             Platform.runLater(() -> {
-                defineNameField.clear();
+                definedNameLabel.setText(DEFINED_NAME_PLACEHOLDER);
                 searchAttribValueField.clear();
             });
         }
@@ -1288,12 +1289,15 @@ public class ARScannedElementPane extends ARPane {
         matchRulesField.setPromptText("tagPrefix:avq, attr:data-test-id");
         matchRulesField.setPrefWidth(300);
 
-        defineNameField = new TextField();
         // Read-only mirror of the picked element's display name (clientNamed → definedName →
         // someText → tagName). Renames live in the React grid via instruction.client_named.
-        defineNameField.setEditable(false);
-        defineNameField.setFocusTraversable(false);
-        defineNameField.setPromptText("Picked element name");
+        definedNameLabel = new Label(DEFINED_NAME_PLACEHOLDER);
+        definedNameLabel.setStyle("-fx-border-color: #9aa0a6; "
+                + "-fx-border-radius: 3; "
+                + "-fx-background-color: #f8f9fa; "
+                + "-fx-background-radius: 3; "
+                + "-fx-padding: 4 8 4 8; "
+                + "-fx-text-fill: #202124;");
 
         coordsTextFieldLabel = new Label("Main Coordinates");
 
@@ -1481,14 +1485,14 @@ public class ARScannedElementPane extends ARPane {
             HBox boxName = new HBox();
             boxName.setSpacing(5);
 
-            // Ensure the text field expands and takes all available space
-            HBox.setHgrow(defineNameField, Priority.ALWAYS);
-            defineNameField.setMaxWidth(Double.MAX_VALUE); // Allows full width usage
+            // Ensure the label expands and takes all available space
+            HBox.setHgrow(definedNameLabel, Priority.ALWAYS);
+            definedNameLabel.setMaxWidth(Double.MAX_VALUE); // Allows full width usage
 
             // Ensure the button has a reasonable width
             cloneElementsButton.setMinWidth(50); // Adjust as needed
 
-            boxName.getChildren().addAll(defineNameField, cloneElementsButton);
+            boxName.getChildren().addAll(definedNameLabel, cloneElementsButton);
 
             HBox boxActions = new HBox();
             boxActions.setSpacing(5);
@@ -2377,7 +2381,7 @@ public class ARScannedElementPane extends ARPane {
 
                 if (!checkCloneElement.isSelected()) {
                     Platform.runLater(() -> {
-                        defineNameField.clear();
+                        definedNameLabel.setText(DEFINED_NAME_PLACEHOLDER);
                         searchAttribValueField.clear();
                     });
                 }
@@ -2388,7 +2392,7 @@ public class ARScannedElementPane extends ARPane {
             if (targetSelected != null && targetSelected.getElement() != null) {
                 cloneElementDTO(targetSelected);
                 Platform.runLater(() -> {
-                    defineNameField.clear();
+                    definedNameLabel.setText(DEFINED_NAME_PLACEHOLDER);
                     searchAttribValueField.clear();
                 });
             } else {
@@ -2446,9 +2450,13 @@ public class ARScannedElementPane extends ARPane {
 
         if (targetToClone != null) {
 
+            // convertTargetToElementDTO already copies the original element's canonical
+            // fields (definedName, someText, tagName, ...) AND its display-only override
+            // (clientNamed). Do NOT collapse them here — definedName must stay the canonical
+            // name (instruction.name) and clientNamed must stay the override
+            // (instruction.client_named). Polluting someText with the resolved-priority
+            // value used to push the override into the wrong DB column.
             ElementDTO elementDTO = performActions.convertTargetToElementDTO(targetToClone);
-
-            elementDTO.setSomeText(defineNameField.getText().trim());
 
             var processDTO = new SplitDTO();
             processDTO.setHomeBankingId(this.currentBotJob.getHomeBankingId());
@@ -2517,7 +2525,7 @@ public class ARScannedElementPane extends ARPane {
 
             if (targetSelected.getElement() != null) {
                 // Display priority: clientNamed → definedName → someText → tagName.
-                // The field is non-editable; renames are made in the React grid and persisted
+                // The label is read-only; renames are made in the React grid and persisted
                 // into instruction.client_named (never used for matching/recovery).
                 nameDefined = !Strings.isNullOrEmpty(targetSelected.getClientNamed())
                         ? targetSelected.getClientNamed()
@@ -2528,7 +2536,7 @@ public class ARScannedElementPane extends ARPane {
                                         : Strings.nullToEmpty(targetSelected.getTagName());
 
                 String finalNameDefined = PerformActions.truncateAndNormalize(nameDefined, 250);
-                Platform.runLater(() -> defineNameField.setText(finalNameDefined));
+                Platform.runLater(() -> definedNameLabel.setText(finalNameDefined));
             }
 
             sb.append("TagType: " + targetSelected.getTagType()).append("\n");

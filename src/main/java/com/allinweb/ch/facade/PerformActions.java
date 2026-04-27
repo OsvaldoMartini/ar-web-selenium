@@ -3740,6 +3740,13 @@ public class PerformActions {
         elementDTO.setAttributeData(targetElement.getAttributeData());
         elementDTO.setCustomXPath(targetElement.getCustomXPath());
         elementDTO.setIFrameXPath(targetElement.getIFrameXPath());
+        // Roadmap 3 Phase 3d: keep canonical name and display-only override as
+        // independent fields. definedName feeds instruction.name (matching key);
+        // clientNamed feeds instruction.client_named (display only). Without these
+        // two, clone payloads lost both — pushing the override value into someText
+        // and ending up persisted in the wrong column.
+        elementDTO.setDefinedName(targetElement.getDefinedName());
+        elementDTO.setClientNamed(targetElement.getClientNamed());
 
         elementDTO.setShadowHost(targetElement.getShadowHost());
         elementDTO.setShadowRoot(targetElement.getShadowRoot());

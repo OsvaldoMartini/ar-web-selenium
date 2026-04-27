@@ -182,9 +182,7 @@ public class TargetElementHelper {
                             : elementDTO.getSomeText().trim().replaceAll("\\s+", " "));
         }
 
-        // Carry the user's display-only override straight through. Null is a valid value
-        // (means: no override, UI shows the resolver name).
-        targetLocal.setClientNamed(elementDTO.getClientNamed());
+        // clientNamed is now propagated centrally inside defineSearchReturn — no extra setter needed here.
 
         // Validate Shadow DOM or regular CSS selectors
         targetLocal.setXPathWorkedFirst(ARConstants.REGULAR_XPATH);
@@ -294,6 +292,11 @@ public class TargetElementHelper {
             targetDefine.setNameLabel(elemenDTO.getNameLabel());
             targetDefine.setNameField(elemenDTO.getNameField());
             targetDefine.setDefinedName(elemenDTO.getDefinedName());
+            // Roadmap 3 Phase 3d: carry the user's display-only override through every
+            // extractPickClone path, including DETAILS_ELEMENT_DTO. Null is a valid value
+            // (means: no override). Without this the single-arg extractPickClone dropped
+            // clientNamed and the read-only label fell back to definedName.
+            targetDefine.setClientNamed(elemenDTO.getClientNamed());
 
             // Reset Previous Values
             targetDefine.setAttribId(elemenDTO.getAttribId());

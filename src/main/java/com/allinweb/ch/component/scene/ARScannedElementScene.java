@@ -770,8 +770,8 @@ public class ARScannedElementScene extends ARScene {
                 }
 
                 if (!isMany) {
-                    // defineNameField is now read-only; renames flow through the React grid
-                    // and instruction.client_named, not through definedName overrides here.
+                    // definedNameLabel is a read-only display; renames flow through the React
+                    // grid and instruction.client_named, not through definedName overrides here.
                     arScannedElementPane.targetSelected = targetEach;
                 }
 
