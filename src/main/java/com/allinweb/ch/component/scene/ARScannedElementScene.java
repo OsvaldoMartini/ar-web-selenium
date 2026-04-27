@@ -770,25 +770,9 @@ public class ARScannedElementScene extends ARScene {
                 }
 
                 if (!isMany) {
-                    if (!Strings.isNullOrEmpty(arScannedElementPane
-                                    .defineNameField
-                                    .getText()
-                                    .trim())
-                            && !targetEach
-                                    .getDefinedName()
-                                    .equalsIgnoreCase(arScannedElementPane
-                                            .defineNameField
-                                            .getText()
-                                            .trim())) {
-                        targetEach.setDefinedName(
-                                arScannedElementPane.defineNameField.getText().trim());
-                        Platform.runLater(() -> {
-                            arScannedElementPane.defineNameField.clear();
-                            arScannedElementPane.searchAttribValueField.clear();
-                        });
-                    }
+                    // defineNameField is now read-only; renames flow through the React grid
+                    // and instruction.client_named, not through definedName overrides here.
                     arScannedElementPane.targetSelected = targetEach;
-                    //                    itPrintsElementDTO();
                 }
 
                 arScannedElementPane.prepareToInsertElementDTO(

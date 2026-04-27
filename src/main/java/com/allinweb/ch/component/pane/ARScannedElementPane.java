@@ -1289,7 +1289,11 @@ public class ARScannedElementPane extends ARPane {
         matchRulesField.setPrefWidth(300);
 
         defineNameField = new TextField();
-        defineNameField.setPromptText("DEFINE A NAME");
+        // Read-only mirror of the picked element's display name (clientNamed → definedName →
+        // someText → tagName). Renames live in the React grid via instruction.client_named.
+        defineNameField.setEditable(false);
+        defineNameField.setFocusTraversable(false);
+        defineNameField.setPromptText("Picked element name");
 
         coordsTextFieldLabel = new Label("Main Coordinates");
 
@@ -2440,22 +2444,6 @@ public class ARScannedElementPane extends ARPane {
 
     private void cloneElementDTO(TargetElement targetToClone) {
 
-        if (Strings.isNullOrEmpty(defineNameField.getText().trim())) {
-
-            performMessage.showCustomModalDialogDragWin11(
-                    "MANDATORY FIELD",
-                    "Define the Element Name",
-                    "Web Element \"NAME\" must be defined!",
-                    null,
-                    null,
-                    true,
-                    "OK",
-                    null,
-                    0);
-
-            return;
-        }
-
         if (targetToClone != null) {
 
             ElementDTO elementDTO = performActions.convertTargetToElementDTO(targetToClone);
@@ -2528,83 +2516,19 @@ public class ARScannedElementPane extends ARPane {
             String nameDefined = "";
 
             if (targetSelected.getElement() != null) {
+                // Display priority: clientNamed → definedName → someText → tagName.
+                // The field is non-editable; renames are made in the React grid and persisted
+                // into instruction.client_named (never used for matching/recovery).
+                nameDefined = !Strings.isNullOrEmpty(targetSelected.getClientNamed())
+                        ? targetSelected.getClientNamed()
+                        : !Strings.isNullOrEmpty(targetSelected.getDefinedName())
+                                ? targetSelected.getDefinedName()
+                                : !Strings.isNullOrEmpty(targetSelected.getSomeText())
+                                        ? targetSelected.getSomeText()
+                                        : Strings.nullToEmpty(targetSelected.getTagName());
 
-                defineNameField.setText("");
-                if (!Strings.isNullOrEmpty(targetSelected.getAttribId())
-                        || !Strings.isNullOrEmpty(targetSelected.getAttribName())
-                        || !Strings.isNullOrEmpty(targetSelected.getSomeText())) {
-                    nameDefined = (!Strings.isNullOrEmpty(targetSelected.getSomeText())
-                            ? PerformActions.truncateAndNormalize(targetSelected.getSomeText(), 250)
-                            : !Strings.isNullOrEmpty(targetSelected.getAttribId())
-                                    ? targetSelected.getAttribId()
-                                    : !Strings.isNullOrEmpty(targetSelected.getAttribName())
-                                            ? targetSelected.getAttribName()
-                                            : "");
-
-                    if (targetSelected.getDefinedName() != null
-                            && !targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
-                        nameDefined = targetSelected.getDefinedName();
-                    }
-
-                    String finalNameDefined = nameDefined;
-                    Platform.runLater(
-                            () -> defineNameField.setText(PerformActions.truncateAndNormalize(finalNameDefined, 250)));
-
-                } else if (targetSelected.getAttributeData() != null && targetSelected.getAttributeData().length > 0) {
-
-                    // Split by comma to get key-value pairs
-
-                    String idValue = null;
-                    String nameValue = null;
-                    String typeValue = null;
-
-                    // Loop through each key-value pair
-                    for (AttributeData attributeData : targetSelected.getAttributeData()) {
-
-                        String key = attributeData.getName().trim();
-                        String value = attributeData.getValue().trim().replaceAll("\"", ""); // Remove quotes
-
-                        if (key.equals("id")) {
-                            idValue = value;
-                        } else if (key.equals("name")) {
-                            nameValue = value;
-                        } else if (key.equals("type")) {
-                            typeValue = value;
-                        }
-                    }
-
-                    // Print based on priority: ID -> Name -> Type
-                    if (idValue != null) {
-                        nameDefined = targetSelected.getTagName() + "-" + idValue;
-                    } else if (nameValue != null) {
-                        nameDefined = targetSelected.getTagName() + "-" + nameValue;
-                    } else if (typeValue != null) {
-                        nameDefined = targetSelected.getTagName() + "-" + typeValue;
-                    } else {
-                        nameDefined = targetSelected.getTagName();
-                    }
-
-                    if (targetSelected.getDefinedName() != null
-                            && !targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
-                        nameDefined = targetSelected.getDefinedName();
-                    }
-
-                    String finalSomeText = nameDefined;
-                    Platform.runLater(
-                            () -> defineNameField.setText(PerformActions.truncateAndNormalize(finalSomeText, 250)));
-
-                } else if (!Strings.isNullOrEmpty(targetSelected.getTagName())) {
-
-                    if (targetSelected.getDefinedName() != null
-                            && !targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
-                        nameDefined = targetSelected.getDefinedName();
-                    } else {
-                        nameDefined = targetSelected.getTagName();
-                    }
-                    String finalSomeText = nameDefined;
-
-                    Platform.runLater(() -> defineNameField.setText(finalSomeText));
-                }
+                String finalNameDefined = PerformActions.truncateAndNormalize(nameDefined, 250);
+                Platform.runLater(() -> defineNameField.setText(finalNameDefined));
             }
 
             sb.append("TagType: " + targetSelected.getTagType()).append("\n");
