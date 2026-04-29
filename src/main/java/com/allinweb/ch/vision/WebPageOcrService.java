@@ -1,6 +1,8 @@
 package com.allinweb.ch.vision;
 
 import com.allinweb.ch.model.OcrConfig;
+import com.allinweb.ch.ocr.bridge.OcrBridgeService;
+import com.allinweb.ch.ocr.bridge.OcrEngine;
 import com.allinweb.ch.vision.ocr.OcrOpenCvUtils;
 import com.allinweb.ch.vision.ocr.OcrPreprocessorOpenCv;
 import com.allinweb.ch.vision.ocr.OcrResult;
@@ -97,6 +99,7 @@ public final class WebPageOcrService {
 
     /** Full-image OCR honouring config overrides for engine params. */
     public static OcrResult recognize(BufferedImage image, OcrConfig cfg) {
+        if (OcrEngine.isNative()) return OcrBridgeService.recognize(image, cfg);
         try {
             ITesseract tess = createEngine(cfg);
             List<Word> words = tess.getWords(image, ITessAPI.TessPageIteratorLevel.RIL_WORD);
@@ -121,6 +124,7 @@ public final class WebPageOcrService {
      * de-duplication (keep the higher-confidence text per overlapping bbox).
      */
     public static OcrResult recognizeMultiPass(BufferedImage image, OcrConfig cfg) {
+        if (OcrEngine.isNative()) return OcrBridgeService.recognizeMultiPass(image, cfg);
         List<OcrWord> all = new ArrayList<>();
 
         // Pass 1 — raw
