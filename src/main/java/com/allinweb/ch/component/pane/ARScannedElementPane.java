@@ -17,7 +17,6 @@ import com.allinweb.ch.readersAndWriters.ExcelReader;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.*;
-import com.allinweb.ch.vision.VisionElementMapper;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import io.opentelemetry.api.internal.StringUtils;

@@ -1,4 +1,4 @@
-package com.allinweb.ch.vision;
+package com.allinweb.ch.util;
 
 import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.model.OcrConfig;
@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 /**
  * Coordinate-anchored correlation between OCR words (image pixel space)
  * and ElementDTOs whose bounding rects were captured by
- * {@link com.allinweb.ch.util.PageDiagnosticDumper} (CSS pixel space).
+ * {@link PageDiagnosticDumper} (CSS pixel space).
  *
  * <p>Quality tiers, in order of preference per element:
  * <ul>
@@ -31,7 +31,7 @@ public final class OcrDomCorrelator {
 
     private OcrDomCorrelator() {}
 
-    /** Minimal shape matching {@code page-HP-rects.json} entries produced in Roadmap 1. */
+    /** Minimal shape matching {@code page-HP-rects.json} entries. */
     public static class RectEntry {
         public String xpath;
         public String iframeXPath;
@@ -41,7 +41,7 @@ public final class OcrDomCorrelator {
 
         public static class Rect {
             public double x, y, width, height;
-            // Roadmap 2 full_page support: page-relative coords written by PageDiagnosticDumper.
+            // full_page support: page-relative coords written by PageDiagnosticDumper.
             // Used by the correlator when screenshot.scope=full_page so OCR words detected in a
             // scroll-stitched image align with DOM rects shifted by the original scroll offset.
             public Double pageX;
@@ -59,9 +59,6 @@ public final class OcrDomCorrelator {
 
         if (dpr <= 0) dpr = 1.0;
 
-        // When screenshot.scope=full_page, OCR coordinates come from a scroll-stitched image
-        // (document-relative), so DOM rects need to switch from getBoundingClientRect() viewport
-        // coords to (rect + scroll offset) page coords. PageDiagnosticDumper writes both.
         boolean useFullPageCoords =
                 cfg != null && "full_page".equalsIgnoreCase(cfg.getString("screenshot", "scope", "viewport"));
 
@@ -115,7 +112,6 @@ public final class OcrDomCorrelator {
             domOut.height = dh;
             r.domRect = domOut;
 
-            // Per-tag proximity threshold
             String tag = dto.getTagName() == null ? "" : dto.getTagName().toLowerCase();
             double proximityThreshold;
             if ("input".equals(tag) || "textarea".equals(tag) || "select".equals(tag)) {

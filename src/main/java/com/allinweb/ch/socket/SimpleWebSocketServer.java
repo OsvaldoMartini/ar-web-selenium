@@ -6,7 +6,6 @@ import com.allinweb.ch.component.scene.ARSaveComponentScene;
 import com.allinweb.ch.facade.*;
 import com.allinweb.ch.model.*;
 import com.allinweb.ch.util.*;
-import com.allinweb.ch.vision.PageOcrDumper;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;

@@ -1,11 +1,10 @@
-package com.allinweb.ch.vision;
+package com.allinweb.ch.util;
 
 import com.allinweb.ch.facade.OcrConfigService;
 import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.model.OcrConfig;
+import com.allinweb.ch.ocr.bridge.OcrBridgeService;
 import com.allinweb.ch.ocr.bridge.OcrResult;
-import com.allinweb.ch.util.PageDiagnosticDumper;
-import com.allinweb.ch.vision.ocr.OcrOpenCvUtils;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -23,15 +22,13 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import javax.imageio.ImageIO;
 import lombok.extern.slf4j.Slf4j;
-import org.opencv.core.Mat;
 import org.openqa.selenium.WebDriver;
 
 /**
- * Orchestrator for the Roadmap 2 OCR pipeline. Consumes the Roadmap 1 artifacts
- * that already live in {@code PATH_DB/page_diagnostics/}:
+ * Orchestrator for the OCR pipeline. Consumes the artifacts that already
+ * live in {@code PATH_DB/page_diagnostics/}:
  * <ul>
  *   <li>{@code page-HP-rects.json} — DOM bounding rects per xPath</li>
  *   <li>{@code page-HP-meta.json}  — viewport, DPR, scroll</li>
@@ -43,6 +40,8 @@ import org.openqa.selenium.WebDriver;
  *   <li>{@code ocr-HP.json}               full OCR word dump</li>
  *   <li>{@code ocr-correlation-HP.json}   per-element DOM↔OCR correlation</li>
  * </ul>
+ *
+ * <p>OCR is performed by {@link OcrBridgeService} (native ar_ocr.dll).
  */
 @Slf4j
 public final class PageOcrDumper {
@@ -80,8 +79,6 @@ public final class PageOcrDumper {
             OcrConfig cfg = OcrConfigService.getInstance().resolveFor(homebankingId, homeUrlId);
 
             // 1. Screenshot — scope: viewport (default) or full_page (scroll-stitched).
-            // Roadmap 2: full_page lets footer elements (y > viewport_height) reach the OCR pass;
-            // without it the correlator returned NONE for anything below the fold.
             String scope = cfg == null ? "viewport" : cfg.getString("screenshot", "scope", "viewport");
             byte[] png = "full_page".equalsIgnoreCase(scope)
                     ? WebScreenshotCapture.fullPageBytes(driver)
@@ -94,39 +91,25 @@ public final class PageOcrDumper {
                 return;
             }
 
-            // 2. Optional ColorMapper pre-OCR pass (configured)
-            BufferedImage ocrInput = image;
-            List<Map<String, Object>> colorOps =
-                    cfg == null ? Collections.emptyList() : cfg.getJsonArray("color_mapping", "ops");
-            if (!colorOps.isEmpty()) {
-                ocrInput = applyColorMapping(image, colorOps, diagDir.resolve(prefix + "-colormapped.png"));
-            }
+            // 2. OCR (multi-pass: raw + optional CLAHE + optional button detection)
+            //    via native ar_ocr.dll.
+            OcrResult ocr = OcrBridgeService.recognizeMultiPass(image, cfg);
 
-            // 3. OCR (multi-pass: raw + optional CLAHE + optional button detection)
-            OcrResult ocr = WebPageOcrService.recognizeMultiPass(ocrInput, cfg);
-
-            // 4. DPR from meta.json (default 1.0)
+            // 3. DPR from meta.json (default 1.0)
             double dpr = readDprFromMeta(diagDir.resolve(prefix + "-meta.json"));
 
-            // 5. Persist raw OCR dump
+            // 4. Persist raw OCR dump
             writeOcrDump(diagDir.resolve("ocr-HP.json"), ocr, dpr, image.getWidth(), image.getHeight());
 
-            // 6. Read DOM rects (written by PageDiagnosticDumper.dumpRects earlier in SEARCH_TOOL)
+            // 5. Read DOM rects (written by PageDiagnosticDumper.dumpRects earlier in SEARCH_TOOL)
             List<OcrDomCorrelator.RectEntry> rects = readRects(diagDir.resolve(prefix + "-rects.json"));
 
-            // 7. Correlate (with per-tag thresholds from config)
+            // 6. Correlate (with per-tag thresholds from config)
             List<OcrCorrelationResult> correlation = OcrDomCorrelator.correlate(elements, rects, ocr, dpr, cfg);
 
-            // 8. Persist correlation
+            // 7. Persist correlation
             Files.writeString(
                     diagDir.resolve("ocr-correlation-HP.json"), GSON.toJson(correlation), StandardCharsets.UTF_8);
-
-            // 9. Optional annotated debug PNG
-            boolean annotate = cfg != null && cfg.getBool("output", "save_annotated_png", false);
-            if (annotate) {
-                AnnotatedImageRenderer.render(
-                        image, ocr.getWords(), correlation, dpr, diagDir.resolve(prefix + "-annotated.png"));
-            }
 
             String profileName = cfg == null || cfg.getProfile() == null
                     ? "<none>"
@@ -168,32 +151,6 @@ public final class PageOcrDumper {
                     none);
         } catch (Exception ex) {
             log.warn("PageOcrDumper.runAndDump failed: {}", ex.getMessage(), ex);
-        }
-    }
-
-    /** Apply ColorMapper ops to the image and optionally persist the mapped result for debugging. */
-    private static BufferedImage applyColorMapping(
-            BufferedImage original, List<Map<String, Object>> ops, Path debugPngPath) {
-        Mat src = null;
-        Mat mapped = null;
-        try {
-            // Trigger OpenCV native load lazily (ColorMapper uses OpenCV).
-            Class.forName("com.allinweb.ch.vision.ocr.OpenCvNativeLoader");
-            src = OcrOpenCvUtils.bufferedImageToMat(original);
-            mapped = ColorMapper.apply(src, ops);
-            BufferedImage out = OcrOpenCvUtils.matToBufferedImage(mapped);
-            try {
-                ImageIO.write(out, "png", debugPngPath.toFile());
-            } catch (IOException ignore) {
-                // Non-fatal.
-            }
-            return out;
-        } catch (Throwable t) {
-            log.warn("ColorMapper pass failed, falling back to raw screenshot: {}", t.getMessage());
-            return original;
-        } finally {
-            if (mapped != null && mapped != src) mapped.release();
-            if (src != null) src.release();
         }
     }
 
@@ -243,14 +200,12 @@ public final class PageOcrDumper {
             JsonObject wobj = new JsonObject();
             wobj.addProperty("text", w.getText());
             wobj.addProperty("confidence", w.getConfidence());
-            // Raw image px
             JsonObject pxBox = new JsonObject();
             pxBox.addProperty("x", w.getBounds().x);
             pxBox.addProperty("y", w.getBounds().y);
             pxBox.addProperty("width", w.getBounds().width);
             pxBox.addProperty("height", w.getBounds().height);
             wobj.add("pxBox", pxBox);
-            // CSS px (divided by DPR)
             JsonObject cssBox = new JsonObject();
             cssBox.addProperty("x", w.getBounds().x / dpr);
             cssBox.addProperty("y", w.getBounds().y / dpr);

@@ -6,7 +6,7 @@ import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ErrorMessage;
 import com.allinweb.ch.util.JsScanResultDTO;
 import com.allinweb.ch.util.PageDiagnosticDumper;
-import com.allinweb.ch.vision.PageOcrDumper;
+import com.allinweb.ch.util.PageOcrDumper;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import java.util.Arrays;

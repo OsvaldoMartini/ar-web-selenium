@@ -1,4 +1,4 @@
-package com.allinweb.ch.vision;
+package com.allinweb.ch.util;
 
 import java.util.List;
 

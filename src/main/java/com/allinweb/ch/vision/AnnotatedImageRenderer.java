@@ -1,6 +1,7 @@
 package com.allinweb.ch.vision;
 
 import com.allinweb.ch.ocr.bridge.OcrWord;
+import com.allinweb.ch.util.OcrCorrelationResult;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics2D;
