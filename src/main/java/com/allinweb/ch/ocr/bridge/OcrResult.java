@@ -1,4 +1,4 @@
-package com.allinweb.ch.vision.ocr;
+package com.allinweb.ch.ocr.bridge;
 
 import java.util.List;
 

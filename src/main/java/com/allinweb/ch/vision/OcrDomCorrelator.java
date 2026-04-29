@@ -2,8 +2,8 @@ package com.allinweb.ch.vision;
 
 import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.model.OcrConfig;
-import com.allinweb.ch.vision.ocr.OcrResult;
-import com.allinweb.ch.vision.ocr.OcrWord;
+import com.allinweb.ch.ocr.bridge.OcrResult;
+import com.allinweb.ch.ocr.bridge.OcrWord;
 import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.Collections;

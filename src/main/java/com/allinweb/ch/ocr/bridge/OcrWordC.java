@@ -11,7 +11,7 @@ import com.sun.jna.Structure;
  */
 @Structure.FieldOrder({"text", "conf", "x", "y", "w", "h"})
 public class OcrWordC extends Structure {
-    public Pointer text;     // const char* — UTF-8, owned by DLL
+    public Pointer text; // const char* — UTF-8, owned by DLL
     public float conf;
     public int x;
     public int y;

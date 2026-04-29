@@ -10,12 +10,11 @@ import com.sun.jna.Structure;
  * <p>Defaults applied DLL-side when this is passed as null:
  * psm=3, oem=3, lang="eng+ita+fra+deu", upscale=2, clahe=0, detect_*=0.
  */
-@Structure.FieldOrder({"psm", "oem", "lang", "upscale", "clahe",
-                       "detect_red", "detect_blue", "detect_any"})
+@Structure.FieldOrder({"psm", "oem", "lang", "upscale", "clahe", "detect_red", "detect_blue", "detect_any"})
 public class OcrConfigC extends Structure {
     public int psm;
     public int oem;
-    public Pointer lang;     // const char* — null means use DLL default
+    public Pointer lang; // const char* — null means use DLL default
     public int upscale;
     public int clahe;
     public int detect_red;

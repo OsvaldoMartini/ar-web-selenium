@@ -37,43 +37,67 @@ public interface OcrBridge extends Library {
     void aro_close(Pointer handle);
 
     /** Single-pass OCR on a raw pixel buffer. */
-    int aro_recognize(Pointer handle,
-                      byte[] pixels, int width, int height, int stride,
-                      OcrConfigC.ByReference cfg,
-                      PointerByReference out_words, IntByReference out_count);
+    int aro_recognize(
+            Pointer handle,
+            byte[] pixels,
+            int width,
+            int height,
+            int stride,
+            OcrConfigC.ByReference cfg,
+            PointerByReference out_words,
+            IntByReference out_count);
 
     /** Single-pass OCR on a file (PNG/JPG/JPEG/BMP/TIFF). Empty args = no-op. */
-    int aro_recognize_file(Pointer handle,
-                           String folder, String filename,
-                           OcrConfigC.ByReference cfg,
-                           PointerByReference out_words, IntByReference out_count);
+    int aro_recognize_file(
+            Pointer handle,
+            String folder,
+            String filename,
+            OcrConfigC.ByReference cfg,
+            PointerByReference out_words,
+            IntByReference out_count);
 
     /** Multi-pass OCR (raw + CLAHE) with IoU dedup; cfg.clahe enables pass 2. */
-    int aro_recognize_multipass(Pointer handle,
-                                byte[] pixels, int width, int height, int stride,
-                                OcrConfigC.ByReference cfg,
-                                PointerByReference out_words, IntByReference out_count);
+    int aro_recognize_multipass(
+            Pointer handle,
+            byte[] pixels,
+            int width,
+            int height,
+            int stride,
+            OcrConfigC.ByReference cfg,
+            PointerByReference out_words,
+            IntByReference out_count);
 
     /** File-based variant of {@link #aro_recognize_multipass}. */
-    int aro_recognize_multipass_file(Pointer handle,
-                                     String folder, String filename,
-                                     OcrConfigC.ByReference cfg,
-                                     PointerByReference out_words, IntByReference out_count);
+    int aro_recognize_multipass_file(
+            Pointer handle,
+            String folder,
+            String filename,
+            OcrConfigC.ByReference cfg,
+            PointerByReference out_words,
+            IntByReference out_count);
 
     /**
      * Detect color-thresholded buttons (red/blue/any per cfg flags) and run
      * per-ROI OCR with PSM_SINGLE_BLOCK.
      */
-    int aro_detect_buttons_and_ocr(Pointer handle,
-                                   byte[] pixels, int width, int height, int stride,
-                                   OcrConfigC.ByReference cfg,
-                                   PointerByReference out_buttons, IntByReference out_count);
+    int aro_detect_buttons_and_ocr(
+            Pointer handle,
+            byte[] pixels,
+            int width,
+            int height,
+            int stride,
+            OcrConfigC.ByReference cfg,
+            PointerByReference out_buttons,
+            IntByReference out_count);
 
     /** File-based variant of {@link #aro_detect_buttons_and_ocr}. */
-    int aro_detect_buttons_and_ocr_file(Pointer handle,
-                                        String folder, String filename,
-                                        OcrConfigC.ByReference cfg,
-                                        PointerByReference out_buttons, IntByReference out_count);
+    int aro_detect_buttons_and_ocr_file(
+            Pointer handle,
+            String folder,
+            String filename,
+            OcrConfigC.ByReference cfg,
+            PointerByReference out_buttons,
+            IntByReference out_count);
 
     /** Free an OcrWordC array allocated by aro_recognize* . Safe with (NULL, 0). */
     void aro_free_words(Pointer words, int count);

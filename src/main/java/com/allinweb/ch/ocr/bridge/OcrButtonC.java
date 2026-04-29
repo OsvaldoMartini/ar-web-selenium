@@ -14,7 +14,7 @@ public class OcrButtonC extends Structure {
     public int y;
     public int w;
     public int h;
-    public Pointer words;     // OcrWordC*
+    public Pointer words; // OcrWordC*
     public int word_count;
 
     public OcrButtonC() {}

@@ -1,6 +1,6 @@
-package com.allinweb.ch.vision.ocr;
+package com.allinweb.ch.ocr.bridge;
 
-import java.awt.*;
+import java.awt.Rectangle;
 
 public class OcrWord {
     private final String text;

@@ -1,9 +1,9 @@
 package com.allinweb.ch.vision;
 
 import com.allinweb.ch.model.OcrConfig;
+import com.allinweb.ch.ocr.bridge.OcrWord;
 import com.allinweb.ch.vision.ocr.OcrOpenCvUtils;
 import com.allinweb.ch.vision.ocr.OcrPreprocessorOpenCv;
-import com.allinweb.ch.vision.ocr.OcrWord;
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.io.IOException;

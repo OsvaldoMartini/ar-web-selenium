@@ -21,7 +21,8 @@ public final class OcrBridgeSmokeTest {
             System.out.println("ar_ocr version: " + version);
             System.exit(0);
         } catch (UnsatisfiedLinkError e) {
-            System.err.println("Failed to load ar_ocr.dll. Set -Djna.library.path to the directory containing the DLL.");
+            System.err.println(
+                    "Failed to load ar_ocr.dll. Set -Djna.library.path to the directory containing the DLL.");
             System.err.println("Underlying error: " + e.getMessage());
             System.exit(1);
         } catch (Throwable t) {

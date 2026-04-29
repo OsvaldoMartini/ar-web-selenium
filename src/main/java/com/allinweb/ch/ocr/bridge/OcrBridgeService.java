@@ -3,8 +3,6 @@ package com.allinweb.ch.ocr.bridge;
 import com.allinweb.ch.model.OcrConfig;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
-import com.allinweb.ch.vision.ocr.OcrResult;
-import com.allinweb.ch.vision.ocr.OcrWord;
 import com.sun.jna.Pointer;
 import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.PointerByReference;
@@ -53,9 +51,7 @@ public final class OcrBridgeService {
             if (pathOcr != null && !pathOcr.isBlank()) {
                 String existing = System.getProperty("jna.library.path", "");
                 if (!existing.contains(pathOcr)) {
-                    String merged = existing.isEmpty()
-                            ? pathOcr
-                            : existing + File.pathSeparator + pathOcr;
+                    String merged = existing.isEmpty() ? pathOcr : existing + File.pathSeparator + pathOcr;
                     System.setProperty("jna.library.path", merged);
                     log.info("OcrBridgeService — jna.library.path set to {}", merged);
                 }
@@ -79,9 +75,15 @@ public final class OcrBridgeService {
                 throw new IllegalStateException("aro_open(null) failed: " + err);
             }
             sharedHandle = opened;
-            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                try { OcrBridge.INSTANCE.aro_close(opened); } catch (Throwable ignore) {}
-            }, "ar-ocr-shutdown"));
+            Runtime.getRuntime()
+                    .addShutdownHook(new Thread(
+                            () -> {
+                                try {
+                                    OcrBridge.INSTANCE.aro_close(opened);
+                                } catch (Throwable ignore) {
+                                }
+                            },
+                            "ar-ocr-shutdown"));
             log.info("OcrBridgeService — ar_ocr {} opened", OcrBridge.INSTANCE.aro_version());
             return opened;
         }
@@ -99,11 +101,10 @@ public final class OcrBridgeService {
             byte[] pixels = bgraBytes(image);
             int w = image.getWidth();
             int h = image.getHeight();
-            OcrConfigC.ByReference cfgC = toCfgC(cfg, /*multipass=*/false);
+            OcrConfigC.ByReference cfgC = toCfgC(cfg, /*multipass=*/ false);
             PointerByReference outWords = new PointerByReference();
             IntByReference outCount = new IntByReference();
-            int rc = OcrBridge.INSTANCE.aro_recognize(
-                    handle(), pixels, w, h, w * 4, cfgC, outWords, outCount);
+            int rc = OcrBridge.INSTANCE.aro_recognize(handle(), pixels, w, h, w * 4, cfgC, outWords, outCount);
             if (rc != 0) {
                 log.warn("aro_recognize rc={}: {}", rc, OcrBridge.INSTANCE.aro_last_error(handle()));
                 return empty();
@@ -133,11 +134,10 @@ public final class OcrBridgeService {
             List<OcrWord> all = new ArrayList<>();
 
             // Raw + CLAHE in one DLL call (DLL does its own IoU dedup across both passes).
-            OcrConfigC.ByReference cfgC = toCfgC(cfg, /*multipass=*/true);
+            OcrConfigC.ByReference cfgC = toCfgC(cfg, /*multipass=*/ true);
             PointerByReference outWords = new PointerByReference();
             IntByReference outCount = new IntByReference();
-            int rc = OcrBridge.INSTANCE.aro_recognize_multipass(
-                    hh, pixels, w, h, w * 4, cfgC, outWords, outCount);
+            int rc = OcrBridge.INSTANCE.aro_recognize_multipass(hh, pixels, w, h, w * 4, cfgC, outWords, outCount);
             if (rc == 0) {
                 consumeWords(outWords.getValue(), outCount.getValue(), all);
             } else {
@@ -158,7 +158,8 @@ public final class OcrBridgeService {
                 }
             }
 
-            double iou = cfg == null ? DEFAULT_IOU_THRESHOLD
+            double iou = cfg == null
+                    ? DEFAULT_IOU_THRESHOLD
                     : cfg.getDouble("correlation", "dedupe_iou", DEFAULT_IOU_THRESHOLD);
             return assemble(dedupeByIoU(all, iou));
         } catch (Throwable t) {
@@ -177,47 +178,47 @@ public final class OcrBridgeService {
         for (int i = 0; i < argb.length; i++) {
             int p = argb[i];
             int o = i * 4;
-            out[o]     = (byte) (p & 0xff);          // B
-            out[o + 1] = (byte) ((p >> 8) & 0xff);   // G
-            out[o + 2] = (byte) ((p >> 16) & 0xff);  // R
-            out[o + 3] = (byte) ((p >> 24) & 0xff);  // A
+            out[o] = (byte) (p & 0xff); // B
+            out[o + 1] = (byte) ((p >> 8) & 0xff); // G
+            out[o + 2] = (byte) ((p >> 16) & 0xff); // R
+            out[o + 3] = (byte) ((p >> 24) & 0xff); // A
         }
         return out;
     }
 
     private static OcrConfigC.ByReference toCfgC(OcrConfig cfg, boolean multipass) {
         OcrConfigC.ByReference c = new OcrConfigC.ByReference();
-        c.psm     = cfg == null ? 3 : cfg.getInt("engine", "psm_mode", 3);
-        c.oem     = 3;
-        c.lang    = null;
+        c.psm = cfg == null ? 3 : cfg.getInt("engine", "psm_mode", 3);
+        c.oem = 3;
+        c.lang = null;
         c.upscale = cfg == null ? 2 : Math.max(1, cfg.getInt("preprocessing", "upscale_factor", 2));
-        c.clahe   = (multipass && cfg != null && cfg.getBool("preprocessing", "enable_clahe_pass", false)) ? 1 : 0;
-        c.detect_red  = 0;
+        c.clahe = (multipass && cfg != null && cfg.getBool("preprocessing", "enable_clahe_pass", false)) ? 1 : 0;
+        c.detect_red = 0;
         c.detect_blue = 0;
-        c.detect_any  = 0;
+        c.detect_any = 0;
         c.write();
         return c;
     }
 
     private static OcrConfigC.ByReference toBtnCfgC(OcrConfig cfg) {
         OcrConfigC.ByReference c = new OcrConfigC.ByReference();
-        c.psm     = 6;       // PSM_SINGLE_BLOCK — DLL also forces this internally
-        c.oem     = 3;
-        c.lang    = null;
+        c.psm = 6; // PSM_SINGLE_BLOCK — DLL also forces this internally
+        c.oem = 3;
+        c.lang = null;
         c.upscale = 2;
-        c.clahe   = 0;
-        c.detect_red  = (cfg != null && cfg.getBool("button_detection", "enable_red",  false)) ? 1 : 0;
+        c.clahe = 0;
+        c.detect_red = (cfg != null && cfg.getBool("button_detection", "enable_red", false)) ? 1 : 0;
         c.detect_blue = (cfg != null && cfg.getBool("button_detection", "enable_blue", false)) ? 1 : 0;
-        c.detect_any  = (cfg != null && cfg.getBool("button_detection", "enable_any",  false)) ? 1 : 0;
+        c.detect_any = (cfg != null && cfg.getBool("button_detection", "enable_any", false)) ? 1 : 0;
         c.write();
         return c;
     }
 
     private static boolean anyButtonEnabled(OcrConfig cfg) {
-        return cfg != null && (
-                cfg.getBool("button_detection", "enable_red",  false)
-             || cfg.getBool("button_detection", "enable_blue", false)
-             || cfg.getBool("button_detection", "enable_any",  false));
+        return cfg != null
+                && (cfg.getBool("button_detection", "enable_red", false)
+                        || cfg.getBool("button_detection", "enable_blue", false)
+                        || cfg.getBool("button_detection", "enable_any", false));
     }
 
     private static void consumeWords(Pointer base, int count, List<OcrWord> out) {
@@ -264,8 +265,10 @@ public final class OcrBridgeService {
     private static List<OcrWord> dedupeByIoU(List<OcrWord> words, double threshold) {
         List<OcrWord> out = new ArrayList<>();
         for (OcrWord w : words) {
-            if (w == null || w.getBounds() == null
-                    || w.getText() == null || w.getText().isBlank()) continue;
+            if (w == null
+                    || w.getBounds() == null
+                    || w.getText() == null
+                    || w.getText().isBlank()) continue;
             int dup = -1;
             for (int i = 0; i < out.size(); i++) {
                 if (iou(w.getBounds(), out.get(i).getBounds()) > threshold) {
