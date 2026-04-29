@@ -18,7 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 public class OcrConfigRepository {
 
     private static volatile OcrConfigRepository instance;
-    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
+    private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
 
     public static OcrConfigRepository getInstance() {
         if (instance == null) {
@@ -37,7 +37,7 @@ public class OcrConfigRepository {
         List<OcrConfigProfile> out = new ArrayList<>();
         String sql = "SELECT id, name, description, homebanking_id, home_url_id, is_default,"
                 + " created_at, updated_at FROM ocr_config_profile ORDER BY is_default DESC, name ASC";
-        try (Connection conn = performDataBase.getConnection();
+        try (Connection conn = performDBEngine.getConnection();
                 Statement st = conn.createStatement();
                 ResultSet rs = st.executeQuery(sql)) {
             while (rs.next()) out.add(mapProfile(rs));
@@ -50,7 +50,7 @@ public class OcrConfigRepository {
     public OcrConfigProfile findProfileById(int id) {
         String sql = "SELECT id, name, description, homebanking_id, home_url_id, is_default,"
                 + " created_at, updated_at FROM ocr_config_profile WHERE id = ?";
-        try (Connection conn = performDataBase.getConnection();
+        try (Connection conn = performDBEngine.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, id);
             try (ResultSet rs = ps.executeQuery()) {
@@ -65,7 +65,7 @@ public class OcrConfigRepository {
     public OcrConfigProfile findProfileByName(String name) {
         String sql = "SELECT id, name, description, homebanking_id, home_url_id, is_default,"
                 + " created_at, updated_at FROM ocr_config_profile WHERE name = ?";
-        try (Connection conn = performDataBase.getConnection();
+        try (Connection conn = performDBEngine.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, name);
             try (ResultSet rs = ps.executeQuery()) {
@@ -82,7 +82,7 @@ public class OcrConfigRepository {
      * Order: matching home_url_id → matching homebanking_id (home_url_id IS NULL) → is_default.
      */
     public OcrConfigProfile resolveActive(Integer homebankingId, Integer homeUrlId) {
-        try (Connection conn = performDataBase.getConnection()) {
+        try (Connection conn = performDBEngine.getConnection()) {
             if (homeUrlId != null) {
                 OcrConfigProfile p = querySingle(
                         conn,
@@ -126,7 +126,7 @@ public class OcrConfigRepository {
     public int insertProfile(OcrConfigProfile p) throws SQLException {
         String sql = "INSERT INTO ocr_config_profile (name, description, homebanking_id, home_url_id, is_default)"
                 + " VALUES (?, ?, ?, ?, ?)";
-        try (Connection conn = performDataBase.getConnection();
+        try (Connection conn = performDBEngine.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, p.getName());
             setNullableString(ps, 2, p.getDescription());
@@ -146,7 +146,7 @@ public class OcrConfigRepository {
     public void updateProfile(OcrConfigProfile p) throws SQLException {
         String sql = "UPDATE ocr_config_profile SET name = ?, description = ?, homebanking_id = ?,"
                 + " home_url_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
-        try (Connection conn = performDataBase.getConnection();
+        try (Connection conn = performDBEngine.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, p.getName());
             setNullableString(ps, 2, p.getDescription());
@@ -159,7 +159,7 @@ public class OcrConfigRepository {
 
     /** Bump {@code updated_at} — call after param edits so "Modified" reflects config changes. */
     public void touchProfile(int id) {
-        try (Connection conn = performDataBase.getConnection();
+        try (Connection conn = performDBEngine.getConnection();
                 PreparedStatement ps = conn.prepareStatement(
                         "UPDATE ocr_config_profile SET updated_at = CURRENT_TIMESTAMP WHERE id = ?")) {
             ps.setInt(1, id);
@@ -171,7 +171,7 @@ public class OcrConfigRepository {
 
     public void deleteProfile(int id) throws SQLException {
         // Profile delete cascades to params via FK (Postgres/SQLite). Access has no FK → delete params first.
-        try (Connection conn = performDataBase.getConnection()) {
+        try (Connection conn = performDBEngine.getConnection()) {
             try (PreparedStatement ps = conn.prepareStatement("DELETE FROM ocr_config_param WHERE profile_id = ?")) {
                 ps.setInt(1, id);
                 ps.executeUpdate();
@@ -189,7 +189,7 @@ public class OcrConfigRepository {
         List<OcrConfigParam> out = new ArrayList<>();
         String sql = "SELECT id, profile_id, category, name, value_type, value"
                 + " FROM ocr_config_param WHERE profile_id = ? ORDER BY category, name";
-        try (Connection conn = performDataBase.getConnection();
+        try (Connection conn = performDBEngine.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, profileId);
             try (ResultSet rs = ps.executeQuery()) {
@@ -202,7 +202,7 @@ public class OcrConfigRepository {
     }
 
     public void upsertParam(OcrConfigParam p) throws SQLException {
-        try (Connection conn = performDataBase.getConnection()) {
+        try (Connection conn = performDBEngine.getConnection()) {
             String selSql = "SELECT id FROM ocr_config_param WHERE profile_id = ? AND category = ? AND name = ?";
             Integer existingId = null;
             try (PreparedStatement ps = conn.prepareStatement(selSql)) {

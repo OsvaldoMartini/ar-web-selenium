@@ -30,7 +30,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ElementLocatorRepository {
 
     private static volatile ElementLocatorRepository instance;
-    private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
+    private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
     private static final org.slf4j.Logger logScanner = org.slf4j.LoggerFactory.getLogger("com.allinweb.scanner");
 
     public static ElementLocatorRepository getInstance() {
@@ -52,7 +52,7 @@ public class ElementLocatorRepository {
                 + " WHERE defined_name = ?"
                 + " AND " + nullableEq("homebanking_id", homebankingId)
                 + " AND " + nullableEq("home_url_id", homeUrlId);
-        try (Connection conn = performDataBase.getConnection();
+        try (Connection conn = performDBEngine.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, definedName);
             try (ResultSet rs = ps.executeQuery()) {
@@ -70,7 +70,7 @@ public class ElementLocatorRepository {
                 + " WHERE " + nullableEq("homebanking_id", homebankingId)
                 + " AND " + nullableEq("home_url_id", homeUrlId)
                 + " ORDER BY defined_name";
-        try (Connection conn = performDataBase.getConnection();
+        try (Connection conn = performDBEngine.getConnection();
                 Statement st = conn.createStatement();
                 ResultSet rs = st.executeQuery(sql)) {
             while (rs.next()) out.add(mapRow(rs));
@@ -158,7 +158,7 @@ public class ElementLocatorRepository {
                 + " iframe_xpath_current, shadow_host_current,"
                 + " pick_count"
                 + ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)";
-        try (Connection conn = performDataBase.getConnection();
+        try (Connection conn = performDBEngine.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
             int i = 1;
             setNullableInt(ps, i++, hbId);
@@ -211,7 +211,7 @@ public class ElementLocatorRepository {
                 + " pick_count = pick_count + 1,"
                 + " updated_at = CURRENT_TIMESTAMP"
                 + " WHERE id = ?";
-        try (Connection conn = performDataBase.getConnection();
+        try (Connection conn = performDBEngine.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
             int i = 1;
             ps.setString(i++, nz(dto.getXPath()));
@@ -281,7 +281,7 @@ public class ElementLocatorRepository {
      * Access doesn't enforce foreign keys.
      */
     public void deleteLocator(long id) throws SQLException {
-        try (Connection conn = performDataBase.getConnection()) {
+        try (Connection conn = performDBEngine.getConnection()) {
             try (PreparedStatement ps =
                     conn.prepareStatement("DELETE FROM element_locator_rename WHERE locator_id = ?")) {
                 ps.setLong(1, id);
@@ -302,7 +302,7 @@ public class ElementLocatorRepository {
         String sql = "INSERT INTO element_locator_rename"
                 + " (locator_id, change_type, field_name, old_value, new_value, match_confidence, recovery_strategy)"
                 + " VALUES (?, ?, ?, ?, ?, ?, ?)";
-        try (Connection conn = performDataBase.getConnection();
+        try (Connection conn = performDBEngine.getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, row.getLocatorId());
             ps.setString(2, row.getChangeType());

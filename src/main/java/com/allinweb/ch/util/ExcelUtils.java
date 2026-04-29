@@ -97,20 +97,22 @@ public class ExcelUtils {
     }
 
     public static ExtractedData isFileExists(String botJobName, List<String> allActions) {
+        return isFileExists(botJobName, allActions, buildAliasMap(performLists.getListBlock()));
+    }
+
+    public static ExtractedData isFileExists(
+            String botJobName, List<String> allActions, Map<String, String> aliasOfCanonical) {
 
         String excelFolderPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
         String fileName = String.format("%s/%s%s", excelFolderPath, botJobName, ARConstants.FILE_FORMAT_EXCEL);
 
-        // Create a File object
         File fileCheck = new File(fileName);
         if (fileCheck.exists() && !fileCheck.isDirectory()) {
-
-            File file = new File(fileName);
 
             ExcelReader excelReader = new ExcelReader();
             ExtractedData extractedData = null;
             try {
-                extractedData = excelReader.extractData(fileName, allActions);
+                extractedData = excelReader.extractData(fileName, allActions, aliasOfCanonical);
             } catch (Exception e) {
                 log.error("Excel File Error. Check All Excel Columns and Values!");
                 performMessage.errorMessage(
@@ -120,9 +122,41 @@ public class ExcelUtils {
 
             return extractedData;
         } else {
-            // Return false if the directory does not exist
             return null;
         }
+    }
+
+    /**
+     * Build a canonical-name -> clientNamed alias map for INPUT instructions across the given
+     * blocks. Only entries with a non-blank clientNamed are included. Used by the Excel reader
+     * so the missing-fields warning doesn't false-positive when an instruction has been
+     * renamed in the React grid.
+     *
+     * <p>Side effect: calls {@code performDataBase.loadInstructions(...)} per block, which
+     * mutates {@code performLists.getListInstruction()}. Callers that re-load instructions
+     * later (e.g. {@code generateUnfilteredExcelFile}) are unaffected because they re-issue
+     * their own load.
+     */
+    public static Map<String, String> buildAliasMap(List<BlockLoadDTO> blocks) {
+        Map<String, String> aliasMap = new HashMap<>();
+        if (blocks == null || blocks.isEmpty()) return aliasMap;
+
+        for (BlockLoadDTO block : blocks) {
+            performDataBase.loadInstructions(block.getBotJobId(), block.getId(), -1, "instruction");
+            List<InstructionLoad> instructions = performLists.getListInstruction();
+            if (instructions == null) continue;
+            for (InstructionLoad instr : instructions) {
+                if (!Objects.equals(instr.getBlockId(), block.getId())) continue;
+                if (instr.getActions() == null) continue;
+                if (!instr.getActions().contains(ARConstants.INSERT + ":")) continue;
+                String canonical = instr.getName();
+                String alias = instr.getClientNamed();
+                if (canonical != null && alias != null && !alias.isBlank()) {
+                    aliasMap.put(canonical, alias);
+                }
+            }
+        }
+        return aliasMap;
     }
 
     public static void writeCsvFile(String fileName, List<BlockLoadDTO> blockDTOList) {
@@ -300,8 +334,6 @@ public class ExcelUtils {
             }
         }
 
-        Set<String> fieldAddedSet = new HashSet<>();
-
         XSSFWorkbook workbook = new XSSFWorkbook();
         XSSFSheet spreadsheet = workbook.createSheet();
         Row blockNameRow = spreadsheet.createRow(FIRST_ROW);
@@ -311,18 +343,18 @@ public class ExcelUtils {
         if (!performLists.getListBlock().isEmpty()) {
 
             for (BlockLoadDTO block : performLists.getListBlock()) {
+                // Per-block dedup: same canonical/displayKey across blocks must each get their
+                // own column. Reset on every block so the column is keyed by (block, header).
+                Set<String> fieldAddedInBlock = new HashSet<>();
+
                 Cell blockNameCell = blockNameRow.createCell(currentIndex, CellType.STRING);
                 blockNameCell.setCellValue("#" + block.getName());
 
-                // List to store the filtered instructions
                 List<InstructionLoad> filteredInstructions = new ArrayList<>();
-
-                // Retrieve all instructions for the block
 
                 performDataBase.loadInstructions(block.getBotJobId(), block.getId(), -1, "instruction");
                 List<InstructionLoad> allInstructions = performLists.getListInstruction();
 
-                // Iterate over the instructions and apply filtering manually
                 for (InstructionLoad instruction : allInstructions) {
                     if (Objects.equals(instruction.getBlockId(), block.getId())
                             && instruction.getActions().contains(ARConstants.INSERT + ":")) {
@@ -330,76 +362,68 @@ public class ExcelUtils {
                     }
                 }
 
-                // Sort the filtered list by instruction order number
                 filteredInstructions.sort(Comparator.comparingInt(instruction ->
                         instruction.getInstructionOrderNumber() != null ? instruction.getInstructionOrderNumber() : 0));
-
-                //                // Filter the list based on the block ID and action condition
-                //                List<InstructionLoad> filteredInstructions = InstructionLoad.stream()
-                //                        .filter(instruction -> instruction.getBlockId() == block.getId()
-                //                                && instruction.getActions().contains(ARConstants.INSERT + ":"))
-                //
-                // .sorted(Comparator.comparingInt(InstructionLoad::getInstructionOrderNumber))
-                //                        .collect(Collectors.toList());
 
                 for (InstructionLoad instruction : filteredInstructions) {
                     String action = instruction.getActions();
                     boolean hasReference = action.contains(ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
+                    if (!hasReference) continue;
 
-                    if (hasReference) {
-                        // Split once and store the parts in an array
-                        String[] parts = action.split(ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
+                    // Header text the user sees and the lookup key both writer/reader use.
+                    // Falls back to instruction.name when clientNamed is unset.
+                    String header = instruction.displayKey();
+                    if (header == null || header.isBlank()) {
+                        // Defensive: instruction with no name AND no clientNamed — skip rather
+                        // than create a blank column.
+                        continue;
+                    }
 
-                        // Get the reference from the second part of the split action
+                    if (fieldAddedInBlock.contains(header)) continue;
+                    fieldAddedInBlock.add(header);
 
-                        String reference = parts[1];
+                    Cell instructionFieldCell = instructionFieldRow.createCell(currentIndex, CellType.STRING);
+                    instructionFieldCell.setCellValue(header);
 
-                        if (parts[0].equals(ARConstants.INSERT) && parts[1].equals(ARConstants.ENTER)) {
-                            reference = parts[2];
-                        }
+                    int DYNAMIC_ROW = SECOND_ROW + 1;
 
-                        if (!fieldAddedSet.contains(reference)) {
-                            fieldAddedSet.add(reference);
-
-                            // Create cell for instruction field
-                            Cell instructionFieldCell = instructionFieldRow.createCell(currentIndex, CellType.STRING);
-                            instructionFieldCell.setCellValue(
-                                    reference); // Use reference directly instead of re-splitting
-
-                            int DYNAMIC_ROW = SECOND_ROW + 1;
-
-                            if (extractedData != null) {
-                                // Loop through extracted data rows
-                                for (int i = 0; i < extractedData.getNumberOfDataRows(); i++) {
-                                    Row belowRow = spreadsheet.getRow(DYNAMIC_ROW); // Get the row below
-                                    if (belowRow == null) {
-                                        belowRow = spreadsheet.createRow(DYNAMIC_ROW); // Create if it doesn't exist
-                                    }
-
-                                    Map<String, String> dataExcel = extractedData.getRowFieldValues(i);
-                                    // Search for the "reference" in ExtractedData and set it in the below cell
-                                    String valueFromExtractedData = dataExcel.get(reference); // Example row = 1
-                                    Cell belowCell = belowRow.createCell(currentIndex, CellType.STRING);
-                                    if (valueFromExtractedData != null) {
-                                        belowCell.setCellValue(valueFromExtractedData);
-                                    } else {
-                                        belowCell.setCellValue("CHANGE ME"); // Fallback message if value is missing
-                                    }
-                                    DYNAMIC_ROW++;
-                                }
-                            } else {
-                                // Fallback if extractedData is null
-                                Row belowRow = spreadsheet.getRow(DYNAMIC_ROW); // Get the row below
-                                if (belowRow == null) {
-                                    belowRow = spreadsheet.createRow(DYNAMIC_ROW); // Create if it doesn't exist
-                                }
-                                Cell belowCell = belowRow.createCell(currentIndex, CellType.STRING);
-                                belowCell.setCellValue("CHANGE ME"); // Fallback message if value is missing
+                    if (extractedData != null && extractedData.getNumberOfDataRows() != null) {
+                        int totalRows = extractedData.getNumberOfDataRows();
+                        for (int i = 0; i < totalRows; i++) {
+                            Row belowRow = spreadsheet.getRow(DYNAMIC_ROW);
+                            if (belowRow == null) {
+                                belowRow = spreadsheet.createRow(DYNAMIC_ROW);
                             }
 
-                            currentIndex++;
+                            // Rename-preserving lookup. The Excel may have been written under
+                            // (block, displayKey), but if the user just toggled clientNamed it
+                            // could still be under (block, instruction.name). Cross-block flat
+                            // lookup is the last resort for legacy files written before block
+                            // scoping was real.
+                            String value = extractedData.getFieldValue(block.getName(), header, i);
+                            if (value == null) {
+                                value = extractedData.getFieldValue(block.getName(), instruction.getName(), i);
+                            }
+                            if (value == null) {
+                                Map<String, String> flatRow = extractedData.getRowFieldValues(i);
+                                value = flatRow.get(header);
+                                if (value == null) value = flatRow.get(instruction.getName());
+                            }
+
+                            Cell belowCell = belowRow.createCell(currentIndex, CellType.STRING);
+                            belowCell.setCellValue(value != null ? value : "CHANGE ME");
+                            DYNAMIC_ROW++;
                         }
+                    } else {
+                        Row belowRow = spreadsheet.getRow(DYNAMIC_ROW);
+                        if (belowRow == null) {
+                            belowRow = spreadsheet.createRow(DYNAMIC_ROW);
+                        }
+                        Cell belowCell = belowRow.createCell(currentIndex, CellType.STRING);
+                        belowCell.setCellValue("CHANGE ME");
                     }
+
+                    currentIndex++;
                 }
             }
         } else {

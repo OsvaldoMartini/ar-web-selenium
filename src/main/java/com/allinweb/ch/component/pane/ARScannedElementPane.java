@@ -2268,7 +2268,10 @@ public class ARScannedElementPane extends ARPane {
 
             ExcelReader excelReader = new ExcelReader();
             try {
-                extractedData = excelReader.extractData(excelPath, performLists.getAllActions());
+                // Pass the canonical->clientNamed alias map so the missing-fields warning
+                // accepts an Excel column header that matches either form after a rename.
+                extractedData = excelReader.extractData(
+                        excelPath, performLists.getAllActions(), ExcelUtils.buildAliasMap(performLists.getListBlock()));
             } catch (Exception error) {
                 log.error("Error Processing Excel File");
                 performMessage.errorMessage(
@@ -4299,14 +4302,40 @@ public class ARScannedElementPane extends ARPane {
                                 continue;
                             }
 
-                            // Case for Inputs
+                            // Case for Inputs.
                             // Post-migration 2026-04-26, INSERT actions are always "I:<reference>".
-                            // The legacy "I:E:<reference>" shape (ENTER-after-input) no longer
-                            // exists in actions — ENTER is a bit in force_coordinates now.
+                            // The legacy "I:E:<reference>" shape (ENTER after input) no longer
+                            // exists in actions. ENTER is a bit in force_coordinates now.
+                            //
+                            // Block scoped lookup. Same canonical name in two blocks is now a
+                            // valid scenario, each block owns its own column. The lookup key
+                            // is displayKey, which is clientNamed when the user set an override
+                            // and the canonical name otherwise. It matches what the Excel writer
+                            // used as the column header. Falls back to the canonical name for
+                            // legacy Excel files written before clientNamed was set.
+                            // ExtractedData uses lenient matching, trim and case insensitive,
+                            // on both block and field name, so cosmetic Excel edits do not break
+                            // the lookup.
                             String valueInsert = "CHANGE ME";
                             if (actions[0].equals(ARConstantsEngine.INSERT)) {
-                                String reference = actions[1];
-                                valueInsert = dataExcel.get(reference);
+                                String displayKey = currentInstruction.displayKey();
+                                String currentBlockName = blockLoad.getName();
+                                valueInsert =
+                                        extractedData.getFieldValue(currentBlockName, displayKey, xExcelCurrentRow);
+                                if (valueInsert == null) {
+                                    valueInsert = extractedData.getFieldValue(
+                                            currentBlockName, currentInstruction.getName(), xExcelCurrentRow);
+                                }
+                                if (valueInsert == null) {
+                                    log.warn(
+                                            "Excel lookup miss block [{}] displayKey [{}] canonical [{}] row {} availableBlocks {} fieldsInBlock {}",
+                                            currentBlockName,
+                                            displayKey,
+                                            currentInstruction.getName(),
+                                            xExcelCurrentRow,
+                                            extractedData.getBlocks(),
+                                            extractedData.getExtractedFields(currentBlockName));
+                                }
                             }
 
                             FieldData msgInstruction = null;
@@ -4809,8 +4838,16 @@ public class ARScannedElementPane extends ARPane {
 
                                     webElementWork = true;
 
+                                    // Block scoped, clientNamed aware extractFieldData. Resolves
+                                    // the cell by block displayKey then by block canonical, so
+                                    // two blocks with the same column name no longer collide,
+                                    // and a renamed field with clientNamed set in React still
+                                    // resolves to the right Excel column.
                                     FieldData fieldData = performActions.extractFieldData(
-                                            dataExcel,
+                                            extractedData,
+                                            blockLoad.getName(),
+                                            xExcelCurrentRow,
+                                            currentInstruction,
                                             actions,
                                             currentInstruction.getDefaultValue(),
                                             currentInstruction.getCodified());

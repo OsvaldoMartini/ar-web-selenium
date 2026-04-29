@@ -1594,6 +1594,67 @@ public class PerformActions {
         return new FieldData(dataFieldName, dataFieldValue);
     }
 
+    /**
+     * Block scoped, clientNamed aware variant. Use this from executeJob and from the engine
+     * runner. The legacy {@code extractFieldData(Map, ...)} above keeps the flat map signature
+     * for any other caller but suffers from two issues now that clientNamed exists.
+     *
+     * <ol>
+     *   <li>Excel column headers are {@code instruction.displayKey()}, which is clientNamed
+     *       when set and the canonical name otherwise. The legacy method looks up by the
+     *       canonical name from the action string and would miss every renamed field.
+     *   <li>The flat row map merges values across all blocks. Two blocks with the same
+     *       displayKey or the same canonical name silently share one cell, so the second
+     *       block value is lost. The block scoped lookup against {@link ExtractedData} keeps
+     *       each block column independent.
+     * </ol>
+     *
+     * Lookup ladder is block displayKey, then block canonical, then null. The canonical
+     * fallback handles legacy Excel files written before clientNamed was set.
+     */
+    public FieldData extractFieldData(
+            ExtractedData extractedData,
+            String blockName,
+            int row,
+            InstructionLoad instruction,
+            String[] actions,
+            String defaultValue,
+            boolean isEncrypted)
+            throws Exception {
+
+        String dataFieldName = "";
+        String dataFieldValue = "";
+
+        if (extractedData != null) {
+            if (actions.length >= 3
+                    && actions[0].equals(ARConstantsEngine.INSERT)
+                    && actions[1].equals(ARConstantsEngine.ENTER)) {
+                dataFieldName = actions[2].split(ARConstantsEngine.PATH_FIELD_SUBSTITUTION)[0];
+            } else if (actions.length == 2 && actions[0].equals(ARConstantsEngine.INSERT)) {
+                dataFieldName = actions[1].split(ARConstantsEngine.PATH_FIELD_SUBSTITUTION)[0];
+            }
+
+            if (!dataFieldName.isEmpty()) {
+                String displayKey = (instruction != null) ? instruction.displayKey() : dataFieldName;
+                dataFieldValue = extractedData.getFieldValue(blockName, displayKey, row);
+                if (dataFieldValue == null && !displayKey.equals(dataFieldName)) {
+                    dataFieldValue = extractedData.getFieldValue(blockName, dataFieldName, row);
+                }
+
+                if (isEncrypted && dataFieldValue != null) {
+                    dataFieldValue = CryptationAlgorithm.decrypt(dataFieldValue);
+                }
+            }
+        } else if (defaultValue != null && !defaultValue.isEmpty()) {
+            dataFieldValue = defaultValue;
+            if (isEncrypted) {
+                dataFieldValue = CryptationAlgorithm.decrypt(dataFieldValue);
+            }
+        }
+
+        return new FieldData(dataFieldName, dataFieldValue);
+    }
+
     private boolean insertDataInSelectElement(
             boolean byPassNotFound, WebElement element, String coordinates, FieldData data, boolean pressEnterAfter)
             throws Exception {

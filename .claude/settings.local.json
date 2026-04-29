@@ -65,7 +65,13 @@
       "Bash(mvn install:install-file -Dfile=\"D:/Projects/AllinWeb/ar-web-mobile/lib/opencv-4100.jar\" -DgroupId=org.opencv -DartifactId=opencv -Dversion=4.10.0 -Dpackaging=jar -q)",
       "Bash(cp \"D:/Projects/AllinWeb/ar-web-mobile/src/main/resources/tesseract/tessdata/eng.traineddata\" \"D:/Projects/AllinWeb/ar-web-mobile/src/main/resources/tesseract/tessdata/ita.traineddata\" \"D:/Projects/AllinWeb/ar-web-mobile/src/main/resources/tesseract/tessdata/fra.traineddata\" \"D:/Projects/AllinWeb/ar-web-mobile/src/main/resources/tesseract/tessdata/deu.traineddata\" \"D:/Projects/AllinWeb/ar-web-selenium/src/main/resources/tesseract/tessdata/\")",
       "Bash(cp \"D:/Projects/AllinWeb/ar-web-mobile/src/main/resources/opencv/opencv_java4100.dll\" \"D:/Projects/AllinWeb/ar-web-selenium/src/main/resources/opencv/windows/\")",
-      "Bash(grep -iE \"^[a-z_].*\\\\.\\(db|sqlite\\)$\")"
+      "Bash(grep -iE \"^[a-z_].*\\\\.\\(db|sqlite\\)$\")",
+      "Bash(grep -rn \"// .*ClientNamed\\\\|//.*clientNamed\\\\|/\\\\*.*[Cc]lientNamed\" \"D:/Projects/AllinWeb/ar-web-selenium/src/main/java/com/allinweb/ch/\")",
+      "Bash(cp \"D:/Projects/AllinWeb/ar-web-selenium/src/main/java/com/allinweb/ch/model/ElementLocatorEntity.java\" \"D:/Projects/AllinWeb/ar-web-engine/src/main/java/com/allinweb/ch/model/ElementLocatorEntity.java\")",
+      "Bash(cp \"D:/Projects/AllinWeb/ar-web-selenium/src/main/java/com/allinweb/ch/model/ElementLocatorRenameEntity.java\" \"D:/Projects/AllinWeb/ar-web-engine/src/main/java/com/allinweb/ch/model/ElementLocatorRenameEntity.java\")",
+      "Bash(cp \"D:/Projects/AllinWeb/ar-web-selenium/src/main/java/com/allinweb/ch/util/TextSimilarity.java\" \"D:/Projects/AllinWeb/ar-web-engine/src/main/java/com/allinweb/ch/util/TextSimilarity.java\")",
+      "Read(//d/Projects/ARWeb-Martini/ARWeb/plugins/hoverPick/**)",
+      "Read(//d/Projects/ARWeb-Martini/ARWeb/page_diagnostics/**)"
     ]
   }
 }
