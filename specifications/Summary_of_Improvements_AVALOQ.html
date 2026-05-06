@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Summary of Improvements — AVALOQ</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body {
+    font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 11pt;
+    line-height: 1.55;
+    color: #222;
+    max-width: 100%;
+  }
+  h1 {
+    color: #0b3d91;
+    border-bottom: 3px solid #0b3d91;
+    padding-bottom: 6px;
+    page-break-after: avoid;
+    font-size: 22pt;
+    margin-top: 0;
+  }
+  h2 {
+    color: #0b3d91;
+    border-bottom: 1px solid #cfd8dc;
+    padding-bottom: 4px;
+    margin-top: 28px;
+    page-break-after: avoid;
+    font-size: 16pt;
+  }
+  h3 {
+    color: #1565c0;
+    margin-top: 20px;
+    page-break-after: avoid;
+    font-size: 13pt;
+  }
+  h4 { color: #37474f; margin-top: 16px; font-size: 12pt; }
+  p, li { font-size: 11pt; }
+  strong { color: #0d2d5c; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 10px 0 18px 0;
+    font-size: 10pt;
+    page-break-inside: avoid;
+  }
+  th, td {
+    border: 1px solid #b0bec5;
+    padding: 6px 9px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    background-color: #e3f2fd;
+    color: #0b3d91;
+    font-weight: 600;
+  }
+  tr:nth-child(even) td { background-color: #fafafa; }
+  blockquote {
+    border-left: 4px solid #90a4ae;
+    margin: 10px 0;
+    padding: 6px 14px;
+    color: #455a64;
+    background: #f5f7fa;
+    font-style: italic;
+  }
+  hr { border: none; border-top: 1px solid #cfd8dc; margin: 22px 0; }
+  code {
+    background: #f1f3f4;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 10pt;
+    font-family: Consolas, 'Courier New', monospace;
+  }
+  ul, ol { padding-left: 22px; }
+  li { margin: 3px 0; }
+  .footer {
+    margin-top: 40px;
+    padding-top: 12px;
+    border-top: 1px solid #cfd8dc;
+    color: #607d8b;
+    font-size: 9pt;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<h1>Summary of Improvements — AVALOQ</h1>
+<div style="background-color:#d4edda; border-left:6px solid #28a745; padding:16px 20px; margin:20px 0; border-radius:6px; color:#155724; font-family:'Segoe UI',Arial,sans-serif;">
+<strong>Hello AVALOQ team — and thank you!</strong><br><br>
+It is a real pleasure to share this proposal with you. Every point below is a direct response to the questions and ideas raised during our review sessions, and we are committed to shaping each capability around the way <strong>AVALOQ actually works</strong> day to day.<br><br>
+For each new improvement we are happy to <strong>walk you through how it will behave in practice</strong> — with live demos, sample reports, and example scenarios — so there are no surprises before development starts.<br><br>
+We would also love to <strong>schedule a dedicated working session with the AVALOQ team</strong> to fine-tune every improvement to your exact needs: priorities, terminology, screens, exports, and integration points. Your feedback will drive the final design.<br><br>
+Looking forward to building this together. 🤝
+</div>
+
+<p><strong>Prepared by:</strong> Osvaldo Martini
+<strong>Date:</strong> 2026-05-05
+<strong>Scope:</strong> Five capability improvements for the AR Web Scanner — two new core features and three productizations of existing strengths</p>
+<hr />
+<h2>Improvement 1 — Test Traceability (Requirements ↔ Test Coverage)</h2>
+<p><strong>Status:</strong> Proposed
+<strong>Kickoff:</strong> 2026-05-06
+<strong>Final delivery:</strong> <strong>2026-06-05</strong></p>
+<h3>What it is</h3>
+<p>A new layer that links each automated test (bot job) to one or more business <strong>Requirements</strong>, so you can answer at any moment:</p>
+<ul>
+<li>Which requirements are covered by tests?</li>
+<li>Which requirements are <strong>not</strong> covered?</li>
+<li>Which requirements <strong>failed</strong> in the last run?</li>
+<li>What is the overall coverage percentage?</li>
+</ul>
+<h3>Why it matters</h3>
+<p>Today the scanner runs tests and produces an execution report, but there is no link back to the requirements being validated. Stakeholders, auditors, and compliance teams cannot get a coverage view without manual spreadsheets.</p>
+<h3>What you will see</h3>
+<ul>
+<li>A new <strong>Requirements</strong> screen where requirements can be created, edited, archived</li>
+<li>A new <strong>Linked Requirements</strong> tab inside each test job, to attach one or more requirements</li>
+<li><strong>CSV import</strong> so existing requirement lists (from Jira, Azure DevOps, or any spreadsheet) can be loaded in bulk</li>
+<li>A new <strong>Coverage</strong> sheet inside the existing Excel execution report, showing each requirement with: status, last run date, last result (Pass / Fail / Mixed / Never run), and the list of jobs that cover it</li>
+<li>Color-coded rows (green / red / amber / grey) for quick visual scan</li>
+<li>A summary line at the top: <em>Total requirements / Covered / Passing / Coverage %</em></li>
+</ul>
+<h3>Delivery plan</h3>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>What is delivered</th>
+<th>Window</th>
+<th>Due date</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Foundations to store requirements and their links to tests</td>
+<td>2026-05-06 → 2026-05-08</td>
+<td><strong>Fri 2026-05-08</strong></td>
+</tr>
+<tr>
+<td>2</td>
+<td>Tests can carry their requirement links (saved + reloaded correctly)</td>
+<td>2026-05-11 → 2026-05-12</td>
+<td><strong>Tue 2026-05-12</strong></td>
+</tr>
+<tr>
+<td>3</td>
+<td>New Requirements screen — create, edit, archive, search</td>
+<td>2026-05-13 → 2026-05-19</td>
+<td><strong>Tue 2026-05-19</strong></td>
+</tr>
+<tr>
+<td>4</td>
+<td>Linking screen — attach requirements to a test job and to individual blocks</td>
+<td>2026-05-20 → 2026-05-22</td>
+<td><strong>Fri 2026-05-22</strong></td>
+</tr>
+<tr>
+<td>5</td>
+<td>CSV import for bulk loading of existing requirements</td>
+<td>2026-05-25 → 2026-05-27</td>
+<td><strong>Wed 2026-05-27</strong></td>
+</tr>
+<tr>
+<td>6</td>
+<td>Coverage sheet added to the Excel execution report</td>
+<td>2026-05-28 → 2026-06-03</td>
+<td><strong>Wed 2026-06-03</strong></td>
+</tr>
+<tr>
+<td>7</td>
+<td>End-to-end validation, user documentation, sign-off</td>
+<td>2026-06-04 → 2026-06-05</td>
+<td><strong>Fri 2026-06-05</strong></td>
+</tr>
+</tbody>
+</table>
+<h3>Out of scope for the first release</h3>
+<ul>
+<li>Live two-way synchronization with Jira or Azure DevOps (planned for a later release)</li>
+<li>PDF or HTML coverage exports</li>
+<li>Step-by-step traceability inside a single test (only Job-level and Block-level for now)</li>
+<li>Historical trend reports across many runs</li>
+</ul>
+<hr />
+<h2>Improvement 2 — Video Recording of Test Executions</h2>
+<p><strong>Status:</strong> Proposed
+<strong>Kickoff:</strong> 2026-05-06 (in parallel with Improvement 1)
+<strong>Final delivery:</strong> <strong>2026-06-08</strong> (parallel) — or <strong>2026-07-09</strong> if delivered after Improvement 1</p>
+<h3>What it is</h3>
+<p>Every test run can now be recorded as a video file. When a test fails, you can open the recording and see exactly what was on screen at the moment of failure, instead of trying to reproduce the issue.</p>
+<h3>Why it matters</h3>
+<p>When a test fails today, the user has only a status line and possibly a single screenshot. To understand the failure they often need to re-run the test manually. A video recording removes that effort and gives a permanent visual evidence trail — useful for support, audit, and stakeholder review.</p>
+<h3>What you will see</h3>
+<ul>
+<li>One <strong>video file (.mp4)</strong> automatically saved for each test run, organized by job name and date/time</li>
+<li><strong>Click-to-seek</strong> links inside the existing Excel execution report — clicking a row opens the video at the exact moment that step was executed</li>
+<li>A <strong>failure-only mode</strong>: keeps a rolling buffer of the last few seconds and saves it permanently only when something fails (avoids large files when everything passes)</li>
+<li>A <strong>Settings screen</strong> where the user can switch recording On / Off / Failure-only, choose quality, and choose to record only the browser window or the full screen</li>
+<li>Files stored locally in a clearly named folder, ready for archival or attachment to a support ticket</li>
+</ul>
+<h3>Delivery plan</h3>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>What is delivered</th>
+<th>Window</th>
+<th>Due date</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Initial recording capability proven on a sample run</td>
+<td>2026-05-06 → 2026-05-08</td>
+<td><strong>Fri 2026-05-08</strong></td>
+</tr>
+<tr>
+<td>2</td>
+<td>Recording engine integrated into the application (start / stop / step markers)</td>
+<td>2026-05-11 → 2026-05-14</td>
+<td><strong>Thu 2026-05-14</strong></td>
+</tr>
+<tr>
+<td>3</td>
+<td>Pre-Launch Test runs are automatically recorded</td>
+<td>2026-05-15 → 2026-05-18</td>
+<td><strong>Mon 2026-05-18</strong></td>
+</tr>
+<tr>
+<td>4</td>
+<td>Settings screen to control recording (On / Off / Failure-only, quality, region)</td>
+<td>2026-05-19 → 2026-05-21</td>
+<td><strong>Thu 2026-05-21</strong></td>
+</tr>
+<tr>
+<td>5</td>
+<td>Final storage layout — clean folder structure and file naming</td>
+<td>2026-05-22 → 2026-05-25</td>
+<td><strong>Mon 2026-05-25</strong></td>
+</tr>
+<tr>
+<td>6</td>
+<td>Failure-only mode: short video clip captured automatically on failure</td>
+<td>2026-05-26 → 2026-05-28</td>
+<td><strong>Thu 2026-05-28</strong></td>
+</tr>
+<tr>
+<td>7</td>
+<td>Click-to-seek links from the Excel execution report into the video</td>
+<td>2026-05-29 → 2026-06-04</td>
+<td><strong>Thu 2026-06-04</strong></td>
+</tr>
+<tr>
+<td>8</td>
+<td>End-to-end validation, user documentation, sign-off</td>
+<td>2026-06-05 → 2026-06-08</td>
+<td><strong>Mon 2026-06-08</strong></td>
+</tr>
+</tbody>
+</table>
+<h3>Out of scope for the first release</h3>
+<ul>
+<li>Drawing annotations on the video (highlighting clicked elements)</li>
+<li>Cloud upload of recordings</li>
+<li>Embedded video player inside the application</li>
+<li>Support for operating systems other than Windows</li>
+</ul>
+<hr />
+<h2>Combined timeline</h2>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>Improvement 1</th>
+<th>Improvement 2</th>
+<th>Both done by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Parallel</strong> (recommended)</td>
+<td>2026-06-05</td>
+<td>2026-06-08</td>
+<td><strong>2026-06-08 (Mon)</strong></td>
+</tr>
+<tr>
+<td>Sequential (RTM first)</td>
+<td>2026-06-05</td>
+<td>2026-07-09</td>
+<td>2026-07-09 (Thu)</td>
+</tr>
+</tbody>
+</table>
+<p>The two improvements are independent and can be delivered in parallel without conflict.</p>
+<hr />
+<h2>Summary of business benefits</h2>
+<table>
+<thead>
+<tr>
+<th>Benefit</th>
+<th>From Improvement 1</th>
+<th>From Improvement 2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Coverage visibility for stakeholders</td>
+<td>✅</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Audit / compliance evidence</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Faster failure diagnosis</td>
+<td>—</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Reduced manual reproduction effort</td>
+<td>—</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Bulk onboarding of existing requirements</td>
+<td>✅</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Visual proof of test execution</td>
+<td>—</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Single Excel report tying requirements + execution + recording together</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+<p>Both improvements together turn the scanner from a <em>test authoring tool</em> into a <em>full test management and evidence platform</em> — the two missing pieces most often raised by stakeholders.</p>
+<hr />
+<h2>Other Questions raised by email (reviewed in the ARWeb presentation)</h2>
+<h3>Question 1 — Customizable element identification</h3>
+<blockquote>
+<p><em>"It was noticed that ARWeb has a default rendering of the elements. Is this customizable, or can it be updated if we want to use specific elements as identifier?"</em></p>
+</blockquote>
+<p><strong>Answer:</strong> Yes — fully customizable today.</p>
+<p>ARWeb already supports a <strong>per-site Priority Table</strong> that defines which attribute is preferred to identify each element (for example: a custom <code>test-id</code>, an <code>aria-label</code>, an internal data attribute, the visible text, the position, etc.). The order is configurable, and different sites can have different priority orders.</p>
+<p><strong>Status:</strong> ✅ Already available. Configuration is done in the site profile.</p>
+<p><strong>Possible enhancement (Improvement 3 — Visual Priority Editor):</strong>
+A small UI that lets the user reorder identifier priorities with drag-and-drop instead of editing the configuration file by hand.</p>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>What is delivered</th>
+<th>Effort</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Visual drag-and-drop priority editor inside the configuration screen</td>
+<td>3 working days</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Per-site profile selector + live preview of which attribute would be picked on the current page</td>
+<td>2 working days</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Validation + documentation</td>
+<td>1 working day</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td><strong>6 working days</strong></td>
+<td><strong>~1.5 weeks</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Suggested window:</strong> 2026-06-09 → 2026-06-16</p>
+<hr />
+<h3>Question 2 — Post-conditions and recovery steps on failure</h3>
+<blockquote>
+<p><em>"Is there a way to force post-conditions and recovery steps in case of test failure?"</em></p>
+</blockquote>
+<p><strong>Answer:</strong> ✅ Already covered.</p>
+<p>ARWeb already supports <strong>conditional flow control</strong> inside a bot job:</p>
+<ul>
+<li><strong>If / Else conditions</strong> — branch the test depending on what is on the page</li>
+<li><strong>Loop conditions</strong> — retry a step until it succeeds or a maximum is reached</li>
+<li><strong>Check Value</strong> — explicit assertion that the page state matches the expected value, with a defined fallback path</li>
+</ul>
+<p>These can be combined to model "try → on failure → run recovery steps → continue / abort", which is exactly what post-conditions and recovery flows require.</p>
+<p><strong>Status:</strong> ✅ Already available. Demonstrated in the ARWeb presentation.</p>
+<p><strong>Optional polishing (Improvement 4 — Recovery Templates):</strong>
+Pre-built, reusable recovery templates (e.g., <em>"close popup and retry"</em>, <em>"reload page and resume"</em>, <em>"logout and re-login"</em>) so users do not have to rebuild the same recovery flow on every job.</p>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>What is delivered</th>
+<th>Effort</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Recovery template library (5 standard templates)</td>
+<td>3 working days</td>
+</tr>
+<tr>
+<td>2</td>
+<td>"Insert recovery template" action in the job editor</td>
+<td>2 working days</td>
+</tr>
+<tr>
+<td>3</td>
+<td>User-saved custom templates</td>
+<td>2 working days</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Validation + documentation</td>
+<td>1 working day</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td><strong>8 working days</strong></td>
+<td><strong>~2 weeks</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Suggested window:</strong> 2026-06-17 → 2026-06-26</p>
+<hr />
+<h3>Question 3 — Storing values from elements that look like buttons</h3>
+<blockquote>
+<p><em>"Unable to store the value of position quantity because it is being identified as a button. With this, we cannot proceed with verification / checking of the value."</em></p>
+</blockquote>
+<p><strong>Answer:</strong> ✅ Already supported through <strong>Dynamic Elements</strong>, and we can extend it further.</p>
+<p>ARWeb already creates <strong>Dynamic Elements</strong> for a bot job. A Dynamic Element lets the bot understand whether a given web element is <em>really</em> a button, an input, a label, or a value carrier — independently of how the page tags it. This means a "button" that actually displays a quantity can be re-classified as a value carrier and its content can be read, stored, and verified like any other field.</p>
+<p>The same Dynamic Element mechanism can also <strong>inject elements into the page</strong> at run time to simulate scenarios that the page does not natively offer — for example:</p>
+<ul>
+<li>Inject a text area that accepts a <strong>signature</strong> drawn by the user</li>
+<li>Inject a field that accepts <strong>images</strong> or attachments</li>
+<li>Inject a temporary value carrier so the bot can capture and compare data that is otherwise locked inside non-standard widgets</li>
+</ul>
+<p><strong>Status:</strong> ✅ Already supported. Recommended to package this as a named feature so customers know it exists.</p>
+<p><strong>Suggested productization (Improvement 5 — Visual Field Mapping &amp; Dynamic Elements):</strong>
+A new visual feature where the user points at any region on the page (WYSIWYG selection / OCR-assisted mapping) and chooses what kind of element it should behave as: <em>value</em>, <em>input</em>, <em>signature pad</em>, <em>image upload</em>, etc. The bot then treats that region accordingly during execution and verification.</p>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>What is delivered</th>
+<th>Effort</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Visual region picker (point at any area of the page and select it)</td>
+<td>4 working days</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Type chooser — Value / Input / Signature / Image / Custom</td>
+<td>2 working days</td>
+</tr>
+<tr>
+<td>3</td>
+<td>OCR-assisted mapping — automatic value reading from the picked region</td>
+<td>3 working days</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Injected widgets — signature pad, image uploader</td>
+<td>4 working days</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Save mapping as part of the job (reusable across runs)</td>
+<td>2 working days</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Verification action — assert value of a mapped region</td>
+<td>2 working days</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Validation + documentation</td>
+<td>2 working days</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td><strong>19 working days</strong></td>
+<td><strong>~4 weeks</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Suggested window:</strong> 2026-06-29 → 2026-07-24</p>
+<hr />
+<h2>Updated combined roadmap (all five improvements)</h2>
+<table>
+<thead>
+<tr>
+<th>Improvement</th>
+<th>Status</th>
+<th>Effort</th>
+<th>Suggested window</th>
+<th>Final delivery</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1 — Test Traceability (RTM)</td>
+<td>Proposed</td>
+<td>~22 days</td>
+<td>2026-05-06 → 2026-06-05</td>
+<td><strong>2026-06-05</strong></td>
+</tr>
+<tr>
+<td>2 — Video Recording</td>
+<td>Proposed</td>
+<td>~23 days</td>
+<td>2026-05-06 → 2026-06-08 (parallel)</td>
+<td><strong>2026-06-08</strong></td>
+</tr>
+<tr>
+<td>3 — Visual Priority Editor</td>
+<td>Optional enhancement</td>
+<td>~6 days</td>
+<td>2026-06-09 → 2026-06-16</td>
+<td><strong>2026-06-16</strong></td>
+</tr>
+<tr>
+<td>4 — Recovery Templates</td>
+<td>Optional polishing</td>
+<td>~8 days</td>
+<td>2026-06-17 → 2026-06-26</td>
+<td><strong>2026-06-26</strong></td>
+</tr>
+<tr>
+<td>5 — Visual Field Mapping &amp; Dynamic Elements</td>
+<td>Proposed (high value)</td>
+<td>~19 days</td>
+<td>2026-06-29 → 2026-07-24</td>
+<td><strong>2026-07-24</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>End-to-end delivery of all five improvements:</strong> <strong>2026-07-24 (Fri)</strong> — assuming Improvements 1 and 2 run in parallel and 3 → 4 → 5 run sequentially after them.</p>
+<p>If Improvement 5 is prioritized (it answers the "value-vs-button" issue, the most operational pain point), it can be pulled forward to start in parallel with Improvement 2, bringing its delivery to mid-June.</p>
+<div class="footer">AR Web Scanner — Summary of Improvements for AVALOQ — Prepared by Osvaldo Martini, 2026-05-05</div>
+</body>
+</html>

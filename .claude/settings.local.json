@@ -71,7 +71,14 @@
       "Bash(cp \"D:/Projects/AllinWeb/ar-web-selenium/src/main/java/com/allinweb/ch/model/ElementLocatorRenameEntity.java\" \"D:/Projects/AllinWeb/ar-web-engine/src/main/java/com/allinweb/ch/model/ElementLocatorRenameEntity.java\")",
       "Bash(cp \"D:/Projects/AllinWeb/ar-web-selenium/src/main/java/com/allinweb/ch/util/TextSimilarity.java\" \"D:/Projects/AllinWeb/ar-web-engine/src/main/java/com/allinweb/ch/util/TextSimilarity.java\")",
       "Read(//d/Projects/ARWeb-Martini/ARWeb/plugins/hoverPick/**)",
-      "Read(//d/Projects/ARWeb-Martini/ARWeb/page_diagnostics/**)"
+      "Read(//d/Projects/ARWeb-Martini/ARWeb/page_diagnostics/**)",
+      "PowerShell(D:\\\\Projects_DevOps\\\\multi_ocr\\\\tools\\\\smoke.ps1)",
+      "Bash(xargs ls -lh)",
+      "PowerShell(Get-Command *)",
+      "PowerShell(python -c \"import markdown; print\\('markdown', markdown.__version__\\)\" 2>&1; python -c \"import markdown.extensions.tables; print\\('tables ok'\\)\" 2>&1)",
+      "PowerShell(python -m pip install --quiet markdown; python -c \"import markdown; print\\('markdown OK', markdown.__version__\\)\")",
+      "PowerShell(python \"D:\\\\Projects\\\\AllinWeb\\\\ar-web-selenium\\\\specifications\\\\_build_pdf.py\")",
+      "PowerShell(Remove-Item *)"
     ]
   }
 }

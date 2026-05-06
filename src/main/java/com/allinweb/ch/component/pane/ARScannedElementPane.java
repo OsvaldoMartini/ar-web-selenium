@@ -1200,8 +1200,8 @@ public class ARScannedElementPane extends ARPane {
                 "Clone", ARConstants.SPACE_L, ARConstants.ICON_TICK, ARConstants.SPACE_SM, new Insets(5));
         pageScannerButton = builder.buildButton(
                 "Page Scanner", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
-        ocrConfigButton =
-                builder.buildButton("", ARConstants.SPACE_ZERO, "/cogwheel.png", ARConstants.SPACE_M, new Insets(5.0D));
+        ocrConfigButton = builder.buildButton(
+                "", ARConstants.SPACE_ZERO, ARConstants.ICON_CONFIG, ARConstants.SPACE_M, new Insets(5.0D));
         ocrConfigButton.setTooltip(new Tooltip("OCR Configuration"));
 
         pluginUpdateButton = buildPluginUpdateButton();
@@ -7929,7 +7929,7 @@ public class ARScannedElementPane extends ARPane {
      */
     private Button buildPluginUpdateButton() {
         Button btn = new Button();
-
+        btn.setVisible(false);
         String pluginsDir = arPropertyManager.resolvePluginsDir();
         int[] counts = countLocalPlugins(pluginsDir);
         int installed = counts[0];
