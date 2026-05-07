@@ -12,15 +12,10 @@ import com.sun.jna.ptr.PointerByReference;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.Key;
-import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
@@ -82,35 +77,9 @@ public class LicenseManager {
      * Returns "SUCCESS" on success, or the error message on failure.
      */
     public static String sendRequestOnline(String organization, String owner, String email) throws Exception {
-        String emailTag = (email != null && !email.isBlank()) ? "email_client:" + email : "email_client:empty";
-        String safeOwner = (owner != null) ? owner : "";
-        String requestData = organization + "|" + safeOwner + "|" + SystemDetails.getSystemDetails() + "|" + emailTag
-                + "|" + APP_VERSION;
-        String encryptedRequest = encrypt(requestData, KEY);
-
-        HttpClient client =
-                HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(15)).build();
-
-        String json = "{\"content\":\"" + escapeJson(encryptedRequest) + "\",\"organization\":\""
-                + escapeJson(organization) + "\",\"app_version\":\"" + APP_VERSION + "\"}";
-
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(API_URL + "/client/license-request"))
-                .header("Content-Type", "application/json")
-                .timeout(Duration.ofSeconds(30))
-                .POST(HttpRequest.BodyPublishers.ofString(json))
-                .build();
-
-        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-
-        if (response.statusCode() == 200 || response.statusCode() == 201) {
-            String body = response.body();
-            if (body.contains("\"ok\":true") || body.contains("\"ok\": true")) {
-                return "SUCCESS";
-            }
-            return body;
-        }
-        return "HTTP Error: " + response.statusCode() + " - " + response.body();
+        // MultiPlugins network traffic disabled — UI is gated; this method is a no-op kept for callers.
+        log.info("sendRequestOnline disabled — no network call performed (org={})", organization);
+        return "DISABLED";
     }
 
     /**
@@ -118,26 +87,8 @@ public class LicenseManager {
      * Returns true if the server responds with ok:true, false otherwise.
      */
     public static boolean pingApi() {
-        try {
-            HttpClient client = HttpClient.newBuilder()
-                    .connectTimeout(Duration.ofSeconds(5))
-                    .build();
-
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(API_URL + "/client/ping"))
-                    .header("Content-Type", "application/json")
-                    .timeout(Duration.ofSeconds(5))
-                    .GET()
-                    .build();
-
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            return response.statusCode() == 200
-                    && (response.body().contains("\"ok\":true")
-                            || response.body().contains("\"ok\": true"));
-        } catch (Exception e) {
-            System.err.println("[PING] API ping failed: " + e.getClass().getSimpleName() + ": " + e.getMessage());
-            return false;
-        }
+        // MultiPlugins network traffic disabled — always reports unreachable.
+        return false;
     }
 
     private static String escapeJson(String s) {

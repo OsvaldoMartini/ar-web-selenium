@@ -1228,11 +1228,15 @@ public class ARScannedElementPane extends ARPane {
                 new Insets(5.0D));
         sendDomButton.setTooltip(new javafx.scene.control.Tooltip(
                 "Send sanitized HTML for review — personal data is replaced with synthetic test data."));
+        sendDomButton.setVisible(false);
+        sendDomButton.setManaged(false);
 
         requestSupportButton =
                 builder.buildButton("", ARConstants.SPACE_ZERO, "/info.png", ARConstants.SPACE_M, new Insets(5.0D));
         requestSupportButton.setTooltip(new javafx.scene.control.Tooltip(
                 "Request Support — send a text message to the MultiPlugins support team."));
+        requestSupportButton.setVisible(false);
+        requestSupportButton.setManaged(false);
 
         cleanListButton = builder.buildButton(
                 "Clear Grid", // No text
@@ -1950,6 +1954,10 @@ public class ARScannedElementPane extends ARPane {
     }
 
     public void handleSupportRequestResponse(String action, String message) {
+        // MultiPlugins network traffic disabled — UI is gated; this WS callback is a hard stop.
+        log.info("handleSupportRequestResponse disabled — no MultiPlugins call performed (action={})", action);
+        if (true) return;
+
         if ("cancel".equals(action) || message == null || message.isBlank()) {
             log.info("Support request cancelled");
             return;
@@ -8236,6 +8244,8 @@ public class ARScannedElementPane extends ARPane {
         portalLink.setOnAction(e -> openInDefaultBrowser("https://www.multiplugins.ch/portal"));
 
         linkRow.getChildren().addAll(prompt, portalLink);
+        linkRow.setVisible(false);
+        linkRow.setManaged(false);
         banner.getChildren().addAll(head, body, linkRow);
         return banner;
     }

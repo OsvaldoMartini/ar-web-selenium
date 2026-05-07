@@ -4,7 +4,6 @@ import com.allinweb.ch.license.SystemDetails;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ConsoleRingBuffer;
-import com.allinweb.ch.util.LicenseFingerprint;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -12,18 +11,13 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.ByteArrayOutputStream;
-import java.net.URI;
 import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.zip.GZIPOutputStream;
 import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.By;
@@ -63,94 +57,9 @@ public class SupportCapture {
 
     public CaptureResult captureAndSend(
             WebDriver driver, String failedPlugin, String failureReason, Long botJobId, String operationId) {
-
-        if (driver == null) return CaptureResult.error("No active driver");
-
-        try {
-            String rawHtml = driver.getPageSource();
-            if (rawHtml == null || rawHtml.isBlank()) {
-                return CaptureResult.error("Empty page source");
-            }
-
-            String licenseEmail = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.LICENSE_EMAIL);
-            if (licenseEmail == null || licenseEmail.isBlank()) {
-                return CaptureResult.error("No email in license — regenerate ARWeb.lic");
-            }
-
-            String appVersion = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.VERSION);
-            String licenseFp = LicenseFingerprint.compute();
-            if (licenseFp == null) {
-                return CaptureResult.error("Missing ARWeb.lic — cannot authenticate");
-            }
-
-            String url = safeString(driver.getCurrentUrl());
-            String title = safeString(driver.getTitle());
-            Dimension vp = null;
-            try {
-                vp = driver.manage().window().getSize();
-            } catch (Exception ignored) {
-            }
-
-            Map<String, Object> env = new HashMap<>();
-            env.put("schemaVersion", "1");
-            env.put("capturedAt", Instant.now().toString());
-            env.put("pcName", SystemDetails.getSystemComputerName());
-            env.put("appVersion", appVersion);
-            env.put("failedPlugin", failedPlugin != null ? failedPlugin : "pageScanner");
-            env.put("failureReason", failureReason != null ? failureReason : "User-initiated capture");
-            env.put("botJobId", botJobId);
-            env.put("operationId", operationId);
-
-            Map<String, Object> browser = new HashMap<>();
-            browser.put("url", url);
-            browser.put("title", title);
-            if (vp != null) {
-                Map<String, Integer> v = new HashMap<>();
-                v.put("w", vp.getWidth());
-                v.put("h", vp.getHeight());
-                browser.put("viewport", v);
-            }
-            env.put("browser", browser);
-
-            env.put("html", gzipAndBase64(rawHtml));
-            env.put("htmlSha256", "sha256:" + sha256Hex(rawHtml));
-            env.put("consoleTail", ConsoleRingBuffer.snapshot(50));
-
-            String json = GSON.toJson(env);
-
-            String orgKey = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.LICENSE_ORG_KEY);
-
-            String apiBase = System.getProperty("multiplugins.api.url", DEFAULT_API);
-            HttpRequest.Builder reqBuilder = HttpRequest.newBuilder()
-                    .uri(URI.create(apiBase + "/support/dom-capture"))
-                    .timeout(Duration.ofSeconds(30))
-                    .header("Content-Type", "application/json")
-                    .header("X-MP-License-Fingerprint", licenseFp)
-                    .header("X-MP-Email", licenseEmail);
-            if (orgKey != null && !orgKey.isBlank()) {
-                reqBuilder.header("X-MP-OrgKey", orgKey);
-            }
-            HttpRequest req = reqBuilder
-                    .POST(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8))
-                    .build();
-
-            HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
-
-            if (resp.statusCode() != 200 && resp.statusCode() != 201) {
-                log.error("SupportCapture — HTTP {}: {}", resp.statusCode(), resp.body());
-                return CaptureResult.error("Server returned HTTP " + resp.statusCode());
-            }
-
-            String ticketId = extractJsonString(resp.body(), "ticketId");
-            String ticketCode = extractJsonString(resp.body(), "ticketCode");
-            String displayId = ticketCode != null ? ticketCode : ticketId;
-            log.info("SupportCapture — upload OK, ticketCode={}, ticketId={}", ticketCode, ticketId);
-            return CaptureResult.ok(displayId);
-
-        } catch (Exception e) {
-            log.error("SupportCapture — failed: {}", e.getMessage(), e);
-            return CaptureResult.error(e.getMessage());
-        }
+        // MultiPlugins network traffic disabled — UI is gated; this is a hard stop.
+        log.info("captureAndSend disabled — no MultiPlugins call performed");
+        return CaptureResult.error("Support upload disabled");
     }
 
     /**
@@ -250,54 +159,9 @@ public class SupportCapture {
 
     public CaptureResult captureElementsAndSend(
             WebDriver driver, String elementDetailsJson, String message, String failureReason) {
-
-        try {
-            String licenseEmail = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.LICENSE_EMAIL);
-            if (licenseEmail == null || licenseEmail.isBlank()) {
-                return CaptureResult.error("No email in license — regenerate ARWeb.lic");
-            }
-
-            String licenseFp = LicenseFingerprint.compute();
-            if (licenseFp == null) {
-                return CaptureResult.error("Missing ARWeb.lic — cannot authenticate");
-            }
-
-            JsonObject envelope = buildElementsReviewEnvelope(driver, elementDetailsJson, message, failureReason);
-            String json = GSON.toJson(envelope);
-
-            String orgKey = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.LICENSE_ORG_KEY);
-
-            String apiBase = System.getProperty("multiplugins.api.url", DEFAULT_API);
-            HttpRequest.Builder reqBuilder = HttpRequest.newBuilder()
-                    .uri(URI.create(apiBase + "/support/dom-capture"))
-                    .timeout(Duration.ofSeconds(30))
-                    .header("Content-Type", "application/json")
-                    .header("X-MP-License-Fingerprint", licenseFp)
-                    .header("X-MP-Email", licenseEmail);
-            if (orgKey != null && !orgKey.isBlank()) {
-                reqBuilder.header("X-MP-OrgKey", orgKey);
-            }
-            HttpRequest req = reqBuilder
-                    .POST(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8))
-                    .build();
-
-            HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
-
-            if (resp.statusCode() != 200 && resp.statusCode() != 201) {
-                log.error("SupportCapture(elements) — HTTP {}: {}", resp.statusCode(), resp.body());
-                return CaptureResult.error("Server returned HTTP " + resp.statusCode());
-            }
-
-            String ticketId = extractJsonString(resp.body(), "ticketId");
-            String ticketCode = extractJsonString(resp.body(), "ticketCode");
-            String displayId = ticketCode != null ? ticketCode : ticketId;
-            log.info("SupportCapture(elements) — upload OK, ticketCode={}, ticketId={}", ticketCode, ticketId);
-            return CaptureResult.ok(displayId);
-
-        } catch (Exception e) {
-            log.error("SupportCapture(elements) — failed: {}", e.getMessage(), e);
-            return CaptureResult.error(e.getMessage());
-        }
+        // MultiPlugins network traffic disabled — UI is gated; this is a hard stop.
+        log.info("captureElementsAndSend disabled — no MultiPlugins call performed");
+        return CaptureResult.error("Support upload disabled");
     }
 
     /**

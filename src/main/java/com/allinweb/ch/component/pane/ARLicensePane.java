@@ -179,11 +179,15 @@ public class ARLicensePane extends ARPane {
         btnPingStatus.setStyle(
                 "-fx-background-color: #9e9e9e; -fx-background-radius: 9; -fx-border-radius: 9; -fx-cursor: hand;");
         btnPingStatus.setTooltip(new Tooltip("API status: unknown"));
+        btnPingStatus.setVisible(false);
+        btnPingStatus.setManaged(false);
 
         tbOnlineRequest = new ToggleButton("On Line Request");
         tbOnlineRequest.setToggleGroup(requestModeGroup);
         tbOnlineRequest.setPrefWidth(200);
         tbOnlineRequest.setStyle("-fx-background-color: #e0e0e0; -fx-font-weight: bold; -fx-background-radius: 5;");
+        tbOnlineRequest.setVisible(false);
+        tbOnlineRequest.setManaged(false);
 
         tbDirectoryRequest = new ToggleButton("Request Target Directory");
         tbDirectoryRequest.setToggleGroup(requestModeGroup);
