@@ -482,17 +482,17 @@ public class ARLicensePane extends ARPane {
             } else
                 try {
                     if (rbRequestLicense.isSelected()
-                            && tfOrganization.getText().trim().isEmpty()) {
+                            && safeTrim(tfOrganization).isEmpty()) {
                         showActionHint("Please fill in the \"Organization\" field", "#f44336", 4);
                     } else if (rbRequestLicense.isSelected()
-                            && !tfEmail.getText().trim().isEmpty()
-                            && !LicenseManager.isEmail(tfEmail.getText().trim())) {
+                            && !safeTrim(tfEmail).isEmpty()
+                            && !LicenseManager.isEmail(safeTrim(tfEmail))) {
                         showActionHint("Invalid email format", "#f44336", 4);
                     } else {
                         if (rbRequestLicense.isSelected()) {
-                            String organization = tfOrganization.getText().trim();
-                            String owner = tfLicenseOwner.getText().trim();
-                            String email = tfEmail.getText().trim();
+                            String organization = safeTrim(tfOrganization);
+                            String owner = safeTrim(tfLicenseOwner);
+                            String email = safeTrim(tfEmail);
 
                             ARPropertyManager.getInstance()
                                     .setProperty(ARPropertyEnum.LICENSE_ORG_NAME.getValue(), organization);
@@ -510,9 +510,8 @@ public class ARLicensePane extends ARPane {
                                 }
                             } else {
                                 // ── Directory request: save to file ──
-                                if (!Strings.isNullOrEmpty(
-                                        filePathField.getText().trim())) {
-                                    fileFolder = filePathField.getText().trim();
+                                if (!Strings.isNullOrEmpty(safeTrim(filePathField))) {
+                                    fileFolder = safeTrim(filePathField);
                                 }
                                 LicenseManager.generateRequestFile(fileFolder, organization, owner, email);
                                 log.info("Request file saved to {}", fileFolder);
@@ -521,8 +520,8 @@ public class ARLicensePane extends ARPane {
 
                         } else if (rbActivateLicense.isSelected()) {
 
-                            if (!Strings.isNullOrEmpty(filePathField.getText().trim())) {
-                                fileFolder = filePathField.getText().trim();
+                            if (!Strings.isNullOrEmpty(safeTrim(filePathField))) {
+                                fileFolder = safeTrim(filePathField);
                             } else {
                                 fileFolder += "/ARWeb 1.1.0.response";
                             }
@@ -541,10 +540,10 @@ public class ARLicensePane extends ARPane {
                                 showActionHint("Activation failed - response file not found", "#f44336", 5);
                             }
                         } else if (rbUseExistentLicense.isSelected()) {
-                            if (Strings.isNullOrEmpty(filePathField.getText().trim())) {
+                            if (Strings.isNullOrEmpty(safeTrim(filePathField))) {
                                 showActionHint("Please select a license file location", "#f44336", 4);
                             } else {
-                                String licensePath = filePathField.getText().trim();
+                                String licensePath = safeTrim(filePathField);
                                 licensePath = licensePath.substring(0, licensePath.lastIndexOf("\\"));
 
                                 if (checkLicense(licensePath)) {
@@ -661,5 +660,12 @@ public class ARLicensePane extends ARPane {
             //                            + fileFolder + "</span>",
             //                    0);
         }
+    }
+
+    // JavaFX TextField.getText() can return null in some flows; treat null as empty.
+    private static String safeTrim(TextField field) {
+        if (field == null) return "";
+        String t = field.getText();
+        return t == null ? "" : t.trim();
     }
 }
