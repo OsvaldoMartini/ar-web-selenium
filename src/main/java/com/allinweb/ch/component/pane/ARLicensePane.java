@@ -381,6 +381,21 @@ public class ARLicensePane extends ARPane {
             btnPingStatus.setStyle(
                     "-fx-background-color: #9e9e9e; -fx-background-radius: 9; -fx-border-radius: 9; -fx-cursor: hand;");
             btnPingStatus.getTooltip().setText("API status: unknown");
+
+            // In Request License mode, picking this toggle should let the user choose
+            // the target folder directly — instead of silently defaulting to Desktop.
+            if (rbRequestLicense.isSelected()) {
+                Stage stage = (Stage) tbDirectoryRequest.getScene().getWindow();
+                File startingPoint = (fileFolder != null && !fileFolder.isBlank()) ? new File(fileFolder) : null;
+                if (startingPoint != null && (!startingPoint.exists() || !startingPoint.isDirectory())) {
+                    startingPoint = null;
+                }
+                String chosenPath = openDirectoryChooserFor(startingPoint, stage);
+                if (chosenPath != null && !chosenPath.isBlank()) {
+                    filePathField.setText(chosenPath);
+                    fileFolder = chosenPath;
+                }
+            }
         });
 
         // Add event handlers to log the state change to the console
