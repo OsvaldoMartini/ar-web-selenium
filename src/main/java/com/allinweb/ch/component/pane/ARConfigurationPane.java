@@ -1134,10 +1134,11 @@ public class ARConfigurationPane extends ARPane {
             validfields = false;
         }
 
-        if (Strings.isNullOrEmpty(pathAppium.getText())) {
-            new ARAlertScene(Alert.AlertType.ERROR, "Field Blank", "Appium Path must be filed!", ButtonType.OK);
-            validfields = false;
-        }
+        //        if (Strings.isNullOrEmpty(pathAppium.getText())) {
+        //            new ARAlertScene(Alert.AlertType.ERROR, "Field Blank", "Appium Path must be filed!",
+        // ButtonType.OK);
+        //            validfields = false;
+        //        }
 
         if (Strings.isNullOrEmpty(pathPlugins.getText())) {
             new ARAlertScene(Alert.AlertType.ERROR, "Field Blank", "Plugins Path must be filed!", ButtonType.OK);
@@ -1167,8 +1168,8 @@ public class ARConfigurationPane extends ARPane {
             arPropertyManager.setProperty(
                     ARPropertyEnum.PATH_WEBDRIVER.getValue(),
                     pathWebDriver.getText().trim());
-            arPropertyManager.setProperty(
-                    ARPropertyEnum.PATH_APPIUM.getValue(), pathAppium.getText().trim());
+            //            arPropertyManager.setProperty(
+            //                    ARPropertyEnum.PATH_APPIUM.getValue(), pathAppium.getText().trim());
             arPropertyManager.setProperty(
                     ARPropertyEnum.PATH_PLUGINS.getValue(),
                     pathPlugins.getText() != null ? pathPlugins.getText().trim() : "");
