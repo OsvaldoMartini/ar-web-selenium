@@ -7144,28 +7144,177 @@ public class PerformDataBase {
                 .build();
     }
 
-    /**
-     * Load all field mappings (api ↔ bot-job-instruction) for a bot job.
-     * Used by the Functional Test tab in MultiTest. Skips rows whose
-     * referenced instruction was deleted (defensive — FK cascade should
-     * already remove them, but legacy DBs may have orphans).
-     */
-    public List<FieldMappingDTO> loadFieldMappings(int botJobId) {
-        List<FieldMappingDTO> rows = new ArrayList<>();
+    // ──────────────────────────────────────────────────────────────────────
+    // Use Case CRUD (Phase 1a of ROADMAP_9 — named groups of mappings)
+    // ──────────────────────────────────────────────────────────────────────
+
+    /** Load all use cases for a bot job, ordered by id ASC ("Default" first). */
+    public List<UseCaseDTO> loadUseCases(int botJobId) {
+        List<UseCaseDTO> rows = new ArrayList<>();
         if (botJobId <= 0) return rows;
-        String sql = "SELECT m.id, m.bot_job_id, m.api_key, m.api_spec_file, m.api_field_name, "
-                + "m.bot_instruction_id, m.created_at, m.updated_at "
-                + "FROM use_case_field_mapping m "
-                + "INNER JOIN instruction i ON i.id = m.bot_instruction_id "
-                + "WHERE m.bot_job_id = ? "
-                + "ORDER BY m.id ASC";
+        String sql = "SELECT id, bot_job_id, name, description, created_at, updated_at "
+                + "FROM use_case WHERE bot_job_id = ? ORDER BY id ASC";
         try (PreparedStatement ps = getConnection().prepareStatement(sql)) {
             ps.setInt(1, botJobId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    UseCaseDTO d = new UseCaseDTO();
+                    d.setId(rs.getInt("id"));
+                    d.setBotJobId(rs.getInt("bot_job_id"));
+                    d.setName(rs.getString("name"));
+                    d.setDescription(rs.getString("description"));
+                    d.setCreatedAt(rs.getString("created_at"));
+                    d.setUpdatedAt(rs.getString("updated_at"));
+                    rows.add(d);
+                }
+            }
+        } catch (SQLException e) {
+            log.error("loadUseCases({}) failed: {}", botJobId, e.getMessage());
+        }
+        return rows;
+    }
+
+    /**
+     * Insert (id == null) or update (id != null) a use case. Returns the id
+     * of the saved row, or null on error. Caller is responsible for unique
+     * (bot_job_id, name) violation handling — we surface the SQL error.
+     */
+    public Integer saveUseCase(UseCaseDTO dto) {
+        if (dto == null || dto.getBotJobId() == null || dto.getBotJobId() <= 0
+                || dto.getName() == null || dto.getName().isBlank()) {
+            return null;
+        }
+        String now = new java.sql.Timestamp(System.currentTimeMillis()).toString();
+        try {
+            Connection conn = getConnection();
+            if (dto.getId() == null) {
+                String insertSql = "INSERT INTO use_case (bot_job_id, name, description, created_at, updated_at) "
+                        + "VALUES (?, ?, ?, ?, ?)";
+                try (PreparedStatement ps = conn.prepareStatement(insertSql, Statement.RETURN_GENERATED_KEYS)) {
+                    ps.setInt(1, dto.getBotJobId());
+                    ps.setString(2, dto.getName());
+                    ps.setString(3, dto.getDescription());
+                    ps.setString(4, now);
+                    ps.setString(5, now);
+                    ps.executeUpdate();
+                    try (ResultSet keys = ps.getGeneratedKeys()) {
+                        if (keys.next()) return keys.getInt(1);
+                    }
+                }
+                // Fallback: re-query
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "SELECT id FROM use_case WHERE bot_job_id = ? AND name = ?")) {
+                    ps.setInt(1, dto.getBotJobId());
+                    ps.setString(2, dto.getName());
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) return rs.getInt(1);
+                    }
+                }
+            } else {
+                String updateSql = "UPDATE use_case SET name = ?, description = ?, updated_at = ? WHERE id = ?";
+                try (PreparedStatement ps = conn.prepareStatement(updateSql)) {
+                    ps.setString(1, dto.getName());
+                    ps.setString(2, dto.getDescription());
+                    ps.setString(3, now);
+                    ps.setInt(4, dto.getId());
+                    ps.executeUpdate();
+                    return dto.getId();
+                }
+            }
+        } catch (SQLException e) {
+            log.error("saveUseCase({}) failed: {}", dto, e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * Delete a use case AND its mappings. We do the mappings DELETE
+     * explicitly because the use_case_id FK is defined in application code,
+     * not in the schema (SQLite/Access ALTER TABLE limitations).
+     */
+    public boolean deleteUseCase(int useCaseId) {
+        if (useCaseId <= 0) return false;
+        Connection conn = null;
+        Boolean prevAuto = null;
+        try {
+            conn = getConnection();
+            prevAuto = conn.getAutoCommit();
+            conn.setAutoCommit(false);
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "DELETE FROM use_case_field_mapping WHERE use_case_id = ?")) {
+                ps.setInt(1, useCaseId);
+                ps.executeUpdate();
+            }
+            try (PreparedStatement ps = conn.prepareStatement("DELETE FROM use_case WHERE id = ?")) {
+                ps.setInt(1, useCaseId);
+                ps.executeUpdate();
+            }
+            conn.commit();
+            return true;
+        } catch (SQLException e) {
+            log.error("deleteUseCase({}) failed: {}", useCaseId, e.getMessage());
+            if (conn != null) {
+                try { conn.rollback(); } catch (SQLException ignored) {}
+            }
+            return false;
+        } finally {
+            if (conn != null && prevAuto != null) {
+                try { conn.setAutoCommit(prevAuto); } catch (SQLException ignored) {}
+            }
+        }
+    }
+
+    /** Returns the id of the "Default" use case for a bot job, creating it if missing. */
+    public int ensureDefaultUseCase(int botJobId) {
+        if (botJobId <= 0) return -1;
+        try {
+            Connection conn = getConnection();
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT id FROM use_case WHERE bot_job_id = ? AND name = ?")) {
+                ps.setInt(1, botJobId);
+                ps.setString(2, "Default");
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) return rs.getInt(1);
+                }
+            }
+            UseCaseDTO def = new UseCaseDTO();
+            def.setBotJobId(botJobId);
+            def.setName("Default");
+            def.setDescription("Auto-created");
+            Integer id = saveUseCase(def);
+            return id != null ? id : -1;
+        } catch (SQLException e) {
+            log.error("ensureDefaultUseCase({}) failed: {}", botJobId, e.getMessage());
+            return -1;
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Field mapping CRUD — now scoped to a use case
+    // ──────────────────────────────────────────────────────────────────────
+
+    /**
+     * Load all field mappings for one use case. Skips rows whose referenced
+     * instruction was deleted (defensive — should not happen with FK cascade,
+     * but legacy DBs may have orphans).
+     */
+    public List<FieldMappingDTO> loadFieldMappingsForUseCase(int useCaseId) {
+        List<FieldMappingDTO> rows = new ArrayList<>();
+        if (useCaseId <= 0) return rows;
+        String sql = "SELECT m.id, m.bot_job_id, m.use_case_id, m.api_key, m.api_spec_file, "
+                + "m.api_field_name, m.bot_instruction_id, m.created_at, m.updated_at "
+                + "FROM use_case_field_mapping m "
+                + "INNER JOIN instruction i ON i.id = m.bot_instruction_id "
+                + "WHERE m.use_case_id = ? "
+                + "ORDER BY m.id ASC";
+        try (PreparedStatement ps = getConnection().prepareStatement(sql)) {
+            ps.setInt(1, useCaseId);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     FieldMappingDTO d = new FieldMappingDTO();
                     d.setId(rs.getLong("id"));
                     d.setBotJobId(rs.getInt("bot_job_id"));
+                    d.setUseCaseId(rs.getInt("use_case_id"));
                     d.setApiKey(rs.getString("api_key"));
                     d.setApiSpecFile(rs.getString("api_spec_file"));
                     d.setApiFieldName(rs.getString("api_field_name"));
@@ -7176,25 +7325,24 @@ public class PerformDataBase {
                 }
             }
         } catch (SQLException e) {
-            log.error("loadFieldMappings({}) failed: {}", botJobId, e.getMessage());
+            log.error("loadFieldMappingsForUseCase({}) failed: {}", useCaseId, e.getMessage());
         }
         return rows;
     }
 
     /**
-     * Replace every field mapping for a bot job with the given list. Single
-     * transaction: DELETE all existing rows for the job, then INSERT each
-     * supplied mapping. Matches the React-side semantics where the client
-     * always ships the full list.
-     *
-     * @return true on success, false on any SQL error (transaction rolled back).
+     * Replace every field mapping for one use case with the given list.
+     * Single transaction: DELETE all existing rows for the use case, then
+     * INSERT each supplied mapping. Caller must supply the resolved bot_job_id
+     * (we cannot infer it from useCaseId without an extra query).
      */
-    public boolean saveFieldMappings(int botJobId, List<FieldMappingDTO> mappings) {
-        if (botJobId <= 0) return false;
-        String deleteSql = "DELETE FROM use_case_field_mapping WHERE bot_job_id = ?";
+    public boolean saveFieldMappingsForUseCase(int botJobId, int useCaseId, List<FieldMappingDTO> mappings) {
+        if (botJobId <= 0 || useCaseId <= 0) return false;
+        String deleteSql = "DELETE FROM use_case_field_mapping WHERE use_case_id = ?";
         String insertSql = "INSERT INTO use_case_field_mapping "
-                + "(bot_job_id, api_key, api_spec_file, api_field_name, bot_instruction_id, created_at, updated_at) "
-                + "VALUES (?, ?, ?, ?, ?, ?, ?)";
+                + "(bot_job_id, use_case_id, api_key, api_spec_file, api_field_name, "
+                + "bot_instruction_id, created_at, updated_at) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         Connection conn = null;
         Boolean prevAutoCommit = null;
         try {
@@ -7202,7 +7350,7 @@ public class PerformDataBase {
             prevAutoCommit = conn.getAutoCommit();
             conn.setAutoCommit(false);
             try (PreparedStatement del = conn.prepareStatement(deleteSql)) {
-                del.setInt(1, botJobId);
+                del.setInt(1, useCaseId);
                 del.executeUpdate();
             }
             String now = new java.sql.Timestamp(System.currentTimeMillis()).toString();
@@ -7210,12 +7358,13 @@ public class PerformDataBase {
                 for (FieldMappingDTO m : mappings) {
                     if (m.getApiKey() == null || m.getBotInstructionId() == null) continue;
                     ins.setInt(1, botJobId);
-                    ins.setString(2, m.getApiKey());
-                    ins.setString(3, m.getApiSpecFile());
-                    ins.setString(4, m.getApiFieldName());
-                    ins.setInt(5, m.getBotInstructionId());
-                    ins.setString(6, m.getCreatedAt() != null ? m.getCreatedAt() : now);
-                    ins.setString(7, now);
+                    ins.setInt(2, useCaseId);
+                    ins.setString(3, m.getApiKey());
+                    ins.setString(4, m.getApiSpecFile());
+                    ins.setString(5, m.getApiFieldName());
+                    ins.setInt(6, m.getBotInstructionId());
+                    ins.setString(7, m.getCreatedAt() != null ? m.getCreatedAt() : now);
+                    ins.setString(8, now);
                     ins.addBatch();
                 }
                 ins.executeBatch();
@@ -7223,7 +7372,8 @@ public class PerformDataBase {
             conn.commit();
             return true;
         } catch (SQLException e) {
-            log.error("saveFieldMappings({}, n={}) failed: {}", botJobId, mappings.size(), e.getMessage());
+            log.error("saveFieldMappingsForUseCase(job={}, uc={}, n={}) failed: {}",
+                    botJobId, useCaseId, mappings.size(), e.getMessage());
             if (conn != null) {
                 try { conn.rollback(); } catch (SQLException ignored) {}
             }
@@ -7233,6 +7383,28 @@ public class PerformDataBase {
                 try { conn.setAutoCommit(prevAutoCommit); } catch (SQLException ignored) {}
             }
         }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Backwards-compatible wrappers — Default use case for the bot job.
+    // The WebSocket layer keeps these for now; phase out once React always
+    // sends an explicit useCaseId.
+    // ──────────────────────────────────────────────────────────────────────
+
+    /** @deprecated Use {@link #loadFieldMappingsForUseCase(int)}. */
+    @Deprecated
+    public List<FieldMappingDTO> loadFieldMappings(int botJobId) {
+        int defId = ensureDefaultUseCase(botJobId);
+        if (defId <= 0) return new ArrayList<>();
+        return loadFieldMappingsForUseCase(defId);
+    }
+
+    /** @deprecated Use {@link #saveFieldMappingsForUseCase(int, int, List)}. */
+    @Deprecated
+    public boolean saveFieldMappings(int botJobId, List<FieldMappingDTO> mappings) {
+        int defId = ensureDefaultUseCase(botJobId);
+        if (defId <= 0) return false;
+        return saveFieldMappingsForUseCase(botJobId, defId, mappings);
     }
 
     /**

@@ -180,6 +180,15 @@ public class SimpleWebSocketServer {
                 case "funcTest.saveMappings":
                     handleFuncTestSaveMappings(jsonObjMSG, sessionId, homeBankingId);
                     break;
+                case "useCase.list":
+                    handleUseCaseList(jsonObjMSG, sessionId, homeBankingId);
+                    break;
+                case "useCase.save":
+                    handleUseCaseSave(jsonObjMSG, sessionId, homeBankingId);
+                    break;
+                case "useCase.delete":
+                    handleUseCaseDelete(jsonObjMSG, sessionId, homeBankingId);
+                    break;
                 default:
                     handleMessageByType(type, jsonObjMSG, session, sessionId);
                     break;
@@ -251,16 +260,28 @@ public class SimpleWebSocketServer {
     }
 
     /**
-     * Functional Test tab — load all persisted field mappings for a bot job.
+     * Functional Test tab — load all persisted field mappings for a use case
+     * (Phase 1a). If body carries {@code useCaseId}, load that one; otherwise
+     * fall back to the Default use case for the given {@code botJobId}.
      *
-     * Inbound: { "type": "funcTest.loadMappings", "sessionId": "funcTest-...",
-     *            "body": "{ \"botJobId\": 42 }" }
+     * Inbound:
+     *   { "type": "funcTest.loadMappings", "sessionId": "funcTest-...",
+     *     "body": "{ \"useCaseId\": 5 }" }                     // preferred
+     *   { "type": "funcTest.loadMappings", "sessionId": "funcTest-...",
+     *     "body": "{ \"botJobId\": 42 }" }                    // back-compat
      * Outbound type: "funcTest.mappingsLoaded".
      */
     private void handleFuncTestLoadMappings(JsonObject jsonObjMSG, String sessionId, int homeBankingId) {
         try {
-            int botJobId = extractBotJobId(jsonObjMSG);
-            List<FieldMappingDTO> rows = performDataBase.loadFieldMappings(botJobId);
+            JsonObject body = extractBody(jsonObjMSG);
+            int useCaseId = body != null && body.has("useCaseId") ? body.get("useCaseId").getAsInt() : -1;
+            List<FieldMappingDTO> rows;
+            if (useCaseId > 0) {
+                rows = performDataBase.loadFieldMappingsForUseCase(useCaseId);
+            } else {
+                int botJobId = extractBotJobId(jsonObjMSG);
+                rows = performDataBase.loadFieldMappings(botJobId);
+            }
             String json = gson.toJson(rows);
             webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, json, "funcTest.mappingsLoaded");
         } catch (Exception e) {
@@ -270,28 +291,37 @@ public class SimpleWebSocketServer {
     }
 
     /**
-     * Functional Test tab — replace all field mappings for a bot job. The
-     * client always sends the complete list; server wipes-and-inserts.
+     * Functional Test tab — replace all field mappings for a use case (or for
+     * the bot job's Default use case if useCaseId is missing). Wipes-and-inserts.
      *
-     * Inbound: { "type": "funcTest.saveMappings", "sessionId": "funcTest-...",
-     *            "body": "{ \"botJobId\": 42, \"mappings\": [ {...FieldMappingDTO...} ] }" }
-     * Outbound type: "funcTest.mappingsSaved" — body is { "ok": bool, "count": N }.
+     * Inbound:
+     *   { "type": "funcTest.saveMappings", "sessionId": "funcTest-...",
+     *     "body": "{ \"botJobId\": 42, \"useCaseId\": 5, \"mappings\": [ ... ] }" }
+     * Outbound type: "funcTest.mappingsSaved" — body { ok, count, botJobId, useCaseId }.
      */
     private void handleFuncTestSaveMappings(JsonObject jsonObjMSG, String sessionId, int homeBankingId) {
         try {
             JsonObject body = extractBody(jsonObjMSG);
             int botJobId = body != null && body.has("botJobId") ? body.get("botJobId").getAsInt() : -1;
+            int useCaseId = body != null && body.has("useCaseId") ? body.get("useCaseId").getAsInt() : -1;
             List<FieldMappingDTO> mappings = new ArrayList<>();
             if (body != null && body.has("mappings") && body.get("mappings").isJsonArray()) {
                 for (var el : body.getAsJsonArray("mappings")) {
                     mappings.add(gson.fromJson(el, FieldMappingDTO.class));
                 }
             }
-            boolean ok = performDataBase.saveFieldMappings(botJobId, mappings);
+            boolean ok;
+            if (useCaseId > 0) {
+                ok = performDataBase.saveFieldMappingsForUseCase(botJobId, useCaseId, mappings);
+            } else {
+                ok = performDataBase.saveFieldMappings(botJobId, mappings);
+                if (ok) useCaseId = performDataBase.ensureDefaultUseCase(botJobId);
+            }
             JsonObject resp = new JsonObject();
             resp.addProperty("ok", ok);
             resp.addProperty("count", mappings.size());
             resp.addProperty("botJobId", botJobId);
+            resp.addProperty("useCaseId", useCaseId);
             webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, gson.toJson(resp), "funcTest.mappingsSaved");
         } catch (Exception e) {
             log.error("handleFuncTestSaveMappings failed: {}", e.getMessage());
@@ -299,6 +329,89 @@ public class SimpleWebSocketServer {
             resp.addProperty("ok", false);
             resp.addProperty("error", e.getMessage());
             webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, gson.toJson(resp), "funcTest.mappingsSaved");
+        }
+    }
+
+    /**
+     * Use Case CRUD — list use cases for a bot job (Phase 1a of ROADMAP_9).
+     *
+     * Inbound:  { "type": "useCase.list", "sessionId": "...", "body": "{\"botJobId\":42}" }
+     * Outbound: "useCase.listResponse" — body is JSON array of UseCaseDTO.
+     *
+     * If the bot job has no use cases yet AND has at least one mapping (legacy
+     * pre-Phase-1a state), this also auto-creates the Default use case so the
+     * UI always has at least one entry to show.
+     */
+    private void handleUseCaseList(JsonObject jsonObjMSG, String sessionId, int homeBankingId) {
+        try {
+            int botJobId = extractBotJobId(jsonObjMSG);
+            List<UseCaseDTO> rows = performDataBase.loadUseCases(botJobId);
+            if (rows.isEmpty() && botJobId > 0) {
+                int defId = performDataBase.ensureDefaultUseCase(botJobId);
+                if (defId > 0) {
+                    rows = performDataBase.loadUseCases(botJobId);
+                }
+            }
+            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, gson.toJson(rows), "useCase.listResponse");
+        } catch (Exception e) {
+            log.error("handleUseCaseList failed: {}", e.getMessage());
+            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, "[]", "useCase.listResponse");
+        }
+    }
+
+    /**
+     * Use Case CRUD — create or rename. Body must carry a UseCaseDTO; id null
+     * = create, id non-null = update.
+     *
+     * Inbound:  { "type": "useCase.save", "sessionId": "...",
+     *             "body": "{\"useCase\": {...UseCaseDTO...}}" }
+     * Outbound: "useCase.saveResponse" — body { ok: bool, id: N|null, useCase: {...} }
+     */
+    private void handleUseCaseSave(JsonObject jsonObjMSG, String sessionId, int homeBankingId) {
+        try {
+            JsonObject body = extractBody(jsonObjMSG);
+            UseCaseDTO dto = body != null && body.has("useCase")
+                    ? gson.fromJson(body.get("useCase"), UseCaseDTO.class)
+                    : null;
+            Integer id = performDataBase.saveUseCase(dto);
+            JsonObject resp = new JsonObject();
+            resp.addProperty("ok", id != null);
+            if (id != null) {
+                if (dto != null) dto.setId(id);
+                resp.add("useCase", gson.toJsonTree(dto));
+                resp.addProperty("id", id);
+            }
+            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, gson.toJson(resp), "useCase.saveResponse");
+        } catch (Exception e) {
+            log.error("handleUseCaseSave failed: {}", e.getMessage());
+            JsonObject resp = new JsonObject();
+            resp.addProperty("ok", false);
+            resp.addProperty("error", e.getMessage());
+            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, gson.toJson(resp), "useCase.saveResponse");
+        }
+    }
+
+    /**
+     * Use Case CRUD — delete a use case (cascades to its field mappings).
+     *
+     * Inbound:  { "type": "useCase.delete", "sessionId": "...", "body": "{\"useCaseId\":5}" }
+     * Outbound: "useCase.deleteResponse" — body { ok: bool, useCaseId: N }
+     */
+    private void handleUseCaseDelete(JsonObject jsonObjMSG, String sessionId, int homeBankingId) {
+        try {
+            JsonObject body = extractBody(jsonObjMSG);
+            int useCaseId = body != null && body.has("useCaseId") ? body.get("useCaseId").getAsInt() : -1;
+            boolean ok = performDataBase.deleteUseCase(useCaseId);
+            JsonObject resp = new JsonObject();
+            resp.addProperty("ok", ok);
+            resp.addProperty("useCaseId", useCaseId);
+            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, gson.toJson(resp), "useCase.deleteResponse");
+        } catch (Exception e) {
+            log.error("handleUseCaseDelete failed: {}", e.getMessage());
+            JsonObject resp = new JsonObject();
+            resp.addProperty("ok", false);
+            resp.addProperty("error", e.getMessage());
+            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, gson.toJson(resp), "useCase.deleteResponse");
         }
     }
 

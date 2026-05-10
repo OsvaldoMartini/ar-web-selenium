@@ -20,6 +20,7 @@ import lombok.NoArgsConstructor;
 public class FieldMappingDTO {
     private Long id;
     private Integer botJobId;
+    private Integer useCaseId; // Phase 1a (ROADMAP_9) — group mappings under a named Use Case
     private String apiKey;
     private String apiSpecFile;
     private String apiFieldName;
