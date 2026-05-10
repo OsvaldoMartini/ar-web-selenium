@@ -174,6 +174,9 @@ public class SimpleWebSocketServer {
                 case "botJob.getInputInstructions":
                     handleBotJobInputInstructions(jsonObjMSG, sessionId, homeBankingId);
                     break;
+                case "botJob.getBlocks":
+                    handleBotJobGetBlocks(jsonObjMSG, sessionId, homeBankingId);
+                    break;
                 case "funcTest.loadMappings":
                     handleFuncTestLoadMappings(jsonObjMSG, sessionId, homeBankingId);
                     break;
@@ -457,6 +460,25 @@ public class SimpleWebSocketServer {
             return bodyEl.getAsJsonObject();
         }
         return null;
+    }
+
+    /**
+     * List blocks for a bot job — used by the Flow tab UI step inspector
+     * (Phase 2c) for the block picker.
+     *
+     * Inbound:  { "type": "botJob.getBlocks", "sessionId": "...", "body": "{\"botJobId\":42}" }
+     * Outbound: "botJob.blocks" — body is JSON array of block rows
+     *           {id, blockOrderNumber, name, description, active}.
+     */
+    private void handleBotJobGetBlocks(JsonObject jsonObjMSG, String sessionId, int homeBankingId) {
+        try {
+            int botJobId = extractBotJobId(jsonObjMSG);
+            List<Map<String, Object>> rows = performDataBase.loadBlocksForBotJob(botJobId);
+            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, gson.toJson(rows), "botJob.blocks");
+        } catch (Exception e) {
+            log.error("handleBotJobGetBlocks failed: {}", e.getMessage());
+            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, "[]", "botJob.blocks");
+        }
     }
 
     // ──────────────────────────────────────────────────────────────────────

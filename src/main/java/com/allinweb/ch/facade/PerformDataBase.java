@@ -7601,6 +7601,36 @@ public class PerformDataBase {
     }
 
     /**
+     * Read-only fetch of all blocks for a bot job. Used by the Flow tab's
+     * UI step inspector for the block picker (Phase 2c of ROADMAP_9).
+     * Pure query — no singleton mutation.
+     */
+    public List<Map<String, Object>> loadBlocksForBotJob(int botJobId) {
+        List<Map<String, Object>> rows = new ArrayList<>();
+        if (botJobId <= 0) return rows;
+        String sql = "SELECT id, block_order_number, name, description, active "
+                + "FROM block WHERE bot_job_id = ? "
+                + "ORDER BY block_order_number ASC, id ASC";
+        try (PreparedStatement ps = getConnection().prepareStatement(sql)) {
+            ps.setInt(1, botJobId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> r = new LinkedHashMap<>();
+                    r.put("id", rs.getInt("id"));
+                    r.put("blockOrderNumber", rs.getInt("block_order_number"));
+                    r.put("name", rs.getString("name"));
+                    r.put("description", rs.getString("description"));
+                    r.put("active", rs.getInt("active"));
+                    rows.add(r);
+                }
+            }
+        } catch (SQLException e) {
+            log.error("loadBlocksForBotJob({}) failed: {}", botJobId, e.getMessage());
+        }
+        return rows;
+    }
+
+    /**
      * Read-only fetch of INPUT-text instructions for a single bot job, joined with their
      * parent block. Used by the Functional Test mapping tab in MultiTest. Bypasses the
      * heavy `loadInstructions` / `performLists` machinery — this is a pure query that
