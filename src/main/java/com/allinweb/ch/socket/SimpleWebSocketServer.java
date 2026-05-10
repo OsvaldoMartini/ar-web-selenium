@@ -189,6 +189,21 @@ public class SimpleWebSocketServer {
                 case "useCase.delete":
                     handleUseCaseDelete(jsonObjMSG, sessionId, homeBankingId);
                     break;
+                case "flow.list":
+                    handleFlowList(jsonObjMSG, sessionId, homeBankingId);
+                    break;
+                case "flow.save":
+                    handleFlowSave(jsonObjMSG, sessionId, homeBankingId);
+                    break;
+                case "flow.delete":
+                    handleFlowDelete(jsonObjMSG, sessionId, homeBankingId);
+                    break;
+                case "flow.steps.load":
+                    handleFlowStepsLoad(jsonObjMSG, sessionId, homeBankingId);
+                    break;
+                case "flow.steps.save":
+                    handleFlowStepsSave(jsonObjMSG, sessionId, homeBankingId);
+                    break;
                 default:
                     handleMessageByType(type, jsonObjMSG, session, sessionId);
                     break;
@@ -442,6 +457,133 @@ public class SimpleWebSocketServer {
             return bodyEl.getAsJsonObject();
         }
         return null;
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Flow CRUD verbs (Phase 2a of ROADMAP_9 — Flow tab skeleton)
+    // ──────────────────────────────────────────────────────────────────────
+
+    /**
+     * List flows for a bot job (steps NOT included — left-rail rendering only).
+     *
+     * Inbound:  { "type": "flow.list", "sessionId": "...", "body": "{\"botJobId\":42}" }
+     * Outbound: "flow.listResponse" — body is JSON array of FlowDTO.
+     */
+    private void handleFlowList(JsonObject jsonObjMSG, String sessionId, int homeBankingId) {
+        try {
+            int botJobId = extractBotJobId(jsonObjMSG);
+            List<FlowDTO> rows = performDataBase.loadFlows(botJobId);
+            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, gson.toJson(rows), "flow.listResponse");
+        } catch (Exception e) {
+            log.error("handleFlowList failed: {}", e.getMessage());
+            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, "[]", "flow.listResponse");
+        }
+    }
+
+    /**
+     * Create or rename a flow. Body must carry a FlowDTO; id null = create,
+     * id non-null = update.
+     *
+     * Inbound:  { "type": "flow.save", "sessionId": "...",
+     *             "body": "{\"flow\": {...FlowDTO...}}" }
+     * Outbound: "flow.saveResponse" — body { ok: bool, id: N|null, flow: {...} }
+     */
+    private void handleFlowSave(JsonObject jsonObjMSG, String sessionId, int homeBankingId) {
+        try {
+            JsonObject body = extractBody(jsonObjMSG);
+            FlowDTO dto = body != null && body.has("flow")
+                    ? gson.fromJson(body.get("flow"), FlowDTO.class)
+                    : null;
+            Integer id = performDataBase.saveFlow(dto);
+            JsonObject resp = new JsonObject();
+            resp.addProperty("ok", id != null);
+            if (id != null) {
+                if (dto != null) dto.setId(id);
+                resp.add("flow", gson.toJsonTree(dto));
+                resp.addProperty("id", id);
+            }
+            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, gson.toJson(resp), "flow.saveResponse");
+        } catch (Exception e) {
+            log.error("handleFlowSave failed: {}", e.getMessage());
+            JsonObject resp = new JsonObject();
+            resp.addProperty("ok", false);
+            resp.addProperty("error", e.getMessage());
+            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, gson.toJson(resp), "flow.saveResponse");
+        }
+    }
+
+    /**
+     * Delete a flow (cascades to flow_step rows).
+     *
+     * Inbound:  { "type": "flow.delete", "sessionId": "...", "body": "{\"flowId\":7}" }
+     * Outbound: "flow.deleteResponse" — body { ok: bool, flowId: N }
+     */
+    private void handleFlowDelete(JsonObject jsonObjMSG, String sessionId, int homeBankingId) {
+        try {
+            JsonObject body = extractBody(jsonObjMSG);
+            int flowId = body != null && body.has("flowId") ? body.get("flowId").getAsInt() : -1;
+            boolean ok = performDataBase.deleteFlow(flowId);
+            JsonObject resp = new JsonObject();
+            resp.addProperty("ok", ok);
+            resp.addProperty("flowId", flowId);
+            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, gson.toJson(resp), "flow.deleteResponse");
+        } catch (Exception e) {
+            log.error("handleFlowDelete failed: {}", e.getMessage());
+            JsonObject resp = new JsonObject();
+            resp.addProperty("ok", false);
+            resp.addProperty("error", e.getMessage());
+            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, gson.toJson(resp), "flow.deleteResponse");
+        }
+    }
+
+    /**
+     * Load all steps for a flow (ordered).
+     *
+     * Inbound:  { "type": "flow.steps.load", "sessionId": "...", "body": "{\"flowId\":7}" }
+     * Outbound: "flow.stepsLoaded" — body is JSON array of FlowStepDTO.
+     */
+    private void handleFlowStepsLoad(JsonObject jsonObjMSG, String sessionId, int homeBankingId) {
+        try {
+            JsonObject body = extractBody(jsonObjMSG);
+            int flowId = body != null && body.has("flowId") ? body.get("flowId").getAsInt() : -1;
+            List<FlowStepDTO> rows = performDataBase.loadFlowSteps(flowId);
+            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, gson.toJson(rows), "flow.stepsLoaded");
+        } catch (Exception e) {
+            log.error("handleFlowStepsLoad failed: {}", e.getMessage());
+            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, "[]", "flow.stepsLoaded");
+        }
+    }
+
+    /**
+     * Replace every step of a flow with the given list (wipe-and-insert).
+     *
+     * Inbound:  { "type": "flow.steps.save", "sessionId": "...",
+     *             "body": "{\"flowId\":7, \"steps\": [...FlowStepDTO...]}" }
+     * Outbound: "flow.stepsSaved" — body { ok: bool, count: N, flowId: N }
+     */
+    private void handleFlowStepsSave(JsonObject jsonObjMSG, String sessionId, int homeBankingId) {
+        try {
+            JsonObject body = extractBody(jsonObjMSG);
+            int flowId = body != null && body.has("flowId") ? body.get("flowId").getAsInt() : -1;
+            List<FlowStepDTO> steps = new ArrayList<>();
+            if (body != null && body.has("steps") && body.get("steps").isJsonArray()) {
+                for (var el : body.getAsJsonArray("steps")) {
+                    steps.add(gson.fromJson(el, FlowStepDTO.class));
+                }
+            }
+            boolean ok = performDataBase.saveFlowSteps(flowId, steps);
+            JsonObject resp = new JsonObject();
+            resp.addProperty("ok", ok);
+            resp.addProperty("count", steps.size());
+            resp.addProperty("flowId", flowId);
+            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, gson.toJson(resp), "flow.stepsSaved");
+        } catch (Exception e) {
+            log.error("handleFlowStepsSave failed: {}", e.getMessage());
+            JsonObject resp = new JsonObject();
+            resp.addProperty("ok", false);
+            resp.addProperty("error", e.getMessage());
+            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, gson.toJson(resp), "flow.stepsSaved");
+        }
     }
 
     private void handleMessageByType(String type, JsonObject jsonEntry, Session session, String sessionId) {
