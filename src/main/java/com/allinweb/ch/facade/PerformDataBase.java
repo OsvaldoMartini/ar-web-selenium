@@ -7145,6 +7145,199 @@ public class PerformDataBase {
     }
 
     // ──────────────────────────────────────────────────────────────────────
+    // Flow CRUD (Phase 1b of ROADMAP_9 — named ordered execution sequences)
+    // ──────────────────────────────────────────────────────────────────────
+
+    /** Load all flows for a bot job (steps NOT included; ordered by id ASC). */
+    public List<FlowDTO> loadFlows(int botJobId) {
+        List<FlowDTO> rows = new ArrayList<>();
+        if (botJobId <= 0) return rows;
+        String sql = "SELECT id, bot_job_id, name, description, created_at, updated_at "
+                + "FROM flow WHERE bot_job_id = ? ORDER BY id ASC";
+        try (PreparedStatement ps = getConnection().prepareStatement(sql)) {
+            ps.setInt(1, botJobId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    FlowDTO d = new FlowDTO();
+                    d.setId(rs.getInt("id"));
+                    d.setBotJobId(rs.getInt("bot_job_id"));
+                    d.setName(rs.getString("name"));
+                    d.setDescription(rs.getString("description"));
+                    d.setCreatedAt(rs.getString("created_at"));
+                    d.setUpdatedAt(rs.getString("updated_at"));
+                    rows.add(d);
+                }
+            }
+        } catch (SQLException e) {
+            log.error("loadFlows({}) failed: {}", botJobId, e.getMessage());
+        }
+        return rows;
+    }
+
+    /** Insert (id == null) or update (id != null) a flow. Returns new id, or null on error. */
+    public Integer saveFlow(FlowDTO dto) {
+        if (dto == null || dto.getBotJobId() == null || dto.getBotJobId() <= 0
+                || dto.getName() == null || dto.getName().isBlank()) {
+            return null;
+        }
+        String now = new java.sql.Timestamp(System.currentTimeMillis()).toString();
+        try {
+            Connection conn = getConnection();
+            if (dto.getId() == null) {
+                String insertSql = "INSERT INTO flow (bot_job_id, name, description, created_at, updated_at) "
+                        + "VALUES (?, ?, ?, ?, ?)";
+                try (PreparedStatement ps = conn.prepareStatement(insertSql, Statement.RETURN_GENERATED_KEYS)) {
+                    ps.setInt(1, dto.getBotJobId());
+                    ps.setString(2, dto.getName());
+                    ps.setString(3, dto.getDescription());
+                    ps.setString(4, now);
+                    ps.setString(5, now);
+                    ps.executeUpdate();
+                    try (ResultSet keys = ps.getGeneratedKeys()) {
+                        if (keys.next()) return keys.getInt(1);
+                    }
+                }
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "SELECT id FROM flow WHERE bot_job_id = ? AND name = ?")) {
+                    ps.setInt(1, dto.getBotJobId());
+                    ps.setString(2, dto.getName());
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) return rs.getInt(1);
+                    }
+                }
+            } else {
+                String updateSql = "UPDATE flow SET name = ?, description = ?, updated_at = ? WHERE id = ?";
+                try (PreparedStatement ps = conn.prepareStatement(updateSql)) {
+                    ps.setString(1, dto.getName());
+                    ps.setString(2, dto.getDescription());
+                    ps.setString(3, now);
+                    ps.setInt(4, dto.getId());
+                    ps.executeUpdate();
+                    return dto.getId();
+                }
+            }
+        } catch (SQLException e) {
+            log.error("saveFlow({}) failed: {}", dto, e.getMessage());
+        }
+        return null;
+    }
+
+    /** Delete a flow (cascades to flow_step rows via FK CASCADE — schema-enforced). */
+    public boolean deleteFlow(int flowId) {
+        if (flowId <= 0) return false;
+        Connection conn = null;
+        Boolean prevAuto = null;
+        try {
+            conn = getConnection();
+            prevAuto = conn.getAutoCommit();
+            conn.setAutoCommit(false);
+            // Belt-and-suspenders: delete steps explicitly in case the FK cascade
+            // is not enforced by the dialect (SQLite without pragma foreign_keys=ON, etc.)
+            try (PreparedStatement ps = conn.prepareStatement("DELETE FROM flow_step WHERE flow_id = ?")) {
+                ps.setInt(1, flowId);
+                ps.executeUpdate();
+            }
+            try (PreparedStatement ps = conn.prepareStatement("DELETE FROM flow WHERE id = ?")) {
+                ps.setInt(1, flowId);
+                ps.executeUpdate();
+            }
+            conn.commit();
+            return true;
+        } catch (SQLException e) {
+            log.error("deleteFlow({}) failed: {}", flowId, e.getMessage());
+            if (conn != null) {
+                try { conn.rollback(); } catch (SQLException ignored) {}
+            }
+            return false;
+        } finally {
+            if (conn != null && prevAuto != null) {
+                try { conn.setAutoCommit(prevAuto); } catch (SQLException ignored) {}
+            }
+        }
+    }
+
+    /** Load all steps for a flow, ordered by step_order ASC. */
+    public List<FlowStepDTO> loadFlowSteps(int flowId) {
+        List<FlowStepDTO> rows = new ArrayList<>();
+        if (flowId <= 0) return rows;
+        String sql = "SELECT id, flow_id, step_order, name, step_type, payload_json, created_at, updated_at "
+                + "FROM flow_step WHERE flow_id = ? ORDER BY step_order ASC, id ASC";
+        try (PreparedStatement ps = getConnection().prepareStatement(sql)) {
+            ps.setInt(1, flowId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    FlowStepDTO d = new FlowStepDTO();
+                    d.setId(rs.getLong("id"));
+                    d.setFlowId(rs.getInt("flow_id"));
+                    d.setStepOrder(rs.getInt("step_order"));
+                    d.setName(rs.getString("name"));
+                    d.setStepType(rs.getString("step_type"));
+                    d.setPayloadJson(rs.getString("payload_json"));
+                    d.setCreatedAt(rs.getString("created_at"));
+                    d.setUpdatedAt(rs.getString("updated_at"));
+                    rows.add(d);
+                }
+            }
+        } catch (SQLException e) {
+            log.error("loadFlowSteps({}) failed: {}", flowId, e.getMessage());
+        }
+        return rows;
+    }
+
+    /**
+     * Replace every step of a flow with the given list. Single transaction:
+     * DELETE all existing steps for the flow, then INSERT each. Same wipe-and-
+     * insert semantics as {@link #saveFieldMappingsForUseCase(int, int, List)}.
+     */
+    public boolean saveFlowSteps(int flowId, List<FlowStepDTO> steps) {
+        if (flowId <= 0) return false;
+        String deleteSql = "DELETE FROM flow_step WHERE flow_id = ?";
+        String insertSql = "INSERT INTO flow_step "
+                + "(flow_id, step_order, name, step_type, payload_json, created_at, updated_at) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?)";
+        Connection conn = null;
+        Boolean prevAutoCommit = null;
+        try {
+            conn = getConnection();
+            prevAutoCommit = conn.getAutoCommit();
+            conn.setAutoCommit(false);
+            try (PreparedStatement del = conn.prepareStatement(deleteSql)) {
+                del.setInt(1, flowId);
+                del.executeUpdate();
+            }
+            String now = new java.sql.Timestamp(System.currentTimeMillis()).toString();
+            try (PreparedStatement ins = conn.prepareStatement(insertSql)) {
+                int idx = 0;
+                for (FlowStepDTO s : steps) {
+                    if (s.getStepType() == null || s.getStepType().isBlank()) continue;
+                    ins.setInt(1, flowId);
+                    ins.setInt(2, s.getStepOrder() != null ? s.getStepOrder() : idx);
+                    ins.setString(3, s.getName());
+                    ins.setString(4, s.getStepType());
+                    ins.setString(5, s.getPayloadJson());
+                    ins.setString(6, s.getCreatedAt() != null ? s.getCreatedAt() : now);
+                    ins.setString(7, now);
+                    ins.addBatch();
+                    idx++;
+                }
+                ins.executeBatch();
+            }
+            conn.commit();
+            return true;
+        } catch (SQLException e) {
+            log.error("saveFlowSteps(flow={}, n={}) failed: {}", flowId, steps.size(), e.getMessage());
+            if (conn != null) {
+                try { conn.rollback(); } catch (SQLException ignored) {}
+            }
+            return false;
+        } finally {
+            if (conn != null && prevAutoCommit != null) {
+                try { conn.setAutoCommit(prevAutoCommit); } catch (SQLException ignored) {}
+            }
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
     // Use Case CRUD (Phase 1a of ROADMAP_9 — named groups of mappings)
     // ──────────────────────────────────────────────────────────────────────
 
