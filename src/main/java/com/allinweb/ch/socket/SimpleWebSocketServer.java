@@ -171,6 +171,15 @@ public class SimpleWebSocketServer {
                             "echo: " + jsonObjMSG.get("body").getAsString(),
                             "sessionId: " + sessionId);
                     break;
+                case "botJob.getInputInstructions":
+                    handleBotJobInputInstructions(jsonObjMSG, sessionId, homeBankingId);
+                    break;
+                case "funcTest.loadMappings":
+                    handleFuncTestLoadMappings(jsonObjMSG, sessionId, homeBankingId);
+                    break;
+                case "funcTest.saveMappings":
+                    handleFuncTestSaveMappings(jsonObjMSG, sessionId, homeBankingId);
+                    break;
                 default:
                     handleMessageByType(type, jsonObjMSG, session, sessionId);
                     break;
@@ -197,6 +206,129 @@ public class SimpleWebSocketServer {
         } catch (IOException e) {
             log.error("Error closing session: " + e.getMessage());
         }
+    }
+
+    /**
+     * Lightweight read-only handler for the Functional Test mapping tab in MultiTest.
+     * Pulls INPUT-text instructions (actions LIKE 'I:%') for a single bot job and
+     * returns them on the same socket session that asked.
+     *
+     * Inbound shape (from React):
+     *   { "type": "botJob.getInputInstructions",
+     *     "sessionId": "funcTest-...",        // target for the response
+     *     "body": "{ \"botJobId\": 42 }" }    // body is a stringified JSON object
+     *
+     * Outbound type back to the client: "botJob.inputInstructions".
+     */
+    private void handleBotJobInputInstructions(JsonObject jsonObjMSG, String sessionId, int homeBankingId) {
+        try {
+            int botJobId = -1;
+            if (jsonObjMSG.has("body")) {
+                var bodyEl = jsonObjMSG.get("body");
+                JsonObject bodyObj = null;
+                if (bodyEl.isJsonPrimitive() && bodyEl.getAsJsonPrimitive().isString()) {
+                    bodyObj = JsonParser.parseString(bodyEl.getAsString()).getAsJsonObject();
+                } else if (bodyEl.isJsonObject()) {
+                    bodyObj = bodyEl.getAsJsonObject();
+                }
+                if (bodyObj != null && bodyObj.has("botJobId")) {
+                    botJobId = bodyObj.get("botJobId").getAsInt();
+                }
+            }
+            // Fallback: top-level botJobId field
+            if (botJobId <= 0 && jsonObjMSG.has("botJobId")) {
+                botJobId = jsonObjMSG.get("botJobId").getAsInt();
+            }
+
+            List<Map<String, Object>> rows = performDataBase.loadInputTextInstructionsForBotJob(botJobId);
+            String json = gson.toJson(rows);
+            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, json, "botJob.inputInstructions");
+        } catch (Exception e) {
+            log.error("handleBotJobInputInstructions failed: {}", e.getMessage());
+            webSocketSessionManager.sendMessageJson(
+                    homeBankingId, sessionId, "[]", "botJob.inputInstructions");
+        }
+    }
+
+    /**
+     * Functional Test tab — load all persisted field mappings for a bot job.
+     *
+     * Inbound: { "type": "funcTest.loadMappings", "sessionId": "funcTest-...",
+     *            "body": "{ \"botJobId\": 42 }" }
+     * Outbound type: "funcTest.mappingsLoaded".
+     */
+    private void handleFuncTestLoadMappings(JsonObject jsonObjMSG, String sessionId, int homeBankingId) {
+        try {
+            int botJobId = extractBotJobId(jsonObjMSG);
+            List<FieldMappingDTO> rows = performDataBase.loadFieldMappings(botJobId);
+            String json = gson.toJson(rows);
+            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, json, "funcTest.mappingsLoaded");
+        } catch (Exception e) {
+            log.error("handleFuncTestLoadMappings failed: {}", e.getMessage());
+            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, "[]", "funcTest.mappingsLoaded");
+        }
+    }
+
+    /**
+     * Functional Test tab — replace all field mappings for a bot job. The
+     * client always sends the complete list; server wipes-and-inserts.
+     *
+     * Inbound: { "type": "funcTest.saveMappings", "sessionId": "funcTest-...",
+     *            "body": "{ \"botJobId\": 42, \"mappings\": [ {...FieldMappingDTO...} ] }" }
+     * Outbound type: "funcTest.mappingsSaved" — body is { "ok": bool, "count": N }.
+     */
+    private void handleFuncTestSaveMappings(JsonObject jsonObjMSG, String sessionId, int homeBankingId) {
+        try {
+            JsonObject body = extractBody(jsonObjMSG);
+            int botJobId = body != null && body.has("botJobId") ? body.get("botJobId").getAsInt() : -1;
+            List<FieldMappingDTO> mappings = new ArrayList<>();
+            if (body != null && body.has("mappings") && body.get("mappings").isJsonArray()) {
+                for (var el : body.getAsJsonArray("mappings")) {
+                    mappings.add(gson.fromJson(el, FieldMappingDTO.class));
+                }
+            }
+            boolean ok = performDataBase.saveFieldMappings(botJobId, mappings);
+            JsonObject resp = new JsonObject();
+            resp.addProperty("ok", ok);
+            resp.addProperty("count", mappings.size());
+            resp.addProperty("botJobId", botJobId);
+            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, gson.toJson(resp), "funcTest.mappingsSaved");
+        } catch (Exception e) {
+            log.error("handleFuncTestSaveMappings failed: {}", e.getMessage());
+            JsonObject resp = new JsonObject();
+            resp.addProperty("ok", false);
+            resp.addProperty("error", e.getMessage());
+            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, gson.toJson(resp), "funcTest.mappingsSaved");
+        }
+    }
+
+    /** Pull botJobId from the message body (string-encoded JSON) or top-level field. */
+    private int extractBotJobId(JsonObject jsonObjMSG) {
+        JsonObject body = extractBody(jsonObjMSG);
+        if (body != null && body.has("botJobId")) {
+            return body.get("botJobId").getAsInt();
+        }
+        if (jsonObjMSG.has("botJobId")) {
+            return jsonObjMSG.get("botJobId").getAsInt();
+        }
+        return -1;
+    }
+
+    /** Decode the {@code body} field whether it arrives as a JSON string or a JSON object. */
+    private JsonObject extractBody(JsonObject jsonObjMSG) {
+        if (!jsonObjMSG.has("body")) return null;
+        var bodyEl = jsonObjMSG.get("body");
+        if (bodyEl.isJsonPrimitive() && bodyEl.getAsJsonPrimitive().isString()) {
+            try {
+                return JsonParser.parseString(bodyEl.getAsString()).getAsJsonObject();
+            } catch (Exception ignored) {
+                return null;
+            }
+        }
+        if (bodyEl.isJsonObject()) {
+            return bodyEl.getAsJsonObject();
+        }
+        return null;
     }
 
     private void handleMessageByType(String type, JsonObject jsonEntry, Session session, String sessionId) {

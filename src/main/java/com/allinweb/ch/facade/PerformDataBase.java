@@ -7144,6 +7144,141 @@ public class PerformDataBase {
                 .build();
     }
 
+    /**
+     * Load all field mappings (api ↔ bot-job-instruction) for a bot job.
+     * Used by the Functional Test tab in MultiTest. Skips rows whose
+     * referenced instruction was deleted (defensive — FK cascade should
+     * already remove them, but legacy DBs may have orphans).
+     */
+    public List<FieldMappingDTO> loadFieldMappings(int botJobId) {
+        List<FieldMappingDTO> rows = new ArrayList<>();
+        if (botJobId <= 0) return rows;
+        String sql = "SELECT m.id, m.bot_job_id, m.api_key, m.api_spec_file, m.api_field_name, "
+                + "m.bot_instruction_id, m.created_at, m.updated_at "
+                + "FROM use_case_field_mapping m "
+                + "INNER JOIN instruction i ON i.id = m.bot_instruction_id "
+                + "WHERE m.bot_job_id = ? "
+                + "ORDER BY m.id ASC";
+        try (PreparedStatement ps = getConnection().prepareStatement(sql)) {
+            ps.setInt(1, botJobId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    FieldMappingDTO d = new FieldMappingDTO();
+                    d.setId(rs.getLong("id"));
+                    d.setBotJobId(rs.getInt("bot_job_id"));
+                    d.setApiKey(rs.getString("api_key"));
+                    d.setApiSpecFile(rs.getString("api_spec_file"));
+                    d.setApiFieldName(rs.getString("api_field_name"));
+                    d.setBotInstructionId(rs.getInt("bot_instruction_id"));
+                    d.setCreatedAt(rs.getString("created_at"));
+                    d.setUpdatedAt(rs.getString("updated_at"));
+                    rows.add(d);
+                }
+            }
+        } catch (SQLException e) {
+            log.error("loadFieldMappings({}) failed: {}", botJobId, e.getMessage());
+        }
+        return rows;
+    }
+
+    /**
+     * Replace every field mapping for a bot job with the given list. Single
+     * transaction: DELETE all existing rows for the job, then INSERT each
+     * supplied mapping. Matches the React-side semantics where the client
+     * always ships the full list.
+     *
+     * @return true on success, false on any SQL error (transaction rolled back).
+     */
+    public boolean saveFieldMappings(int botJobId, List<FieldMappingDTO> mappings) {
+        if (botJobId <= 0) return false;
+        String deleteSql = "DELETE FROM use_case_field_mapping WHERE bot_job_id = ?";
+        String insertSql = "INSERT INTO use_case_field_mapping "
+                + "(bot_job_id, api_key, api_spec_file, api_field_name, bot_instruction_id, created_at, updated_at) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?)";
+        Connection conn = null;
+        Boolean prevAutoCommit = null;
+        try {
+            conn = getConnection();
+            prevAutoCommit = conn.getAutoCommit();
+            conn.setAutoCommit(false);
+            try (PreparedStatement del = conn.prepareStatement(deleteSql)) {
+                del.setInt(1, botJobId);
+                del.executeUpdate();
+            }
+            String now = new java.sql.Timestamp(System.currentTimeMillis()).toString();
+            try (PreparedStatement ins = conn.prepareStatement(insertSql)) {
+                for (FieldMappingDTO m : mappings) {
+                    if (m.getApiKey() == null || m.getBotInstructionId() == null) continue;
+                    ins.setInt(1, botJobId);
+                    ins.setString(2, m.getApiKey());
+                    ins.setString(3, m.getApiSpecFile());
+                    ins.setString(4, m.getApiFieldName());
+                    ins.setInt(5, m.getBotInstructionId());
+                    ins.setString(6, m.getCreatedAt() != null ? m.getCreatedAt() : now);
+                    ins.setString(7, now);
+                    ins.addBatch();
+                }
+                ins.executeBatch();
+            }
+            conn.commit();
+            return true;
+        } catch (SQLException e) {
+            log.error("saveFieldMappings({}, n={}) failed: {}", botJobId, mappings.size(), e.getMessage());
+            if (conn != null) {
+                try { conn.rollback(); } catch (SQLException ignored) {}
+            }
+            return false;
+        } finally {
+            if (conn != null && prevAutoCommit != null) {
+                try { conn.setAutoCommit(prevAutoCommit); } catch (SQLException ignored) {}
+            }
+        }
+    }
+
+    /**
+     * Read-only fetch of INPUT-text instructions for a single bot job, joined with their
+     * parent block. Used by the Functional Test mapping tab in MultiTest. Bypasses the
+     * heavy `loadInstructions` / `performLists` machinery — this is a pure query that
+     * does not mutate any singleton state.
+     *
+     * Filter: actions LIKE 'I:%' AND active = 1.
+     */
+    public List<Map<String, Object>> loadInputTextInstructionsForBotJob(int botJobId) {
+        List<Map<String, Object>> rows = new ArrayList<>();
+        if (botJobId <= 0) {
+            return rows;
+        }
+        String sql = "SELECT i.id, i.name, i.client_named, i.actions, i.xpath, i.css_selector, "
+                + "i.block_id, i.instruction_order_number, "
+                + "b.name AS block_name, b.block_order_number "
+                + "FROM instruction i "
+                + "LEFT JOIN block b ON b.id = i.block_id "
+                + "WHERE i.bot_job_id = ? AND i.actions LIKE 'I:%' AND i.active = 1 "
+                + "ORDER BY b.block_order_number ASC, i.instruction_order_number ASC";
+        try (PreparedStatement ps = getConnection().prepareStatement(sql)) {
+            ps.setInt(1, botJobId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> r = new LinkedHashMap<>();
+                    r.put("id", rs.getInt("id"));
+                    r.put("name", rs.getString("name"));
+                    r.put("clientNamed", rs.getString("client_named"));
+                    r.put("actions", rs.getString("actions"));
+                    r.put("xpath", rs.getString("xpath"));
+                    r.put("cssSelector", rs.getString("css_selector"));
+                    r.put("blockId", rs.getInt("block_id"));
+                    r.put("instructionOrderNumber", rs.getInt("instruction_order_number"));
+                    r.put("blockName", rs.getString("block_name"));
+                    r.put("blockOrderNumber", rs.getInt("block_order_number"));
+                    rows.add(r);
+                }
+            }
+        } catch (SQLException e) {
+            log.error("loadInputTextInstructionsForBotJob({}) failed: {}", botJobId, e.getMessage());
+        }
+        return rows;
+    }
+
     public ErrorMessage loadInstructions(int whereID, int blockId, int instrucId, String tableName) {
         List<InstructionLoad> instructions = new ArrayList<>();
 

@@ -1169,6 +1169,7 @@ public class ARConfigurationPane extends ARPane {
                     ARPropertyEnum.PATH_WEBDRIVER.getValue(),
                     pathWebDriver.getText().trim());
             //            arPropertyManager.setProperty(
+
             //                    ARPropertyEnum.PATH_APPIUM.getValue(), pathAppium.getText().trim());
             arPropertyManager.setProperty(
                     ARPropertyEnum.PATH_PLUGINS.getValue(),

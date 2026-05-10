@@ -1176,7 +1176,7 @@ public class ARScannedElementPane extends ARPane {
             int homeBanking,
             int botJobId,
             String botJobName) {
-        webEngine.load(getClass().getResource("/build/index.html").toExternalForm());
+        webEngine.load(WebBuildExtractor.getIndexUrl());
 
         webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
             if (newState == Worker.State.SUCCEEDED) {
