@@ -1,10 +1,22 @@
 # ROADMAP 9 — Flow Authoring v1
 
-**Status:** 📋 approved for build (authoring scope only)
+**Status:** ✅ v1 shipped — author-only, executor pending separate planning
 **Owner:** Osvaldo Martini
 **Relationship to other roadmaps:** This is the **first concrete sliver** of ROADMAP_8 (Use Case Orchestrator). v1 ships authoring + persistence; the executor and backend value-substitution into Excel / extracted data are explicitly **deferred** pending separate planning by Osvaldo.
-**Kickoff:** TBD (next session)
-**Target v1 delivery:** ~6 working days once started
+**Kickoff:** 2026-05-10
+**Shipped:** 2026-05-10 (same day as plan + build)
+
+## Shipping ledger
+
+| Phase | Status | Repo / commit |
+|---|---|---|
+| 1a — Named use cases (`use_case` table + dropdown) | ✅ | `ar-web-selenium` `fbe20aca`, `abr-react-ts-grid` `ccf6952` |
+| 1b — `flow` / `flow_step` schema + DTOs + DB methods | ✅ | `ar-web-selenium` `0c2451e2` |
+| 2a — Flow tab skeleton (left rail CRUD + 5 socket verbs) | ✅ | `ar-web-selenium` `09073891`, `abr-react-ts-grid` `472bd1d` |
+| 2b — Step cards + reorder + add/delete + Save | ✅ | `abr-react-ts-grid` `33fa4ce` |
+| 2c — Step inspector with type-specific editors + auto-suggest | ✅ | `ar-web-selenium` `7fde58d6`, `abr-react-ts-grid` `a3f1e6e` |
+
+**Acceptance test (§7) passes:** the "Transfer EUR 100" worked example in §1 is fully authorable end-to-end. Author → save → reload → identical reproduction. Nothing executes. Resume conversation about the executor + backend value substitution (§5/§6) when ready.
 
 ---
 
