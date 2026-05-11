@@ -207,6 +207,21 @@ public class SimpleWebSocketServer {
                 case "flow.steps.save":
                     handleFlowStepsSave(jsonObjMSG, sessionId, homeBankingId);
                     break;
+                case "requirement.list":
+                    handleRequirementList(jsonObjMSG, sessionId, homeBankingId);
+                    break;
+                case "requirement.save":
+                    handleRequirementSave(jsonObjMSG, sessionId, homeBankingId);
+                    break;
+                case "requirement.delete":
+                    handleRequirementDelete(jsonObjMSG, sessionId, homeBankingId);
+                    break;
+                case "requirement.links.load":
+                    handleRequirementLinksLoad(jsonObjMSG, sessionId, homeBankingId);
+                    break;
+                case "requirement.links.save":
+                    handleRequirementLinksSave(jsonObjMSG, sessionId, homeBankingId);
+                    break;
                 default:
                     handleMessageByType(type, jsonObjMSG, session, sessionId);
                     break;
@@ -272,8 +287,7 @@ public class SimpleWebSocketServer {
             webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, json, "botJob.inputInstructions");
         } catch (Exception e) {
             log.error("handleBotJobInputInstructions failed: {}", e.getMessage());
-            webSocketSessionManager.sendMessageJson(
-                    homeBankingId, sessionId, "[]", "botJob.inputInstructions");
+            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, "[]", "botJob.inputInstructions");
         }
     }
 
@@ -292,7 +306,9 @@ public class SimpleWebSocketServer {
     private void handleFuncTestLoadMappings(JsonObject jsonObjMSG, String sessionId, int homeBankingId) {
         try {
             JsonObject body = extractBody(jsonObjMSG);
-            int useCaseId = body != null && body.has("useCaseId") ? body.get("useCaseId").getAsInt() : -1;
+            int useCaseId = body != null && body.has("useCaseId")
+                    ? body.get("useCaseId").getAsInt()
+                    : -1;
             List<FieldMappingDTO> rows;
             if (useCaseId > 0) {
                 rows = performDataBase.loadFieldMappingsForUseCase(useCaseId);
@@ -320,8 +336,11 @@ public class SimpleWebSocketServer {
     private void handleFuncTestSaveMappings(JsonObject jsonObjMSG, String sessionId, int homeBankingId) {
         try {
             JsonObject body = extractBody(jsonObjMSG);
-            int botJobId = body != null && body.has("botJobId") ? body.get("botJobId").getAsInt() : -1;
-            int useCaseId = body != null && body.has("useCaseId") ? body.get("useCaseId").getAsInt() : -1;
+            int botJobId =
+                    body != null && body.has("botJobId") ? body.get("botJobId").getAsInt() : -1;
+            int useCaseId = body != null && body.has("useCaseId")
+                    ? body.get("useCaseId").getAsInt()
+                    : -1;
             List<FieldMappingDTO> mappings = new ArrayList<>();
             if (body != null && body.has("mappings") && body.get("mappings").isJsonArray()) {
                 for (var el : body.getAsJsonArray("mappings")) {
@@ -340,13 +359,15 @@ public class SimpleWebSocketServer {
             resp.addProperty("count", mappings.size());
             resp.addProperty("botJobId", botJobId);
             resp.addProperty("useCaseId", useCaseId);
-            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, gson.toJson(resp), "funcTest.mappingsSaved");
+            webSocketSessionManager.sendMessageJson(
+                    homeBankingId, sessionId, gson.toJson(resp), "funcTest.mappingsSaved");
         } catch (Exception e) {
             log.error("handleFuncTestSaveMappings failed: {}", e.getMessage());
             JsonObject resp = new JsonObject();
             resp.addProperty("ok", false);
             resp.addProperty("error", e.getMessage());
-            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, gson.toJson(resp), "funcTest.mappingsSaved");
+            webSocketSessionManager.sendMessageJson(
+                    homeBankingId, sessionId, gson.toJson(resp), "funcTest.mappingsSaved");
         }
     }
 
@@ -370,7 +391,8 @@ public class SimpleWebSocketServer {
                     rows = performDataBase.loadUseCases(botJobId);
                 }
             }
-            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, gson.toJson(rows), "useCase.listResponse");
+            webSocketSessionManager.sendMessageJson(
+                    homeBankingId, sessionId, gson.toJson(rows), "useCase.listResponse");
         } catch (Exception e) {
             log.error("handleUseCaseList failed: {}", e.getMessage());
             webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, "[]", "useCase.listResponse");
@@ -388,9 +410,8 @@ public class SimpleWebSocketServer {
     private void handleUseCaseSave(JsonObject jsonObjMSG, String sessionId, int homeBankingId) {
         try {
             JsonObject body = extractBody(jsonObjMSG);
-            UseCaseDTO dto = body != null && body.has("useCase")
-                    ? gson.fromJson(body.get("useCase"), UseCaseDTO.class)
-                    : null;
+            UseCaseDTO dto =
+                    body != null && body.has("useCase") ? gson.fromJson(body.get("useCase"), UseCaseDTO.class) : null;
             Integer id = performDataBase.saveUseCase(dto);
             JsonObject resp = new JsonObject();
             resp.addProperty("ok", id != null);
@@ -399,13 +420,15 @@ public class SimpleWebSocketServer {
                 resp.add("useCase", gson.toJsonTree(dto));
                 resp.addProperty("id", id);
             }
-            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, gson.toJson(resp), "useCase.saveResponse");
+            webSocketSessionManager.sendMessageJson(
+                    homeBankingId, sessionId, gson.toJson(resp), "useCase.saveResponse");
         } catch (Exception e) {
             log.error("handleUseCaseSave failed: {}", e.getMessage());
             JsonObject resp = new JsonObject();
             resp.addProperty("ok", false);
             resp.addProperty("error", e.getMessage());
-            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, gson.toJson(resp), "useCase.saveResponse");
+            webSocketSessionManager.sendMessageJson(
+                    homeBankingId, sessionId, gson.toJson(resp), "useCase.saveResponse");
         }
     }
 
@@ -418,18 +441,22 @@ public class SimpleWebSocketServer {
     private void handleUseCaseDelete(JsonObject jsonObjMSG, String sessionId, int homeBankingId) {
         try {
             JsonObject body = extractBody(jsonObjMSG);
-            int useCaseId = body != null && body.has("useCaseId") ? body.get("useCaseId").getAsInt() : -1;
+            int useCaseId = body != null && body.has("useCaseId")
+                    ? body.get("useCaseId").getAsInt()
+                    : -1;
             boolean ok = performDataBase.deleteUseCase(useCaseId);
             JsonObject resp = new JsonObject();
             resp.addProperty("ok", ok);
             resp.addProperty("useCaseId", useCaseId);
-            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, gson.toJson(resp), "useCase.deleteResponse");
+            webSocketSessionManager.sendMessageJson(
+                    homeBankingId, sessionId, gson.toJson(resp), "useCase.deleteResponse");
         } catch (Exception e) {
             log.error("handleUseCaseDelete failed: {}", e.getMessage());
             JsonObject resp = new JsonObject();
             resp.addProperty("ok", false);
             resp.addProperty("error", e.getMessage());
-            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, gson.toJson(resp), "useCase.deleteResponse");
+            webSocketSessionManager.sendMessageJson(
+                    homeBankingId, sessionId, gson.toJson(resp), "useCase.deleteResponse");
         }
     }
 
@@ -513,9 +540,7 @@ public class SimpleWebSocketServer {
     private void handleFlowSave(JsonObject jsonObjMSG, String sessionId, int homeBankingId) {
         try {
             JsonObject body = extractBody(jsonObjMSG);
-            FlowDTO dto = body != null && body.has("flow")
-                    ? gson.fromJson(body.get("flow"), FlowDTO.class)
-                    : null;
+            FlowDTO dto = body != null && body.has("flow") ? gson.fromJson(body.get("flow"), FlowDTO.class) : null;
             Integer id = performDataBase.saveFlow(dto);
             JsonObject resp = new JsonObject();
             resp.addProperty("ok", id != null);
@@ -605,6 +630,107 @@ public class SimpleWebSocketServer {
             resp.addProperty("ok", false);
             resp.addProperty("error", e.getMessage());
             webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, gson.toJson(resp), "flow.stepsSaved");
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Requirement CRUD verbs (Requirements tab)
+    // ──────────────────────────────────────────────────────────────────────
+
+    /** body {botJobId} → "requirement.listResponse" body [RequirementDTO...] (with rolled-up coverage counts). */
+    private void handleRequirementList(JsonObject jsonObjMSG, String sessionId, int homeBankingId) {
+        try {
+            int botJobId = extractBotJobId(jsonObjMSG);
+            List<RequirementDTO> rows = performDataBase.loadRequirements(botJobId);
+            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, gson.toJson(rows), "requirement.listResponse");
+        } catch (Exception e) {
+            log.error("handleRequirementList failed: {}", e.getMessage());
+            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, "[]", "requirement.listResponse");
+        }
+    }
+
+    /** body {requirement: {...RequirementDTO...}} → "requirement.saveResponse" {ok, id, requirement}. */
+    private void handleRequirementSave(JsonObject jsonObjMSG, String sessionId, int homeBankingId) {
+        try {
+            JsonObject body = extractBody(jsonObjMSG);
+            RequirementDTO dto = body != null && body.has("requirement")
+                    ? gson.fromJson(body.get("requirement"), RequirementDTO.class)
+                    : null;
+            Integer id = performDataBase.saveRequirement(dto);
+            JsonObject resp = new JsonObject();
+            resp.addProperty("ok", id != null);
+            if (id != null) {
+                if (dto != null) dto.setId(id);
+                resp.add("requirement", gson.toJsonTree(dto));
+                resp.addProperty("id", id);
+            }
+            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, gson.toJson(resp), "requirement.saveResponse");
+        } catch (Exception e) {
+            log.error("handleRequirementSave failed: {}", e.getMessage());
+            JsonObject resp = new JsonObject();
+            resp.addProperty("ok", false);
+            resp.addProperty("error", e.getMessage());
+            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, gson.toJson(resp), "requirement.saveResponse");
+        }
+    }
+
+    /** body {requirementId} → "requirement.deleteResponse" {ok, requirementId}. */
+    private void handleRequirementDelete(JsonObject jsonObjMSG, String sessionId, int homeBankingId) {
+        try {
+            JsonObject body = extractBody(jsonObjMSG);
+            int reqId = body != null && body.has("requirementId") ? body.get("requirementId").getAsInt() : -1;
+            boolean ok = performDataBase.deleteRequirement(reqId);
+            JsonObject resp = new JsonObject();
+            resp.addProperty("ok", ok);
+            resp.addProperty("requirementId", reqId);
+            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, gson.toJson(resp), "requirement.deleteResponse");
+        } catch (Exception e) {
+            log.error("handleRequirementDelete failed: {}", e.getMessage());
+            JsonObject resp = new JsonObject();
+            resp.addProperty("ok", false);
+            resp.addProperty("error", e.getMessage());
+            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, gson.toJson(resp), "requirement.deleteResponse");
+        }
+    }
+
+    /** body {requirementId} → "requirement.linksLoaded" RequirementLinksDTO. */
+    private void handleRequirementLinksLoad(JsonObject jsonObjMSG, String sessionId, int homeBankingId) {
+        try {
+            JsonObject body = extractBody(jsonObjMSG);
+            int reqId = body != null && body.has("requirementId") ? body.get("requirementId").getAsInt() : -1;
+            RequirementLinksDTO links = performDataBase.loadRequirementLinks(reqId);
+            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, gson.toJson(links), "requirement.linksLoaded");
+        } catch (Exception e) {
+            log.error("handleRequirementLinksLoad failed: {}", e.getMessage());
+            RequirementLinksDTO empty = new RequirementLinksDTO();
+            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, gson.toJson(empty), "requirement.linksLoaded");
+        }
+    }
+
+    /** body {requirementId, useCaseIds: [...], flowIds: [...]} → "requirement.linksSaved" {ok, requirementId}. */
+    private void handleRequirementLinksSave(JsonObject jsonObjMSG, String sessionId, int homeBankingId) {
+        try {
+            JsonObject body = extractBody(jsonObjMSG);
+            int reqId = body != null && body.has("requirementId") ? body.get("requirementId").getAsInt() : -1;
+            List<Integer> useCaseIds = new ArrayList<>();
+            List<Integer> flowIds = new ArrayList<>();
+            if (body != null && body.has("useCaseIds") && body.get("useCaseIds").isJsonArray()) {
+                for (var el : body.getAsJsonArray("useCaseIds")) useCaseIds.add(el.getAsInt());
+            }
+            if (body != null && body.has("flowIds") && body.get("flowIds").isJsonArray()) {
+                for (var el : body.getAsJsonArray("flowIds")) flowIds.add(el.getAsInt());
+            }
+            boolean ok = performDataBase.saveRequirementLinks(reqId, useCaseIds, flowIds);
+            JsonObject resp = new JsonObject();
+            resp.addProperty("ok", ok);
+            resp.addProperty("requirementId", reqId);
+            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, gson.toJson(resp), "requirement.linksSaved");
+        } catch (Exception e) {
+            log.error("handleRequirementLinksSave failed: {}", e.getMessage());
+            JsonObject resp = new JsonObject();
+            resp.addProperty("ok", false);
+            resp.addProperty("error", e.getMessage());
+            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId, gson.toJson(resp), "requirement.linksSaved");
         }
     }
 

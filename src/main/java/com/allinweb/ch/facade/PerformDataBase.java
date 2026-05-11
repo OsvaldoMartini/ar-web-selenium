@@ -7145,6 +7145,227 @@ public class PerformDataBase {
     }
 
     // ──────────────────────────────────────────────────────────────────────
+    // Requirement CRUD + traceability links (Requirements tab)
+    // ──────────────────────────────────────────────────────────────────────
+
+    /**
+     * Load all requirements for a bot job, with rolled-up coverage counts
+     * (linked Functional Cases + linked Flow Tests). Single query with two
+     * count subqueries — no N+1.
+     */
+    public List<RequirementDTO> loadRequirements(int botJobId) {
+        List<RequirementDTO> rows = new ArrayList<>();
+        if (botJobId <= 0) return rows;
+        String sql = "SELECT r.id, r.bot_job_id, r.external_ref, r.title, r.description, "
+                + "r.priority, r.status, r.created_at, r.updated_at, "
+                + "(SELECT COUNT(*) FROM requirement_use_case x WHERE x.requirement_id = r.id) AS uc_count, "
+                + "(SELECT COUNT(*) FROM requirement_flow x WHERE x.requirement_id = r.id) AS flow_count "
+                + "FROM requirement r WHERE r.bot_job_id = ? ORDER BY r.id ASC";
+        try (PreparedStatement ps = getConnection().prepareStatement(sql)) {
+            ps.setInt(1, botJobId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    RequirementDTO d = new RequirementDTO();
+                    d.setId(rs.getInt("id"));
+                    d.setBotJobId(rs.getInt("bot_job_id"));
+                    d.setExternalRef(rs.getString("external_ref"));
+                    d.setTitle(rs.getString("title"));
+                    d.setDescription(rs.getString("description"));
+                    d.setPriority(rs.getString("priority"));
+                    d.setStatus(rs.getString("status"));
+                    d.setCreatedAt(rs.getString("created_at"));
+                    d.setUpdatedAt(rs.getString("updated_at"));
+                    d.setLinkedUseCaseCount(rs.getInt("uc_count"));
+                    d.setLinkedFlowCount(rs.getInt("flow_count"));
+                    rows.add(d);
+                }
+            }
+        } catch (SQLException e) {
+            log.error("loadRequirements({}) failed: {}", botJobId, e.getMessage());
+        }
+        return rows;
+    }
+
+    /** Insert (id == null) or update an existing requirement. Returns id, or null on error. */
+    public Integer saveRequirement(RequirementDTO dto) {
+        if (dto == null || dto.getBotJobId() == null || dto.getBotJobId() <= 0
+                || dto.getTitle() == null || dto.getTitle().isBlank()) {
+            return null;
+        }
+        String now = new java.sql.Timestamp(System.currentTimeMillis()).toString();
+        String status = dto.getStatus() != null && !dto.getStatus().isBlank() ? dto.getStatus() : "ACTIVE";
+        try {
+            Connection conn = getConnection();
+            if (dto.getId() == null) {
+                String insertSql = "INSERT INTO requirement "
+                        + "(bot_job_id, external_ref, title, description, priority, status, created_at, updated_at) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+                try (PreparedStatement ps = conn.prepareStatement(insertSql, Statement.RETURN_GENERATED_KEYS)) {
+                    ps.setInt(1, dto.getBotJobId());
+                    ps.setString(2, dto.getExternalRef());
+                    ps.setString(3, dto.getTitle());
+                    ps.setString(4, dto.getDescription());
+                    ps.setString(5, dto.getPriority());
+                    ps.setString(6, status);
+                    ps.setString(7, now);
+                    ps.setString(8, now);
+                    ps.executeUpdate();
+                    try (ResultSet keys = ps.getGeneratedKeys()) {
+                        if (keys.next()) return keys.getInt(1);
+                    }
+                }
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "SELECT id FROM requirement WHERE bot_job_id = ? AND title = ?")) {
+                    ps.setInt(1, dto.getBotJobId());
+                    ps.setString(2, dto.getTitle());
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) return rs.getInt(1);
+                    }
+                }
+            } else {
+                String updateSql = "UPDATE requirement SET external_ref = ?, title = ?, description = ?, "
+                        + "priority = ?, status = ?, updated_at = ? WHERE id = ?";
+                try (PreparedStatement ps = conn.prepareStatement(updateSql)) {
+                    ps.setString(1, dto.getExternalRef());
+                    ps.setString(2, dto.getTitle());
+                    ps.setString(3, dto.getDescription());
+                    ps.setString(4, dto.getPriority());
+                    ps.setString(5, status);
+                    ps.setString(6, now);
+                    ps.setInt(7, dto.getId());
+                    ps.executeUpdate();
+                    return dto.getId();
+                }
+            }
+        } catch (SQLException e) {
+            log.error("saveRequirement({}) failed: {}", dto, e.getMessage());
+        }
+        return null;
+    }
+
+    /** Delete a requirement (FK CASCADE removes its links). Belt-and-suspenders explicit DELETE for SQLite-without-pragma. */
+    public boolean deleteRequirement(int requirementId) {
+        if (requirementId <= 0) return false;
+        Connection conn = null;
+        Boolean prevAuto = null;
+        try {
+            conn = getConnection();
+            prevAuto = conn.getAutoCommit();
+            conn.setAutoCommit(false);
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "DELETE FROM requirement_use_case WHERE requirement_id = ?")) {
+                ps.setInt(1, requirementId);
+                ps.executeUpdate();
+            }
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "DELETE FROM requirement_flow WHERE requirement_id = ?")) {
+                ps.setInt(1, requirementId);
+                ps.executeUpdate();
+            }
+            try (PreparedStatement ps = conn.prepareStatement("DELETE FROM requirement WHERE id = ?")) {
+                ps.setInt(1, requirementId);
+                ps.executeUpdate();
+            }
+            conn.commit();
+            return true;
+        } catch (SQLException e) {
+            log.error("deleteRequirement({}) failed: {}", requirementId, e.getMessage());
+            if (conn != null) {
+                try { conn.rollback(); } catch (SQLException ignored) {}
+            }
+            return false;
+        } finally {
+            if (conn != null && prevAuto != null) {
+                try { conn.setAutoCommit(prevAuto); } catch (SQLException ignored) {}
+            }
+        }
+    }
+
+    /** Load both link sets (use cases + flows) for one requirement. */
+    public RequirementLinksDTO loadRequirementLinks(int requirementId) {
+        RequirementLinksDTO out = new RequirementLinksDTO();
+        out.setRequirementId(requirementId);
+        if (requirementId <= 0) return out;
+        try (PreparedStatement ps = getConnection().prepareStatement(
+                "SELECT use_case_id FROM requirement_use_case WHERE requirement_id = ?")) {
+            ps.setInt(1, requirementId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) out.getUseCaseIds().add(rs.getInt(1));
+            }
+        } catch (SQLException e) {
+            log.error("loadRequirementLinks(uc {}) failed: {}", requirementId, e.getMessage());
+        }
+        try (PreparedStatement ps = getConnection().prepareStatement(
+                "SELECT flow_id FROM requirement_flow WHERE requirement_id = ?")) {
+            ps.setInt(1, requirementId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) out.getFlowIds().add(rs.getInt(1));
+            }
+        } catch (SQLException e) {
+            log.error("loadRequirementLinks(flow {}) failed: {}", requirementId, e.getMessage());
+        }
+        return out;
+    }
+
+    /** Replace BOTH link sets for one requirement in a single transaction. */
+    public boolean saveRequirementLinks(int requirementId, List<Integer> useCaseIds, List<Integer> flowIds) {
+        if (requirementId <= 0) return false;
+        Connection conn = null;
+        Boolean prevAuto = null;
+        try {
+            conn = getConnection();
+            prevAuto = conn.getAutoCommit();
+            conn.setAutoCommit(false);
+            try (PreparedStatement del = conn.prepareStatement(
+                    "DELETE FROM requirement_use_case WHERE requirement_id = ?")) {
+                del.setInt(1, requirementId);
+                del.executeUpdate();
+            }
+            if (useCaseIds != null && !useCaseIds.isEmpty()) {
+                try (PreparedStatement ins = conn.prepareStatement(
+                        "INSERT INTO requirement_use_case (requirement_id, use_case_id) VALUES (?, ?)")) {
+                    for (Integer ucId : useCaseIds) {
+                        if (ucId == null || ucId <= 0) continue;
+                        ins.setInt(1, requirementId);
+                        ins.setInt(2, ucId);
+                        ins.addBatch();
+                    }
+                    ins.executeBatch();
+                }
+            }
+            try (PreparedStatement del = conn.prepareStatement(
+                    "DELETE FROM requirement_flow WHERE requirement_id = ?")) {
+                del.setInt(1, requirementId);
+                del.executeUpdate();
+            }
+            if (flowIds != null && !flowIds.isEmpty()) {
+                try (PreparedStatement ins = conn.prepareStatement(
+                        "INSERT INTO requirement_flow (requirement_id, flow_id) VALUES (?, ?)")) {
+                    for (Integer fId : flowIds) {
+                        if (fId == null || fId <= 0) continue;
+                        ins.setInt(1, requirementId);
+                        ins.setInt(2, fId);
+                        ins.addBatch();
+                    }
+                    ins.executeBatch();
+                }
+            }
+            conn.commit();
+            return true;
+        } catch (SQLException e) {
+            log.error("saveRequirementLinks({}) failed: {}", requirementId, e.getMessage());
+            if (conn != null) {
+                try { conn.rollback(); } catch (SQLException ignored) {}
+            }
+            return false;
+        } finally {
+            if (conn != null && prevAuto != null) {
+                try { conn.setAutoCommit(prevAuto); } catch (SQLException ignored) {}
+            }
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
     // Flow CRUD (Phase 1b of ROADMAP_9 — named ordered execution sequences)
     // ──────────────────────────────────────────────────────────────────────
 
@@ -7176,8 +7397,11 @@ public class PerformDataBase {
 
     /** Insert (id == null) or update (id != null) a flow. Returns new id, or null on error. */
     public Integer saveFlow(FlowDTO dto) {
-        if (dto == null || dto.getBotJobId() == null || dto.getBotJobId() <= 0
-                || dto.getName() == null || dto.getName().isBlank()) {
+        if (dto == null
+                || dto.getBotJobId() == null
+                || dto.getBotJobId() <= 0
+                || dto.getName() == null
+                || dto.getName().isBlank()) {
             return null;
         }
         String now = new java.sql.Timestamp(System.currentTimeMillis()).toString();
@@ -7197,8 +7421,8 @@ public class PerformDataBase {
                         if (keys.next()) return keys.getInt(1);
                     }
                 }
-                try (PreparedStatement ps = conn.prepareStatement(
-                        "SELECT id FROM flow WHERE bot_job_id = ? AND name = ?")) {
+                try (PreparedStatement ps =
+                        conn.prepareStatement("SELECT id FROM flow WHERE bot_job_id = ? AND name = ?")) {
                     ps.setInt(1, dto.getBotJobId());
                     ps.setString(2, dto.getName());
                     try (ResultSet rs = ps.executeQuery()) {
@@ -7246,12 +7470,18 @@ public class PerformDataBase {
         } catch (SQLException e) {
             log.error("deleteFlow({}) failed: {}", flowId, e.getMessage());
             if (conn != null) {
-                try { conn.rollback(); } catch (SQLException ignored) {}
+                try {
+                    conn.rollback();
+                } catch (SQLException ignored) {
+                }
             }
             return false;
         } finally {
             if (conn != null && prevAuto != null) {
-                try { conn.setAutoCommit(prevAuto); } catch (SQLException ignored) {}
+                try {
+                    conn.setAutoCommit(prevAuto);
+                } catch (SQLException ignored) {
+                }
             }
         }
     }
@@ -7327,12 +7557,18 @@ public class PerformDataBase {
         } catch (SQLException e) {
             log.error("saveFlowSteps(flow={}, n={}) failed: {}", flowId, steps.size(), e.getMessage());
             if (conn != null) {
-                try { conn.rollback(); } catch (SQLException ignored) {}
+                try {
+                    conn.rollback();
+                } catch (SQLException ignored) {
+                }
             }
             return false;
         } finally {
             if (conn != null && prevAutoCommit != null) {
-                try { conn.setAutoCommit(prevAutoCommit); } catch (SQLException ignored) {}
+                try {
+                    conn.setAutoCommit(prevAutoCommit);
+                } catch (SQLException ignored) {
+                }
             }
         }
     }
@@ -7373,8 +7609,11 @@ public class PerformDataBase {
      * (bot_job_id, name) violation handling — we surface the SQL error.
      */
     public Integer saveUseCase(UseCaseDTO dto) {
-        if (dto == null || dto.getBotJobId() == null || dto.getBotJobId() <= 0
-                || dto.getName() == null || dto.getName().isBlank()) {
+        if (dto == null
+                || dto.getBotJobId() == null
+                || dto.getBotJobId() <= 0
+                || dto.getName() == null
+                || dto.getName().isBlank()) {
             return null;
         }
         String now = new java.sql.Timestamp(System.currentTimeMillis()).toString();
@@ -7395,8 +7634,8 @@ public class PerformDataBase {
                     }
                 }
                 // Fallback: re-query
-                try (PreparedStatement ps = conn.prepareStatement(
-                        "SELECT id FROM use_case WHERE bot_job_id = ? AND name = ?")) {
+                try (PreparedStatement ps =
+                        conn.prepareStatement("SELECT id FROM use_case WHERE bot_job_id = ? AND name = ?")) {
                     ps.setInt(1, dto.getBotJobId());
                     ps.setString(2, dto.getName());
                     try (ResultSet rs = ps.executeQuery()) {
@@ -7433,8 +7672,8 @@ public class PerformDataBase {
             conn = getConnection();
             prevAuto = conn.getAutoCommit();
             conn.setAutoCommit(false);
-            try (PreparedStatement ps = conn.prepareStatement(
-                    "DELETE FROM use_case_field_mapping WHERE use_case_id = ?")) {
+            try (PreparedStatement ps =
+                    conn.prepareStatement("DELETE FROM use_case_field_mapping WHERE use_case_id = ?")) {
                 ps.setInt(1, useCaseId);
                 ps.executeUpdate();
             }
@@ -7447,12 +7686,18 @@ public class PerformDataBase {
         } catch (SQLException e) {
             log.error("deleteUseCase({}) failed: {}", useCaseId, e.getMessage());
             if (conn != null) {
-                try { conn.rollback(); } catch (SQLException ignored) {}
+                try {
+                    conn.rollback();
+                } catch (SQLException ignored) {
+                }
             }
             return false;
         } finally {
             if (conn != null && prevAuto != null) {
-                try { conn.setAutoCommit(prevAuto); } catch (SQLException ignored) {}
+                try {
+                    conn.setAutoCommit(prevAuto);
+                } catch (SQLException ignored) {
+                }
             }
         }
     }
@@ -7462,8 +7707,8 @@ public class PerformDataBase {
         if (botJobId <= 0) return -1;
         try {
             Connection conn = getConnection();
-            try (PreparedStatement ps = conn.prepareStatement(
-                    "SELECT id FROM use_case WHERE bot_job_id = ? AND name = ?")) {
+            try (PreparedStatement ps =
+                    conn.prepareStatement("SELECT id FROM use_case WHERE bot_job_id = ? AND name = ?")) {
                 ps.setInt(1, botJobId);
                 ps.setString(2, "Default");
                 try (ResultSet rs = ps.executeQuery()) {
@@ -7565,15 +7810,25 @@ public class PerformDataBase {
             conn.commit();
             return true;
         } catch (SQLException e) {
-            log.error("saveFieldMappingsForUseCase(job={}, uc={}, n={}) failed: {}",
-                    botJobId, useCaseId, mappings.size(), e.getMessage());
+            log.error(
+                    "saveFieldMappingsForUseCase(job={}, uc={}, n={}) failed: {}",
+                    botJobId,
+                    useCaseId,
+                    mappings.size(),
+                    e.getMessage());
             if (conn != null) {
-                try { conn.rollback(); } catch (SQLException ignored) {}
+                try {
+                    conn.rollback();
+                } catch (SQLException ignored) {
+                }
             }
             return false;
         } finally {
             if (conn != null && prevAutoCommit != null) {
-                try { conn.setAutoCommit(prevAutoCommit); } catch (SQLException ignored) {}
+                try {
+                    conn.setAutoCommit(prevAutoCommit);
+                } catch (SQLException ignored) {
+                }
             }
         }
     }
