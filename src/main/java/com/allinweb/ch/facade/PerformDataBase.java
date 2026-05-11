@@ -7188,8 +7188,11 @@ public class PerformDataBase {
 
     /** Insert (id == null) or update an existing requirement. Returns id, or null on error. */
     public Integer saveRequirement(RequirementDTO dto) {
-        if (dto == null || dto.getBotJobId() == null || dto.getBotJobId() <= 0
-                || dto.getTitle() == null || dto.getTitle().isBlank()) {
+        if (dto == null
+                || dto.getBotJobId() == null
+                || dto.getBotJobId() <= 0
+                || dto.getTitle() == null
+                || dto.getTitle().isBlank()) {
             return null;
         }
         String now = new java.sql.Timestamp(System.currentTimeMillis()).toString();
@@ -7214,8 +7217,8 @@ public class PerformDataBase {
                         if (keys.next()) return keys.getInt(1);
                     }
                 }
-                try (PreparedStatement ps = conn.prepareStatement(
-                        "SELECT id FROM requirement WHERE bot_job_id = ? AND title = ?")) {
+                try (PreparedStatement ps =
+                        conn.prepareStatement("SELECT id FROM requirement WHERE bot_job_id = ? AND title = ?")) {
                     ps.setInt(1, dto.getBotJobId());
                     ps.setString(2, dto.getTitle());
                     try (ResultSet rs = ps.executeQuery()) {
@@ -7252,13 +7255,13 @@ public class PerformDataBase {
             conn = getConnection();
             prevAuto = conn.getAutoCommit();
             conn.setAutoCommit(false);
-            try (PreparedStatement ps = conn.prepareStatement(
-                    "DELETE FROM requirement_use_case WHERE requirement_id = ?")) {
+            try (PreparedStatement ps =
+                    conn.prepareStatement("DELETE FROM requirement_use_case WHERE requirement_id = ?")) {
                 ps.setInt(1, requirementId);
                 ps.executeUpdate();
             }
-            try (PreparedStatement ps = conn.prepareStatement(
-                    "DELETE FROM requirement_flow WHERE requirement_id = ?")) {
+            try (PreparedStatement ps =
+                    conn.prepareStatement("DELETE FROM requirement_flow WHERE requirement_id = ?")) {
                 ps.setInt(1, requirementId);
                 ps.executeUpdate();
             }
@@ -7271,12 +7274,18 @@ public class PerformDataBase {
         } catch (SQLException e) {
             log.error("deleteRequirement({}) failed: {}", requirementId, e.getMessage());
             if (conn != null) {
-                try { conn.rollback(); } catch (SQLException ignored) {}
+                try {
+                    conn.rollback();
+                } catch (SQLException ignored) {
+                }
             }
             return false;
         } finally {
             if (conn != null && prevAuto != null) {
-                try { conn.setAutoCommit(prevAuto); } catch (SQLException ignored) {}
+                try {
+                    conn.setAutoCommit(prevAuto);
+                } catch (SQLException ignored) {
+                }
             }
         }
     }
@@ -7286,8 +7295,8 @@ public class PerformDataBase {
         RequirementLinksDTO out = new RequirementLinksDTO();
         out.setRequirementId(requirementId);
         if (requirementId <= 0) return out;
-        try (PreparedStatement ps = getConnection().prepareStatement(
-                "SELECT use_case_id FROM requirement_use_case WHERE requirement_id = ?")) {
+        try (PreparedStatement ps = getConnection()
+                .prepareStatement("SELECT use_case_id FROM requirement_use_case WHERE requirement_id = ?")) {
             ps.setInt(1, requirementId);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) out.getUseCaseIds().add(rs.getInt(1));
@@ -7295,8 +7304,8 @@ public class PerformDataBase {
         } catch (SQLException e) {
             log.error("loadRequirementLinks(uc {}) failed: {}", requirementId, e.getMessage());
         }
-        try (PreparedStatement ps = getConnection().prepareStatement(
-                "SELECT flow_id FROM requirement_flow WHERE requirement_id = ?")) {
+        try (PreparedStatement ps =
+                getConnection().prepareStatement("SELECT flow_id FROM requirement_flow WHERE requirement_id = ?")) {
             ps.setInt(1, requirementId);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) out.getFlowIds().add(rs.getInt(1));
@@ -7316,8 +7325,8 @@ public class PerformDataBase {
             conn = getConnection();
             prevAuto = conn.getAutoCommit();
             conn.setAutoCommit(false);
-            try (PreparedStatement del = conn.prepareStatement(
-                    "DELETE FROM requirement_use_case WHERE requirement_id = ?")) {
+            try (PreparedStatement del =
+                    conn.prepareStatement("DELETE FROM requirement_use_case WHERE requirement_id = ?")) {
                 del.setInt(1, requirementId);
                 del.executeUpdate();
             }
@@ -7333,14 +7342,14 @@ public class PerformDataBase {
                     ins.executeBatch();
                 }
             }
-            try (PreparedStatement del = conn.prepareStatement(
-                    "DELETE FROM requirement_flow WHERE requirement_id = ?")) {
+            try (PreparedStatement del =
+                    conn.prepareStatement("DELETE FROM requirement_flow WHERE requirement_id = ?")) {
                 del.setInt(1, requirementId);
                 del.executeUpdate();
             }
             if (flowIds != null && !flowIds.isEmpty()) {
-                try (PreparedStatement ins = conn.prepareStatement(
-                        "INSERT INTO requirement_flow (requirement_id, flow_id) VALUES (?, ?)")) {
+                try (PreparedStatement ins =
+                        conn.prepareStatement("INSERT INTO requirement_flow (requirement_id, flow_id) VALUES (?, ?)")) {
                     for (Integer fId : flowIds) {
                         if (fId == null || fId <= 0) continue;
                         ins.setInt(1, requirementId);
@@ -7355,12 +7364,18 @@ public class PerformDataBase {
         } catch (SQLException e) {
             log.error("saveRequirementLinks({}) failed: {}", requirementId, e.getMessage());
             if (conn != null) {
-                try { conn.rollback(); } catch (SQLException ignored) {}
+                try {
+                    conn.rollback();
+                } catch (SQLException ignored) {
+                }
             }
             return false;
         } finally {
             if (conn != null && prevAuto != null) {
-                try { conn.setAutoCommit(prevAuto); } catch (SQLException ignored) {}
+                try {
+                    conn.setAutoCommit(prevAuto);
+                } catch (SQLException ignored) {
+                }
             }
         }
     }
