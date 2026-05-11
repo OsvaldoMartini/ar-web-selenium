@@ -7,8 +7,8 @@ package com.allinweb.ch.model;
  * {@code flow_step.payload_json}.
  */
 public enum FlowStepTypeEnum {
-    API,    // HTTP call against a loaded ApiSpec operation
-    UI,     // Bot-job block execution (writes substituted values into instructions)
-    WAIT,   // Fixed delay
-    ASSERT  // Pool-variable expression check
+    API, // HTTP call against a loaded ApiSpec operation
+    UI, // Bot-job block execution (writes substituted values into instructions)
+    WAIT, // Fixed delay
+    ASSERT // Pool-variable expression check
 }

@@ -162,8 +162,8 @@ public class M20260511_UseCaseTable implements Migration {
             conn.setAutoCommit(false);
             for (Integer botJobId : jobsNeedingDefault) {
                 int useCaseId = ensureDefaultUseCase(conn, botJobId);
-                try (PreparedStatement ps = conn.prepareStatement(
-                        "UPDATE " + TABLE_MAPPING + " SET use_case_id = ? WHERE bot_job_id = ? AND use_case_id IS NULL")) {
+                try (PreparedStatement ps = conn.prepareStatement("UPDATE " + TABLE_MAPPING
+                        + " SET use_case_id = ? WHERE bot_job_id = ? AND use_case_id IS NULL")) {
                     ps.setInt(1, useCaseId);
                     ps.setInt(2, botJobId);
                     int n = ps.executeUpdate();
@@ -172,19 +172,25 @@ public class M20260511_UseCaseTable implements Migration {
             }
             conn.commit();
         } catch (SQLException e) {
-            try { conn.rollback(); } catch (SQLException ignored) {}
+            try {
+                conn.rollback();
+            } catch (SQLException ignored) {
+            }
             throw e;
         } finally {
             if (prevAuto != null) {
-                try { conn.setAutoCommit(prevAuto); } catch (SQLException ignored) {}
+                try {
+                    conn.setAutoCommit(prevAuto);
+                } catch (SQLException ignored) {
+                }
             }
         }
     }
 
     /** Returns the use_case.id of the "Default" use case for this bot job, creating it if missing. */
     private int ensureDefaultUseCase(Connection conn, int botJobId) throws SQLException {
-        try (PreparedStatement ps = conn.prepareStatement(
-                "SELECT id FROM " + TABLE_USE_CASE + " WHERE bot_job_id = ? AND name = ?")) {
+        try (PreparedStatement ps =
+                conn.prepareStatement("SELECT id FROM " + TABLE_USE_CASE + " WHERE bot_job_id = ? AND name = ?")) {
             ps.setInt(1, botJobId);
             ps.setString(2, "Default");
             try (ResultSet rs = ps.executeQuery()) {
@@ -208,8 +214,8 @@ public class M20260511_UseCaseTable implements Migration {
             }
         }
         // Fallback: re-query
-        try (PreparedStatement ps = conn.prepareStatement(
-                "SELECT id FROM " + TABLE_USE_CASE + " WHERE bot_job_id = ? AND name = ?")) {
+        try (PreparedStatement ps =
+                conn.prepareStatement("SELECT id FROM " + TABLE_USE_CASE + " WHERE bot_job_id = ? AND name = ?")) {
             ps.setInt(1, botJobId);
             ps.setString(2, "Default");
             try (ResultSet rs = ps.executeQuery()) {

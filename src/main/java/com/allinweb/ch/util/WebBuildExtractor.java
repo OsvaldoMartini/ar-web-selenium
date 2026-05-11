@@ -8,7 +8,6 @@ import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.Collections;
 import java.util.Comparator;
@@ -113,16 +112,19 @@ public final class WebBuildExtractor {
     }
 
     private static void registerCleanup(Path dir) {
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            try (Stream<Path> walk = Files.walk(dir)) {
-                walk.sorted(Comparator.reverseOrder()).forEach(p -> {
-                    try {
-                        Files.deleteIfExists(p);
-                    } catch (IOException ignored) {
-                    }
-                });
-            } catch (IOException ignored) {
-            }
-        }, "WebBuildExtractor-cleanup"));
+        Runtime.getRuntime()
+                .addShutdownHook(new Thread(
+                        () -> {
+                            try (Stream<Path> walk = Files.walk(dir)) {
+                                walk.sorted(Comparator.reverseOrder()).forEach(p -> {
+                                    try {
+                                        Files.deleteIfExists(p);
+                                    } catch (IOException ignored) {
+                                    }
+                                });
+                            } catch (IOException ignored) {
+                            }
+                        },
+                        "WebBuildExtractor-cleanup"));
     }
 }
