@@ -78,7 +78,11 @@
       "PowerShell(python -c \"import markdown; print\\('markdown', markdown.__version__\\)\" 2>&1; python -c \"import markdown.extensions.tables; print\\('tables ok'\\)\" 2>&1)",
       "PowerShell(python -m pip install --quiet markdown; python -c \"import markdown; print\\('markdown OK', markdown.__version__\\)\")",
       "PowerShell(python \"D:\\\\Projects\\\\AllinWeb\\\\ar-web-selenium\\\\specifications\\\\_build_pdf.py\")",
-      "PowerShell(Remove-Item *)"
+      "PowerShell(Remove-Item *)",
+      "Bash(mkdir -p \"D:/Projects/AllinWeb/abr-react-ts-grid/src/components/MultiTest/locales\")",
+      "Bash(cp \"D:/Projects/AllinWeb/abr-react-ts-grid/public/locales/en/mt.json\" \"D:/Projects/AllinWeb/abr-react-ts-grid/src/components/MultiTest/locales/en.mt.json\")",
+      "Bash(sqlite3 -version)",
+      "Bash(sqlite3 *)"
     ]
   }
 }

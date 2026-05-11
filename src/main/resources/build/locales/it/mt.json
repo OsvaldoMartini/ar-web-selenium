@@ -11,14 +11,14 @@
     "workflowProgress": "Avanzamento workflow"
   },
   "header": {
-    "title": "MULTITEST.AI — PIATTAFORMA DI TEST API",
+    "title": "CAPI — PIATTAFORMA DI TEST API",
     "environment": "Ambiente",
     "botJob": "Bot Job",
     "generateTests": "🧪 Genera test rapidi",
     "apiCount": "API"
   },
   "shell": {
-    "brand": "MultiTest Tools",
+    "brand": "CAPI Tools",
     "lightMode": "Passa alla modalità chiara",
     "darkMode": "Passa alla modalità scura",
     "light": "Chiaro",
@@ -222,7 +222,7 @@
     "byMethod": "Per metodo HTTP",
     "stop": "■ Arresta",
     "liveExec": "LIVE — esecuzione in corso",
-    "csvParseError": "Impossibile analizzare il file CSV. Assicurarsi che sia stato generato da MultiTest.",
+    "csvParseError": "Impossibile analizzare il file CSV. Assicurarsi che sia stato generato da CAPI.",
     "reRunRequest": "Riesegui questa richiesta",
     "runRequest": "Esegui questa richiesta individualmente"
   },
@@ -327,7 +327,7 @@
     "downloadNode": "Scarica script server Node.js senza dipendenze"
   },
   "errors": {
-    "csvParseFailed": "Impossibile analizzare il file CSV. Assicurarsi che sia stato generato da MultiTest.",
+    "csvParseFailed": "Impossibile analizzare il file CSV. Assicurarsi che sia stato generato da CAPI.",
     "jsonParseFailed": "Impossibile analizzare il file JSON. Controlla il formato.",
     "pluginLoadFailed": "Impossibile caricare il plugin. Controlla il formato JSON.",
     "invalidJson": "JSON non valido — correggi prima di eseguire",

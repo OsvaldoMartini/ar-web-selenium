@@ -11,14 +11,14 @@
     "workflowProgress": "Workflow-Fortschritt"
   },
   "header": {
-    "title": "MULTITEST.AI — API-TESTPLATTFORM",
+    "title": "CAPI — API-TESTPLATTFORM",
     "environment": "Umgebung",
     "botJob": "Bot-Job",
     "generateTests": "🧪 Schnelltests generieren",
     "apiCount": "API"
   },
   "shell": {
-    "brand": "MultiTest Tools",
+    "brand": "CAPI Tools",
     "lightMode": "Zum hellen Modus wechseln",
     "darkMode": "Zum dunklen Modus wechseln",
     "light": "Hell",
@@ -248,7 +248,7 @@
     "liveExec": "LIVE — Ausführung läuft",
     "avgLat": "Mittl. Lat.",
     "avgMs": "ms Ø",
-    "csvParseError": "CSV-Datei konnte nicht geparst werden. Stellen Sie sicher, dass sie von MultiTest generiert wurde.",
+    "csvParseError": "CSV-Datei konnte nicht geparst werden. Stellen Sie sicher, dass sie von CAPI generiert wurde.",
     "downloadTitle": "CSV + HTML-Bericht für die aktuelle Ausführung herunterladen",
     "loadCsvTitle": "Frühere CSV-Datei zur Ausführung laden",
     "reRunRequest": "Diese Anfrage erneut ausführen",
@@ -372,7 +372,7 @@
     "saveError": "Mock-Server-Speicherfehler:"
   },
   "errors": {
-    "csvParseFailed": "CSV-Datei konnte nicht geparst werden. Stellen Sie sicher, dass sie von MultiTest generiert wurde.",
+    "csvParseFailed": "CSV-Datei konnte nicht geparst werden. Stellen Sie sicher, dass sie von CAPI generiert wurde.",
     "jsonParseFailed": "JSON-Datei konnte nicht geparst werden. Bitte überprüfen Sie das Format.",
     "pluginLoadFailed": "Plugin konnte nicht geladen werden. Überprüfen Sie das JSON-Format.",
     "pluginParseFailed": "Plugin-JSON-Datei konnte nicht geparst werden.",
