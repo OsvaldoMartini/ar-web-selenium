@@ -515,8 +515,8 @@ public class ARViewBotJobPane extends ARPane {
         this.apiToolToggleButton = new Button("API Tool");
         this.apiToolToggleButton.setPadding(new Insets(3, 8, 3, 8));
         this.apiToolToggleButton.setFocusTraversable(false);
-        this.apiToolToggleButton.setVisible(true);
-        this.apiToolToggleButton.setManaged(true);
+        this.apiToolToggleButton.setVisible(false);
+        this.apiToolToggleButton.setManaged(false);
         this.apiToolToggleButton.setStyle("-fx-background-color: #37474F; -fx-text-fill: white; "
                 + "-fx-font-weight: bold; -fx-font-size: 12px; -fx-background-radius: 5;");
 
@@ -541,7 +541,7 @@ public class ARViewBotJobPane extends ARPane {
             openExcelFileButton,
             generateExcelButton,
             navigationTimeButton,
-            apiToolToggleButton,
+            // apiToolToggleButton,
             launchBotJobButton,
             openReportButton,
             closeBotJobButton
@@ -621,9 +621,9 @@ public class ARViewBotJobPane extends ARPane {
         grpNav.setStyle("-fx-background-color: #dbeafe; -fx-background-radius: 6; -fx-padding: 3 6 3 6;");
         grpNav.setAlignment(Pos.CENTER_LEFT);
 
-        HBox grpApi = new HBox(3, apiToolToggleButton);
-        grpApi.setStyle("-fx-background-color: #e8edf0; -fx-background-radius: 6; -fx-padding: 3 6 3 6;");
-        grpApi.setAlignment(Pos.CENTER_LEFT);
+        // HBox grpApi = new HBox(3, apiToolToggleButton);
+        // grpApi.setStyle("-fx-background-color: #e8edf0; -fx-background-radius: 6; -fx-padding: 3 6 3 6;");
+        // grpApi.setAlignment(Pos.CENTER_LEFT);
 
         HBox grpLaunch = new HBox(3, launchBotJobButton);
         grpLaunch.setStyle("-fx-background-color: #EAF3DE; -fx-background-radius: 6; -fx-padding: 3 6 3 6;");
@@ -640,7 +640,7 @@ public class ARViewBotJobPane extends ARPane {
         toolbarRow
                 .getChildren()
                 .addAll(
-                        grpView, sep.get(), grpExcel, sep.get(), grpNav, sep.get(), grpApi, sep.get(), grpLaunch,
+                        grpView, sep.get(), grpExcel, sep.get(), grpNav, sep.get(), /* grpApi, sep.get(), */ grpLaunch,
                         spacer, grpClose);
 
         // ════════════════════════════════════════════════════════════════════════
@@ -1416,7 +1416,7 @@ public class ARViewBotJobPane extends ARPane {
         });
 
         // ── API Tool toggle handler  ─────────────────────────────────
-        apiToolToggleButton.setOnMouseClicked((e) -> {
+        /* apiToolToggleButton.setOnMouseClicked((e) -> {
             if (isApiToolVisible) {
                 // ── Switch BACK to botJobTasks view ────────────────────────
                 componentBox.getChildren().clear();
@@ -1451,7 +1451,7 @@ public class ARViewBotJobPane extends ARPane {
 
                 isApiToolVisible = true;
             }
-        });
+        }); */
     }
 
     private void reloadEnvs() {
