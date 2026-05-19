@@ -38,6 +38,9 @@ public class PerformBackup {
     private TreeMap<Integer, Integer> instrNewInverted = new TreeMap<>();
     private TreeMap<Integer, Integer> variableMap = new TreeMap<>();
     private TreeMap<Integer, Integer> referenceMap = new TreeMap<>();
+    private TreeMap<Integer, Integer> useCaseMap = new TreeMap<>();
+    private TreeMap<Integer, Integer> flowMap = new TreeMap<>();
+    private TreeMap<Integer, Integer> requirementMap = new TreeMap<>();
 
     // Private constructor to prevent instantiation
     private PerformBackup() {}
@@ -261,7 +264,8 @@ public class PerformBackup {
                                force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root,
                                css_selector, description, operation, optional, block_marked, default_value,
                                action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr,
-                               active, block_id, variable_id, parent_block_id, parent_id, bot_job_id
+                               active, block_id, variable_id, parent_block_id, parent_id, bot_job_id,
+                               client_named
                         FROM instruction
                         """
                         + (botJobIdFilter != null ? " WHERE bot_job_id = ? " : "")
@@ -626,7 +630,7 @@ public class PerformBackup {
                                css_selector, description, operation, optional, block_marked,
                                default_value, action_custom_max_wait_sec, on_hold_seconds,
                                codified, export_to_abr, active, block_id, variable_id, parent_block_id, parent_id,
-                               home_banking_id
+                               home_banking_id, client_named
                         FROM component_instruction
                         ORDER BY id ASC
                         """;
@@ -942,6 +946,13 @@ public class PerformBackup {
             deleteStmt.executeUpdate("DELETE FROM variable");
             deleteStmt.executeUpdate("DELETE FROM instruction");
             deleteStmt.executeUpdate("DELETE FROM block");
+            deleteStmt.executeUpdate("DELETE FROM requirement_flow");
+            deleteStmt.executeUpdate("DELETE FROM requirement_use_case");
+            deleteStmt.executeUpdate("DELETE FROM requirement");
+            deleteStmt.executeUpdate("DELETE FROM flow_step");
+            deleteStmt.executeUpdate("DELETE FROM flow");
+            deleteStmt.executeUpdate("DELETE FROM use_case_field_mapping");
+            deleteStmt.executeUpdate("DELETE FROM use_case");
             deleteStmt.executeUpdate("DELETE FROM bot_job");
             deleteStmt.executeUpdate("DELETE FROM home_url");
             deleteStmt.executeUpdate("DELETE FROM home_banking");
@@ -1743,7 +1754,7 @@ public class PerformBackup {
                                 // Firts to Be mapped after INSERTS into Variable TABLE
                                 setSafeParam(pstmt, 23, null, Types.INTEGER);
                             }
-                            case 24, 25, 26 -> {}
+                            case 24, 25, 26, 27 -> {}
                             default -> throw new IllegalArgumentException("Unexpected column index: " + i);
                         }
                     }
@@ -2551,7 +2562,7 @@ public class PerformBackup {
                                 // Firts to Be mapped after INSERTS into Variable TABLE
                                 setSafeParam(pstmt, 23, "NULL", Types.INTEGER);
                             }
-                            case 24, 25, 26 -> {}
+                            case 24, 25, 26, 27 -> {}
                             default -> throw new IllegalArgumentException("Unexpected column index: " + i);
                         }
                     }
@@ -2966,6 +2977,42 @@ public class PerformBackup {
         }
     }
 
+    private void writeScopedTableSection(
+            Connection conn,
+            BufferedWriter writer,
+            String tableName,
+            List<String> columns,
+            String orderBy,
+            String whereClause,
+            Object... params)
+            throws Exception {
+        String select = "SELECT " + String.join(", ", columns)
+                + " FROM " + tableName
+                + (whereClause != null && !whereClause.isBlank() ? " WHERE " + whereClause : "")
+                + " ORDER BY " + orderBy;
+        String insertPrefix = "INSERT INTO " + tableName + " (" + String.join(", ", columns) + ") VALUES (";
+        writer.write("-- TABLE: " + tableName + System.lineSeparator());
+        try (PreparedStatement ps = conn.prepareStatement(select)) {
+            for (int i = 0; i < params.length; i++) {
+                ps.setObject(i + 1, params[i]);
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                ResultSetMetaData md = rs.getMetaData();
+                while (rs.next()) {
+                    StringBuilder sb = new StringBuilder(insertPrefix);
+                    for (int i = 0; i < columns.size(); i++) {
+                        if (i > 0) sb.append(", ");
+                        sb.append(renderValueForBackup(rs, md, i + 1));
+                    }
+                    sb.append(");");
+                    writer.write(sb.toString());
+                    writer.write(System.lineSeparator());
+                }
+            }
+        }
+        writer.write(System.lineSeparator());
+    }
+
     private void setSafeParam(PreparedStatement pstmt, int index, String val, int sqlType) throws SQLException {
         if (val == null || val.isBlank() || val.equalsIgnoreCase("null") || val.equalsIgnoreCase("[null]")) {
             pstmt.setNull(index, sqlType);
@@ -3003,6 +3050,419 @@ public class PerformBackup {
         return escapeSql(val);
     }
 
+    private ErrorMessage restoreUseCase(Connection conn, String sqlFilePath) {
+        if (sqlFilePath == null || sqlFilePath.isBlank()) {
+            log.info("restoreUseCase — no file, skipping");
+            return null;
+        }
+        String insertQuery =
+                "INSERT INTO use_case (bot_job_id, name, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?)";
+        String selectIdsSQL = "SELECT id FROM use_case ORDER BY id";
+        try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
+                PreparedStatement pstmt = conn.prepareStatement(insertQuery);
+                Statement idStmtBefore = conn.createStatement();
+                Statement idStmtAfter = conn.createStatement()) {
+            conn.setAutoCommit(false);
+            useCaseMap.clear();
+            List<Integer> idsBefore = new ArrayList<>();
+            try (ResultSet rsBefore = idStmtBefore.executeQuery(selectIdsSQL)) {
+                while (rsBefore.next()) idsBefore.add(rsBefore.getInt("id"));
+            }
+            List<Integer> insertedOldIds = new ArrayList<>();
+            StringBuilder currentInsert = new StringBuilder();
+            boolean batchReady = false;
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+                currentInsert.append(line);
+                if (line.endsWith(";")) {
+                    List<String> values = extractValuesFromInsert(currentInsert.toString());
+                    // id, bot_job_id, name, description, created_at, updated_at → 6 values
+                    if (values.size() != 6) {
+                        log.warn("restoreUseCase — unexpected value count {}: {}", values.size(), currentInsert);
+                        currentInsert.setLength(0);
+                        continue;
+                    }
+                    Integer oldBotJobId = parseIntSafe(values.get(1));
+                    Integer newBotJobId = oldBotJobId != null ? botJobMap.get(oldBotJobId) : null;
+                    if (newBotJobId == null) {
+                        log.warn("restoreUseCase — unknown bot_job_id {}, skipping", oldBotJobId);
+                        currentInsert.setLength(0);
+                        continue;
+                    }
+                    pstmt.setInt(1, newBotJobId);
+                    setSafeParam(pstmt, 2, values.get(2), Types.VARCHAR); // name
+                    setSafeParam(pstmt, 3, values.get(3), Types.VARCHAR); // description
+                    setSafeParam(pstmt, 4, values.get(4), Types.VARCHAR); // created_at
+                    setSafeParam(pstmt, 5, values.get(5), Types.VARCHAR); // updated_at
+                    Integer oldId = parseIntSafe(values.get(0));
+                    if (oldId != null) insertedOldIds.add(oldId);
+                    pstmt.addBatch();
+                    currentInsert.setLength(0);
+                    batchReady = true;
+                }
+            }
+            if (batchReady) {
+                pstmt.executeBatch();
+                conn.commit();
+            }
+            List<Integer> idsAfter = new ArrayList<>();
+            try (ResultSet rsAfter = idStmtAfter.executeQuery(selectIdsSQL)) {
+                while (rsAfter.next()) idsAfter.add(rsAfter.getInt("id"));
+            }
+            List<Integer> newIds = new ArrayList<>(idsAfter);
+            newIds.removeAll(idsBefore);
+            for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
+                useCaseMap.put(insertedOldIds.get(i), newIds.get(i));
+            }
+            log.info("restoreUseCase — complete: {}", useCaseMap);
+            return null;
+        } catch (Exception e) {
+            return new ErrorMessage("Restore Failed", "Failed to restore use_case", e.getMessage());
+        }
+    }
+
+    private ErrorMessage restoreFlow(Connection conn, String sqlFilePath) {
+        if (sqlFilePath == null || sqlFilePath.isBlank()) {
+            log.info("restoreFlow — no file, skipping");
+            return null;
+        }
+        String insertQuery =
+                "INSERT INTO flow (bot_job_id, name, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?)";
+        String selectIdsSQL = "SELECT id FROM flow ORDER BY id";
+        try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
+                PreparedStatement pstmt = conn.prepareStatement(insertQuery);
+                Statement idStmtBefore = conn.createStatement();
+                Statement idStmtAfter = conn.createStatement()) {
+            conn.setAutoCommit(false);
+            flowMap.clear();
+            List<Integer> idsBefore = new ArrayList<>();
+            try (ResultSet rsBefore = idStmtBefore.executeQuery(selectIdsSQL)) {
+                while (rsBefore.next()) idsBefore.add(rsBefore.getInt("id"));
+            }
+            List<Integer> insertedOldIds = new ArrayList<>();
+            StringBuilder currentInsert = new StringBuilder();
+            boolean batchReady = false;
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+                currentInsert.append(line);
+                if (line.endsWith(";")) {
+                    List<String> values = extractValuesFromInsert(currentInsert.toString());
+                    // id, bot_job_id, name, description, created_at, updated_at → 6 values
+                    if (values.size() != 6) {
+                        log.warn("restoreFlow — unexpected value count {}: {}", values.size(), currentInsert);
+                        currentInsert.setLength(0);
+                        continue;
+                    }
+                    Integer oldBotJobId = parseIntSafe(values.get(1));
+                    Integer newBotJobId = oldBotJobId != null ? botJobMap.get(oldBotJobId) : null;
+                    if (newBotJobId == null) {
+                        log.warn("restoreFlow — unknown bot_job_id {}, skipping", oldBotJobId);
+                        currentInsert.setLength(0);
+                        continue;
+                    }
+                    pstmt.setInt(1, newBotJobId);
+                    setSafeParam(pstmt, 2, values.get(2), Types.VARCHAR); // name
+                    setSafeParam(pstmt, 3, values.get(3), Types.VARCHAR); // description
+                    setSafeParam(pstmt, 4, values.get(4), Types.VARCHAR); // created_at
+                    setSafeParam(pstmt, 5, values.get(5), Types.VARCHAR); // updated_at
+                    Integer oldId = parseIntSafe(values.get(0));
+                    if (oldId != null) insertedOldIds.add(oldId);
+                    pstmt.addBatch();
+                    currentInsert.setLength(0);
+                    batchReady = true;
+                }
+            }
+            if (batchReady) {
+                pstmt.executeBatch();
+                conn.commit();
+            }
+            List<Integer> idsAfter = new ArrayList<>();
+            try (ResultSet rsAfter = idStmtAfter.executeQuery(selectIdsSQL)) {
+                while (rsAfter.next()) idsAfter.add(rsAfter.getInt("id"));
+            }
+            List<Integer> newIds = new ArrayList<>(idsAfter);
+            newIds.removeAll(idsBefore);
+            for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
+                flowMap.put(insertedOldIds.get(i), newIds.get(i));
+            }
+            log.info("restoreFlow — complete: {}", flowMap);
+            return null;
+        } catch (Exception e) {
+            return new ErrorMessage("Restore Failed", "Failed to restore flow", e.getMessage());
+        }
+    }
+
+    private ErrorMessage restoreRequirement(Connection conn, String sqlFilePath) {
+        if (sqlFilePath == null || sqlFilePath.isBlank()) {
+            log.info("restoreRequirement — no file, skipping");
+            return null;
+        }
+        String insertQuery =
+                "INSERT INTO requirement (bot_job_id, external_ref, title, description, priority, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        String selectIdsSQL = "SELECT id FROM requirement ORDER BY id";
+        try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
+                PreparedStatement pstmt = conn.prepareStatement(insertQuery);
+                Statement idStmtBefore = conn.createStatement();
+                Statement idStmtAfter = conn.createStatement()) {
+            conn.setAutoCommit(false);
+            requirementMap.clear();
+            List<Integer> idsBefore = new ArrayList<>();
+            try (ResultSet rsBefore = idStmtBefore.executeQuery(selectIdsSQL)) {
+                while (rsBefore.next()) idsBefore.add(rsBefore.getInt("id"));
+            }
+            List<Integer> insertedOldIds = new ArrayList<>();
+            StringBuilder currentInsert = new StringBuilder();
+            boolean batchReady = false;
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+                currentInsert.append(line);
+                if (line.endsWith(";")) {
+                    List<String> values = extractValuesFromInsert(currentInsert.toString());
+                    // id, bot_job_id, external_ref, title, description, priority, status, created_at, updated_at → 9
+                    // values
+                    if (values.size() != 9) {
+                        log.warn("restoreRequirement — unexpected value count {}: {}", values.size(), currentInsert);
+                        currentInsert.setLength(0);
+                        continue;
+                    }
+                    Integer oldBotJobId = parseIntSafe(values.get(1));
+                    Integer newBotJobId = oldBotJobId != null ? botJobMap.get(oldBotJobId) : null;
+                    if (newBotJobId == null) {
+                        log.warn("restoreRequirement — unknown bot_job_id {}, skipping", oldBotJobId);
+                        currentInsert.setLength(0);
+                        continue;
+                    }
+                    pstmt.setInt(1, newBotJobId);
+                    setSafeParam(pstmt, 2, values.get(2), Types.VARCHAR); // external_ref
+                    setSafeParam(pstmt, 3, values.get(3), Types.VARCHAR); // title
+                    setSafeParam(pstmt, 4, values.get(4), Types.VARCHAR); // description
+                    setSafeParam(pstmt, 5, values.get(5), Types.VARCHAR); // priority
+                    setSafeParam(pstmt, 6, values.get(6), Types.VARCHAR); // status
+                    setSafeParam(pstmt, 7, values.get(7), Types.VARCHAR); // created_at
+                    setSafeParam(pstmt, 8, values.get(8), Types.VARCHAR); // updated_at
+                    Integer oldId = parseIntSafe(values.get(0));
+                    if (oldId != null) insertedOldIds.add(oldId);
+                    pstmt.addBatch();
+                    currentInsert.setLength(0);
+                    batchReady = true;
+                }
+            }
+            if (batchReady) {
+                pstmt.executeBatch();
+                conn.commit();
+            }
+            List<Integer> idsAfter = new ArrayList<>();
+            try (ResultSet rsAfter = idStmtAfter.executeQuery(selectIdsSQL)) {
+                while (rsAfter.next()) idsAfter.add(rsAfter.getInt("id"));
+            }
+            List<Integer> newIds = new ArrayList<>(idsAfter);
+            newIds.removeAll(idsBefore);
+            for (int i = 0; i < Math.min(insertedOldIds.size(), newIds.size()); i++) {
+                requirementMap.put(insertedOldIds.get(i), newIds.get(i));
+            }
+            log.info("restoreRequirement — complete: {}", requirementMap);
+            return null;
+        } catch (Exception e) {
+            return new ErrorMessage("Restore Failed", "Failed to restore requirement", e.getMessage());
+        }
+    }
+
+    private ErrorMessage restoreUseCaseFieldMapping(Connection conn, String sqlFilePath) {
+        if (sqlFilePath == null || sqlFilePath.isBlank()) {
+            log.info("restoreUseCaseFieldMapping — no file, skipping");
+            return null;
+        }
+        String insertQuery =
+                "INSERT INTO use_case_field_mapping (bot_job_id, api_key, api_spec_file, api_field_name, bot_instruction_id, use_case_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
+                PreparedStatement pstmt = conn.prepareStatement(insertQuery)) {
+            conn.setAutoCommit(false);
+            StringBuilder currentInsert = new StringBuilder();
+            boolean batchReady = false;
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+                currentInsert.append(line);
+                if (line.endsWith(";")) {
+                    List<String> values = extractValuesFromInsert(currentInsert.toString());
+                    // id, bot_job_id, api_key, api_spec_file, api_field_name, bot_instruction_id, use_case_id,
+                    // created_at, updated_at → 9 values
+                    if (values.size() != 9) {
+                        log.warn(
+                                "restoreUseCaseFieldMapping — unexpected value count {}: {}",
+                                values.size(),
+                                currentInsert);
+                        currentInsert.setLength(0);
+                        continue;
+                    }
+                    Integer oldBotJobId = parseIntSafe(values.get(1));
+                    Integer newBotJobId = oldBotJobId != null ? botJobMap.get(oldBotJobId) : null;
+                    if (newBotJobId == null) {
+                        log.warn("restoreUseCaseFieldMapping — unknown bot_job_id {}, skipping", oldBotJobId);
+                        currentInsert.setLength(0);
+                        continue;
+                    }
+                    Integer oldInstrId = parseIntSafe(values.get(5));
+                    Integer newInstrId = oldInstrId != null ? instructionMap.get(oldInstrId) : null;
+                    Integer oldUseCaseId = parseIntSafe(values.get(6));
+                    Integer newUseCaseId = oldUseCaseId != null ? useCaseMap.get(oldUseCaseId) : null;
+                    pstmt.setInt(1, newBotJobId);
+                    setSafeParam(pstmt, 2, values.get(2), Types.VARCHAR); // api_key
+                    setSafeParam(pstmt, 3, values.get(3), Types.VARCHAR); // api_spec_file
+                    setSafeParam(pstmt, 4, values.get(4), Types.VARCHAR); // api_field_name
+                    if (newInstrId != null) pstmt.setInt(5, newInstrId);
+                    else pstmt.setNull(5, Types.INTEGER);
+                    if (newUseCaseId != null) pstmt.setInt(6, newUseCaseId);
+                    else pstmt.setNull(6, Types.INTEGER);
+                    setSafeParam(pstmt, 7, values.get(7), Types.VARCHAR); // created_at
+                    setSafeParam(pstmt, 8, values.get(8), Types.VARCHAR); // updated_at
+                    pstmt.addBatch();
+                    currentInsert.setLength(0);
+                    batchReady = true;
+                }
+            }
+            if (batchReady) {
+                pstmt.executeBatch();
+                conn.commit();
+            }
+            log.info("restoreUseCaseFieldMapping — complete");
+            return null;
+        } catch (Exception e) {
+            return new ErrorMessage("Restore Failed", "Failed to restore use_case_field_mapping", e.getMessage());
+        }
+    }
+
+    private ErrorMessage restoreFlowStep(Connection conn, String sqlFilePath) {
+        if (sqlFilePath == null || sqlFilePath.isBlank()) {
+            log.info("restoreFlowStep — no file, skipping");
+            return null;
+        }
+        String insertQuery =
+                "INSERT INTO flow_step (flow_id, step_order, name, step_type, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
+                PreparedStatement pstmt = conn.prepareStatement(insertQuery)) {
+            conn.setAutoCommit(false);
+            StringBuilder currentInsert = new StringBuilder();
+            boolean batchReady = false;
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+                currentInsert.append(line);
+                if (line.endsWith(";")) {
+                    List<String> values = extractValuesFromInsert(currentInsert.toString());
+                    // id, flow_id, step_order, name, step_type, payload_json, created_at, updated_at → 8 values
+                    if (values.size() != 8) {
+                        log.warn("restoreFlowStep — unexpected value count {}: {}", values.size(), currentInsert);
+                        currentInsert.setLength(0);
+                        continue;
+                    }
+                    Integer oldFlowId = parseIntSafe(values.get(1));
+                    Integer newFlowId = oldFlowId != null ? flowMap.get(oldFlowId) : null;
+                    if (newFlowId == null) {
+                        log.warn("restoreFlowStep — unknown flow_id {}, skipping", oldFlowId);
+                        currentInsert.setLength(0);
+                        continue;
+                    }
+                    pstmt.setInt(1, newFlowId);
+                    setSafeParam(pstmt, 2, values.get(2), Types.INTEGER); // step_order
+                    setSafeParam(pstmt, 3, values.get(3), Types.VARCHAR); // name
+                    setSafeParam(pstmt, 4, values.get(4), Types.VARCHAR); // step_type
+                    setSafeParam(pstmt, 5, values.get(5), Types.VARCHAR); // payload_json
+                    setSafeParam(pstmt, 6, values.get(6), Types.VARCHAR); // created_at
+                    setSafeParam(pstmt, 7, values.get(7), Types.VARCHAR); // updated_at
+                    pstmt.addBatch();
+                    currentInsert.setLength(0);
+                    batchReady = true;
+                }
+            }
+            if (batchReady) {
+                pstmt.executeBatch();
+                conn.commit();
+            }
+            log.info("restoreFlowStep — complete");
+            return null;
+        } catch (Exception e) {
+            return new ErrorMessage("Restore Failed", "Failed to restore flow_step", e.getMessage());
+        }
+    }
+
+    private ErrorMessage restoreRequirementLinkTable(
+            Connection conn,
+            String sqlFilePath,
+            String tableName,
+            TreeMap<Integer, Integer> leftMap,
+            String leftCol,
+            TreeMap<Integer, Integer> rightMap,
+            String rightCol) {
+        if (sqlFilePath == null || sqlFilePath.isBlank()) {
+            log.info("restore{} — no file, skipping", tableName);
+            return null;
+        }
+        String insertQuery = "INSERT INTO " + tableName + " (" + leftCol + ", " + rightCol + ") VALUES (?, ?)";
+        try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
+                PreparedStatement pstmt = conn.prepareStatement(insertQuery)) {
+            conn.setAutoCommit(false);
+            StringBuilder currentInsert = new StringBuilder();
+            boolean batchReady = false;
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+                currentInsert.append(line);
+                if (line.endsWith(";")) {
+                    List<String> values = extractValuesFromInsert(currentInsert.toString());
+                    if (values.size() != 2) {
+                        log.warn("restore{} — unexpected value count {}: {}", tableName, values.size(), currentInsert);
+                        currentInsert.setLength(0);
+                        continue;
+                    }
+                    Integer oldLeft = parseIntSafe(values.get(0));
+                    Integer newLeft = oldLeft != null ? leftMap.get(oldLeft) : null;
+                    Integer oldRight = parseIntSafe(values.get(1));
+                    Integer newRight = oldRight != null ? rightMap.get(oldRight) : null;
+                    if (newLeft == null || newRight == null) {
+                        log.warn(
+                                "restore{} — unmapped FK ({}->{}, {}->{}), skipping",
+                                tableName,
+                                oldLeft,
+                                newLeft,
+                                oldRight,
+                                newRight);
+                        currentInsert.setLength(0);
+                        continue;
+                    }
+                    pstmt.setInt(1, newLeft);
+                    pstmt.setInt(2, newRight);
+                    pstmt.addBatch();
+                    currentInsert.setLength(0);
+                    batchReady = true;
+                }
+            }
+            if (batchReady) {
+                pstmt.executeBatch();
+                conn.commit();
+            }
+            log.info("restore{} — complete", tableName);
+            return null;
+        } catch (Exception e) {
+            return new ErrorMessage("Restore Failed", "Failed to restore " + tableName, e.getMessage());
+        }
+    }
+
     // ─────────────────────────────────────────────────────────────────────────────
     //  One-file backup / restore (added 2026-04).
     //
@@ -3037,10 +3497,16 @@ public class PerformBackup {
     private static final class BackupTableSpec {
         final String tableName;
         final List<String> columns;
+        final String orderBy;
 
         BackupTableSpec(String tableName, List<String> columns) {
+            this(tableName, columns, "id ASC");
+        }
+
+        BackupTableSpec(String tableName, List<String> columns, String orderBy) {
             this.tableName = tableName;
             this.columns = columns;
+            this.orderBy = orderBy;
         }
     }
 
@@ -3110,7 +3576,8 @@ public class PerformBackup {
                             "variable_id",
                             "parent_block_id",
                             "parent_id",
-                            "bot_job_id")),
+                            "bot_job_id",
+                            "client_named")),
             new BackupTableSpec("reference", List.of("id", "reference_type", "value", "instruction_id", "bot_job_id")),
             new BackupTableSpec(
                     "variable",
@@ -3165,7 +3632,8 @@ public class PerformBackup {
                             "variable_id",
                             "parent_block_id",
                             "parent_id",
-                            "home_banking_id")),
+                            "home_banking_id",
+                            "client_named")),
             new BackupTableSpec(
                     "component_reference",
                     List.of("id", "reference_type", "value", "instruction_id", "home_banking_id")),
@@ -3179,7 +3647,52 @@ public class PerformBackup {
                             "instruction_id",
                             "home_banking_id",
                             "local_format",
-                            "delimiter")));
+                            "delimiter")),
+            // ─── new feature tables (M20260510-M20260513) ───────────────────────────────
+            new BackupTableSpec(
+                    "use_case", List.of("id", "bot_job_id", "name", "description", "created_at", "updated_at")),
+            new BackupTableSpec(
+                    "use_case_field_mapping",
+                    List.of(
+                            "id",
+                            "bot_job_id",
+                            "api_key",
+                            "api_spec_file",
+                            "api_field_name",
+                            "bot_instruction_id",
+                            "use_case_id",
+                            "created_at",
+                            "updated_at")),
+            new BackupTableSpec("flow", List.of("id", "bot_job_id", "name", "description", "created_at", "updated_at")),
+            new BackupTableSpec(
+                    "flow_step",
+                    List.of(
+                            "id",
+                            "flow_id",
+                            "step_order",
+                            "name",
+                            "step_type",
+                            "payload_json",
+                            "created_at",
+                            "updated_at")),
+            new BackupTableSpec(
+                    "requirement",
+                    List.of(
+                            "id",
+                            "bot_job_id",
+                            "external_ref",
+                            "title",
+                            "description",
+                            "priority",
+                            "status",
+                            "created_at",
+                            "updated_at")),
+            new BackupTableSpec(
+                    "requirement_use_case",
+                    List.of("requirement_id", "use_case_id"),
+                    "requirement_id ASC, use_case_id ASC"),
+            new BackupTableSpec(
+                    "requirement_flow", List.of("requirement_id", "flow_id"), "requirement_id ASC, flow_id ASC"));
 
     /** Dialect detection for the three supported engines. */
     private enum BackupDialect {
@@ -3233,7 +3746,8 @@ public class PerformBackup {
     }
 
     private long dumpOneTableToWriter(Connection conn, BufferedWriter writer, BackupTableSpec spec) throws Exception {
-        String select = "SELECT " + String.join(", ", spec.columns) + " FROM " + spec.tableName + " ORDER BY id ASC";
+        String select =
+                "SELECT " + String.join(", ", spec.columns) + " FROM " + spec.tableName + " ORDER BY " + spec.orderBy;
         String insertPrefix = "INSERT INTO " + spec.tableName + " (" + String.join(", ", spec.columns) + ") VALUES (";
 
         long count = 0;
@@ -3361,6 +3875,41 @@ public class PerformBackup {
             if (error != null) return error;
 
             error = restoreReference(conn, pathOrEmpty(perTableFiles, "reference"), null);
+            if (error != null) return error;
+
+            error = restoreUseCase(conn, pathOrEmpty(perTableFiles, "use_case"));
+            if (error != null) return error;
+
+            error = restoreFlow(conn, pathOrEmpty(perTableFiles, "flow"));
+            if (error != null) return error;
+
+            error = restoreRequirement(conn, pathOrEmpty(perTableFiles, "requirement"));
+            if (error != null) return error;
+
+            error = restoreUseCaseFieldMapping(conn, pathOrEmpty(perTableFiles, "use_case_field_mapping"));
+            if (error != null) return error;
+
+            error = restoreFlowStep(conn, pathOrEmpty(perTableFiles, "flow_step"));
+            if (error != null) return error;
+
+            error = restoreRequirementLinkTable(
+                    conn,
+                    pathOrEmpty(perTableFiles, "requirement_use_case"),
+                    "requirement_use_case",
+                    requirementMap,
+                    "requirement_id",
+                    useCaseMap,
+                    "use_case_id");
+            if (error != null) return error;
+
+            error = restoreRequirementLinkTable(
+                    conn,
+                    pathOrEmpty(perTableFiles, "requirement_flow"),
+                    "requirement_flow",
+                    requirementMap,
+                    "requirement_id",
+                    flowMap,
+                    "flow_id");
             if (error != null) return error;
 
             error = restoreComponentBlock(conn, pathOrEmpty(perTableFiles, "component_block"));
@@ -3588,6 +4137,89 @@ public class PerformBackup {
                     }
                     writer.write(System.lineSeparator());
                 }
+                // new feature tables scoped to this bot job (M20260510-M20260513)
+                writeScopedTableSection(
+                        conn,
+                        writer,
+                        "use_case",
+                        List.of("id", "bot_job_id", "name", "description", "created_at", "updated_at"),
+                        "id ASC",
+                        "bot_job_id = ?",
+                        botJobId);
+                writeScopedTableSection(
+                        conn,
+                        writer,
+                        "use_case_field_mapping",
+                        List.of(
+                                "id",
+                                "bot_job_id",
+                                "api_key",
+                                "api_spec_file",
+                                "api_field_name",
+                                "bot_instruction_id",
+                                "use_case_id",
+                                "created_at",
+                                "updated_at"),
+                        "id ASC",
+                        "bot_job_id = ?",
+                        botJobId);
+                writeScopedTableSection(
+                        conn,
+                        writer,
+                        "flow",
+                        List.of("id", "bot_job_id", "name", "description", "created_at", "updated_at"),
+                        "id ASC",
+                        "bot_job_id = ?",
+                        botJobId);
+                writeScopedTableSection(
+                        conn,
+                        writer,
+                        "flow_step",
+                        List.of(
+                                "id",
+                                "flow_id",
+                                "step_order",
+                                "name",
+                                "step_type",
+                                "payload_json",
+                                "created_at",
+                                "updated_at"),
+                        "id ASC",
+                        "flow_id IN (SELECT id FROM flow WHERE bot_job_id = ?)",
+                        botJobId);
+                writeScopedTableSection(
+                        conn,
+                        writer,
+                        "requirement",
+                        List.of(
+                                "id",
+                                "bot_job_id",
+                                "external_ref",
+                                "title",
+                                "description",
+                                "priority",
+                                "status",
+                                "created_at",
+                                "updated_at"),
+                        "id ASC",
+                        "bot_job_id = ?",
+                        botJobId);
+                writeScopedTableSection(
+                        conn,
+                        writer,
+                        "requirement_use_case",
+                        List.of("requirement_id", "use_case_id"),
+                        "requirement_id ASC, use_case_id ASC",
+                        "requirement_id IN (SELECT id FROM requirement WHERE bot_job_id = ?)",
+                        botJobId);
+                writeScopedTableSection(
+                        conn,
+                        writer,
+                        "requirement_flow",
+                        List.of("requirement_id", "flow_id"),
+                        "requirement_id ASC, flow_id ASC",
+                        "requirement_id IN (SELECT id FROM requirement WHERE bot_job_id = ?)",
+                        botJobId);
             }
             log.info("dumpBotJobToSingleFile — complete: {}", outFile.getAbsolutePath());
             return null;
@@ -3662,6 +4294,41 @@ public class PerformBackup {
             if (error != null) return error;
 
             error = restoreReference(conn, pathOrEmpty(perTableFiles, "reference"), botJobIdImported);
+            if (error != null) return error;
+
+            error = restoreUseCase(conn, pathOrEmpty(perTableFiles, "use_case"));
+            if (error != null) return error;
+
+            error = restoreFlow(conn, pathOrEmpty(perTableFiles, "flow"));
+            if (error != null) return error;
+
+            error = restoreRequirement(conn, pathOrEmpty(perTableFiles, "requirement"));
+            if (error != null) return error;
+
+            error = restoreUseCaseFieldMapping(conn, pathOrEmpty(perTableFiles, "use_case_field_mapping"));
+            if (error != null) return error;
+
+            error = restoreFlowStep(conn, pathOrEmpty(perTableFiles, "flow_step"));
+            if (error != null) return error;
+
+            error = restoreRequirementLinkTable(
+                    conn,
+                    pathOrEmpty(perTableFiles, "requirement_use_case"),
+                    "requirement_use_case",
+                    requirementMap,
+                    "requirement_id",
+                    useCaseMap,
+                    "use_case_id");
+            if (error != null) return error;
+
+            error = restoreRequirementLinkTable(
+                    conn,
+                    pathOrEmpty(perTableFiles, "requirement_flow"),
+                    "requirement_flow",
+                    requirementMap,
+                    "requirement_id",
+                    flowMap,
+                    "flow_id");
             if (error != null) return error;
 
             log.info("restoreBotJobFromSingleFile — complete: {}", sqlFile.getAbsolutePath());
