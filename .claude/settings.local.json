@@ -82,7 +82,10 @@
       "Bash(mkdir -p \"D:/Projects/AllinWeb/abr-react-ts-grid/src/components/MultiTest/locales\")",
       "Bash(cp \"D:/Projects/AllinWeb/abr-react-ts-grid/public/locales/en/mt.json\" \"D:/Projects/AllinWeb/abr-react-ts-grid/src/components/MultiTest/locales/en.mt.json\")",
       "Bash(sqlite3 -version)",
-      "Bash(sqlite3 *)"
+      "Bash(sqlite3 *)",
+      "Bash(dir D:\\\\Projects\\\\AllinWeb\\\\ar-web-selenium\\\\src\\\\main\\\\java\\\\com\\\\allinweb\\\\ch\\\\db\\\\migrations *)",
+      "Bash(grep -v \"private ErrorMessage\\\\|log\\\\.\\\\|//\")",
+      "Bash(python *)"
     ]
   }
 }
