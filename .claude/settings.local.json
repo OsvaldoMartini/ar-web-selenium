@@ -85,7 +85,23 @@
       "Bash(sqlite3 *)",
       "Bash(dir D:\\\\Projects\\\\AllinWeb\\\\ar-web-selenium\\\\src\\\\main\\\\java\\\\com\\\\allinweb\\\\ch\\\\db\\\\migrations *)",
       "Bash(grep -v \"private ErrorMessage\\\\|log\\\\.\\\\|//\")",
-      "Bash(python *)"
+      "Bash(python *)",
+      "PowerShell($content = Get-Content \"D:\\\\Projects\\\\ARWebBancaStato\\\\ARWeb\\\\plugins\\\\searchListAsync_extracted\\\\searchListAsync.min.enc\" -Raw; $content.Substring\\(0, 300\\))",
+      "PowerShell($f = Get-Item \"D:\\\\Projects\\\\ARWebBancaStato\\\\ARWeb\\\\plugins\\\\searchListAsync_extracted\\\\searchListAsync.min.enc\"; $m = Get-Item \"D:\\\\Projects\\\\AllinWeb\\\\ar-web-selenium\\\\src\\\\main\\\\java\\\\com\\\\allinweb\\\\ch\"; \"enc size: $\\($f.Length\\) bytes\"; $minjs = Get-Item \"D:\\\\Projects_DevOps\\\\MultiPlugins\\\\plugins\\\\searchListAsync\\\\build\\\\searchListAsync.min.js\"; \"min.js size: $\\($minjs.Length\\) bytes\")",
+      "PowerShell(node \"D:\\\\Projects_DevOps\\\\MultiPlugins\\\\server\\\\scripts\\\\encrypt-plugin.cjs\" --js \"D:\\\\Projects_DevOps\\\\MultiPlugins\\\\plugins\\\\searchListAsync\\\\build\\\\searchListAsync.min.js\" --lic \"D:\\\\Projects\\\\ARWebBancaStato\\\\ARWeb-Scanner\\\\ARWeb.lic\" --out \"D:\\\\Projects_DevOps\\\\MultiPlugins\\\\plugins\\\\searchListAsync\\\\build\")",
+      "PowerShell(node \"D:\\\\Projects_DevOps\\\\MultiPlugins\\\\server\\\\scripts\\\\encrypt-plugin.cjs\" --js \"D:\\\\Projects_DevOps\\\\MultiPlugins\\\\plugins\\\\hoverPick\\\\build\\\\hoverPick.min.js\" --lic \"D:\\\\Projects\\\\ARWebBancaStato\\\\ARWeb-Scanner\\\\ARWeb.lic\" --out \"D:\\\\Projects_DevOps\\\\MultiPlugins\\\\plugins\\\\hoverPick\\\\build\")",
+      "PowerShell(\\(Get-Item \"D:\\\\Projects_DevOps\\\\MultiPlugins\\\\plugins\\\\hoverPick\\\\build\\\\hoverPick.min.js\"\\).Length)",
+      "Bash(grep *)",
+      "PowerShell(Copy-Item *)",
+      "PowerShell($content = Get-Content \"D:\\\\Projects_DevOps\\\\MultiPlugins\\\\plugins\\\\hoverPick\\\\build\\\\hoverPick.min.js\" -Raw; $idx = $content.IndexOf\\(\"applyHoverPickNames\\(window.allElementInfo\"\\); $content.Substring\\([Math]::Max\\(0,$idx-200\\), 700\\))",
+      "PowerShell($content = Get-Content \"D:\\\\Projects_DevOps\\\\MultiPlugins\\\\plugins\\\\hoverPick\\\\build\\\\hoverPick.min.js\" -Raw; $content.IndexOf\\(\"applyHoverPickNames\\(window.allElementInfo,window.homeBankingId,window.botJobId\\);\"\\))",
+      "PowerShell($content = Get-Content \"D:\\\\Projects_DevOps\\\\MultiPlugins\\\\plugins\\\\hoverPick\\\\build\\\\hoverPick.min.js\" -Raw; $idx = $content.IndexOf\\(\"applyHoverPickNames\\(window.allElementInfo,window.homeBankingId,window.botJobId\\);\"\\); $content.Substring\\($idx, 200\\))",
+      "PowerShell(git *)",
+      "Read(//d/Projects/AllinWeb/ar-web-mobile/**)",
+      "Bash(mvn spotless:apply -q)",
+      "Bash(mvn -f \"D:/Projects/AllinWeb/ar-web-mobile/pom.xml\" spotless:apply -q)",
+      "Bash(mvn -f \"D:/Projects/AllinWeb/ar-web-mobile/pom.xml\" compile -q)",
+      "Bash(mvn -f \"D:/Projects/AllinWeb/ar-web-mobile/pom.xml\" clean package -DskipTests)"
     ]
   }
 }
