@@ -447,13 +447,13 @@ public class ARConfigurationPane extends ARPane {
         AnchorPane driverGroup = new AnchorPane(pathWebDriver, pathWebDriverButton);
 
         pathAppiumLabel = new Label("Appium Path:");
-        pathAppiumLabel.setVisible(false);
-        pathAppiumLabel.setManaged(false);
+        pathAppiumLabel.setVisible(true);
+        pathAppiumLabel.setManaged(true);
         pathAppium = createPathTextField(ARPropertyEnum.PATH_APPIUM);
         pathAppiumButton = createPathButton();
         AnchorPane appiumGroup = new AnchorPane(pathAppium, pathAppiumButton);
-        appiumGroup.setVisible(false);
-        appiumGroup.setManaged(false);
+        appiumGroup.setVisible(true);
+        appiumGroup.setManaged(true);
 
         pathPluginsLabel = new Label("Plugins Path:");
         pathPlugins = createPathTextField(ARPropertyEnum.PATH_PLUGINS);
@@ -1134,11 +1134,10 @@ public class ARConfigurationPane extends ARPane {
             validfields = false;
         }
 
-        //        if (Strings.isNullOrEmpty(pathAppium.getText())) {
-        //            new ARAlertScene(Alert.AlertType.ERROR, "Field Blank", "Appium Path must be filed!",
-        // ButtonType.OK);
-        //            validfields = false;
-        //        }
+        if (Strings.isNullOrEmpty(pathAppium.getText())) {
+            new ARAlertScene(Alert.AlertType.ERROR, "Field Blank", "Appium Path must be filed!", ButtonType.OK);
+            validfields = false;
+        }
 
         if (Strings.isNullOrEmpty(pathPlugins.getText())) {
             new ARAlertScene(Alert.AlertType.ERROR, "Field Blank", "Plugins Path must be filed!", ButtonType.OK);
@@ -1168,9 +1167,8 @@ public class ARConfigurationPane extends ARPane {
             arPropertyManager.setProperty(
                     ARPropertyEnum.PATH_WEBDRIVER.getValue(),
                     pathWebDriver.getText().trim());
-            //            arPropertyManager.setProperty(
-
-            //                    ARPropertyEnum.PATH_APPIUM.getValue(), pathAppium.getText().trim());
+            arPropertyManager.setProperty(
+                    ARPropertyEnum.PATH_APPIUM.getValue(), pathAppium.getText().trim());
             arPropertyManager.setProperty(
                     ARPropertyEnum.PATH_PLUGINS.getValue(),
                     pathPlugins.getText() != null ? pathPlugins.getText().trim() : "");

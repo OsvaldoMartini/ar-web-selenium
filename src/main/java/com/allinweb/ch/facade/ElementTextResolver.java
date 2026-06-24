@@ -123,6 +123,9 @@ public final class ElementTextResolver {
                 String unique = TextSimilarity.uniquify(slug, usedNames);
                 usedNames.add(unique);
                 e.setDefinedName(unique);
+                if (!unique.equals(slug) && !resolved.isBlank()) {
+                    e.setSomeText(resolved + unique.substring(slug.length()));
+                }
 
                 if (log.isDebugEnabled() && resolvedSource != null) {
                     log.debug(

@@ -179,13 +179,13 @@ public class ARNewBotJobPane extends ARPane {
 
         rbAndroid = new RadioButton("Android Apps");
         rbAndroid.setToggleGroup(appTypeGroup);
-        rbAndroid.setVisible(false);
-        rbAndroid.setManaged(false);
+        rbAndroid.setVisible(true);
+        rbAndroid.setManaged(true);
 
         rbIos = new RadioButton("iOS Apps");
         rbIos.setToggleGroup(appTypeGroup);
-        rbIos.setVisible(false);
-        rbIos.setManaged(false);
+        rbIos.setVisible(true);
+        rbIos.setManaged(true);
 
         rbRestAppi = new RadioButton("Rest Api");
         rbRestAppi.setToggleGroup(appTypeGroup);

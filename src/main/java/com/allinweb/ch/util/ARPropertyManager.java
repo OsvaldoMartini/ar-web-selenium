@@ -305,7 +305,7 @@ public class ARPropertyManager {
             setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), "54525");
             setProperty(ARPropertyEnum.PATH_ENGINE.getValue(), ARConstantsEngine.USER_PATH);
             setProperty(ARPropertyEnum.PATH_WEBDRIVER.getValue(), ARConstantsEngine.USER_PATH + "\\driver");
-            // setProperty(ARPropertyEnum.PATH_APPIUM.getValue(), ARConstantsEngine.USER_PATH + "\\appium");
+            setProperty(ARPropertyEnum.PATH_APPIUM.getValue(), ARConstantsEngine.USER_PATH + "\\appium");
             setProperty(ARPropertyEnum.PATH_PLUGINS.getValue(), ARConstantsEngine.USER_PATH + "\\plugins");
             setProperty(ARPropertyEnum.URL_PLUGINS.getValue(), "");
             setProperty(ARPropertyEnum.LOG_LEVEL.getValue(), Level.INFO.getName());
@@ -336,7 +336,7 @@ public class ARPropertyManager {
             //            "db_url",
             //            "db_user",
             //            "db_pwd",
-            // "path_appium",
+            "path_appium",
             "path_plugins",
             "navigation_time",
             "path_excel",
@@ -402,9 +402,9 @@ public class ARPropertyManager {
 
             for (String prop : missingProperties) {
                 // appium
-                // if ("path_appium".equals(prop)) {
-                //    setProperty(ARPropertyEnum.PATH_APPIUM.getValue(), ARConstantsEngine.USER_PATH + "\\appium");
-                // }
+                if ("path_appium".equals(prop)) {
+                    setProperty(ARPropertyEnum.PATH_APPIUM.getValue(), ARConstantsEngine.USER_PATH + "\\appium");
+                }
 
                 // plugins
                 if ("path_plugins".equals(prop)) {
