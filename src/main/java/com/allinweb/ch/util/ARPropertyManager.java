@@ -305,7 +305,8 @@ public class ARPropertyManager {
             setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), "54525");
             setProperty(ARPropertyEnum.PATH_ENGINE.getValue(), ARConstantsEngine.USER_PATH);
             setProperty(ARPropertyEnum.PATH_WEBDRIVER.getValue(), ARConstantsEngine.USER_PATH + "\\driver");
-            setProperty(ARPropertyEnum.USE_PLAYWRIGHT.getValue(), "false");
+            setProperty(ARPropertyEnum.USE_PLAYWRIGHT.getValue(), "true");
+            setProperty(ARPropertyEnum.PLAYWRIGHT_SELENIUM_FALLBACK.getValue(), "true");
             setProperty(ARPropertyEnum.PATH_APPIUM.getValue(), ARConstantsEngine.USER_PATH + "\\appium");
             setProperty(ARPropertyEnum.PATH_PLUGINS.getValue(), ARConstantsEngine.USER_PATH + "\\plugins");
             setProperty(ARPropertyEnum.URL_PLUGINS.getValue(), "");
@@ -348,6 +349,7 @@ public class ARPropertyManager {
             "path_engine",
             "path_web_driver",
             "use_playwright",
+            "playwright_selenium_fallback",
             "log_level",
             "browser"
         };
@@ -411,6 +413,11 @@ public class ARPropertyManager {
                 // playwright scanner
                 if ("use_playwright".equals(prop)) {
                     setProperty(ARPropertyEnum.USE_PLAYWRIGHT.getValue(), "true");
+                }
+
+                // keep Selenium as an explicit fallback while Playwright action coverage is still growing
+                if ("playwright_selenium_fallback".equals(prop)) {
+                    setProperty(ARPropertyEnum.PLAYWRIGHT_SELENIUM_FALLBACK.getValue(), "true");
                 }
 
                 // plugins

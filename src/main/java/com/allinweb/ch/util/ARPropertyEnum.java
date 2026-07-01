@@ -21,6 +21,7 @@ public enum ARPropertyEnum {
     PATH_ENGINE("path_engine"),
     PATH_WEBDRIVER("path_web_driver"),
     USE_PLAYWRIGHT("use_playwright"),
+    PLAYWRIGHT_SELENIUM_FALLBACK("playwright_selenium_fallback"),
     PATH_OCR("path_ocr"),
     OCR_ENGINE("ocr_engine"),
     LOG_LEVEL("log_level"),

@@ -469,6 +469,13 @@ public class PerformActions {
                 return true;
             }
 
+            if (isPlaywrightOnlyMode()) {
+                logOperations.warn(
+                        "Playwright did not complete action '{}' and playwright_selenium_fallback=false; skipping Selenium fallback.",
+                        actions[0]);
+                return false;
+            }
+
             // Playwright did not handle this action; keep the legacy JS/Selenium fallback ready.
             ensureActionExecutor();
 
@@ -655,6 +662,15 @@ public class PerformActions {
             logOperations.warn("Playwright action failed, falling back to Selenium: {}", error.getMessage());
             return false;
         }
+    }
+
+    private boolean isPlaywrightOnlyMode() {
+        if (currentARWebDriver == null || !currentARWebDriver.isPlaywrightEnabled()) {
+            return false;
+        }
+
+        String configured = arPropertyManager.getProperty(ARPropertyEnum.PLAYWRIGHT_SELENIUM_FALLBACK);
+        return configured != null && !Boolean.parseBoolean(configured.trim());
     }
 
     /**
