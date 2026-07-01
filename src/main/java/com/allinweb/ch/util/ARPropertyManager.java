@@ -347,6 +347,7 @@ public class ARPropertyManager {
             "path_priority",
             "path_engine",
             "path_web_driver",
+            "use_playwright",
             "log_level",
             "browser"
         };
@@ -405,6 +406,11 @@ public class ARPropertyManager {
                 // appium
                 if ("path_appium".equals(prop)) {
                     setProperty(ARPropertyEnum.PATH_APPIUM.getValue(), ARConstantsEngine.USER_PATH + "\\appium");
+                }
+
+                // playwright scanner
+                if ("use_playwright".equals(prop)) {
+                    setProperty(ARPropertyEnum.USE_PLAYWRIGHT.getValue(), "true");
                 }
 
                 // plugins
