@@ -1,7 +1,10 @@
 package com.allinweb.ch.driver;
 
+import com.allinweb.ch.facade.PlaywrightActionExecutor;
 import com.allinweb.ch.facade.PlaywrightElementScanner;
 import com.allinweb.ch.model.ElementDTO;
+import com.allinweb.ch.model.FieldData;
+import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.util.ARConstantsEngine;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserContext;
@@ -33,6 +36,7 @@ public class ARPlaywrightDriver {
     private Browser browser;
     private BrowserContext context;
     private Page page;
+    private final PlaywrightActionExecutor actionExecutor = new PlaywrightActionExecutor();
     private final PlaywrightElementScanner elementScanner = new PlaywrightElementScanner();
 
     public void open(String browserType, String url, String optionsConfig) {
@@ -71,6 +75,18 @@ public class ARPlaywrightDriver {
 
     public List<ElementDTO> scanElements(String[] searchTerms, boolean includeHidden) {
         return call(() -> elementScanner.scan(requirePage(), searchTerms, includeHidden));
+    }
+
+    public boolean click(InstructionLoad instruction) {
+        return call(() -> actionExecutor.click(requirePage(), instruction));
+    }
+
+    public boolean fill(InstructionLoad instruction, FieldData data) {
+        return call(() -> actionExecutor.fill(requirePage(), instruction, data));
+    }
+
+    public String text(InstructionLoad instruction) {
+        return call(() -> actionExecutor.text(requirePage(), instruction));
     }
 
     public boolean isOpen() {
