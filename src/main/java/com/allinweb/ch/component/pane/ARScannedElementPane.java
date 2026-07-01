@@ -915,6 +915,7 @@ public class ARScannedElementPane extends ARPane {
                 // Initialize performAction with arPriorities and arWebDriver
 
                 performActions.initialize(arPriorities);
+                performActions.setCurrentARWebDriver(currentARWebDriver);
                 performActions.setCurrentDriver(currentARWebDriver.getCurrentDriver());
             }
         }
@@ -922,6 +923,7 @@ public class ARScannedElementPane extends ARPane {
         // Assign instance variables
         this.currentBotJob = botJobLoad;
         performActions.initialize(arPriorities);
+        performActions.setCurrentARWebDriver(currentARWebDriver);
         performActions.setCurrentDriver(currentARWebDriver.getCurrentDriver());
 
         if (!openWebDriver(false)) {
@@ -1113,6 +1115,7 @@ public class ARScannedElementPane extends ARPane {
             }
 
             performActions.initialize(arPriorities);
+            performActions.setCurrentARWebDriver(currentARWebDriver);
             performActions.setCurrentDriver(currentARWebDriver.getCurrentDriver());
         } else {
 

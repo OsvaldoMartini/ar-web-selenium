@@ -4,6 +4,7 @@ import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
 import com.allinweb.ch.builder.WebElementIcon;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
+import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.model.*;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
 import com.allinweb.ch.util.*;
@@ -95,6 +96,10 @@ public class PerformActions {
     @Getter
     @Setter
     private WebDriver currentDriver;
+
+    @Getter
+    @Setter
+    private ARWebDriver currentARWebDriver;
 
     private Map<WebElement, List<WebElement>> iframeElementsMap;
 
@@ -440,9 +445,6 @@ public class PerformActions {
             SplitDTO splitDTO)
             throws Exception {
 
-        // Ensure actionExecutor plugin is alive before executing any action
-        ensureActionExecutor();
-
         WebDriver originalDriver = this.currentDriver; // Save the original WebDriver state
         boolean switchedToIframe = false;
 
@@ -461,6 +463,14 @@ public class PerformActions {
             // force_coordinates. See InputFlags + migration 2026-04-26.
             InputFlags flags = InputFlags.of(currentInstruction.getForceCoordinates());
             Boolean pressEnterAfter = flags.hasEnter();
+
+            if (!ARConstantsEngine.VISUALIZE.equals(actions[0])
+                    && tryPlaywrightWebAction(currentInstruction, data, actions[0])) {
+                return true;
+            }
+
+            // Playwright did not handle this action; keep the legacy JS/Selenium fallback ready.
+            ensureActionExecutor();
 
             if (instructionElement != null) {
                 boolean passed = true;
@@ -620,6 +630,30 @@ public class PerformActions {
             } catch (Exception re) {
                 logOperations.warn("actionExecutor re-injection failed: {}", re.getMessage());
             }
+        }
+    }
+
+    private boolean tryPlaywrightWebAction(InstructionLoad instruction, FieldData data, String action) {
+        if (currentARWebDriver == null || !currentARWebDriver.isPlaywrightEnabled()) {
+            return false;
+        }
+
+        try {
+            switch (action) {
+                case ARConstantsEngine.CLICK:
+                case ARConstantsEngine.OTHER:
+                    return currentARWebDriver.getPlaywrightDriver().click(instruction);
+                case ARConstantsEngine.INSERT:
+                    return currentARWebDriver.getPlaywrightDriver().fill(instruction, data);
+                case ARConstantsEngine.OUTPUT:
+                    String value = currentARWebDriver.getPlaywrightDriver().text(instruction);
+                    return !Strings.isNullOrEmpty(value);
+                default:
+                    return false;
+            }
+        } catch (Exception error) {
+            logOperations.warn("Playwright action failed, falling back to Selenium: {}", error.getMessage());
+            return false;
         }
     }
 
