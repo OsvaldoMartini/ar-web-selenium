@@ -1,5 +1,6 @@
 package com.allinweb.ch.facade;
 
+import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
@@ -155,6 +156,31 @@ public class PerformListElements {
                 Collections.emptyList());
     }
 
+    public ErrorMessage dynamicLoadElementsDTO(
+            ARWebDriver arWebDriver,
+            WebDriver driver,
+            String[] dataArray,
+            boolean searchHiddenFields,
+            int port,
+            String sessionId,
+            String destination,
+            String operationId,
+            int homeBankingId,
+            int botJobId) {
+        return dynamicLoadElementsDTO(
+                arWebDriver,
+                driver,
+                dataArray,
+                searchHiddenFields,
+                port,
+                sessionId,
+                destination,
+                operationId,
+                homeBankingId,
+                botJobId,
+                Collections.emptyList());
+    }
+
     /** Overload accepting extended "Match rules:" entries. */
     public ErrorMessage dynamicLoadElementsDTO(
             WebDriver driver,
@@ -168,6 +194,34 @@ public class PerformListElements {
             int botJobId,
             List<String> extendedRules) {
         return runScan(
+                        driver,
+                        dataArray,
+                        searchHiddenFields,
+                        port,
+                        sessionId,
+                        destination,
+                        operationId,
+                        homeBankingId,
+                        botJobId,
+                        extendedRules)
+                .error;
+    }
+
+    /** Overload accepting ARWebDriver so the scanner can use Playwright when enabled. */
+    public ErrorMessage dynamicLoadElementsDTO(
+            ARWebDriver arWebDriver,
+            WebDriver driver,
+            String[] dataArray,
+            boolean searchHiddenFields,
+            int port,
+            String sessionId,
+            String destination,
+            String operationId,
+            int homeBankingId,
+            int botJobId,
+            List<String> extendedRules) {
+        return runScan(
+                        arWebDriver,
                         driver,
                         dataArray,
                         searchHiddenFields,
@@ -212,6 +266,31 @@ public class PerformListElements {
                 Collections.emptyList());
     }
 
+    public ScanResult scanElements(
+            ARWebDriver arWebDriver,
+            WebDriver driver,
+            String[] dataArray,
+            boolean searchHiddenFields,
+            int port,
+            String sessionId,
+            String destination,
+            String operationId,
+            int homeBankingId,
+            int botJobId) {
+        return scanElements(
+                arWebDriver,
+                driver,
+                dataArray,
+                searchHiddenFields,
+                port,
+                sessionId,
+                destination,
+                operationId,
+                homeBankingId,
+                botJobId,
+                Collections.emptyList());
+    }
+
     /** Overload accepting extended "Match rules:" entries. */
     public ScanResult scanElements(
             WebDriver driver,
@@ -237,7 +316,60 @@ public class PerformListElements {
                 extendedRules);
     }
 
+    /** Overload accepting ARWebDriver so the scanner can use Playwright when enabled. */
+    public ScanResult scanElements(
+            ARWebDriver arWebDriver,
+            WebDriver driver,
+            String[] dataArray,
+            boolean searchHiddenFields,
+            int port,
+            String sessionId,
+            String destination,
+            String operationId,
+            int homeBankingId,
+            int botJobId,
+            List<String> extendedRules) {
+        return runScan(
+                arWebDriver,
+                driver,
+                dataArray,
+                searchHiddenFields,
+                port,
+                sessionId,
+                destination,
+                operationId,
+                homeBankingId,
+                botJobId,
+                extendedRules);
+    }
+
     private ScanResult runScan(
+            WebDriver driver,
+            String[] dataArray,
+            boolean searchHiddenFields,
+            int port,
+            String sessionId,
+            String destination,
+            String operationId,
+            int homeBankingId,
+            int botJobId,
+            List<String> extendedRules) {
+        return runScan(
+                null,
+                driver,
+                dataArray,
+                searchHiddenFields,
+                port,
+                sessionId,
+                destination,
+                operationId,
+                homeBankingId,
+                botJobId,
+                extendedRules);
+    }
+
+    private ScanResult runScan(
+            ARWebDriver arWebDriver,
             WebDriver driver,
             String[] dataArray,
             boolean searchHiddenFields,
@@ -253,8 +385,19 @@ public class PerformListElements {
         List<String> rulesList = extendedRules == null ? Collections.emptyList() : extendedRules;
         try {
             if (!loggedFirstCall) {
-                log.info(">> Injecting plugin [searchListAsync] - session={}, botJob={}", sessionId, botJobId);
+                log.info(
+                        ">> Running scanner [{}] - session={}, botJob={}",
+                        arWebDriver != null && arWebDriver.isPlaywrightEnabled() ? "Playwright" : "searchListAsync",
+                        sessionId,
+                        botJobId);
                 loggedFirstCall = true;
+            }
+
+            if (arWebDriver != null && arWebDriver.isPlaywrightEnabled()) {
+                List<ElementDTO> elements =
+                        arWebDriver.getPlaywrightDriver().scanElements(dataArray, searchHiddenFields);
+                processScanElements(driver, elements, homeBankingId);
+                return ScanResult.ofElements(elements);
             }
 
             PageDiagnosticDumper.dumpAll(
@@ -297,83 +440,7 @@ public class PerformListElements {
             JsScanResultDTO dto = gson.fromJson(jsonScript, JsScanResultDTO.class);
             List<ElementDTO> elements = dto.getElements() != null ? dto.getElements() : Collections.emptyList();
 
-            // Replace current list and load new one
-            performLists.resetListElements();
-            performLists.addMapElementsTarget(elements);
-
-            // Mirror the hoverPick pipeline (SimpleWebSocketServer case "SEARCH_TOOL"):
-            // 1) rects  2) OCR  3) text resolvers 4) persist enriched DTOs.
-            if (!elements.isEmpty()) {
-                try {
-                    ElementDTO[] asArray = elements.toArray(new ElementDTO[0]);
-                    String jsonPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.PATH_DB);
-                    PerformMessage performMessage = PerformMessage.getInstance();
-
-                    PageDiagnosticDumper.dumpRectsFromElements(driver, asArray, jsonPath, "page-HP");
-                    PageOcrDumper.runAndDump(driver, asArray, jsonPath, "page-HP");
-
-                    {
-                        Integer cfgHbId = homeBankingId > 0 ? homeBankingId : null;
-                        Integer cfgHomeUrlId = null;
-                        try {
-                            com.allinweb.ch.component.scene.ARScannedElementScene scene =
-                                    com.allinweb.ch.component.scene.ARScannedElementScene.getInstance();
-                            if (scene != null && scene.getCurrentBotJob() != null) {
-                                cfgHomeUrlId = scene.getCurrentBotJob().getHomeUrlId();
-                            }
-                        } catch (Throwable ignore) {
-                            // scene unavailable bank-level scope only
-                        }
-                        com.allinweb.ch.model.OcrConfig resolverCfg =
-                                OcrConfigService.getInstance().resolveFor(cfgHbId, cfgHomeUrlId);
-                        ElementTextResolver.resolveAll(
-                                asArray,
-                                java.nio.file.Paths.get(
-                                        jsonPath,
-                                        com.allinweb.ch.util.PageDiagnosticDumper.SUBFOLDER,
-                                        "ocr-correlation-HP.json"),
-                                resolverCfg);
-                    }
-
-                    // Persist locators for Roadmap 3 recovery (defined_name now stable post-resolver).
-                    try {
-                        Integer hbId = homeBankingId > 0 ? homeBankingId : null;
-                        Integer homeUrlId = null;
-                        try {
-                            com.allinweb.ch.component.scene.ARScannedElementScene scene =
-                                    com.allinweb.ch.component.scene.ARScannedElementScene.getInstance();
-                            if (scene != null && scene.getCurrentBotJob() != null) {
-                                homeUrlId = scene.getCurrentBotJob().getHomeUrlId();
-                            }
-                        } catch (Throwable ignore) {
-                            // scene unavailable bank-level scope only
-                        }
-                        ElementLocatorRepository.getInstance().upsertOnPickBatch(asArray, hbId, homeUrlId);
-                    } catch (Exception locEx) {
-                        log.warn("Locator upsert failed (non-fatal): {}", locEx.getMessage());
-                    }
-
-                    List<String> excludeList = List.of("optional", "blockMarked", "editMode");
-                    performMessage.outputJsonElementDTO(asArray, excludeList, "elementDTO-PS", jsonPath);
-
-                    List<String> aiExcludeList = List.of(
-                            "optional",
-                            "blockMarked",
-                            "editMode",
-                            "id",
-                            "attributeData",
-                            "typeElement",
-                            "customXPath",
-                            "shadowRoot",
-                            "nestedShadow",
-                            "searchAttributeValue",
-                            "attributeType",
-                            "attributeValue");
-                    performMessage.outputJsonElementDTO(asArray, aiExcludeList, "AI-ElementDTO-PS", jsonPath);
-                } catch (Exception jsonError) {
-                    log.warn("PerformListElements - failed to persist element JSON: {}", jsonError.getMessage());
-                }
-            }
+            processScanElements(driver, elements, homeBankingId);
 
             return ScanResult.ofElements(elements);
         } catch (PerformPreLoad.PluginLoadException ple) {
@@ -386,6 +453,82 @@ public class PerformListElements {
         } catch (Exception error) {
             return ScanResult.ofError(
                     new ErrorMessage("Error running Scanner", "Dynamic Load ElementsDTO error", error.getMessage()));
+        }
+    }
+
+    private void processScanElements(WebDriver driver, List<ElementDTO> elements, int homeBankingId) {
+        performLists.resetListElements();
+        performLists.addMapElementsTarget(elements);
+
+        if (elements == null || elements.isEmpty()) {
+            return;
+        }
+
+        try {
+            ElementDTO[] asArray = elements.toArray(new ElementDTO[0]);
+            String jsonPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.PATH_DB);
+            PerformMessage performMessage = PerformMessage.getInstance();
+
+            if (driver != null) {
+                PageDiagnosticDumper.dumpRectsFromElements(driver, asArray, jsonPath, "page-HP");
+                PageOcrDumper.runAndDump(driver, asArray, jsonPath, "page-HP");
+            }
+
+            Integer cfgHbId = homeBankingId > 0 ? homeBankingId : null;
+            Integer cfgHomeUrlId = null;
+            try {
+                com.allinweb.ch.component.scene.ARScannedElementScene scene =
+                        com.allinweb.ch.component.scene.ARScannedElementScene.getInstance();
+                if (scene != null && scene.getCurrentBotJob() != null) {
+                    cfgHomeUrlId = scene.getCurrentBotJob().getHomeUrlId();
+                }
+            } catch (Throwable ignore) {
+                // scene unavailable bank-level scope only
+            }
+            com.allinweb.ch.model.OcrConfig resolverCfg =
+                    OcrConfigService.getInstance().resolveFor(cfgHbId, cfgHomeUrlId);
+            ElementTextResolver.resolveAll(
+                    asArray,
+                    java.nio.file.Paths.get(
+                            jsonPath, com.allinweb.ch.util.PageDiagnosticDumper.SUBFOLDER, "ocr-correlation-HP.json"),
+                    resolverCfg);
+
+            try {
+                Integer hbId = homeBankingId > 0 ? homeBankingId : null;
+                Integer homeUrlId = null;
+                try {
+                    com.allinweb.ch.component.scene.ARScannedElementScene scene =
+                            com.allinweb.ch.component.scene.ARScannedElementScene.getInstance();
+                    if (scene != null && scene.getCurrentBotJob() != null) {
+                        homeUrlId = scene.getCurrentBotJob().getHomeUrlId();
+                    }
+                } catch (Throwable ignore) {
+                    // scene unavailable bank-level scope only
+                }
+                ElementLocatorRepository.getInstance().upsertOnPickBatch(asArray, hbId, homeUrlId);
+            } catch (Exception locEx) {
+                log.warn("Locator upsert failed (non-fatal): {}", locEx.getMessage());
+            }
+
+            List<String> excludeList = List.of("optional", "blockMarked", "editMode");
+            performMessage.outputJsonElementDTO(asArray, excludeList, "elementDTO-PS", jsonPath);
+
+            List<String> aiExcludeList = List.of(
+                    "optional",
+                    "blockMarked",
+                    "editMode",
+                    "id",
+                    "attributeData",
+                    "typeElement",
+                    "customXPath",
+                    "shadowRoot",
+                    "nestedShadow",
+                    "searchAttributeValue",
+                    "attributeType",
+                    "attributeValue");
+            performMessage.outputJsonElementDTO(asArray, aiExcludeList, "AI-ElementDTO-PS", jsonPath);
+        } catch (Exception jsonError) {
+            log.warn("PerformListElements - failed to persist element JSON: {}", jsonError.getMessage());
         }
     }
 

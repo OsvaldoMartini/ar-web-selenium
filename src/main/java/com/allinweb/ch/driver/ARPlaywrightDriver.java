@@ -1,0 +1,188 @@
+package com.allinweb.ch.driver;
+
+import com.allinweb.ch.facade.PlaywrightElementScanner;
+import com.allinweb.ch.model.ElementDTO;
+import com.allinweb.ch.util.ARConstantsEngine;
+import com.microsoft.playwright.Browser;
+import com.microsoft.playwright.BrowserContext;
+import com.microsoft.playwright.BrowserType;
+import com.microsoft.playwright.Page;
+import com.microsoft.playwright.Playwright;
+import com.microsoft.playwright.options.LoadState;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+public class ARPlaywrightDriver {
+
+    private final ExecutorService playwrightThread = Executors.newSingleThreadExecutor(r -> {
+        Thread thread = new Thread(r, "ar-playwright-driver");
+        thread.setDaemon(true);
+        return thread;
+    });
+
+    private Playwright playwright;
+    private Browser browser;
+    private BrowserContext context;
+    private Page page;
+    private final PlaywrightElementScanner elementScanner = new PlaywrightElementScanner();
+
+    public void open(String browserType, String url, String optionsConfig) {
+        run(() -> {
+            closeInternal();
+
+            playwright = Playwright.create();
+            browser = launchBrowser(browserType, optionsConfig);
+            context = browser.newContext();
+            page = context.newPage();
+            page.navigate(url);
+            page.waitForLoadState(LoadState.DOMCONTENTLOADED);
+            return null;
+        });
+    }
+
+    public void navigate(String url) {
+        run(() -> {
+            requirePage().navigate(url);
+            requirePage().waitForLoadState(LoadState.DOMCONTENTLOADED);
+            return null;
+        });
+    }
+
+    public Object evaluate(String script, Object arg) {
+        return call(() -> requirePage().evaluate(script, arg));
+    }
+
+    public String currentUrl() {
+        return call(() -> requirePage().url());
+    }
+
+    public String title() {
+        return call(() -> requirePage().title());
+    }
+
+    public List<ElementDTO> scanElements(String[] searchTerms, boolean includeHidden) {
+        return call(() -> elementScanner.scan(requirePage(), searchTerms, includeHidden));
+    }
+
+    public boolean isOpen() {
+        return call(() -> page != null && !page.isClosed());
+    }
+
+    public void close() {
+        run(() -> {
+            closeInternal();
+            return null;
+        });
+        playwrightThread.shutdownNow();
+    }
+
+    private Browser launchBrowser(String browserType, String optionsConfig) {
+        BrowserType.LaunchOptions options =
+                new BrowserType.LaunchOptions().setHeadless(false).setArgs(parseArguments(optionsConfig));
+
+        String normalized = Objects.toString(browserType, "").toLowerCase(Locale.ROOT);
+        if (ARConstantsEngine.FIREFOX.toLowerCase(Locale.ROOT).equals(normalized)) {
+            return playwright.firefox().launch(options);
+        }
+
+        if (ARConstantsEngine.EDGE.toLowerCase(Locale.ROOT).equals(normalized)) {
+            String edgePath = findEdgeExecutable();
+            if (edgePath != null) {
+                options.setExecutablePath(Paths.get(edgePath));
+            } else {
+                options.setChannel("msedge");
+            }
+            return playwright.chromium().launch(options);
+        }
+
+        return playwright.chromium().launch(options);
+    }
+
+    private static List<String> parseArguments(String optionsConfig) {
+        List<String> args = new ArrayList<>();
+        if (optionsConfig == null || optionsConfig.isBlank()) {
+            return args;
+        }
+
+        String[] lines = optionsConfig.split("\\R|Â£");
+        for (String rawLine : lines) {
+            String line = rawLine.trim();
+            if (line.isEmpty() || line.startsWith("#")) {
+                continue;
+            }
+
+            String[] parts = line.split(":", 2);
+            if (parts.length == 2
+                    && (parts[0].equalsIgnoreCase("argument") || parts[0].equalsIgnoreCase("arg"))
+                    && !parts[1].isBlank()) {
+                args.add(parts[1].trim());
+            }
+        }
+        return args;
+    }
+
+    private static String findEdgeExecutable() {
+        String[] candidates = {
+            System.getenv("ProgramFiles") + "\\Microsoft\\Edge\\Application\\msedge.exe",
+            System.getenv("ProgramFiles(x86)") + "\\Microsoft\\Edge\\Application\\msedge.exe"
+        };
+
+        for (String candidate : candidates) {
+            if (candidate != null && Paths.get(candidate).toFile().exists()) {
+                return candidate;
+            }
+        }
+        return null;
+    }
+
+    private Page requirePage() {
+        if (page == null || page.isClosed()) {
+            throw new ARWebDriverNotStartedException();
+        }
+        return page;
+    }
+
+    private void closeInternal() {
+        closeQuietly(page);
+        closeQuietly(context);
+        closeQuietly(browser);
+        closeQuietly(playwright);
+        page = null;
+        context = null;
+        browser = null;
+        playwright = null;
+    }
+
+    private static void closeQuietly(AutoCloseable closeable) {
+        if (closeable == null) {
+            return;
+        }
+        try {
+            closeable.close();
+        } catch (Exception error) {
+            log.warn("Error closing Playwright resource: {}", error.getMessage());
+        }
+    }
+
+    private <T> T call(Callable<T> callable) {
+        Future<T> future = playwrightThread.submit(callable);
+        try {
+            return future.get();
+        } catch (Exception error) {
+            throw new IllegalStateException("Playwright operation failed", error);
+        }
+    }
+
+    private void run(Callable<Void> callable) {
+        call(callable);
+    }
+}

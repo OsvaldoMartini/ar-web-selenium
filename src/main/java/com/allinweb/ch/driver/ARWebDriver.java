@@ -55,6 +55,7 @@ public class ARWebDriver {
     private EdgeOptions optionsEdge;
     private ChromeOptions optionsChrome;
     private FirefoxOptions optionsFirefox;
+    private ARPlaywrightDriver playwrightDriver;
 
     // Private constructor to prevent instantiation
     public ARWebDriver() {}
@@ -80,6 +81,22 @@ public class ARWebDriver {
             return "\r"; // Old Mac style
         }
         return System.lineSeparator(); // Default line separator if none found
+    }
+
+    public boolean isPlaywrightEnabled() {
+        String configured = arPropertyManager.getProperty(ARPropertyEnum.USE_PLAYWRIGHT);
+        return configured != null && Boolean.parseBoolean(configured.trim());
+    }
+
+    public ARPlaywrightDriver getPlaywrightDriver() {
+        if (playwrightDriver == null) {
+            synchronized (ARWebDriver.class) {
+                if (playwrightDriver == null) {
+                    playwrightDriver = new ARPlaywrightDriver();
+                }
+            }
+        }
+        return playwrightDriver;
     }
 
     public void initialize(List<WebDriver> webDriverList) {
@@ -208,6 +225,11 @@ public class ARWebDriver {
         }
 
         log.info("Going to call WebDriver for " + url);
+
+        if (isPlaywrightEnabled()) {
+            log.info("use_playwright=true - opening Playwright browser session for {}", url);
+            getPlaywrightDriver().open(browserType, url, optionsConfig);
+        }
 
         if (Strings.isNullOrEmpty(webDriverPath)) {
             log.info("URL IS EMPTY");
@@ -564,6 +586,10 @@ public class ARWebDriver {
         } finally {
             webDriverList.clear();
             currentDriver = null;
+            if (playwrightDriver != null) {
+                playwrightDriver.close();
+                playwrightDriver = null;
+            }
             edgeVersion = null;
             webDriverEdgeVersion = null;
             optionsEdge = null;
@@ -582,6 +608,10 @@ public class ARWebDriver {
             } finally {
                 currentDriver = null;
             }
+        }
+        if (playwrightDriver != null) {
+            playwrightDriver.close();
+            playwrightDriver = null;
         }
     }
 }

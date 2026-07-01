@@ -2644,6 +2644,7 @@ public class ARScannedElementPane extends ARPane {
             List<String> extendedRules) {
         // "scannerTool", "scannerGrid", "searchTerms"
         PerformListElements.ScanResult scan = performListElements.scanElements(
+                currentARWebDriver,
                 driver,
                 dataArray,
                 searchHiddenFields,
@@ -7746,6 +7747,7 @@ public class ARScannedElementPane extends ARPane {
             int botJobId) {
         // "UPDATE_LIST_ELEMENTS", "perform-list-data", "searchTerms"
         ErrorMessage errorMessage = performListElements.dynamicLoadElementsDTO(
+                currentARWebDriver,
                 driver,
                 dataArray,
                 searchHiddenFields,
