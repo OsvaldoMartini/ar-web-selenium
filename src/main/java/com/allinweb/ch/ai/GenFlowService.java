@@ -109,11 +109,104 @@ public final class GenFlowService {
                             + "Raw response: " + responseFile);
         }
 
+        // Consent-first: if the page has a cookie-consent control (Accept All / Allow / Deny),
+        // prepend a block that clicks it so every test run dismisses the banner before navigating.
+        // These are typically shadow-DOM elements (e.g. data-testid="uc-accept-all-button") which
+        // the Playwright click pierces. Prepended as the FIRST generated block.
+        validated = prependConsentBlock(validated, inventory, cfg.maxBlocks());
+
         int instructionsCreated = persist(botJob, sourceBlock, validated);
         broadcast(botJob);
 
         return new GenFlowResult(
                 validated.blocks().size(), instructionsCreated, validated.droppedSteps(), promptFile, responseFile);
+    }
+
+    // ── consent-first ─────────────────────────────────────────────────────────
+
+    /**
+     * If a cookie-consent accept/deny control exists in the inventory, prepend a block that
+     * clicks it as the FIRST generated block, so every test run dismisses the consent banner
+     * (often shadow-DOM, e.g. Usercentrics {@code uc-accept-all-button}) before navigating.
+     * Preference order: accept-all/allow-all → accept/allow → deny/reject.
+     */
+    private ValidatedPlan prependConsentBlock(ValidatedPlan validated, List<InstructionLoad> inventory, int maxBlocks) {
+        InstructionLoad consent = findConsentControl(inventory);
+        if (consent == null) {
+            return validated;
+        }
+        // Skip if the first block already clicks it (avoid a duplicate consent step).
+        if (!validated.blocks().isEmpty()) {
+            List<GenFlowPlanParser.ValidatedStep> firstSteps =
+                    validated.blocks().get(0).steps();
+            boolean alreadyFirst = !firstSteps.isEmpty()
+                    && firstSteps.get(0).source() != null
+                    && consent.getId() != null
+                    && consent.getId().equals(firstSteps.get(0).source().getId());
+            if (alreadyFirst) {
+                return validated;
+            }
+        }
+
+        List<GenFlowPlanParser.ValidatedStep> steps =
+                List.of(new GenFlowPlanParser.ValidatedStep("CLICK", consent, null));
+        GenFlowPlanParser.ValidatedBlock consentBlock = new GenFlowPlanParser.ValidatedBlock("Accept Cookies", steps);
+
+        List<GenFlowPlanParser.ValidatedBlock> blocks = new ArrayList<>();
+        blocks.add(consentBlock);
+        blocks.addAll(validated.blocks());
+        // Respect the cap (consent block counts toward it).
+        if (blocks.size() > maxBlocks) {
+            blocks = new ArrayList<>(blocks.subList(0, maxBlocks));
+        }
+        log.info("GEN FLOW — prepended consent-accept block for element '{}'", consent.getName());
+        return new GenFlowPlanParser.ValidatedPlan(blocks, validated.droppedSteps());
+    }
+
+    private InstructionLoad findConsentControl(List<InstructionLoad> inventory) {
+        InstructionLoad acceptAll = null;
+        InstructionLoad accept = null;
+        InstructionLoad deny = null;
+        for (InstructionLoad instruction : inventory) {
+            String hay = consentHaystack(instruction);
+            if (hay.isEmpty()) continue;
+            if (acceptAll == null
+                    && (hay.contains("accept-all")
+                            || hay.contains("accept_all")
+                            || hay.contains("acceptall")
+                            || hay.contains("accept all")
+                            || hay.contains("allow-all")
+                            || hay.contains("allowall")
+                            || hay.contains("accept cookies")
+                            || hay.contains("uc-accept-all"))) {
+                acceptAll = instruction;
+            } else if (accept == null && (hay.contains("accept") || hay.contains("allow"))) {
+                accept = instruction;
+            } else if (deny == null && (hay.contains("deny") || hay.contains("reject"))) {
+                deny = instruction;
+            }
+        }
+        if (acceptAll != null) return acceptAll;
+        if (accept != null) return accept;
+        return deny;
+    }
+
+    /** Lower-cased searchable text from name/clientNamed/cssSelector/references of an element. */
+    private String consentHaystack(InstructionLoad instruction) {
+        StringBuilder sb = new StringBuilder();
+        appendLower(sb, instruction.getName());
+        appendLower(sb, instruction.getClientNamed());
+        appendLower(sb, instruction.getCssSelector());
+        if (instruction.getReferenceLoadDTOList() != null) {
+            for (com.allinweb.ch.model.ReferenceLoadDTO ref : instruction.getReferenceLoadDTOList()) {
+                if (ref != null) appendLower(sb, ref.getValue());
+            }
+        }
+        return sb.toString();
+    }
+
+    private void appendLower(StringBuilder sb, String value) {
+        if (value != null) sb.append(' ').append(value.toLowerCase(java.util.Locale.ROOT));
     }
 
     // ── persistence ─────────────────────────────────────────────────────────
