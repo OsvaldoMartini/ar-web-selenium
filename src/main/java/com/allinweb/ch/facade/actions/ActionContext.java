@@ -51,6 +51,9 @@ public interface ActionContext {
     /** The actionExecutor plugin re-injection callback; may be null when not registered. */
     Runnable actionExecutorInjector();
 
+    /** True when the user requested the running bot job to stop; locate loops must break. */
+    boolean isInterceptBotJob();
+
     /**
      * Pauses execution via the facade's synchronized HOLD ({@code Object.wait} on the singleton
      * monitor). Kept on the facade so the monitor object never changes; pass {@code null} for

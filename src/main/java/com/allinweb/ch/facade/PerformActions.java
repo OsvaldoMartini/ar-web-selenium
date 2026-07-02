@@ -7,6 +7,7 @@ import com.allinweb.ch.facade.actions.ActionContext;
 import com.allinweb.ch.facade.actions.BrowserJsUtils;
 import com.allinweb.ch.facade.actions.CoordinateActions;
 import com.allinweb.ch.facade.actions.ElementDtoMapper;
+import com.allinweb.ch.facade.actions.ElementLocator;
 import com.allinweb.ch.facade.actions.InstructionGraph;
 import com.allinweb.ch.facade.actions.PlaywrightBridge;
 import com.allinweb.ch.facade.actions.ValidationMessageBuilder;
@@ -19,7 +20,6 @@ import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.time.Duration;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -31,12 +31,10 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.openqa.selenium.*;
-import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.Wait;
-import org.openqa.selenium.support.ui.WebDriverWait;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,25 +74,6 @@ public class PerformActions implements ActionContext {
     private AtomicBoolean interceptBotJob = new AtomicBoolean(false);
     private ARPriorities arPriorities;
 
-    private static final String DEFAULT_LOCATOR_PRIORITIES =
-            "1,xpath,currentXPath" + System.lineSeparator() + "2,xpath,xpath"
-                    + System.lineSeparator() + "3,xpath"
-                    + System.lineSeparator() + "4,ById,locator.best.byId"
-                    + System.lineSeparator() + "5,ByName,locator.best.byName"
-                    + System.lineSeparator() + "6,ByCssSelector,locator.css.id"
-                    + System.lineSeparator() + "7,ByCssSelector,locator.css.tagId"
-                    + System.lineSeparator() + "8,ByCssSelector,locator.css.name"
-                    + System.lineSeparator() + "9,ByCssSelector,locator.css.generated"
-                    + System.lineSeparator() + "10,xpath,locator.xpath.id"
-                    + System.lineSeparator() + "11,xpath,locator.xpath.name"
-                    + System.lineSeparator() + "12,xpath,locator.xpath.nameType"
-                    + System.lineSeparator() + "13,attributeID,attributeID"
-                    + System.lineSeparator() + "14,attributeName,attributeName"
-                    + System.lineSeparator() + "15,searchAttribute,searchAttribute"
-                    + System.lineSeparator() + "16,coordinates,coordinates"
-                    + System.lineSeparator() + "17,attribute,test-id"
-                    + System.lineSeparator();
-
     @Getter
     @Setter
     private WebDriver currentDriver;
@@ -118,6 +97,7 @@ public class PerformActions implements ActionContext {
     private final PlaywrightBridge playwrightBridge = new PlaywrightBridge(this);
     private final CoordinateActions coordinateActions = new CoordinateActions(this);
     private final WindowAndFrameManager windowAndFrameManager = new WindowAndFrameManager(this);
+    private final ElementLocator elementLocator = new ElementLocator(this);
 
     // ---- ActionContext implementation: live one-line views over the facade's own state ----
 
@@ -266,34 +246,16 @@ public class PerformActions implements ActionContext {
     }
 
     public static WebElement findElementByID(WebDriver driver, String elementID) {
-        jsExecutor = (JavascriptExecutor) driver;
-        jsExecutor = (JavascriptExecutor) driver;
-        return (WebElement) jsExecutor.executeScript("return document.getElementById(arguments[0]);", elementID);
+        return ElementLocator.findElementByID(driver, elementID);
     }
 
     public static WebElement findElementsByName(WebDriver driver, String elementName) {
-        jsExecutor = (JavascriptExecutor) driver;
-        jsExecutor = (JavascriptExecutor) driver;
-        return (WebElement)
-                jsExecutor.executeScript("return document.getElementsByName(arguments[0])[0];", elementName);
+        return ElementLocator.findElementsByName(driver, elementName);
     }
 
     public static WebElement findElementByAttributeParams(
             WebDriver driver, String attributeName, String attributeValue) {
-
-        attributeName = attributeName.trim().replaceAll("^\"|\"$", "");
-        attributeValue = attributeValue.trim().replaceAll("^\"|\"$", "");
-
-        jsExecutor = (JavascriptExecutor) driver;
-        try {
-            // Remove extra quotes around the attribute name and value before passing them to JavaScript
-            return (WebElement) jsExecutor.executeScript(
-                    "return document.querySelector('[\"' + arguments[0] + '\"]' + '=\"' + arguments[1] + '\"]');",
-                    attributeName.trim(),
-                    attributeValue.trim());
-        } catch (Exception ignore) {
-        }
-        return null;
+        return ElementLocator.findElementByAttributeParams(driver, attributeName, attributeValue);
     }
 
     public static String extractAttribute(WebElement element, WebElementAttributeEnum attributeEnum) {
@@ -318,26 +280,11 @@ public class PerformActions implements ActionContext {
 
     public WebElement searchElement(
             InstructionLoad instruction, int botJobId, boolean forceCoordinates, boolean byPassFlagLoop) {
-        WebElement instructionElement = null;
-
-        if (!StringUtils.isBlank(instruction.getXpath())) {
-            instructionElement = locateElement(instruction, botJobId, forceCoordinates, byPassFlagLoop);
-        }
-        return instructionElement;
+        return elementLocator.searchElement(instruction, botJobId, forceCoordinates, byPassFlagLoop);
     }
 
     public WebElement getElementAtCoordinates(int x, int y, WebDriver driver) {
-        String script = "return document.elementFromPoint(arguments[0], arguments[1]);";
-
-        // Execute the script and retrieve the element
-        Object element = ((JavascriptExecutor) driver).executeScript(script, x, y);
-
-        // Check if the returned element is not null and cast it to WebElement
-        if (element instanceof WebElement) {
-            return (WebElement) element;
-        } else {
-            throw new NoSuchElementException("No element found at the given coordinates: (" + x + ", " + y + ")");
-        }
+        return ElementLocator.getElementAtCoordinates(x, y, driver);
     }
 
     public boolean performWebActions(
@@ -692,253 +639,12 @@ public class PerformActions implements ActionContext {
     }
 
     private WebElement locateTargetElement(boolean byPassNotFound, String targetXPath, Integer actionCustomMaxWaitSec) {
-
-        String tagName = null;
-        try {
-            tagName = removeTrailingSlash(targetXPath);
-            tagName = extractTagName(targetXPath);
-        } catch (Exception e) {
-
-            logOperations.info(String.format(
-                    "Error RemoveTrailingSlash for %s -> xPath  %s -> Cause: %s",
-                    tagName, targetXPath, e.getMessage()));
-        }
-
-        waitPage();
-
-        WebElement elementFound = null;
-        List<By> criterias = Arrays.asList(new By[] {By.xpath(targetXPath)});
-
-        // Actually here is Calling the Actions
-        if (criterias != null) {
-
-            for (By criteria : criterias) {
-                List<WebElement> foundElementList = this.currentDriver.findElements(criteria);
-
-                if (foundElementList != null && foundElementList.size() > 0) {
-                    if (justCalledRefreshPage) {
-                        justCalledRefreshPage = false;
-                        try {
-                            waitForPage.until(ExpectedConditions.visibilityOfElementLocated(criteria));
-                        } catch (Exception e) {
-
-                            logOperations.warn(String.format(
-                                    "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
-                                    targetXPath, criteria, e.getMessage()));
-
-                            if (!byPassNotFound) {
-                                performMessage.couldNotFindElement(String.valueOf(criteria));
-                            }
-                        }
-                    } else if (actionCustomMaxWaitSec != null) {
-                        try {
-                            new WebDriverWait(this.currentDriver, Duration.ofSeconds(actionCustomMaxWaitSec))
-                                    .until(ExpectedConditions.presenceOfElementLocated(criteria));
-                        } catch (Exception e) {
-                            logOperations.warn(String.format(
-                                    "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
-                                    targetXPath, criteria, e.getMessage()));
-                            if (!byPassNotFound) {
-                                performMessage.couldNotFindElement(String.valueOf(criteria));
-                            }
-                        }
-                    } else {
-                        try {
-                            waitForAction.until(ExpectedConditions.visibilityOfElementLocated(criteria));
-                        } catch (Exception e) {
-
-                            logOperations.warn(String.format(
-                                    "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
-                                    targetXPath, criteria, e.getMessage()));
-
-                            if (!byPassNotFound) {
-                                performMessage.couldNotFindElement(String.valueOf(criteria));
-                            }
-                        }
-                    }
-                    if (foundElementList.size() > 0) {
-                        elementFound = foundElementList.get(0);
-                    }
-                }
-            }
-
-            return elementFound;
-        } else {
-            return null;
-        }
+        return elementLocator.locateTargetElement(byPassNotFound, targetXPath, actionCustomMaxWaitSec);
     }
-
-    private void callErrorMessageNotEnabled(String criteria) {
-        performMessage.showCustomModalDialog(
-                String.format("The Element \"%s\" is not Enabled", criteria),
-                "1. Consider Fill Up all the Mandatory Fields",
-                null,
-                null,
-                null,
-                true,
-                "Continue",
-                "Stop all",
-                0);
-    }
-
-    private void showNotFoundElement(String targetXPath, By criteria) {}
 
     private WebElement locateElement(
             InstructionLoad currentInstruction, int botJobId, boolean forceCoordinates, boolean byPassFlagLoop) {
-
-        String instructionPath = currentInstruction.getXpath();
-        String tagName = null;
-
-        WebDriverWait waitLocator = new WebDriverWait(getCurrentDriver(), Duration.ofSeconds(0));
-
-        this.currentDriver.switchTo().defaultContent();
-        if (this.currentDriver.getWindowHandles().size() > 1) {
-            try {
-                this.currentDriver.switchTo().window(windowHandlesList.get(currentTabIndex));
-            } catch (Exception ignore) {
-            }
-        }
-
-        try {
-            tagName = extractTagName(removeTrailingSlash(instructionPath));
-        } catch (Exception e) {
-            logOperations.warn(String.format(
-                    "Error RemoveTrailingSlash for %s -> xPath %s -> Cause: %s",
-                    tagName, instructionPath, e.getMessage()));
-        }
-
-        List<ReferenceLoadDTO> instructionReferenceList = currentInstruction.getReferenceLoadDTOList();
-
-        if (instructionReferenceList.isEmpty()) {
-            logOperations.warn("#### Not XPath to Be Located! ####");
-            return null;
-        }
-
-        //        waitPage();
-
-        //        if (arPriorities.getJobId() == null || !arPriorities.getJobId().equals(botJobId)) {
-        //            arPriorities.setJobId(botJobId);
-        //            if (currentInstruction.getPriority() != null) {
-        //                arPriorities.loadPrioritiesFromString(currentInstruction.getPriority());
-        //            } else {
-        //                arPriorities.loadPriorities();
-        //            }
-        //        }
-
-        if (arPriorities.getAllPriorityList() == null
-                || arPriorities.getAllPriorityList().isEmpty()
-                || arPriorities.getAllPriorityList().size() < 15) {
-            arPriorities.loadPrioritiesFromString(DEFAULT_LOCATOR_PRIORITIES);
-        }
-
-        WebElement elementFound = null;
-
-        if (!Strings.isNullOrEmpty(currentInstruction.getIFrameXPath())) {
-            try {
-                WebElement iframe = this.currentDriver.findElement(By.xpath(currentInstruction.getIFrameXPath()));
-                this.currentDriver.switchTo().frame(iframe);
-            } catch (Exception e) {
-                logOperations.warn("iFrame Not Found: " + currentInstruction.getIFrameXPath());
-                return null;
-            }
-        }
-
-        if (!Strings.isNullOrEmpty(currentInstruction.getShadowHost())
-                && !Strings.isNullOrEmpty(currentInstruction.getCssSelector())) {
-            elementFound = findShadowElementByCssSelector(
-                    currentInstruction.getShadowHost(), currentInstruction.getCssSelector());
-        }
-
-        int attempts = 0;
-        int maxAttempts = forceCoordinates || byPassFlagLoop ? 2 : 4;
-
-        while (elementFound == null && attempts < maxAttempts) {
-
-            for (Priority priority : arPriorities.getAllPriorityList()) {
-                if (elementFound != null) break;
-
-                PriorityTypeEnum priorityTypeEnum;
-                try {
-                    priorityTypeEnum = priority.getPriorityType(); // already returns enum
-                } catch (Exception e) {
-                    continue;
-                }
-
-                // ✅ IMPORTANT: try ALL references matching this priority (not only findFirst)
-                List<ReferenceLoadDTO> instructionReferences = instructionReferenceList.stream()
-                        .filter(ref ->
-                                priority.getName().stream().anyMatch(p -> p.equalsIgnoreCase(ref.getReferenceType())))
-                        .toList();
-
-                if (instructionReferences.isEmpty()) {
-                    continue;
-                }
-
-                for (ReferenceLoadDTO ref : instructionReferences) {
-                    if (elementFound != null) break;
-
-                    List<By> criterias = null;
-                    String value = ref.getValue();
-
-                    switch (priorityTypeEnum) {
-                        case xpath -> criterias = List.of(By.xpath(value));
-
-                        case ById -> criterias = List.of(By.id(normalizeLocatorValue(ref.getReferenceType(), value)));
-
-                        case ByName -> criterias =
-                                List.of(By.name(normalizeLocatorValue(ref.getReferenceType(), value)));
-
-                        case ByCssSelector -> criterias =
-                                List.of(By.cssSelector(normalizeLocatorValue(ref.getReferenceType(), value)));
-
-                        case ByClassName -> criterias = List.of(By.className(value));
-                        case ByTagName -> criterias = List.of(By.tagName(value));
-                        case ByLinkText -> criterias = List.of(By.linkText(value));
-                        case ByPartialLinkText -> criterias = List.of(By.partialLinkText(value));
-
-                        case attribute, attributeID, attributeName, searchAttribute -> criterias =
-                                convertToCriteriaList(tagName, priority.getName(), value);
-
-                        default -> {}
-                    }
-
-                    if (criterias == null) continue;
-
-                    for (By criteria : criterias) {
-
-                        List<WebElement> foundElementList = new ArrayList<>();
-                        try {
-                            waitLocator.until(ExpectedConditions.presenceOfElementLocated(criteria));
-                            foundElementList = getCurrentDriver().findElements(criteria);
-
-                            if (!foundElementList.isEmpty()) {
-                                elementFound = foundElementList.get(0);
-                                break;
-                            }
-                        } catch (TimeoutException ignored) {
-                        } catch (Exception ignored) {
-                        }
-                    }
-                }
-            }
-
-            attempts++;
-            if (elementFound == null) {
-                try {
-                    if (isInterceptBotJob()) {
-                        break;
-                    }
-                    //                    Thread.sleep(100);
-
-                    logOperations.warn(String.format(
-                            "Re-try %d Locate Web Element TagName \"%s\"", attempts, currentInstruction.getName()));
-
-                } catch (Exception e) {
-                }
-            }
-        }
-
-        return elementFound;
+        return elementLocator.locateElement(currentInstruction, botJobId, forceCoordinates, byPassFlagLoop);
     }
 
     private String normalizeLocatorValue(String referenceType, String value) {
@@ -2559,42 +2265,7 @@ public class PerformActions implements ActionContext {
      * Returns a combined list of unique WebElements.
      */
     public List<WebElement> findBySmartLocator(String locator) {
-        Set<WebElement> uniqueElements = new HashSet<>();
-
-        // Extract tag
-        String tag = locator.split("#")[0]; // e.g., "input"
-
-        // Extract ID (if present)
-        String idPart = locator.contains("#") ? locator.split("#")[1].split("\\.")[0] : null;
-
-        // Extract classes (if present)
-        String[] classes = new String[0];
-        if (locator.contains(".")) {
-            String classesPart = locator.substring(locator.indexOf('.') + 1);
-            classes = classesPart.split("\\.");
-        }
-
-        // Try locating by full CSS
-        uniqueElements.addAll(this.currentDriver.findElements(By.cssSelector(locator)));
-
-        // Try locating by tag
-        if (tag != null && !tag.isEmpty()) {
-            uniqueElements.addAll(this.currentDriver.findElements(By.tagName(tag)));
-        }
-
-        // Try locating by ID
-        if (idPart != null && !idPart.isEmpty()) {
-            uniqueElements.addAll(this.currentDriver.findElements(By.id(idPart)));
-        }
-
-        // Try locating by each class
-        for (String cls : classes) {
-            if (!cls.isEmpty()) {
-                uniqueElements.addAll(this.currentDriver.findElements(By.className(cls)));
-            }
-        }
-
-        return new ArrayList<>(uniqueElements);
+        return elementLocator.findBySmartLocator(locator);
     }
 
     public boolean executeActionsAtCoordinates(
@@ -2837,21 +2508,7 @@ public class PerformActions implements ActionContext {
     }
 
     public WebElement findElementByXPaths(List<String> xpaths, WebDriver driver) {
-        jsExecutor = (JavascriptExecutor) driver;
-
-        for (String xpath : xpaths) {
-            try {
-                Object result = jsExecutor.executeScript("return document.evaluate(\"" + xpath
-                        + "\", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;");
-                if (result instanceof WebElement) {
-                    return (WebElement) result;
-                }
-            } catch (Exception e) {
-                // Log or handle the exception if needed
-                logOperations.error("Error locating element with XPath: " + xpath + ". Exception: " + e.getMessage());
-            }
-        }
-        return null;
+        return elementLocator.findElementByXPaths(xpaths, driver);
     }
 
     public void highlightElement(JavascriptExecutor jsExecutor, WebElement previousElement, WebElement currentElement) {
@@ -2859,15 +2516,7 @@ public class PerformActions implements ActionContext {
     }
 
     public WebElement findShadowElementByCssSelector(String shadowLocator, String cssSelector) {
-        try {
-            // Find the shadow host
-            WebElement shadowHost = this.currentDriver.findElement(By.cssSelector(shadowLocator));
-            SearchContext shadowRoot = shadowHost.getShadowRoot();
-            return shadowRoot.findElement(By.cssSelector(cssSelector));
-        } catch (Exception e) {
-
-        }
-        return null;
+        return elementLocator.findShadowElementByCssSelector(shadowLocator, cssSelector);
     }
 
     public InstructionLoad buildNewInstruction(
@@ -2884,91 +2533,15 @@ public class PerformActions implements ActionContext {
     }
 
     public WebElement findWebElement(TargetElement targetFind) {
-
-        WebElement elementFound = null;
-
-        this.currentDriver.switchTo().defaultContent();
-        if (this.currentDriver.getWindowHandles().size() > 1) {
-            try {
-                this.currentDriver.switchTo().window(windowHandlesList.get(currentTabIndex));
-            } catch (Exception ignore) {
-
-            }
-        }
-
-        try {
-
-            if (!Strings.isNullOrEmpty(targetFind.getShadowHost())
-                    && !Strings.isNullOrEmpty(targetFind.getCssSelector())) {
-                elementFound = findShadowElementByCssSelector(targetFind.getShadowHost(), targetFind.getCssSelector());
-            } else if (!Strings.isNullOrEmpty(targetFind.getIFrameXPath())) {
-
-                try {
-                    WebElement iFrame = getCurrentDriver().findElement(By.xpath(targetFind.getIFrameXPath()));
-
-                    getCurrentDriver().switchTo().frame(iFrame);
-                    elementFound = getCurrentDriver().findElement(By.xpath(targetFind.getXPath()));
-                } catch (Exception error) {
-
-                    logOperations.warn("iFrame Element not Located\niFrameXPath"
-                            + targetFind.getIFrameXPath()
-                            + "iFrameChild: "
-                            + targetFind.getXPath());
-                }
-            } else {
-                elementFound = getCurrentDriver().findElement(By.xpath(targetFind.getXPath()));
-            }
-
-        } catch (Exception error) {
-            logOperations.warn("Scope Changed - Element not Located - : " + targetFind.getXPath());
-            //            performMessage.errorMessage(
-            //                    "Element not Located",
-            //                    "Cannot able to find the ",
-            //                    "Verify the Correct Browser Version",
-            //                    null,
-            //                    null,
-            //                    0);
-            return null;
-        }
-
-        return elementFound;
+        return elementLocator.findWebElement(targetFind);
     }
 
     public WebElement findElementByCssSelector(String cssSelector) throws Exception {
-        try {
-            if (cssSelector == null || cssSelector.isEmpty()) {
-                throw new IllegalArgumentException("CSS Selector cannot be null or empty.");
-            }
-
-            // Escape single quotes within the CSS selector for JavaScript
-            String escapedCssSelector = cssSelector.replace("'", "\\'");
-
-            String script = "return document.querySelectorAll('" + escapedCssSelector + "')[0];";
-
-            WebElement foundElement = (WebElement) ((JavascriptExecutor) this.currentDriver).executeScript(script);
-
-            if (foundElement == null) {
-
-                logOperations.warn(String.format("Element with CSS Selector \"%s\" not found.", cssSelector));
-                return null;
-            }
-            return foundElement;
-
-        } catch (Exception e) {
-
-            logOperations.error(String.format(
-                    "Error finding element with CSS Selector \"%s\" -> Cause: %s", cssSelector, e.getMessage()));
-            return null;
-        }
+        return elementLocator.findElementByCssSelector(cssSelector);
     }
 
     public WebElement findElementByCssSelector(String cssSelector, boolean byPassNotFound) throws Exception {
-        WebElement element = findElementByCssSelector(cssSelector);
-        if (element == null && !byPassNotFound) {
-            logOperations.warn("Could not find element with CSS Selector: " + cssSelector);
-            performMessage.couldNotFindElement("Could not find element with CSS Selector: " + cssSelector);
-        }
-        return element;
+        return elementLocator.findElementByCssSelector(cssSelector, byPassNotFound);
     }
 
     public Map<String, String> removeCurrencySymbols(Map<String, String> mapExport) {
