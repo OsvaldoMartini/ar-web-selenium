@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Selenium → Playwright Migration Roadmap · AR Web Scanner</title>
+<style>
+:root {
+  --bg:         #E9EDF5;
+  --surface:    #FFFFFF;
+  --panel:      #14213D;
+  --panel-mid:  #1E2F52;
+  --accent:     #2454CC;
+  --accent-dim: #DBEAFE;
+  --amber:      #A16207;
+  --amber-bg:   #FEF9C3;
+  --green:      #0B7A48;
+  --green-bg:   #DCFCE7;
+  --red:        #9B1C1C;
+  --red-bg:     #FEE2E2;
+  --text:       #0F172A;
+  --text-mid:   #334155;
+  --text-muted: #64748B;
+  --border:     #C8D3E6;
+  --code-bg:    #0C1526;
+  --mono:       'Courier New', 'Lucida Console', monospace;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+/* ── MASTHEAD ────────────────────────────── */
+.masthead {
+  background: var(--panel);
+  padding: 52px 56px 44px;
+  border-bottom: 3px solid var(--accent);
+}
+.masthead-eye {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .18em;
+  color: #5E7AA8;
+  text-transform: uppercase;
+  margin-bottom: 18px;
+}
+.masthead h1 {
+  font-size: clamp(28px, 4vw, 46px);
+  font-weight: 800;
+  line-height: 1.12;
+  text-wrap: balance;
+  color: #F1F5FD;
+  margin-bottom: 10px;
+}
+.masthead h1 em {
+  font-style: normal;
+  color: #5B9CF6;
+}
+.masthead-sub {
+  max-width: 680px;
+  font-size: 14.5px;
+  color: #7D97BC;
+  line-height: 1.6;
+}
+.masthead-meta {
+  margin-top: 36px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+}
+.meta-item {
+  padding: 12px 24px 12px 0;
+  margin-right: 24px;
+  border-right: 1px solid #253B63;
+}
+.meta-item:last-child { border-right: none; }
+.meta-label {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: #4E6B91;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  display: block;
+  margin-bottom: 3px;
+}
+.meta-value { font-size: 13px; color: #A8BCDA; }
+.meta-value strong { color: #DDEAFF; font-weight: 600; }
+
+/* ── NAV ─────────────────────────────────── */
+.nav-bar {
+  background: var(--panel-mid);
+  border-bottom: 1px solid #253B63;
+  padding: 0 56px;
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  scrollbar-width: none;
+}
+.nav-bar::-webkit-scrollbar { display: none; }
+.nav-tab {
+  padding: 13px 18px;
+  font-size: 12.5px;
+  color: #7D97BC;
+  text-decoration: none;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  transition: color .15s, border-color .15s;
+}
+.nav-tab:hover { color: #DDEAFF; border-bottom-color: #5B9CF6; }
+
+/* ── LAYOUT ──────────────────────────────── */
+.content {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 52px 56px 100px;
+}
+
+.section { margin-bottom: 68px; }
+
+.section-head {
+  margin-bottom: 22px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+.section-eye {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .15em;
+}
+.section-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* ── BANNER ──────────────────────────────── */
+.banner {
+  background: var(--panel);
+  color: #fff;
+  padding: 28px 32px;
+  border-radius: 6px;
+  border-left: 4px solid #5B9CF6;
+  margin-bottom: 44px;
+}
+.banner-title { font-size: 15px; font-weight: 700; color: #EFF6FF; margin-bottom: 8px; }
+.banner-text { font-size: 13.5px; color: #7D97BC; line-height: 1.65; }
+.banner-text strong { color: #B8CFFB; }
+
+/* ── INFO BOXES ──────────────────────────── */
+.info { display: flex; gap: 12px; border-radius: 5px; padding: 13px 16px; font-size: 13px; line-height: 1.55; margin: 12px 0; }
+.info.warn  { background: var(--amber-bg); border-left: 3px solid var(--amber); color: #713F12; }
+.info.ok    { background: var(--green-bg); border-left: 3px solid var(--green); color: #14532D; }
+.info.note  { background: var(--accent-dim); border-left: 3px solid var(--accent); color: #1E3A8A; }
+.info-icon  { font-size: 15px; flex-shrink: 0; padding-top: 1px; }
+
+/* ── TAGS ────────────────────────────────── */
+.tag {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 3px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.tag-amber { background: var(--amber-bg); color: var(--amber); }
+.tag-green { background: var(--green-bg); color: var(--green); }
+.tag-blue  { background: var(--accent-dim); color: var(--accent); }
+.tag-red   { background: var(--red-bg); color: var(--red); }
+
+/* ── COMPARE GRID ────────────────────────── */
+.compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.compare-col { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.compare-col.legacy { border-top: 3px solid var(--amber); }
+.compare-col.pw     { border-top: 3px solid var(--green); }
+.compare-head { padding: 13px 20px; font-size: 12.5px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.compare-col.legacy .compare-head { background: var(--amber-bg); color: var(--amber); }
+.compare-col.pw     .compare-head { background: var(--green-bg); color: var(--green); }
+.compare-body { padding: 16px 20px; }
+.compare-row { padding: 9px 0; border-bottom: 1px solid #F1F5F9; font-size: 12.5px; display: flex; gap: 10px; align-items: flex-start; }
+.compare-row:last-child { border-bottom: none; }
+.cmp-k { font-family: var(--mono); font-size: 10.5px; color: var(--text-muted); min-width: 110px; padding-top: 2px; }
+.cmp-v { color: var(--text-mid); line-height: 1.45; }
+
+/* ── CODE BLOCKS ─────────────────────────── */
+.code-wrap { overflow-x: auto; }
+pre.code {
+  background: var(--code-bg);
+  color: #CBD5E1;
+  border-radius: 6px;
+  padding: 20px 24px;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.75;
+  white-space: pre;
+  min-width: 0;
+  margin: 12px 0;
+}
+.c-cmt  { color: #3A506B; }
+.c-kw   { color: #93C5FD; }
+.c-str  { color: #86EFAC; }
+.c-old  { color: #F87171; background: rgba(248,113,113,.1); border-radius: 2px; }
+.c-new  { color: #4ADE80; background: rgba(74,222,128,.08); border-radius: 2px; }
+.c-num  { color: #FCD34D; }
+.c-type { color: #C4B5FD; }
+
+/* ── TABLE ───────────────────────────────── */
+.table-wrap { overflow-x: auto; border-radius: 6px; border: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th {
+  background: var(--panel);
+  color: #7D97BC;
+  font-weight: 600;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  padding: 11px 16px;
+  text-align: left;
+  white-space: nowrap;
+}
+td { padding: 10px 16px; border-bottom: 1px solid #F1F5F9; color: var(--text-mid); vertical-align: top; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: #F8FAFC; }
+td code { font-family: var(--mono); font-size: 11px; background: #F1F5F9; padding: 1px 5px; border-radius: 3px; color: var(--accent); }
+td.old code { color: var(--amber); background: var(--amber-bg); }
+td.new code { color: var(--green); background: var(--green-bg); }
+
+/* ── FILE LIST ───────────────────────────── */
+.file-list { display: flex; flex-direction: column; gap: 4px; margin: 12px 0; }
+.file-item {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 7px 12px;
+  background: #F8FAFC;
+  border-radius: 4px;
+  border-left: 2px solid var(--border);
+}
+.file-item.change { border-left-color: var(--accent); }
+.file-item.new    { border-left-color: var(--green); }
+.file-item.keep   { border-left-color: var(--amber); opacity: .7; }
+.f-path { font-family: var(--mono); font-size: 11.5px; color: var(--accent); }
+.f-action { font-size: 11px; color: var(--text-muted); }
+
+/* ── PHASES TIMELINE ─────────────────────── */
+.phases { display: flex; flex-direction: column; gap: 0; }
+.phase-item { display: grid; grid-template-columns: 72px 1fr; gap: 0; }
+.phase-spine { display: flex; flex-direction: column; align-items: center; }
+.phase-dot {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: var(--panel);
+  border: 2px solid var(--accent);
+  color: #5B9CF6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.phase-line { width: 2px; flex: 1; background: var(--border); margin: 6px 0; }
+.phase-body {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+.phase-head {
+  background: var(--panel);
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.phase-name { font-size: 15px; font-weight: 700; color: #EFF6FF; }
+.phase-meta { display: flex; gap: 10px; align-items: center; }
+.phase-dur { font-family: var(--mono); font-size: 11px; color: #5E7AA8; }
+.phase-content { padding: 20px 24px; }
+.phase-desc { font-size: 13.5px; color: var(--text-mid); margin-bottom: 16px; }
+
+.task-list { display: flex; flex-direction: column; gap: 8px; }
+.task {
+  display: flex;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #F8FAFC;
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--text-mid);
+  align-items: flex-start;
+}
+.task-n { font-family: var(--mono); font-size: 10px; color: var(--text-muted); min-width: 20px; padding-top: 2px; }
+.task strong { color: var(--text); }
+
+/* ── RISK REGISTER ───────────────────────── */
+.risk-list { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.risk-row { display: grid; grid-template-columns: 160px 1fr 90px 120px; gap: 16px; padding: 14px 20px; border-bottom: 1px solid #F1F5F9; align-items: start; font-size: 13px; }
+.risk-row:last-child { border-bottom: none; }
+.risk-name { font-weight: 600; color: var(--text); }
+.risk-desc { color: var(--text-mid); line-height: 1.45; }
+.risk-head { background: var(--panel); }
+.risk-head span { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: #5E7AA8; }
+
+/* ── GRID 2-col ──────────────────────────── */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 22px 24px; }
+.card-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 10px; }
+.card ul { padding-left: 18px; display: flex; flex-direction: column; gap: 5px; }
+.card li { font-size: 13px; color: var(--text-mid); }
+
+/* ── RESPONSIVE ──────────────────────────── */
+@media (max-width: 800px) {
+  .masthead, .nav-bar, .content { padding-left: 20px; padding-right: 20px; }
+  .compare-grid, .grid2 { grid-template-columns: 1fr; }
+  .risk-row { grid-template-columns: 1fr 1fr; }
+  .risk-head { display: none; }
+  .phase-item { grid-template-columns: 48px 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ──────────────────────────── MASTHEAD ── -->
+<div class="masthead">
+  <div class="masthead-eye">AR Web Scanner · Architecture Investigation · v4.2 → v5.0</div>
+  <h1>Selenium <em>→ Playwright</em><br>Migration Roadmap</h1>
+  <p class="masthead-sub">A structured, file-level plan to replace the Selenium WebDriver layer with Playwright while keeping JavaScript plugin injection (commented-out as fallback), preserving the Jetty WebSocket protocol, and maintaining full compatibility with the Engine replay contract.</p>
+  <div class="masthead-meta">
+    <div class="meta-item">
+      <span class="meta-label">Project</span>
+      <span class="meta-value"><strong>AR Web Scanner 4.2</strong></span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">From</span>
+      <span class="meta-value"><strong>selenium-java 4.18</strong></span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">To</span>
+      <span class="meta-value"><strong>playwright-java 1.44+</strong></span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">JDK</span>
+      <span class="meta-value"><strong>Java 17 (unchanged)</strong></span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Phases</span>
+      <span class="meta-value"><strong>6 phases · ~10–12 weeks</strong></span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Author</span>
+      <span class="meta-value"><strong>o.martini@allinweb.ch</strong></span>
+    </div>
+  </div>
+</div>
+
+<!-- ──────────────────────────── NAV ── -->
+<nav class="nav-bar">
+  <a class="nav-tab" href="#why">Why Migrate</a>
+  <a class="nav-tab" href="#comparison">Architecture Diff</a>
+  <a class="nav-tab" href="#api-map">API Mapping</a>
+  <a class="nav-tab" href="#js-injection">JS Injection Strategy</a>
+  <a class="nav-tab" href="#phases">Migration Phases</a>
+  <a class="nav-tab" href="#stable">What Stays the Same</a>
+  <a class="nav-tab" href="#risks">Risk Register</a>
+</nav>
+
+<div class="content">
+
+<!-- ── DECISION BANNER ─────────────────── -->
+<div class="banner">
+  <div class="banner-title">The core decision</div>
+  <div class="banner-text">
+    The BancaStato failures — and the broader pattern of banking sites failing element detection — trace to Selenium's fundamental architecture: an external driver process communicating over the WebDriver protocol cannot reliably observe or control pages built on <strong>Shadow DOM, dynamic iframes, content-security-policy-restricted contexts, and modern Angular/React component wrappers</strong>. Playwright runs inside the browser process via CDP and a Chromium-patched protocol, giving it native access to all of these. The JS injection plugins (hoverPick, searchListAsync, actionExecutor) continue to operate over WebSocket — only the transport layer that launches and controls the browser changes.
+  </div>
+</div>
+
+<!-- ─────────────────────────────────── WHY ── -->
+<div id="why" class="section">
+  <div class="section-head">
+    <span class="section-eye">Section 01</span>
+    <span class="section-title">Why Migrate — Root Cause Analysis</span>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">Shadow DOM failures</div>
+      <ul>
+        <li>Selenium XPath cannot cross shadow boundaries</li>
+        <li>BancaStato Angular components render inside closed shadow roots</li>
+        <li>Fallback to coordinates is brittle across screen resolutions</li>
+        <li>Playwright's <code>locator()</code> pierces open shadow roots natively; closed roots handled via CDP</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title">Iframe / cross-frame problems</div>
+      <ul>
+        <li>Selenium requires explicit <code>switchTo().frame()</code> — fragile when frame count changes dynamically</li>
+        <li><code>IframeInputLocator.java</code> has 120 lines of workaround code</li>
+        <li>Playwright <code>frameLocator()</code> returns a scoped locator without switching context</li>
+        <li>All <code>IframeInputLocator.java</code> logic can be replaced with 3–5 lines</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title">Click reliability</div>
+      <ul>
+        <li>Selenium <code>click()</code> on Angular mat-* components routinely fails (overlay intercepts)</li>
+        <li><code>actionExecutor</code> plugin exists specifically to work around this</li>
+        <li>Playwright auto-waits: scrolls into view, checks non-obscured, fires native events</li>
+        <li>The action executor plugin becomes a thin monitoring layer, not a primary click mechanism</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title">Network &amp; timing control</div>
+      <ul>
+        <li>Selenium has no built-in network interception — page load timing hacks via <code>executeScript("return document.readyState")</code></li>
+        <li>Race conditions on AJAX-heavy banking dashboards cause false "element not found"</li>
+        <li>Playwright: <code>page.waitForLoadState()</code>, <code>page.waitForResponse()</code>, <code>page.waitForSelector()</code> with auto-retry</li>
+        <li>Network interception available to stub slow endpoints during scanning</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title">JS execution model</div>
+      <ul>
+        <li><code>executeScript()</code> takes positional <code>Object... args</code> — passed as <code>arguments[n]</code> in the script</li>
+        <li><code>executeAsyncScript()</code> uses a callback convention — opaque and timing-dependent</li>
+        <li>Playwright <code>page.evaluate(fn, arg)</code>: strongly typed, returns serialized JSON, supports async/await natively</li>
+        <li>Plugin wrapper adapts old IIFE scripts without editing plugin source</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title">DevTools &amp; diagnostics</div>
+      <ul>
+        <li>Selenium logs require <code>LoggingPreferences</code> setup per driver — brittle across versions</li>
+        <li><code>PageDiagnosticDumper.java</code> uses 80 lines of <code>executeScript()</code> for DOM introspection</li>
+        <li>Playwright exposes CDP directly: <code>page.context().newCDPSession(page)</code></li>
+        <li>Console, network, and coverage events available as Java event listeners</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────────────────── COMPARISON ── -->
+<div id="comparison" class="section">
+  <div class="section-head">
+    <span class="section-eye">Section 02</span>
+    <span class="section-title">Architecture Comparison</span>
+  </div>
+  <div class="compare-grid">
+    <div class="compare-col legacy">
+      <div class="compare-head">Selenium 4.18 (current)</div>
+      <div class="compare-body">
+        <div class="compare-row"><span class="cmp-k">Protocol</span><span class="cmp-v">WebDriver W3C over HTTP — external driver process (chromedriver.exe)</span></div>
+        <div class="compare-row"><span class="cmp-k">Driver init</span><span class="cmp-v"><code>new ChromeDriver(options)</code> → launches chromedriver.exe, which controls Chrome via DevTools Protocol relayed over HTTP</span></div>
+        <div class="compare-row"><span class="cmp-k">JS execution</span><span class="cmp-v"><code>((JavascriptExecutor) driver).executeScript(script, args...)</code> — round-trip over WebDriver protocol</span></div>
+        <div class="compare-row"><span class="cmp-k">Async JS</span><span class="cmp-v"><code>executeAsyncScript(script, args...)</code> — callback injected as last argument, 30s default timeout</span></div>
+        <div class="compare-row"><span class="cmp-k">Shadow DOM</span><span class="cmp-v">XPath stops at shadow boundary; must inject JS to traverse</span></div>
+        <div class="compare-row"><span class="cmp-k">Iframes</span><span class="cmp-v"><code>driver.switchTo().frame(n)</code> — switches global driver context</span></div>
+        <div class="compare-row"><span class="cmp-k">Wait</span><span class="cmp-v"><code>WebDriverWait + ExpectedConditions</code> — polling wrapper</span></div>
+        <div class="compare-row"><span class="cmp-k">Network</span><span class="cmp-v">No built-in interception — JS polyfills or proxy required</span></div>
+        <div class="compare-row"><span class="cmp-k">Binary</span><span class="cmp-v">Requires chromedriver.exe matching Chrome version; managed manually</span></div>
+        <div class="compare-row"><span class="cmp-k">Key file</span><span class="cmp-v"><code>ARWebDriver.java</code> — singleton wrapping ChromeDriver/EdgeDriver/FirefoxDriver</span></div>
+      </div>
+    </div>
+    <div class="compare-col pw">
+      <div class="compare-head">Playwright Java 1.44+ (target)</div>
+      <div class="compare-body">
+        <div class="compare-row"><span class="cmp-k">Protocol</span><span class="cmp-v">Chrome DevTools Protocol directly — in-process, lower latency, no external binary mismatch</span></div>
+        <div class="compare-row"><span class="cmp-k">Driver init</span><span class="cmp-v"><code>Playwright.create() → playwright.chromium().launch(options)</code> — downloads and manages browsers itself</span></div>
+        <div class="compare-row"><span class="cmp-k">JS execution</span><span class="cmp-v"><code>page.evaluate("(arg) => { ... }", arg)</code> — takes ONE serialized arg; returns serialized result</span></div>
+        <div class="compare-row"><span class="cmp-k">Async JS</span><span class="cmp-v"><code>page.evaluate("async (arg) => { ... }", arg)</code> — native Promise, no callback injection needed</span></div>
+        <div class="compare-row"><span class="cmp-k">Shadow DOM</span><span class="cmp-v">Locators pierce open shadow roots; <code>&gt;&gt;</code> CSS combinator; CDP session for closed roots</span></div>
+        <div class="compare-row"><span class="cmp-k">Iframes</span><span class="cmp-v"><code>page.frameLocator("iframe#id").locator("input")</code> — scoped without context switch</span></div>
+        <div class="compare-row"><span class="cmp-k">Wait</span><span class="cmp-v">Auto-retry built into every <code>locator</code> action — no explicit wait wrapper needed</span></div>
+        <div class="compare-row"><span class="cmp-k">Network</span><span class="cmp-v"><code>page.route("**/*", handler)</code> — native request/response interception</span></div>
+        <div class="compare-row"><span class="cmp-k">Binary</span><span class="cmp-v"><code>playwright install chromium</code> — self-contained, version-pinned browser download</span></div>
+        <div class="compare-row"><span class="cmp-k">Key file</span><span class="cmp-v"><code>ARPlaywrightDriver.java</code> (new) — same singleton pattern, same interface</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────────────────── API MAP ── -->
+<div id="api-map" class="section">
+  <div class="section-head">
+    <span class="section-eye">Section 03</span>
+    <span class="section-title">Selenium → Playwright API Mapping</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Context</th>
+          <th>Selenium (current)</th>
+          <th>Playwright (target)</th>
+          <th>Found in</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Browser launch</td><td class="old"><code>new ChromeDriver(options)</code></td><td class="new"><code>playwright.chromium().launch(opts)</code></td><td><code>ARWebDriver.java:161</code></td></tr>
+        <tr><td>Options</td><td class="old"><code>ChromeOptions.addArguments("--disable-gpu")</code></td><td class="new"><code>BrowserType.LaunchOptions().setArgs(list)</code></td><td><code>ARWebDriver.java:132</code></td></tr>
+        <tr><td>New page</td><td class="old"><code>driver.get(url)</code></td><td class="new"><code>page.navigate(url)</code> or <code>page.goto(url)</code></td><td><code>PerformActions.java:multiple</code></td></tr>
+        <tr><td>Page ready check</td><td class="old"><code>executeScript("return document.readyState")</code></td><td class="new"><code>page.waitForLoadState(LoadState.DOMCONTENTLOADED)</code></td><td><code>ARWebDriver.java:318</code></td></tr>
+        <tr><td>Script injection (sync)</td><td class="old"><code>executeScript(script, arg0, ..., arg8)</code></td><td class="new"><code>page.evaluate("(a) =&gt; {...}", List.of(arg0,...,arg8))</code></td><td><code>PerformCloneLoad.java:117</code></td></tr>
+        <tr><td>Script injection (async)</td><td class="old"><code>executeAsyncScript(script, arg0,..., callback)</code></td><td class="new"><code>page.evaluate("async (a) =&gt; {...}", args)</code></td><td><code>PerformListElements.java:273</code></td></tr>
+        <tr><td>Find element</td><td class="old"><code>driver.findElement(By.xpath("..."))</code></td><td class="new"><code>page.locator("xpath=...").first()</code></td><td><code>PerformActions.java:256</code></td></tr>
+        <tr><td>Click</td><td class="old"><code>element.click()</code></td><td class="new"><code>page.locator("...").click()</code></td><td><code>PerformActions.java:multiple</code></td></tr>
+        <tr><td>Force click (JS)</td><td class="old"><code>executeScript("arguments[0].click()", el)</code></td><td class="new"><code>locator.dispatchEvent("click")</code></td><td><code>PerformActions.java:1300</code></td></tr>
+        <tr><td>Scroll into view</td><td class="old"><code>executeScript("arguments[0].scrollIntoView(true)", el)</code></td><td class="new"><code>locator.scrollIntoViewIfNeeded()</code></td><td><code>PerformActions.java:1192</code></td></tr>
+        <tr><td>Get text</td><td class="old"><code>executeScript("return arguments[0].textContent", el)</code></td><td class="new"><code>locator.textContent()</code></td><td><code>PerformActions.java:1726</code></td></tr>
+        <tr><td>Iframe access</td><td class="old"><code>driver.switchTo().frame(n)</code> + switch back</td><td class="new"><code>page.frameLocator("iframe").locator("input")</code></td><td><code>IframeInputLocator.java:104</code></td></tr>
+        <tr><td>Wait for element</td><td class="old"><code>new WebDriverWait(driver, Duration.ofSeconds(10)).until(...)</code></td><td class="new"><code>page.locator("...").waitFor(options)</code></td><td><code>PerformActions.java:multiple</code></td></tr>
+        <tr><td>Screenshot</td><td class="old"><code>((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE)</code></td><td class="new"><code>page.screenshot(ScreenshotOptions)</code></td><td><code>WebScreenshotCapture.java:50</code></td></tr>
+        <tr><td>Current URL</td><td class="old"><code>driver.getCurrentUrl()</code></td><td class="new"><code>page.url()</code></td><td><code>PerformActions.java:multiple</code></td></tr>
+        <tr><td>Browser version</td><td class="old"><code>((RemoteWebDriver) driver).getCapabilities().getBrowserVersion()</code></td><td class="new"><code>browser.version()</code></td><td><code>ARWebDriver.java:multiple</code></td></tr>
+        <tr><td>Quit</td><td class="old"><code>driver.quit()</code></td><td class="new"><code>browser.close(); playwright.close()</code></td><td><code>ARWebDriver.java:multiple</code></td></tr>
+        <tr><td>DOM dump</td><td class="old"><code>executeScript("return document.documentElement.outerHTML")</code></td><td class="new"><code>page.content()</code></td><td><code>PageDiagnosticDumper.java:325</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ─────────────────────── JS INJECTION ── -->
+<div id="js-injection" class="section">
+  <div class="section-head">
+    <span class="section-eye">Section 04</span>
+    <span class="section-title">JavaScript Injection Strategy</span>
+  </div>
+
+  <div class="info note">
+    <span class="info-icon">&#9432;</span>
+    <div><strong>Key insight:</strong> Your plugins (hoverPick, searchListAsync, actionExecutor) communicate results back through WebSocket — they do not rely on the return value of <code>executeScript()</code>. This means the injection call just needs to <em>run the script</em>; the data channel stays the same. You are not changing the plugin code — only the Java call that injects it.</div>
+  </div>
+
+  <div class="info warn" style="margin-top: 8px;">
+    <span class="info-icon">&#9888;</span>
+    <div><strong>Do not delete the Selenium injection calls.</strong> Comment them out in place with a <code>// SELENIUM_FALLBACK:</code> prefix. This keeps the fallback path for sites where Playwright inject fails and lets you re-enable without git archaeology.</div>
+  </div>
+
+  <h3 style="font-size:15px;font-weight:700;margin:28px 0 10px;color:var(--text)">The wrapper pattern — no plugin changes needed</h3>
+  <p style="font-size:13.5px;color:var(--text-mid);margin-bottom:8px;">Playwright's <code>page.evaluate(fn, arg)</code> takes <em>one</em> serialized argument. The plugins are IIFEs that receive positional arguments via <code>arguments[n]</code>. Bridge them with a one-line outer wrapper:</p>
+
+  <div class="code-wrap"><pre class="code"><span class="c-cmt">// ─── PerformCloneLoad.java:117 ───────────────────────────────────────────────</span>
+
+<span class="c-cmt">// SELENIUM_FALLBACK: ((JavascriptExecutor) driver).executeScript(</span>
+<span class="c-cmt">//     getJsHoverPick(), wsPort, sessionId, operationId, destination,</span>
+<span class="c-cmt">//     debugMode, timeout, langCode, mode, extraParam);</span>
+
+<span class="c-cmt">// NEW — Playwright injection: wrap the IIFE so arguments[] still works</span>
+<span class="c-kw">String</span> pluginScript = getJsHoverPick();          <span class="c-cmt">// unchanged plugin source</span>
+<span class="c-kw">String</span> wrapper = <span class="c-str">"""
+    (args) => (function(a0,a1,a2,a3,a4,a5,a6,a7,a8) {
+        %s
+    })(args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8])
+    """</span>.formatted(pluginScript);
+
+<span class="c-type">List</span>&lt;<span class="c-type">Object</span>&gt; pluginArgs = <span class="c-type">List</span>.of(
+    wsPort, sessionId, operationId, destination,
+    debugMode, timeout, langCode, mode, extraParam
+);
+page.evaluate(wrapper, pluginArgs);               <span class="c-cmt">// fire and forget — results come via WS</span></pre></div>
+
+  <h3 style="font-size:15px;font-weight:700;margin:28px 0 10px;color:var(--text)">Async plugin (searchListAsync) — callback becomes Promise</h3>
+  <p style="font-size:13.5px;color:var(--text-mid);margin-bottom:8px;">The search plugin sends chunks via WebSocket — the <code>executeAsyncScript</code> callback return value is not actually used for the chunk data. Switch to a simple async evaluate; the WS chunks arrive as before:</p>
+
+  <div class="code-wrap"><pre class="code"><span class="c-cmt">// ─── PerformListElements.java:273 ────────────────────────────────────────────</span>
+
+<span class="c-cmt">// SELENIUM_FALLBACK: Object result = ((JavascriptExecutor) driver)</span>
+<span class="c-cmt">//     .executeAsyncScript(getJsSearchListAsync(), arg0,...,arg8, callback);</span>
+
+<span class="c-cmt">// NEW — fire async, results arrive via WebSocket chunks (no return value needed)</span>
+<span class="c-kw">String</span> asyncWrapper = <span class="c-str">"""
+    async (args) => {
+        await new Promise((resolve) =>
+            (function(a0,a1,a2,a3,a4,a5,a6,a7,a8,cb) {
+                %s
+            })(args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8], resolve)
+        );
+    }
+    """</span>.formatted(getJsSearchListAsync());
+
+page.evaluate(asyncWrapper, <span class="c-type">List</span>.of(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8));
+<span class="c-cmt">// Playwright page.evaluate() awaits Promises automatically</span></pre></div>
+
+  <h3 style="font-size:15px;font-weight:700;margin:28px 0 10px;color:var(--text)">Init script — inject plugin on every page navigation</h3>
+  <p style="font-size:13.5px;color:var(--text-mid);margin-bottom:8px;">For plugins that must survive page navigations (actionExecutor), use <code>addInitScript</code> instead of per-call <code>evaluate</code>:</p>
+
+  <div class="code-wrap"><pre class="code"><span class="c-cmt">// ─── ARPlaywrightDriver.java (new) ───────────────────────────────────────────</span>
+
+<span class="c-cmt">// Inject once on BrowserContext; survives page.navigate() calls</span>
+<span class="c-kw">String</span> initWrapper = <span class="c-str">"""
+    (() => {
+        window.__AR_WS_PORT__   = %d;
+        window.__AR_SESSION__   = '%s';
+        window.__AR_OP_ID__     = '%s';
+        %s   // plugin code — already connects to WS on load
+    })();
+    """</span>.formatted(wsPort, sessionId, operationId, getJsActionExecutor());
+
+context.addInitScript(initWrapper);   <span class="c-cmt">// BrowserContext level — all pages inherit</span></pre></div>
+
+  <h3 style="font-size:15px;font-weight:700;margin:28px 0 10px;color:var(--text)">Individual JS calls — direct Playwright equivalents</h3>
+  <div class="code-wrap"><pre class="code"><span class="c-cmt">// ─── PerformActions.java — scattered executeScript calls ─────────────────────</span>
+
+<span class="c-cmt">// SELENIUM_FALLBACK: executeScript("arguments[0].scrollIntoView(true)", element);</span>
+page.locator(xPath).scrollIntoViewIfNeeded();
+
+<span class="c-cmt">// SELENIUM_FALLBACK: executeScript("arguments[0].click()", element);</span>
+page.locator(xPath).dispatchEvent(<span class="c-str">"click"</span>);      <span class="c-cmt">// or .click(new ClickOptions().setForce(true))</span>
+
+<span class="c-cmt">// SELENIUM_FALLBACK: executeScript("return arguments[0].textContent", element);</span>
+<span class="c-kw">String</span> text = page.locator(xPath).textContent();
+
+<span class="c-cmt">// SELENIUM_FALLBACK: executeScript("return document.readyState");</span>
+page.waitForLoadState(LoadState.DOMCONTENTLOADED);
+
+<span class="c-cmt">// SELENIUM_FALLBACK: executeScript("return document.documentElement.outerHTML");</span>
+<span class="c-kw">String</span> html = page.content();
+
+<span class="c-cmt">// Iframes — no switchTo() needed</span>
+<span class="c-cmt">// SELENIUM_FALLBACK: driver.switchTo().frame(iframeElement); ... driver.switchTo().defaultContent();</span>
+<span class="c-kw">Locator</span> iframeInput = page.frameLocator(<span class="c-str">"iframe[id='loginFrame']"</span>).locator(<span class="c-str">"input[name='user']"</span>);</pre></div>
+</div>
+
+<!-- ──────────────────────────── PHASES ── -->
+<div id="phases" class="section">
+  <div class="section-head">
+    <span class="section-eye">Section 05</span>
+    <span class="section-title">Migration Phases</span>
+  </div>
+
+  <div class="info note">
+    <span class="info-icon">&#9432;</span>
+    <div>Each phase is independently shippable. A feature flag (<code>ARPropertyEnum.USE_PLAYWRIGHT = true/false</code>) in <code>configuration.properties</code> controls which driver is active — the Selenium path stays live until Phase 6.</div>
+  </div>
+
+  <div class="phases" style="margin-top: 28px;">
+
+    <div class="phase-item">
+      <div class="phase-spine"><div class="phase-dot">P1</div><div class="phase-line"></div></div>
+      <div class="phase-body">
+        <div class="phase-head">
+          <span class="phase-name">Dependency &amp; Driver Scaffold</span>
+          <div class="phase-meta"><span class="tag tag-blue">Setup</span><span class="phase-dur">~1 week</span></div>
+        </div>
+        <div class="phase-content">
+          <div class="phase-desc">Add Playwright to the POM alongside Selenium (not replacing it). Create <code>ARPlaywrightDriver.java</code> as a parallel singleton with the same lifecycle interface as <code>ARWebDriver.java</code>. Wire the feature flag in <code>ARPropertyEnum</code> and <code>ARPropertyManager</code>. No behavior changes.</div>
+          <div class="task-list">
+            <div class="task"><span class="task-n">1.1</span><div class="task-body"><strong>pom.xml</strong> — add <code>com.microsoft.playwright:playwright:1.44.0</code>. Add same exclusions as selenium-java (slf4j, log4j-core). Keep selenium-java in place.</div></div>
+            <div class="task"><span class="task-n">1.2</span><div class="task-body"><strong>ARPropertyEnum.java</strong> — add <code>USE_PLAYWRIGHT("use_playwright", "false")</code>.</div></div>
+            <div class="task"><span class="task-n">1.3</span><div class="task-body"><strong>ARPlaywrightDriver.java</strong> (new) — singleton holding <code>Playwright</code>, <code>Browser</code>, <code>BrowserContext</code>, <code>Page</code>. Wrap all calls in a <code>newSingleThreadExecutor()</code> — Playwright is not thread-safe.</div></div>
+            <div class="task"><span class="task-n">1.4</span><div class="task-body"><strong>ARControlPanel.java</strong> — initialize <code>ARPlaywrightDriver</code> in the static block alongside existing singletons (guarded by flag). Configure <code>PLAYWRIGHT_BROWSERS_PATH</code> from config for offline deployments.</div></div>
+            <div class="task"><span class="task-n">1.5</span><div class="task-body">Run <code>mvn test</code> — all existing tests still pass, Playwright never activated.</div></div>
+          </div>
+          <div class="file-list" style="margin-top:16px;">
+            <div class="file-item change"><span class="f-path">pom.xml</span><span class="f-action">add playwright dependency</span></div>
+            <div class="file-item change"><span class="f-path">util/ARPropertyEnum.java</span><span class="f-action">add USE_PLAYWRIGHT key</span></div>
+            <div class="file-item new"><span class="f-path">driver/ARPlaywrightDriver.java</span><span class="f-action">new singleton — mirrors ARWebDriver interface</span></div>
+            <div class="file-item change"><span class="f-path">ARControlPanel.java</span><span class="f-action">initialize ARPlaywrightDriver in static block</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase-item">
+      <div class="phase-spine"><div class="phase-dot">P2</div><div class="phase-line"></div></div>
+      <div class="phase-body">
+        <div class="phase-head">
+          <span class="phase-name">Navigation &amp; Page Lifecycle</span>
+          <div class="phase-meta"><span class="tag tag-blue">Core Driver</span><span class="phase-dur">~1.5 weeks</span></div>
+        </div>
+        <div class="phase-content">
+          <div class="phase-desc">Replace <code>driver.get(url)</code>, readyState checks, browser open/close, screenshot, and current URL operations. Lowest-risk, highest-payoff wins — sites that load correctly will already scan better.</div>
+          <div class="task-list">
+            <div class="task"><span class="task-n">2.1</span><div class="task-body"><strong>ARPlaywrightDriver.java</strong> — implement <code>navigateTo(url)</code>: <code>page.navigate(url); page.waitForLoadState(NETWORKIDLE);</code></div></div>
+            <div class="task"><span class="task-n">2.2</span><div class="task-body"><strong>PerformActions.java</strong> — find all <code>driver.get(url)</code> calls, add <code>// SELENIUM_FALLBACK:</code>, add Playwright path guarded by flag.</div></div>
+            <div class="task"><span class="task-n">2.3</span><div class="task-body"><strong>ARWebDriver.java:318</strong> — replace <code>executeScript("return document.readyState")</code> loop with <code>page.waitForLoadState(LoadState.DOMCONTENTLOADED)</code>.</div></div>
+            <div class="task"><span class="task-n">2.4</span><div class="task-body"><strong>WebScreenshotCapture.java</strong> — replace <code>TakesScreenshot</code> cast with <code>page.screenshot(new ScreenshotOptions().setPath(path).setFullPage(true))</code>.</div></div>
+            <div class="task"><span class="task-n">2.5</span><div class="task-body"><strong>PageDiagnosticDumper.java</strong> — replace DOM dump calls with <code>page.content()</code> and <code>page.url()</code>.</div></div>
+            <div class="task"><span class="task-n">2.6</span><div class="task-body">Manual test: open 3 banking sites with <code>USE_PLAYWRIGHT=true</code>. Confirm navigation and screenshots work.</div></div>
+          </div>
+          <div class="file-list" style="margin-top:16px;">
+            <div class="file-item change"><span class="f-path">driver/ARPlaywrightDriver.java</span><span class="f-action">add navigation, screenshot, quit</span></div>
+            <div class="file-item change"><span class="f-path">facade/PerformActions.java</span><span class="f-action">comment Selenium get(), add Playwright navigateTo()</span></div>
+            <div class="file-item change"><span class="f-path">driver/ARWebDriver.java</span><span class="f-action">comment readyState loop → replace with waitForLoadState</span></div>
+            <div class="file-item change"><span class="f-path">util/WebScreenshotCapture.java</span><span class="f-action">replace TakesScreenshot with page.screenshot()</span></div>
+            <div class="file-item change"><span class="f-path">util/PageDiagnosticDumper.java</span><span class="f-action">replace DOM dump executeScript calls</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase-item">
+      <div class="phase-spine"><div class="phase-dot">P3</div><div class="phase-line"></div></div>
+      <div class="phase-body">
+        <div class="phase-head">
+          <span class="phase-name">JS Plugin Injection — the Core Migration</span>
+          <div class="phase-meta"><span class="tag tag-amber">Critical Path</span><span class="phase-dur">~2.5 weeks</span></div>
+        </div>
+        <div class="phase-content">
+          <div class="phase-desc">Replace <code>executeScript()</code> and <code>executeAsyncScript()</code> calls for the three main plugins. Plugin source code is not changed — only the Java injection wrapper changes. The existing Selenium calls are commented out with <code>// SELENIUM_FALLBACK:</code>.</div>
+          <div class="task-list">
+            <div class="task"><span class="task-n">3.1</span><div class="task-body"><strong>PerformCloneLoad.java:117</strong> — create <code>PlaywrightScriptInjector.injectHoverPick(page, args)</code> using the IIFE-wrapper pattern. Comment out the Selenium call.</div></div>
+            <div class="task"><span class="task-n">3.2</span><div class="task-body"><strong>PerformPreLoad.java:294</strong> — same for page scanner: <code>injectPageScanner(page, args)</code>.</div></div>
+            <div class="task"><span class="task-n">3.3</span><div class="task-body"><strong>PerformActionExecutorLoad.java:92</strong> — use <code>context.addInitScript()</code> so action executor survives navigation.</div></div>
+            <div class="task"><span class="task-n">3.4</span><div class="task-body"><strong>PerformListElements.java:273</strong> — replace <code>executeAsyncScript</code> with async evaluate wrapper.</div></div>
+            <div class="task"><span class="task-n">3.5</span><div class="task-body">New class <strong>PlaywrightScriptInjector.java</strong> — static helpers: <code>inject()</code>, <code>injectAsync()</code>, <code>injectInit()</code>. All use the IIFE-wrapping pattern.</div></div>
+            <div class="task"><span class="task-n">3.6</span><div class="task-body">Run <strong>Dynamic_HoverPick_Socket_Injection_Test</strong> and <strong>Dynamic_SearchListAsync_Socket_Injection_Test</strong> against a live page. Confirm WebSocket messages arrive.</div></div>
+            <div class="task"><span class="task-n">3.7</span><div class="task-body">Test on BancaStato — the primary success criterion for this phase.</div></div>
+          </div>
+          <div class="file-list" style="margin-top:16px;">
+            <div class="file-item new"><span class="f-path">driver/PlaywrightScriptInjector.java</span><span class="f-action">new — IIFE-wrapper injection helpers</span></div>
+            <div class="file-item change"><span class="f-path">facade/PerformCloneLoad.java</span><span class="f-action">comment Selenium call → add Playwright injection</span></div>
+            <div class="file-item change"><span class="f-path">facade/PerformPreLoad.java</span><span class="f-action">comment Selenium call → add Playwright injection</span></div>
+            <div class="file-item change"><span class="f-path">facade/PerformActionExecutorLoad.java</span><span class="f-action">comment Selenium call → addInitScript on context</span></div>
+            <div class="file-item change"><span class="f-path">facade/PerformListElements.java</span><span class="f-action">comment executeAsyncScript → async evaluate</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase-item">
+      <div class="phase-spine"><div class="phase-dot">P4</div><div class="phase-line"></div></div>
+      <div class="phase-body">
+        <div class="phase-head">
+          <span class="phase-name">Element Interaction &amp; Recovery</span>
+          <div class="phase-meta"><span class="tag tag-blue">Actions</span><span class="phase-dur">~2 weeks</span></div>
+        </div>
+        <div class="phase-content">
+          <div class="phase-desc">Migrate <code>PerformActions.java</code> (the largest class) — click, type, select, scroll, coordinate-based fallback — and <code>ElementRecoveryService.java</code>. Most of these become one-liners with Playwright's built-in waiting.</div>
+          <div class="task-list">
+            <div class="task"><span class="task-n">4.1</span><div class="task-body"><strong>PerformActions.java</strong> — replace all <code>findElement(By.xpath(...))</code> with <code>page.locator("xpath=...")</code>. Comment out WebElement references.</div></div>
+            <div class="task"><span class="task-n">4.2</span><div class="task-body"><strong>PerformActions.java</strong> — replace force-click JS (<code>arguments[0].click()</code>) with <code>locator.dispatchEvent("click")</code>.</div></div>
+            <div class="task"><span class="task-n">4.3</span><div class="task-body"><strong>PerformActions.java</strong> — replace <code>scrollIntoView</code> JS with <code>locator.scrollIntoViewIfNeeded()</code>.</div></div>
+            <div class="task"><span class="task-n">4.4</span><div class="task-body"><strong>IframeInputLocator.java</strong> — replace entire <code>switchTo().frame()</code> block with <code>page.frameLocator(selector).locator(inner)</code>. 120 lines → ~15 lines.</div></div>
+            <div class="task"><span class="task-n">4.5</span><div class="task-body"><strong>ElementRecoveryService.java</strong> — replace coordinate-based JS fallback with <code>page.mouse().click(x, y)</code>.</div></div>
+            <div class="task"><span class="task-n">4.6</span><div class="task-body"><strong>WebElementScriptFactory.java</strong> — keep as-is; script strings still used by <code>PlaywrightScriptInjector</code>.</div></div>
+          </div>
+          <div class="file-list" style="margin-top:16px;">
+            <div class="file-item change"><span class="f-path">facade/PerformActions.java</span><span class="f-action">largest migration — findElement, clicks, scrolls, text ops</span></div>
+            <div class="file-item change"><span class="f-path">facade/IframeInputLocator.java</span><span class="f-action">replace switchTo() with frameLocator() — 120 lines → ~15</span></div>
+            <div class="file-item change"><span class="f-path">facade/ElementRecoveryService.java</span><span class="f-action">coordinate fallback → page.mouse().click()</span></div>
+            <div class="file-item keep"><span class="f-path">builder/WebElementScriptFactory.java</span><span class="f-action">keep — script strings still used by injector</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase-item">
+      <div class="phase-spine"><div class="phase-dot">P5</div><div class="phase-line"></div></div>
+      <div class="phase-body">
+        <div class="phase-head">
+          <span class="phase-name">Shadow DOM, Native Selectors &amp; Network</span>
+          <div class="phase-meta"><span class="tag tag-green">Playwright-native</span><span class="phase-dur">~2 weeks</span></div>
+        </div>
+        <div class="phase-content">
+          <div class="phase-desc">The phase that delivers the actual win over Selenium — use Playwright's native Shadow DOM traversal and smart locator strategies to remove the JS workarounds the searchListAsync plugin currently handles in-browser.</div>
+          <div class="task-list">
+            <div class="task"><span class="task-n">5.1</span><div class="task-body"><strong>Shadow DOM</strong> — first try Playwright CSS with <code>&gt;&gt;</code> combinator (pierces open shadow roots). Fall back to plugin JS injection only for closed shadow roots.</div></div>
+            <div class="task"><span class="task-n">5.2</span><div class="task-body"><strong>Smart locators</strong> — add a pre-search pass using <code>getByRole()</code>, <code>getByLabel()</code>, <code>getByPlaceholder()</code> before the XPath fallback ladder.</div></div>
+            <div class="task"><span class="task-n">5.3</span><div class="task-body"><strong>Network wait</strong> — add <code>page.waitForLoadState(NETWORKIDLE)</code> after navigation and AJAX-triggering clicks. Eliminates the polling loops in <code>PerformActions.java</code>.</div></div>
+            <div class="task"><span class="task-n">5.4</span><div class="task-body"><strong>CSP bypass</strong> — use <code>page.route()</code> to intercept and rewrite <code>Content-Security-Policy: connect-src 'self'</code> headers that block plugin WebSocket connections to localhost.</div></div>
+            <div class="task"><span class="task-n">5.5</span><div class="task-body"><strong>CDP session</strong> — for sites with closed shadow roots, open <code>CDPSession cdp = page.context().newCDPSession(page)</code> and use DOM.getDocument + DOM.querySelectorAll.</div></div>
+            <div class="task"><span class="task-n">5.6</span><div class="task-body">Re-test BancaStato complete flow: hover-pick Angular mat-form-field components, run searchListAsync, execute actionExecutor click. All three must produce correct ElementDTO in the React grid.</div></div>
+          </div>
+          <div class="file-list" style="margin-top:16px;">
+            <div class="file-item change"><span class="f-path">driver/ARPlaywrightDriver.java</span><span class="f-action">add CDP session, network idle wait, CSP route intercept</span></div>
+            <div class="file-item new"><span class="f-path">facade/PlaywrightLocatorStrategy.java</span><span class="f-action">new — getByRole/Label/Placeholder chain before XPath</span></div>
+            <div class="file-item change"><span class="f-path">facade/PerformActions.java</span><span class="f-action">replace AJAX polling with waitForLoadState(NETWORKIDLE)</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase-item">
+      <div class="phase-spine"><div class="phase-dot">P6</div><div class="phase-line"></div></div>
+      <div class="phase-body">
+        <div class="phase-head">
+          <span class="phase-name">Cleanup, Tests &amp; Selenium Removal</span>
+          <div class="phase-meta"><span class="tag tag-red">Breaking</span><span class="phase-dur">~1.5 weeks</span></div>
+        </div>
+        <div class="phase-content">
+          <div class="phase-desc">With Playwright stable in production, remove the Selenium dependency and all <code>// SELENIUM_FALLBACK:</code> commented blocks. Run the full test suite. Verify the Engine DTO contract (DTOs don't change — only the scanner layer).</div>
+          <div class="task-list">
+            <div class="task"><span class="task-n">6.1</span><div class="task-body">Search for all <code>// SELENIUM_FALLBACK:</code> comments. Delete the commented code blocks. Verify nothing still calls old Selenium APIs.</div></div>
+            <div class="task"><span class="task-n">6.2</span><div class="task-body"><strong>pom.xml</strong> — remove <code>selenium-java</code> dependency. Run <code>mvn clean package</code>. Fix any compile errors (mostly unused imports).</div></div>
+            <div class="task"><span class="task-n">6.3</span><div class="task-body">Delete or archive <code>ARWebDriver.java</code> (keep in git history). Rename or keep <code>ARPlaywrightDriver.java</code>.</div></div>
+            <div class="task"><span class="task-n">6.4</span><div class="task-body">Update all four dynamic injection tests (<code>Dynamic_*_Socket_Injection_Test.java</code>) to use Playwright directly instead of <code>JavascriptExecutor</code>.</div></div>
+            <div class="task"><span class="task-n">6.5</span><div class="task-body">Remove <code>USE_PLAYWRIGHT</code> feature flag — Playwright is now the only path.</div></div>
+            <div class="task"><span class="task-n">6.6</span><div class="task-body">Update <code>WEBDRIVER.md</code> and <code>CLAUDE.md</code>. Remove <code>PATH_WEBDRIVER</code> from config (chromedriver no longer needed).</div></div>
+            <div class="task"><span class="task-n">6.7</span><div class="task-body">Verify ElementDTO fields are unchanged — Engine replay must not require updates.</div></div>
+          </div>
+          <div class="file-list" style="margin-top:16px;">
+            <div class="file-item change"><span class="f-path">pom.xml</span><span class="f-action">remove selenium-java dependency</span></div>
+            <div class="file-item keep"><span class="f-path">driver/ARWebDriver.java</span><span class="f-action">delete (Selenium path gone)</span></div>
+            <div class="file-item change"><span class="f-path">test/Dynamic_*_Socket_Injection_Test.java</span><span class="f-action">update all 4 injection tests to Playwright</span></div>
+            <div class="file-item change"><span class="f-path">WEBDRIVER.md · CLAUDE.md</span><span class="f-action">update documentation</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ─────────────────────────── STABLE ── -->
+<div id="stable" class="section">
+  <div class="section-head">
+    <span class="section-eye">Section 06</span>
+    <span class="section-title">What Stays the Same</span>
+  </div>
+  <div class="info ok">
+    <span class="info-icon">&#10003;</span>
+    <div>These components require <strong>zero changes</strong> in any phase. The migration is a driver-layer swap — everything above it (WebSocket, DTOs, React grid, Engine) is untouched.</div>
+  </div>
+  <div class="grid2" style="margin-top:20px;">
+    <div class="card">
+      <div class="card-title">Jetty WebSocket server — no changes</div>
+      <ul>
+        <li><code>SimpleWebSocketServer.java</code> — the entire verb switch stays</li>
+        <li><code>WebSocketSessionManager.java</code> — session registry unchanged</li>
+        <li><code>ARWebSocketServer.java</code> / <code>ARWebSocketServerIP.java</code> — ports stay</li>
+        <li>React grid subscribes to the same WebSocket port — nothing changes on the frontend</li>
+        <li>All WS message types (SEARCH_TOOL, HOVERED_ROW, ACTION_EXECUTOR, etc.) stay identical</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title">JS plugins — source unchanged</div>
+      <ul>
+        <li><code>hoverPick.min.js</code> — no edits needed</li>
+        <li><code>searchListAsync.min.js</code> — no edits needed</li>
+        <li><code>actionExecutor.min.js</code> — no edits needed</li>
+        <li>Plugin rebuild pipeline in <code>D:\Projects_DevOps\MultiPlugins\</code> — no changes</li>
+        <li><code>PATH_PLUGINS</code> config key — unchanged</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title">ElementDTO contract — no changes</div>
+      <ul>
+        <li>All fields (xPath, customXPath, someText, definedName, cssSelector, coordinates, shadowHost, androidData[]) unchanged</li>
+        <li>Engine replay fallback ladder unchanged</li>
+        <li>PerformDataBase / PerformMessage DTO serialization unchanged</li>
+        <li>JSON artifact format (elementDTO-HP.json, AI-ElementDTO-HP.json) unchanged</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title">React grid — no changes</div>
+      <ul>
+        <li><code>GridItemScann.tsx</code> — props, WebSocket hook, message types all unchanged</li>
+        <li><code>abr-react-ts-grid</code> repo — no changes needed in any phase</li>
+        <li>Frontend WebSocket port negotiation unchanged (Java still exports via System.setProperty)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title">Database &amp; migrations — no changes</div>
+      <ul>
+        <li><code>PerformDataBase.java</code> unchanged</li>
+        <li><code>MigrationRunner</code> and all <code>db/migrations/M*.java</code> unchanged</li>
+        <li>SQLite / PostgreSQL / Access connection logic unchanged</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title">License &amp; config — no changes</div>
+      <ul>
+        <li><code>LicenseManager</code> — unchanged</li>
+        <li><code>ARPropertyManager</code> — only addition: <code>USE_PLAYWRIGHT</code> key (removed in Phase 6)</li>
+        <li><code>ARPropertyEnum.PATH_WEBDRIVER</code> removed in Phase 6 (chromedriver no longer needed)</li>
+        <li>JCEF / embedded browser — unchanged (separate embedded view, not the Playwright page)</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ──────────────────────────── RISKS ── -->
+<div id="risks" class="section">
+  <div class="section-head">
+    <span class="section-eye">Section 07</span>
+    <span class="section-title">Risk Register</span>
+  </div>
+  <div class="risk-list">
+    <div class="risk-row risk-head">
+      <span>Risk</span><span>Detail &amp; Mitigation</span><span>Severity</span><span>Phase</span>
+    </div>
+    <div class="risk-row">
+      <div class="risk-name">JavaFX + Playwright threading</div>
+      <div class="risk-desc">Playwright is not thread-safe — all calls must be on the same thread that created the <code>Playwright</code> instance. ARControlPanel runs driver calls from multiple JavaFX threads. Mitigation: wrap all Playwright operations in a <code>newSingleThreadExecutor()</code> in <code>ARPlaywrightDriver.java</code>.</div>
+      <div><span class="tag tag-red">High</span></div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--text-muted)">Phase 1</div>
+    </div>
+    <div class="risk-row">
+      <div class="risk-name">Playwright browser download</div>
+      <div class="risk-desc">On first run, <code>playwright install chromium</code> downloads ~130MB. Air-gapped deployments or locked corporate networks will fail. Mitigation: bundle the Playwright browser zip in the distribution or point <code>PLAYWRIGHT_BROWSERS_PATH</code> to a pre-installed location via <code>configuration.properties</code>.</div>
+      <div><span class="tag tag-red">High</span></div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--text-muted)">Phase 1</div>
+    </div>
+    <div class="risk-row">
+      <div class="risk-name">CSP blocking WS plugin</div>
+      <div class="risk-desc">Some banking sites use <code>Content-Security-Policy: connect-src 'self'</code> which blocks the plugin's WebSocket connection to localhost. Mitigation: use Playwright's <code>page.route()</code> to intercept and rewrite the CSP response header. Not possible with Selenium without a proxy.</div>
+      <div><span class="tag tag-red">High</span></div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--text-muted)">Phase 5</div>
+    </div>
+    <div class="risk-row">
+      <div class="risk-name">IIFE args mismatch</div>
+      <div class="risk-desc">If a plugin references <code>arguments[n]</code> inside a nested function (not the outer IIFE), the wrapper won't map correctly. Audit each plugin's argument access pattern before Phase 3; adjust the wrapper's positional destructuring accordingly.</div>
+      <div><span class="tag tag-amber">Medium</span></div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--text-muted)">Phase 3</div>
+    </div>
+    <div class="risk-row">
+      <div class="risk-name">Closed Shadow DOM</div>
+      <div class="risk-desc">Banking sites occasionally use <code>mode: "closed"</code> shadow roots — Playwright locators can't pierce these. Mitigation: CDP session (<code>DOM.querySelectorAll</code> on the raw node tree) as a second-pass fallback. Add this before removing the JS injection fallback.</div>
+      <div><span class="tag tag-amber">Medium</span></div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--text-muted)">Phase 5</div>
+    </div>
+    <div class="risk-row">
+      <div class="risk-name">Network idle timeout</div>
+      <div class="risk-desc"><code>waitForLoadState(NETWORKIDLE)</code> requires 500ms of no network requests — some banking sites (chat widgets, analytics) never go idle. Mitigation: intercept and abort known noise URLs via <code>page.route()</code>, or use <code>DOMCONTENTLOADED</code> plus targeted <code>locator.waitFor()</code>.</div>
+      <div><span class="tag tag-amber">Medium</span></div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--text-muted)">Phase 5</div>
+    </div>
+    <div class="risk-row">
+      <div class="risk-name">Engine jar compatibility</div>
+      <div class="risk-desc">The Engine reads <code>ElementDTO</code> from JSON on disk. As long as no DTO fields change, Engine replay is unaffected. Risk: a developer accidentally adds a locator field to ElementDTO without updating the Engine. Treat any ElementDTO field addition as a cross-repo change requiring Engine update.</div>
+      <div><span class="tag tag-blue">Low</span></div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--text-muted)">Phase 4–6</div>
+    </div>
+    <div class="risk-row">
+      <div class="risk-name">JCEF co-existence</div>
+      <div class="risk-desc">JCEF (embedded Chromium for the UI preview pane) and Playwright both bundle Chromium — two separate instances. This is intentional and fine, but confirm they don't conflict on DevTools port numbers. JCEF uses its own remote debugging port; Playwright uses a separate port allocated per <code>BrowserContext</code>.</div>
+      <div><span class="tag tag-blue">Low</span></div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--text-muted)">Phase 1</div>
+    </div>
+  </div>
+
+  <div class="info warn" style="margin-top:20px;">
+    <span class="info-icon">&#9888;</span>
+    <div><strong>Critical — address in Phase 1:</strong> The Playwright threading constraint (single-thread model) and the browser download for offline deployments are blockers that must be resolved before any production use. Do not defer them to later phases.</div>
+  </div>
+</div>
+
+<!-- ── FOOTER ─────────────────────────── -->
+<div style="border-top: 1px solid var(--border); padding-top: 28px; margin-top: 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+  <div style="font-family:var(--mono);font-size:11px;color:var(--text-muted);">AR Web Scanner · selenium-java 4.18 → playwright-java 1.44+ · June 2026</div>
+  <div style="display:flex;gap:16px;">
+    <span class="tag tag-amber">6 phases</span>
+    <span class="tag tag-blue">~10–12 weeks</span>
+    <span class="tag tag-green">Zero WS changes</span>
+    <span class="tag tag-green">Zero plugin changes</span>
+    <span class="tag tag-green">Zero DTO changes</span>
+  </div>
+</div>
+
+</div><!-- /content -->
+</body>
+</html>
