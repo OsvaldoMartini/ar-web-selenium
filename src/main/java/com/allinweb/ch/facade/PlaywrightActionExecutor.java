@@ -15,6 +15,9 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class PlaywrightActionExecutor {
 
+    /** Short per-attempt timeout so hidden/unactionable elements fail fast instead of the 30s default. */
+    private static final double ACTION_TIMEOUT_MS = 6000;
+
     public boolean click(Page page, InstructionLoad instruction) {
         if (page == null || page.isClosed() || instruction == null) {
             return false;
@@ -22,9 +25,34 @@ public class PlaywrightActionExecutor {
 
         Locator locator = locate(page, instruction);
         if (locator != null && locator.count() > 0) {
-            locator.first().scrollIntoViewIfNeeded();
-            locator.first().click();
-            return true;
+            Locator target = locator.first();
+            try {
+                target.scrollIntoViewIfNeeded(
+                        new Locator.ScrollIntoViewIfNeededOptions().setTimeout(ACTION_TIMEOUT_MS));
+            } catch (Exception ignore) {
+                // scroll is best-effort; continue to the click attempts
+            }
+            // 1) normal actionable click
+            try {
+                target.click(new Locator.ClickOptions().setTimeout(ACTION_TIMEOUT_MS));
+                return true;
+            } catch (Exception normal) {
+                log.debug("Playwright normal click failed, trying force: {}", normal.getMessage());
+            }
+            // 2) force click (bypasses visibility/stability/hit-test — needed for hidden nav/skip links)
+            try {
+                target.click(new Locator.ClickOptions().setForce(true).setTimeout(ACTION_TIMEOUT_MS));
+                return true;
+            } catch (Exception forced) {
+                log.debug("Playwright force click failed, trying JS dispatch: {}", forced.getMessage());
+            }
+            // 3) JS-dispatched click (fires the handler even when the WebDriver-style click is intercepted)
+            try {
+                target.dispatchEvent("click");
+                return true;
+            } catch (Exception dispatch) {
+                log.debug("Playwright dispatch click failed, trying coordinates: {}", dispatch.getMessage());
+            }
         }
 
         return clickCoordinates(page, instruction.getCoordinates());
@@ -41,9 +69,18 @@ public class PlaywrightActionExecutor {
         }
 
         Locator first = locator.first();
-        first.scrollIntoViewIfNeeded();
-        first.fill(data == null ? "" : data.getValue());
-        return true;
+        try {
+            first.scrollIntoViewIfNeeded(new Locator.ScrollIntoViewIfNeededOptions().setTimeout(ACTION_TIMEOUT_MS));
+        } catch (Exception ignore) {
+            // best-effort
+        }
+        try {
+            first.fill(data == null ? "" : data.getValue(), new Locator.FillOptions().setTimeout(ACTION_TIMEOUT_MS));
+            return true;
+        } catch (Exception fillError) {
+            log.debug("Playwright fill failed, trying coordinates: {}", fillError.getMessage());
+            return fillCoordinates(page, instruction.getCoordinates(), data == null ? "" : data.getValue());
+        }
     }
 
     public String text(Page page, InstructionLoad instruction) {
