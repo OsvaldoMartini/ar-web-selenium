@@ -6,6 +6,8 @@ import com.allinweb.ch.builder.WebElementIcon;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.actions.BrowserJsUtils;
+import com.allinweb.ch.facade.actions.InstructionGraph;
+import com.allinweb.ch.facade.actions.ValidationMessageBuilder;
 import com.allinweb.ch.facade.actions.WebTextUtils;
 import com.allinweb.ch.model.*;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
@@ -20,7 +22,6 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -2067,86 +2068,19 @@ public class PerformActions {
             Integer testRow,
             boolean success) {
 
-        if (operations == null || operations.length < 2) {
-            return withConditionalPrefix(conditionStatus, "Validation failed - malformed operation definition");
-        }
-
-        if (byPassFlagLoop) {
-            return withConditionalPrefix(conditionStatus, lastInstructionExecuted);
-        }
-
-        String varName = operations.length > 0 ? operations[0] : "?";
-        String op = operations.length > 1 ? operations[1] : "?";
-
-        String rawActual = actualValue == null ? "" : actualValue;
-        String rawExpected = expectedValue == null ? "" : expectedValue;
-
-        String safeActual = rawActual;
-        String safeExpected = rawExpected;
-
-        if (">".equals(op) || "<".equals(op)) {
-            safeActual = normalizeNumber(rawActual);
-            safeExpected = normalizeNumber(rawExpected);
-        }
-
-        // ✅ Professional summary: passed / failed
-        String summary;
-        if (invalidValues == null || invalidValues.trim().isEmpty()) {
-            summary = success ? "Validation passed" : "Validation failed";
-        } else {
-            summary = invalidValues.trim() + " Operator: (" + op + ")";
-        }
-
-        String conditionText; // ✅ will go into "Condition" column
-
-        if (">".equals(op)) {
-            conditionText = String.format(
-                    "value \"%s\" %s \"%s\" (variable \"%s\")",
-                    safeActual, (success ? "is >" : "is not >"), safeExpected, varName);
-
-        } else if ("<".equals(op)) {
-            conditionText = String.format(
-                    "value \"%s\" %s \"%s\" (variable \"%s\")",
-                    safeActual, (success ? "is <" : "is not <"), safeExpected, varName);
-
-        } else if ("!=".equals(op)) {
-            conditionText = String.format(
-                    "value \"%s\" %s \"%s\" (variable \"%s\")",
-                    safeActual, (success ? "is !=" : "is not !="), safeExpected, varName);
-
-        } else {
-            String opPhrase = success ? ("is " + op) : ("is not " + op);
-
-            conditionText = String.format(
-                    "value \"%s\" %s \"%s\" (variable \"%s\")", safeActual, opPhrase, safeExpected, varName);
-
-            if (includeLengths) {
-                conditionText +=
-                        String.format(" [actualLen=%d, expectedLen=%d]", safeActual.length(), safeExpected.length());
-            }
-        }
-
-        // ✅ Main Field column should be just the field name (no quotes)
-        String mainField = (parent == null) ? "" : parent;
-
-        // ✅ Description column
-        String desc = (blockName == null) ? "" : blockName;
-
-        // ✅ Test column
-        String testName = (testRow == null) ? "" : String.valueOf(testRow);
-
-        // ✅ Result column
-        String result = success ? "PASSED" : "FAIL";
-
-        // ✅ Time column (your JTable expects Time as first col)
-        String time = new java.text.SimpleDateFormat("HH:mm:ss").format(new java.util.Date());
-
-        // Keep your output format (Condition column = conditionText).
-        // If you want to include summary too, replace conditionText with (summary + " - " + conditionText).
-        String row =
-                time + " | " + testName + " | " + desc + " | " + mainField + " | " + conditionText + " | " + result;
-
-        return row;
+        return ValidationMessageBuilder.buildValidationReason(
+                invalidValues,
+                parent,
+                actualValue,
+                expectedValue,
+                lastInstructionExecuted,
+                operations,
+                conditionStatus,
+                byPassFlagLoop,
+                includeLengths,
+                blockName,
+                testRow,
+                success);
     }
 
     //    /**
@@ -2253,13 +2187,7 @@ public class PerformActions {
     }
 
     public static String sanitizeValue(String input) {
-        if (input == null) return "";
-
-        return input.replace('\u00A0', ' ') // NO-BREAK SPACE
-                .replace('\u202F', ' ') // NARROW NO-BREAK SPACE
-                .replace('\u2007', ' ') // FIGURE SPACE
-                .replaceAll("\\s+", " ") // collapse whitespace
-                .trim();
+        return ValidationMessageBuilder.sanitizeValue(input);
     }
 
     /**
@@ -2284,81 +2212,21 @@ public class PerformActions {
             boolean includeLengths,
             boolean success) {
 
-        if (byPassFlagLoop) {
-            return withConditionalPrefix(conditionStatus, lastInstructionExecuted);
-        }
-
-        String instrName =
-                currentInstruction != null && currentInstruction.getName() != null ? currentInstruction.getName() : "?";
-
-        String var = (variableField == null) ? "?" : variableField;
-
-        String rawActual = (actualValue == null) ? "" : actualValue;
-        String rawExpected = (expectedValue == null) ? "" : expectedValue;
-
-        String safeActual = rawActual;
-        String safeExpected = rawExpected;
-
-        if (">".equals(operator) || "<".equals(operator)) {
-            safeActual = normalizeNumber(rawActual);
-            safeExpected = normalizeNumber(rawExpected);
-        }
-
-        // ✅ parse TEST + Main Field like your other methods
-        String testName = "";
-        String mainField = "";
-        if (parentField != null && parentField.contains("-")) {
-            int idx = parentField.indexOf('-');
-            testName = parentField.substring(0, idx).trim();
-            mainField = parentField.substring(idx + 1).trim();
-        } else {
-            mainField = (parentField == null) ? "" : parentField;
-            testName = (testRow == null) ? "" : String.valueOf(testRow);
-        }
-
-        // ✅ Description column
-        String desc = (blockName == null) ? "" : blockName;
-
-        // ✅ Condition column (action first)
-        String op = (operator == null) ? "?" : operator;
-
-        String conditionText;
-        if (">".equals(op)) {
-            conditionText = String.format(
-                    "%s] --> value \"%s\" is not > \"%s\" (variable \"%s\", instruction \"%s\")",
-                    action, safeActual, safeExpected, var, instrName);
-
-        } else if ("<".equals(op)) {
-            conditionText = String.format(
-                    "%s] --> value \"%s\" is not < \"%s\" (variable \"%s\", instruction \"%s\")",
-                    action, safeActual, safeExpected, var, instrName);
-
-        } else if ("!=".equals(op)) {
-            conditionText = String.format(
-                    "%s] --> value \"%s\" is not != \"%s\" (variable \"%s\", instruction \"%s\")",
-                    action, safeActual, safeExpected, var, instrName);
-
-        } else {
-            conditionText = String.format(
-                    "%s] --> value \"%s\" is not %s \"%s\" (variable \"%s\", instruction \"%s\")",
-                    action, safeActual, op, safeExpected, var, instrName);
-
-            if (includeLengths) {
-                conditionText +=
-                        String.format(" [actualLen=%d, expectedLen=%d]", safeActual.length(), safeExpected.length());
-            }
-        }
-
-        // ✅ Result column
-        String result = success ? "PASSED" : "FAIL";
-
-        // ✅ Time column
-        String time = new java.text.SimpleDateFormat("HH:mm:ss").format(new java.util.Date());
-
-        String row =
-                time + " | " + testName + " | " + desc + " | " + mainField + " | " + conditionText + " | " + result;
-
-        return withConditionalPrefix(conditionStatus, row);
+        return ValidationMessageBuilder.checkValidationMesssage(
+                action,
+                currentInstruction,
+                lastInstructionExecuted,
+                conditionStatus,
+                parentField,
+                variableField,
+                actualValue,
+                expectedValue,
+                operator,
+                byPassFlagLoop,
+                blockName,
+                testRow,
+                includeLengths,
+                success);
     }
 
     /**
@@ -2381,75 +2249,25 @@ public class PerformActions {
             boolean success // usually false for "not defined"
             ) {
 
-        if (byPassFlagLoop) {
-            return withConditionalPrefix(conditionStatus, lastInstructionExecuted);
-        }
-
-        // Preserve raw values
-        String instrName =
-                currentInstruction != null && currentInstruction.getName() != null ? currentInstruction.getName() : "?";
-
-        String var = (variableField == null) ? "?" : variableField;
-        String parent = (parentField == null) ? "" : parentField;
-
-        // ✅ Condition column text (human readable, like buildValidationReason)
-        String conditionText;
-        if (ARConstantsEngine.EXTRACT_FIELD.equals(action) || ARConstantsEngine.CHECK_VALUE.equals(action)) {
-            conditionText = String.format(
-                    "Get Value Is Not Defined - variable \"%s\" has not been assigned (instruction \"%s\")",
-                    var, instrName);
-        } else {
-            if (parentField != null) {
-                conditionText = String.format(
-                        "Get Value Is Not Defined - no GET value defined for instruction \"%s\" (parent field \"%s\")",
-                        instrName, parent);
-            } else {
-                conditionText = String.format(
-                        "Get Value Is Not Defined - no GET value defined for instruction \"%s\" (parent field not defined)",
-                        instrName);
-            }
-        }
-
-        // ✅ Main Field column: just field name
-        String mainField = parent;
-
-        // ✅ Description column
-        String desc = (blockName == null) ? "" : blockName;
-
-        // ✅ Test column
-        String testName = (testRow == null) ? "" : String.valueOf(testRow);
-
-        // ✅ Result column
-        String result = success ? "PASSED" : "FAIL";
-
-        // ✅ Time column
-        String time = new java.text.SimpleDateFormat("HH:mm:ss").format(new java.util.Date());
-
-        String row =
-                time + " | " + testName + " | " + desc + " | " + mainField + " | " + conditionText + " | " + result;
-
-        // Preserve conditional prefix behavior
-        return withConditionalPrefix(conditionStatus, row);
+        return ValidationMessageBuilder.buildGetVariableReason(
+                action,
+                currentInstruction,
+                lastInstructionExecuted,
+                conditionStatus,
+                parentField,
+                variableField,
+                byPassFlagLoop,
+                blockName,
+                testRow,
+                success);
     }
 
     private String normalizeNumber(String value) {
-        if (value == null) return null;
-        return value.replaceAll("[^0-9,.-]", "").replace(",", ".");
+        return ValidationMessageBuilder.normalizeNumber(value);
     }
 
     private String withConditionalPrefix(ARExecution.ConditionStatus conditionStatus, String message) {
-        String conditionalBlock = conditionStatus == ARExecution.ConditionStatus.IF_PASSED
-                ? "Closing Block { IF -> ELSE } -> "
-                : conditionStatus == ARExecution.ConditionStatus.ELSEIF_PASSED
-                        ? "Closing Block { ELSEIF -> ELSE } -> "
-                        : conditionStatus == ARExecution.ConditionStatus.ELSE_PASSED
-                                ? "Closing Block { ELSE -> ENDIF } -> "
-                                : "";
-
-        if (conditionStatus != null && conditionStatus != ARExecution.ConditionStatus.NONE) {
-            return conditionalBlock + message;
-        }
-        return message;
+        return ValidationMessageBuilder.withConditionalPrefix(conditionStatus, message);
     }
 
     public boolean excelReportWrite(
@@ -2717,169 +2535,42 @@ public class PerformActions {
     }
 
     public String getXPathInstruction(InstructionLoad currentInstruction, BlockLoadDTO blockLoad) {
-        try {
-            return blockLoad.getInstructionLoad().stream()
-                    .filter(f -> f.getId().equals(currentInstruction.getParentId()))
-                    .findFirst()
-                    .get()
-                    .getXpath();
-        } catch (Exception ex) {
-            return null;
-        }
+        return InstructionGraph.getXPathInstruction(currentInstruction, blockLoad);
     }
 
     public String getInstructionParentField(InstructionLoad currentInstruction, BlockLoadDTO blockLoad) {
-        try {
-            return blockLoad.getInstructionLoad().stream()
-                    .filter(f -> f.getId().equals(currentInstruction.getParentId()))
-                    .findFirst()
-                    .get()
-                    .getName()
-                    .trim();
-        } catch (Exception ex) {
-            return null;
-        }
+        return InstructionGraph.getInstructionParentField(currentInstruction, blockLoad);
     }
 
     public String getInstructionParentActions(InstructionLoad currentInstruction, BlockLoadDTO blockLoad) {
-        try {
-            return blockLoad.getInstructionLoad().stream()
-                    .filter(f -> f.getId().equals(currentInstruction.getParentId()))
-                    .findFirst()
-                    .get()
-                    .getActions();
-        } catch (Exception ex) {
-            return null;
-        }
+        return InstructionGraph.getInstructionParentActions(currentInstruction, blockLoad);
     }
 
     public String getInstructionVariableField(InstructionLoad currentInstruction, List<VariableLoadDTO> variableLoad) {
-        try {
-            return variableLoad.stream()
-                    .filter(f -> f.getId().equals(currentInstruction.getVariableId()))
-                    .findFirst()
-                    .map(v -> {
-                        return v.getId() + "-" + String.valueOf(v.getType().charAt(0))
-                                + v.getName().trim();
-                    })
-                    .orElse(null);
-        } catch (Exception ex) {
-            return null;
-        }
+        return InstructionGraph.getInstructionVariableField(currentInstruction, variableLoad);
     }
 
     public String getInstructionVariableFormat(InstructionLoad currentInstruction, List<VariableLoadDTO> variableLoad) {
-        try {
-            return variableLoad.stream()
-                    .filter(f -> f.getId().equals(currentInstruction.getVariableId()))
-                    .findFirst()
-                    .map(v -> {
-                        return v.getLocalFormat().trim();
-                    })
-                    .orElse(null);
-        } catch (Exception ex) {
-            return null;
-        }
+        return InstructionGraph.getInstructionVariableFormat(currentInstruction, variableLoad);
     }
 
     public String getInstructionVariableDelimiter(
             InstructionLoad currentInstruction, List<VariableLoadDTO> variableLoad) {
-        try {
-            return variableLoad.stream()
-                    .filter(f -> f.getId().equals(currentInstruction.getVariableId()))
-                    .findFirst()
-                    .map(v -> {
-                        return v.getDelimiter().trim();
-                    })
-                    .orElse(null);
-        } catch (Exception ex) {
-            return null;
-        }
+        return InstructionGraph.getInstructionVariableDelimiter(currentInstruction, variableLoad);
     }
 
-    // It Must be Greater than CurrentIndex
-    // Ir Predicts if is going to have multiple ENSEIFs
     public int searchMapConditional(
             Map<String, List<Integer>> mapConditional,
             int parentBlockCondition,
             ARExecution.ConditionStatus condition,
             int currentIndex,
             boolean showMessage) {
-
-        // Construct the key pattern
-        String keyPattern = parentBlockCondition + "-" + condition;
-
-        // Iterate through the map entries
-        for (Map.Entry<String, List<Integer>> entry : mapConditional.entrySet()) {
-            String key = entry.getKey();
-            List<Integer> indices = entry.getValue();
-
-            // Check if the key matches the pattern
-            if (key.startsWith(keyPattern)) {
-                // Find the first index in the list that is greater than or equal to currentIndex
-                for (int index : indices) {
-                    if (index >= currentIndex) {
-                        return index; // Return the matching index
-                    }
-                }
-            }
-        }
-
-        if (showMessage) {
-            // If no matching condition is found, show an error dialog
-            performMessage.showCustomModalDialog(
-                    "ERROR ON CONDITIONAL BLOCK",
-                    String.format(
-                            "Cannot find a matching condition for \"%s\" greater than the current index %d",
-                            condition, currentIndex),
-                    " Please click OK to continue!",
-                    null,
-                    null,
-                    true,
-                    "OK",
-                    null,
-                    0);
-        }
-
-        return -1; // Return -1 if no valid index is found
+        return InstructionGraph.searchMapConditional(
+                mapConditional, parentBlockCondition, condition, currentIndex, showMessage);
     }
 
     public Map<String, List<Integer>> getConditionIndexMapByParentId(BlockLoadDTO blockLoad) {
-        try {
-            // Create a map where key is "parentId-actions" and value is a list of indices
-            return IntStream.range(0, blockLoad.getInstructionLoad().size())
-                    .filter(index -> {
-                        InstructionLoad instruction =
-                                blockLoad.getInstructionLoad().get(index);
-                        String actions = instruction.getActions();
-                        return actions != null
-                                && (actions.equals("IF")
-                                        || actions.equals("ELSEIF")
-                                        || actions.equals("ELSE")
-                                        || actions.equals("ENDIF"));
-                    })
-                    .boxed() // Convert IntStream to Stream<Integer>
-                    .collect(Collectors.toMap(
-                            index -> {
-                                InstructionLoad instruction =
-                                        blockLoad.getInstructionLoad().get(index);
-                                return instruction.getParentId() + "-"
-                                        + instruction.getActions(); // Key: parentId-actions
-                            },
-                            index -> {
-                                List<Integer> indices = new ArrayList<>();
-                                indices.add(index);
-                                return indices;
-                            }, // Value: list of indices
-                            (existing, replacement) -> {
-                                existing.addAll(replacement);
-                                return existing;
-                            } // Handle duplicates by merging lists
-                            ));
-        } catch (Exception ex) {
-            // Return an empty map in case of an exception
-            return Collections.emptyMap();
-        }
+        return InstructionGraph.getConditionIndexMapByParentId(blockLoad);
     }
 
     public void createOutputHtml(String type, WebDriver driver) {
@@ -3450,101 +3141,28 @@ public class PerformActions {
     }
 
     public FieldData getBlockDetailsById(List<BlockLoadDTO> blocksLoaded, InstructionLoad currentInstruction) {
-        for (BlockLoadDTO block : blocksLoaded) {
-            if (block.getId() != null && block.getId().equals(currentInstruction.getParentBlockId())) {
-                FieldData blockDetails = new FieldData(
-                        currentInstruction.getId() + ":" + block.getId() + ":" + block.getBlockOrderNumber() + ":"
-                                + block.getName().trim(),
-                        currentInstruction.getOperation());
-                return blockDetails;
-            }
-        }
-        return null; // or throw an exception if the block is not found
+        return InstructionGraph.getBlockDetailsById(blocksLoaded, currentInstruction);
     }
 
     public int getBlockOrderNumber(List<BlockLoadDTO> blocksLoaded, Integer parentBlockId) {
-        for (BlockLoadDTO block : blocksLoaded) {
-            if (block.getId() != null && block.getId().equals(parentBlockId)) {
-                return block.getBlockOrderNumber();
-            }
-        }
-        return -1;
+        return InstructionGraph.getBlockOrderNumber(blocksLoaded, parentBlockId);
     }
 
     public FieldData getInstructionDetailsById(
             List<InstructionLoad> InstructionLoadS, InstructionLoad currentInstruction) {
-        for (InstructionLoad instParent : InstructionLoadS) {
-            if (instParent.getId() != null && instParent.getId().equals(currentInstruction.getParentId())) {
-                FieldData blockDetails = new FieldData(
-                        currentInstruction.getId() + ":" + instParent.getId() + ":"
-                                + instParent.getName().trim(),
-                        currentInstruction.getOperation());
-                return blockDetails;
-            }
-        }
-        return null; // or throw an exception if the block is not found
+        return InstructionGraph.getInstructionDetailsById(InstructionLoadS, currentInstruction);
     }
 
     public Map<String, Integer[]> getLoopAndRefreshLoops(List<InstructionLoad> InstructionLoadS) {
-        // Step 2: Filter rows where actions = "REFRESH_LOOP" or "LOOP" and collect into the map
-        Map<String, Integer[]> mapRefreshLoops = new HashMap<>();
-
-        for (InstructionLoad instruction : InstructionLoadS) {
-            // Filter by actions
-            String actions = instruction.getActions();
-            if ("REFRESH_LOOP".equalsIgnoreCase(actions) || "LOOP".equalsIgnoreCase(actions)) {
-                // Convert id to String for the key
-                String key = String.valueOf(instruction.getId());
-
-                // Parse the operation into Integer[]
-                String operation = instruction.getOperation();
-                Integer[] operationValues;
-                if (operation == null || operation.isEmpty()) {
-                    operationValues = new Integer[] {}; // Handle null/empty operation
-                } else {
-                    String[] parts = operation.split(":"); // Split by ':'
-                    operationValues = new Integer[parts.length];
-                    for (int i = 0; i < parts.length; i++) {
-                        operationValues[i] = Integer.parseInt(parts[i]); // Convert each part to Integer
-                    }
-                }
-
-                // Add to the map
-                mapRefreshLoops.put(key, operationValues);
-            }
-        }
-
-        // Traverse and print keys and values
-        for (Map.Entry<String, Integer[]> entry : mapRefreshLoops.entrySet()) {
-            String key = entry.getKey(); // The key
-            Integer[] values = entry.getValue(); // The value as an array
-
-            // Convert the Integer[] to a readable string
-            String valuesAsString = Arrays.stream(values)
-                    .map(String::valueOf) // Convert each Integer to String
-                    .collect(Collectors.joining(":")); // Join with ':'
-
-            // Print the key and value
-            logOperations.info("Key: " + key + ", Value: " + valuesAsString);
-        }
-
-        return mapRefreshLoops;
+        return InstructionGraph.getLoopAndRefreshLoops(InstructionLoadS);
     }
 
     public Set<Integer> getParentIdsForLoop(List<InstructionLoad> InstructionLoadS) {
-        return InstructionLoadS.stream()
-                .filter(instruction -> "REFRESH_LOOP".equalsIgnoreCase(instruction.getActions())
-                        || "LOOP".equalsIgnoreCase(instruction.getActions()))
-                .map(InstructionLoad::getParentId)
-                .collect(Collectors.toSet());
+        return InstructionGraph.getParentIdsForLoop(InstructionLoadS);
     }
 
     public Set<Integer> getAllOutputsPerBlock(List<InstructionLoad> InstructionLoadS) {
-        return InstructionLoadS.stream()
-                .filter(instruction -> instruction.getActions() != null
-                        && instruction.getActions().trim().toUpperCase().startsWith("O:"))
-                .map(InstructionLoad::getId)
-                .collect(Collectors.toSet());
+        return InstructionGraph.getAllOutputsPerBlock(InstructionLoadS);
     }
 
     public void logAndReport(
@@ -3597,22 +3215,8 @@ public class PerformActions {
             Map<String, List<Integer>> mapConditional,
             int parentBlockCondition,
             int currentIndex) {
-        if (action.equalsIgnoreCase(ARConstantsEngine.ELSEIF)) {
-            // Goes to the ENDIF (ENDIF index + 1);
-            return searchMapConditional(
-                    mapConditional, parentBlockCondition, ARExecution.ConditionStatus.ENDIF, currentIndex, true);
-
-        } else if (action.equalsIgnoreCase(ARConstantsEngine.ELSE)) {
-            // Goes to the ENDIF (ENDIF index + 1);
-            return searchMapConditional(
-                    mapConditional, parentBlockCondition, ARExecution.ConditionStatus.ENDIF, currentIndex, true);
-
-        } else if (action.equalsIgnoreCase(ARConstantsEngine.ELSE)) {
-            // Goes to the ENDIF (ENDIF index + 1);
-            return searchMapConditional(
-                    mapConditional, parentBlockCondition, ARExecution.ConditionStatus.ENDIF, currentIndex, true);
-        }
-        return 0;
+        return InstructionGraph.checkActionToJump(
+                action, progressCondition, mapConditional, parentBlockCondition, currentIndex);
     }
 
     public Map<WebElement, List<WebElement>> getIframeElementsMap() {
