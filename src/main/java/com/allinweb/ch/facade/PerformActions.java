@@ -5,6 +5,8 @@ import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
 import com.allinweb.ch.builder.WebElementIcon;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.driver.ARWebDriver;
+import com.allinweb.ch.facade.actions.BrowserJsUtils;
+import com.allinweb.ch.facade.actions.WebTextUtils;
 import com.allinweb.ch.model.*;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
 import com.allinweb.ch.util.*;
@@ -48,10 +50,6 @@ public class PerformActions {
     private static final PerformMessage performMessage;
     private static final IframeInputLocator iframeInputLocator;
     private static final ARPropertyManager arPropertyManager;
-    private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-    private static final int MIN_LENGTH = 3;
-    private static final int MAX_LENGTH = 30;
-    private static final Random RANDOM = new Random();
     private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
     public static Wait<WebDriver> waitForPage;
     public static Wait<WebDriver> waitForAction;
@@ -131,134 +129,36 @@ public class PerformActions {
     }
 
     public static String removeTrailingSlash(String xPath) {
-        if (xPath != null && xPath.endsWith("/")) {
-            return xPath.substring(0, xPath.length() - 1);
-        }
-        return xPath;
+        return WebTextUtils.removeTrailingSlash(xPath);
     }
 
     public static String extractTagName(String xPath) {
-        // Find the position of the last '/'
-        int lastSlashIndex = xPath.lastIndexOf("/");
-
-        // Extract the substring after the last '/'
-        String lastSegment = xPath.substring(lastSlashIndex + 1);
-
-        // If the last segment contains '[', extract the tag name before it
-        int bracketIndex = lastSegment.indexOf("[");
-        if (bracketIndex != -1) {
-            return lastSegment.substring(0, bracketIndex);
-        }
-
-        // Return the last segment as the tag name
-        return lastSegment;
+        return WebTextUtils.extractTagName(xPath);
     }
 
     public static String convertToCssSelector(String tagName, List<String> priorityToSearch, String attributeValue) {
-
-        for (String priority : priorityToSearch) {
-            priority = priority.trim();
-            String attributeName;
-
-            if (priority.equalsIgnoreCase("attributeID")) {
-                attributeName = "id";
-            } else if (priority.equalsIgnoreCase("attributeName")) {
-                attributeName = "name";
-            } else {
-                attributeName = priority; // Use the priority as the attribute name for other cases
-            }
-
-            // Create the CSS selector string and add it to the list
-            return tagName + "[" + attributeName + "='" + attributeValue.trim() + "']";
-        }
-
-        return null;
+        return WebTextUtils.convertToCssSelector(tagName, priorityToSearch, attributeValue);
     }
 
     public static List<By> convertToCriteriaList(String tagName, List<String> priorityToSearch, String someXPath) {
-        // Split the string by commas and trim any leading/trailing whitespace from each element
-        List<By> criteriaList = new ArrayList<>();
-
-        for (String priority : priorityToSearch) {
-            priority = priority.trim();
-
-            if (priority.equalsIgnoreCase("attributeID")) {
-                priority = "id";
-            } else if (priority.equalsIgnoreCase("attributeName")) {
-                priority = "name";
-            }
-            // Create the By.cssSelector object and add it to the list
-            By criteria = By.cssSelector(tagName + "[" + priority + "='" + someXPath + "']");
-            criteriaList.add(criteria);
-        }
-
-        return criteriaList;
+        return WebTextUtils.convertToCriteriaList(tagName, priorityToSearch, someXPath);
     }
 
     public static FieldData insertRandomName(String key) {
-        String randomName = generateRandomName();
-        return new FieldData(key, randomName);
+        return WebTextUtils.insertRandomName(key);
     }
 
     public static String generateRandomName() {
-        int length = RANDOM.nextInt(MAX_LENGTH - MIN_LENGTH + 1) + MIN_LENGTH;
-        StringBuilder nameBuilder = new StringBuilder(length);
-
-        for (int i = 0; i < length; i++) {
-            char randomChar = CHARACTERS.charAt(RANDOM.nextInt(CHARACTERS.length()));
-            nameBuilder.append(randomChar);
-        }
-
-        return nameBuilder.toString();
+        return WebTextUtils.generateRandomName();
     }
 
-    // Function to check if the element is visible
     private static boolean isElementVisible(WebElement element, WebDriver driver) {
-        // Check if the element is displayed and within the viewport
-        try {
-            return element.isDisplayed() && isInViewport(element, driver);
-        } catch (Exception e) {
-            logOperations.info(e.getMessage());
-            return false;
-        }
-    }
-
-    // Function to check if the element is within the viewport
-    private static boolean isInViewport(WebElement element, WebDriver driver) {
-        // Use JavaScript to check if the element is in the viewport
-        // Use the WebDriver (which implements JavascriptExecutor) to execute JavaScript
-        JavascriptExecutor js = (JavascriptExecutor) driver;
-
-        // Execute the JavaScript to get the element's position and check if it's in the viewport
-        return (boolean) js.executeScript(
-                "var rect = arguments[0].getBoundingClientRect(); "
-                        + "return (rect.top >= 0 && rect.left >= 0 && rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) && rect.right <= (window.innerWidth || document.documentElement.clientWidth));",
-                element);
+        return BrowserJsUtils.isElementVisible(element, driver);
     }
 
     public static String insertValueIFrameElement(
             WebDriver driver, String iframeXPath, String inputXPath, String inputValue) {
-        jsExecutor = (JavascriptExecutor) driver;
-
-        String script = "(function(iframeXPath, inputXPath, inputValue) {" + "    let logs = [];"
-                + "    let iframe = document.evaluate(iframeXPath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;"
-                + "    if (iframe) {"
-                + "        let iframeDocument = iframe.contentDocument || iframe.contentWindow.document;"
-                + "        let inputElement = document.evaluate(inputXPath, iframeDocument, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;"
-                + "        if (inputElement) {"
-                + "            inputElement.value = inputValue;"
-                + "            inputElement.dispatchEvent(new Event('input', { bubbles: true }));"
-                + "            logs.push('Text entered successfully.');"
-                + "        } else {"
-                + "            logs.push('Input field not found inside the iframe.');"
-                + "        }"
-                + "    } else {"
-                + "        logs.push('Iframe not found.');"
-                + "    }"
-                + "    return logs.join('\n');"
-                + "})(arguments[0], arguments[1], arguments[2]);";
-
-        return (String) jsExecutor.executeScript(script, iframeXPath, inputXPath, inputValue);
+        return BrowserJsUtils.insertValueIFrameElement(driver, iframeXPath, inputXPath, inputValue);
     }
 
     public static String insertValueIFrameElement(
@@ -268,81 +168,16 @@ public class PerformActions {
             String inputValue,
             String targetOriginURL,
             String trustedOriginURL) {
-
-        jsExecutor = (JavascriptExecutor) driver;
-
-        String script = "(function(iframeXPath, inputXPath, inputValue, targetOriginURL, trustedOriginURL) {"
-                + "    let logs = [];"
-                + "    let iframe = document.evaluate(iframeXPath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;"
-                + "    if (iframe) {"
-                + "        let iframeDocument = iframe.contentDocument || iframe.contentWindow.document;"
-                + "        let inputElement = document.evaluate(inputXPath, iframeDocument, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;"
-                + "        if (inputElement) {"
-                + "            inputElement.value = inputValue;"
-                + "            inputElement.dispatchEvent(new Event('input', { bubbles: true }));"
-                + "            logs.push('Text entered successfully.');"
-                + "            "
-                + "            // Send a message to the targetOriginURL (globally, once input is set)"
-                + "            window.postMessage({ type: 'myMessage', data: 'some data' }, targetOriginURL);"
-                + "        } else {"
-                + "            logs.push('Input field not found inside the iframe.');"
-                + "        }"
-                + "    } else {"
-                + "        logs.push('Iframe not found.');"
-                + "    }"
-                + "    return logs.join('\\n');"
-                + "} )(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);"
-                + " // Listen for messages from the trusted origin (this needs to be in the global scope)"
-                + "window.addEventListener('message', function (event) {"
-                + "    if (event.origin !== trustedOriginURL) return;" // Validate message source
-                + "    console.log('Received message:', event.data);"
-                + "});";
-
-        return (String) jsExecutor.executeScript(
-                script, iframeXPath, inputXPath, inputValue, targetOriginURL, trustedOriginURL);
+        return BrowserJsUtils.insertValueIFrameElement(
+                driver, iframeXPath, inputXPath, inputValue, targetOriginURL, trustedOriginURL);
     }
 
     public static String truncateAndNormalize(String someText, int limit) {
-        return someText;
-        //        if (someText == null || someText.isEmpty()) {
-        //            return someText;
-        //        }
-        //
-        //        // Remove extra spaces and trim
-        //        String normalizedText = someText.trim().replaceAll("\\s+", " ");
-        //
-        //        if (normalizedText.length() <= limit) {
-        //            return normalizedText;
-        //        }
-        //
-        //        return normalizedText.substring(0, limit) + "...";
+        return WebTextUtils.truncateAndNormalize(someText, limit);
     }
 
-    /**
-     * Extracts the file extension from the given string, considering it may be a path.
-     *
-     * @param input The string from which to extract the file extension.
-     * @return The file extension if present and the string is identified as a file, otherwise an empty string.
-     */
     public static String extractFileExtension(String input) {
-        if (input == null || input.isEmpty()) {
-            return "";
-        }
-
-        // Find the last slash in the string
-        int lastIndexOfSlash = input.lastIndexOf('/');
-
-        // Get the substring after the last slash
-        String lastSegment = lastIndexOfSlash == -1 ? input : input.substring(lastIndexOfSlash + 1);
-
-        // If the last segment contains a period, it is considered a file
-        int lastIndexOfDot = lastSegment.lastIndexOf('.');
-        if (lastIndexOfDot == -1 || lastIndexOfDot == lastSegment.length() - 1) {
-            return "";
-        }
-
-        // Extract the substring after the last period
-        return lastSegment.substring(lastIndexOfDot + 1);
+        return WebTextUtils.extractFileExtension(input);
     }
 
     public static WebElement findElementByID(WebDriver driver, String elementID) {
@@ -377,20 +212,7 @@ public class PerformActions {
     }
 
     public static String extractAttribute(WebElement element, WebElementAttributeEnum attributeEnum) {
-        return element.getAttribute(attributeEnum.getValue());
-    }
-
-    private static String insertGroupingSeparators(String number, String separator) {
-        StringBuilder sb = new StringBuilder();
-        int count = 0;
-        for (int i = number.length() - 1; i >= 0; i--) {
-            sb.insert(0, number.charAt(i));
-            count++;
-            if (count % 3 == 0 && i != 0) {
-                sb.insert(0, separator);
-            }
-        }
-        return sb.toString();
+        return WebTextUtils.extractAttribute(element, attributeEnum);
     }
 
     public AtomicBoolean interceptBotJobProperty() {
@@ -1117,18 +939,7 @@ public class PerformActions {
     }
 
     private String normalizeLocatorValue(String referenceType, String value) {
-        if (value == null) return null;
-
-        // If DB stores full css/xpath already, use it as-is.
-        // If DB stores only the raw id/name, convert where needed.
-        switch (referenceType) {
-            case "locator.css.id":
-                // stored could be "password" or "#password"
-                return value.startsWith("#") ? value : "#" + value;
-
-            default:
-                return value;
-        }
+        return WebTextUtils.normalizeLocatorValue(referenceType, value);
     }
 
     private String insertTargetElement(
@@ -4223,7 +4034,7 @@ public class PerformActions {
     }
 
     private boolean isValidString(String value) {
-        return value != null && !value.isBlank();
+        return WebTextUtils.isValidString(value);
     }
 
     public boolean isClickable(WebElement element, String tagNameDefined) {
@@ -4256,19 +4067,7 @@ public class PerformActions {
     }
 
     public void highlightElement(JavascriptExecutor jsExecutor, WebElement previousElement, WebElement currentElement) {
-        // Reset background color of the previous element
-        try {
-            if (previousElement != null) {
-                jsExecutor.executeScript("arguments[0].style.backgroundColor = '';", previousElement);
-            }
-
-            // Highlight the current element
-            if (currentElement != null) {
-                jsExecutor.executeScript("arguments[0].style.backgroundColor = 'red';", currentElement);
-            }
-        } catch (Exception error) {
-
-        }
+        BrowserJsUtils.highlightElement(jsExecutor, previousElement, currentElement);
     }
 
     public WebElement findShadowElementByCssSelector(String shadowLocator, String cssSelector) {
@@ -4606,66 +4405,15 @@ public class PerformActions {
     }
 
     public Map<String, String> removeCurrencySymbols(Map<String, String> mapExport) {
-        // Use LinkedHashMap to preserve the insertion order
-        Map<String, String> cleanedMap = new LinkedHashMap<>();
-        for (Map.Entry<String, String> entry : mapExport.entrySet()) {
-            String key = entry.getKey();
-            String value = entry.getValue();
-            String cleanedValue = removeAllCurrencySymbols(value);
-            cleanedMap.put(key, cleanedValue);
-        }
-        return cleanedMap;
+        return WebTextUtils.removeCurrencySymbols(mapExport);
     }
 
-    /**
-     * Removes all characters that are not numbers or the decimal separator.
-     *
-     * @param input The string to clean.
-     * @return A cleaned version of the string.
-     */
     public String removeAllCurrencySymbols(String input) {
-        // Remove all non-numeric and non-decimal characters (e.g., $, €, etc.)
-        return input.replaceAll("[^0-9.,]", "");
+        return WebTextUtils.removeAllCurrencySymbols(input);
     }
 
     public String formatLocalNumber(String numberString, String localFormat) {
-        try {
-            String decimalPart = "";
-            String integerPart = "";
-
-            // Find last occurrence of "," or "." as decimal separator
-            int decimalIndex = Math.max(numberString.lastIndexOf(','), numberString.lastIndexOf('.'));
-            if (decimalIndex != -1) {
-                decimalPart = numberString.substring(decimalIndex + 1);
-                integerPart = numberString.substring(0, decimalIndex).replaceAll("[^0-9]", "");
-            } else {
-                integerPart = numberString.replaceAll("[^0-9]", "");
-            }
-
-            // Determine formatting style
-            String groupingSeparator;
-            String decimalSeparator;
-
-            if ("US".equalsIgnoreCase(localFormat)) {
-                groupingSeparator = ",";
-                decimalSeparator = ".";
-            } else if ("EU".equalsIgnoreCase(localFormat)) {
-                groupingSeparator = ".";
-                decimalSeparator = ",";
-            } else { // Default
-                groupingSeparator = ",";
-                decimalSeparator = ".";
-            }
-
-            // Rebuild integer part with grouping
-            String groupedInteger = insertGroupingSeparators(integerPart, groupingSeparator);
-
-            return decimalPart.isEmpty() ? groupedInteger : groupedInteger + decimalSeparator + decimalPart;
-
-        } catch (Exception e) {
-            logOperations.error("Error formatting number: " + numberString + " - " + e.getMessage());
-            return numberString;
-        }
+        return WebTextUtils.formatLocalNumber(numberString, localFormat);
     }
 
     //    private void listOperation(boolean byPassNotFound, InstructionLoad instructionDTO) {
