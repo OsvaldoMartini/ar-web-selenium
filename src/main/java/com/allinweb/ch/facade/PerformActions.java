@@ -6,9 +6,12 @@ import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.actions.ActionContext;
 import com.allinweb.ch.facade.actions.BrowserJsUtils;
 import com.allinweb.ch.facade.actions.CoordinateActions;
+import com.allinweb.ch.facade.actions.DataExtractor;
 import com.allinweb.ch.facade.actions.ElementDtoMapper;
 import com.allinweb.ch.facade.actions.ElementInteraction;
 import com.allinweb.ch.facade.actions.ElementLocator;
+import com.allinweb.ch.facade.actions.EngineDialogs;
+import com.allinweb.ch.facade.actions.ExecutionReporter;
 import com.allinweb.ch.facade.actions.InstructionGraph;
 import com.allinweb.ch.facade.actions.PlaywrightBridge;
 import com.allinweb.ch.facade.actions.ValidationMessageBuilder;
@@ -21,7 +24,6 @@ import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -67,9 +69,6 @@ public class PerformActions implements ActionContext {
     public List<String> windowHandlesList = new ArrayList<>();
     public int currentTabIndex = 0; // Track the currently active tab index
 
-    @Getter
-    long totalExecutionTime = 0;
-
     private AtomicBoolean interceptBotJob = new AtomicBoolean(false);
     private ARPriorities arPriorities;
 
@@ -98,6 +97,13 @@ public class PerformActions implements ActionContext {
     private final WindowAndFrameManager windowAndFrameManager = new WindowAndFrameManager(this);
     private final ElementLocator elementLocator = new ElementLocator(this);
     private final ElementInteraction elementInteraction = new ElementInteraction(this, coordinateActions);
+    private final DataExtractor dataExtractor = new DataExtractor(this);
+    private final EngineDialogs engineDialogs = new EngineDialogs(this);
+    private final ExecutionReporter executionReporter = new ExecutionReporter();
+
+    public long getTotalExecutionTime() {
+        return executionReporter.getTotalExecutionTime();
+    }
 
     // ---- ActionContext implementation: live one-line views over the facade's own state ----
 
@@ -748,67 +754,11 @@ public class PerformActions implements ActionContext {
                 byPassNotFound, element, dataFieldValue, defaultValue, isEncrypted, flags);
     }
 
-    /**
-     * Extracts the dataFieldName and dataFieldValue based on the instruction and DTO.
-     */
-    /**
-     * Extracts the fieldName and fieldValue based on the instruction and DTO.
-     */
     public FieldData extractFieldData(
             Map<String, String> data, String[] actions, String defaultValue, boolean isEncrypted) throws Exception {
-
-        String dataFieldName = "";
-        String dataFieldValue = "";
-
-        if (data != null) {
-            if (actions.length >= 3
-                    && actions[0].equals(ARConstantsEngine.INSERT)
-                    && actions[1].equals(ARConstantsEngine.ENTER)) {
-
-                dataFieldName = actions[2].split(ARConstantsEngine.PATH_FIELD_SUBSTITUTION)[0];
-                dataFieldValue = data.get(dataFieldName);
-
-                if (isEncrypted && dataFieldValue != null) {
-                    dataFieldValue = CryptationAlgorithm.decrypt(dataFieldValue);
-                }
-
-            } else if (actions.length == 2 && actions[0].equals(ARConstantsEngine.INSERT)) {
-
-                dataFieldName = actions[1].split(ARConstantsEngine.PATH_FIELD_SUBSTITUTION)[0];
-                dataFieldValue = data.get(dataFieldName);
-
-                if (isEncrypted && dataFieldValue != null) {
-                    dataFieldValue = CryptationAlgorithm.decrypt(dataFieldValue);
-                }
-            }
-        } else if (defaultValue != null && !defaultValue.isEmpty()) {
-            dataFieldValue = defaultValue;
-            if (isEncrypted) {
-                dataFieldValue = CryptationAlgorithm.decrypt(dataFieldValue);
-            }
-        }
-
-        return new FieldData(dataFieldName, dataFieldValue);
+        return dataExtractor.extractFieldData(data, actions, defaultValue, isEncrypted);
     }
 
-    /**
-     * Block scoped, clientNamed aware variant. Use this from executeJob and from the engine
-     * runner. The legacy {@code extractFieldData(Map, ...)} above keeps the flat map signature
-     * for any other caller but suffers from two issues now that clientNamed exists.
-     *
-     * <ol>
-     *   <li>Excel column headers are {@code instruction.displayKey()}, which is clientNamed
-     *       when set and the canonical name otherwise. The legacy method looks up by the
-     *       canonical name from the action string and would miss every renamed field.
-     *   <li>The flat row map merges values across all blocks. Two blocks with the same
-     *       displayKey or the same canonical name silently share one cell, so the second
-     *       block value is lost. The block scoped lookup against {@link ExtractedData} keeps
-     *       each block column independent.
-     * </ol>
-     *
-     * Lookup ladder is block displayKey, then block canonical, then null. The canonical
-     * fallback handles legacy Excel files written before clientNamed was set.
-     */
     public FieldData extractFieldData(
             ExtractedData extractedData,
             String blockName,
@@ -818,38 +768,8 @@ public class PerformActions implements ActionContext {
             String defaultValue,
             boolean isEncrypted)
             throws Exception {
-
-        String dataFieldName = "";
-        String dataFieldValue = "";
-
-        if (extractedData != null) {
-            if (actions.length >= 3
-                    && actions[0].equals(ARConstantsEngine.INSERT)
-                    && actions[1].equals(ARConstantsEngine.ENTER)) {
-                dataFieldName = actions[2].split(ARConstantsEngine.PATH_FIELD_SUBSTITUTION)[0];
-            } else if (actions.length == 2 && actions[0].equals(ARConstantsEngine.INSERT)) {
-                dataFieldName = actions[1].split(ARConstantsEngine.PATH_FIELD_SUBSTITUTION)[0];
-            }
-
-            if (!dataFieldName.isEmpty()) {
-                String displayKey = (instruction != null) ? instruction.displayKey() : dataFieldName;
-                dataFieldValue = extractedData.getFieldValue(blockName, displayKey, row);
-                if (dataFieldValue == null && !displayKey.equals(dataFieldName)) {
-                    dataFieldValue = extractedData.getFieldValue(blockName, dataFieldName, row);
-                }
-
-                if (isEncrypted && dataFieldValue != null) {
-                    dataFieldValue = CryptationAlgorithm.decrypt(dataFieldValue);
-                }
-            }
-        } else if (defaultValue != null && !defaultValue.isEmpty()) {
-            dataFieldValue = defaultValue;
-            if (isEncrypted) {
-                dataFieldValue = CryptationAlgorithm.decrypt(dataFieldValue);
-            }
-        }
-
-        return new FieldData(dataFieldName, dataFieldValue);
+        return dataExtractor.extractFieldData(
+                extractedData, blockName, row, instruction, actions, defaultValue, isEncrypted);
     }
 
     private boolean insertDataInSelectElement(
@@ -866,175 +786,25 @@ public class PerformActions implements ActionContext {
             String action,
             Map<String, String> mapOperators)
             throws Exception {
-
-        UtilsMethods.exceptionIfNullWebElement(element);
-
-        try {
-            waitForAction.until(ExpectedConditions.visibilityOf(element));
-        } catch (Exception ex) {
-
-            logOperations.warn(
-                    String.format("Could Not Find Field Name \"%s\" -> Cause: %s", fieldName, ex.getMessage()));
-
-            if (!byPassNotFound) {
-                performMessage.couldNotFindElement(fieldName);
-            }
-            return null;
-        }
-
-        String textByhJS = "";
-        String finalTextNested = "";
-        String textAttribute = "";
-        String textContext = "";
-
-        try {
-            JavascriptExecutor js = (JavascriptExecutor) this.currentDriver;
-            textByhJS = (String) js.executeScript("return arguments[0].textContent;", element);
-        } catch (Exception ex) {
-
-            logOperations.warn(
-                    String.format("By JavascriptExecutor - Not succeeded to get a Text from Label for: %s", fieldName));
-        }
-
-        try {
-            List<WebElement> children = element.findElements(By.xpath(".//*"));
-            StringBuilder textByNested = new StringBuilder();
-            for (WebElement child : children) {
-                textByNested.append(child.getText()).append(" ");
-            }
-            finalTextNested = textByNested.toString().trim();
-        } catch (Exception ex) {
-
-            logOperations.warn(
-                    String.format("By Text Nested - Not succeeded to get a Text from Label for: %s", fieldName));
-        }
-
-        try {
-            textAttribute = element.getAttribute("value");
-        } catch (Exception ex) {
-
-            logOperations.warn(String.format(
-                    "By Text Attribute - Not succeeded to get a Text from Label for: %s Operation: %s",
-                    fieldName, action));
-        }
-
-        try {
-            textContext = element.getAttribute("textContent");
-        } catch (Exception ex) {
-
-            logOperations.warn(String.format(
-                    "By Text Content - Not succeeded to get a Text from Label for: %s Operation: %s",
-                    fieldName, action));
-        }
-
-        // Check if the element is clickable
-        boolean isClickable = false;
-        try {
-            waitForAction.until(ExpectedConditions.elementToBeClickable(element));
-            isClickable = true;
-        } catch (Exception e) {
-
-            logOperations.warn(String.format("Element is not clickable: \"%s\"", fieldName));
-        }
-
-        // Set the final text value by priority and add to mapOperators
-        String finalText = "";
-
-        if (isClickable && finalTextNested != null && !finalTextNested.trim().isEmpty()) {
-            finalText = finalTextNested; // Use nested text if the element is clickable
-            mapOperators.put(fieldName.trim(), finalText.trim());
-        } else if (textByhJS != null && !textByhJS.trim().isEmpty()) {
-            finalText = textByhJS;
-            mapOperators.put(fieldName.trim(), finalText.trim());
-        } else if (finalTextNested != null && !finalTextNested.trim().isEmpty()) {
-            finalText = finalTextNested;
-            mapOperators.put(fieldName.trim(), finalText.trim());
-        } else if (textAttribute != null && !textAttribute.trim().isEmpty()) {
-            finalText = textAttribute;
-            mapOperators.put(fieldName.trim(), finalText.trim());
-        } else if (textContext != null && !textContext.trim().isEmpty()) {
-            finalText = textContext;
-            mapOperators.put(fieldName.trim(), finalText.trim());
-        } else {
-            mapOperators.put(fieldName.trim(), "Failed to Load teh Text");
-
-            logOperations.error(String.format("Failed to retrieve text from element for: %s", fieldName));
-        }
-
-        return finalText;
+        return dataExtractor.getOutPutElement(byPassNotFound, element, fieldName, action, mapOperators);
     }
 
     public void quit(int status) {
-        this.currentDriver.quit();
-        if (status == 0) {
-            System.exit(status);
-        }
+        engineDialogs.quit(status);
     }
 
     public short operationLog(boolean success, String mainMsg, String currentExecution, long duration) {
-
-        if (success) {
-
-            logOperations.info(String.format(
-                    success ? "Success %s Current Cmd: %s - Duration: %s" : "Failed %s Current Cmd: %s - Duration: %s",
-                    mainMsg,
-                    currentExecution,
-                    LocalTime.ofNanoOfDay(duration).format(FORMAT_TIME)));
-        } else {
-
-            logOperations.warn(String.format(
-                    success ? "Success %s Current Cmd: %s - Duration: %s" : "Failed %s Current Cmd: %s - Duration: %s",
-                    mainMsg,
-                    currentExecution,
-                    LocalTime.ofNanoOfDay(duration).format(FORMAT_TIME)));
-        }
-
-        return (short) (success ? ExcelReportStatusEnum.SUCCESS.ordinal() : ExcelReportStatusEnum.ERROR.ordinal());
+        return executionReporter.operationLog(success, mainMsg, currentExecution, duration);
     }
 
     public String pauseEngine(String blockName) {
-
-        //        JavascriptExecutor js = (JavascriptExecutor) this.currentDriver;
-        //        js.executeScript("alert('This is a custom alert modal!');");
-        String message = "PAUSE REQUESTED "
-                + "<br>-------------------------------------------------<br>"
-                + "BOT JOB in PAUSE MODE:: <b style='color:red;'><br>"
-                + blockName
-                + "</b>"
-                + "<br>-------------------------------------------------<br>";
-
-        alertMessage(message);
-
-        return "BOT JOG in PAUSE MODE: " + blockName;
+        return engineDialogs.pauseEngine(blockName);
     }
 
     public String getValueIsNotDefinedEngine(
             InstructionLoad currentInstruction, String lastInstructionExecuted, boolean ifClause, boolean elseClause) {
-
-        if (!ifClause && !elseClause) {
-            String message = "There is NOT GET VALUE defined for: "
-                    + "<br>-------------------------------------------------<br>"
-                    + "Validation Error: <b style='color:red;'>"
-                    + currentInstruction.getName()
-                    + "</b>"
-                    + "<br>-------------------------------------------------<br>"
-                    + "Check the GET for <b style='color:red;'>"
-                    + currentInstruction.getParentId() + "-"
-                    + currentInstruction.getOperation()
-                    + "</b>";
-            alertMessage(message);
-        }
-
-        String conditionalBlock = ifClause
-                ? "Closing Block { IF -> ELSE }  -> "
-                : elseClause ? "Closing Block { ELSE -> ENDIF }  -> " : "";
-
-        if (ifClause || elseClause) {
-            return conditionalBlock + " -> " + lastInstructionExecuted;
-
-        } else {
-            return lastInstructionExecuted;
-        }
+        return engineDialogs.getValueIsNotDefinedEngine(
+                currentInstruction, lastInstructionExecuted, ifClause, elseClause);
     }
 
     public String getValueIsNotDefined(
@@ -1044,150 +814,21 @@ public class PerformActions implements ActionContext {
             ARExecution.ConditionStatus conditionStatus,
             String parentField,
             String variableField) {
-
-        if (conditionStatus.equals(ARExecution.ConditionStatus.NONE)) {
-            String msg1, msg2, msg3, msg4 = null;
-
-            if (action.equals(ARConstantsEngine.EXTRACT_FIELD)
-                    || action.equals(ARConstantsEngine.CHECK_VALUE)
-                    || action.equals(ARConstantsEngine.PDF_CHECK)
-                    || action.equals(ARConstantsEngine.CSV_CHECK)) {
-                msg1 = "The variable \"" + variableField + "\" has not been assigned.";
-                msg2 = "Please add a <span style='color: #000080; font-weight: bold;'>GET</span> step for \""
-                        + currentInstruction.getName() + "\" to assign this variable.";
-                msg3 = "Missing a <span style='color: #000080; font-weight: bold;'>GET</span> for variable \""
-                        + variableField + "\" .";
-            } else {
-                msg1 = "No GET value has been defined for: \"" + currentInstruction.getName() + "\".";
-                msg2 = "Please add a GET step for instruction ID: " + currentInstruction.getParentId()
-                        + " - Operation: " + currentInstruction.getOperation() + ".";
-
-                if (parentField != null) {
-                    msg3 = "Parent Web Field:";
-                    msg4 = "Instruction ID " + currentInstruction.getParentId() + " - \"" + parentField + "\".";
-                } else {
-                    msg3 = "Parent Web Field is not defined!";
-                    msg4 = "Ensure a valid parent field is assigned.";
-                }
-            }
-            logOperations.error(
-                    "Missing Variable for \"{}\" - {} - {} - {} - {}",
-                    currentInstruction.getName(),
-                    msg1,
-                    msg2,
-                    msg3,
-                    msg4);
-            performMessage.errorMessage(
-                    "Missing Variable for \"" + currentInstruction.getName() + "\"", msg1, msg2, msg3, msg4, 0);
-        }
-
-        String conditionalBlock = conditionStatus.equals(ARExecution.ConditionStatus.IF_PASSED)
-                ? "Closing Block { IF -> ELSE }  -> "
-                : conditionStatus.equals(ARExecution.ConditionStatus.ELSEIF_PASSED)
-                        ? "Closing Block { ELSEIF -> ELSE }  -> "
-                        : conditionStatus.equals(ARExecution.ConditionStatus.ELSE_PASSED)
-                                ? "Closing Block { ELSE -> ENDIF }  -> "
-                                : "Get Value Is Not Defined";
-
-        if (!conditionStatus.equals(ARExecution.ConditionStatus.NONE)) {
-            return conditionalBlock + " -> " + lastInstructionExecuted;
-
-        } else {
-            return lastInstructionExecuted;
-        }
+        return engineDialogs.getValueIsNotDefined(
+                action, currentInstruction, lastInstructionExecuted, conditionStatus, parentField, variableField);
     }
 
     public String parentValueIsNotDefined(String instructionName, String parentField, String resultActions) {
-
-        //        showAlert(
-        //                Alert.AlertType.ERROR,
-        //                "Parent is Not Defined for \"" + instructionName + "\"",
-        //                "\"" + instructionName + "\" - Parent is Not Defined",
-        //                "There is NOT PARENT VALUE defined for: "
-        //                        + instructionName
-        //                        + "\n --------------------- "
-        //                        + "\nCheck the PARENT Web field for "
-        //                        + parentId + "- Unknown");
-        String msg1 = "Parent is Not Defined for \"" + instructionName + "\"";
-        String msg2 = "There is NOT PARENT VALUE defined for: ";
-        String msg3 = "Check the PARENT Web field for \"" + parentField + "\"";
-
-        logOperations.error("Parent Id Error: {} - {} - {}", msg1, msg2, msg3);
-        performMessage.errorMessage("Parent Id Error", msg1, msg2, msg3, null, 0);
-
-        return resultActions;
+        return engineDialogs.parentValueIsNotDefined(instructionName, parentField, resultActions);
     }
 
     public String parentValueIsNotDefinedEngine(String instructionName, String parentField, String resultActions) {
-
-        //        showAlert(
-        //                Alert.AlertType.ERROR,
-        //                "Parent is Not Defined for \"" + instructionName + "\"",
-        //                "\"" + instructionName + "\" - Parent is Not Defined",
-        //                "There is NOT PARENT VALUE defined for: "
-        //                        + instructionName
-        //                        + "\n --------------------- "
-        //                        + "\nCheck the PARENT Web field for \"" + parentField+ "\"");
-
-        String msg1 = "Parent is Not Defined for \"" + instructionName + "\"";
-        String msg2 = "There is NOT PARENT VALUE defined for: \"" + instructionName + "\"";
-        String msg3 = "Check the PARENT Web field for \"" + parentField + "\"";
-
-        logOperations.error("Parent Id Error: {} - {} - {}", msg1, msg2, msg3);
-        performMessage.errorMessage("Parent Id Error", msg1, msg2, msg3, null, 0);
-
-        return resultActions;
+        return engineDialogs.parentValueIsNotDefinedEngine(instructionName, parentField, resultActions);
     }
 
     public String parentIdWrongBlockEngine(
             InstructionLoad currentInstruction, BlockLoadDTO blockLoad, boolean ifClause, boolean elseClause) {
-        if (!ifClause && !elseClause) {
-            String message = "The Parent Id: <b style='color:red;'>"
-                    + "The Parent Id: \"(" + currentInstruction.getParentId() + ")"
-                    + currentInstruction
-                            .getOperation()
-                            .substring(0, currentInstruction.getOperation().indexOf(":")) + "\""
-                    + "<br>-------------------------------------------------<br>"
-                    + "<b style='color:red;'>" + "Does not belong to this block: \"" + blockLoad.getBlockOrderNumber()
-                    + "-\"" + blockLoad.getName() + "\"" + "</b>"
-                    + "</br>"
-                    + "<b style='color:red;'>"
-                    + "Attempted Operation : \"" + currentInstruction.getActions() + "\" -> \""
-                    + currentInstruction.getOperation() + "\"" + "</b>"
-                    + "<br>-------------------------------------------------<br>"
-                    + "<b style='color:blue;'>"
-                    + "Check the Web Field \" ( ID ) <NAME>\" per Block</b>";
-
-            alertMessage(message);
-        }
-
-        String conditionalBlock = ifClause
-                ? "Closing Block { IF -> ELSE }  -> "
-                : elseClause ? "Closing Block { ELSE -> ENDIF }  -> " : "";
-
-        if (ifClause || elseClause) {
-
-            logOperations.warn(String.format(
-                    "%sParent Id Error Check Parent Id: %d "
-                            + "For the \"%s\" Does not belong to this block: "
-                            + blockLoad.getId() + "-" + blockLoad.getName(),
-                    conditionalBlock,
-                    currentInstruction.getParentId(),
-                    currentInstruction.getOperation()));
-
-        } else {
-
-            logOperations.error(String.format(
-                    "Parent Id Error Check Parent Id: %d "
-                            + "For the \"%s\" Does not belong to this block: "
-                            + blockLoad.getId() + "-" + blockLoad.getName(),
-                    currentInstruction.getParentId(),
-                    currentInstruction.getOperation()));
-        }
-
-        return String.format(
-                "This ParentId: %d does not belong to this block: %d - %s. Check the Field Names and Fields Ids",
-                currentInstruction.getParentId(), blockLoad.getId(), blockLoad.getName());
+        return engineDialogs.parentIdWrongBlockEngine(currentInstruction, blockLoad, ifClause, elseClause);
     }
 
     public String parentIdWrongBlock(
@@ -1195,59 +836,8 @@ public class PerformActions implements ActionContext {
             BlockLoadDTO blockLoad,
             String lastInstructionExecuted,
             ARExecution.ConditionStatus conditionStatus) {
-
-        if (conditionStatus.equals(ARExecution.ConditionStatus.NONE)) {
-            String operation = currentInstruction.getOperation();
-            int colonIndex = operation.indexOf(":");
-            String parentOperationPart = colonIndex != -1 ? operation.substring(0, colonIndex) : "Unknown Operation";
-
-            String msg1 = "The Parent Id: \"(" + currentInstruction.getParentId() + ")" + parentOperationPart + "\"";
-            String msg2 = "Does not belong to the block: \"" + blockLoad.getBlockOrderNumber() + "-"
-                    + blockLoad.getName() + "\"";
-            String msg3 = "Attempted Operation : \""
-                    + (currentInstruction.getActions().equals(ARConstantsEngine.EXTRACT_FIELD)
-                            ? "Extract "
-                            : currentInstruction.getActions())
-                    + "\" -> \""
-                    + operation + "\"";
-            String msg4 = "Check the Web Field \" ( ID ) <NAME> \" per Block";
-
-            logOperations.error("Parent Id Error: {} - {} - {} - {}", msg1, msg2, msg3, msg4);
-            performMessage.errorMessage("Parent Id Error", msg1, msg2, msg3, msg4, 0);
-        }
-
-        String conditionalBlock = conditionStatus.equals(ARExecution.ConditionStatus.IF_PASSED)
-                ? "Closing Block { IF -> ELSE }  -> "
-                : conditionStatus.equals(ARExecution.ConditionStatus.ELSEIF_PASSED)
-                        ? "Closing Block { ELSEIF -> ELSE }  -> "
-                        : conditionStatus.equals(ARExecution.ConditionStatus.ELSE_PASSED)
-                                ? "Closing Block { ELSE -> ENDIF }  -> "
-                                : "Parent Id in Wrong Block";
-
-        if (!conditionStatus.equals(ARExecution.ConditionStatus.NONE)) {
-
-            logOperations.warn(String.format(
-                    "%sParent Id Error Check Parent Id: %d For the \"%s\" Does not belong to this block: %d-%s",
-                    conditionalBlock,
-                    currentInstruction.getParentId(),
-                    currentInstruction.getOperation(),
-                    blockLoad.getId(),
-                    blockLoad.getName()));
-        } else {
-
-            logOperations.error(String.format(
-                    "Parent Id Error Check Parent Id: %d For the \"%s\" Does not belong to this block: %d-%s",
-                    currentInstruction.getParentId(),
-                    currentInstruction.getOperation(),
-                    blockLoad.getId(),
-                    blockLoad.getName()));
-        }
-
-        if (!conditionStatus.equals(ARExecution.ConditionStatus.NONE)) {
-            return conditionalBlock + " -> " + lastInstructionExecuted;
-        } else {
-            return lastInstructionExecuted;
-        }
+        return engineDialogs.parentIdWrongBlock(
+                currentInstruction, blockLoad, lastInstructionExecuted, conditionStatus);
     }
 
     public String checkValidationFailedEngine(
@@ -1258,30 +848,8 @@ public class PerformActions implements ActionContext {
             boolean ifClause,
             boolean elseClause,
             boolean byPassFlagLoop) {
-        if (!ifClause && !elseClause && !byPassFlagLoop) {
-            String message = "The Value of: <b style='color:red;'>\"" + operations[2] + "\""
-                    + "</b> is not " + "<b>" + operations[1] + " "
-                    + " \"" + expected + "\"" + "</b> Length: (<b>" + expected.length() + "</b>)"
-                    + "<br>-------------------------------------------------<br>"
-                    + "The Variable \"" + operations[0] + "\" holds value \"" + operations[2] + "\"</br>"
-                    + "<br>Current Web Field: <b style='color:red;'> \"" + parent + "\" value: \"" + expected
-                    + "\"</b> Length: (<b>\"" + expected.length() + ")</b>"
-                    + "<br>Expected value: <b style='color:green;'>" + operations[2] + "</b> Length: (<b>"
-                    + operations[2].length() + "</b>)";
-
-            alertMessage(message);
-        }
-
-        String conditionalBlock = ifClause
-                ? "Closing Block { IF -> ELSE }  -> "
-                : elseClause ? "Closing Block { ELSE -> ENDIF }  -> " : "";
-
-        if (ifClause || elseClause) {
-            return conditionalBlock + " -> " + lastInstructionExecuted;
-
-        } else {
-            return lastInstructionExecuted;
-        }
+        return engineDialogs.checkValidationFailedEngine(
+                parent, expected, lastInstructionExecuted, operations, ifClause, elseClause, byPassFlagLoop);
     }
 
     public String checkValidationFailed(
@@ -1292,70 +860,8 @@ public class PerformActions implements ActionContext {
             String[] operations,
             ARExecution.ConditionStatus conditionStatus,
             boolean byPassFlagLoop) {
-
-        if (conditionStatus.equals(ARExecution.ConditionStatus.NONE) && !byPassFlagLoop) {
-
-            String msg1;
-            if (operations[1].equals(">")) {
-                msg1 = "The Value of: \"" + expected + "\" is not <span style='color: #000080; font-weight: bold;'>( "
-                        + operations[1] + " )</span> \"" + operations[2] + "\"";
-            } else if (operations[1].equals("<")) {
-                msg1 = "The Value of: \"" + operations[2]
-                        + "\" is not <span style='color: #000080; font-weight: bold;'>( &lt; )</span> \"" + expected
-                        + "\"";
-            } else {
-                msg1 = "The Value of: \"" + operations[2] + "\" is not " + operations[1] + " \""
-                        + expected + "\" Length: ("
-                        + expected.length()
-                        + ")";
-            }
-
-            String msg2 = "The Variable \"" + operations[0] + "\" holds value \"" + operations[2] + "\"";
-
-            String msg3;
-            if (operations[1].equals(">") || operations[1].equals("<")) {
-                msg3 = "Current Web Field \"" + parent + "\" value: \"" + expected + "\"";
-            } else {
-                msg3 = "Current Web Field \"" + parent + "\" value: \""
-                        + expected + "\" Length: (" + expected.length()
-                        + ")";
-            }
-
-            String msg4;
-            if (operations[1].equals(">") || operations[1].equals("<")) {
-                msg4 = "Expected value: " + operations[2];
-            } else {
-                msg4 = "Expected value: " + operations[2] + " Length: (" + operations[2].length() + ")";
-            }
-
-            if (Strings.isNullOrEmpty(invalidValues)) {
-                invalidValues = "Check Validation Value Error";
-            } else {
-
-                if (operations[1].equals("<")) {
-                    invalidValues += " Operator: (\" &lt; \")";
-                } else {
-                    invalidValues += " Operator: (\" " + operations[1] + " \")";
-                }
-            }
-            logOperations.error("Invalid Values Error: {} - {} - {} - {} - {}", invalidValues, msg1, msg2, msg3, msg4);
-            performMessage.errorMessage(invalidValues, msg1, msg2, msg3, msg4, 0);
-        }
-
-        String conditionalBlock = conditionStatus.equals(ARExecution.ConditionStatus.IF_PASSED)
-                ? "Closing Block { IF -> ELSE }  -> "
-                : conditionStatus.equals(ARExecution.ConditionStatus.ELSEIF_PASSED)
-                        ? "Closing Block { ELSEIF -> ELSE }  -> "
-                        : conditionStatus.equals(ARExecution.ConditionStatus.ELSE_PASSED)
-                                ? "Closing Block { ELSE -> ENDIF }  -> "
-                                : "";
-
-        if (!conditionStatus.equals(ARExecution.ConditionStatus.NONE)) {
-            return conditionalBlock + " -> " + lastInstructionExecuted;
-
-        } else {
-            return lastInstructionExecuted;
-        }
+        return engineDialogs.checkValidationFailed(
+                invalidValues, parent, expected, lastInstructionExecuted, operations, conditionStatus, byPassFlagLoop);
     }
 
     public String buildValidationReason(
@@ -1450,44 +956,16 @@ public class PerformActions implements ActionContext {
     //    }
 
     public String messageExcel(
-            String action, // ✅ action FIRST (e.g. "EXCEL", "INSERT", etc.)
-            InstructionLoad instruction, // for desc
-            String parentField, // e.g. "8838-BancaStato"
-            String variableField, // e.g. "331-$BancaStato"
-            String value, // value written to Excel
-            String blockName, // fallback desc
-            Integer testRow, // fallback test
-            boolean success // PASSED / FAIL
-            ) {
-
-        String time = new java.text.SimpleDateFormat("HH:mm:ss").format(new java.util.Date());
-
-        // TEST + Main Field parsing (unchanged)
-        String testName = "";
-        String mainField = "";
-
-        if (parentField != null && parentField.contains("-")) {
-            int idx = parentField.indexOf('-');
-            testName = parentField.substring(0, idx).trim();
-            mainField = parentField.substring(idx + 1).trim();
-        } else {
-            mainField = (parentField == null) ? "" : parentField;
-            testName = (testRow == null) ? "" : String.valueOf(testRow);
-        }
-
-        // desc (unchanged)
-        String desc = (instruction != null && instruction.getName() != null)
-                ? instruction.getName()
-                : (blockName == null ? "" : blockName);
-
-        // ✅ ONLY CHANGE: conditionText built here, ACTION first
-        String conditionText = success
-                ? action + " --> Insert into Excel -> " + variableField + "-" + value
-                : action + " --> NO Export Excel File defined -> " + variableField + "-" + value;
-
-        String result = success ? "PASSED" : "FAIL";
-
-        return time + " | " + testName + " | " + desc + " | " + mainField + " | " + conditionText + " | " + result;
+            String action,
+            InstructionLoad instruction,
+            String parentField,
+            String variableField,
+            String value,
+            String blockName,
+            Integer testRow,
+            boolean success) {
+        return executionReporter.messageExcel(
+                action, instruction, parentField, variableField, value, blockName, testRow, success);
     }
 
     public static String sanitizeValue(String input) {
@@ -1583,8 +1061,8 @@ public class PerformActions implements ActionContext {
             long duration,
             Map<String, String> dataExcel,
             ExcelWriter.ExcelChain writerReport) {
-        return writerReport.insertInstructionResult(
-                currentCondition, blockName, actions, msgLoop, dataExcel, LocalTime.ofNanoOfDay(duration), success);
+        return executionReporter.excelReportWrite(
+                currentCondition, blockName, success, actions, msgLoop, duration, dataExcel, writerReport);
     }
 
     public long duration(long startTime) {
@@ -1592,43 +1070,11 @@ public class PerformActions implements ActionContext {
     }
 
     public String blockGotoFailed(String resultActions) {
-        //        showAlert(
-        //                Alert.AlertType.ERROR, "Block GO TO Error", "Check Correct Block Existence", "CMD: \n" +
-        // resultActions);
-
-        String msg1 = "Block GO TO Error";
-        String msg2 = "Check Correct Block Existence";
-        String msg3 = "CMD: " + resultActions;
-
-        logOperations.error("Parent Id Error: {} - {} - {}", msg1, msg2, msg3);
-        performMessage.errorMessage("Parent Id Error", msg1, msg2, msg3, null, 0);
-
-        logOperations.error("Block GO TO Error: -> Check Correct Block Existence! -> CMD: " + resultActions);
-
-        return resultActions;
+        return engineDialogs.blockGotoFailed(resultActions);
     }
 
     public void gotoLimitExecution(int executionTimes, String lastInstructionExecuted) {
-        //        showAlert(
-        //                Alert.AlertType.ERROR,
-        //                "Block Execution Time LIMIT",
-        //                "Attention The Process Reached the LIMIT of Block Loop Executions",
-        //                String.format(
-        //                        "Attention the Process Reached the Block LOOP LIMIT of %d\nLast Instruction Executed :
-        // %s\nWe are Exiting All of processes Now!",
-        //                        executionTimes, lastInstructionExecuted));
-
-        logOperations.warn(
-                "Block Execution LIMIT Reached!. Process Reached BLOCK LIMIT of {} executions. Last Exetution: {}",
-                executionTimes,
-                lastInstructionExecuted);
-        performMessage.errorMessage(
-                "Block Execution LIMIT Reached!",
-                String.format("Process Reached BLOCK LIMIT of %d executions", executionTimes),
-                "Exiting All processes Now!",
-                "Last Execution",
-                lastInstructionExecuted,
-                0);
+        engineDialogs.gotoLimitExecution(executionTimes, lastInstructionExecuted);
     }
 
     // Update the list of window handles (tabs)
@@ -1641,177 +1087,11 @@ public class PerformActions implements ActionContext {
     }
 
     public void alertMessage(String message) {
-        JavascriptExecutor js = (JavascriptExecutor) this.currentDriver;
-
-        // Escape the quotes in the JavaScript string
-        String script = "let alertBox = document.createElement('div');" + "alertBox.style.position = 'fixed';"
-                + "alertBox.style.top = '50%';"
-                + "alertBox.style.left = '50%';"
-                + "alertBox.style.transform = 'translate(-50%, -50%)';"
-                + "alertBox.style.padding = '20px';"
-                + "alertBox.style.backgroundColor = '#FFDA33';"
-                + // Light orange background
-                "alertBox.style.border = '2px solid #ff0000';"
-                + // Red border
-                "alertBox.style.borderRadius = '10px';"
-                + "alertBox.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.5)';"
-                + "alertBox.style.zIndex = '10000';"
-                + "alertBox.innerHTML = \""
-                + message.replace("\"", "\\\"") + "\";" + "document.body.appendChild(alertBox);";
-
-        js.executeScript(script);
-
-        // Optional: Handle the alert
-        org.openqa.selenium.Alert alert = this.currentDriver.switchTo().alert();
-
-        // Optional: pause for a few seconds to view the alert
-        try {
-            Thread.sleep(5000); // 10 minutes in milliseconds
-        } catch (InterruptedException e) {
-            logOperations.warn(e.getMessage());
-        }
-
-        // Accept (close) the alert
-        alert.accept();
+        engineDialogs.alertMessage(message);
     }
 
     public String actionResultMessage(String blockJobName, String[] actions, FieldData msgInstruction) {
-
-        // ✅ existing message becomes "conditionText"
-        String conditionText;
-
-        switch (actions[0]) {
-            case ARConstantsEngine.VISUALIZE:
-                conditionText = "Visualize " + msgInstruction.getKey();
-                break;
-            case ARConstantsEngine.OTHER:
-                conditionText = "Other Element --> " + msgInstruction.getKey();
-                break;
-            case ARConstantsEngine.OUTPUT:
-                conditionText = "Output Element --> " + msgInstruction.getKey();
-                break;
-            case ARConstantsEngine.CLICK:
-                conditionText = "Click Element --> " + msgInstruction.getKey();
-                break;
-            case ARConstantsEngine.INSERT:
-                if (actions[0].equals(ARConstantsEngine.INSERT) && actions[1].equals(ARConstantsEngine.ENTER)) {
-                    conditionText = "Insert/<Enter> action for  -> " + msgInstruction.getKey() + " = "
-                            + msgInstruction.getValue();
-                } else {
-                    conditionText =
-                            "Insert action for  -> " + msgInstruction.getKey() + " = " + msgInstruction.getValue();
-                }
-                break;
-            case ARConstantsEngine.LIST_OPERATION:
-                conditionText = "List Operation " + msgInstruction.getKey();
-                break;
-            case ARConstantsEngine.HOLD:
-                conditionText = "Hold executed " + msgInstruction.getKey();
-                break;
-            case ARConstantsEngine.PAUSE:
-                conditionText = "Pause action triggered";
-                break;
-            case ARConstantsEngine.NEXT_ENTER: // NEXT FIELD / FOCUS NEXT / ENTER
-                conditionText = "Next/Enter action triggered";
-                break;
-            case ARConstantsEngine.SWIPE_UP:
-                conditionText = "Swipe UP action triggered";
-                break;
-            case ARConstantsEngine.SWIPE_DOWN:
-                conditionText = "Swipe DOWN action triggered";
-                break;
-            case ARConstantsEngine.GOTO:
-                if (msgInstruction.getValue().equals("Unknown")) {
-                    conditionText = msgInstruction.getKey();
-                } else {
-                    String[] parts = msgInstruction.getKey().split(":");
-                    conditionText = String.format(
-                            "GO TO Block \"%s\" Limit %s times",
-                            "(" + parts[0] + ")-#" + parts[2] + " " + parts[3], msgInstruction.getValue());
-                }
-                break;
-            case ARConstantsEngine.REFRESH_ONLY:
-                conditionText = " Refresh Web Page";
-                break;
-            case ARConstantsEngine.REFRESH_HOLD:
-                String[] msgParent = msgInstruction.getKey().split(":");
-                String[] msgValue = msgInstruction.getValue().split(":");
-                conditionText = String.format(
-                        "Wait for Parent \"%s\" Limit %s seconds",
-                        "(" + msgParent[1] + ") " + msgParent[2], msgValue[0]);
-                break;
-            case ARConstantsEngine.LOOP:
-                if (msgInstruction.getValue().equals("Unknown")) {
-                    conditionText = msgInstruction.getKey();
-                } else {
-                    msgParent = msgInstruction.getKey().split(":");
-                    conditionText = String.format(
-                            "Jump To Parent \"%s\" Limit %s times",
-                            msgParent[0] + "-(" + msgParent[1] + ") " + msgParent[2], msgInstruction.getValue());
-                }
-                break;
-            case ARConstantsEngine.REFRESH_LOOP:
-                if (msgInstruction.getValue().equals("Unknown")) {
-                    conditionText = msgInstruction.getKey();
-                } else {
-                    msgParent = msgInstruction.getKey().split(":");
-                    msgValue = msgInstruction.getValue().split(":");
-                    conditionText = String.format(
-                            "Refresh in %s seconds Loop %s times Jump To Parent \"%s\" ",
-                            msgValue[0], msgValue[1], msgParent[0] + "-(" + msgParent[1] + ") " + msgParent[2]);
-                }
-                break;
-            case ARConstantsEngine.QUIT:
-                conditionText = "Quit action processed";
-                break;
-            case ARConstantsEngine.SCREEN:
-                conditionText = "Screen action executed for " + msgInstruction.getKey() + " --> " + blockJobName;
-                break;
-            case ARConstantsEngine.GET_VALUE:
-            case ARConstantsEngine.SET_VALUE:
-                conditionText = actions[0]
-                        + ARConstantsEngine.BLANK_STRING
-                        + msgInstruction.getKey()
-                        + ARConstantsEngine.BLANK_STRING
-                        + msgInstruction.getValue();
-                break;
-            case ARConstantsEngine.CHECK_VALUE:
-            case ARConstantsEngine.PDF_CHECK:
-            case ARConstantsEngine.CSV_CHECK:
-                conditionText = actions[0]
-                        + ARConstantsEngine.BLANK_STRING
-                        + msgInstruction.getValue()
-                        + ARConstantsEngine.BLANK_STRING
-                        + msgInstruction.getKey();
-                break;
-            case ARConstantsEngine.EXTRACT_FIELD:
-                conditionText = ARConstantsEngine.BLANK_STRING
-                        + msgInstruction.getKey() + " Extract "
-                        + ARConstantsEngine.BLANK_STRING
-                        + msgInstruction.getValue();
-                break;
-
-            default:
-                conditionText = "No Action Detected for " + msgInstruction.getKey();
-                break;
-        }
-
-        // ✅ SAME PATTERN AS performOperatorActions
-        String time = new java.text.SimpleDateFormat("HH:mm:ss").format(new java.util.Date());
-
-        // If you don't have a test number here, keep it empty (caller can fill elsewhere)
-        String testName = "";
-
-        // Best default mainField: the key (e.g. "(8869)-OK" or "8838-BancaStato")
-        String mainField = (msgInstruction == null || msgInstruction.getKey() == null) ? "" : msgInstruction.getKey();
-
-        // Description: block/job name (or empty)
-        String desc = (blockJobName == null) ? "" : blockJobName;
-
-        // ✅ default PASSED for this method
-        String result = "PASSED";
-
-        return time + " | " + testName + " | " + desc + " | " + mainField + " | " + conditionText + " | " + result;
+        return engineDialogs.actionResultMessage(blockJobName, actions, msgInstruction);
     }
 
     public String buildMessageResult(
@@ -1998,35 +1278,24 @@ public class PerformActions implements ActionContext {
             ExcelWriter.ExcelChain writerReport,
             String mainMsg,
             String bodyLog) {
-        long duration = duration(blockStartTime);
-
-        if (excelReport) {
-            excelReportWrite(
-                    currentCondition, blockReportName, success, action, msgBlock, duration, dataExcel, writerReport);
-            totalExecutionTime += duration;
-        }
-        if (logOperation) {
-
-            operationLog(success, mainMsg, bodyLog, duration);
-        }
-
-        totalExecutionTime += duration;
+        executionReporter.logAndReport(
+                currentCondition,
+                excelReport,
+                logOperation,
+                blockStartTime,
+                blockReportName,
+                success,
+                action,
+                msgBlock,
+                dataExcel,
+                writerReport,
+                mainMsg,
+                bodyLog);
     }
 
     public ARExecution.ConditionStatus updateProgressSuccess(
             boolean success, ARExecution.ConditionStatus currentCondition) {
-        // It Gets last Progress Status
-        // Machine State
-        if (currentCondition.equals(ARExecution.ConditionStatus.IF)) {
-            return success ? ARExecution.ConditionStatus.IF_PASSED : ARExecution.ConditionStatus.IF_FAILED;
-        } else if (currentCondition.equals(ARExecution.ConditionStatus.ELSEIF)) {
-            return success ? ARExecution.ConditionStatus.ELSEIF_PASSED : ARExecution.ConditionStatus.ELSEIF_FAILED;
-        } else if (currentCondition.equals(ARExecution.ConditionStatus.ELSE)) {
-            return success ? ARExecution.ConditionStatus.ELSE_PASSED : ARExecution.ConditionStatus.ELSE_FAILED;
-        } else if (currentCondition.equals(ARExecution.ConditionStatus.ENDIF)) {
-            return ARExecution.ConditionStatus.NONE;
-        }
-        return ARExecution.ConditionStatus.NONE;
+        return executionReporter.updateProgressSuccess(success, currentCondition);
     }
 
     public int checkActionToJump(
