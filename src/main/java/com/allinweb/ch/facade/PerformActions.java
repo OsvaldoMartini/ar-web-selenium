@@ -3,9 +3,11 @@ package com.allinweb.ch.facade;
 import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.driver.ARWebDriver;
+import com.allinweb.ch.facade.actions.ActionContext;
 import com.allinweb.ch.facade.actions.BrowserJsUtils;
 import com.allinweb.ch.facade.actions.ElementDtoMapper;
 import com.allinweb.ch.facade.actions.InstructionGraph;
+import com.allinweb.ch.facade.actions.PlaywrightBridge;
 import com.allinweb.ch.facade.actions.ValidationMessageBuilder;
 import com.allinweb.ch.facade.actions.WaitSupport;
 import com.allinweb.ch.facade.actions.WebTextUtils;
@@ -44,7 +46,7 @@ import org.slf4j.LoggerFactory;
  * @version 1.0
  */
 @Slf4j
-public class PerformActions {
+public class PerformActions implements ActionContext {
     private static final Logger logOperations = LoggerFactory.getLogger("com.allinweb.operations");
 
     //    private static final AndroidDevice androidDevice = AndroidDevice.getInstance();
@@ -113,6 +115,77 @@ public class PerformActions {
     /** Called to re-inject the actionExecutor plugin when it's not alive in the browser. */
     @Setter
     private Runnable actionExecutorInjector;
+
+    private final PlaywrightBridge playwrightBridge = new PlaywrightBridge(this);
+
+    // ---- ActionContext implementation: live one-line views over the facade's own state ----
+
+    @Override
+    public WebDriver driver() {
+        return currentDriver;
+    }
+
+    @Override
+    public void driver(WebDriver driver) {
+        this.currentDriver = driver;
+    }
+
+    @Override
+    public ARWebDriver arWebDriver() {
+        return currentARWebDriver;
+    }
+
+    @Override
+    public List<String> windowHandles() {
+        return windowHandlesList;
+    }
+
+    @Override
+    public int tabIndex() {
+        return currentTabIndex;
+    }
+
+    @Override
+    public void tabIndex(int tabIndex) {
+        this.currentTabIndex = tabIndex;
+    }
+
+    @Override
+    public Wait<WebDriver> pageWait() {
+        return waitForPage;
+    }
+
+    @Override
+    public Wait<WebDriver> actionWait() {
+        return waitForAction;
+    }
+
+    @Override
+    public ARPriorities priorities() {
+        return arPriorities;
+    }
+
+    @Override
+    public boolean justCalledRefreshPage() {
+        return justCalledRefreshPage;
+    }
+
+    @Override
+    public void justCalledRefreshPage(boolean value) {
+        this.justCalledRefreshPage = value;
+    }
+
+    @Override
+    public void notifyPageRefresh() {
+        if (onPageRefresh != null) {
+            onPageRefresh.run();
+        }
+    }
+
+    @Override
+    public Runnable actionExecutorInjector() {
+        return actionExecutorInjector;
+    }
 
     // Private constructor to prevent instantiation
     private PerformActions() {}
@@ -444,101 +517,19 @@ public class PerformActions {
      * Called before every action step to ensure the plugin is always available.
      */
     public void ensureActionExecutor() {
-        if (currentDriver == null || actionExecutorInjector == null) return;
-
-        try {
-            JavascriptExecutor js = (JavascriptExecutor) currentDriver;
-            Object alive = js.executeScript("return window.__actionExecutorActive === true;");
-            if (Boolean.TRUE.equals(alive)) return;
-
-            logOperations.info("actionExecutor not alive in browser - re-injecting");
-            actionExecutorInjector.run();
-        } catch (Exception e) {
-            logOperations.warn("ensureActionExecutor check failed: {} - re-injecting", e.getMessage());
-            try {
-                actionExecutorInjector.run();
-            } catch (Exception re) {
-                logOperations.warn("actionExecutor re-injection failed: {}", re.getMessage());
-            }
-        }
+        playwrightBridge.ensureActionExecutor();
     }
 
     private boolean tryPlaywrightWebAction(InstructionLoad instruction, FieldData data, String action) {
-        if (currentARWebDriver == null || !currentARWebDriver.isPlaywrightEnabled()) {
-            return false;
-        }
-
-        try {
-            switch (action) {
-                case ARConstantsEngine.CLICK:
-                case ARConstantsEngine.OTHER:
-                    return currentARWebDriver.getPlaywrightDriver().click(instruction);
-                case ARConstantsEngine.INSERT:
-                    return currentARWebDriver.getPlaywrightDriver().fill(instruction, data);
-                case ARConstantsEngine.OUTPUT:
-                    String value = currentARWebDriver.getPlaywrightDriver().text(instruction);
-                    return !Strings.isNullOrEmpty(value);
-                default:
-                    return false;
-            }
-        } catch (Exception error) {
-            logOperations.warn("Playwright action failed, falling back to Selenium: {}", error.getMessage());
-            return false;
-        }
+        return playwrightBridge.tryPlaywrightWebAction(instruction, data, action);
     }
 
     private boolean isPlaywrightOnlyMode() {
-        if (currentARWebDriver == null || !currentARWebDriver.isPlaywrightEnabled()) {
-            return false;
-        }
-
-        String configured = arPropertyManager.getProperty(ARPropertyEnum.PLAYWRIGHT_SELENIUM_FALLBACK);
-        return configured != null && !Boolean.parseBoolean(configured.trim());
+        return playwrightBridge.isPlaywrightOnlyMode();
     }
 
-    /**
-     * Fallback: send an action command to the injected actionExecutor JS plugin
-     * via WebSocket.  The browser executes it directly in DOM context -
-     * no Selenium visibility / pointer-events checks.
-     *
-     * @param action      "click", "type", "select", "clear", etc.
-     * @param instruction the current instruction (provides xPath, cssSelector, coordinates, attribId)
-     * @param value       the value to type or select (nullable)
-     * @return true if the JS-side action succeeded
-     */
     private boolean tryActionExecutor(String action, InstructionLoad instruction, String value) {
-        // Make sure the plugin is alive before sending a command
-        ensureActionExecutor();
-
-        try {
-            ActionExecutorClient client = ActionExecutorClient.getInstance();
-            ActionExecutorClient.ActionResult result = client.sendAction(
-                    action,
-                    instruction.getXpath(),
-                    instruction.getCssSelector(),
-                    instruction.getCoordinates(),
-                    null, // attribId not on InstructionLoad; JS will fallback to xPath/css/coords
-                    value);
-
-            if (result.isSuccess()) {
-                logOperations.info(
-                        "actionExecutor fallback succeeded: {} - {} (verified={})",
-                        action,
-                        result.getMessage(),
-                        result.isVerified());
-                return true;
-            } else {
-                logOperations.warn(
-                        "actionExecutor fallback failed: {} - {} (verified={})",
-                        action,
-                        result.getMessage(),
-                        result.isVerified());
-                return false;
-            }
-        } catch (Exception e) {
-            logOperations.warn("actionExecutor fallback error: {} - {}", action, e.getMessage());
-            return false;
-        }
+        return playwrightBridge.tryActionExecutor(action, instruction, value);
     }
 
     public void performOtherActions(boolean byPassNotFound, InstructionLoad instruction, String[] actions)
