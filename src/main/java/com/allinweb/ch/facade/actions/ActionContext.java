@@ -28,6 +28,9 @@ public interface ActionContext {
 
     List<String> windowHandles();
 
+    /** Replaces the window-handles list (the facade's public {@code windowHandlesList} field). */
+    void windowHandles(List<String> handles);
+
     int tabIndex();
 
     void tabIndex(int tabIndex);

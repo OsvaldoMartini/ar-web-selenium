@@ -12,6 +12,7 @@ import com.allinweb.ch.facade.actions.PlaywrightBridge;
 import com.allinweb.ch.facade.actions.ValidationMessageBuilder;
 import com.allinweb.ch.facade.actions.WaitSupport;
 import com.allinweb.ch.facade.actions.WebTextUtils;
+import com.allinweb.ch.facade.actions.WindowAndFrameManager;
 import com.allinweb.ch.model.*;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
 import com.allinweb.ch.util.*;
@@ -32,7 +33,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.openqa.selenium.*;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.interactions.Actions;
-import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.Wait;
@@ -103,8 +103,6 @@ public class PerformActions implements ActionContext {
     @Setter
     private ARWebDriver currentARWebDriver;
 
-    private Map<WebElement, List<WebElement>> iframeElementsMap;
-
     @Getter
     @Setter
     private boolean justCalledRefreshPage = false;
@@ -119,6 +117,7 @@ public class PerformActions implements ActionContext {
 
     private final PlaywrightBridge playwrightBridge = new PlaywrightBridge(this);
     private final CoordinateActions coordinateActions = new CoordinateActions(this);
+    private final WindowAndFrameManager windowAndFrameManager = new WindowAndFrameManager(this);
 
     // ---- ActionContext implementation: live one-line views over the facade's own state ----
 
@@ -140,6 +139,11 @@ public class PerformActions implements ActionContext {
     @Override
     public List<String> windowHandles() {
         return windowHandlesList;
+    }
+
+    @Override
+    public void windowHandles(List<String> handles) {
+        this.windowHandlesList = handles;
     }
 
     @Override
@@ -1137,27 +1141,7 @@ public class PerformActions implements ActionContext {
     }
 
     public void refreshPage() {
-        justCalledRefreshPage = true;
-
-        this.currentDriver.navigate().refresh();
-
-        this.currentDriver.switchTo().defaultContent();
-        if (this.currentDriver.getWindowHandles().size() > 1) {
-            try {
-                this.currentDriver.switchTo().window(windowHandlesList.get(currentTabIndex));
-            } catch (Exception ignore) {
-
-            }
-        }
-
-        // Re-inject plugins lost during page reload (actionExecutor, etc.)
-        if (onPageRefresh != null) {
-            try {
-                onPageRefresh.run();
-            } catch (Exception e) {
-                logOperations.warn("onPageRefresh callback failed: {}", e.getMessage());
-            }
-        }
+        windowAndFrameManager.refreshPage();
     }
 
     private boolean insertInElement(
@@ -2295,16 +2279,11 @@ public class PerformActions implements ActionContext {
 
     // Update the list of window handles (tabs)
     public void updateWindowHandlesList() {
-        Set<String> windowHandles = this.currentDriver.getWindowHandles();
-        windowHandlesList = new ArrayList<>(windowHandles);
+        windowAndFrameManager.updateWindowHandlesList();
     }
 
     public String getSessionId() {
-        if (this.currentDriver instanceof RemoteWebDriver) {
-            return ((RemoteWebDriver) this.currentDriver).getSessionId().toString();
-        } else {
-            throw new IllegalStateException("Driver is not an instance of RemoteWebDriver");
-        }
+        return windowAndFrameManager.getSessionId();
     }
 
     public void alertMessage(String message) {
@@ -2826,34 +2805,7 @@ public class PerformActions implements ActionContext {
     }
 
     public Map<WebElement, List<WebElement>> getIframeElementsMap() {
-        iframeElementsMap = new HashMap<>();
-
-        if (this.currentDriver != null) {
-            // Get all iframe elements on the page
-            List<WebElement> iframeList = this.currentDriver.findElements(By.tagName("iframe"));
-            logOperations.info("Number of iframes found: " + iframeList.size());
-
-            for (WebElement iframe : iframeList) {
-                try {
-                    // Switch to the iframe
-                    this.currentDriver.switchTo().frame(iframe);
-
-                    // Get all elements inside the iframe
-                    List<WebElement> elementsInsideIframe = this.currentDriver.findElements(By.xpath("//*"));
-                    iframeElementsMap.put(iframe, elementsInsideIframe);
-
-                    logOperations.info("Iframe contains " + elementsInsideIframe.size() + " elements");
-                } catch (Exception e) {
-                    logOperations.warn("Could not access iframe: " + e.getMessage());
-                } finally {
-                    // Switch back to the main page
-                    this.currentDriver.switchTo().defaultContent();
-                }
-            }
-
-            iframeInputLocator.initializeIframeInputLocator(iframeElementsMap, this.currentDriver);
-        }
-        return iframeElementsMap;
+        return windowAndFrameManager.getIframeElementsMap();
     }
 
     public ElementDTO convertTargetToElementDTO(TargetElement targetElement) {
