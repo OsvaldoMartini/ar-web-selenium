@@ -7,6 +7,7 @@ import com.allinweb.ch.facade.actions.ActionContext;
 import com.allinweb.ch.facade.actions.BrowserJsUtils;
 import com.allinweb.ch.facade.actions.CoordinateActions;
 import com.allinweb.ch.facade.actions.ElementDtoMapper;
+import com.allinweb.ch.facade.actions.ElementInteraction;
 import com.allinweb.ch.facade.actions.ElementLocator;
 import com.allinweb.ch.facade.actions.InstructionGraph;
 import com.allinweb.ch.facade.actions.PlaywrightBridge;
@@ -31,9 +32,7 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.openqa.selenium.*;
-import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
-import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.Wait;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -98,6 +97,7 @@ public class PerformActions implements ActionContext {
     private final CoordinateActions coordinateActions = new CoordinateActions(this);
     private final WindowAndFrameManager windowAndFrameManager = new WindowAndFrameManager(this);
     private final ElementLocator elementLocator = new ElementLocator(this);
+    private final ElementInteraction elementInteraction = new ElementInteraction(this, coordinateActions);
 
     // ---- ActionContext implementation: live one-line views over the facade's own state ----
 
@@ -725,125 +725,11 @@ public class PerformActions implements ActionContext {
     }
 
     public boolean scrollToElement(boolean byPassNotFound, WebElement element) throws Exception {
-        try {
-            UtilsMethods.exceptionIfNullWebElement(element);
-            ((JavascriptExecutor) this.currentDriver).executeScript("arguments[0].scrollIntoView(true);", element);
-            return true;
-        } catch (Exception e) {
-
-            logOperations.error(String.format(
-                    "Failed to Scroll to Element \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
-            if (!byPassNotFound) {
-                performMessage.couldNotFindElement("Failed to Scroll to Element " + element.getTagName());
-            }
-            return false;
-        }
-    }
-
-    private String safeTag(WebElement el) {
-        try {
-            return el.getTagName();
-        } catch (Exception ignore) {
-            return "unknown";
-        }
+        return elementInteraction.scrollToElement(byPassNotFound, element);
     }
 
     public boolean clickElement(boolean byPassNotFound, WebElement element) throws Exception {
-        UtilsMethods.exceptionIfNullWebElement(element);
-
-        try {
-            // A quick check
-            if (element != null && (!element.isEnabled() || !element.isDisplayed())) {
-                logOperations.error(
-                        "Step Failed - Web Field is not Visible. Verify the rules and behavior of your web page.");
-                return false;
-            }
-            waitForAction.until(ExpectedConditions.visibilityOf(element).andThen(e -> {
-                ((JavascriptExecutor) this.currentDriver).executeScript("arguments[0].scrollIntoView(true);", element);
-                return waitForAction.until(ExpectedConditions.elementToBeClickable(element));
-            }));
-        } catch (Exception e) {
-
-            logOperations.error(
-                    "Step Failed - Web Field is not Visible. Verify the rules and behavior of your web page.");
-
-            if (!byPassNotFound) {
-                performMessage.couldNotFindElement(element.getTagName());
-            }
-            return false;
-        }
-
-        // Custom visibility and enabled checks
-        if (!element.isDisplayed()) {
-            logOperations.error(
-                    "Step Failed - Web Field is not Visible. Verify the rules and behavior of your web page.");
-            //            performMessage.errorMessage(
-            //                    "BOT JOB STOP - Web Field is not Visible",
-            //                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Verify the rules
-            // and behavior of your web page.</span>",
-            //                    "<span style='color: #D32F2F; font-weight: bold;'>Some fields may be conditionally
-            // enabled based on other inputs.</span>",
-            //                    "<span style='color: #E65100; font-weight: bold; font-size: 1.1em;'>Element is present
-            // but not visible. It may be hidden or overlapped.</span>",
-            //                    "<span style='color: #D32F2F; font-style: italic;'>Example: Invalid IBAN may block
-            // branch autofill.</span>",
-            //                    0);
-            return false;
-        }
-
-        if (!element.isEnabled()) {
-            //        callErrorMessageNotEnabled(element.getTagName());
-            logOperations.error(
-                    "Step Failed - Web Field is not Visible. Verify the rules and behavior of your web page.");
-            //            performMessage.errorMessage(
-            //                    "BOT JOB STOP - Web Field is not Enabled",
-            //                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Verify the rules
-            // and behavior of your web page.</span>",
-            //                    "<span style='color: #D32F2F; font-weight: bold;'>Some fields may be conditionally
-            // enabled based on other inputs.</span>",
-            //                    "<span style='color: #E65100; font-weight: bold; font-size: 1.1em;'>It is visually
-            // present but cannot be clicked.</span>",
-            //                    "<span style='color: #D32F2F; font-style: italic;'>Example: Invalid IBAN may block
-            // branch autofill.</span>",
-            //                    0);
-            //            // throw new TimeoutException();
-            return false;
-        }
-
-        String pointerEvents = element.getCssValue("pointer-events");
-        if ("none".equals(pointerEvents)) {
-            //            performMessage.errorMessage(
-            //                    "BOT JOB STOP - Web Field is is not Clickable",
-            //                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Verify the rules
-            // and behavior of your web page.</span>",
-            //                    "<span style='color: #D32F2F; font-weight: bold;'>Some fields may be conditionally
-            // enabled based on other inputs.</span>",
-            //                    "<span style='color: #E65100; font-weight: bold; font-size: 1.1em;'>It is visually
-            // present but cannot be clicked.</span>",
-            //                    "<span style='color: #D32F2F; font-style: italic;'>Example: Invalid IBAN may block
-            // branch autofill.</span>",
-            //                    0);
-            logOperations.error(
-                    "Step Failed - Web Field is not Visible. Verify the rules and behavior of your web page.");
-
-            return false;
-        }
-
-        try {
-            element.click();
-            return true;
-        } catch (ElementClickInterceptedException e) {
-            try {
-                JavascriptExecutor jse = (JavascriptExecutor) this.currentDriver;
-                jse.executeScript("arguments[0].click()", element);
-                return true;
-            } catch (Exception ex) {
-
-                logOperations.error(
-                        "Step Failed - Web Field is not Visible. Verify the rules and behavior of your web page.");
-                return false;
-            }
-        }
+        return elementInteraction.clickElement(byPassNotFound, element);
     }
 
     public void refreshPage() {
@@ -858,215 +744,8 @@ public class PerformActions implements ActionContext {
             boolean isEncrypted,
             InputFlags flags)
             throws Exception {
-        UtilsMethods.exceptionIfNullWebElement(element);
-
-        try {
-            waitForAction.until(ExpectedConditions.visibilityOf(element));
-        } catch (Exception e) {
-            if (waitForAction == null) {
-                logOperations.warn("WaitForAction is null");
-            }
-
-            logOperations.warn(
-                    String.format("Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
-            if (!byPassNotFound) {
-                performMessage.couldNotFindElement(element.getTagName());
-            }
-            return false;
-        }
-
-        try {
-
-            if (Strings.isNullOrEmpty(defaultValue)) {
-
-                if (isEncrypted) {
-                    dataFieldValue = CryptationAlgorithm.decrypt(dataFieldValue);
-                }
-
-                if (dataFieldValue != null) {
-                    // Pause briefly to let JS clearing take effect
-                    Thread.sleep(100); // Consider using WebDriverWait for stability
-                    // Clear using sendKeys with BACK_SPACE (optional but defensive)
-                    element.sendKeys(Keys.chord(Keys.CONTROL, "a"));
-                    element.sendKeys(Keys.BACK_SPACE);
-                    // Pause again if needed (some inputs behave asynchronously)
-                    Thread.sleep(100);
-
-                    element.sendKeys(dataFieldValue);
-                    // Waits component reaction
-                    Thread.sleep(100);
-                    pressAfter(element, flags);
-                } else {
-                    element.sendKeys(UtilsMethods.generateRandomID(10));
-                    // Waits component reaction
-                    Thread.sleep(100);
-                    pressAfter(element, flags);
-                }
-            } else {
-                dataFieldValue = defaultValue;
-
-                if (isEncrypted) {
-                    dataFieldValue = CryptationAlgorithm.decrypt(dataFieldValue);
-                }
-                element.sendKeys(dataFieldValue);
-                // Waits component reaction
-                Thread.sleep(100);
-                pressAfter(element, flags);
-            }
-        } catch (Exception e) {
-
-            logOperations.error(String.format(
-                    "Could Not Input Value to \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
-
-            //            performMessage.couldNotFindElement("Could Input Values to Element " + element.getTagName());
-            return false;
-        }
-
-        return true;
-    }
-
-    // ── Post-input key dispatch ──────────────────────────────────────────────
-
-    /**
-     * Fire the post-input keys for the given flag set.
-     * <ul>
-     *   <li>N solo (no E, no T)        → cascade N → T → E with failure fallback
-     *   <li>Any explicit combination   → fire each key in order N, E, T, NO cascade
-     *   <li>E alone                    → pressEnterStrong
-     *   <li>T alone                    → Keys.TAB
-     *   <li>nothing                    → default to TAB (legacy behaviour)
-     * </ul>
-     */
-    private void pressAfter(WebElement element, InputFlags flags) {
-        if (flags == null) flags = InputFlags.of(0);
-        if (flags.isNextSolo()) {
-            pressNextWithFallback(element);
-            return;
-        }
-        boolean anyExplicit = flags.hasNext() || flags.hasEnter() || flags.hasTab();
-        if (!anyExplicit) {
-            // Legacy default: TAB to move focus and commit the field.
-            try {
-                // element.sendKeys(Keys.TAB);
-            } catch (Exception ignored) {
-            }
-            return;
-        }
-        if (flags.hasNext()) tryPressNext(element); // explicit combo: no cascade
-        if (flags.hasEnter()) pressEnterStrong(element);
-        if (flags.hasTab()) {
-            try {
-                element.sendKeys(Keys.TAB);
-            } catch (Exception ignored) {
-            }
-        }
-    }
-
-    /**
-     * Stronger ENTER than bare {@code sendKeys(Keys.ENTER)}.
-     *   1) Native sendKeys — best-effort WebDriver keyboard input.
-     *   2) JS-dispatched KeyboardEvent (keydown + keypress + keyup) — fires the exact
-     *      sequence framework handlers (Angular, React) listen for even when the
-     *      WebDriver input stack is intercepted by custom onkeydown handlers.
-     *   3) {@code form.requestSubmit()} if the element is inside a &lt;form&gt;.
-     */
-    private void pressEnterStrong(WebElement element) {
-        try {
-            element.sendKeys(Keys.ENTER);
-        } catch (Exception ignored) {
-        }
-        try {
-            ((JavascriptExecutor) currentDriver)
-                    .executeScript(
-                            "var el = arguments[0];"
-                                    + "var opts = {key:'Enter', code:'Enter', keyCode:13, which:13, bubbles:true, cancelable:true};"
-                                    + "el.dispatchEvent(new KeyboardEvent('keydown', opts));"
-                                    + "el.dispatchEvent(new KeyboardEvent('keypress', opts));"
-                                    + "el.dispatchEvent(new KeyboardEvent('keyup', opts));"
-                                    + "try { if (el.form && el.form.requestSubmit) el.form.requestSubmit(); } catch(_) {}",
-                            element);
-        } catch (Exception e) {
-            logOperations.debug("pressEnterStrong JS dispatch failed: {}", e.getMessage());
-        }
-    }
-
-    /**
-     * N-solo cascade: try NEXT, fall back to TAB, finally pressEnterStrong.
-     * Fallback triggers on exception OR unchanged focus after the attempt.
-     */
-    private void pressNextWithFallback(WebElement element) {
-        WebElement before = safeActiveElement();
-        if (tryPressNext(element) && focusMoved(before)) return;
-        if (tryPressTab(element) && focusMoved(before)) return;
-        pressEnterStrong(element);
-    }
-
-    /**
-     * Attempt the platform "Next" action.
-     *   • Appium mobile drivers use the on-screen IME "Next" button (accessibility id "Next")
-     *     when available; otherwise fall back to a TAB key event.
-     *   • Desktop Selenium falls back to a JS focus shift to the next form control.
-     * Returns true if the attempt ran without throwing.
-     */
-    private boolean tryPressNext(WebElement element) {
-        try {
-            String driverClass =
-                    currentDriver == null ? "" : currentDriver.getClass().getSimpleName();
-            if (driverClass.contains("Android") || driverClass.contains("IOS") || driverClass.contains("Appium")) {
-                try {
-                    // Try tapping an on-screen "Next" button (iOS/Android soft keyboards commonly expose this).
-                    WebElement nextBtn = currentDriver.findElement(org.openqa.selenium.By.xpath(
-                            "//*[@name='Next' or @content-desc='Next' or @accessibility-id='Next']"));
-                    nextBtn.click();
-                    return true;
-                } catch (Exception ignored) {
-                    // Fall through to TAB as the platform key proxy.
-                    element.sendKeys(Keys.TAB);
-                    return true;
-                }
-            }
-            // Desktop: move focus to the next form element via JS.
-            ((JavascriptExecutor) currentDriver)
-                    .executeScript(
-                            "var el = arguments[0], f = el.form;"
-                                    + "if (f) { var els = Array.from(f.elements), i = els.indexOf(el);"
-                                    + "  for (var k = i + 1; k < els.length; k++) {"
-                                    + "    var n = els[k]; if (n && !n.disabled && n.offsetParent !== null) { n.focus(); return; }"
-                                    + "  }"
-                                    + "}",
-                            element);
-            return true;
-        } catch (Exception e) {
-            logOperations.debug("tryPressNext failed: {}", e.getMessage());
-            return false;
-        }
-    }
-
-    private boolean tryPressTab(WebElement element) {
-        try {
-            element.sendKeys(Keys.TAB);
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    private WebElement safeActiveElement() {
-        try {
-            return currentDriver.switchTo().activeElement();
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    private boolean focusMoved(WebElement before) {
-        WebElement after = safeActiveElement();
-        if (before == null || after == null) return false;
-        try {
-            return !before.equals(after);
-        } catch (Exception e) {
-            return false;
-        }
+        return elementInteraction.insertInElement(
+                byPassNotFound, element, dataFieldValue, defaultValue, isEncrypted, flags);
     }
 
     /**
@@ -1176,39 +855,8 @@ public class PerformActions implements ActionContext {
     private boolean insertDataInSelectElement(
             boolean byPassNotFound, WebElement element, String coordinates, FieldData data, boolean pressEnterAfter)
             throws Exception {
-        UtilsMethods.exceptionIfNullWebElement(element);
-        try {
-            waitForAction.until(ExpectedConditions.visibilityOf(element));
-        } catch (Exception e) {
-
-            logOperations.warn(String.format(
-                    "Could Not Find Select \"%s\" Value  \"%s\" -> Cause: %s",
-                    data.getKey(), data.getValue(), e.getMessage()));
-            if (!byPassNotFound) {
-                performMessage.couldNotFindElement(data.getKey());
-            }
-        }
-
-        try {
-            // Create a Select instance to interact with the dropdown
-            //            Select selectCountry = new Select(element);
-            //            // Select "Switzerland" by visible text
-            //            selectCountry.selectByVisibleText(data.getValue());
-
-            String[] coordArray = new String[] {coordinates, "coordinates"};
-            sequenceOfCommands(
-                    element, ARConstantsEngine.SELECT, coordArray, data, this.currentDriver, pressEnterAfter);
-
-        } catch (Exception e) {
-
-            logOperations.error(String.format(
-                    "Could Not Input Value to \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
-
-            performMessage.couldNotFindElement("Could Input Values to Element " + element.getTagName());
-
-            return false;
-        }
-        return true;
+        return elementInteraction.insertDataInSelectElement(
+                byPassNotFound, element, coordinates, data, pressEnterAfter);
     }
 
     private String getOutPutElement(
@@ -2284,96 +1932,12 @@ public class PerformActions implements ActionContext {
             FieldData fieldData,
             WebDriver driver,
             boolean pressEnterAfter) {
-
-        String message = "Nothing to execute";
-        try {
-            if (typeCommand.equals(ARConstantsEngine.SELECT)) {
-                // Create a Select instance to interact with the dropdown
-                message = "Select(element)";
-                Select selectCountry = new Select(element);
-                selectCountry.selectByVisibleText(fieldData.getValue());
-            } else if (typeCommand.equals(ARConstantsEngine.CLEAR)) {
-                message = "clear()";
-                element.clear();
-                //                clearElement(element);
-                for (String coords : coordinates) {
-                    //                    executeActionsAtCoordinates(coords, fieldData, ARConstants.INSERT,
-                    // pressEnterAfter);
-                    clearValueAtCoordinates(coords);
-                }
-
-            } else if (typeCommand.equals(ARConstantsEngine.CLICK)) {
-                message = "click()";
-                element.click();
-            } else if (typeCommand.equals(ARConstantsEngine.INSERT)) {
-                message = "sendKeys(\"" + fieldData.getValue() + "\")";
-                element.sendKeys(fieldData.getValue());
-            } else if (typeCommand.equals(ARConstantsEngine.TAB)) {
-                message = "(Keys.TAB)";
-                element.sendKeys(Keys.TAB);
-            } else if (typeCommand.equals(ARConstantsEngine.GET_VALUE)) {
-                message = "getText()";
-                element.getText();
-            } else if (typeCommand.equals(ARConstantsEngine.FOCUS)) {
-                message = "focusElement(element, driver)";
-                focusElement(element, driver);
-            } else if (typeCommand.equals(ARConstantsEngine.COORD_VISUALIZA)) {
-                message = "Coordinates Visualiza";
-                for (String coords : coordinates) {
-                    executeActionsAtCoordinates(coords, fieldData, ARConstantsEngine.VISUALIZE, pressEnterAfter);
-                }
-            } else if (typeCommand.equals(ARConstantsEngine.COORD_CLICK)) {
-                message = "Coordinates Click";
-                for (String coords : coordinates) {
-                    //                    executeActionsAtCoordinates(coords, fieldData, ARConstants.CLICK,
-                    // pressEnterAfter);
-                    clickElementAtCoordinates(coords);
-                }
-            } else if (typeCommand.equals(ARConstantsEngine.COORD_INSERT)) {
-                message = "Coordinates Insert";
-                if (pressEnterAfter) {
-                    message = "Coordinates Insert with <ENTER>";
-                }
-                for (String coords : coordinates) {
-                    //                    executeActionsAtCoordinates(coords, fieldData, ARConstants.INSERT,
-                    // pressEnterAfter);
-                    setValueAtCoordinates(coords, fieldData.getValue());
-                }
-                //                insertElement(element, fieldData.getValue());
-            } else if (typeCommand.equals(ARConstantsEngine.COORD_MOVE_CLICK_RED)) {
-                message = "Coordinates Move Insert Red Circle";
-                for (String coords : coordinates) {
-                    moveAndClickAtCoordinates(coords, pressEnterAfter);
-                }
-            }
-            return "Success " + message;
-        } catch (Exception ex) {
-            return "Failed Attempt " + message;
-        }
-    }
-
-    private void focusElement(WebElement element, WebDriver driver) {
-        JavascriptExecutor js = (JavascriptExecutor) driver;
-        js.executeScript("arguments[0].focus();", element);
-
-        Actions actions = new Actions(driver);
-        actions.moveToElement(element).perform();
+        return elementInteraction.sequenceOfCommands(
+                element, typeCommand, coordinates, fieldData, driver, pressEnterAfter);
     }
 
     private void clearElement(WebElement element) {
-        JavascriptExecutor js = (JavascriptExecutor) currentDriver;
-        js.executeScript("arguments[0].value='';", element);
-
-        Actions actions = new Actions(currentDriver);
-        actions.moveToElement(element).perform();
-    }
-
-    private void insertElement(WebElement element, String text) {
-        JavascriptExecutor js = (JavascriptExecutor) currentDriver;
-        js.executeScript("arguments[0].value=arguments[1];", element, text);
-
-        Actions actions = new Actions(currentDriver);
-        actions.moveToElement(element).perform();
+        elementInteraction.clearElement(element);
     }
 
     public boolean setValueAtCoordinates(String savedCoords, String textToSet) {
