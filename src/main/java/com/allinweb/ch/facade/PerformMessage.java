@@ -1126,7 +1126,7 @@ public class PerformMessage {
         String outputFilePath = jsonPath + "/" + fileName + ".json";
 
         // Write the JSON data to the file
-        try (FileWriter writer = new FileWriter(outputFilePath)) {
+        try (FileWriter writer = new FileWriter(outputFilePath, java.nio.charset.StandardCharsets.UTF_8)) {
             writer.write(jsonData);
             log.info("JSON file saved to: " + outputFilePath);
         } catch (IOException e) {
@@ -1210,7 +1210,7 @@ public class PerformMessage {
             }
         }
 
-        try (FileWriter writer = new FileWriter(outputFilePath)) {
+        try (FileWriter writer = new FileWriter(outputFilePath, java.nio.charset.StandardCharsets.UTF_8)) {
             writer.write(gson.toJson(toWrite));
             log.info(
                     "JSON file saved to: {} ({} entries, mode={})",
