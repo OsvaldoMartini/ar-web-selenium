@@ -369,6 +369,9 @@ public class ARViewBotJobScene extends ARScene {
             String serverUri = "ws://localhost:" + portSocket + "/websocket?sessionId=" + sessionId;
             try {
                 WebSocketContainer container = ContainerProvider.getWebSocketContainer();
+                // Bulk grid payloads (select all -> insert all) exceed the 64KB default receive buffer.
+                container.setDefaultMaxTextMessageBufferSize(8 * 1024 * 1024);
+                container.setDefaultMaxBinaryMessageBufferSize(8 * 1024 * 1024);
                 container.connectToServer(ARViewBotJobScene.getInstance(), new URI(serverUri));
                 latch.await();
                 startKeepAlivePings();
