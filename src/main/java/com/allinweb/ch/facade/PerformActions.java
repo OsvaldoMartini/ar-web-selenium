@@ -7,6 +7,7 @@ import com.allinweb.ch.facade.actions.BrowserJsUtils;
 import com.allinweb.ch.facade.actions.ElementDtoMapper;
 import com.allinweb.ch.facade.actions.InstructionGraph;
 import com.allinweb.ch.facade.actions.ValidationMessageBuilder;
+import com.allinweb.ch.facade.actions.WaitSupport;
 import com.allinweb.ch.facade.actions.WebTextUtils;
 import com.allinweb.ch.model.*;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
@@ -1008,43 +1009,11 @@ public class PerformActions {
     }
 
     private long fromSecondsToMilliseconds(TimeUnit timeUnit, int units) throws Exception {
-        long milliseconds;
-
-        switch (timeUnit) {
-            case SECONDS:
-                milliseconds = units * 1000L;
-                break;
-
-            case MINUTES:
-                milliseconds = units * 1000L * 60L;
-                break;
-
-            default:
-                throw new Exception("time unit: " + timeUnit.name() + " is not available for this operation");
-        }
-        return milliseconds;
+        return WaitSupport.fromSecondsToMilliseconds(timeUnit, units);
     }
 
     public void waitPage() {
-        WebDriver driver = this.currentDriver;
-        if (driver != null) {
-            try {
-
-                waitForPage.until(d -> ((JavascriptExecutor) driver)
-                        .executeScript("return document.readyState")
-                        .equals("complete"));
-            } catch (Exception ex) {
-
-                logOperations.warn(String.format(
-                        "WaitForPage.until(d -> ((JavascriptExecutor) driver) error: %s", ex.getMessage()));
-
-                performMessage.couldNotFindElement("WaitForPage.until");
-            }
-        } else {
-            // Handle the case when driver is null (e.g., throw an exception or initialize the driver)
-
-            logOperations.warn("WaitForPage.until(d -> ((JavascriptExecutor) driver) is returning nulls");
-        }
+        WaitSupport.waitPage(waitForPage, this.currentDriver);
     }
 
     public boolean scrollToElement(boolean byPassNotFound, WebElement element) throws Exception {
@@ -2283,8 +2252,7 @@ public class PerformActions {
     }
 
     public long duration(long startTime) {
-        long currentInstructionEndTime = System.nanoTime();
-        return currentInstructionEndTime - startTime;
+        return WaitSupport.duration(startTime);
     }
 
     public String blockGotoFailed(String resultActions) {
