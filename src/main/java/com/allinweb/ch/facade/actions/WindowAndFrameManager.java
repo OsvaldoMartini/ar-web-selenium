@@ -51,6 +51,31 @@ public class WindowAndFrameManager {
         }
     }
 
+    /**
+     * Browser-history back navigation (BACK action). Playwright-first when enabled, else
+     * Selenium history back. Plugins injected into the page are lost on history navigation,
+     * so the page-refresh callback re-injects them, same as {@link #refreshPage()}.
+     */
+    public void navigateBack() {
+        if (ctx.arWebDriver() != null && ctx.arWebDriver().isPlaywrightEnabled()) {
+            try {
+                ctx.arWebDriver().getPlaywrightDriver().goBack();
+                return;
+            } catch (Exception e) {
+                logOperations.warn("Playwright goBack failed, falling back to Selenium: {}", e.getMessage());
+            }
+        }
+
+        ctx.driver().navigate().back();
+        ctx.driver().switchTo().defaultContent();
+
+        try {
+            ctx.notifyPageRefresh();
+        } catch (Exception e) {
+            logOperations.warn("onPageRefresh callback failed after BACK: {}", e.getMessage());
+        }
+    }
+
     public void updateWindowHandlesList() {
         Set<String> windowHandles = ctx.driver().getWindowHandles();
         ctx.windowHandles(new ArrayList<>(windowHandles));

@@ -4826,6 +4826,7 @@ public class ARScannedElementPane extends ARPane {
                                 } else if (actions[0].equals(ARConstantsEngine.HOLD)
                                         || actions[0].equals(ARConstantsEngine.QUIT)
                                         || actions[0].equals(ARConstantsEngine.SCREEN)
+                                        || actions[0].equals(ARConstantsEngine.BACK)
                                         || actions[0].equals(ARConstantsEngine.REFRESH_ONLY)) {
 
                                     performActions.performOtherActions(byPassNotFound, currentInstruction, actions);

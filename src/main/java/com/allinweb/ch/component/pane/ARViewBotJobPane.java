@@ -74,6 +74,9 @@ public class ARViewBotJobPane extends ARPane {
     Button editBotJobButton;
     Button navigationTimeButton;
     Button launchBotJobButton;
+    Button genFlowButton;
+    ComboBox<BlockLoadDTO> blockFlowComboBox;
+    Button testRunButton;
     Button saveBotJobButton;
     //    Button saveAsBotJobButton;
     Button openExcelFileButton;
@@ -269,8 +272,37 @@ public class ARViewBotJobPane extends ARPane {
         // Keep the Time button in sync with the persisted property
         updateNavigationTimeButtonLabel();
 
+        refreshBlockFlowCombo();
+
         if (!webSocketSessionManager.getAllSessions().isEmpty()) {
             refreshGrids();
+        }
+    }
+
+    /**
+     * Repopulates the GEN FLOW block dropdown with the blocks belonging to the
+     * currently opened bot job, sorted by block order number ascending. Keeps the
+     * current selection when the same block is still present.
+     */
+    private void refreshBlockFlowCombo() {
+        if (blockFlowComboBox == null || selectedBotJob == null || selectedBotJob.getId() == null) {
+            return;
+        }
+        Integer jobId = selectedBotJob.getId();
+        List<BlockLoadDTO> blocks = performLists.getListBlock().stream()
+                .filter(b -> b != null && jobId.equals(b.getBotJobId()))
+                .sorted(java.util.Comparator.comparing(
+                        BlockLoadDTO::getBlockOrderNumber,
+                        java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())))
+                .toList();
+
+        BlockLoadDTO previous = blockFlowComboBox.getValue();
+        blockFlowComboBox.getItems().setAll(blocks);
+        if (previous != null && previous.getId() != null) {
+            blocks.stream()
+                    .filter(b -> previous.getId().equals(b.getId()))
+                    .findFirst()
+                    .ifPresent(blockFlowComboBox::setValue);
         }
     }
 
@@ -471,6 +503,33 @@ public class ARViewBotJobPane extends ARPane {
         this.launchBotJobButton.setStyle("-fx-background-color: #1a6b3a; -fx-text-fill: white; -fx-font-weight: bold; "
                 + "-fx-font-size: 12px; -fx-background-radius: 5;");
 
+        this.genFlowButton = builder.buildButton(
+                "GEN FLOW", ARConstants.SPACE_ZERO, ARConstants.ICON_BURN, ARConstants.SPACE_M, new Insets(3, 8, 3, 8));
+        this.genFlowButton.setStyle("-fx-background-color: #5E35B1; -fx-text-fill: white; -fx-font-weight: bold; "
+                + "-fx-font-size: 12px; -fx-background-radius: 5;");
+
+        this.blockFlowComboBox = new ComboBox<>();
+        this.blockFlowComboBox.setPromptText("Select block...");
+        this.blockFlowComboBox.setFocusTraversable(false);
+        this.blockFlowComboBox.setStyle("-fx-font-size: 12px;");
+        this.blockFlowComboBox.setConverter(new javafx.util.StringConverter<BlockLoadDTO>() {
+            @Override
+            public String toString(BlockLoadDTO block) {
+                if (block == null) return "";
+                return block.getBlockOrderNumber() + " - " + block.getName();
+            }
+
+            @Override
+            public BlockLoadDTO fromString(String string) {
+                return null;
+            }
+        });
+
+        this.testRunButton = builder.buildButton(
+                "TEST RUN", ARConstants.SPACE_ZERO, ARConstants.ICON_PLAY, ARConstants.SPACE_M, new Insets(3, 8, 3, 8));
+        this.testRunButton.setStyle("-fx-background-color: #E67E22; -fx-text-fill: white; -fx-font-weight: bold; "
+                + "-fx-font-size: 12px; -fx-background-radius: 5;");
+
         this.saveBotJobButton = builder.buildButton(
                 "Save", ARConstants.SPACE_ZERO, ARConstants.ICON_SAVE, ARConstants.SPACE_M, new Insets(3, 8, 3, 8));
         this.saveBotJobButton.setDisable(true);
@@ -543,6 +602,9 @@ public class ARViewBotJobPane extends ARPane {
             navigationTimeButton,
             // apiToolToggleButton,
             launchBotJobButton,
+            genFlowButton,
+            blockFlowComboBox,
+            testRunButton,
             openReportButton,
             closeBotJobButton
         };
@@ -625,7 +687,7 @@ public class ARViewBotJobPane extends ARPane {
         // grpApi.setStyle("-fx-background-color: #e8edf0; -fx-background-radius: 6; -fx-padding: 3 6 3 6;");
         // grpApi.setAlignment(Pos.CENTER_LEFT);
 
-        HBox grpLaunch = new HBox(3, launchBotJobButton);
+        HBox grpLaunch = new HBox(3, launchBotJobButton, genFlowButton, blockFlowComboBox, testRunButton);
         grpLaunch.setStyle("-fx-background-color: #EAF3DE; -fx-background-radius: 6; -fx-padding: 3 6 3 6;");
         grpLaunch.setAlignment(Pos.CENTER_LEFT);
 
@@ -826,6 +888,8 @@ public class ARViewBotJobPane extends ARPane {
                 && performLists.getListBlockComp().isEmpty()) {
             performDataBase.loadBlocks(selectedBotJob.getHomeBankingId(), selectedBotJob.getName(), "component_block");
         }
+
+        refreshBlockFlowCombo();
 
         componentBox = new HBox(new Node[] {webViewTasks});
         firstLoad = false;

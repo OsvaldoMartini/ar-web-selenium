@@ -60,6 +60,7 @@ public class ARConstantsEngine {
     public static final String QUIT = "Q";
     public static final String SCREEN = "P";
     public static final String PAUSE = "PAUSE";
+    public static final String BACK = "BACK";
     public static final String NEXT_ENTER = "NEXT_ENTER";
     public static final String SWIPE_UP = "SWIPE_UP";
     public static final String SWIPE_DOWN = "SWIPE_DOWN";

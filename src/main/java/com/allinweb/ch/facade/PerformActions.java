@@ -535,6 +535,9 @@ public class PerformActions implements ActionContext {
             case ARConstantsEngine.REFRESH_LOOP:
                 refreshPage();
                 break;
+            case ARConstantsEngine.BACK:
+                goBackPage();
+                break;
             case ARConstantsEngine.QUIT:
                 // Minimal confirmation using your custom modal
                 ARExecution.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
@@ -763,6 +766,10 @@ public class PerformActions implements ActionContext {
 
     public void refreshPage() {
         windowAndFrameManager.refreshPage();
+    }
+
+    public void goBackPage() {
+        windowAndFrameManager.navigateBack();
     }
 
     private boolean insertInElement(
