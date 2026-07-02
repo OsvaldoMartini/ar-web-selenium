@@ -1110,7 +1110,9 @@ public class ARScannedElementPane extends ARPane {
                     searchHiddenFields,
                     portSocketInitial);
 
-            if (returned == null) {
+            // Playwright-only mode legitimately returns null (no Selenium driver) — that is
+            // success, not failure. Only bail when Selenium was expected but failed to open.
+            if (returned == null && !currentARWebDriver.isPlaywrightOnly()) {
                 return false;
             }
 

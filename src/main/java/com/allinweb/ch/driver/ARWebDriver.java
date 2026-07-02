@@ -88,6 +88,20 @@ public class ARWebDriver {
         return configured != null && Boolean.parseBoolean(configured.trim());
     }
 
+    public boolean isSeleniumFallbackEnabled() {
+        String configured = arPropertyManager.getProperty(ARPropertyEnum.PLAYWRIGHT_SELENIUM_FALLBACK);
+        return configured != null && Boolean.parseBoolean(configured.trim());
+    }
+
+    /**
+     * Playwright-only mode: Playwright is on AND the Selenium fallback is off. In this mode
+     * {@link #openDriver} launches ONLY the Playwright browser (one browser), and the Selenium
+     * {@code currentDriver} stays null.
+     */
+    public boolean isPlaywrightOnly() {
+        return isPlaywrightEnabled() && !isSeleniumFallbackEnabled();
+    }
+
     public ARPlaywrightDriver getPlaywrightDriver() {
         if (playwrightDriver == null) {
             synchronized (ARWebDriver.class) {
@@ -229,6 +243,15 @@ public class ARWebDriver {
         if (isPlaywrightEnabled()) {
             log.info("use_playwright=true - opening Playwright browser session for {}", url);
             getPlaywrightDriver().open(browserType, url, optionsConfig);
+        }
+
+        // Playwright-only mode (fallback off): one browser — skip the Selenium launch entirely.
+        // Returns null (no Selenium WebDriver); callers must treat null-under-isPlaywrightOnly()
+        // as success, not failure.
+        if (isPlaywrightOnly()) {
+            log.info("playwright_selenium_fallback=false - single Playwright browser, skipping Selenium launch");
+            this.currentDriver = null;
+            return null;
         }
 
         if (Strings.isNullOrEmpty(webDriverPath)) {
