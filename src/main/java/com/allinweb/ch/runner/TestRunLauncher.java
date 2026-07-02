@@ -41,13 +41,32 @@ public final class TestRunLauncher {
 
     /** Opens the endpoint in a Playwright browser and executes the selected block's steps. */
     public TestRunResult run(BotJobLoadDTO botJob, BlockLoadDTO block) throws Exception {
-        HomeUrlDTO homeUrl = performLists.getHomeUrlByBankId(botJob.getHomeBankingId(), botJob.getHomeUrlId());
-        if (homeUrl == null || Strings.isNullOrEmpty(homeUrl.getUrl())) {
+        return run(botJob, block, null);
+    }
+
+    /**
+     * Runs with an explicit endpoint URL (e.g. the one already selected/visible in the pane's
+     * environment dropdown). Falls back to resolving from the bot job when {@code endpointUrl}
+     * is blank.
+     */
+    public TestRunResult run(BotJobLoadDTO botJob, BlockLoadDTO block, String endpointUrl) throws Exception {
+        String url = endpointUrl;
+        if (Strings.isNullOrEmpty(url)) {
+            // Fallbacks: loaded home-URL row, else the bot job's HomeBankingLoadDTO url.
+            HomeUrlDTO homeUrl = performLists.getHomeUrlByBankId(botJob.getHomeBankingId(), botJob.getHomeUrlId());
+            url = homeUrl != null && !Strings.isNullOrEmpty(homeUrl.getUrl()) ? homeUrl.getUrl() : null;
+            if (url == null && botJob.getHomeBankingLoadDTO() != null) {
+                url = botJob.getHomeBankingLoadDTO().getUrl();
+            }
+        }
+        if (Strings.isNullOrEmpty(url)) {
             throw new IllegalStateException("No endpoint URL is configured for this bot job.");
         }
-        String url = homeUrl.getUrl();
 
         HomeBankingLoadDTO homeBanking = performLists.getHomeBankingById(botJob.getHomeBankingId());
+        if (homeBanking == null) {
+            homeBanking = botJob.getHomeBankingLoadDTO();
+        }
         String optionsConfig =
                 homeBanking != null && homeBanking.getOptionsConfig() != null ? homeBanking.getOptionsConfig() : "";
         String browserType = propertyManager.getProperty(ARPropertyEnum.BROWSER);

@@ -372,10 +372,21 @@ public class ARViewBotJobPane extends ARPane {
         testRunButton.setDisable(true);
         testRunButton.setText("TEST RUN ...");
 
+        // Use the endpoint the user has selected/visible in this pane (environment dropdown or
+        // the current-URL label) so TEST RUN targets exactly what is shown.
+        String selectedUrl = null;
+        if (homeURLChoiceBox != null && homeURLChoiceBox.getValue() != null) {
+            selectedUrl = homeURLChoiceBox.getValue().getUrl();
+        }
+        if (Strings.isNullOrEmpty(selectedUrl) && currentUrlLabel != null) {
+            selectedUrl = currentUrlLabel.getText();
+        }
+        final String endpointUrl = selectedUrl;
+
         Task<com.allinweb.ch.runner.TestRunLauncher.TestRunResult> task = new Task<>() {
             @Override
             protected com.allinweb.ch.runner.TestRunLauncher.TestRunResult call() throws Exception {
-                return new com.allinweb.ch.runner.TestRunLauncher().run(selectedBotJob, block);
+                return new com.allinweb.ch.runner.TestRunLauncher().run(selectedBotJob, block, endpointUrl);
             }
         };
         task.setOnSucceeded(ev -> {
