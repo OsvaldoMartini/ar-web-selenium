@@ -351,6 +351,65 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     /**
+     * TEST RUN: opens a single Playwright browser at the bot job's endpoint and executes the
+     * block selected in the dropdown locally (in-process), driving it straight through the
+     * Playwright driver. Unlike Launch (external Engine), this is the local "pre-launch".
+     */
+    private void onTestRunClicked() {
+        BlockLoadDTO block = blockFlowComboBox.getValue();
+        if (block == null || block.getId() == null) {
+            performMessage.errorMessage(
+                    "TEST RUN",
+                    "<span style='font-weight: bold;'>Select a block first.</span>",
+                    "Pick the block to run in the dropdown next to TEST RUN.",
+                    null,
+                    null,
+                    0);
+            return;
+        }
+
+        String originalText = testRunButton.getText();
+        testRunButton.setDisable(true);
+        testRunButton.setText("TEST RUN ...");
+
+        Task<com.allinweb.ch.runner.TestRunLauncher.TestRunResult> task = new Task<>() {
+            @Override
+            protected com.allinweb.ch.runner.TestRunLauncher.TestRunResult call() throws Exception {
+                return new com.allinweb.ch.runner.TestRunLauncher().run(selectedBotJob, block);
+            }
+        };
+        task.setOnSucceeded(ev -> {
+            testRunButton.setDisable(false);
+            testRunButton.setText(originalText);
+            com.allinweb.ch.runner.TestRunLauncher.TestRunResult r = task.getValue();
+            performMessage.errorMessage(
+                    "TEST RUN - Done",
+                    "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>Block \"" + block.getName()
+                            + "\" executed ✅</span>",
+                    "<span style='font-weight: bold;'>" + r.clicked() + " clicked, " + r.inserted() + " inserted, "
+                            + r.read() + " read" + (r.failed() > 0 ? ", " + r.failed() + " failed" : "") + "</span>",
+                    "Endpoint: " + r.endpoint(),
+                    null,
+                    0);
+        });
+        task.setOnFailed(ev -> {
+            testRunButton.setDisable(false);
+            testRunButton.setText(originalText);
+            Throwable error = task.getException();
+            log.error("TEST RUN failed", error);
+            performMessage.errorMessage(
+                    "TEST RUN - Failed",
+                    "<span style='color: #D32F2F; font-weight: bold;'>"
+                            + (error == null ? "Unknown error" : String.valueOf(error.getMessage())) + "</span>",
+                    "Check that the endpoint URL and browser/webdriver are configured.",
+                    null,
+                    null,
+                    0);
+        });
+        new Thread(task, "testrun-worker").start();
+    }
+
+    /**
      * Repopulates the GEN FLOW block dropdown with the blocks belonging to the
      * currently opened bot job, sorted by block order number ascending. Keeps the
      * current selection when the same block is still present.
@@ -1313,6 +1372,8 @@ public class ARViewBotJobPane extends ARPane {
         });
 
         this.genFlowButton.setOnMouseClicked(e -> onGenFlowClicked());
+
+        this.testRunButton.setOnMouseClicked(e -> onTestRunClicked());
 
         this.launchBotJobButton.setOnMouseClicked((e) -> {
             ARPropertyManager managerProps = arPropertyManager;
