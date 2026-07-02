@@ -120,6 +120,10 @@ public class ARConfigurationPane extends ARPane {
     TextField pathAppium;
     TextField pathPlugins;
     TextField urlPlugins;
+    PasswordField aiApiKey;
+    TextField aiEndpoint;
+    TextField aiModel;
+    TextField aiMaxBlocks;
     ChoiceBox<String> browserChoiceBox = new ChoiceBox<>();
     ChoiceBox<String> databaseChoiceBox = new ChoiceBox<>();
     ObservableList<String> browserList =
@@ -468,6 +472,27 @@ public class ARConfigurationPane extends ARPane {
         urlPlugins.setVisible(false);
         urlPlugins.setManaged(false);
 
+        // ── AI Assistant (GEN FLOW) ─────────────────────────────────────
+        Label aiSectionLabel = new Label("AI Assistant (GEN FLOW)");
+        aiSectionLabel.setStyle("-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #5E35B1;");
+
+        Label aiApiKeyLabel = new Label("AI API Key:");
+        aiApiKey = new PasswordField();
+        aiApiKey.setText(arPropertyManager.getProperty(ARPropertyEnum.AI_API_KEY));
+        aiApiKey.setPromptText("Together / OpenAI-compatible API key");
+
+        Label aiEndpointLabel = new Label("AI Endpoint:");
+        aiEndpoint = createPathTextField(ARPropertyEnum.AI_ENDPOINT);
+        aiEndpoint.setPromptText(com.allinweb.ch.ai.AiChatClient.DEFAULT_ENDPOINT);
+
+        Label aiModelLabel = new Label("AI Model:");
+        aiModel = createPathTextField(ARPropertyEnum.AI_MODEL);
+        aiModel.setPromptText(com.allinweb.ch.ai.AiChatClient.DEFAULT_MODEL);
+
+        Label aiMaxBlocksLabel = new Label("AI Max Generated Blocks:");
+        aiMaxBlocks = createPathTextField(ARPropertyEnum.AI_MAX_BLOCKS);
+        aiMaxBlocks.setPromptText(String.valueOf(com.allinweb.ch.ai.AiChatClient.DEFAULT_MAX_BLOCKS));
+
         Label organizationsLabel = new Label("Organizations");
         organizationsLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #1565C0;");
         organizationsLabel.setAlignment(Pos.CENTER);
@@ -506,7 +531,16 @@ public class ARConfigurationPane extends ARPane {
                 urlPlugins,
                 dbUrlLabel,
                 dbUrl,
-                dbUserPwdGroup);
+                dbUserPwdGroup,
+                aiSectionLabel,
+                aiApiKeyLabel,
+                aiApiKey,
+                aiEndpointLabel,
+                aiEndpoint,
+                aiModelLabel,
+                aiModel,
+                aiMaxBlocksLabel,
+                aiMaxBlocks);
         advancedContent.setSpacing(2);
         advancedContent.setPadding(new Insets(4, 0, 4, 0));
         advancedContent.setVisible(false);
@@ -1175,6 +1209,19 @@ public class ARConfigurationPane extends ARPane {
             arPropertyManager.setProperty(
                     ARPropertyEnum.URL_PLUGINS.getValue(),
                     urlPlugins.getText() != null ? urlPlugins.getText().trim() : "");
+
+            arPropertyManager.setProperty(
+                    ARPropertyEnum.AI_API_KEY.getValue(),
+                    aiApiKey.getText() != null ? aiApiKey.getText().trim() : "");
+            arPropertyManager.setProperty(
+                    ARPropertyEnum.AI_ENDPOINT.getValue(),
+                    aiEndpoint.getText() != null ? aiEndpoint.getText().trim() : "");
+            arPropertyManager.setProperty(
+                    ARPropertyEnum.AI_MODEL.getValue(),
+                    aiModel.getText() != null ? aiModel.getText().trim() : "");
+            arPropertyManager.setProperty(
+                    ARPropertyEnum.AI_MAX_BLOCKS.getValue(),
+                    aiMaxBlocks.getText() != null ? aiMaxBlocks.getText().trim() : "");
 
             try {
                 performInitializer.testConnection(

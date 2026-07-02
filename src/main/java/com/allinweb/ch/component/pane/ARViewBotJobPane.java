@@ -280,6 +280,77 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     /**
+     * GEN FLOW: sends the selected block's element inventory to the configured AI and
+     * inserts the generated surface-navigation blocks right after it. Runs on a background
+     * thread; the composed prompt is saved under &lt;PATH_DB&gt;/ai/ for manual use too.
+     */
+    private void onGenFlowClicked() {
+        BlockLoadDTO sourceBlock = blockFlowComboBox.getValue();
+        if (sourceBlock == null || sourceBlock.getId() == null) {
+            performMessage.errorMessage(
+                    "GEN FLOW",
+                    "<span style='font-weight: bold;'>Select a block first.</span>",
+                    "Pick the source block (the one with the scanned elements) in the dropdown next to GEN FLOW.",
+                    null,
+                    null,
+                    0);
+            return;
+        }
+        try {
+            com.allinweb.ch.ai.AiChatClient.fromProperties(arPropertyManager);
+        } catch (com.allinweb.ch.ai.GenFlowException ex) {
+            performMessage.errorMessage(ex.getTitle(), ex.getMessage(), null, null, null, 0);
+            return;
+        }
+
+        String originalText = genFlowButton.getText();
+        genFlowButton.setDisable(true);
+        genFlowButton.setText("GEN FLOW ...");
+
+        Task<com.allinweb.ch.ai.GenFlowService.GenFlowResult> task = new Task<>() {
+            @Override
+            protected com.allinweb.ch.ai.GenFlowService.GenFlowResult call() throws Exception {
+                return new com.allinweb.ch.ai.GenFlowService().generate(selectedBotJob, sourceBlock);
+            }
+        };
+        task.setOnSucceeded(ev -> {
+            genFlowButton.setDisable(false);
+            genFlowButton.setText(originalText);
+            com.allinweb.ch.ai.GenFlowService.GenFlowResult result = task.getValue();
+            refreshGrids();
+            refreshBlockFlowCombo();
+            performMessage.errorMessage(
+                    "GEN FLOW - Done",
+                    "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>" + result.blocksCreated()
+                            + " blocks / " + result.instructionsCreated() + " instructions created ✅</span>",
+                    result.droppedSteps() > 0
+                            ? "<span style='color: #E65100;'>" + result.droppedSteps()
+                                    + " AI steps were dropped (element not found in the block).</span>"
+                            : "All AI steps matched the block's elements.",
+                    "Prompt saved: " + result.promptFile(),
+                    "Response saved: " + result.responseFile(),
+                    0);
+        });
+        task.setOnFailed(ev -> {
+            genFlowButton.setDisable(false);
+            genFlowButton.setText(originalText);
+            Throwable error = task.getException();
+            String title =
+                    error instanceof com.allinweb.ch.ai.GenFlowException gfe ? gfe.getTitle() : "GEN FLOW - Failed";
+            log.error("GEN FLOW failed", error);
+            performMessage.errorMessage(
+                    title,
+                    "<span style='color: #D32F2F; font-weight: bold;'>"
+                            + (error == null ? "Unknown error" : String.valueOf(error.getMessage())) + "</span>",
+                    "The composed prompt (if written) is under &lt;PATH_DB&gt;/ai/ and can be used manually in Claude Code.",
+                    null,
+                    null,
+                    0);
+        });
+        new Thread(task, "genflow-worker").start();
+    }
+
+    /**
      * Repopulates the GEN FLOW block dropdown with the blocks belonging to the
      * currently opened bot job, sorted by block order number ascending. Keeps the
      * current selection when the same block is still present.
@@ -1240,6 +1311,8 @@ public class ARViewBotJobPane extends ARPane {
             Stage currentStage = (Stage) pathExport.getScene().getWindow();
             openChooserFor(pathExport, currentStage, true);
         });
+
+        this.genFlowButton.setOnMouseClicked(e -> onGenFlowClicked());
 
         this.launchBotJobButton.setOnMouseClicked((e) -> {
             ARPropertyManager managerProps = arPropertyManager;

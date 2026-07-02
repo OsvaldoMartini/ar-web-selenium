@@ -7944,6 +7944,94 @@ public class PerformDataBase {
         return rows;
     }
 
+    /**
+     * Read-only fetch of the active AI prompt template by name from {@code ai_prompt}
+     * (seeded by migration M20260702_AiPrompt). Pure query — no singleton mutation.
+     * Returns null when the prompt is missing or inactive.
+     */
+    public String loadAiPrompt(String name) {
+        String sql = "SELECT content FROM ai_prompt WHERE name = ? AND active = 1";
+        try (PreparedStatement ps = getConnection().prepareStatement(sql)) {
+            ps.setString(1, name);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("content");
+                }
+            }
+        } catch (SQLException e) {
+            logDB.error("loadAiPrompt({}) failed: {}", name, e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * Read-only fetch of one block's instructions WITH their reference rows, returned as a
+     * local list. Same join/mapping as {@link #loadInstructions} but never touches
+     * {@code performLists.getListInstruction()} — safe to call from background threads
+     * (GEN FLOW) while the UI owns the shared list.
+     */
+    public List<InstructionLoad> loadBlockInstructionsReadOnly(int botJobId, int blockId) {
+        List<InstructionLoad> result = new ArrayList<>();
+        String sql = "SELECT i.id AS instruction_id, i.bot_job_id, "
+                + "i.block_id, i.instruction_order_number, i.actions, i.name, i.client_named, i.operation, "
+                + "i.xpath, i.coordinates, i.force_coordinates, i.iframe_xpath, "
+                + "i.tag_name, i.shadow_host, i.shadow_root, i.css_selector, "
+                + "i.description AS instruction_description, i.default_value, "
+                + "r.id AS reference_id, r.value AS reference_value, r.reference_type "
+                + "FROM instruction i "
+                + "LEFT JOIN reference r ON r.instruction_id = i.id AND r.bot_job_id = i.bot_job_id "
+                + "WHERE i.bot_job_id = ? AND i.block_id = ? "
+                + "ORDER BY i.instruction_order_number ASC, r.id ASC";
+        try (PreparedStatement ps = getConnection().prepareStatement(sql)) {
+            ps.setInt(1, botJobId);
+            ps.setInt(2, blockId);
+            try (ResultSet rs = ps.executeQuery()) {
+                Map<Integer, InstructionLoad> byId = new LinkedHashMap<>();
+                while (rs.next()) {
+                    int instrId = rs.getInt("instruction_id");
+                    InstructionLoad instruction = byId.get(instrId);
+                    if (instruction == null) {
+                        instruction = new InstructionLoad();
+                        instruction.setId(instrId);
+                        instruction.setBotJobId(rs.getInt("bot_job_id"));
+                        instruction.setBlockId(rs.getInt("block_id"));
+                        instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
+                        instruction.setActions(rs.getString("actions"));
+                        instruction.setName(rs.getString("name"));
+                        instruction.setClientNamed(rs.getString("client_named"));
+                        instruction.setOperation(rs.getString("operation"));
+                        instruction.setXpath(rs.getString("xpath"));
+                        instruction.setCoordinates(rs.getString("coordinates"));
+                        instruction.setForceCoordinates(rs.getString("force_coordinates"));
+                        instruction.setIFrameXPath(rs.getString("iframe_xpath"));
+                        instruction.setTagName(rs.getString("tag_name"));
+                        instruction.setShadowHost(rs.getString("shadow_host"));
+                        instruction.setShadowRoot(rs.getString("shadow_root"));
+                        instruction.setCssSelector(rs.getString("css_selector"));
+                        instruction.setDescription(rs.getString("instruction_description"));
+                        instruction.setDefaultValue(rs.getString("default_value"));
+                        instruction.setReferenceLoadDTOList(new ArrayList<>());
+                        byId.put(instrId, instruction);
+                    }
+                    int refId = rs.getInt("reference_id");
+                    if (refId > 0) {
+                        ReferenceLoadDTO ref = new ReferenceLoadDTO();
+                        ref.setId(refId);
+                        ref.setInstructionId(instrId);
+                        ref.setValue(rs.getString("reference_value"));
+                        ref.setReferenceType(rs.getString("reference_type"));
+                        ref.setBotJobId(instruction.getBotJobId());
+                        instruction.getReferenceLoadDTOList().add(ref);
+                    }
+                }
+                result.addAll(byId.values());
+            }
+        } catch (SQLException e) {
+            logDB.error("loadBlockInstructionsReadOnly({}, {}) failed: {}", botJobId, blockId, e.getMessage());
+        }
+        return result;
+    }
+
     public ErrorMessage loadInstructions(int whereID, int blockId, int instrucId, String tableName) {
         List<InstructionLoad> instructions = new ArrayList<>();
 
