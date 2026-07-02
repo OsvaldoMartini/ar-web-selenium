@@ -7964,6 +7964,26 @@ public class PerformDataBase {
         return null;
     }
 
+    /** Updates an ai_prompt row's content (UI prompt editor). Returns null on success. */
+    public ErrorMessage updateAiPrompt(String name, String content) {
+        String sql = "UPDATE ai_prompt SET content = ?, updated_at = ? WHERE name = ?";
+        try (PreparedStatement ps = getConnection().prepareStatement(sql)) {
+            ps.setString(1, content);
+            ps.setString(2, new java.sql.Timestamp(System.currentTimeMillis()).toString());
+            ps.setString(3, name);
+            int updated = ps.executeUpdate();
+            if (updated == 0) {
+                return new ErrorMessage("Prompt Not Found", "No ai_prompt row named '" + name + "' to update.", name);
+            }
+            logDB.info("updateAiPrompt({}) — {} chars saved", name, content == null ? 0 : content.length());
+            return null;
+        } catch (SQLException e) {
+            logDB.error("updateAiPrompt({}) failed: {}", name, e.getMessage());
+            return new ErrorMessage(
+                    "Prompt Update Failed", "Could not update ai_prompt '" + name + "'", e.getMessage());
+        }
+    }
+
     /**
      * Read-only fetch of one block's instructions WITH their reference rows, returned as a
      * local list. Same join/mapping as {@link #loadInstructions} but never touches

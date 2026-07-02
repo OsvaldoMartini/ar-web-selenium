@@ -493,6 +493,11 @@ public class ARConfigurationPane extends ARPane {
         aiMaxBlocks = createPathTextField(ARPropertyEnum.AI_MAX_BLOCKS);
         aiMaxBlocks.setPromptText(String.valueOf(com.allinweb.ch.ai.AiChatClient.DEFAULT_MAX_BLOCKS));
 
+        Button editGenFlowPromptButton = new Button("Edit GEN FLOW Prompt");
+        editGenFlowPromptButton.setStyle("-fx-background-color: #5E35B1; -fx-text-fill: white; "
+                + "-fx-font-weight: bold; -fx-font-size: 12px; -fx-background-radius: 5;");
+        editGenFlowPromptButton.setOnAction(e -> openGenFlowPromptEditor());
+
         Label organizationsLabel = new Label("Organizations");
         organizationsLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #1565C0;");
         organizationsLabel.setAlignment(Pos.CENTER);
@@ -540,7 +545,8 @@ public class ARConfigurationPane extends ARPane {
                 aiModelLabel,
                 aiModel,
                 aiMaxBlocksLabel,
-                aiMaxBlocks);
+                aiMaxBlocks,
+                editGenFlowPromptButton);
         advancedContent.setSpacing(2);
         advancedContent.setPadding(new Insets(4, 0, 4, 0));
         advancedContent.setVisible(false);
@@ -1378,6 +1384,65 @@ public class ARConfigurationPane extends ARPane {
                         ButtonType.OK);
             }
         }
+    }
+
+    /**
+     * Modal editor for the GEN_FLOW prompt stored in the ai_prompt table. Placeholders
+     * {{BLOCK_NAME}}, {{ELEMENTS_JSON}}, {{MAX_BLOCKS}}, {{JSON_SCHEMA}} are substituted by
+     * GenFlowService at runtime and must be kept.
+     */
+    private void openGenFlowPromptEditor() {
+        String content = performDataBase.loadAiPrompt("GEN_FLOW");
+        if (content == null) {
+            performMessage.errorMessage(
+                    "GEN FLOW Prompt",
+                    "<span style='color: #D32F2F; font-weight: bold;'>No GEN_FLOW prompt found in the database.</span>",
+                    "Restart the application so migration 2026-07-02__ai_prompt can seed it.",
+                    null,
+                    null,
+                    0);
+            return;
+        }
+
+        TextArea editor = new TextArea(content);
+        editor.setWrapText(true);
+        editor.setPrefSize(760, 520);
+        editor.setStyle("-fx-font-family: 'Consolas', monospace; -fx-font-size: 12px;");
+
+        Label hint =
+                new Label("Keep the placeholders {{BLOCK_NAME}}  {{ELEMENTS_JSON}}  {{MAX_BLOCKS}}  {{JSON_SCHEMA}} "
+                        + "- they are replaced at runtime.");
+        hint.setStyle("-fx-font-size: 11px; -fx-text-fill: #E65100;");
+        hint.setWrapText(true);
+
+        Button saveButton = new Button("Save Prompt");
+        saveButton.setStyle("-fx-background-color: #1a6b3a; -fx-text-fill: white; -fx-font-weight: bold; "
+                + "-fx-font-size: 12px; -fx-background-radius: 5;");
+        Button cancelButton = new Button("Cancel");
+
+        HBox buttons = new HBox(8, saveButton, cancelButton);
+        buttons.setAlignment(Pos.CENTER_RIGHT);
+
+        VBox root = new VBox(8, hint, editor, buttons);
+        root.setPadding(new Insets(10));
+        VBox.setVgrow(editor, Priority.ALWAYS);
+
+        Stage dialog = new Stage();
+        dialog.setTitle("GEN FLOW Prompt (ai_prompt.GEN_FLOW)");
+        dialog.initModality(javafx.stage.Modality.APPLICATION_MODAL);
+        dialog.setScene(new javafx.scene.Scene(root));
+
+        saveButton.setOnAction(ev -> {
+            ErrorMessage err = performDataBase.updateAiPrompt("GEN_FLOW", editor.getText());
+            if (err != null) {
+                performMessage.errorMessageOperationFailed(err);
+            } else {
+                dialog.close();
+            }
+        });
+        cancelButton.setOnAction(ev -> dialog.close());
+
+        dialog.showAndWait();
     }
 
     private TextField createPathTextField(ARPropertyEnum property) {

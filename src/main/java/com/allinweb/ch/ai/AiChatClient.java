@@ -69,7 +69,7 @@ public final class AiChatClient {
         JsonObject body = new JsonObject();
         body.addProperty("model", cfg.model());
         body.addProperty("temperature", 0.2);
-        body.addProperty("max_tokens", 8000);
+        body.addProperty("max_tokens", 16000);
 
         JsonArray messages = new JsonArray();
         JsonObject system = new JsonObject();

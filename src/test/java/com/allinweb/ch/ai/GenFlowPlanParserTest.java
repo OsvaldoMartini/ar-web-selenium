@@ -132,6 +132,27 @@ class GenFlowPlanParserTest {
     }
 
     @Test
+    void truncatedResponseSalvagesCompleteBlocks() throws Exception {
+        // Simulates the model hitting max_tokens mid-way through block 3.
+        String truncated =
+                """
+                {"blocks": [
+                  {"name": "First", "steps": [
+                    {"action": "CLICK", "elementName": "investor_relations", "xpath": "/html[1]/body[1]/a[1]"},
+                    {"action": "BACK"}
+                  ]},
+                  {"name": "Second", "steps": [
+                    {"action": "CLICK", "elementName": "investor_relations", "xpath": "/html[1]/body[1]/a[1]"}
+                  ]},
+                  {"name": "Third (cut off)", "steps": [
+                    {"action": "CLICK", "elementName": "investor_rel""";
+        GenFlowPlan plan = GenFlowPlanParser.parse(truncated);
+        assertEquals(2, plan.blocks.size());
+        assertEquals("First", plan.blocks.get(0).name);
+        assertEquals("Second", plan.blocks.get(1).name);
+    }
+
+    @Test
     void longBlockNamesAreTruncatedTo40Chars() throws Exception {
         String longName = "X".repeat(80);
         String json = "{\"blocks\": [{\"name\": \"" + longName + "\", \"steps\": ["

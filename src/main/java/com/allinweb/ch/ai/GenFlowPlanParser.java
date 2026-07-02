@@ -46,8 +46,13 @@ public final class GenFlowPlanParser {
         try {
             plan = GSON.fromJson(json, GenFlowPlan.class);
         } catch (JsonSyntaxException e) {
-            throw new GenFlowException(
-                    "GEN FLOW - Invalid AI Response", "The AI response is not valid JSON: " + e.getMessage(), e);
+            // Long plans get truncated at the model's max_tokens; salvage every complete block.
+            plan = repairTruncated(rawModelOutput.substring(first));
+            if (plan == null) {
+                throw new GenFlowException(
+                        "GEN FLOW - Invalid AI Response", "The AI response is not valid JSON: " + e.getMessage(), e);
+            }
+            log.warn("GEN FLOW — AI response was truncated; salvaged {} complete block(s)", plan.blocks.size());
         }
         if (plan == null || plan.blocks == null || plan.blocks.isEmpty()) {
             throw new GenFlowException("GEN FLOW - Empty Plan", "The AI response contains no blocks to generate.");
@@ -116,6 +121,57 @@ public final class GenFlowPlanParser {
         }
 
         return new ValidatedPlan(blocks, dropped);
+    }
+
+    /**
+     * Salvages a truncated response: string-aware scan tracking brace/bracket depth, cutting
+     * at the last position where a complete top-level block object closed (depth back to
+     * "inside the blocks array"), then appending {@code ]}}. Returns null if nothing usable.
+     */
+    private static GenFlowPlan repairTruncated(String jsonFromFirstBrace) {
+        int depth = 0;
+        boolean inString = false;
+        boolean escaped = false;
+        int lastCompleteBlockEnd = -1;
+
+        for (int i = 0; i < jsonFromFirstBrace.length(); i++) {
+            char c = jsonFromFirstBrace.charAt(i);
+            if (escaped) {
+                escaped = false;
+                continue;
+            }
+            if (c == '\\') {
+                escaped = inString;
+                continue;
+            }
+            if (c == '"') {
+                inString = !inString;
+                continue;
+            }
+            if (inString) {
+                continue;
+            }
+            if (c == '{' || c == '[') {
+                depth++;
+            } else if (c == '}' || c == ']') {
+                depth--;
+                // depth 2 = back inside the "blocks" array after a block object closed.
+                if (c == '}' && depth == 2) {
+                    lastCompleteBlockEnd = i;
+                }
+            }
+        }
+
+        if (lastCompleteBlockEnd < 0) {
+            return null;
+        }
+        String repaired = jsonFromFirstBrace.substring(0, lastCompleteBlockEnd + 1) + "]}";
+        try {
+            GenFlowPlan plan = GSON.fromJson(repaired, GenFlowPlan.class);
+            return (plan == null || plan.blocks == null || plan.blocks.isEmpty()) ? null : plan;
+        } catch (JsonSyntaxException e) {
+            return null;
+        }
     }
 
     private static InstructionLoad matchElement(GenFlowPlan.GenFlowStep step, List<InstructionLoad> inventory) {
