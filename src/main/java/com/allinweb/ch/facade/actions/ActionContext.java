@@ -47,4 +47,11 @@ public interface ActionContext {
 
     /** The actionExecutor plugin re-injection callback; may be null when not registered. */
     Runnable actionExecutorInjector();
+
+    /**
+     * Pauses execution via the facade's synchronized HOLD ({@code Object.wait} on the singleton
+     * monitor). Kept on the facade so the monitor object never changes; pass {@code null} for
+     * the default short hold.
+     */
+    String holdForSeconds(com.allinweb.ch.model.InstructionLoad instruction) throws Exception;
 }
