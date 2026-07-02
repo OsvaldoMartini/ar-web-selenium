@@ -333,7 +333,9 @@ public class PerformActions implements ActionContext {
 
         try {
             String xPath = currentInstruction.getXpath().toLowerCase();
-            if (currentInstruction.getXpath() != null && xPath.contains("iframe")) {
+            // Selenium iframe pre-switch — skip when there is no Selenium driver (Playwright-only);
+            // Playwright handles iframes itself via frameLocator in PlaywrightActionExecutor.
+            if (this.currentDriver != null && currentInstruction.getXpath() != null && xPath.contains("iframe")) {
                 // Locate and switch to the iframe
                 WebElement iframeElement = this.currentDriver.findElement(By.xpath(xPath));
                 WebDriver driver = this.currentDriver.switchTo().frame(iframeElement);

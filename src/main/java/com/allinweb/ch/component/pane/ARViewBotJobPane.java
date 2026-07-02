@@ -383,23 +383,26 @@ public class ARViewBotJobPane extends ARPane {
         }
         final String endpointUrl = selectedUrl;
 
-        Task<com.allinweb.ch.runner.TestRunLauncher.TestRunResult> task = new Task<>() {
+        // TEST RUN now reuses the FULL pre-launch engine (ARScannedElementPane.executeJob) in the
+        // single Playwright browser. executeJob runs asynchronously on the pane's own executor, so
+        // this worker only kicks it off and reports that the run was launched.
+        Task<Void> task = new Task<>() {
             @Override
-            protected com.allinweb.ch.runner.TestRunLauncher.TestRunResult call() throws Exception {
-                return new com.allinweb.ch.runner.TestRunLauncher().run(selectedBotJob, block, endpointUrl);
+            protected Void call() throws Exception {
+                ARScannedElementPane.getInstance()
+                        .testRunBlockPlaywright(selectedBotJob, block.getBlockOrderNumber(), endpointUrl);
+                return null;
             }
         };
         task.setOnSucceeded(ev -> {
             testRunButton.setDisable(false);
             testRunButton.setText(originalText);
-            com.allinweb.ch.runner.TestRunLauncher.TestRunResult r = task.getValue();
             performMessage.errorMessage(
-                    "TEST RUN - Done",
+                    "TEST RUN - Launched",
                     "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>Block \"" + block.getName()
-                            + "\" executed ✅</span>",
-                    "<span style='font-weight: bold;'>" + r.clicked() + " clicked, " + r.inserted() + " inserted, "
-                            + r.read() + " read" + (r.failed() > 0 ? ", " + r.failed() + " failed" : "") + "</span>",
-                    "Endpoint: " + r.endpoint(),
+                            + "\" is running in the Playwright browser ▶</span>",
+                    "<span style='font-weight: bold;'>Watch the opened browser — the block executes through the full pre-launch engine.</span>",
+                    Strings.isNullOrEmpty(endpointUrl) ? null : "Endpoint: " + endpointUrl,
                     null,
                     0);
         });

@@ -42,16 +42,18 @@ public class M20260702_AiPrompt implements Migration {
 
             TASK
             Create a navigation test plan that visits every link and button, one small navigation unit ("block") per target:
-            1. For each link or button: one block with a CLICK step on that element, followed by one BACK step to return to the original page.
-            2. If a click clearly does NOT navigate away (expand/collapse, same-page tab, anchor "#"), you may omit the BACK step.
+            1. For each link or button: one block with a CLICK step on that element.
+            2. If the flow must return or move elsewhere, use only another CLICK step on a real page element listed in ELEMENTS
+               (for example a visible Back, Previous, Home, menu, breadcrumb, or navigation link/button).
             3. For plain text inputs you MAY add an INSERT step with a short synthetic value (e.g. "test", "123", "test@example.com").
-            4. NAVIGATION ONLY: never fill passwords or login fields, never submit forms, never click submit/save/delete/confirm/logout-style buttons, no destructive actions.
-            5. Produce at most {{MAX_BLOCKS}} blocks; if there are more targets, keep the most important navigation ones.
+            4. Never use browser history, browser Back, window.history, driver.navigate().back, or synthetic BACK actions.
+            5. NAVIGATION ONLY: never fill passwords or login fields, never submit forms, never click submit/save/delete/confirm/logout-style buttons, no destructive actions.
+            6. Produce at most {{MAX_BLOCKS}} blocks; if there are more targets, keep the most important navigation ones.
 
             STRICT RULES
             - Use ONLY elements listed in ELEMENTS. Copy "name", "xpath" and "cssSelector" EXACTLY as given. Never invent elements or locators.
-            - "action" must be exactly one of: CLICK, INSERT, BACK.
-            - BACK steps have no element fields. INSERT steps must include "value".
+            - "action" must be exactly one of: CLICK, INSERT.
+            - INSERT steps must include "value".
             - Give each block a short descriptive "name" (max 40 chars).
 
             OUTPUT

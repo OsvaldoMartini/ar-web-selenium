@@ -150,6 +150,9 @@ public class ARScannedElementPane extends ARPane {
     private int currentBlockId;
     private int currentBlockOrder;
     private int executeSpecificBlock;
+    /** TEST RUN: when true, executeJob runs only the selected block then stops. */
+    private boolean runSingleBlock = false;
+
     private Integer lastInstructionIdPushed = null;
     private boolean firstPageLoadDone = false;
     private boolean isMobileApp = false;
@@ -2855,10 +2858,147 @@ public class ARScannedElementPane extends ARPane {
             log.info("recallJob() requested while executeJob() was running.");
         }
 
-        if (performActions.getCurrentDriver().getWindowHandles().size() != performActions.windowHandlesList.size()) {
+        // Selenium-only window bookkeeping — skipped in Playwright-only mode (no Selenium driver).
+        if (performActions.getCurrentDriver() != null
+                && performActions.getCurrentDriver().getWindowHandles().size()
+                        != performActions.windowHandlesList.size()) {
             performActions.updateWindowHandlesList();
             updateButtonState();
         }
+    }
+
+    /**
+     * TEST RUN — run ONE selected block through the full pre-launch engine ({@link #executeJob()})
+     * inside the single Playwright browser (no Selenium browser, no external AR_Web_Engine.jar).
+     *
+     * <p>Mirrors the "Launch" button's preload sequence, but differs in three ways: (a) it opens
+     * the Playwright driver itself (Launch assumes scanning already opened a browser); (b) it starts
+     * at the selected block ({@code executeSpecificBlock}) and stops after it ({@link #runSingleBlock});
+     * (c) it tolerates a missing Excel file by injecting the synthetic {@code $EMPTY} row, since
+     * GEN FLOW navigation blocks carry no data.
+     *
+     * <p>Safe to invoke from a background worker thread — the actual job runs on
+     * {@code executorServicePreLaunch} via {@link #recallJob()}.
+     *
+     * @param botJob           the bot job that owns the block
+     * @param blockOrderNumber 1-based block order number of the block to run
+     * @param endpointUrl      environment URL selected in the pane (informational; the run URL is
+     *                         resolved from the loaded home-URL row, exactly like Launch)
+     */
+    public void testRunBlockPlaywright(BotJobLoadDTO botJob, int blockOrderNumber, String endpointUrl) {
+        if (botJob == null) {
+            log.error("TEST RUN — no bot job supplied");
+            return;
+        }
+        if (isJobRunning.get()) {
+            log.info("TEST RUN — a job is already running; ignoring request.");
+            return;
+        }
+
+        if (this.currentARWebDriver == null) {
+            this.currentARWebDriver = ARWebDriver.getInstance();
+        }
+
+        this.currentBotJob = botJob;
+        performActions.setInterceptBotJob(false);
+        setInterceptBotJob(false);
+        isJobRunning.set(false);
+
+        try {
+            excelPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
+        } catch (Exception error) {
+            log.error("TEST RUN — error resolving Excel path: {}", error.getMessage());
+        }
+
+        executeSpecificBlock = blockOrderNumber < 0 ? 0 : blockOrderNumber - 1;
+        runSingleBlock = true;
+
+        clearFields();
+
+        ErrorMessage errorMessage = performDBEngine.loadHomeBanking(null);
+        if (errorMessage == null) errorMessage = performDBEngine.loadHomeUrls(this.currentBotJob.getHomeBankingId());
+
+        if (errorMessage == null) {
+            excelDataGoto = performDBEngine.loadExcelGotoBlock(this.currentBotJob.getId(), "instruction");
+            if ((!excelDataGoto.isEmpty() && excelDataGoto.get(0).getParentBlockId() == null)
+                    || (!excelDataGoto.isEmpty() && excelDataGoto.get(0).getParentBlockId() <= 0)) {
+                performDBEngine.fixExcelGoto(
+                        "instruction",
+                        currentBotJob.getId(),
+                        excelDataGoto.get(0).getId(),
+                        excelDataGoto.get(0).getBlockId());
+                excelDataGoto = performDBEngine.loadExcelGotoBlock(this.currentBotJob.getId(), "instruction");
+            }
+        }
+        if (errorMessage == null) errorMessage = performDBEngine.loadCompleteJobs(this.currentBotJob.getId());
+        if (errorMessage == null)
+            errorMessage = performDBEngine.loadAllVariables("variable", this.currentBotJob.getId());
+
+        if (errorMessage == null && !performLists.getListBotJob().isEmpty()) {
+            blocksLoaded = performLists.getListBotJob().get(0).getBlockLoadDTOList();
+            errorMessage = performDBEngine.loadAllActionsPerBlock(blocksLoaded);
+        }
+
+        if (errorMessage != null) {
+            log.error("TEST RUN — load error: {}", errorMessage.getErrorMessage());
+            runSingleBlock = false;
+            return;
+        }
+        if (performLists.getListBotJob().isEmpty()) {
+            log.error("TEST RUN — cannot find bot job with id: {}", this.currentBotJob.getId());
+            runSingleBlock = false;
+            return;
+        }
+
+        HomeBankingLoadDTO homeBanking = performLists.getHomeBankingById(this.currentBotJob.getHomeBankingId());
+        if (homeBanking == null || StringUtils.isNullOrEmpty(homeBanking.getUrl())) {
+            log.error("TEST RUN — cannot find home banking env id: {}", this.currentBotJob.getHomeBankingId());
+            runSingleBlock = false;
+            return;
+        }
+
+        currentBotJob = performLists.getListBotJob().get(0);
+        currentBotJob.setHomeBankingLoadDTO(homeBanking);
+        HomeUrlDTO homeUrlDTO =
+                performLists.getHomeUrlByBankId(currentBotJob.getHomeBankingId(), currentBotJob.getHomeUrlId());
+        if (homeUrlDTO != null) {
+            currentBotJob.setHomeUrlId(homeUrlDTO.getId());
+            homeBanking.setUrl(homeUrlDTO.getUrl());
+        }
+
+        currentBotJobName = currentBotJob.getName();
+        excelPath = excelPath + "\\" + currentBotJobName + ".xlsx";
+
+        ExcelReader excelReader = new ExcelReader();
+        try {
+            extractedData = excelReader.extractData(
+                    excelPath, performLists.getAllActions(), ExcelUtils.buildAliasMap(performLists.getListBlock()));
+        } catch (Exception error) {
+            log.warn("TEST RUN — no/invalid Excel file, using synthetic $EMPTY row: {}", error.getMessage());
+        }
+
+        // GEN FLOW navigation blocks carry no Excel data — guarantee a single synthetic row.
+        if (extractedData == null) {
+            extractedData = new ExtractedData();
+        }
+        if (extractedData.getNumberOfDataRows() == null || extractedData.getNumberOfDataRows() == 0) {
+            extractedData.addField("$EMPTY");
+            extractedData.addFieldValue("$EMPTY", "$EMPTY", 0);
+        }
+
+        // Open the single Playwright browser (Launch relies on scanning having opened it already).
+        if (!openWebDriver(true)) {
+            log.error("TEST RUN — failed to open the Playwright browser");
+            runSingleBlock = false;
+            return;
+        }
+
+        // Reset executed flags and run the selected block through the full engine.
+        performLists.getListBotJob().get(0).getBlockLoadDTOList().stream()
+                .flatMap(block -> block.getInstructionLoad().stream())
+                .forEach(instruction -> instruction.setExecuted(false));
+
+        recallJob();
     }
 
     //    private void sendScreenshotToListener() {
@@ -3710,6 +3850,9 @@ public class ARScannedElementPane extends ARPane {
      */
     private void ensureWaitsInitialized() {
         if (PerformActions.waitForPage != null && PerformActions.waitForAction != null) return;
+        // Playwright-only mode has no Selenium driver; WebDriverWait(null,...) would throw.
+        // The waits are only used by Selenium-path helpers, none reached in Playwright-only.
+        if (performActions.getCurrentDriver() == null) return;
         String updateTimeout = arPropertyManager.getProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
         String interactionTimeout = arPropertyManager.getProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
         WebDriver driver = performActions.getCurrentDriver();
@@ -3730,6 +3873,10 @@ public class ARScannedElementPane extends ARPane {
 
         Labels.initializeLabelsInSpecLang("en");
         Properties labelsValue = Labels.labelsValue;
+
+        // Playwright-only run (TEST RUN, no Selenium browser): skip Selenium element location
+        // and let performWebActions act via tryPlaywrightWebAction using the instruction locator.
+        final boolean pwOnly = currentARWebDriver != null && currentARWebDriver.isPlaywrightOnly();
 
         String baseLogString =
                 currentBotJobName + ARConstantsEngine.FIELDS_SEPARATOR + labelsValue.getProperty(Labels.START);
@@ -4872,7 +5019,9 @@ public class ARScannedElementPane extends ARPane {
 
                                     if (!isMobileApp) {
 
-                                        if (isWebElementInstruction(currentInstruction) && webElementFound == null) {
+                                        if (isWebElementInstruction(currentInstruction)
+                                                && webElementFound == null
+                                                && !pwOnly) {
                                             try {
                                                 performActions.waitPage();
 
@@ -5020,7 +5169,7 @@ public class ARScannedElementPane extends ARPane {
                                     byPassNotFound = byPassFlagLoop
                                             || !currentCondition.equals(ARExecution.ConditionStatus.NONE);
 
-                                    if (webElementFound != null && success) {
+                                    if ((webElementFound != null || pwOnly) && success) {
 
                                         success = performActions.performWebActions(
                                                 byPassNotFound,
@@ -5044,11 +5193,14 @@ public class ARScannedElementPane extends ARPane {
                                     // Special Cases for Select Responses
                                     // It could be Improved the case
                                     if (resultActions.contains("FAIL")
-                                            || performLists
-                                                    .getListTargetElements()
-                                                    .isEmpty()
-                                            || (matchXPath == null && matchScanned == null && webElementFound == null)
-                                            || (webElementFound == null && !forceCoordinates)) {
+                                            || (!pwOnly
+                                                    && (performLists
+                                                                    .getListTargetElements()
+                                                                    .isEmpty()
+                                                            || (matchXPath == null
+                                                                    && matchScanned == null
+                                                                    && webElementFound == null)
+                                                            || (webElementFound == null && !forceCoordinates)))) {
                                         failedMessage = "Failed execution Web Element ";
                                         msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                         if (resultActions.contains("PASSED")) {
@@ -5886,6 +6038,12 @@ public class ARScannedElementPane extends ARPane {
                         break;
                     }
                     currentBlockOrder++;
+
+                    // TEST RUN: run only the selected block, then stop the whole job.
+                    if (runSingleBlock) {
+                        stopAll = true;
+                        break blockLoop;
+                    }
 
                     currentTableCSV = csvTables.get(newExcelFieldName);
 
