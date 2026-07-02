@@ -61,6 +61,14 @@ public class ARPlaywrightDriver {
         });
     }
 
+    public void setContent(String html) {
+        run(() -> {
+            requirePage().setContent(html);
+            requirePage().waitForLoadState(LoadState.DOMCONTENTLOADED);
+            return null;
+        });
+    }
+
     public Object evaluate(String script, Object arg) {
         return call(() -> requirePage().evaluate(script, arg));
     }
