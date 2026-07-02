@@ -93,6 +93,10 @@ public class ARWebSocketServer {
 
         wsContainer = WebSocketServerContainerInitializer.configureContext(context);
         wsContainer.setDefaultMaxSessionIdleTimeout(0);
+        // Bulk grid operations (select all -> insert all) send every scanned element in one
+        // JSON message; the 64KB Jetty default kills the scannerGrid session with TOO_BIG.
+        wsContainer.setDefaultMaxTextMessageBufferSize(8 * 1024 * 1024);
+        wsContainer.setDefaultMaxBinaryMessageBufferSize(8 * 1024 * 1024);
         wsContainer.addEndpoint(SimpleWebSocketServer.class); // Register your WebSocket endpoint
 
         // Start the Jetty Server
