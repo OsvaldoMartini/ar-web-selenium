@@ -24,7 +24,6 @@ import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -40,30 +39,54 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * PerformActions.
+ * PerformActions — facade over the action layer.
+ *
+ * <p>Historically a single 4,800-line god class; the implementation now lives in
+ * {@code com.allinweb.ch.facade.actions} and this class keeps the stable public API
+ * (all method signatures, the public fields {@code windowHandlesList}/{@code currentTabIndex}
+ * and the statics {@code waitForPage}/{@code waitForAction}) as one-line delegators, plus the
+ * three orchestrators ({@code performWebActions}, {@code performOtherActions},
+ * {@code performOperatorActions}). Mutable state is owned here and exposed to the extracted
+ * classes through {@link ActionContext}.
+ *
+ * <p>Cluster → class map:
+ * <ul>
+ *   <li>string/format utils → {@link WebTextUtils}; browser JS helpers → {@link BrowserJsUtils}
+ *   <li>validation/report rows → {@link ValidationMessageBuilder}
+ *   <li>instruction/block graph → {@link InstructionGraph}
+ *   <li>TargetElement/ElementDTO mapping → {@link ElementDtoMapper}
+ *   <li>waits/timing → {@link WaitSupport} (HOLD sleeps stay here: synchronized on this singleton)
+ *   <li>Playwright/actionExecutor routing → {@link PlaywrightBridge}
+ *   <li>coordinate fallbacks → {@link CoordinateActions}
+ *   <li>windows/iframes → {@link WindowAndFrameManager}
+ *   <li>element location ladder → {@link ElementLocator}
+ *   <li>click/insert/select + key cascade + command sequencer → {@link ElementInteraction}
+ *   <li>field data / OUTPUT text → {@link DataExtractor}
+ *   <li>engine dialogs/messages → {@link EngineDialogs}
+ *   <li>reporting + condition state machine → {@link ExecutionReporter}
+ * </ul>
+ *
+ * <p><b>ar-web-engine note:</b> the Engine repo carries a near-duplicate PerformActions
+ * (~4,700 lines) that was NOT decomposed. When porting fixes between the two repos, use the
+ * map above to find the counterpart code here.
  *
  * @author Osvaldo Martini
- * @version 1.0
+ * @version 2.0
  */
 @Slf4j
 public class PerformActions implements ActionContext {
     private static final Logger logOperations = LoggerFactory.getLogger("com.allinweb.operations");
 
-    //    private static final AndroidDevice androidDevice = AndroidDevice.getInstance();
     private static final PerformMessage performMessage;
-    private static final IframeInputLocator iframeInputLocator;
     private static final ARPropertyManager arPropertyManager;
-    private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
     public static Wait<WebDriver> waitForPage;
     public static Wait<WebDriver> waitForAction;
     // Static final variable to hold the singleton instance
     protected static volatile PerformActions instance;
-    private static JavascriptExecutor jsExecutor;
 
     static {
         arPropertyManager = ARPropertyManager.getInstance();
         performMessage = PerformMessage.getInstance();
-        iframeInputLocator = IframeInputLocator.getInstance();
     }
 
     public List<String> windowHandlesList = new ArrayList<>();
