@@ -1,7 +1,6 @@
 package com.allinweb.ch.ai;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -35,8 +34,10 @@ class GenFlowPlanParserTest {
         return instruction;
     }
 
-    private static final List<InstructionLoad> INVENTORY =
-            List.of(element("investor_relations", "/html[1]/body[1]/a[1]"), element("search_input", "/input[1]"));
+    private static final List<InstructionLoad> INVENTORY = List.of(
+            element("investor_relations", "/html[1]/body[1]/a[1]"),
+            element("search_input", "/input[1]"),
+            element("page_back_link", "/html[1]/body[1]/nav[1]/a[1]"));
 
     @Test
     void parsesBareJson() throws Exception {
@@ -61,17 +62,36 @@ class GenFlowPlanParserTest {
     }
 
     @Test
-    void validateMatchesByXpathAndKeepsBack() throws Exception {
+    void validateMatchesByXpathAndDropsBrowserBack() throws Exception {
         GenFlowPlan plan = GenFlowPlanParser.parse(PLAN_JSON);
         GenFlowPlanParser.ValidatedPlan validated = GenFlowPlanParser.validate(plan, INVENTORY, 30);
 
         assertEquals(1, validated.blocks().size());
-        assertEquals(0, validated.droppedSteps());
+        assertEquals(1, validated.droppedSteps());
         List<GenFlowPlanParser.ValidatedStep> steps = validated.blocks().get(0).steps();
+        assertEquals(1, steps.size());
         assertEquals("CLICK", steps.get(0).action());
         assertEquals("investor_relations", steps.get(0).source().getName());
-        assertEquals("BACK", steps.get(1).action());
-        assertNull(steps.get(1).source());
+    }
+
+    @Test
+    void validateAllowsPageBackOnlyAsScannedClickElement() throws Exception {
+        String pageBackPlan =
+                """
+                {"blocks": [
+                  {"name": "Return with page link", "steps": [
+                    {"action": "CLICK", "elementName": "page_back_link", "xpath": "/html[1]/body[1]/nav[1]/a[1]"}
+                  ]}
+                ]}""";
+        GenFlowPlan plan = GenFlowPlanParser.parse(pageBackPlan);
+        GenFlowPlanParser.ValidatedPlan validated = GenFlowPlanParser.validate(plan, INVENTORY, 30);
+
+        assertEquals(1, validated.blocks().size());
+        assertEquals(0, validated.droppedSteps());
+        assertEquals("CLICK", validated.blocks().get(0).steps().get(0).action());
+        assertEquals(
+                "page_back_link",
+                validated.blocks().get(0).steps().get(0).source().getName());
     }
 
     @Test

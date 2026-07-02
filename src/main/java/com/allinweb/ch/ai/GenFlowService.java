@@ -84,6 +84,7 @@ public final class GenFlowService {
                 .replace("{{ELEMENTS_JSON}}", buildElementsJson(promptInventory))
                 .replace("{{MAX_BLOCKS}}", String.valueOf(cfg.maxBlocks()))
                 .replace("{{JSON_SCHEMA}}", GenFlowPlan.SCHEMA_JSON);
+        composedPrompt = enforcePageElementNavigationPolicy(composedPrompt);
         if (truncated) {
             composedPrompt = composedPrompt
                     + "\n\nNOTE: the element list was truncated to " + MAX_INVENTORY_ELEMENTS + " of "
@@ -206,12 +207,6 @@ public final class GenFlowService {
             row.setDescription("GEN FLOW generated");
 
             switch (step.action()) {
-                case "BACK" -> {
-                    row.setActions(ARConstantsEngine.BACK);
-                    row.setName("Go Back");
-                    row.setOnHoldSeconds(1);
-                    row.setReferenceLoadDTOList(new ArrayList<>());
-                }
                 case "INSERT" -> {
                     InstructionLoad src = step.source();
                     copyLocators(src, row, botJob.getId());
@@ -233,6 +228,19 @@ public final class GenFlowService {
             rows.add(row);
         }
         return rows;
+    }
+
+    private String enforcePageElementNavigationPolicy(String prompt) {
+        return prompt
+                + """
+
+                NON-NEGOTIABLE NAVIGATION POLICY
+                - Do not use browser history, browser Back, window.history, driver.navigate().back, or any BACK action.
+                - If a test needs to return or move to another section, use only a CLICK step on a real element from ELEMENTS
+                  such as a visible Back, Previous, Home, menu, breadcrumb, or navigation link/button.
+                - If no page element exists for that navigation, omit the return step instead of inventing browser navigation.
+                - Every generated navigation step must be a page element action with a copied elementName/xpath from ELEMENTS.
+                """;
     }
 
     private void copyLocators(InstructionLoad src, InstructionLoad row, int botJobId) {

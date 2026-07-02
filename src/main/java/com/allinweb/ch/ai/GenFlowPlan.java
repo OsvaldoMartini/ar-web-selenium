@@ -17,9 +17,9 @@ public class GenFlowPlan {
     }
 
     public static class GenFlowStep {
-        public String action; // "CLICK" | "INSERT" | "BACK"
-        public String elementName; // exact 'name' from ELEMENTS (absent for BACK)
-        public String xpath; // exact 'xpath' from ELEMENTS (absent for BACK)
+        public String action; // "CLICK" | "INSERT"
+        public String elementName; // exact 'name' from ELEMENTS
+        public String xpath; // exact 'xpath' from ELEMENTS
         public String cssSelector; // optional
         public String value; // INSERT only — synthetic data
     }
@@ -32,9 +32,9 @@ public class GenFlowPlan {
                   "name": "string, max 40 chars",
                   "steps": [
                     {
-                      "action": "CLICK | INSERT | BACK",
-                      "elementName": "string - exact 'name' from ELEMENTS (omit for BACK)",
-                      "xpath": "string - exact 'xpath' from ELEMENTS (omit for BACK)",
+                      "action": "CLICK | INSERT",
+                      "elementName": "string - exact 'name' from ELEMENTS",
+                      "xpath": "string - exact 'xpath' from ELEMENTS",
                       "cssSelector": "string - exact 'cssSelector' from ELEMENTS (optional)",
                       "value": "string - synthetic input value (INSERT only)"
                     }

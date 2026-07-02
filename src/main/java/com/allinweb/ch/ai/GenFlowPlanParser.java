@@ -28,7 +28,6 @@ public final class GenFlowPlanParser {
 
     public record ValidatedBlock(String name, List<ValidatedStep> steps) {}
 
-    /** {@code source} is null only for BACK steps. */
     public record ValidatedStep(String action, InstructionLoad source, String syntheticValue) {}
 
     /** Extracts and parses the JSON object from raw model output (strips fences/prose). */
@@ -63,7 +62,7 @@ public final class GenFlowPlanParser {
     /**
      * Matches CLICK/INSERT steps to the source inventory (exact xpath first, then
      * case-insensitive name); drops unmatched steps and blocks that end up empty or
-     * BACK-only; caps the result at {@code maxBlocks}.
+     * browser-history steps; caps the result at {@code maxBlocks}.
      */
     public static ValidatedPlan validate(GenFlowPlan plan, List<InstructionLoad> inventory, int maxBlocks) {
         List<ValidatedBlock> blocks = new ArrayList<>();
@@ -86,7 +85,6 @@ public final class GenFlowPlanParser {
                 }
                 String action = step.action.trim().toUpperCase();
                 switch (action) {
-                    case "BACK" -> steps.add(new ValidatedStep("BACK", null, null));
                     case "CLICK", "INSERT" -> {
                         InstructionLoad source = matchElement(step, inventory);
                         if (source == null) {
@@ -104,7 +102,12 @@ public final class GenFlowPlanParser {
                             hasElementStep = true;
                         }
                     }
-                    default -> dropped++;
+                    default -> {
+                        dropped++;
+                        if (isBrowserBackAction(action, step)) {
+                            log.warn("GEN FLOW - dropping browser-history navigation step '{}'", step.action);
+                        }
+                    }
                 }
             }
 
@@ -121,6 +124,14 @@ public final class GenFlowPlanParser {
         }
 
         return new ValidatedPlan(blocks, dropped);
+    }
+
+    private static boolean isBrowserBackAction(String action, GenFlowPlan.GenFlowStep step) {
+        if ("BACK".equals(action) || "GO_BACK".equals(action) || "BROWSER_BACK".equals(action)) {
+            return true;
+        }
+        String name = step == null ? null : step.elementName;
+        return name != null && name.toLowerCase().contains("browser back");
     }
 
     /**
