@@ -660,7 +660,30 @@ public class ARScannedElementScene extends ARScene {
                 closeWebDrivers();
                 closeModal();
 
-                if (!error.getMessage().contains("Not on FX application thread")) {
+                // Always log the REAL cause with a stack trace — previously it was discarded and
+                // every failure was blamed on the WebDriver, which is meaningless in Playwright mode.
+                log.error("Scanner Pane showModal failed", error);
+
+                String message = error.getMessage() == null ? "" : error.getMessage();
+
+                // In Playwright-only mode there is no Selenium WebDriver, so the "check your
+                // WebDriver / browser version" dialog is misleading. Only show it when Selenium is
+                // actually in play; otherwise surface the true error.
+                boolean playwrightOnly = arWebDriver != null && arWebDriver.isPlaywrightOnly();
+
+                if (message.contains("Not on FX application thread")) {
+                    log.error("Scanner Pane showModal error:" + message);
+                } else if (playwrightOnly) {
+                    performMessage.errorMessage(
+                            "Scanner Error",
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>The Scanner could not open.</span>",
+                            "<span style='font-weight: bold;'>The Playwright browser opened, but building the scanner failed.</span>",
+                            message.isBlank()
+                                    ? null
+                                    : "<span style='font-style: italic;'>Details: " + message + "</span>",
+                            null,
+                            0);
+                } else {
 
                     String browser = arPropertyManager.getProperty(ARPropertyEnum.BROWSER);
                     String webDriverPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
@@ -686,10 +709,6 @@ public class ARScannedElementScene extends ARScene {
                                     + "</ul>",
                             "<span style='font-style: italic;'>Check the URL format (e.g., including https://) and review browser/WebDriver logs for more details.</span>",
                             0);
-
-                } else {
-
-                    log.error("Scanner Pane showModal error:" + error.getMessage());
                 }
             }
         });

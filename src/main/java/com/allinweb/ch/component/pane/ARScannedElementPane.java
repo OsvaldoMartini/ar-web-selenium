@@ -3248,7 +3248,13 @@ public class ARScannedElementPane extends ARPane {
      * executeJob termination path so the user can start another run.
      */
     private void reenableLaunchButton() {
-        Platform.runLater(() -> launchBotJobButton.setDisable(false));
+        // Null-guard: TEST RUN can drive executeJob (whose finally calls this) before the pane's
+        // UI is built, so launchBotJobButton may not exist yet.
+        Platform.runLater(() -> {
+            if (launchBotJobButton != null) {
+                launchBotJobButton.setDisable(false);
+            }
+        });
     }
 
     private FieldData updateMSGInstruction(FieldData msgInstruction, String failedMessage) {
