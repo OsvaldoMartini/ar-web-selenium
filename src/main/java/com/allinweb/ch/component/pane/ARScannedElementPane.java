@@ -2098,6 +2098,9 @@ public class ARScannedElementPane extends ARPane {
 
     // Switch to the previous tab (left)
     private void switchToLeftTab() {
+        if (performActions.getCurrentDriver() == null) {
+            return; // Playwright-only: no Selenium tabs to switch
+        }
         if (performActions.getCurrentDriver().getWindowHandles().size() > 1 && performActions.currentTabIndex > 0) {
             // Decrease the index to move to the left
             performActions.currentTabIndex--;
@@ -2119,6 +2122,9 @@ public class ARScannedElementPane extends ARPane {
 
     // Switch to the next tab (right)
     private void switchToRightTab() {
+        if (performActions.getCurrentDriver() == null) {
+            return; // Playwright-only: no Selenium tabs to switch
+        }
         if (performActions.getCurrentDriver().getWindowHandles().size() > 1
                 && performActions.currentTabIndex < performActions.windowHandlesList.size() - 1) {
             // Increase the index to move to the right
@@ -2141,6 +2147,10 @@ public class ARScannedElementPane extends ARPane {
 
     // Method to handle the scenario where the window handles size changes
     private void handleWindowHandlesChange() {
+        // Selenium tab/window bookkeeping — no-op in Playwright-only mode (no Selenium driver).
+        if (performActions.getCurrentDriver() == null) {
+            return;
+        }
         Set<String> currentWindowHandles = performActions.getCurrentDriver().getWindowHandles();
 
         // If the number of window handles has changed
@@ -2445,6 +2455,10 @@ public class ARScannedElementPane extends ARPane {
     }
 
     public boolean lastBrowserTab() {
+        // Playwright-only: no Selenium tabs to enumerate — treat as ready, not "not attached".
+        if (performActions.getCurrentDriver() == null) {
+            return true;
+        }
         // Get all window handles (all open tabs/windows)
         try {
             windowHandles = performActions.getCurrentDriver().getWindowHandles();
