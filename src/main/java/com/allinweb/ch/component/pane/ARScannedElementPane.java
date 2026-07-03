@@ -2376,7 +2376,9 @@ public class ARScannedElementPane extends ARPane {
                 return;
             }
 
-            performActions.getCurrentDriver().switchTo().defaultContent();
+            if (performActions.getCurrentDriver() != null) {
+                performActions.getCurrentDriver().switchTo().defaultContent();
+            }
             targetSelected = null;
 
             revertCloneInjections(performActions.getCurrentDriver());
@@ -2392,6 +2394,7 @@ public class ARScannedElementPane extends ARPane {
                 int finalPort = portSocketInitial;
                 String socketSessionId = "scannerTool";
                 String destinationId = "scannerGrid"; // + this.currentBotJob.getHomeBankingId();
+                String pageUrl = currentPageUrl();
                 Platform.runLater(() -> periodicPickOneCloneThread(
                         performActions.getCurrentDriver(),
                         false,
@@ -2401,7 +2404,7 @@ public class ARScannedElementPane extends ARPane {
                         "addPickOne",
                         this.currentBotJob.getHomeBankingId(),
                         this.currentBotJob.getId(),
-                        performActions.getCurrentDriver().getCurrentUrl()));
+                        pageUrl));
             }
 
             Platform.runLater(() -> {
@@ -2619,7 +2622,27 @@ public class ARScannedElementPane extends ARPane {
 
             defineCheckBoxesClickable(targetSelected);
         }
-        performActions.getCurrentDriver().switchTo().defaultContent();
+        if (performActions.getCurrentDriver() != null) {
+            performActions.getCurrentDriver().switchTo().defaultContent();
+        }
+    }
+
+    /**
+     * Current page URL regardless of driver backend: Selenium when present, otherwise the
+     * single Playwright browser. Empty string when no browser is open.
+     */
+    private String currentPageUrl() {
+        try {
+            if (performActions.getCurrentDriver() != null) {
+                return performActions.getCurrentDriver().getCurrentUrl();
+            }
+            if (currentARWebDriver != null && currentARWebDriver.isPlaywrightEnabled()) {
+                return currentARWebDriver.getPlaywrightDriver().currentUrl();
+            }
+        } catch (Exception e) {
+            log.warn("currentPageUrl failed: {}", e.getMessage());
+        }
+        return "";
     }
 
     private void periodicPickOneCloneThread(
@@ -3712,7 +3735,11 @@ public class ARScannedElementPane extends ARPane {
     private void handleSearchTermClick(String[] dataArray, List<String> extendedRules) {
         //        webElementObservableList1.clear();
 
-        performActions.getCurrentDriver().switchTo().defaultContent();
+        // Selenium frame reset — skip in Playwright-only mode (no Selenium driver). The scan below
+        // routes through the Playwright scanner (PerformListElements.scanElements -> currentARWebDriver).
+        if (performActions.getCurrentDriver() != null) {
+            performActions.getCurrentDriver().switchTo().defaultContent();
+        }
 
         xpathTextPrevious = "";
         //        targetSelected = null;
