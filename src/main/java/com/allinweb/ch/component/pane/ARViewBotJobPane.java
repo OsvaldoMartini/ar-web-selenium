@@ -399,15 +399,10 @@ public class ARViewBotJobPane extends ARPane {
             testRunButton.setDisable(false);
             testRunButton.setText(originalText);
             // The engine runs asynchronously — arm STOP so the user can halt it.
+            // No modal here: the run is visible in the opened browser, and a blocking dialog
+            // after the first step is disruptive.
             testRunStopButton.setDisable(false);
-            performMessage.errorMessage(
-                    "TEST RUN - Launched",
-                    "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>Block \"" + block.getName()
-                            + "\" is running in the Playwright browser ▶</span>",
-                    "<span style='font-weight: bold;'>Watch the opened browser — the block executes through the full pre-launch engine.</span>",
-                    Strings.isNullOrEmpty(endpointUrl) ? null : "Endpoint: " + endpointUrl,
-                    null,
-                    0);
+            log.info("TEST RUN launched for block \"{}\" at {}", block.getName(), endpointUrl);
         });
         task.setOnFailed(ev -> {
             testRunButton.setDisable(false);
