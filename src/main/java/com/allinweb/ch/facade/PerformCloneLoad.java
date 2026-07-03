@@ -110,22 +110,53 @@ public class PerformCloneLoad {
             String currentUrl) {
         try {
             log.info(">> Injecting plugin [hoverPick] - session={}, botJob={}", sessionId, botJobId);
-            JavascriptExecutor executor = (JavascriptExecutor) driver;
+            String bundle = getJsHoverPick();
+
             // hoverPick.min.js (and script-hover-pick-in-use.min.js) is an IIFE that ends with
             //   })( arguments[0], arguments[1], ..., arguments[8] );
-            // so it expects 9 positional executeScript args, not a single ctx object.
-            executor.executeScript(
-                    getJsHoverPick(),
-                    searchHiddenFields, // hiddenFields
-                    port, // socketPort
-                    sessionId, // sessionId
-                    destination, // destination
-                    operationId, // operationId
-                    homeBankingId, // homeBankingId
-                    botJobId, // botJobId
-                    currentUrl, // targetOriginURL
-                    currentUrl); // trustedOriginURL
-            return null;
+            // so it expects 9 positional args. The plugin opens its own WebSocket back to the Java
+            // server (browser-side), so picking is driver-agnostic once injected.
+            if (driver != null) {
+                JavascriptExecutor executor = (JavascriptExecutor) driver;
+                executor.executeScript(
+                        bundle,
+                        searchHiddenFields, // hiddenFields
+                        port, // socketPort
+                        sessionId, // sessionId
+                        destination, // destination
+                        operationId, // operationId
+                        homeBankingId, // homeBankingId
+                        botJobId, // botJobId
+                        currentUrl, // targetOriginURL
+                        currentUrl); // trustedOriginURL
+                return null;
+            }
+
+            // Playwright-only (no Selenium driver): inject via page.evaluate. Wrap the bundle in a
+            // classic function called with .apply(null, pwArgs) so its top-level arguments[0..8]
+            // resolve to the passed array — without disturbing arguments used inside the bundle.
+            com.allinweb.ch.driver.ARWebDriver arWebDriver = com.allinweb.ch.driver.ARWebDriver.getInstance();
+            if (arWebDriver != null && arWebDriver.isPlaywrightEnabled()) {
+                String pwScript = "(pwArgs) => (function(){\n" + bundle + "\n}).apply(null, pwArgs)";
+                arWebDriver
+                        .getPlaywrightDriver()
+                        .evaluate(
+                                pwScript,
+                                java.util.Arrays.asList(
+                                        searchHiddenFields,
+                                        port,
+                                        sessionId,
+                                        destination,
+                                        operationId,
+                                        homeBankingId,
+                                        botJobId,
+                                        currentUrl,
+                                        currentUrl));
+                return null;
+            }
+
+            return new ErrorMessage(
+                    "No browser open", "Hover Pick Plugin", "No Selenium or Playwright browser is available to pick.");
         } catch (PerformPreLoad.PluginLoadException ple) {
             PerformPreLoad.logPluginLoadFailure("PerformCloneLoad", ple);
             return new ErrorMessage(
