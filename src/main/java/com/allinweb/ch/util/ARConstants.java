@@ -59,6 +59,7 @@ public class ARConstants {
     public static final String ICON_SEARCH = "/search.png";
     public static final String ICON_WAIT = "/wait.png";
     public static final String ICON_PAUSE = "/pause3.png";
+    public static final String ICON_STOP = "/stop.png";
     public static final String ICON_CLICK = "/click.png";
     public static final String ICON_LINK = "/links-icon.png";
     public static final String ICON_OUTPUT = "/output1.png";

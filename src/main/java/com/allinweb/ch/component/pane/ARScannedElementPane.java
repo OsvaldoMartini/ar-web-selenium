@@ -3012,6 +3012,29 @@ public class ARScannedElementPane extends ARPane {
         recallJob();
     }
 
+    /**
+     * STOP for TEST RUN — halts a running {@link #testRunBlockPlaywright} execution.
+     *
+     * <p>Sets the intercept flag (so the executeJob loop breaks at its next checkpoint) and closes
+     * the single Playwright browser. {@code closeCurrentDriver} nulls the Playwright driver, so the
+     * next TEST RUN transparently recreates a fresh one. Safe to call from any thread.
+     */
+    public void stopTestRun() {
+        log.info("TEST RUN — stop requested");
+        runSingleBlock = false;
+        performActions.setInterceptBotJob(true);
+        setInterceptBotJob(true);
+        isJobRunning.set(false);
+        try {
+            if (currentARWebDriver != null) {
+                currentARWebDriver.closeCurrentDriver();
+            }
+        } catch (Exception e) {
+            log.warn("TEST RUN — error closing browser on stop: {}", e.getMessage());
+        }
+        performActions.setCurrentDriver(null);
+    }
+
     //    private void sendScreenshotToListener() {
     //        if (screenShotListener == null) {
     //            return;

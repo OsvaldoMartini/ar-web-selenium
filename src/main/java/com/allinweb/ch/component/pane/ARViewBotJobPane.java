@@ -77,6 +77,7 @@ public class ARViewBotJobPane extends ARPane {
     Button genFlowButton;
     ComboBox<BlockLoadDTO> blockFlowComboBox;
     Button testRunButton;
+    Button testRunStopButton;
     Button saveBotJobButton;
     //    Button saveAsBotJobButton;
     Button openExcelFileButton;
@@ -397,6 +398,8 @@ public class ARViewBotJobPane extends ARPane {
         task.setOnSucceeded(ev -> {
             testRunButton.setDisable(false);
             testRunButton.setText(originalText);
+            // The engine runs asynchronously — arm STOP so the user can halt it.
+            testRunStopButton.setDisable(false);
             performMessage.errorMessage(
                     "TEST RUN - Launched",
                     "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>Block \"" + block.getName()
@@ -421,6 +424,21 @@ public class ARViewBotJobPane extends ARPane {
                     0);
         });
         new Thread(task, "testrun-worker").start();
+    }
+
+    /** STOP button next to TEST RUN — halts the running TEST RUN and closes its Playwright browser. */
+    private void onTestRunStopClicked() {
+        testRunStopButton.setDisable(true);
+        new Thread(
+                        () -> {
+                            try {
+                                ARScannedElementPane.getInstance().stopTestRun();
+                            } catch (Exception ex) {
+                                log.error("TEST RUN stop failed", ex);
+                            }
+                        },
+                        "testrun-stop")
+                .start();
     }
 
     /**
@@ -674,6 +692,12 @@ public class ARViewBotJobPane extends ARPane {
         this.testRunButton.setStyle("-fx-background-color: #E67E22; -fx-text-fill: white; -fx-font-weight: bold; "
                 + "-fx-font-size: 12px; -fx-background-radius: 5;");
 
+        this.testRunStopButton = builder.buildButton(
+                "STOP", ARConstants.SPACE_ZERO, ARConstants.ICON_STOP, ARConstants.SPACE_M, new Insets(3, 8, 3, 8));
+        this.testRunStopButton.setStyle("-fx-background-color: #C0392B; -fx-text-fill: white; -fx-font-weight: bold; "
+                + "-fx-font-size: 12px; -fx-background-radius: 5;");
+        this.testRunStopButton.setDisable(true); // enabled only while a TEST RUN is active
+
         this.saveBotJobButton = builder.buildButton(
                 "Save", ARConstants.SPACE_ZERO, ARConstants.ICON_SAVE, ARConstants.SPACE_M, new Insets(3, 8, 3, 8));
         this.saveBotJobButton.setDisable(true);
@@ -749,6 +773,7 @@ public class ARViewBotJobPane extends ARPane {
             genFlowButton,
             blockFlowComboBox,
             testRunButton,
+            testRunStopButton,
             openReportButton,
             closeBotJobButton
         };
@@ -831,7 +856,8 @@ public class ARViewBotJobPane extends ARPane {
         // grpApi.setStyle("-fx-background-color: #e8edf0; -fx-background-radius: 6; -fx-padding: 3 6 3 6;");
         // grpApi.setAlignment(Pos.CENTER_LEFT);
 
-        HBox grpLaunch = new HBox(3, launchBotJobButton, genFlowButton, blockFlowComboBox, testRunButton);
+        HBox grpLaunch =
+                new HBox(3, launchBotJobButton, genFlowButton, blockFlowComboBox, testRunButton, testRunStopButton);
         grpLaunch.setStyle("-fx-background-color: #EAF3DE; -fx-background-radius: 6; -fx-padding: 3 6 3 6;");
         grpLaunch.setAlignment(Pos.CENTER_LEFT);
 
@@ -1388,6 +1414,8 @@ public class ARViewBotJobPane extends ARPane {
         this.genFlowButton.setOnMouseClicked(e -> onGenFlowClicked());
 
         this.testRunButton.setOnMouseClicked(e -> onTestRunClicked());
+
+        this.testRunStopButton.setOnMouseClicked(e -> onTestRunStopClicked());
 
         this.launchBotJobButton.setOnMouseClicked((e) -> {
             ARPropertyManager managerProps = arPropertyManager;
