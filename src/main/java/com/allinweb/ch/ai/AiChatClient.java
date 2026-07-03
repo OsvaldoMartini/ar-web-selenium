@@ -84,7 +84,9 @@ public final class AiChatClient {
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(cfg.endpoint()))
-                .timeout(Duration.ofSeconds(120))
+                // Large navigation-surface generations (max_tokens ~16k, 40+ blocks) routinely run
+                // past 2 min on 70B-class models — 120s was timing out mid-stream.
+                .timeout(Duration.ofSeconds(300))
                 .header("Content-Type", "application/json")
                 .header("Authorization", "Bearer " + cfg.apiKey())
                 .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(body)))

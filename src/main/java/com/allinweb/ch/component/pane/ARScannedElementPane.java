@@ -2966,6 +2966,17 @@ public class ARScannedElementPane extends ARPane {
             homeBanking.setUrl(homeUrlDTO.getUrl());
         }
 
+        // Honour the endpoint the user selected/visible in the pane (environment dropdown / current
+        // URL label). openWebDriver resolves the URL from this same homeUrlDTO/homeBanking, so we
+        // overwrite both here — otherwise TEST RUN would silently fall back to the DB default URL.
+        if (!Strings.isNullOrEmpty(endpointUrl)) {
+            if (homeUrlDTO != null) {
+                homeUrlDTO.setUrl(endpointUrl);
+            }
+            homeBanking.setUrl(endpointUrl);
+            log.info("TEST RUN — using endpoint URL from the page: {}", endpointUrl);
+        }
+
         currentBotJobName = currentBotJob.getName();
         excelPath = excelPath + "\\" + currentBotJobName + ".xlsx";
 
@@ -3044,10 +3055,18 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private void clearFields() {
-        coordsTextField.setText("");
-        countdownTextField.setText("Pre-Launch status: Ready");
-        countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
-        mainPane.requestLayout();
+        // Guard every field: TEST RUN can invoke the engine before the scanned-element pane's
+        // UI has been built (fields are still null), so touching them blindly would NPE.
+        if (coordsTextField != null) {
+            coordsTextField.setText("");
+        }
+        if (countdownTextField != null) {
+            countdownTextField.setText("Pre-Launch status: Ready");
+            countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
+        }
+        if (mainPane != null) {
+            mainPane.requestLayout();
+        }
     }
 
     public void quit(int status) {
