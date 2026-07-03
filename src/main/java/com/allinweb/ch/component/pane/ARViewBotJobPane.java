@@ -76,6 +76,7 @@ public class ARViewBotJobPane extends ARPane {
     Button launchBotJobButton;
     Button genFlowButton;
     ComboBox<BlockLoadDTO> blockFlowComboBox;
+    Button reloadBlocksButton;
     Button testRunButton;
     Button testRunStopButton;
     Button saveBotJobButton;
@@ -463,6 +464,23 @@ public class ARViewBotJobPane extends ARPane {
         }
     }
 
+    /**
+     * Reload the block list from the database and repopulate the GEN FLOW dropdown. Needed because
+     * {@link #refreshBlockFlowCombo()} only reads the in-memory list, which is stale after a new block
+     * is created by scanning. This icon-only button reloads blocks exclusively for the dropdown.
+     */
+    private void onReloadBlocksClicked() {
+        if (selectedBotJob == null || selectedBotJob.getId() == null) {
+            return;
+        }
+        ErrorMessage errorMessage = performDataBase.loadBlocks(selectedBotJob.getId(), "", "block");
+        if (errorMessage != null) {
+            performMessage.errorMessageOperationFailed(errorMessage);
+            return;
+        }
+        refreshBlockFlowCombo();
+    }
+
     private void updateHomeUrlLabels() {
         if (currentUrlLabel != null) {
             HomeUrlDTO homeUrlDTO =
@@ -687,6 +705,11 @@ public class ARViewBotJobPane extends ARPane {
         this.testRunButton.setStyle("-fx-background-color: #E67E22; -fx-text-fill: white; -fx-font-weight: bold; "
                 + "-fx-font-size: 12px; -fx-background-radius: 5;");
 
+        // Icon-only refresh button dedicated to reloading the GEN FLOW block dropdown.
+        this.reloadBlocksButton = builder.buildButton(
+                "", ARConstants.SPACE_ZERO, ARConstants.ICON_REFRESH, ARConstants.SPACE_M, new Insets(3, 6, 3, 6));
+        this.reloadBlocksButton.setTooltip(new javafx.scene.control.Tooltip("Reload blocks for the dropdown"));
+
         this.testRunStopButton = builder.buildButton(
                 "STOP", ARConstants.SPACE_ZERO, ARConstants.ICON_STOP, ARConstants.SPACE_M, new Insets(3, 8, 3, 8));
         this.testRunStopButton.setStyle("-fx-background-color: #C0392B; -fx-text-fill: white; -fx-font-weight: bold; "
@@ -767,6 +790,7 @@ public class ARViewBotJobPane extends ARPane {
             launchBotJobButton,
             genFlowButton,
             blockFlowComboBox,
+            reloadBlocksButton,
             testRunButton,
             testRunStopButton,
             openReportButton,
@@ -851,8 +875,14 @@ public class ARViewBotJobPane extends ARPane {
         // grpApi.setStyle("-fx-background-color: #e8edf0; -fx-background-radius: 6; -fx-padding: 3 6 3 6;");
         // grpApi.setAlignment(Pos.CENTER_LEFT);
 
-        HBox grpLaunch =
-                new HBox(3, launchBotJobButton, genFlowButton, blockFlowComboBox, testRunButton, testRunStopButton);
+        HBox grpLaunch = new HBox(
+                3,
+                launchBotJobButton,
+                genFlowButton,
+                blockFlowComboBox,
+                reloadBlocksButton,
+                testRunButton,
+                testRunStopButton);
         grpLaunch.setStyle("-fx-background-color: #EAF3DE; -fx-background-radius: 6; -fx-padding: 3 6 3 6;");
         grpLaunch.setAlignment(Pos.CENTER_LEFT);
 
@@ -1411,6 +1441,8 @@ public class ARViewBotJobPane extends ARPane {
         this.testRunButton.setOnMouseClicked(e -> onTestRunClicked());
 
         this.testRunStopButton.setOnMouseClicked(e -> onTestRunStopClicked());
+
+        this.reloadBlocksButton.setOnMouseClicked(e -> onReloadBlocksClicked());
 
         this.launchBotJobButton.setOnMouseClicked((e) -> {
             ARPropertyManager managerProps = arPropertyManager;
