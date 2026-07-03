@@ -1,5 +1,6 @@
 package com.allinweb.ch.util;
 
+import com.allinweb.ch.driver.ARPlaywrightDriver;
 import com.allinweb.ch.facade.OcrConfigService;
 import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.model.OcrConfig;
@@ -72,17 +73,54 @@ public final class PageOcrDumper {
             return;
         }
         try {
-            Path diagDir = Paths.get(pathDb, PageDiagnosticDumper.SUBFOLDER);
-            Files.createDirectories(diagDir);
-
-            // 0. Resolve OCR config for this scope
             OcrConfig cfg = OcrConfigService.getInstance().resolveFor(homebankingId, homeUrlId);
-
-            // 1. Screenshot — scope: viewport (default) or full_page (scroll-stitched).
             String scope = cfg == null ? "viewport" : cfg.getString("screenshot", "scope", "viewport");
             byte[] png = "full_page".equalsIgnoreCase(scope)
                     ? WebScreenshotCapture.fullPageBytes(driver)
                     : WebScreenshotCapture.viewportBytes(driver);
+            runPipeline(png, elements, pathDb, prefix, cfg, homebankingId, homeUrlId);
+        } catch (Exception ex) {
+            log.warn("PageOcrDumper.runAndDump failed: {}", ex.getMessage(), ex);
+        }
+    }
+
+    /** Playwright equivalent — captures via the single Playwright browser (no Selenium driver). */
+    public static void runAndDump(
+            ARPlaywrightDriver pw,
+            ElementDTO[] elements,
+            String pathDb,
+            String prefix,
+            Integer homebankingId,
+            Integer homeUrlId) {
+        if (pw == null || pathDb == null || prefix == null) {
+            log.warn("PageOcrDumper(pw) skipped — driver/pathDb/prefix is null");
+            return;
+        }
+        try {
+            OcrConfig cfg = OcrConfigService.getInstance().resolveFor(homebankingId, homeUrlId);
+            String scope = cfg == null ? "viewport" : cfg.getString("screenshot", "scope", "viewport");
+            byte[] png = "full_page".equalsIgnoreCase(scope)
+                    ? WebScreenshotCapture.fullPageBytes(pw)
+                    : WebScreenshotCapture.viewportBytes(pw);
+            runPipeline(png, elements, pathDb, prefix, cfg, homebankingId, homeUrlId);
+        } catch (Exception ex) {
+            log.warn("PageOcrDumper.runAndDump(pw) failed: {}", ex.getMessage(), ex);
+        }
+    }
+
+    /** Shared OCR pipeline: persist screenshot → OCR → correlate DOM rects → write files. */
+    private static void runPipeline(
+            byte[] png,
+            ElementDTO[] elements,
+            String pathDb,
+            String prefix,
+            OcrConfig cfg,
+            Integer homebankingId,
+            Integer homeUrlId) {
+        try {
+            Path diagDir = Paths.get(pathDb, PageDiagnosticDumper.SUBFOLDER);
+            Files.createDirectories(diagDir);
+
             Path pngPath = diagDir.resolve(prefix + ".png");
             Files.write(pngPath, png);
             BufferedImage image = ImageIO.read(new ByteArrayInputStream(png));

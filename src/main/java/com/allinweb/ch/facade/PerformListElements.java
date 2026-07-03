@@ -396,7 +396,7 @@ public class PerformListElements {
             if (arWebDriver != null && arWebDriver.isPlaywrightEnabled()) {
                 List<ElementDTO> elements =
                         arWebDriver.getPlaywrightDriver().scanElements(dataArray, searchHiddenFields);
-                processScanElements(driver, elements, homeBankingId);
+                processScanElements(arWebDriver, driver, elements, homeBankingId);
                 return ScanResult.ofElements(elements);
             }
 
@@ -440,7 +440,7 @@ public class PerformListElements {
             JsScanResultDTO dto = gson.fromJson(jsonScript, JsScanResultDTO.class);
             List<ElementDTO> elements = dto.getElements() != null ? dto.getElements() : Collections.emptyList();
 
-            processScanElements(driver, elements, homeBankingId);
+            processScanElements(arWebDriver, driver, elements, homeBankingId);
 
             return ScanResult.ofElements(elements);
         } catch (PerformPreLoad.PluginLoadException ple) {
@@ -456,7 +456,8 @@ public class PerformListElements {
         }
     }
 
-    private void processScanElements(WebDriver driver, List<ElementDTO> elements, int homeBankingId) {
+    private void processScanElements(
+            ARWebDriver arWebDriver, WebDriver driver, List<ElementDTO> elements, int homeBankingId) {
         performLists.resetListElements();
         performLists.addMapElementsTarget(elements);
 
@@ -469,11 +470,6 @@ public class PerformListElements {
             String jsonPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.PATH_DB);
             PerformMessage performMessage = PerformMessage.getInstance();
 
-            if (driver != null) {
-                PageDiagnosticDumper.dumpRectsFromElements(driver, asArray, jsonPath, "page-HP");
-                PageOcrDumper.runAndDump(driver, asArray, jsonPath, "page-HP");
-            }
-
             Integer cfgHbId = homeBankingId > 0 ? homeBankingId : null;
             Integer cfgHomeUrlId = null;
             try {
@@ -485,6 +481,17 @@ public class PerformListElements {
             } catch (Throwable ignore) {
                 // scene unavailable bank-level scope only
             }
+
+            // DOM rects + OCR: Selenium when present, otherwise the single Playwright browser.
+            if (driver != null) {
+                PageDiagnosticDumper.dumpRectsFromElements(driver, asArray, jsonPath, "page-HP");
+                PageOcrDumper.runAndDump(driver, asArray, jsonPath, "page-HP", cfgHbId, cfgHomeUrlId);
+            } else if (arWebDriver != null && arWebDriver.isPlaywrightEnabled()) {
+                com.allinweb.ch.driver.ARPlaywrightDriver pw = arWebDriver.getPlaywrightDriver();
+                PageDiagnosticDumper.dumpRectsFromElements(pw, asArray, jsonPath, "page-HP");
+                PageOcrDumper.runAndDump(pw, asArray, jsonPath, "page-HP", cfgHbId, cfgHomeUrlId);
+            }
+
             com.allinweb.ch.model.OcrConfig resolverCfg =
                     OcrConfigService.getInstance().resolveFor(cfgHbId, cfgHomeUrlId);
             ElementTextResolver.resolveAll(

@@ -1,5 +1,6 @@
 package com.allinweb.ch.util;
 
+import com.allinweb.ch.driver.ARPlaywrightDriver;
 import com.allinweb.ch.model.ElementDTO;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -418,6 +419,45 @@ public final class PageDiagnosticDumper {
                 .map(e -> new RectTarget(e.getXPath(), e.getIFrameXPath() == null ? "" : e.getIFrameXPath()))
                 .collect(Collectors.toList());
         dumpRects(driver, targets, pathDb, prefix);
+    }
+
+    // ── Playwright equivalents ────────────────────────────────────────────────
+    // Same JS survey, run via page.evaluate. The Selenium script reads `arguments[0]`; Playwright
+    // passes a single arg to an arrow function, so we wrap it and rename that one reference.
+    private static final String PW_JS_RECTS = "(pwArg) => {\n" + JS_RECTS.replace("arguments[0]", "pwArg") + "\n}";
+
+    /** Playwright equivalent of {@link #dumpRects(WebDriver, List, String, String)}. */
+    public static void dumpRects(ARPlaywrightDriver pw, List<RectTarget> targets, String pathDb, String prefix) {
+        if (pw == null || pathDb == null || prefix == null) return;
+        if (targets == null || targets.isEmpty()) {
+            log.debug("dumpRects(pw) skipped — no targets");
+            return;
+        }
+        try {
+            Path diagDir = ensureSubfolder(pathDb);
+            List<Object> payload = new ArrayList<>(targets.size());
+            for (RectTarget t : targets) {
+                payload.add(java.util.Map.of(
+                        "xpath", t.xpath() == null ? "" : t.xpath(),
+                        "iframeXPath", t.iframeXPath() == null ? "" : t.iframeXPath()));
+            }
+            Object result = pw.evaluate(PW_JS_RECTS, payload);
+            write(diagDir, prefix + "-rects.json", safe(result == null ? null : String.valueOf(result)));
+            log.info("Page rects dumped (Playwright) for {} targets to {}", targets.size(), diagDir);
+        } catch (Exception ex) {
+            log.warn("PageDiagnosticDumper.dumpRects(pw) failed: {}", ex.getMessage(), ex);
+        }
+    }
+
+    /** Playwright equivalent of {@link #dumpRectsFromElements(WebDriver, ElementDTO[], String, String)}. */
+    public static void dumpRectsFromElements(
+            ARPlaywrightDriver pw, ElementDTO[] elements, String pathDb, String prefix) {
+        if (elements == null) return;
+        List<RectTarget> targets = Arrays.stream(elements)
+                .filter(e -> e != null && e.getXPath() != null)
+                .map(e -> new RectTarget(e.getXPath(), e.getIFrameXPath() == null ? "" : e.getIFrameXPath()))
+                .collect(Collectors.toList());
+        dumpRects(pw, targets, pathDb, prefix);
     }
 
     private static Path ensureSubfolder(String pathDb) throws IOException {

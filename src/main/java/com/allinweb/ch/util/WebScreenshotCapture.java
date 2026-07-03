@@ -1,5 +1,6 @@
 package com.allinweb.ch.util;
 
+import com.allinweb.ch.driver.ARPlaywrightDriver;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
@@ -107,5 +108,25 @@ public final class WebScreenshotCapture {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         ImageIO.write(img, "png", out);
         return out.toByteArray();
+    }
+
+    // ── Playwright equivalents ────────────────────────────────────────────────
+    // page.screenshot(fullPage=true) captures the whole scrollable document natively — no manual
+    // scroll-stitch loop needed. Used when running the single Playwright browser (no Selenium driver).
+
+    public static byte[] viewportBytes(ARPlaywrightDriver pw) {
+        return pw.screenshot(false);
+    }
+
+    public static byte[] fullPageBytes(ARPlaywrightDriver pw) {
+        return pw.screenshot(true);
+    }
+
+    public static BufferedImage viewport(ARPlaywrightDriver pw) throws IOException {
+        return ImageIO.read(new ByteArrayInputStream(pw.screenshot(false)));
+    }
+
+    public static BufferedImage fullPage(ARPlaywrightDriver pw) throws IOException {
+        return ImageIO.read(new ByteArrayInputStream(pw.screenshot(true)));
     }
 }

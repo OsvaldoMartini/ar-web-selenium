@@ -12,6 +12,7 @@ import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
 import com.microsoft.playwright.options.LoadState;
+import com.microsoft.playwright.options.ViewportSize;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
@@ -79,6 +80,40 @@ public class ARPlaywrightDriver {
 
     public Object evaluate(String script, Object arg) {
         return call(() -> requirePage().evaluate(script, arg));
+    }
+
+    public Object evaluate(String script) {
+        return call(() -> requirePage().evaluate(script));
+    }
+
+    /** Reload the current page (Selenium {@code navigate().refresh()} equivalent). */
+    public void reload() {
+        run(() -> {
+            requirePage().reload();
+            requirePage().waitForLoadState(LoadState.DOMCONTENTLOADED);
+            return null;
+        });
+    }
+
+    /** Full serialized HTML of the current page (Selenium {@code getPageSource()} equivalent). */
+    public String content() {
+        return call(() -> requirePage().content());
+    }
+
+    /** Viewport size as {@code [width, height]}, or null if unavailable. */
+    public int[] viewportSize() {
+        return call(() -> {
+            ViewportSize vs = requirePage().viewportSize();
+            return vs == null ? null : new int[] {vs.width, vs.height};
+        });
+    }
+
+    /**
+     * PNG screenshot bytes. {@code fullPage=true} captures the whole scrollable page (replaces the
+     * manual scroll-stitch loop), {@code false} captures just the current viewport.
+     */
+    public byte[] screenshot(boolean fullPage) {
+        return call(() -> requirePage().screenshot(new Page.ScreenshotOptions().setFullPage(fullPage)));
     }
 
     public String currentUrl() {
