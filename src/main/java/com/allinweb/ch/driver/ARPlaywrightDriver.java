@@ -46,7 +46,9 @@ public class ARPlaywrightDriver {
 
             playwright = Playwright.create();
             browser = launchBrowser(browserType, optionsConfig);
-            context = browser.newContext();
+            // bypassCSP so injected plugins (hoverPick/actionExecutor) can open their WebSocket back
+            // to the Java server on sites with a strict connect-src Content-Security-Policy.
+            context = browser.newContext(new Browser.NewContextOptions().setBypassCSP(true));
             page = context.newPage();
             page.navigate(url);
             page.waitForLoadState(LoadState.DOMCONTENTLOADED);
