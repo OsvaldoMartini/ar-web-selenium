@@ -48,18 +48,19 @@ This single fact accounts for the majority of the NO-EQUIVALENT items below.
   returns fully-populated DTOs (xpath, someText, attribId, coordinates, cssSelector, …).
 
 ### 1a. Wrapper GAPS to fill before some migrations are possible
-These Playwright capabilities exist in the library but are **not yet exposed** on the wrapper:
+These Playwright capabilities exist in the library but were **not exposed** on the wrapper.
+✅ = added (commit 656758c6); ☐ = still to add.
 
-| Needed method | Playwright API | Unblocks |
-|---|---|---|
-| `screenshot()` / `screenshot(fullPage)` | `page.screenshot(...)` | OCR capture (`WebScreenshotCapture`, `PageOcrDumper`) |
-| `reload()` | `page.reload()` | `WindowAndFrameManager.refresh` |
-| `viewportSize()` | `page.viewportSize()` | coordinate math (`CoordinateActions`, `SupportCapture`) |
-| `content()` | `page.content()` | page-source dumps (`PageDiagnosticDumper`, DOM review) |
-| `evaluate(script, Object[] args)` | `page.evaluate(fn, arg)` with array | multi-arg JS (hoverPick/searchListAsync bundles, coordinate JS) |
-| `frames()` / frame content | `page.frames()`, `frame.content()` | iframe diagnostics without `switchTo` |
-| `pages()` / `bringToFront()` | `context.pages()` | tab navigation replacing `getWindowHandles` |
-| `hover` / `selectOption` / `press` (by selector) | `locator.*` | interaction helpers currently on `WebElement` |
+| Needed method | Playwright API | Unblocks | Status |
+|---|---|---|---|
+| `screenshot(fullPage)` | `page.screenshot(...)` | OCR capture (`WebScreenshotCapture`, `PageOcrDumper`) | ✅ |
+| `reload()` | `page.reload()` | `WindowAndFrameManager.refresh` | ✅ |
+| `viewportSize()` | `page.viewportSize()` | coordinate math (`CoordinateActions`, `SupportCapture`) | ✅ |
+| `content()` | `page.content()` | page-source dumps (`PageDiagnosticDumper`, DOM review) | ✅ |
+| `evaluate(script)` / `evaluate(script, arg)` | `page.evaluate(...)` | JS surveys; multi-arg via a `List` arg → JS array | ✅ |
+| `frames()` / frame content | `page.frames()`, `frame.content()` | iframe diagnostics without `switchTo` | ☐ |
+| `pages()` / `bringToFront()` | `context.pages()` | tab navigation replacing `getWindowHandles` | ☐ |
+| `hover` / `selectOption` / `press` (by selector) | `locator.*` | interaction helpers currently on `WebElement` | ☐ |
 
 ---
 
@@ -220,6 +221,14 @@ Playwright-only): `ARMainScene`, `ARNewBotJobScene`, `ARViewBotJobPane`, largely
   app runs Playwright-only without NPEs.
 - The misleading "Invalid URL / check your WebDriver version" dialog no longer fires for non-Selenium
   failures (`ARScannedElementScene.showModal` now logs the real cause).
+- **Phase 1 (wrapper gaps)** — `screenshot`, `reload`, `viewportSize`, `content`, `evaluate` added to
+  `ARPlaywrightDriver` (commit 656758c6).
+- **Phase 2 (leaf ports, in progress)** — screenshot + DOM-rects + OCR pipeline now run via the single
+  Playwright browser when there is no Selenium driver: `WebScreenshotCapture`, `PageDiagnosticDumper`
+  (`dumpRects`/`dumpRectsFromElements`), `PageOcrDumper` (`runAndDump`), wired through
+  `PerformListElements.processScanElements(ARWebDriver, …)`. This makes OCR-resolved `someText`/
+  `definedName` available on scanned DTOs in Playwright-only mode — the input the self-healing
+  re-resolution needs.
 
 ### Screenshot note
 Screenshot capture is currently **disabled** (commented out) everywhere — there is **no live
