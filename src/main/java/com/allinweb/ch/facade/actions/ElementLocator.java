@@ -411,6 +411,13 @@ public class ElementLocator {
 
         WebElement elementFound = null;
 
+        // Playwright-only: no Selenium driver, so there is no live element handle to return.
+        // The instruction is built entirely from the scanned DTO (xPath/css/coords/refs), so
+        // returning null here is correct — and avoids an NPE that would abort the insert-all loop.
+        if (ctx.driver() == null) {
+            return null;
+        }
+
         ctx.driver().switchTo().defaultContent();
         if (ctx.driver().getWindowHandles().size() > 1) {
             try {
