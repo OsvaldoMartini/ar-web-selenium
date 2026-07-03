@@ -2750,8 +2750,36 @@ public class ARScannedElementPane extends ARPane {
      * browser (one executeScript call) to avoid per-element WebDriver RTTs.
      * Best-effort — failures are swallowed since this is purely cosmetic.
      */
+    /**
+     * Run a page script on whichever browser backend is active: Selenium when a driver is present,
+     * otherwise the single Playwright browser. The script is Selenium-style (uses {@code arguments[i]}
+     * and may have a top-level {@code return}); for Playwright it is wrapped as an arrow function whose
+     * single array parameter replaces {@code arguments}. Failures are swallowed (best-effort injection).
+     */
+    private void runInjectionScript(String seleniumScript, Object... args) {
+        WebDriver d = performActions.getCurrentDriver();
+        if (d != null) {
+            try {
+                ((JavascriptExecutor) d).executeScript(seleniumScript, args);
+            } catch (Exception ignore) {
+                // best-effort
+            }
+            return;
+        }
+        if (currentARWebDriver == null || !currentARWebDriver.isPlaywrightEnabled()) {
+            return;
+        }
+        // Playwright takes one arg to an arrow fn; rename arguments[i] -> pwArgs[i].
+        String pwScript = "(pwArgs) => { " + seleniumScript.replace("arguments[", "pwArgs[") + " }";
+        try {
+            currentARWebDriver.getPlaywrightDriver().evaluate(pwScript, java.util.Arrays.asList(args));
+        } catch (Exception ignore) {
+            // best-effort
+        }
+    }
+
     private void flashFoundElements(WebDriver driver, List<ElementDTO> elements) {
-        if (driver == null || elements == null || elements.isEmpty()) return;
+        if (elements == null || elements.isEmpty()) return;
 
         java.util.List<String> xPaths = new java.util.ArrayList<>(elements.size());
         for (ElementDTO el : elements) {
@@ -2799,54 +2827,28 @@ public class ARScannedElementPane extends ARPane {
                 + "  setTimeout(stepBwd, Math.max(40, holdMs/3));"
                 + "  if(xs.length<2){ done++; cleanup(); }"
                 + "})(arguments[0], arguments[1]);";
-        try {
-            ((JavascriptExecutor) driver).executeScript(js, xPaths, 160);
-        } catch (Exception ignore) {
-        }
+        runInjectionScript(js, xPaths, 160);
     }
 
     public void revertCloneInjections(WebDriver driver) {
-        try {
-            jsExecutor = (JavascriptExecutor) driver;
-            // Remove the injected element
-            jsExecutor.executeScript("window.revertCloneInjections();");
-            jsExecutor.executeScript(
-                    "let elem = document.getElementById('Martini-Is-Awesome'); if (elem) { elem.remove(); }");
-
-            // Reset the background color
-            //        jsExecutor.executeScript("document.body.style.backgroundColor = '';");
-        } catch (Exception ignore) {
-        }
+        runInjectionScript("window.revertCloneInjections();");
+        runInjectionScript("let elem = document.getElementById('Martini-Is-Awesome'); if (elem) { elem.remove(); }");
     }
 
     public void revertPickInjections(WebDriver driver) {
-        try {
-            jsExecutor = (JavascriptExecutor) driver;
-            // Remove the injected element
-            jsExecutor.executeScript("window.revertPickInjections();");
-            jsExecutor.executeScript(
-                    "let elem = document.getElementById('Martini-Is-Awesome'); if (elem) { elem.remove(); }");
-
-            // Reset the background color
-            //        jsExecutor.executeScript("document.body.style.backgroundColor = '';");
-        } catch (Exception ignore) {
-        }
+        runInjectionScript("window.revertPickInjections();");
+        runInjectionScript("let elem = document.getElementById('Martini-Is-Awesome'); if (elem) { elem.remove(); }");
     }
 
     private void revertHoverPickInjections(WebDriver driver) {
-        try {
-            jsExecutor = (JavascriptExecutor) driver;
-            jsExecutor.executeScript("window.revertHoverPickInjections();");
-        } catch (Exception ignore) {
-        }
+        runInjectionScript("window.revertHoverPickInjections();");
     }
 
     public void injectJumpTab(WebDriver driver) {
-        ((JavascriptExecutor) driver)
-                .executeScript("var inputs = document.getElementsByTagName('input');"
-                        + "for (var i = 0; i < inputs.length; i++) {"
-                        + "    inputs[i].scrollIntoView();"
-                        + "}");
+        runInjectionScript("var inputs = document.getElementsByTagName('input');"
+                + "for (var i = 0; i < inputs.length; i++) {"
+                + "    inputs[i].scrollIntoView();"
+                + "}");
     }
 
     public List<WebElement> searchAllInputs(WebDriver driver) {
