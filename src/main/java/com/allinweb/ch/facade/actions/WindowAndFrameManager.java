@@ -32,6 +32,25 @@ public class WindowAndFrameManager {
     public void refreshPage() {
         ctx.justCalledRefreshPage(true);
 
+        // Playwright-first when enabled (single browser); else Selenium refresh + tab restore.
+        if (ctx.arWebDriver() != null && ctx.arWebDriver().isPlaywrightEnabled()) {
+            try {
+                ctx.arWebDriver().getPlaywrightDriver().reload();
+                try {
+                    ctx.notifyPageRefresh();
+                } catch (Exception e) {
+                    logOperations.warn("onPageRefresh callback failed: {}", e.getMessage());
+                }
+                return;
+            } catch (Exception e) {
+                logOperations.warn("Playwright reload failed, falling back to Selenium: {}", e.getMessage());
+            }
+        }
+
+        if (ctx.driver() == null) {
+            return;
+        }
+
         ctx.driver().navigate().refresh();
 
         ctx.driver().switchTo().defaultContent();
@@ -66,6 +85,10 @@ public class WindowAndFrameManager {
             }
         }
 
+        if (ctx.driver() == null) {
+            return;
+        }
+
         ctx.driver().navigate().back();
         ctx.driver().switchTo().defaultContent();
 
@@ -77,6 +100,11 @@ public class WindowAndFrameManager {
     }
 
     public void updateWindowHandlesList() {
+        // No Selenium window handles in Playwright-only mode.
+        if (ctx.driver() == null) {
+            ctx.windowHandles(new ArrayList<>());
+            return;
+        }
         Set<String> windowHandles = ctx.driver().getWindowHandles();
         ctx.windowHandles(new ArrayList<>(windowHandles));
     }
