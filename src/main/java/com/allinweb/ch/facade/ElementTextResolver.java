@@ -210,7 +210,10 @@ public final class ElementTextResolver {
         if (ocr != null) {
             String quality = ocr.matchQuality == null ? "" : ocr.matchQuality;
             String text = ocr.ocrText == null ? "" : ocr.ocrText;
-            if (!text.isBlank()) {
+            // Single-glyph OCR results ("m", "|", "l"…) are almost always artifacts, not labels.
+            // Left unfiltered they outrank the element's real DOM text (scanner.someText @ 0.40 <
+            // OCR OVERLAP @ 0.70) and corrupt definedName — e.g. "Rifiuta tutti" -> "m".
+            if (!isOcrNoise(text)) {
                 switch (quality) {
                     case "EXACT_CONTAIN":
                         out.add(new TextCandidate(text, ocrExactWeight, "ocr.EXACT_CONTAIN"));
@@ -227,7 +230,7 @@ public final class ElementTextResolver {
             }
             // Even when no primary OCR word was joined, ocrNearestText might exist for PROXIMITY
             String near = ocr.ocrNearestText == null ? "" : ocr.ocrNearestText;
-            if (!near.isBlank() && !"PROXIMITY".equals(quality) && text.isBlank()) {
+            if (!isOcrNoise(near) && !"PROXIMITY".equals(quality) && text.isBlank()) {
                 // Weighted slightly below PROXIMITY since it's never inside the bbox.
                 out.add(new TextCandidate(near, ocrProxWeight * 0.85, "ocr.nearest"));
             }
@@ -269,6 +272,15 @@ public final class ElementTextResolver {
             if (name.equalsIgnoreCase(a.getName())) return a.getValue();
         }
         return null;
+    }
+
+    /**
+     * A cleaned OCR result of fewer than 2 characters is treated as noise (a stray glyph the OCR
+     * engine picked up over the element), not a real label. Filtering these stops a weak OCR match
+     * from overriding the element's genuine DOM text.
+     */
+    private static boolean isOcrNoise(String text) {
+        return clean(text).length() < 2;
     }
 
     private static String clean(String text) {
