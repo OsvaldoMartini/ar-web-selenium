@@ -50,6 +50,7 @@ public class ARPlaywrightDriver {
             // to the Java server on sites with a strict connect-src Content-Security-Policy.
             context = browser.newContext(new Browser.NewContextOptions().setBypassCSP(true));
             page = context.newPage();
+            attachDiagnostics(page);
             page.navigate(url);
             page.waitForLoadState(LoadState.DOMCONTENTLOADED);
             return null;
@@ -152,6 +153,26 @@ public class ARPlaywrightDriver {
             return null;
         });
         playwrightThread.shutdownNow();
+    }
+
+    /**
+     * Surface the Playwright page's runtime signals into the app log: JS console output, uncaught
+     * page errors, and the full WebSocket lifecycle. This is how we diagnose injected plugins
+     * (hoverPick/actionExecutor) whose {@code new WebSocket(...)} back to the Java server may fail
+     * silently on strict-CSP sites — the socket open/error/close now shows up in the log.
+     */
+    private void attachDiagnostics(Page p) {
+        try {
+            p.onConsoleMessage(msg -> log.info("[pw-console] {}: {}", msg.type(), msg.text()));
+            p.onPageError(err -> log.warn("[pw-pageerror] {}", err));
+            p.onWebSocket(ws -> {
+                log.info("[pw-ws] open {}", ws.url());
+                ws.onSocketError(e -> log.warn("[pw-ws] error {} : {}", ws.url(), e));
+                ws.onClose(w -> log.info("[pw-ws] close {}", ws.url()));
+            });
+        } catch (Exception e) {
+            log.warn("attachDiagnostics failed: {}", e.getMessage());
+        }
     }
 
     private Browser launchBrowser(String browserType, String optionsConfig) {
