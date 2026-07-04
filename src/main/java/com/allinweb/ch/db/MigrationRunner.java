@@ -58,7 +58,8 @@ public class MigrationRunner {
             new com.allinweb.ch.db.migrations.M20260511_UseCaseTable(),
             new com.allinweb.ch.db.migrations.M20260512_FlowAuthoring(),
             new com.allinweb.ch.db.migrations.M20260513_Requirements(),
-            new com.allinweb.ch.db.migrations.M20260702_AiPrompt());
+            new com.allinweb.ch.db.migrations.M20260702_AiPrompt(),
+            new com.allinweb.ch.db.migrations.M20260704_ScannedElement());
 
     private static volatile MigrationRunner instance;
 
