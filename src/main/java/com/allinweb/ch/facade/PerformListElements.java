@@ -396,7 +396,7 @@ public class PerformListElements {
             if (arWebDriver != null && arWebDriver.isPlaywrightEnabled()) {
                 List<ElementDTO> elements =
                         arWebDriver.getPlaywrightDriver().scanElements(dataArray, searchHiddenFields);
-                processScanElements(arWebDriver, driver, elements, homeBankingId);
+                processScanElements(arWebDriver, driver, elements, homeBankingId, botJobId);
                 return ScanResult.ofElements(elements);
             }
 
@@ -440,7 +440,7 @@ public class PerformListElements {
             JsScanResultDTO dto = gson.fromJson(jsonScript, JsScanResultDTO.class);
             List<ElementDTO> elements = dto.getElements() != null ? dto.getElements() : Collections.emptyList();
 
-            processScanElements(arWebDriver, driver, elements, homeBankingId);
+            processScanElements(arWebDriver, driver, elements, homeBankingId, botJobId);
 
             return ScanResult.ofElements(elements);
         } catch (PerformPreLoad.PluginLoadException ple) {
@@ -456,8 +456,23 @@ public class PerformListElements {
         }
     }
 
+    /** Current page URL from whichever backend is active (Selenium or the single Playwright browser). */
+    private static String currentPageUrl(ARWebDriver arWebDriver, WebDriver driver) {
+        try {
+            if (driver != null) {
+                return driver.getCurrentUrl();
+            }
+            if (arWebDriver != null && arWebDriver.isPlaywrightEnabled()) {
+                return arWebDriver.getPlaywrightDriver().currentUrl();
+            }
+        } catch (Exception ignore) {
+            // best-effort
+        }
+        return null;
+    }
+
     private void processScanElements(
-            ARWebDriver arWebDriver, WebDriver driver, List<ElementDTO> elements, int homeBankingId) {
+            ARWebDriver arWebDriver, WebDriver driver, List<ElementDTO> elements, int homeBankingId, int botJobId) {
         performLists.resetListElements();
         performLists.addMapElementsTarget(elements);
 
@@ -515,6 +530,18 @@ public class PerformListElements {
                 ElementLocatorRepository.getInstance().upsertOnPickBatch(asArray, hbId, homeUrlId);
             } catch (Exception locEx) {
                 log.warn("Locator upsert failed (non-fatal): {}", locEx.getMessage());
+            }
+
+            // Source-of-truth registry: upsert every scanned element (OCR-corrected someText/definedName
+            // already applied above) scoped by organization + bot job, stamping last_scanned_at.
+            try {
+                String pageUrl = currentPageUrl(arWebDriver, driver);
+                int[] up = PerformDataBase.getInstance()
+                        .upsertScannedElements(
+                                cfgHbId, botJobId > 0 ? botJobId : null, cfgHomeUrlId, pageUrl, Arrays.asList(asArray));
+                log.info("scanned_element registry — inserted={} updated={} (bot={})", up[0], up[1], botJobId);
+            } catch (Exception regEx) {
+                log.warn("scanned_element upsert failed (non-fatal): {}", regEx.getMessage());
             }
 
             List<String> excludeList = List.of("optional", "blockMarked", "editMode");

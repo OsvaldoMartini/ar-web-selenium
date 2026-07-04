@@ -125,6 +125,29 @@ public class PerformDataBase {
         return openConnections;
     }
 
+    /**
+     * Upsert scanned elements into the {@code scanned_element} source-of-truth registry for a
+     * scope (organization + bot job). Best-effort: a registry failure must never break scanning.
+     *
+     * @return {@code [inserted, updated]} counts, or {@code [0,0]} on failure.
+     */
+    public int[] upsertScannedElements(
+            Integer homeBankingId,
+            Integer botJobId,
+            Integer homeUrlId,
+            String pageUrl,
+            java.util.List<com.allinweb.ch.model.ElementDTO> elements) {
+        try (Connection conn = getConnection()) {
+            com.allinweb.ch.db.ScannedElementRepository.UpsertResult r =
+                    com.allinweb.ch.db.ScannedElementRepository.upsert(
+                            conn, homeBankingId, botJobId, homeUrlId, pageUrl, elements);
+            return new int[] {r.inserted(), r.updated()};
+        } catch (Exception e) {
+            log.warn("upsertScannedElements failed (hb={}, bot={}): {}", homeBankingId, botJobId, e.getMessage());
+            return new int[] {0, 0};
+        }
+    }
+
     public Connection getConnection() throws SQLException {
         // Determine DB type from properties
         String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
