@@ -148,6 +148,24 @@ public class PerformDataBase {
         }
     }
 
+    /**
+     * Self-healing lookup: load the scanned_element registry for a scope and resolve the best match
+     * for an instruction (validate/re-resolve when its stored xPath drifts or a name collides).
+     * Best-effort: returns a NONE result on any failure so execution can fall back to its own path.
+     */
+    public com.allinweb.ch.facade.ScannedElementResolver.Result resolveScannedElement(
+            Integer homeBankingId, Integer botJobId, com.allinweb.ch.model.InstructionLoad instruction) {
+        try (Connection conn = getConnection()) {
+            java.util.List<com.allinweb.ch.model.ScannedElement> registry =
+                    com.allinweb.ch.db.ScannedElementRepository.load(conn, homeBankingId, botJobId);
+            return com.allinweb.ch.facade.ScannedElementResolver.resolve(registry, instruction);
+        } catch (Exception e) {
+            log.warn("resolveScannedElement failed (hb={}, bot={}): {}", homeBankingId, botJobId, e.getMessage());
+            return new com.allinweb.ch.facade.ScannedElementResolver.Result(
+                    null, com.allinweb.ch.facade.ScannedElementResolver.Strategy.NONE, 0.0);
+        }
+    }
+
     public Connection getConnection() throws SQLException {
         // Determine DB type from properties
         String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
