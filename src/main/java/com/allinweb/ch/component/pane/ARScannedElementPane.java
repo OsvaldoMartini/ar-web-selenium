@@ -1206,6 +1206,9 @@ public class ARScannedElementPane extends ARPane {
 
         cloneElementsButton = builder.buildButton(
                 "Clone", ARConstants.SPACE_L, ARConstants.ICON_TICK, ARConstants.SPACE_SM, new Insets(5));
+        // Clone only acts on a hover-picked target; with HOVER PICK removed it is inert, so hide it.
+        cloneElementsButton.setVisible(false);
+        cloneElementsButton.setManaged(false);
         pageScannerButton = builder.buildButton(
                 "Page Scanner", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
         ocrConfigButton = builder.buildButton(
@@ -1282,7 +1285,15 @@ public class ARScannedElementPane extends ARPane {
         countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
         countdownTextField.setEditable(true);
 
+        // HOVER PICK removed: interactive per-element picking relied on Selenium JS-injection over a
+        // page-opened WebSocket that doesn't work under the single Playwright browser. The regular
+        // scanner (search terms -> scan -> select-all -> insert-all) is the supported authoring path.
+        // The control is kept as a hidden field so the ~few references to it stay valid, but it is
+        // never shown, enabled, or wired to an action.
         checkCloneElement = new CheckBox("HOVER PICK ");
+        checkCloneElement.setVisible(false);
+        checkCloneElement.setManaged(false);
+        checkCloneElement.setDisable(true);
 
         searchTermsLabel = new Label("Search by :");
         defineNameLabel = new Label("DEFINE ELEMENT NAME");
@@ -2371,53 +2382,8 @@ public class ARScannedElementPane extends ARPane {
             }
         });
 
-        checkCloneElement.setOnMouseClicked(e -> {
-            if (!lastBrowserTab()) {
-                return;
-            }
-
-            if (performActions.getCurrentDriver() != null) {
-                performActions.getCurrentDriver().switchTo().defaultContent();
-            }
-            targetSelected = null;
-
-            revertCloneInjections(performActions.getCurrentDriver());
-            revertHoverPickInjections(performActions.getCurrentDriver());
-
-            if (checkCloneElement.isSelected()) {
-                PageDiagnosticDumper.dumpAll(
-                        performActions.getCurrentDriver(),
-                        arPropertyManager.getProperty(ARPropertyEnum.PATH_DB),
-                        "page-HP");
-
-                // String[] dataArrayClone = {"*"};
-                int finalPort = portSocketInitial;
-                String socketSessionId = "scannerTool";
-                String destinationId = "scannerGrid"; // + this.currentBotJob.getHomeBankingId();
-                String pageUrl = currentPageUrl();
-                Platform.runLater(() -> periodicPickOneCloneThread(
-                        performActions.getCurrentDriver(),
-                        false,
-                        finalPort,
-                        socketSessionId,
-                        destinationId,
-                        "addPickOne",
-                        this.currentBotJob.getHomeBankingId(),
-                        this.currentBotJob.getId(),
-                        pageUrl));
-            }
-
-            Platform.runLater(() -> {
-                launchBotJobButton.setDisable(checkCloneElement.isSelected());
-
-                if (!checkCloneElement.isSelected()) {
-                    Platform.runLater(() -> {
-                        definedNameLabel.setText(DEFINED_NAME_PLACEHOLDER);
-                        searchAttribValueField.clear();
-                    });
-                }
-            });
-        });
+        // HOVER PICK handler removed — the interactive per-element pick (hoverPick JS injection over a
+        // page WebSocket) is not supported in the single Playwright browser. Use the regular scanner.
 
         cloneElementsButton.setOnAction(e -> {
             if (targetSelected != null && targetSelected.getElement() != null) {
