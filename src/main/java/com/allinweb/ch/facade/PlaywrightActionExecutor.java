@@ -143,17 +143,19 @@ public class PlaywrightActionExecutor {
 
             String type = ref.getReferenceType().toLowerCase(Locale.ROOT);
             String value = ref.getValue();
+            // Order matters: "test-id"/"data-testid" both contain "id", so they must be checked
+            // BEFORE the generic id branch, or they'd be mis-built as an #id selector.
             if (type.contains("xpath")) {
                 addXPath(selectors, value);
             } else if (type.contains("css")) {
                 addCss(selectors, value);
+            } else if (type.contains("test-id") || type.contains("data-testid")) {
+                String escaped = cssAttribute(value);
+                addCss(selectors, "[test-id=\"" + escaped + "\"], [data-testid=\"" + escaped + "\"]");
             } else if (type.contains("id")) {
                 addCss(selectors, "#" + cssEscape(value.replaceFirst("^#", "")));
             } else if (type.contains("name")) {
                 addCss(selectors, "[name=\"" + cssAttribute(value) + "\"]");
-            } else if (type.contains("test-id") || type.contains("data-testid")) {
-                String escaped = cssAttribute(value);
-                addCss(selectors, "[test-id=\"" + escaped + "\"], [data-testid=\"" + escaped + "\"]");
             }
         }
     }
