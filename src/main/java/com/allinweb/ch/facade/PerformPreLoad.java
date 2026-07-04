@@ -87,7 +87,7 @@ public class PerformPreLoad {
      */
     public static void reloadAllPlugins() {
         reloadScript();
-        PerformCloneLoad.reloadScript();
+        // hoverPick (PerformCloneLoad) removed — interactive pick is no longer supported.
         PerformActionExecutorLoad.reloadScript();
         PerformListElements.reloadScript();
         EncryptedPluginLoader.getInstance().reloadAll();

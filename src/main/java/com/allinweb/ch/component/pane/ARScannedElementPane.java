@@ -98,7 +98,6 @@ public class ARScannedElementPane extends ARPane {
     private static final ARPriorities arPriorities = ARPriorities.getInstance();
     private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static final ARScannedElementScene arScannedElementScene = ARScannedElementScene.getInstance();
-    private static final PerformCloneLoad performCloneLoad = PerformCloneLoad.getInstance();
     private static final PerformLists performLists = PerformLists.getInstance();
     private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
@@ -2609,38 +2608,6 @@ public class ARScannedElementPane extends ARPane {
             log.warn("currentPageUrl failed: {}", e.getMessage());
         }
         return "";
-    }
-
-    private void periodicPickOneCloneThread(
-            WebDriver driver,
-            boolean searchHiddenFields,
-            int port,
-            String sessionId,
-            String destination,
-            String operationId,
-            int homeBankingId,
-            int botJobId,
-            String currentUrl) {
-
-        ErrorMessage errorMessage = performCloneLoad.dynamicPickOneCloneElementsDTO(
-                driver,
-                searchHiddenFields,
-                port,
-                sessionId,
-                destination,
-                operationId,
-                homeBankingId,
-                botJobId,
-                currentUrl);
-
-        if (errorMessage != null) {
-            logOperations.error(
-                    "Error: Dynamic Pick One Clone ElementsDTO - {} - {} - {}",
-                    errorMessage.getErrorTitle(),
-                    errorMessage.getErrorHeader(),
-                    errorMessage.getErrorMessage());
-            showPluginHint(errorMessage.getErrorTitle() + " - " + errorMessage.getErrorHeader(), "#f44336", 6);
-        }
     }
 
     public void periodicSearchThread(
