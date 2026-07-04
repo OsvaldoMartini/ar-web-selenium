@@ -166,6 +166,20 @@ public class PerformDataBase {
         }
     }
 
+    /** Bot-job-scoped self-healing lookup (a bot job maps to one organization). */
+    public com.allinweb.ch.facade.ScannedElementResolver.Result resolveScannedElementByBotJob(
+            Integer botJobId, com.allinweb.ch.model.InstructionLoad instruction) {
+        try (Connection conn = getConnection()) {
+            java.util.List<com.allinweb.ch.model.ScannedElement> registry =
+                    com.allinweb.ch.db.ScannedElementRepository.loadByBotJob(conn, botJobId);
+            return com.allinweb.ch.facade.ScannedElementResolver.resolve(registry, instruction);
+        } catch (Exception e) {
+            log.warn("resolveScannedElementByBotJob failed (bot={}): {}", botJobId, e.getMessage());
+            return new com.allinweb.ch.facade.ScannedElementResolver.Result(
+                    null, com.allinweb.ch.facade.ScannedElementResolver.Strategy.NONE, 0.0);
+        }
+    }
+
     public Connection getConnection() throws SQLException {
         // Determine DB type from properties
         String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);

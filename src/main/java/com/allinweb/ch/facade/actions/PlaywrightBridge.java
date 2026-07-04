@@ -61,9 +61,19 @@ public class PlaywrightBridge {
             switch (action) {
                 case ARConstantsEngine.CLICK:
                 case ARConstantsEngine.OTHER:
-                    return ctx.arWebDriver().getPlaywrightDriver().click(instruction);
+                    if (ctx.arWebDriver().getPlaywrightDriver().click(instruction)) {
+                        return true;
+                    }
+                    return healAndRetry(
+                            instruction,
+                            healed -> ctx.arWebDriver().getPlaywrightDriver().click(healed));
                 case ARConstantsEngine.INSERT:
-                    return ctx.arWebDriver().getPlaywrightDriver().fill(instruction, data);
+                    if (ctx.arWebDriver().getPlaywrightDriver().fill(instruction, data)) {
+                        return true;
+                    }
+                    return healAndRetry(
+                            instruction,
+                            healed -> ctx.arWebDriver().getPlaywrightDriver().fill(healed, data));
                 case ARConstantsEngine.OUTPUT:
                     String value = ctx.arWebDriver().getPlaywrightDriver().text(instruction);
                     return !Strings.isNullOrEmpty(value);
@@ -74,6 +84,40 @@ public class PlaywrightBridge {
             logOperations.warn("Playwright action failed, falling back to Selenium: {}", error.getMessage());
             return false;
         }
+    }
+
+    /**
+     * Self-healing fallback: the primary Playwright locate failed, so consult the scanned_element
+     * source-of-truth registry (scoped by the running bot job) for a confident match and retry the
+     * action with the registry's current locator. Only fires on failure and only for high-confidence
+     * matches — a pure improvement over "action failed".
+     */
+    private boolean healAndRetry(InstructionLoad instruction, java.util.function.Predicate<InstructionLoad> retry) {
+        Integer botJobId = ctx.priorities() == null ? null : ctx.priorities().getJobId();
+        if (botJobId == null) {
+            return false;
+        }
+        com.allinweb.ch.facade.ScannedElementResolver.Result r = com.allinweb.ch.facade.PerformDataBase.getInstance()
+                .resolveScannedElementByBotJob(botJobId, instruction);
+        if (!r.matched() || r.confidence() < 0.75) {
+            return false;
+        }
+        com.allinweb.ch.model.ScannedElement s = r.element();
+        InstructionLoad healed = new InstructionLoad();
+        healed.setName(instruction.getName());
+        healed.setActions(instruction.getActions());
+        healed.setForceCoordinates(instruction.getForceCoordinates());
+        healed.setXpath(s.getXPath());
+        healed.setCssSelector(s.getCssSelector());
+        healed.setCoordinates(s.getCoordinates());
+        healed.setIFrameXPath(s.getIFrameXPath());
+        logOperations.info(
+                "self-heal: '{}' re-resolved via registry (strategy={}, conf={}) -> xpath={}",
+                instruction.getName(),
+                r.strategy(),
+                r.confidence(),
+                s.getXPath());
+        return retry.test(healed);
     }
 
     public boolean isPlaywrightOnlyMode() {

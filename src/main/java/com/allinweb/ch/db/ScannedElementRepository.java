@@ -187,6 +187,24 @@ public final class ScannedElementRepository {
         return out;
     }
 
+    /**
+     * Load registry rows by bot job alone (a bot job belongs to one organization, so this is the
+     * right scope for execution-time resolution without needing the home_banking_id).
+     */
+    public static List<ScannedElement> loadByBotJob(Connection conn, Integer botJobId) throws SQLException {
+        String sql = "SELECT * FROM scanned_element WHERE bot_job_id = ? ORDER BY last_scanned_at DESC, id ASC";
+        List<ScannedElement> out = new ArrayList<>();
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setObject(1, botJobId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    out.add(map(rs));
+                }
+            }
+        }
+        return out;
+    }
+
     private static ScannedElement map(ResultSet rs) throws SQLException {
         ScannedElement s = new ScannedElement();
         s.setId(rs.getLong("id"));
