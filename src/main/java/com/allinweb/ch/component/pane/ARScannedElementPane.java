@@ -706,9 +706,14 @@ public class ARScannedElementPane extends ARPane {
         String displayAction = "TEST_CLICK_DTO".equals(testType) ? "CLICK" : "INSERT";
         String inputValue = testActionsField.getText() == null ? "" : testActionsField.getText();
 
+        // In Playwright mode there is no Selenium WebElement handle — the test runs via
+        // performWebActions -> tryPlaywrightWebAction using the instruction's xpath/css/coords.
+        boolean playwrightEnabled = currentARWebDriver != null && currentARWebDriver.isPlaywrightEnabled();
+
         try {
-            // Resolve via shadow-DOM locator if we only have a CSS selector inside a shadow host.
-            if (targetDeepCopy.getElement() == null
+            // Selenium shadow-DOM pre-resolve (only meaningful when a Selenium driver exists).
+            if (driverTestActions != null
+                    && targetDeepCopy.getElement() == null
                     && !Strings.isNullOrEmpty(targetDeepCopy.getShadowHost())
                     && !Strings.isNullOrEmpty(targetDeepCopy.getCssSelector())) {
                 WebElement elementFound = performActions.findShadowElementByCssSelector(
@@ -716,12 +721,14 @@ public class ARScannedElementPane extends ARPane {
                 targetDeepCopy.setElement(elementFound);
             }
 
-            if (targetDeepCopy.getElement() == null) {
+            // Only bail on a missing live element in Selenium mode. Playwright resolves from the
+            // instruction locators at action time, so a null handle here is expected and fine.
+            if (targetDeepCopy.getElement() == null && !playwrightEnabled) {
                 performMessage.errorMessage(
                         "Test Action Failed ❌",
                         "<span style='color:#D32F2F;font-weight:bold;font-size:1.1em;'>Element not found in live DOM</span>",
                         "<span style='color:#E65100;'>Could not resolve the element before running the test.</span>",
-                        "<span style='font-style:italic;'>Try Hover Pick again, or verify the page is loaded.</span>",
+                        "<span style='font-style:italic;'>Verify the page is loaded and re-scan.</span>",
                         null,
                         0);
                 return;
