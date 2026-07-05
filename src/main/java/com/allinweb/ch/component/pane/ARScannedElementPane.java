@@ -769,6 +769,36 @@ public class ARScannedElementPane extends ARPane {
             synthetic.setCoordinates(targetDeepCopy.getCoordinates());
             synthetic.setIFrameXPath(targetDeepCopy.getIFrameXPath());
 
+            // Playwright test-click must run from the element's OWN page. The single browser may have
+            // wandered (previous test navigated a link, or the user browsed manually), so navigate to
+            // the element's page first — its scanned_element.page_url, else the bot job's home URL.
+            if (playwrightEnabled && currentBotJob != null) {
+                try {
+                    String targetUrl = null;
+                    com.allinweb.ch.facade.ScannedElementResolver.Result reg =
+                            performDataBase.resolveScannedElementByBotJob(currentBotJob.getId(), synthetic);
+                    if (reg.matched()
+                            && reg.element().getPageUrl() != null
+                            && !reg.element().getPageUrl().isBlank()) {
+                        targetUrl = reg.element().getPageUrl();
+                    }
+                    if (targetUrl == null && currentBotJob.getHomeBankingLoadDTO() != null) {
+                        targetUrl = currentBotJob.getHomeBankingLoadDTO().getUrl();
+                    }
+                    if (targetUrl != null && !targetUrl.isBlank()) {
+                        String current =
+                                currentARWebDriver.getPlaywrightDriver().currentUrl();
+                        if (current == null || !sameUrl(current, targetUrl)) {
+                            logOperations.info(
+                                    "testingActions - navigating to element page before test: {}", targetUrl);
+                            currentARWebDriver.getPlaywrightDriver().navigate(targetUrl);
+                        }
+                    }
+                } catch (Exception navEx) {
+                    logOperations.warn("testingActions - pre-navigate failed: {}", navEx.getMessage());
+                }
+            }
+
             String[] actions = synthetic.getActions().split(ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER);
             FieldData fieldData = new FieldData("Test", inputValue);
             String savedCoords = !Strings.isNullOrEmpty(targetDeepCopy.getCoordinates())
@@ -851,6 +881,20 @@ public class ARScannedElementPane extends ARPane {
                 searchAttribValueField.clear();
             });
         }
+    }
+
+    /** Loose URL equality — ignores trailing slash and #fragment so we don't needlessly re-navigate. */
+    private static boolean sameUrl(String a, String b) {
+        return canonUrl(a).equals(canonUrl(b));
+    }
+
+    private static String canonUrl(String u) {
+        if (u == null) return "";
+        String s = u.trim();
+        int hash = s.indexOf('#');
+        if (hash >= 0) s = s.substring(0, hash);
+        while (s.endsWith("/")) s = s.substring(0, s.length() - 1);
+        return s.toLowerCase(java.util.Locale.ROOT);
     }
 
     /** Human-readable list of active F/E/T/N/S bits for the result modal. */
