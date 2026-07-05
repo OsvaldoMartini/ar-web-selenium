@@ -48,7 +48,10 @@ public class ARPlaywrightDriver {
             browser = launchBrowser(browserType, optionsConfig);
             // bypassCSP so injected plugins (hoverPick/actionExecutor) can open their WebSocket back
             // to the Java server on sites with a strict connect-src Content-Security-Policy.
-            context = browser.newContext(new Browser.NewContextOptions().setBypassCSP(true));
+            // bypassCSP so injected plugins can open their WebSocket; null viewport so the page uses
+            // the full (maximized) browser window instead of Playwright's default 1280x720 viewport.
+            context = browser.newContext(
+                    new Browser.NewContextOptions().setBypassCSP(true).setViewportSize(null));
             page = context.newPage();
             attachDiagnostics(page);
             page.navigate(url);
@@ -176,8 +179,13 @@ public class ARPlaywrightDriver {
     }
 
     private Browser launchBrowser(String browserType, String optionsConfig) {
+        // --start-maximized opens the browser window full-size; combined with a null context viewport
+        // (see open()) the page renders at the full window dimensions.
+        List<String> launchArgs = new ArrayList<>();
+        launchArgs.add("--start-maximized");
+        launchArgs.addAll(parseArguments(optionsConfig));
         BrowserType.LaunchOptions options =
-                new BrowserType.LaunchOptions().setHeadless(false).setArgs(parseArguments(optionsConfig));
+                new BrowserType.LaunchOptions().setHeadless(false).setArgs(launchArgs);
 
         String normalized = Objects.toString(browserType, "").toLowerCase(Locale.ROOT);
         if (ARConstantsEngine.FIREFOX.toLowerCase(Locale.ROOT).equals(normalized)) {
