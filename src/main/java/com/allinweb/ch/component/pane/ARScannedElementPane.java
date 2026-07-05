@@ -1190,15 +1190,34 @@ public class ARScannedElementPane extends ARPane {
             int homeBanking,
             int botJobId,
             String botJobName) {
-        webEngine.load(WebBuildExtractor.getIndexUrl());
+        String indexUrl = WebBuildExtractor.getIndexUrl();
+        log.info(
+                "buildWebView — loading scanner grid WebView: url={} port={} session={}",
+                indexUrl,
+                finalPort,
+                sessionIdFromJava);
+
+        // Surface WebView failures — JS errors and failed loads are otherwise silent, which is why
+        // the scanner grid (scannerGrid) could fail to connect with no trace in the log.
+        webEngine.setOnError(e -> log.error("[webview-js] {}", e.getMessage()));
+        webEngine.setOnAlert(e -> log.info("[webview-alert] {}", e.getData()));
+
+        webEngine.load(indexUrl);
 
         webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
+            log.info("buildWebView — WebView load state {} -> {}", oldState, newState);
+            if (newState == Worker.State.FAILED) {
+                Throwable ex = webEngine.getLoadWorker().getException();
+                log.error(
+                        "buildWebView — WebView FAILED to load {} : {}", indexUrl, ex == null ? "?" : ex.getMessage());
+            }
             if (newState == Worker.State.SUCCEEDED) {
                 // After the page has successfully loaded
                 try {
                     webEngine.executeScript("setTimeout(function() { window.receiveDataFromJava(JSON.stringify("
                             + jsonData + "), " + finalPort + ", '" + sessionIdFromJava + "', " + homeBanking + ", "
                             + botJobId + ", '" + botJobName + "' ) }, 1000)");
+                    log.info("buildWebView — receiveDataFromJava dispatched to scanner grid");
                 } catch (Exception e) {
                     log.error("buildWebView  Error: " + e.getMessage());
                 }
