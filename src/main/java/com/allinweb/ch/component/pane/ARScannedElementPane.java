@@ -7905,8 +7905,14 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private WebElement immediateXPath(String xPath) {
+        // Selenium-only helper: no Selenium driver in Playwright-only mode, so there is no live
+        // WebElement to return (the caller falls through to the Playwright locate path). Returning
+        // null here avoids a NullPointerException on the (uninitialised) waitXPath.
+        if (performActions.getCurrentDriver() == null) {
+            return null;
+        }
         try {
-            if (waitXPath == null && performActions.getCurrentDriver() != null) {
+            if (waitXPath == null) {
                 waitXPath = new WebDriverWait(performActions.getCurrentDriver(), Duration.ofSeconds(0));
             }
             waitXPath.until(ExpectedConditions.presenceOfElementLocated(By.xpath(xPath)));
