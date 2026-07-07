@@ -191,6 +191,7 @@ public class ARScannedElementPane extends ARPane {
     private CheckBox checkNotShowTestMsg;
 
     private Label searchTermsLabel;
+    private Label elementFocusLabel;
     private Label defineNameLabel;
     private Label coordsTextFieldLabel;
     private Text currentURL;
@@ -198,6 +199,7 @@ public class ARScannedElementPane extends ARPane {
     private VBox textFieldVBox;
     //    private TextFlow textFlowResult;
     private TextArea countdownTextField;
+    private ComboBox<ElementScanProfile> elementFocusComboBox;
     private TextField searchTermsField;
     private TextField matchRulesField;
     private Label matchRulesLabel;
@@ -218,8 +220,268 @@ public class ARScannedElementPane extends ARPane {
     private ARWebDriver currentARWebDriver;
     WebDriverWait waitXPath = null;
 
+    private static final ElementScanProfile ALL_INTERACTIVE_SCAN_PROFILE = new ElementScanProfile(
+            "All - Interactive controls",
+            "All common clickable, writable, selectable, menu, tree, grid, and dialog controls.",
+            "input",
+            "textarea",
+            "button",
+            "a",
+            "select",
+            "option",
+            "[contenteditable='true']",
+            "[role='button']",
+            "[role='link']",
+            "[role='option']",
+            "[role='menuitem']",
+            "[role='tab']",
+            "[role='checkbox']",
+            "[role='radio']",
+            "[role='switch']",
+            "[role='treeitem']",
+            "[role='combobox']",
+            "[role='textbox']",
+            "[aria-haspopup]",
+            "mat-select",
+            "mat-option",
+            "mat-radio-button",
+            "mat-checkbox",
+            "mat-slide-toggle",
+            "mat-button-toggle",
+            "mat-expansion-panel-header",
+            "mat-tab",
+            "mat-menu-item",
+            "mat-tree-node",
+            "svg[role='button']",
+            "svg[aria-label]",
+            "[mat-icon-button]",
+            "mat-icon");
+
+    private static final List<ElementScanProfile> ELEMENT_SCAN_PROFILES = buildElementScanProfiles();
+
     // Private constructor to prevent instantiation
     private ARScannedElementPane() {}
+
+    private static List<ElementScanProfile> buildElementScanProfiles() {
+        List<ElementScanProfile> profiles = new ArrayList<>();
+        profiles.add(ALL_INTERACTIVE_SCAN_PROFILE);
+        profiles.add(new ElementScanProfile(
+                "Angular Material - Autocomplete",
+                "Autocomplete inputs and their selectable options.",
+                "input[role='combobox']",
+                "[role='combobox']",
+                "[role='listbox'] [role='option']",
+                "mat-option",
+                ".mat-mdc-autocomplete-panel mat-option"));
+        profiles.add(new ElementScanProfile(
+                "Angular Material - Checkbox",
+                "Angular Material checkbox controls.",
+                "mat-checkbox",
+                "[role='checkbox']",
+                "input[type='checkbox']"));
+        profiles.add(new ElementScanProfile(
+                "Angular Material - Date picker",
+                "Calendar cells and date picker actions.",
+                "mat-datepicker-toggle",
+                "mat-calendar-body-cell",
+                "[role='gridcell']",
+                "[aria-selected]"));
+        profiles.add(new ElementScanProfile(
+                "Angular Material - Expansion panel",
+                "Accordion and expansion panel headers.",
+                "mat-expansion-panel-header",
+                "[role='button'][aria-expanded]"));
+        profiles.add(new ElementScanProfile(
+                "Angular Material - Menu",
+                "Angular Material menu items.",
+                "mat-menu-item",
+                "[role='menu']",
+                "[role='menuitem']"));
+        profiles.add(new ElementScanProfile(
+                "Angular Material - Radio",
+                "Angular Material radio options.",
+                "mat-radio-button",
+                "[role='radio']",
+                "input[type='radio']"));
+        profiles.add(new ElementScanProfile(
+                "Angular Material - Select",
+                "Angular Material select controls and options.",
+                "mat-select",
+                "mat-option",
+                "[role='combobox']",
+                "[role='listbox'] [role='option']"));
+        profiles.add(new ElementScanProfile(
+                "Angular Material - Slide toggle",
+                "Switch and slide toggle controls.",
+                "mat-slide-toggle",
+                "mat-button-toggle",
+                "[role='switch']"));
+        profiles.add(new ElementScanProfile(
+                "Angular Material - Tabs",
+                "Tab headers.",
+                "mat-tab",
+                "[role='tab']"));
+        profiles.add(new ElementScanProfile(
+                "Angular Material - Tree",
+                "Tree nodes and expandable tree options.",
+                "mat-tree-node",
+                "[role='tree']",
+                "[role='treeitem']"));
+        profiles.add(new ElementScanProfile(
+                "ARIA - Buttons and links",
+                "Custom button and link widgets.",
+                "[role='button']",
+                "[role='link']",
+                "[aria-haspopup]",
+                "svg[role='button']",
+                "svg[aria-label]"));
+        profiles.add(new ElementScanProfile(
+                "ARIA - Combobox and listbox",
+                "Custom dropdown, listbox, and combobox options.",
+                "[role='combobox']",
+                "[role='listbox']",
+                "[role='listbox'] [role='option']",
+                "[role='option']"));
+        profiles.add(new ElementScanProfile(
+                "ARIA - Dialog actions",
+                "Modal dialog buttons and close actions.",
+                "[role='dialog'] button",
+                "[role='dialog'] [role='button']",
+                "[role='dialog'] [aria-label]"));
+        profiles.add(new ElementScanProfile(
+                "ARIA - Grid and table",
+                "Interactive grid rows, cells, and row actions.",
+                "[role='grid']",
+                "[role='row']",
+                "[role='gridcell']",
+                "[role='row'] button",
+                "[role='gridcell'] button"));
+        profiles.add(new ElementScanProfile(
+                "ARIA - Menus",
+                "Menu bars and menu items.",
+                "[role='menu']",
+                "[role='menubar']",
+                "[role='menuitem']"));
+        profiles.add(new ElementScanProfile(
+                "ARIA - Tabs",
+                "ARIA tab controls.",
+                "[role='tab']",
+                "[role='tablist']"));
+        profiles.add(new ElementScanProfile(
+                "ARIA - Tree",
+                "ARIA tree and tree item controls.",
+                "[role='tree']",
+                "[role='treeitem']"));
+        profiles.add(new ElementScanProfile(
+                "Native - Buttons and links",
+                "Native clickable controls.",
+                "button",
+                "a",
+                "input[type='button']",
+                "input[type='submit']",
+                "input[type='reset']"));
+        profiles.add(new ElementScanProfile(
+                "Native - Checkbox",
+                "Native checkbox controls.",
+                "input[type='checkbox']",
+                "label[for]"));
+        profiles.add(new ElementScanProfile(
+                "Native - File upload",
+                "File inputs and upload drop zones.",
+                "input[type='file']",
+                ".dropzone",
+                "[aria-label*='upload' i]",
+                "[role='button'] input[type='file']"));
+        profiles.add(new ElementScanProfile(
+                "Native - Inputs",
+                "Writable text-like controls.",
+                "input[type='text']",
+                "input[type='email']",
+                "input[type='password']",
+                "input[type='search']",
+                "input[type='number']",
+                "input[type='tel']",
+                "input[type='url']",
+                "input:not([type])",
+                "textarea",
+                "[contenteditable='true']",
+                "[role='textbox']"));
+        profiles.add(new ElementScanProfile(
+                "Native - Radio",
+                "Native radio options.",
+                "input[type='radio']",
+                "label[for]",
+                "[role='radio']"));
+        profiles.add(new ElementScanProfile(
+                "Native - Select",
+                "Native select controls and options.",
+                "select",
+                "option"));
+        profiles.add(new ElementScanProfile(
+                "SVG and icons - Clickable",
+                "Icon buttons and clickable SVG elements.",
+                "svg[role='button']",
+                "svg[aria-label]",
+                "button svg",
+                "[mat-icon-button]",
+                "mat-icon"));
+        profiles.sort(Comparator.comparing(ElementScanProfile::label, String.CASE_INSENSITIVE_ORDER));
+        return Collections.unmodifiableList(profiles);
+    }
+
+    private static final class ElementScanProfile {
+        private final String label;
+        private final String description;
+        private final List<String> terms;
+
+        private ElementScanProfile(String label, String description, String... terms) {
+            this.label = label;
+            this.description = description;
+            this.terms = List.of(terms);
+        }
+
+        private String label() {
+            return label;
+        }
+
+        private String description() {
+            return description;
+        }
+
+        private String searchText() {
+            return String.join(", ", terms);
+        }
+
+        private String[] termsArray() {
+            return terms.toArray(new String[0]);
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
+    private static final class ElementScanProfileCell extends ListCell<ElementScanProfile> {
+        @Override
+        protected void updateItem(ElementScanProfile item, boolean empty) {
+            super.updateItem(item, empty);
+            if (empty || item == null) {
+                setText(null);
+                setTooltip(null);
+                setStyle("");
+                return;
+            }
+
+            setText(item.label());
+            setTooltip(new Tooltip(item.description()));
+            if (item.label().startsWith("All -")) {
+                setStyle("-fx-font-weight: bold;");
+            } else {
+                setStyle("");
+            }
+        }
+    }
 
     public static ARScannedElementPane getInstance() {
         if (instance == null) {
@@ -1365,12 +1627,30 @@ public class ARScannedElementPane extends ARPane {
         checkCloneElement.setDisable(true);
 
         searchTermsLabel = new Label("Search by :");
+        elementFocusLabel = new Label("Focus :");
         defineNameLabel = new Label("DEFINE ELEMENT NAME");
         coordsTextFieldLabel = new Label("Main Coordinates");
+
+        elementFocusComboBox = new ComboBox<>(FXCollections.observableArrayList(ELEMENT_SCAN_PROFILES));
+        elementFocusComboBox.setPrefWidth(260);
+        elementFocusComboBox.setTooltip(new Tooltip("Choose which type of web element the Page Scanner should focus."));
+        elementFocusComboBox.getSelectionModel().select(ALL_INTERACTIVE_SCAN_PROFILE);
+        elementFocusComboBox.setButtonCell(new ElementScanProfileCell());
+        elementFocusComboBox.setCellFactory(list -> new ElementScanProfileCell());
+        elementFocusComboBox.valueProperty().addListener((obs, oldValue, newValue) -> {
+            if (newValue == null || searchTermsField == null) {
+                return;
+            }
+            searchTermsField.setText(newValue.searchText());
+            searchTermsField.setStyle("-fx-border-color: #1976D2; -fx-border-width: 1.5; -fx-background-color: #E3F2FD;");
+            elementFocusComboBox.setStyle("-fx-border-color: #1976D2; -fx-border-width: 1.5;");
+            appendLog("Page Scanner focus: " + newValue.label(), "info");
+        });
 
         searchTermsField = new TextField();
         searchTermsField.setPromptText("button, label, input, with id, with text");
         searchTermsField.setPrefWidth(300);
+        searchTermsField.setText(ALL_INTERACTIVE_SCAN_PROFILE.searchText());
 
         // "Match rules:" — second scanner input for tagPrefix / tagSuffix / attr /
         // attrPrefix rules. Parsed comma-split and sent to searchListAsync as the
@@ -1543,10 +1823,12 @@ public class ARScannedElementPane extends ARPane {
             gridPaneTop.add(pageScannerRow, 0, 0);
             gridPaneTop.add(pluginUpdateButton, 1, 0);
             gridPaneTop.add(updatePluginsButton, 2, 0);
-            gridPaneTop.add(searchTermsLabel, 3, 0);
-            gridPaneTop.add(searchTermsField, 4, 0);
-            gridPaneTop.add(matchRulesLabel, 3, 1);
-            gridPaneTop.add(matchRulesField, 4, 1);
+            gridPaneTop.add(elementFocusLabel, 3, 0);
+            gridPaneTop.add(elementFocusComboBox, 4, 0);
+            gridPaneTop.add(searchTermsLabel, 3, 1);
+            gridPaneTop.add(searchTermsField, 4, 1);
+            gridPaneTop.add(matchRulesLabel, 3, 2);
+            gridPaneTop.add(matchRulesField, 4, 2);
             gridPaneTop.add(searchButton, 5, 0);
             gridPaneTop.add(turnOnOffButton, 6, 0);
             gridPaneTop.add(leftButton, 7, 0);
@@ -2477,7 +2759,7 @@ public class ARScannedElementPane extends ARPane {
         });
 
         pageScannerButton.setOnAction(e -> searchTermsBtn(
-                null, matchRulesField == null ? null : matchRulesField.getText().trim()));
+                selectedProfileSearchText(), matchRulesField == null ? null : matchRulesField.getText().trim()));
 
         ocrConfigButton.setOnAction(e -> {
             Integer hbId = currentBotJob == null ? null : currentBotJob.getHomeBankingId();
@@ -3712,8 +3994,10 @@ public class ARScannedElementPane extends ARPane {
 
         if (searchTerms != null && !searchTerms.trim().isEmpty()) {
             dataArray = searchTerms.split("\\s*,\\s*"); // Splitting by comma, allowing spaces around it
+        } else if (elementFocusComboBox != null && elementFocusComboBox.getValue() != null) {
+            dataArray = elementFocusComboBox.getValue().termsArray();
         } else {
-            dataArray = new String[] {"input", "textarea", "button", "a", "select", "label"}; // Default values
+            dataArray = ALL_INTERACTIVE_SCAN_PROFILE.termsArray();
         }
 
         // Parse the new "Match rules:" field. Same comma-split as searchTerms;
@@ -3735,6 +4019,11 @@ public class ARScannedElementPane extends ARPane {
         } catch (Exception e) {
 
         }
+    }
+
+    private String selectedProfileSearchText() {
+        ElementScanProfile selected = elementFocusComboBox == null ? null : elementFocusComboBox.getValue();
+        return selected == null ? ALL_INTERACTIVE_SCAN_PROFILE.searchText() : selected.searchText();
     }
 
     private void handleSearchTermClick(String[] dataArray, List<String> extendedRules) {

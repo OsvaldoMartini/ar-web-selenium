@@ -160,8 +160,11 @@ public final class ElementDtoMapper {
 
             if (elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.BUTTON.getValue())
                     || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.ANCHOR.getValue())
+                    || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.SELECT.getValue())
                     || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.OPTION.getValue())
-                    || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.MAT_SELECT.getValue())) {
+                    || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.MAT_SELECT.getValue())
+                    || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.MAT_OPTION.getValue())
+                    || isClickableAttributeType(elemenDTO.getAttributeType())) {
                 targetDefine.setTagType(WebElementTagNameEnum.BUTTON);
                 targetDefine.setIconType(WebElementIcon.CLICK);
             } else if (elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.INPUT.getValue())
@@ -385,18 +388,24 @@ public final class ElementDtoMapper {
                 }
             }
 
-            String tagName = targetTagType.getDefinedName();
+            String tagName = targetTagType.getTagName();
+            String attributeType = targetTagType.getAttributeType();
 
             // Here I am forcing as Button "CLICKABLE" or "IMPUTABLE"
-            if (tagName.equalsIgnoreCase(WebElementTagNameEnum.BUTTON.getValue())
-                    || tagName.equalsIgnoreCase(WebElementTagNameEnum.ANCHOR.getValue())
-                    || tagName.equalsIgnoreCase(WebElementTagNameEnum.DIV.getValue())
-                    || tagName.equalsIgnoreCase(WebElementTagNameEnum.OPTION.getValue())
-                    || tagName.equalsIgnoreCase(WebElementTagNameEnum.MAT_SELECT.getValue())) {
+            if (tagName != null
+                    && (tagName.equalsIgnoreCase(WebElementTagNameEnum.BUTTON.getValue())
+                            || tagName.equalsIgnoreCase(WebElementTagNameEnum.ANCHOR.getValue())
+                            || tagName.equalsIgnoreCase(WebElementTagNameEnum.DIV.getValue())
+                            || tagName.equalsIgnoreCase(WebElementTagNameEnum.SELECT.getValue())
+                            || tagName.equalsIgnoreCase(WebElementTagNameEnum.OPTION.getValue())
+                            || tagName.equalsIgnoreCase(WebElementTagNameEnum.MAT_SELECT.getValue())
+                            || tagName.equalsIgnoreCase(WebElementTagNameEnum.MAT_OPTION.getValue()))
+                    || isClickableAttributeType(attributeType)) {
                 targetTagType.setTagType(WebElementTagNameEnum.BUTTON);
                 targetTagType.setIconType(WebElementIcon.CLICK);
-            } else if (tagName.equalsIgnoreCase(WebElementTagNameEnum.INPUT.getValue())
-                    || tagName.equalsIgnoreCase(WebElementTagNameEnum.TEXT_AREA.getValue())) {
+            } else if (tagName != null
+                    && (tagName.equalsIgnoreCase(WebElementTagNameEnum.INPUT.getValue())
+                            || tagName.equalsIgnoreCase(WebElementTagNameEnum.TEXT_AREA.getValue()))) {
                 targetTagType.setTagType(WebElementTagNameEnum.INPUT);
                 targetTagType.setIconType(WebElementIcon.INSERT);
             } else {
@@ -422,6 +431,26 @@ public final class ElementDtoMapper {
                 .equalsIgnoreCase(element.getAttribute(WebElementAttributeEnum.TYPE.getValue())));
         boolean isInputTag = tagNameDefined.equalsIgnoreCase(WebElementTagNameEnum.INPUT.getValue());
         return (isClickableTag && !isInputTag) || (isInputTag && isClickableValue && isClickableTag);
+    }
+
+    private static boolean isClickableAttributeType(String attributeType) {
+        if (attributeType == null || attributeType.isBlank()) {
+            return false;
+        }
+        String normalized = attributeType.toLowerCase();
+        return normalized.contains("option")
+                || normalized.contains("button")
+                || normalized.contains("upload")
+                || normalized.contains("switch")
+                || normalized.contains("menu")
+                || normalized.contains("tree")
+                || normalized.contains("tab")
+                || normalized.contains("calendar")
+                || normalized.contains("select")
+                || normalized.equals("checkbox")
+                || normalized.equals("radio")
+                || normalized.equals("combobox")
+                || normalized.equals("link");
     }
 
     public static InstructionLoad buildNewInstruction(
@@ -544,6 +573,8 @@ public final class ElementDtoMapper {
         String optionText = getAttr(attrs, "option-text");
         String selectXPath = getAttr(attrs, "select-xpath");
         String triggerSelector = getAttr(attrs, "trigger-selector");
+        String controlKind = getAttr(attrs, "control.kind");
+        String controlRole = getAttr(attrs, "control.role");
         String tag = targetRefs.getTagName() != null ? targetRefs.getTagName().toLowerCase() : null;
 
         if (id == null || id.isBlank()) id = targetRefs.getAttribId();
@@ -586,6 +617,8 @@ public final class ElementDtoMapper {
         addIfNotBlank(savedReferences, "select.option.text", optionText);
         addIfNotBlank(savedReferences, "select.native.xpath", selectXPath);
         addIfNotBlank(savedReferences, "select.trigger.css", triggerSelector);
+        addIfNotBlank(savedReferences, "control.kind", controlKind);
+        addIfNotBlank(savedReferences, "control.role", controlRole);
 
         // Optional: iframe/shadow metadata if relevant for finding context
         addIfNotBlank(savedReferences, "context.iframeXPath", targetRefs.getIFrameXPath());

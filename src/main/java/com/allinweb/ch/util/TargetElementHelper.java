@@ -360,8 +360,11 @@ public class TargetElementHelper {
 
             if (elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.BUTTON.getValue())
                     || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.ANCHOR.getValue())
+                    || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.SELECT.getValue())
                     || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.OPTION.getValue())
-                    || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.MAT_SELECT.getValue())) {
+                    || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.MAT_SELECT.getValue())
+                    || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.MAT_OPTION.getValue())
+                    || isClickableAttributeType(elemenDTO.getAttributeType())) {
                 targetDefine.setTagType(WebElementTagNameEnum.BUTTON);
                 targetDefine.setIconType(WebElementIcon.CLICK);
             } else if (elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.INPUT.getValue())
@@ -391,6 +394,26 @@ public class TargetElementHelper {
             }
         }
         return targetDefine;
+    }
+
+    private boolean isClickableAttributeType(String attributeType) {
+        if (attributeType == null || attributeType.isBlank()) {
+            return false;
+        }
+        String normalized = attributeType.toLowerCase();
+        return normalized.contains("option")
+                || normalized.contains("button")
+                || normalized.contains("upload")
+                || normalized.contains("switch")
+                || normalized.contains("menu")
+                || normalized.contains("tree")
+                || normalized.contains("tab")
+                || normalized.contains("calendar")
+                || normalized.contains("select")
+                || normalized.equals("checkbox")
+                || normalized.equals("radio")
+                || normalized.equals("combobox")
+                || normalized.equals("link");
     }
 
     // TODO MORE INTELLIGENT  LOGIC
