@@ -21,7 +21,8 @@ public class PlaywrightElementScanner {
             + "[role='option'], [role='menuitem'], [role='menu'], [role='menubar'], [role='tab'], [role='tablist'], "
             + "[role='checkbox'], [role='radio'], [role='switch'], [role='tree'], [role='treeitem'], "
             + "[role='grid'], [role='row'], [role='gridcell'], [role='textbox'], [role='dialog'] button, "
-            + "[aria-haspopup], [aria-selected], [data-testid], [test-id], [data-radix-popper-content-wrapper], "
+            + "[aria-haspopup], [aria-selected], [data-testid], [data-test-id], [test-id], [data-cy], [data-qa], "
+            + "[data-radix-popper-content-wrapper], "
             + "mat-select, mat-option, mat-radio-button, mat-checkbox, mat-slide-toggle, mat-button-toggle, "
             + "mat-expansion-panel-header, mat-tab, mat-menu-item, mat-tree-node, mat-datepicker-toggle, "
             + "mat-calendar-body-cell, svg[role='button'], svg[aria-label], [mat-icon-button], mat-icon, span, div";
@@ -53,8 +54,15 @@ public class PlaywrightElementScanner {
                 if (el.id) return tag + '#' + CSS.escape(el.id);
                 const name = el.getAttribute('name');
                 if (name) return tag + '[name="' + name.replace(/"/g, '\\\\"') + '"]';
-                const testId = el.getAttribute('data-testid') || el.getAttribute('test-id');
-                if (testId) return tag + '[data-testid="' + testId.replace(/"/g, '\\\\"') + '"]';
+                const testId = el.getAttribute('data-testid') || el.getAttribute('data-test-id') || el.getAttribute('test-id') || el.getAttribute('data-cy') || el.getAttribute('data-qa');
+                if (testId) {
+                  const attrName = el.getAttribute('data-testid') ? 'data-testid'
+                    : el.getAttribute('data-test-id') ? 'data-test-id'
+                    : el.getAttribute('test-id') ? 'test-id'
+                    : el.getAttribute('data-cy') ? 'data-cy'
+                    : 'data-qa';
+                  return tag + '[' + attrName + '="' + testId.replace(/"/g, '\\\\"') + '"]';
+                }
                 const role = el.getAttribute('role');
                 const controls = el.getAttribute('aria-controls');
                 if (role && controls) return tag + '[role="' + role + '"][aria-controls="' + controls.replace(/"/g, '\\\\"') + '"]';
@@ -168,7 +176,7 @@ public class PlaywrightElementScanner {
                 const rect = el.getBoundingClientRect();
                 const style = window.getComputedStyle(el);
                 const role = attr(el, 'role');
-                const testId = attr(el, 'data-testid') || attr(el, 'test-id');
+                const testId = attr(el, 'data-testid') || attr(el, 'data-test-id') || attr(el, 'test-id') || attr(el, 'data-cy') || attr(el, 'data-qa');
                 const zIndex = style.zIndex && style.zIndex !== 'auto' ? style.zIndex : '';
                 const kind = override?.attributeType || controlKind(el, tag, role);
                 if (role) attrs.push({ name: 'role', value: role });
@@ -222,9 +230,9 @@ public class PlaywrightElementScanner {
                     const text = (option.textContent || '').trim().replace(/\\s+/g, ' ');
                     if (!text) return;
                     const value = option.value || text;
-                    const dto = makeDto(el, idx + out.length + optionIndex, {
+                    const clickableDto = makeDto(el, idx + out.length + optionIndex, {
                       forceKeep: true,
-                      tagName: 'option',
+                      tagName: 'button',
                       typeElement: 'button',
                       xPath: optionXPath(el, option),
                       cssSelector: triggerSelector,
@@ -234,12 +242,38 @@ public class PlaywrightElementScanner {
                       attributeType: 'select-option',
                       searchAttributeValue: value
                     });
-                    if (dto) {
-                      dto.attributeData.push({ name: 'option-value', value });
-                      dto.attributeData.push({ name: 'option-text', value: text });
-                      dto.attributeData.push({ name: 'select-xpath', value: generateXPath(el) });
-                      if (triggerSelector) dto.attributeData.push({ name: 'trigger-selector', value: triggerSelector });
-                      out.push(dto);
+                    if (clickableDto) {
+                      clickableDto.attributeData.push({ name: 'original-tag', value: 'option' });
+                      clickableDto.attributeData.push({ name: 'option-value', value });
+                      clickableDto.attributeData.push({ name: 'option-text', value: text });
+                      clickableDto.attributeData.push({ name: 'select-xpath', value: generateXPath(el) });
+                      clickableDto.attributeData.push({ name: 'control.kind', value: 'select-option' });
+                      clickableDto.attributeData.push({ name: 'control.role', value: 'option' });
+                      if (triggerSelector) clickableDto.attributeData.push({ name: 'trigger-selector', value: triggerSelector });
+                      out.push(clickableDto);
+                    }
+
+                    const outputDto = makeDto(el, idx + out.length + optionIndex, {
+                      forceKeep: true,
+                      tagName: 'label',
+                      typeElement: 'output',
+                      xPath: optionXPath(el, option),
+                      cssSelector: triggerSelector,
+                      customXPath: triggerSelector,
+                      someText: text,
+                      attributeValue: text,
+                      attributeType: 'output-text',
+                      searchAttributeValue: text
+                    });
+                    if (outputDto) {
+                      outputDto.attributeData.push({ name: 'original-tag', value: 'option' });
+                      outputDto.attributeData.push({ name: 'option-value', value });
+                      outputDto.attributeData.push({ name: 'option-text', value: text });
+                      outputDto.attributeData.push({ name: 'select-xpath', value: generateXPath(el) });
+                      outputDto.attributeData.push({ name: 'control.kind', value: 'select-output' });
+                      outputDto.attributeData.push({ name: 'control.role', value: 'option' });
+                      if (triggerSelector) outputDto.attributeData.push({ name: 'trigger-selector', value: triggerSelector });
+                      out.push(outputDto);
                     }
                   });
                 }
@@ -278,7 +312,7 @@ public class PlaywrightElementScanner {
             } else if (normalized.contains("with name")) {
                 selectors.add("[name]");
             } else if (normalized.contains("with test-id")) {
-                selectors.add("[test-id], [data-testid]");
+                selectors.add("[test-id], [data-testid], [data-test-id], [data-cy], [data-qa]");
             } else {
                 selectors.add(term.trim());
             }
@@ -294,7 +328,10 @@ public class PlaywrightElementScanner {
 
     private static void addCompanionSelectors(List<String> selectors) {
         addIfMissing(selectors, "[data-testid]");
+        addIfMissing(selectors, "[data-test-id]");
         addIfMissing(selectors, "[test-id]");
+        addIfMissing(selectors, "[data-cy]");
+        addIfMissing(selectors, "[data-qa]");
 
         String joined = String.join(" ", selectors).toLowerCase(Locale.ROOT);
         if (joined.contains("select") || joined.contains("combobox") || joined.contains("listbox") || joined.contains("option")) {
@@ -362,7 +399,13 @@ public class PlaywrightElementScanner {
             }
 
             ElementDTO dto = mapElement(map);
-            String key = firstNotBlank(dto.getXPath(), dto.getCssSelector(), dto.getCoordinates());
+            String key = String.join(
+                    "|",
+                    firstNotBlank(dto.getXPath(), dto.getCssSelector(), dto.getCoordinates()),
+                    Objects.toString(dto.getTagName(), ""),
+                    Objects.toString(dto.getTypeElement(), ""),
+                    Objects.toString(dto.getAttributeType(), ""),
+                    Objects.toString(dto.getSomeText(), ""));
             if (!key.isBlank()) {
                 unique.putIfAbsent(key, dto);
             }
@@ -429,6 +472,9 @@ public class PlaywrightElementScanner {
         if (isInputType(scannedTypeElement)) {
             return "input";
         }
+        if (isOutputType(scannedTypeElement)) {
+            return "output";
+        }
         if (isButtonType(scannedTypeElement) || isClickableKind(attributeData)) {
             return "button";
         }
@@ -453,6 +499,10 @@ public class PlaywrightElementScanner {
 
     private static boolean isButtonType(String typeElement) {
         return "button".equalsIgnoreCase(typeElement);
+    }
+
+    private static boolean isOutputType(String typeElement) {
+        return "output".equalsIgnoreCase(typeElement);
     }
 
     private static boolean isClickableKind(AttributeData[] attributeData) {

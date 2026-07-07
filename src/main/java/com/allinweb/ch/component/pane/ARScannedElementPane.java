@@ -201,8 +201,6 @@ public class ARScannedElementPane extends ARPane {
     private TextArea countdownTextField;
     private ComboBox<ElementScanProfile> elementFocusComboBox;
     private TextField searchTermsField;
-    private TextField matchRulesField;
-    private Label matchRulesLabel;
     private TextField testActionsField;
     private TextField coordsTextField;
     private Map<String, String> mapOperators = new HashMap<>();
@@ -426,6 +424,26 @@ public class ARScannedElementPane extends ARPane {
                 "[mat-icon-button]",
                 "mat-icon"));
         profiles.sort(Comparator.comparing(ElementScanProfile::label, String.CASE_INSENSITIVE_ORDER));
+        profiles.add(new ElementScanProfile(
+                "Search rule - With id",
+                "Scan elements that expose an id attribute.",
+                "with id"));
+        profiles.add(new ElementScanProfile(
+                "Search rule - With name",
+                "Scan elements that expose a name attribute.",
+                "with name"));
+        profiles.add(new ElementScanProfile(
+                "Search rule - With test id",
+                "Scan elements with test-id, data-testid, or data-test-id attributes.",
+                "with test-id"));
+        profiles.add(new ElementScanProfile(
+                "Search rule - With data attributes",
+                "Scan elements with common automation data attributes.",
+                "[data-testid]",
+                "[data-test-id]",
+                "[test-id]",
+                "[data-cy]",
+                "[data-qa]"));
         return Collections.unmodifiableList(profiles);
     }
 
@@ -1652,14 +1670,6 @@ public class ARScannedElementPane extends ARPane {
         searchTermsField.setPrefWidth(300);
         searchTermsField.setText(ALL_INTERACTIVE_SCAN_PROFILE.searchText());
 
-        // "Match rules:" — second scanner input for tagPrefix / tagSuffix / attr /
-        // attrPrefix rules. Parsed comma-split and sent to searchListAsync as the
-        // new 9th positional arg. Empty = legacy behaviour, searchTerms only.
-        matchRulesLabel = new Label("Match rules :");
-        matchRulesField = new TextField();
-        matchRulesField.setPromptText("tagPrefix:avq, attr:data-test-id");
-        matchRulesField.setPrefWidth(300);
-
         // Read-only mirror of the picked element's display name (clientNamed → definedName →
         // someText → tagName). Renames live in the React grid via instruction.client_named.
         definedNameLabel = new Label(DEFINED_NAME_PLACEHOLDER);
@@ -1827,8 +1837,6 @@ public class ARScannedElementPane extends ARPane {
             gridPaneTop.add(elementFocusComboBox, 4, 0);
             gridPaneTop.add(searchTermsLabel, 3, 1);
             gridPaneTop.add(searchTermsField, 4, 1);
-            gridPaneTop.add(matchRulesLabel, 3, 2);
-            gridPaneTop.add(matchRulesField, 4, 2);
             gridPaneTop.add(searchButton, 5, 0);
             gridPaneTop.add(turnOnOffButton, 6, 0);
             gridPaneTop.add(leftButton, 7, 0);
@@ -2758,8 +2766,7 @@ public class ARScannedElementPane extends ARPane {
             }
         });
 
-        pageScannerButton.setOnAction(e -> searchTermsBtn(
-                selectedProfileSearchText(), matchRulesField == null ? null : matchRulesField.getText().trim()));
+        pageScannerButton.setOnAction(e -> searchTermsBtn(selectedProfileSearchText(), Collections.emptyList()));
 
         ocrConfigButton.setOnAction(e -> {
             Integer hbId = currentBotJob == null ? null : currentBotJob.getHomeBankingId();
@@ -2767,9 +2774,7 @@ public class ARScannedElementPane extends ARPane {
             AROcrConfigScene.getInstance().openFor(hbId, urlId);
         });
 
-        searchButton.setOnAction(e -> searchTermsBtn(
-                searchTermsField.getText().trim(),
-                matchRulesField == null ? null : matchRulesField.getText().trim()));
+        searchButton.setOnAction(e -> searchTermsBtn(searchTermsField.getText().trim(), Collections.emptyList()));
 
         turnOnOffButton.setVisible(false);
     }
@@ -3977,7 +3982,7 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private void searchTermsBtn(String searchTerms, String matchRules) {
+    private void searchTermsBtn(String searchTerms, List<String> extendedRules) {
         //        readAllElementsWithWebDriver();
 
         if (!lastBrowserTab()) {
@@ -4000,18 +4005,7 @@ public class ARScannedElementPane extends ARPane {
             dataArray = ALL_INTERACTIVE_SCAN_PROFILE.termsArray();
         }
 
-        // Parse the new "Match rules:" field. Same comma-split as searchTerms;
-        // each non-empty token is forwarded to searchListAsync.js as one of its
-        // extendedRules entries (tagPrefix: / tagSuffix: / attr: / attrPrefix:).
-        List<String> rulesList = new ArrayList<>();
-        if (matchRules != null && !matchRules.trim().isEmpty()) {
-            for (String token : matchRules.split("\\s*,\\s*")) {
-                String trimmed = token.trim();
-                if (!trimmed.isEmpty()) rulesList.add(trimmed);
-            }
-        }
-
-        handleSearchTermClick(dataArray, rulesList);
+        handleSearchTermClick(dataArray, extendedRules == null ? Collections.emptyList() : extendedRules);
 
         try {
             Thread.sleep(2000);
