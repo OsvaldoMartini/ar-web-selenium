@@ -23,6 +23,10 @@ public class PlaywrightActionExecutor {
             return false;
         }
 
+        if (isSelectOptionInstruction(instruction) && clickSelectOption(page, instruction)) {
+            return true;
+        }
+
         Locator locator = locate(page, instruction);
         if (locator != null && locator.count() > 0) {
             Locator target = locator.first();
@@ -56,6 +60,74 @@ public class PlaywrightActionExecutor {
         }
 
         return clickCoordinates(page, instruction.getCoordinates());
+    }
+
+    private boolean clickSelectOption(Page page, InstructionLoad instruction) {
+        String value = referenceValue(instruction, "select.option.value");
+        String text = referenceValue(instruction, "select.option.text");
+        String nativeSelectXPath = referenceValue(instruction, "select.native.xpath");
+        String triggerCss = referenceValue(instruction, "select.trigger.css");
+
+        if (!nativeSelectXPath.isBlank() && !value.isBlank()) {
+            try {
+                page.locator("xpath=" + nativeSelectXPath)
+                        .selectOption(value, new Locator.SelectOptionOptions().setTimeout(ACTION_TIMEOUT_MS));
+                return true;
+            } catch (Exception nativeSelect) {
+                log.debug("Playwright native selectOption failed: {}", nativeSelect.getMessage());
+            }
+        }
+
+        String optionText = !text.isBlank() ? text : value;
+        if (clickVisibleOption(page, optionText)) {
+            return true;
+        }
+
+        if (!triggerCss.isBlank()) {
+            try {
+                page.locator(triggerCss).first().click(new Locator.ClickOptions().setTimeout(ACTION_TIMEOUT_MS));
+            } catch (Exception triggerClick) {
+                log.debug("Playwright select trigger click failed: {}", triggerClick.getMessage());
+            }
+        } else {
+            Locator trigger = locate(page, instruction);
+            if (trigger != null && trigger.count() > 0) {
+                try {
+                    trigger.first().click(new Locator.ClickOptions().setTimeout(ACTION_TIMEOUT_MS));
+                } catch (Exception triggerClick) {
+                    log.debug("Playwright fallback trigger click failed: {}", triggerClick.getMessage());
+                }
+            }
+        }
+
+        return clickVisibleOption(page, optionText);
+    }
+
+    private boolean clickVisibleOption(Page page, String optionText) {
+        if (optionText == null || optionText.isBlank()) {
+            return false;
+        }
+
+        String textSelector = quotePlaywrightText(optionText);
+        String[] selectors = {
+            "[role=\"option\"]:has-text(" + textSelector + ")",
+            "[role=\"menuitem\"]:has-text(" + textSelector + ")",
+            "[cmdk-item]:has-text(" + textSelector + ")",
+            "text=" + textSelector
+        };
+
+        for (String selector : selectors) {
+            try {
+                Locator option = page.locator(selector);
+                if (option.count() > 0) {
+                    option.last().click(new Locator.ClickOptions().setTimeout(ACTION_TIMEOUT_MS));
+                    return true;
+                }
+            } catch (Exception optionClick) {
+                log.debug("Playwright option click failed for {}: {}", selector, optionClick.getMessage());
+            }
+        }
+        return false;
     }
 
     public boolean fill(Page page, InstructionLoad instruction, FieldData data) {
@@ -160,6 +232,26 @@ public class PlaywrightActionExecutor {
         }
     }
 
+    private static boolean isSelectOptionInstruction(InstructionLoad instruction) {
+        return !referenceValue(instruction, "select.option.value").isBlank()
+                || !referenceValue(instruction, "select.option.text").isBlank();
+    }
+
+    private static String referenceValue(InstructionLoad instruction, String referenceType) {
+        if (instruction == null || instruction.getReferenceLoadDTOList() == null || referenceType == null) {
+            return "";
+        }
+        for (ReferenceLoadDTO ref : instruction.getReferenceLoadDTOList()) {
+            if (ref != null
+                    && ref.getReferenceType() != null
+                    && referenceType.equalsIgnoreCase(ref.getReferenceType())
+                    && ref.getValue() != null) {
+                return ref.getValue().trim();
+            }
+        }
+        return "";
+    }
+
     private static void addXPath(List<String> selectors, String xpath) {
         if (xpath != null && !xpath.isBlank()) {
             selectors.add("xpath=" + xpath);
@@ -218,6 +310,10 @@ public class PlaywrightActionExecutor {
 
     private static String cssAttribute(String value) {
         return value.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
+    private static String quotePlaywrightText(String value) {
+        return "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
     }
 
     @SuppressWarnings("unused")

@@ -540,6 +540,10 @@ public final class ElementDtoMapper {
         String id = getAttr(attrs, "id");
         String name = getAttr(attrs, "name");
         String type = getAttr(attrs, "type");
+        String optionValue = getAttr(attrs, "option-value");
+        String optionText = getAttr(attrs, "option-text");
+        String selectXPath = getAttr(attrs, "select-xpath");
+        String triggerSelector = getAttr(attrs, "trigger-selector");
         String tag = targetRefs.getTagName() != null ? targetRefs.getTagName().toLowerCase() : null;
 
         if (id == null || id.isBlank()) id = targetRefs.getAttribId();
@@ -578,6 +582,10 @@ public final class ElementDtoMapper {
 
         // Optional: store the cssSelector you already have (if it’s good)
         addIfNotBlank(savedReferences, "locator.css.generated", targetRefs.getCssSelector());
+        addIfNotBlank(savedReferences, "select.option.value", optionValue);
+        addIfNotBlank(savedReferences, "select.option.text", optionText);
+        addIfNotBlank(savedReferences, "select.native.xpath", selectXPath);
+        addIfNotBlank(savedReferences, "select.trigger.css", triggerSelector);
 
         // Optional: iframe/shadow metadata if relevant for finding context
         addIfNotBlank(savedReferences, "context.iframeXPath", targetRefs.getIFrameXPath());

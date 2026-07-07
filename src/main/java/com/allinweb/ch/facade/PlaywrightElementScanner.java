@@ -16,7 +16,9 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class PlaywrightElementScanner {
 
-    private static final String DEFAULT_SELECTOR = "input, textarea, button, a, select, option, label, span, div";
+    private static final String DEFAULT_SELECTOR = "input, textarea, button, a, select, option, label, "
+            + "[role='combobox'], [role='listbox'], [role='option'], [role='menuitem'], "
+            + "[data-testid], [test-id], [data-radix-popper-content-wrapper], span, div";
 
     private static final String SCAN_SCRIPT =
             """
@@ -35,6 +37,10 @@ public class PlaywrightElementScanner {
                 return '/' + parts.join('/');
               }
 
+              function attr(el, name) {
+                return el.getAttribute(name) || '';
+              }
+
               function cssSelector(el) {
                 if (!el) return '';
                 const tag = el.tagName.toLowerCase();
@@ -43,6 +49,11 @@ public class PlaywrightElementScanner {
                 if (name) return tag + '[name="' + name.replace(/"/g, '\\\\"') + '"]';
                 const testId = el.getAttribute('data-testid') || el.getAttribute('test-id');
                 if (testId) return tag + '[data-testid="' + testId.replace(/"/g, '\\\\"') + '"]';
+                const role = el.getAttribute('role');
+                const controls = el.getAttribute('aria-controls');
+                if (role && controls) return tag + '[role="' + role + '"][aria-controls="' + controls.replace(/"/g, '\\\\"') + '"]';
+                const value = el.getAttribute('value');
+                if (tag === 'option' && value) return 'option[value="' + value.replace(/"/g, '\\\\"') + '"]';
                 const classes = typeof el.className === 'string'
                   ? el.className.trim().split(/\\s+/).filter(Boolean).slice(0, 3)
                   : [];
@@ -73,34 +84,60 @@ public class PlaywrightElementScanner {
                 return (el.innerText || el.textContent || '').trim().replace(/\\s+/g, ' ').slice(0, 200);
               }
 
-              return elements.map((el, idx) => {
+              function nearestCombobox(selectEl) {
+                const container = selectEl.closest('.form-field, [id], div') || selectEl.parentElement;
+                if (!container) return null;
+                return container.querySelector('[role="combobox"], button, [data-slot="select-trigger"]');
+              }
+
+              function isNativeSelectHiddenButUseful(el, tag) {
+                if (tag !== 'select') return false;
+                return Array.from(el.options || []).some(o => (o.textContent || '').trim());
+              }
+
+              function optionXPath(selectEl, option) {
+                const base = generateXPath(selectEl);
+                const options = Array.from(selectEl.options || []);
+                const index = Math.max(1, options.indexOf(option) + 1);
+                return base + '/option[' + index + ']';
+              }
+
+              function makeDto(el, idx, override) {
                 const tag = el.tagName.toLowerCase();
-                if (!isVisibleEnough(el, tag)) return null;
+                const forceKeep = override?.forceKeep === true || isNativeSelectHiddenButUseful(el, tag);
+                if (!forceKeep && !isVisibleEnough(el, tag)) return null;
                 const attrs = Array.from(el.attributes || []).map(a => ({ name: a.name, value: a.value }));
                 const rect = el.getBoundingClientRect();
+                const style = window.getComputedStyle(el);
+                const role = attr(el, 'role');
+                const testId = attr(el, 'data-testid') || attr(el, 'test-id');
+                const zIndex = style.zIndex && style.zIndex !== 'auto' ? style.zIndex : '';
+                if (role) attrs.push({ name: 'role', value: role });
+                if (testId) attrs.push({ name: 'data-testid', value: testId });
+                if (zIndex) attrs.push({ name: 'z-index', value: zIndex });
                 return {
                   id: idx + 1,
-                  tagName: tag,
-                  typeElement: tag,
+                  tagName: override?.tagName || tag,
+                  typeElement: override?.typeElement || tag,
                   nameLabel: '',
                   nameField: '',
                   definedName: '',
                   clientNamed: '',
-                  xPath: generateXPath(el),
-                  someText: someText(el, attrs),
+                  xPath: override?.xPath || generateXPath(el),
+                  someText: override?.someText || someText(el, attrs),
                   attribId: el.id || '',
                   attribName: el.getAttribute('name') || '',
                   coordinates: rect.left.toFixed(2) + ',' + rect.top.toFixed(2),
                   attributeData: attrs,
-                  customXPath: '',
+                  customXPath: override?.customXPath || '',
                   iFrameXPath: '',
                   shadowHost: '',
                   shadowRoot: '',
                   nestedShadow: 'false',
-                  cssSelector: cssSelector(el),
-                  attributeValue: '',
-                  attributeType: '',
-                  searchAttributeValue: '',
+                  cssSelector: override?.cssSelector || cssSelector(el),
+                  attributeValue: override?.attributeValue || '',
+                  attributeType: override?.attributeType || role || '',
+                  searchAttributeValue: override?.searchAttributeValue || '',
                   autoScroll: null,
                   autoEnter: null,
                   autoTab: null,
@@ -109,7 +146,44 @@ public class PlaywrightElementScanner {
                   forceCoordinates: '',
                   androidData: null
                 };
-              }).filter(Boolean);
+              }
+
+              const out = [];
+              elements.forEach((el, idx) => {
+                const tag = el.tagName.toLowerCase();
+                const base = makeDto(el, idx);
+                if (base) out.push(base);
+
+                if (tag === 'select') {
+                  const trigger = nearestCombobox(el);
+                  const triggerSelector = trigger ? cssSelector(trigger) : cssSelector(el);
+                  Array.from(el.options || []).forEach((option, optionIndex) => {
+                    const text = (option.textContent || '').trim().replace(/\\s+/g, ' ');
+                    if (!text) return;
+                    const value = option.value || text;
+                    const dto = makeDto(el, idx + out.length + optionIndex, {
+                      forceKeep: true,
+                      tagName: 'option',
+                      typeElement: 'select',
+                      xPath: optionXPath(el, option),
+                      cssSelector: triggerSelector,
+                      customXPath: triggerSelector,
+                      someText: text,
+                      attributeValue: value,
+                      attributeType: 'select-option',
+                      searchAttributeValue: value
+                    });
+                    if (dto) {
+                      dto.attributeData.push({ name: 'option-value', value });
+                      dto.attributeData.push({ name: 'option-text', value: text });
+                      dto.attributeData.push({ name: 'select-xpath', value: generateXPath(el) });
+                      if (triggerSelector) dto.attributeData.push({ name: 'trigger-selector', value: triggerSelector });
+                      out.push(dto);
+                    }
+                  });
+                }
+              });
+              return out;
             }
             """;
 
@@ -149,7 +223,26 @@ public class PlaywrightElementScanner {
             }
         }
 
-        return selectors.isEmpty() ? DEFAULT_SELECTOR : String.join(", ", selectors);
+        if (selectors.isEmpty()) {
+            return DEFAULT_SELECTOR;
+        }
+
+        addIfMissing(selectors, "select");
+        addIfMissing(selectors, "option");
+        addIfMissing(selectors, "[role='combobox']");
+        addIfMissing(selectors, "[role='listbox']");
+        addIfMissing(selectors, "[role='option']");
+        addIfMissing(selectors, "[role='menuitem']");
+        addIfMissing(selectors, "[data-testid]");
+        addIfMissing(selectors, "[test-id]");
+        addIfMissing(selectors, "[data-radix-popper-content-wrapper]");
+        return String.join(", ", selectors);
+    }
+
+    private static void addIfMissing(List<String> selectors, String selector) {
+        if (!selectors.contains(selector)) {
+            selectors.add(selector);
+        }
     }
 
     private static List<ElementDTO> mapElements(Object raw) {
