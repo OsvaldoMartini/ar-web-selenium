@@ -74,6 +74,7 @@ public class SplitDTO {
 
     // Optional fields for BlockOrderDetail
     private List<BlockOrderDetailDTO> updatedBlocks;
+    private List<Map<String, Object>> blocks;
 
     private String scannerType;
 

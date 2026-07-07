@@ -746,6 +746,10 @@ public class ARScannedElementScene extends ARScene {
     }
 
     private void stepsInsertManyDTO(SplitDTO processDTO, boolean isMany) {
+        if (processDTO.getBlockId() != null && processDTO.getBlockId() > 0) {
+            performInsertManyDTO(processDTO, isMany);
+            return;
+        }
         // If blocks exist but the user didn't pick one, open the create-block
         // modal on the FX thread and chain the insert to its Create handler.
         // Cancel → nothing happens. If a block IS selected (or no blocks exist
@@ -761,7 +765,9 @@ public class ARScannedElementScene extends ARScene {
 
     private void performInsertManyDTO(SplitDTO processDTO, boolean isMany) {
         String insertMsg = isMany ? "Insert ALL" : "Insert one Element";
-        currentBlockId = arScannedElementPane.validateBlockDB("block", this.currentBotJob.getId(), insertMsg);
+        currentBlockId = processDTO.getBlockId() != null && processDTO.getBlockId() > 0
+                ? processDTO.getBlockId()
+                : arScannedElementPane.validateBlockDB("block", this.currentBotJob.getId(), insertMsg);
         if (currentBlockId > 0) {
             performDataBase.loadInstructions(currentBotJob.getId(), currentBlockId, -1, "instruction");
             List<InstructionLoad> instruc = performLists.getListInstruction();

@@ -1243,10 +1243,12 @@ public class SimpleWebSocketServer {
                     if (errorMessage == null) {
                         splitDTO.setBlockId(createResult.newBlockId());
                         splitDTO.setBlockOrderNumber(createResult.newBlockOrderNumber());
+                        splitDTO.setBlocks(mapBlockOptions(blockTable, whereId));
                     }
                     splitDTO.setType(updteBlocks);
                     jsonData = gson.toJson(splitDTO);
                     webSocketSessionManager.sendMessageJson(homeBankingId, "perform-list-data", jsonData, updteBlocks);
+                    webSocketSessionManager.sendMessageJson(homeBankingId, "scannerGrid", jsonData, "blocksUpdate");
                     alreadySentMgsSocket = false;
                     break;
                 case "BLOCKS_SPLITTER":

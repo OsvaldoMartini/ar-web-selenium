@@ -1048,6 +1048,7 @@ public class ARScannedElementPane extends ARPane {
             synthetic.setForceCoordinates(Strings.nullToEmpty(targetDeepCopy.getForceCoordinates()));
             synthetic.setCoordinates(targetDeepCopy.getCoordinates());
             synthetic.setIFrameXPath(targetDeepCopy.getIFrameXPath());
+            synthetic.setReferenceLoadDTOList(buildSyntheticReferences(targetDeepCopy));
 
             // Playwright test-click must run from the element's OWN page. The single browser may have
             // wandered (previous test navigated a link, or the user browsed manually), so navigate to
@@ -1161,6 +1162,28 @@ public class ARScannedElementPane extends ARPane {
                 searchAttribValueField.clear();
             });
         }
+    }
+
+    private List<ReferenceLoadDTO> buildSyntheticReferences(TargetElement target) {
+        List<ReferenceLoadDTO> references = new ArrayList<>();
+        if (target == null || target.getSavedReferences() == null || target.getSavedReferences().isEmpty()) {
+            return references;
+        }
+
+        Integer botJobId = currentBotJob == null ? null : currentBotJob.getId();
+        Integer homeBankingId = currentBotJob == null ? null : currentBotJob.getHomeBankingId();
+        for (Map.Entry<String, String> entry : target.getSavedReferences().entrySet()) {
+            if (entry.getKey() == null || entry.getKey().isBlank() || entry.getValue() == null || entry.getValue().isBlank()) {
+                continue;
+            }
+            ReferenceLoadDTO reference = new ReferenceLoadDTO();
+            reference.setReferenceType(entry.getKey());
+            reference.setValue(entry.getValue());
+            reference.setBotJobId(botJobId);
+            reference.setHomeBankingId(homeBankingId);
+            references.add(reference);
+        }
+        return references;
     }
 
     /** Loose URL equality — ignores trailing slash and #fragment so we don't needlessly re-navigate. */
@@ -3017,6 +3040,7 @@ public class ARScannedElementPane extends ARPane {
         reset.setSessionId("scannerGrid");
         reset.setOperationId("searchTerms");
         reset.setElementDetails(new ElementDTO[0]);
+        reset.setBlocks(scannerBlockOptions(homeBankingId, botJobId));
         webSocketSessionManager.sendMessageJson(homeBankingId, "scannerGrid", new Gson().toJson(reset), "searchTerms");
 
         SplitDTO payload = new SplitDTO();
@@ -3027,11 +3051,29 @@ public class ARScannedElementPane extends ARPane {
         payload.setSessionId("scannerGrid");
         payload.setOperationId("searchTerms");
         payload.setElementDetails(elements.toArray(new ElementDTO[0]));
+        payload.setBlocks(scannerBlockOptions(homeBankingId, botJobId));
 
         sendChunks(elements, 25, payload, webSocketSessionManager, "scannerGrid", "searchTerms");
         appendLog("Page Scanner: sent " + elements.size() + " elements to scannerGrid.", "info");
 
         flashFoundElements(driver, elements);
+    }
+
+    private List<Map<String, Object>> scannerBlockOptions(int homeBankingId, int botJobId) {
+        return performLists.getListBlock().stream()
+                .filter(block -> block != null && block.getId() != null)
+                .filter(block -> block.getBotJobId() == null || Objects.equals(block.getBotJobId(), botJobId))
+                .sorted(Comparator.comparingInt(block -> block.getBlockOrderNumber() == null
+                        ? Integer.MAX_VALUE
+                        : block.getBlockOrderNumber()))
+                .map(block -> {
+                    Map<String, Object> option = new LinkedHashMap<>();
+                    option.put("blockId", block.getId());
+                    option.put("blockOrderNumber", block.getBlockOrderNumber());
+                    option.put("blockName", block.getName());
+                    return option;
+                })
+                .toList();
     }
 
     /**

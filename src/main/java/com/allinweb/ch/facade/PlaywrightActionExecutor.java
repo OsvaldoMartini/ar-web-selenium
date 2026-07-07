@@ -63,10 +63,12 @@ public class PlaywrightActionExecutor {
     }
 
     private boolean clickSelectOption(Page page, InstructionLoad instruction) {
-        String value = referenceValue(instruction, "select.option.value");
-        String text = referenceValue(instruction, "select.option.text");
-        String nativeSelectXPath = referenceValue(instruction, "select.native.xpath");
-        String triggerCss = referenceValue(instruction, "select.trigger.css");
+        String value = firstReferenceValue(instruction, "select.option.value", "option-value", "AttrData:option-value");
+        String text = firstReferenceValue(instruction, "select.option.text", "option-text", "AttrData:option-text");
+        String nativeSelectXPath =
+                firstReferenceValue(instruction, "select.native.xpath", "select-xpath", "AttrData:select-xpath");
+        String triggerCss =
+                firstReferenceValue(instruction, "select.trigger.css", "trigger-selector", "AttrData:trigger-selector");
 
         if (!nativeSelectXPath.isBlank() && !value.isBlank()) {
             try {
@@ -233,8 +235,23 @@ public class PlaywrightActionExecutor {
     }
 
     private static boolean isSelectOptionInstruction(InstructionLoad instruction) {
-        return !referenceValue(instruction, "select.option.value").isBlank()
-                || !referenceValue(instruction, "select.option.text").isBlank();
+        return !firstReferenceValue(instruction, "select.option.value", "option-value", "AttrData:option-value").isBlank()
+                || !firstReferenceValue(instruction, "select.option.text", "option-text", "AttrData:option-text").isBlank()
+                || "select-option".equalsIgnoreCase(firstReferenceValue(
+                        instruction, "control.kind", "AttrData:control.kind", "attributeType"));
+    }
+
+    private static String firstReferenceValue(InstructionLoad instruction, String... referenceTypes) {
+        if (referenceTypes == null) {
+            return "";
+        }
+        for (String referenceType : referenceTypes) {
+            String value = referenceValue(instruction, referenceType);
+            if (!value.isBlank()) {
+                return value;
+            }
+        }
+        return "";
     }
 
     private static String referenceValue(InstructionLoad instruction, String referenceType) {
