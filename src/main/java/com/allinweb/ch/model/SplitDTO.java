@@ -22,6 +22,9 @@ public class SplitDTO {
     private String blockName;
     private Integer blockOrderNumber;
     private Boolean blockActive;
+    private String insertPosition;
+    private Integer beforeBlockId;
+    private Integer beforeBlockOrderNumber;
 
     private Integer instructionId;
     private String instructionName;

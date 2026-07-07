@@ -1235,6 +1235,20 @@ public class SimpleWebSocketServer {
                             homeBankingId, "perform-list-data", jsonData, "UPDATE_BLOCKS");
                     alreadySentMgsSocket = true;
                     break;
+                case "BLOCK_CREATE":
+                case "CREATE_BLOCK":
+                    BlockCreationService.Result createResult =
+                            BlockCreationService.getInstance().createFrom(splitDTO);
+                    errorMessage = createResult.error();
+                    if (errorMessage == null) {
+                        splitDTO.setBlockId(createResult.newBlockId());
+                        splitDTO.setBlockOrderNumber(createResult.newBlockOrderNumber());
+                    }
+                    splitDTO.setType(updteBlocks);
+                    jsonData = gson.toJson(splitDTO);
+                    webSocketSessionManager.sendMessageJson(homeBankingId, "perform-list-data", jsonData, updteBlocks);
+                    alreadySentMgsSocket = false;
+                    break;
                 case "BLOCKS_SPLITTER":
                     errorMessage = splitBlocks(splitDTO);
 
@@ -1729,11 +1743,23 @@ public class SimpleWebSocketServer {
 
             setPayloadEmpty(sessionId, homeBankingId, botJobIdTask, botJobNameTask);
             String jsonData = gson.toJson(payloadEmpty);
+            List<InstructionLoad> instructionLoads = new ArrayList<>();
             if (!listBot.isEmpty()) {
-                List<InstructionLoad> instructionLoads = performLists.buildJsonViewData(listBot);
+                instructionLoads = performLists.buildJsonViewData(listBot);
                 if (!instructionLoads.isEmpty()) {
                     jsonData = gson.toJson(instructionLoads);
                 }
+            }
+            if ("updateInstructions".equals(updateAction)) {
+                JsonObject updatePayload = new JsonObject();
+                updatePayload.add("instructions", gson.toJsonTree(instructionLoads));
+                updatePayload.add("blocks", gson.toJsonTree(mapBlockOptions("block", botJobIdTask)));
+                if (("BLOCK_CREATE".equals(type) || "CREATE_BLOCK".equals(type)) && splitDTO.getBlockId() != null) {
+                    updatePayload.addProperty("createdBlockId", splitDTO.getBlockId());
+                    updatePayload.addProperty("createdBlockName", splitDTO.getBlockName());
+                    updatePayload.addProperty("createdBlockOrderNumber", splitDTO.getBlockOrderNumber());
+                }
+                jsonData = gson.toJson(updatePayload);
             }
 
             if (sessionIdToSend != null) {
@@ -2168,6 +2194,33 @@ public class SimpleWebSocketServer {
                     blockLoadDTO.setInstructionLoad(new ArrayList<>());
 
                     return blockLoadDTO;
+                })
+                .toList();
+    }
+
+    private List<Map<String, Object>> mapBlockOptions(String blockTable, int whereId) {
+        List<BlockLoadDTO> blocks =
+                blockTable.equals("block") ? performLists.getListBlock() : performLists.getListBlockComp();
+
+        return blocks.stream()
+                .filter(block -> {
+                    if (block == null || block.getId() == null) {
+                        return false;
+                    }
+                    if (blockTable.equals("block")) {
+                        return block.getBotJobId() != null && block.getBotJobId().equals(whereId);
+                    }
+                    return block.getHomeBankingId() != null && block.getHomeBankingId().equals(whereId);
+                })
+                .sorted(Comparator.comparingInt(block -> block.getBlockOrderNumber() == null
+                        ? Integer.MAX_VALUE
+                        : block.getBlockOrderNumber()))
+                .map(block -> {
+                    Map<String, Object> option = new LinkedHashMap<>();
+                    option.put("blockId", block.getId());
+                    option.put("blockOrderNumber", block.getBlockOrderNumber());
+                    option.put("blockName", block.getName());
+                    return option;
                 })
                 .toList();
     }
