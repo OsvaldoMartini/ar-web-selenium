@@ -48,6 +48,16 @@ public class PlaywrightElementScanner {
                 return el.getAttribute(name) || '';
               }
 
+              function cleanText(text) {
+                return (text || '').trim().replace(/\\s+/g, ' ').replace(/[：:*?!]+$/g, '').trim().slice(0, 200);
+              }
+
+              function humanizeToken(text) {
+                return cleanText((text || '')
+                  .replace(/[_-]+/g, ' ')
+                  .replace(/([a-z])([A-Z])/g, '$1 $2'));
+              }
+
               function cssSelector(el) {
                 if (!el) return '';
                 const tag = el.tagName.toLowerCase();
@@ -88,20 +98,57 @@ public class PlaywrightElementScanner {
               function someText(el, attrs) {
                 const by = attrs.find(a => a.name === 'aria-labelledby')?.value;
                 if (by) {
-                  const label = document.getElementById(by);
-                  if (label?.textContent) return label.textContent.trim().replace(/\\s+/g, ' ').slice(0, 200);
+                  const text = by.split(/\\s+/)
+                    .map(id => document.getElementById(id)?.textContent || '')
+                    .map(cleanText)
+                    .filter(Boolean)
+                    .join(' ');
+                  if (text) return cleanText(text);
                 }
                 if (el.id) {
                   const label = document.querySelector('label[for="' + CSS.escape(el.id) + '"]');
-                  if (label?.textContent) return label.textContent.trim().replace(/\\s+/g, ' ').slice(0, 200);
+                  if (label?.textContent) return cleanText(label.textContent);
                 }
                 const wrappedLabel = el.closest('label');
-                if (wrappedLabel?.textContent) return wrappedLabel.textContent.trim().replace(/\\s+/g, ' ').slice(0, 200);
+                if (wrappedLabel?.textContent) return cleanText(wrappedLabel.textContent);
                 const aria = attrs.find(a => a.name === 'aria-label')?.value;
-                if (aria) return aria.trim();
+                if (aria) return cleanText(aria);
                 const placeholder = attrs.find(a => a.name === 'placeholder')?.value;
-                if (placeholder) return placeholder.trim();
-                return (el.innerText || el.textContent || '').trim().replace(/\\s+/g, ' ').slice(0, 200);
+                if (placeholder) return cleanText(placeholder);
+
+                let current = el;
+                for (let depth = 0; current && depth < 5; depth++, current = current.parentElement) {
+                  const previous = current.previousElementSibling;
+                  if (previous?.tagName?.toLowerCase() === 'label') {
+                    const text = cleanText(previous.textContent);
+                    if (text) return text;
+                  }
+
+                  const container = current.closest?.('.form-field, [data-slot="form-item"], [class*="form-field"], [id]');
+                  if (container) {
+                    const labels = Array.from(container.querySelectorAll('label'));
+                    for (const label of labels) {
+                      if (label.contains(el)) continue;
+                      const labelRect = label.getBoundingClientRect();
+                      const elRect = el.getBoundingClientRect();
+                      const closeAbove = labelRect.bottom <= elRect.top + 8 && Math.abs(labelRect.left - elRect.left) < 260;
+                      const sameContainer = label.parentElement === container || label.closest('.form-field, [id]') === container;
+                      if (closeAbove || sameContainer) {
+                        const text = cleanText(label.textContent);
+                        if (text) return text;
+                      }
+                    }
+
+                    const containerId = container.getAttribute('id');
+                    const human = humanizeToken(containerId);
+                    if (human && !['div', 'input', 'textarea', 'button', 'select'].includes(human.toLowerCase())) return human;
+                  }
+                }
+
+                const own = cleanText(el.innerText || el.textContent || '');
+                if (own) return own;
+                const name = humanizeToken(el.getAttribute('name') || el.id || '');
+                return name;
               }
 
               function inputType(el) {
@@ -137,7 +184,7 @@ public class PlaywrightElementScanner {
               function typeElementFor(el, tag, role, kind) {
                 const type = inputType(el);
                 if (['text-input', 'autocomplete-input'].includes(kind)) return 'input';
-                if (tag === 'input' && !['button', 'submit', 'reset', 'checkbox', 'radio', 'file'].includes(type)) return 'input';
+                if (tag === 'input' && !['button', 'submit', 'reset', 'file'].includes(type)) return 'input';
                 if (tag === 'textarea' || role === 'textbox' || el.isContentEditable) return 'input';
                 if ([
                   'button', 'select', 'select-option', 'checkbox-option', 'radio-option', 'switch-option',
@@ -334,7 +381,10 @@ public class PlaywrightElementScanner {
         addIfMissing(selectors, "[data-qa]");
 
         String joined = String.join(" ", selectors).toLowerCase(Locale.ROOT);
-        if (joined.contains("select") || joined.contains("combobox") || joined.contains("listbox") || joined.contains("option")) {
+        if (joined.contains("select")
+                || joined.contains("combobox")
+                || joined.contains("listbox")
+                || joined.contains("option")) {
             addIfMissing(selectors, "select");
             addIfMissing(selectors, "option");
             addIfMissing(selectors, "[role='combobox']");
@@ -377,6 +427,12 @@ public class PlaywrightElementScanner {
             addIfMissing(selectors, "[role='radio']");
             addIfMissing(selectors, "input[type='radio']");
             addIfMissing(selectors, "mat-radio-button");
+        }
+        if (joined.contains("input") || joined.contains("textbox") || joined.contains("textarea")) {
+            addIfMissing(selectors, "input");
+            addIfMissing(selectors, "textarea");
+            addIfMissing(selectors, "[role='textbox']");
+            addIfMissing(selectors, "[contenteditable='true']");
         }
     }
 
@@ -433,8 +489,8 @@ public class PlaywrightElementScanner {
         dto.setAttribName(asString(map.get("attribName")));
         dto.setCoordinates(asString(map.get("coordinates")));
         dto.setAttributeData(mapAttributes(map.get("attributeData")));
-        dto.setTypeElement(classifyTag(
-                asString(map.get("tagName")), asString(map.get("typeElement")), dto.getAttributeData()));
+        dto.setTypeElement(
+                classifyTag(asString(map.get("tagName")), asString(map.get("typeElement")), dto.getAttributeData()));
         dto.setCustomXPath(asString(map.get("customXPath")));
         dto.setIFrameXPath(asString(map.get("iFrameXPath")));
         dto.setShadowHost(asString(map.get("shadowHost")));
@@ -469,6 +525,10 @@ public class PlaywrightElementScanner {
     }
 
     private static String classifyTag(String tagName, String scannedTypeElement, AttributeData[] attributeData) {
+        String tag = Objects.toString(tagName, "").toLowerCase(Locale.ROOT);
+        if ("input".equals(tag) || "textarea".equals(tag)) {
+            return "input";
+        }
         if (isInputType(scannedTypeElement)) {
             return "input";
         }
@@ -477,10 +537,6 @@ public class PlaywrightElementScanner {
         }
         if (isButtonType(scannedTypeElement) || isClickableKind(attributeData)) {
             return "button";
-        }
-        String tag = Objects.toString(tagName, "").toLowerCase(Locale.ROOT);
-        if ("textarea".equals(tag)) {
-            return "input";
         }
         if ("button".equals(tag)
                 || "a".equals(tag)
@@ -524,7 +580,17 @@ public class PlaywrightElementScanner {
         }
         if (role != null) {
             String normalized = role.toLowerCase(Locale.ROOT);
-            return List.of("button", "link", "option", "menuitem", "tab", "checkbox", "radio", "switch", "treeitem", "combobox")
+            return List.of(
+                            "button",
+                            "link",
+                            "option",
+                            "menuitem",
+                            "tab",
+                            "checkbox",
+                            "radio",
+                            "switch",
+                            "treeitem",
+                            "combobox")
                     .contains(normalized);
         }
         return false;

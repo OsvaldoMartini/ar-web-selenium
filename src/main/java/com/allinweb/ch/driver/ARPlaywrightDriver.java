@@ -60,6 +60,27 @@ public class ARPlaywrightDriver {
         });
     }
 
+    public void openOrNavigate(String browserType, String url, String optionsConfig) {
+        run(() -> {
+            if (page != null && !page.isClosed()) {
+                page.navigate(url);
+                page.waitForLoadState(LoadState.DOMCONTENTLOADED);
+                return null;
+            }
+
+            closeInternal();
+            playwright = Playwright.create();
+            browser = launchBrowser(browserType, optionsConfig);
+            context = browser.newContext(
+                    new Browser.NewContextOptions().setBypassCSP(true).setViewportSize(null));
+            page = context.newPage();
+            attachDiagnostics(page);
+            page.navigate(url);
+            page.waitForLoadState(LoadState.DOMCONTENTLOADED);
+            return null;
+        });
+    }
+
     public void navigate(String url) {
         run(() -> {
             requirePage().navigate(url);

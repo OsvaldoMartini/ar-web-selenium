@@ -31,8 +31,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public final class TestRunLauncher {
 
-    private static final long STEP_PAUSE_MS = 700;
-
     private final PerformLists performLists = PerformLists.getInstance();
     private final PerformDataBase performDataBase = PerformDataBase.getInstance();
     private final ARPropertyManager propertyManager = ARPropertyManager.getInstance();
@@ -83,7 +81,7 @@ public final class TestRunLauncher {
                 url,
                 block.getName(),
                 instructions.size());
-        arWebDriver.getPlaywrightDriver().open(browserType, url, optionsConfig);
+        arWebDriver.getPlaywrightDriver().openOrNavigate(browserType, url, optionsConfig);
 
         int clicked = 0;
         int inserted = 0;
@@ -123,12 +121,6 @@ public final class TestRunLauncher {
                 log.warn("TEST RUN — step failed [{}] '{}': {}", action, instruction.getName(), e.getMessage());
             }
 
-            try {
-                Thread.sleep(STEP_PAUSE_MS);
-            } catch (InterruptedException ie) {
-                Thread.currentThread().interrupt();
-                break;
-            }
         }
 
         log.info("TEST RUN — done: {} clicked, {} inserted, {} read, {} failed", clicked, inserted, read, failed);

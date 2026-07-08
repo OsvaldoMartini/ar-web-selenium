@@ -126,8 +126,8 @@ public class ARWebDriver {
 
         // Playwright-only: a single Playwright browser is the only backend (Selenium removed).
         // Returns null (no Selenium WebDriver); callers treat null as success.
-        log.info("Opening Playwright browser session for {}", url);
-        getPlaywrightDriver().open(browserType, url, optionsConfig);
+        log.info("Opening or reusing Playwright browser session for {}", url);
+        getPlaywrightDriver().openOrNavigate(browserType, url, optionsConfig);
         this.currentDriver = null;
         return null;
     }

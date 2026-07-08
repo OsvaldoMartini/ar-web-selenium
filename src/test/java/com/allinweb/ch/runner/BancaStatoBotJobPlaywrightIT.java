@@ -25,6 +25,7 @@ import com.google.common.base.Strings;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -55,7 +56,6 @@ class BancaStatoBotJobPlaywrightIT {
     private static final int HOME_BANKING_ID = 2;
     private static final int BOT_JOB_ID = 5;
     private static final int BLOCK_ORDER_NUMBER = 1;
-    private static final long STEP_PAUSE_MS = 2_000;
     private static final String ENDPOINT = "https://www.bancastato.ch/supporto-e-contatti/formulario-di-contatto";
 
     private final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
@@ -84,6 +84,7 @@ class BancaStatoBotJobPlaywrightIT {
     @AfterEach
     void closeBrowser() {
         System.out.println("Leaving Playwright browser open after BancaStato diagnostic test.");
+        holdBrowserOpenWhenRequested();
     }
 
     @Test
@@ -185,7 +186,7 @@ class BancaStatoBotJobPlaywrightIT {
         int unsupported = 0;
 
         try {
-            driver.open(browserType, ENDPOINT, optionsConfig);
+            driver.openOrNavigate(browserType, ENDPOINT, optionsConfig);
             report.append("openedUrl: ").append(driver.currentUrl()).append('\n');
 
             for (InstructionLoad instruction : instructions) {
@@ -263,7 +264,6 @@ class BancaStatoBotJobPlaywrightIT {
                         .append("  references: ")
                         .append(referenceSummary(instruction))
                         .append('\n');
-                pauseBetweenSteps(report);
             }
         } catch (Exception error) {
             report.append("\nRUN ERROR: ").append(error.getMessage()).append('\n');
@@ -430,12 +430,16 @@ class BancaStatoBotJobPlaywrightIT {
         }
     }
 
-    private static void pauseBetweenSteps(StringBuilder report) {
+    private static void holdBrowserOpenWhenRequested() {
+        if (!Boolean.parseBoolean(System.getProperty("bancastatoKeepBrowserOpen", "true"))) {
+            return;
+        }
+        System.out.println("BancaStato Playwright browser is still open. Press Enter here to finish the test.");
         try {
-            Thread.sleep(STEP_PAUSE_MS);
-        } catch (InterruptedException error) {
-            Thread.currentThread().interrupt();
-            report.append("  pauseInterrupted: true\n");
+            new InputStreamReader(System.in, StandardCharsets.UTF_8).read();
+        } catch (IOException error) {
+            System.out.println("Browser hold ended: " + error.getMessage());
         }
     }
+
 }

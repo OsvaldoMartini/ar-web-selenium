@@ -314,11 +314,7 @@ public class ARScannedElementPane extends ARPane {
                 "mat-slide-toggle",
                 "mat-button-toggle",
                 "[role='switch']"));
-        profiles.add(new ElementScanProfile(
-                "Angular Material - Tabs",
-                "Tab headers.",
-                "mat-tab",
-                "[role='tab']"));
+        profiles.add(new ElementScanProfile("Angular Material - Tabs", "Tab headers.", "mat-tab", "[role='tab']"));
         profiles.add(new ElementScanProfile(
                 "Angular Material - Tree",
                 "Tree nodes and expandable tree options.",
@@ -355,21 +351,10 @@ public class ARScannedElementPane extends ARPane {
                 "[role='row'] button",
                 "[role='gridcell'] button"));
         profiles.add(new ElementScanProfile(
-                "ARIA - Menus",
-                "Menu bars and menu items.",
-                "[role='menu']",
-                "[role='menubar']",
-                "[role='menuitem']"));
+                "ARIA - Menus", "Menu bars and menu items.", "[role='menu']", "[role='menubar']", "[role='menuitem']"));
+        profiles.add(new ElementScanProfile("ARIA - Tabs", "ARIA tab controls.", "[role='tab']", "[role='tablist']"));
         profiles.add(new ElementScanProfile(
-                "ARIA - Tabs",
-                "ARIA tab controls.",
-                "[role='tab']",
-                "[role='tablist']"));
-        profiles.add(new ElementScanProfile(
-                "ARIA - Tree",
-                "ARIA tree and tree item controls.",
-                "[role='tree']",
-                "[role='treeitem']"));
+                "ARIA - Tree", "ARIA tree and tree item controls.", "[role='tree']", "[role='treeitem']"));
         profiles.add(new ElementScanProfile(
                 "Native - Buttons and links",
                 "Native clickable controls.",
@@ -379,10 +364,7 @@ public class ARScannedElementPane extends ARPane {
                 "input[type='submit']",
                 "input[type='reset']"));
         profiles.add(new ElementScanProfile(
-                "Native - Checkbox",
-                "Native checkbox controls.",
-                "input[type='checkbox']",
-                "label[for]"));
+                "Native - Checkbox", "Native checkbox controls.", "input[type='checkbox']", "label[for]"));
         profiles.add(new ElementScanProfile(
                 "Native - File upload",
                 "File inputs and upload drop zones.",
@@ -405,16 +387,9 @@ public class ARScannedElementPane extends ARPane {
                 "[contenteditable='true']",
                 "[role='textbox']"));
         profiles.add(new ElementScanProfile(
-                "Native - Radio",
-                "Native radio options.",
-                "input[type='radio']",
-                "label[for]",
-                "[role='radio']"));
-        profiles.add(new ElementScanProfile(
-                "Native - Select",
-                "Native select controls and options.",
-                "select",
-                "option"));
+                "Native - Radio", "Native radio options.", "input[type='radio']", "label[for]", "[role='radio']"));
+        profiles.add(
+                new ElementScanProfile("Native - Select", "Native select controls and options.", "select", "option"));
         profiles.add(new ElementScanProfile(
                 "SVG and icons - Clickable",
                 "Icon buttons and clickable SVG elements.",
@@ -425,13 +400,9 @@ public class ARScannedElementPane extends ARPane {
                 "mat-icon"));
         profiles.sort(Comparator.comparing(ElementScanProfile::label, String.CASE_INSENSITIVE_ORDER));
         profiles.add(new ElementScanProfile(
-                "Search rule - With id",
-                "Scan elements that expose an id attribute.",
-                "with id"));
+                "Search rule - With id", "Scan elements that expose an id attribute.", "with id"));
         profiles.add(new ElementScanProfile(
-                "Search rule - With name",
-                "Scan elements that expose a name attribute.",
-                "with name"));
+                "Search rule - With name", "Scan elements that expose a name attribute.", "with name"));
         profiles.add(new ElementScanProfile(
                 "Search rule - With test id",
                 "Scan elements with test-id, data-testid, or data-test-id attributes.",
@@ -977,6 +948,10 @@ public class ARScannedElementPane extends ARPane {
      * @param testType     {@code "TEST_CLICK_DTO"} or {@code "TEST_INPUT_DTO"}
      */
     public void testingActions(TargetElement originTarget, String testType) {
+        testingActions(originTarget, testType, null);
+    }
+
+    public void testingActions(TargetElement originTarget, String testType, String inputValueOverride) {
         WebDriver driverTestActions = performActions.getCurrentDriver();
         logOperations.info(
                 "testingActions - entry: testType={}, originTarget.forceCoordinates='{}'",
@@ -984,7 +959,9 @@ public class ARScannedElementPane extends ARPane {
                 originTarget == null ? "(null target)" : originTarget.getForceCoordinates());
         TargetElement targetDeepCopy = originTarget.deepCopy();
         String displayAction = "TEST_CLICK_DTO".equals(testType) ? "CLICK" : "INSERT";
-        String inputValue = testActionsField.getText() == null ? "" : testActionsField.getText();
+        String inputValue = !Strings.isNullOrEmpty(inputValueOverride)
+                ? inputValueOverride
+                : testActionsField.getText() == null ? "" : testActionsField.getText();
 
         // In Playwright mode there is no Selenium WebElement handle — the test runs via
         // performWebActions -> tryPlaywrightWebAction using the instruction's xpath/css/coords.
@@ -1166,14 +1143,19 @@ public class ARScannedElementPane extends ARPane {
 
     private List<ReferenceLoadDTO> buildSyntheticReferences(TargetElement target) {
         List<ReferenceLoadDTO> references = new ArrayList<>();
-        if (target == null || target.getSavedReferences() == null || target.getSavedReferences().isEmpty()) {
+        if (target == null
+                || target.getSavedReferences() == null
+                || target.getSavedReferences().isEmpty()) {
             return references;
         }
 
         Integer botJobId = currentBotJob == null ? null : currentBotJob.getId();
         Integer homeBankingId = currentBotJob == null ? null : currentBotJob.getHomeBankingId();
         for (Map.Entry<String, String> entry : target.getSavedReferences().entrySet()) {
-            if (entry.getKey() == null || entry.getKey().isBlank() || entry.getValue() == null || entry.getValue().isBlank()) {
+            if (entry.getKey() == null
+                    || entry.getKey().isBlank()
+                    || entry.getValue() == null
+                    || entry.getValue().isBlank()) {
                 continue;
             }
             ReferenceLoadDTO reference = new ReferenceLoadDTO();
@@ -1683,7 +1665,8 @@ public class ARScannedElementPane extends ARPane {
                 return;
             }
             searchTermsField.setText(newValue.searchText());
-            searchTermsField.setStyle("-fx-border-color: #1976D2; -fx-border-width: 1.5; -fx-background-color: #E3F2FD;");
+            searchTermsField.setStyle(
+                    "-fx-border-color: #1976D2; -fx-border-width: 1.5; -fx-background-color: #E3F2FD;");
             elementFocusComboBox.setStyle("-fx-border-color: #1976D2; -fx-border-width: 1.5;");
             appendLog("Page Scanner focus: " + newValue.label(), "info");
         });
@@ -3063,9 +3046,8 @@ public class ARScannedElementPane extends ARPane {
         return performLists.getListBlock().stream()
                 .filter(block -> block != null && block.getId() != null)
                 .filter(block -> block.getBotJobId() == null || Objects.equals(block.getBotJobId(), botJobId))
-                .sorted(Comparator.comparingInt(block -> block.getBlockOrderNumber() == null
-                        ? Integer.MAX_VALUE
-                        : block.getBlockOrderNumber()))
+                .sorted(Comparator.comparingInt(
+                        block -> block.getBlockOrderNumber() == null ? Integer.MAX_VALUE : block.getBlockOrderNumber()))
                 .map(block -> {
                     Map<String, Object> option = new LinkedHashMap<>();
                     option.put("blockId", block.getId());
@@ -3404,6 +3386,42 @@ public class ARScannedElementPane extends ARPane {
             log.warn("TEST RUN — error closing browser on stop: {}", e.getMessage());
         }
         performActions.setCurrentDriver(null);
+    }
+
+    private String currentPlaywrightUrl() {
+        try {
+            if (currentARWebDriver == null
+                    || currentARWebDriver.getPlaywrightDriver() == null
+                    || !currentARWebDriver.getPlaywrightDriver().isOpen()) {
+                return "";
+            }
+            return currentARWebDriver.getPlaywrightDriver().currentUrl();
+        } catch (Exception error) {
+            return "(url unavailable: " + error.getMessage() + ")";
+        }
+    }
+
+    private void pauseAfterPlaywrightWebAction(
+            InstructionLoad instruction, String action, boolean success, String urlBefore, String urlAfter) {
+        String instructionName = instruction == null ? "(null instruction)" : instruction.getName();
+        boolean navigationChanged = !Objects.equals(urlBefore, urlAfter);
+        logOperations.info(
+                "Playwright step action={} instruction='{}' success={} navigationChanged={} urlBefore={} urlAfter={}",
+                action,
+                instructionName,
+                success,
+                navigationChanged,
+                urlBefore,
+                urlAfter);
+        appendLog(
+                "[PW] "
+                        + action
+                        + " - "
+                        + instructionName
+                        + " - "
+                        + (success ? "OK" : "FAILED")
+                        + (navigationChanged ? " - navigation changed" : ""),
+                success ? "info" : "warn");
     }
 
     //    private void sendScreenshotToListener() {
@@ -5590,6 +5608,7 @@ public class ARScannedElementPane extends ARPane {
 
                                     if ((webElementFound != null || pwOnly) && success) {
 
+                                        String playwrightUrlBefore = pwOnly ? currentPlaywrightUrl() : "";
                                         success = performActions.performWebActions(
                                                 byPassNotFound,
                                                 "coordinates",
@@ -5600,6 +5619,14 @@ public class ARScannedElementPane extends ARPane {
                                                 actions,
                                                 isMobileApp,
                                                 splitDTO);
+                                        if (pwOnly) {
+                                            pauseAfterPlaywrightWebAction(
+                                                    currentInstruction,
+                                                    actions[0],
+                                                    success,
+                                                    playwrightUrlBefore,
+                                                    currentPlaywrightUrl());
+                                        }
 
                                         if (execOutPut) {
                                             if (mapOperators.containsKey(fieldName)) {

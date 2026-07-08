@@ -358,7 +358,12 @@ public class TargetElementHelper {
                 elemenDTO.setTagName(WebElementTagNameEnum.ANCHOR.getValue());
             }
 
-            if (elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.BUTTON.getValue())
+            if (elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.INPUT.getValue())
+                    || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.TEXT_AREA.getValue())) {
+                targetDefine.setTagType(WebElementTagNameEnum.INPUT);
+                targetDefine.setIconType(WebElementIcon.INSERT);
+                targetDefine.setTagName("input");
+            } else if (elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.BUTTON.getValue())
                     || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.ANCHOR.getValue())
                     || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.SELECT.getValue())
                     || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.OPTION.getValue())
@@ -367,11 +372,6 @@ public class TargetElementHelper {
                     || isClickableAttributeType(elemenDTO.getAttributeType())) {
                 targetDefine.setTagType(WebElementTagNameEnum.BUTTON);
                 targetDefine.setIconType(WebElementIcon.CLICK);
-            } else if (elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.INPUT.getValue())
-                    || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.TEXT_AREA.getValue())) {
-                targetDefine.setTagType(WebElementTagNameEnum.INPUT);
-                targetDefine.setIconType(WebElementIcon.INSERT);
-                targetDefine.setTagName("input");
             } else if (elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.PARAGRAPH.getValue())
                     || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.HEADER.getValue())
                     || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.LABEL.getValue())

@@ -158,7 +158,12 @@ public final class ElementDtoMapper {
             // W3C 6 Headers
             String[] validHeaders = {"h1", "h2", "h3", "h4", "h5", "h6"};
 
-            if (elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.BUTTON.getValue())
+            if (elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.INPUT.getValue())
+                    || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.TEXT_AREA.getValue())) {
+                targetDefine.setTagType(WebElementTagNameEnum.INPUT);
+                targetDefine.setIconType(WebElementIcon.INSERT);
+                targetDefine.setTagName("input");
+            } else if (elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.BUTTON.getValue())
                     || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.ANCHOR.getValue())
                     || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.SELECT.getValue())
                     || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.OPTION.getValue())
@@ -167,11 +172,6 @@ public final class ElementDtoMapper {
                     || isClickableAttributeType(elemenDTO.getAttributeType())) {
                 targetDefine.setTagType(WebElementTagNameEnum.BUTTON);
                 targetDefine.setIconType(WebElementIcon.CLICK);
-            } else if (elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.INPUT.getValue())
-                    || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.TEXT_AREA.getValue())) {
-                targetDefine.setTagType(WebElementTagNameEnum.INPUT);
-                targetDefine.setIconType(WebElementIcon.INSERT);
-                targetDefine.setTagName("input");
             } else if (elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.PARAGRAPH.getValue())
                     || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.HEADER.getValue())
                     || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.LABEL.getValue())
@@ -391,23 +391,25 @@ public final class ElementDtoMapper {
             String tagName = targetTagType.getTagName();
             String attributeType = targetTagType.getAttributeType();
 
-            // Here I am forcing as Button "CLICKABLE" or "IMPUTABLE"
-            if (tagName != null
+            boolean nativeInput = tagName != null
+                    && (tagName.equalsIgnoreCase(WebElementTagNameEnum.INPUT.getValue())
+                            || tagName.equalsIgnoreCase(WebElementTagNameEnum.TEXT_AREA.getValue()));
+            boolean nativeClickable = tagName != null
                     && (tagName.equalsIgnoreCase(WebElementTagNameEnum.BUTTON.getValue())
                             || tagName.equalsIgnoreCase(WebElementTagNameEnum.ANCHOR.getValue())
                             || tagName.equalsIgnoreCase(WebElementTagNameEnum.DIV.getValue())
                             || tagName.equalsIgnoreCase(WebElementTagNameEnum.SELECT.getValue())
                             || tagName.equalsIgnoreCase(WebElementTagNameEnum.OPTION.getValue())
                             || tagName.equalsIgnoreCase(WebElementTagNameEnum.MAT_SELECT.getValue())
-                            || tagName.equalsIgnoreCase(WebElementTagNameEnum.MAT_OPTION.getValue()))
-                    || isClickableAttributeType(attributeType)) {
-                targetTagType.setTagType(WebElementTagNameEnum.BUTTON);
-                targetTagType.setIconType(WebElementIcon.CLICK);
-            } else if (tagName != null
-                    && (tagName.equalsIgnoreCase(WebElementTagNameEnum.INPUT.getValue())
-                            || tagName.equalsIgnoreCase(WebElementTagNameEnum.TEXT_AREA.getValue()))) {
+                            || tagName.equalsIgnoreCase(WebElementTagNameEnum.MAT_OPTION.getValue()));
+
+            // Native input/textarea must stay INSERT even when metadata says radio-option.
+            if (nativeInput) {
                 targetTagType.setTagType(WebElementTagNameEnum.INPUT);
                 targetTagType.setIconType(WebElementIcon.INSERT);
+            } else if (nativeClickable || isClickableAttributeType(attributeType)) {
+                targetTagType.setTagType(WebElementTagNameEnum.BUTTON);
+                targetTagType.setIconType(WebElementIcon.CLICK);
             } else {
                 targetTagType.setTagType(WebElementTagNameEnum.ALL);
                 targetTagType.setIconType(WebElementIcon.TEXT);

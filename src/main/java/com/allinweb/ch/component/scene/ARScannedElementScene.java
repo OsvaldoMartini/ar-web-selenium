@@ -448,7 +448,9 @@ public class ARScannedElementScene extends ARScene {
                                         arScannedElementPane.targetSelected, splitDTO.getElementDetails()[0]);
                                 arScannedElementPane.itPrintsElementDTO();
                                 arScannedElementPane.testingActions(
-                                        arScannedElementPane.targetSelected, splitDTO.getType());
+                                        arScannedElementPane.targetSelected,
+                                        splitDTO.getType(),
+                                        splitDTO.getElementDetails()[0].getDefaultValue());
                             } else {
                                 targetElementHelper.initialize(performActions, arScannedElementPane);
                                 arScannedElementPane.targetSelected =
@@ -457,7 +459,9 @@ public class ARScannedElementScene extends ARScene {
                                         arScannedElementPane.targetSelected, splitDTO.getElementDetails()[0]);
                                 arScannedElementPane.itPrintsElementDTO();
                                 arScannedElementPane.testingActions(
-                                        arScannedElementPane.targetSelected, splitDTO.getType());
+                                        arScannedElementPane.targetSelected,
+                                        splitDTO.getType(),
+                                        splitDTO.getElementDetails()[0].getDefaultValue());
                             }
                         } else {
                             targetElementHelper.initialize(performActions, arScannedElementPane);
@@ -467,7 +471,9 @@ public class ARScannedElementScene extends ARScene {
                                     arScannedElementPane.targetSelected, splitDTO.getElementDetails()[0]);
                             arScannedElementPane.itPrintsElementDTO();
                             arScannedElementPane.testingActions(
-                                    arScannedElementPane.targetSelected, splitDTO.getType());
+                                    arScannedElementPane.targetSelected,
+                                    splitDTO.getType(),
+                                    splitDTO.getElementDetails()[0].getDefaultValue());
                         }
                         break;
                     }

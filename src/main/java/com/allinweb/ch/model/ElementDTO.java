@@ -34,6 +34,7 @@ public class ElementDTO {
     private String cssSelector;
     private String attributeValue;
     private String attributeType;
+    private String defaultValue;
     private String searchAttributeValue;
     // One sentinel per bit in force_coordinates, so downstream code can branch on
     // a single flag without parsing the full string. Value is the flag letter
@@ -84,6 +85,7 @@ public class ElementDTO {
         this.cssSelector = other.cssSelector;
         this.attributeValue = other.attributeValue;
         this.attributeType = other.attributeType;
+        this.defaultValue = other.defaultValue;
         this.searchAttributeValue = other.searchAttributeValue;
         this.autoScroll = other.autoScroll;
         this.autoEnter = other.autoEnter;
@@ -128,6 +130,7 @@ public class ElementDTO {
         copy.setCssSelector(this.cssSelector);
         copy.setAttributeValue(this.attributeValue);
         copy.setAttributeType(this.attributeType);
+        copy.setDefaultValue(this.defaultValue);
         copy.setSearchAttributeValue(this.searchAttributeValue);
         copy.setAutoScroll(this.autoScroll);
         copy.setAutoEnter(this.autoEnter);
