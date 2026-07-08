@@ -14,10 +14,7 @@ class PlaywrightElementScannerClassificationTest {
 
     @Test
     void radioInputFromPageScannerStaysInputNotButton() throws Exception {
-        AttributeData[] attrs = {
-            new AttributeData("type", "radio"),
-            new AttributeData("control.kind", "radio-option")
-        };
+        AttributeData[] attrs = {new AttributeData("type", "radio"), new AttributeData("control.kind", "radio-option")};
 
         assertEquals("input", classifyTag("input", "button", attrs));
 
@@ -45,8 +42,7 @@ class PlaywrightElementScannerClassificationTest {
     @Test
     void selectOptionCloneRemainsButton() throws Exception {
         AttributeData[] attrs = {
-            new AttributeData("original-tag", "option"),
-            new AttributeData("control.kind", "select-option")
+            new AttributeData("original-tag", "option"), new AttributeData("control.kind", "select-option")
         };
 
         assertEquals("button", classifyTag("button", "button", attrs));

@@ -2210,13 +2210,14 @@ public class SimpleWebSocketServer {
                         return false;
                     }
                     if (blockTable.equals("block")) {
-                        return block.getBotJobId() != null && block.getBotJobId().equals(whereId);
+                        return block.getBotJobId() != null
+                                && block.getBotJobId().equals(whereId);
                     }
-                    return block.getHomeBankingId() != null && block.getHomeBankingId().equals(whereId);
+                    return block.getHomeBankingId() != null
+                            && block.getHomeBankingId().equals(whereId);
                 })
-                .sorted(Comparator.comparingInt(block -> block.getBlockOrderNumber() == null
-                        ? Integer.MAX_VALUE
-                        : block.getBlockOrderNumber()))
+                .sorted(Comparator.comparingInt(
+                        block -> block.getBlockOrderNumber() == null ? Integer.MAX_VALUE : block.getBlockOrderNumber()))
                 .map(block -> {
                     Map<String, Object> option = new LinkedHashMap<>();
                     option.put("blockId", block.getId());

@@ -387,6 +387,12 @@ public class ARScannedElementPane extends ARPane {
                 "[contenteditable='true']",
                 "[role='textbox']"));
         profiles.add(new ElementScanProfile(
+                "Native - Textarea",
+                "Writable multiline text areas.",
+                "textarea",
+                "[data-slot='textarea']",
+                "[role='textbox']"));
+        profiles.add(new ElementScanProfile(
                 "Native - Radio", "Native radio options.", "input[type='radio']", "label[for]", "[role='radio']"));
         profiles.add(
                 new ElementScanProfile("Native - Select", "Native select controls and options.", "select", "option"));

@@ -441,5 +441,4 @@ class BancaStatoBotJobPlaywrightIT {
             System.out.println("Browser hold ended: " + error.getMessage());
         }
     }
-
 }

@@ -120,7 +120,6 @@ public final class TestRunLauncher {
                 failed++;
                 log.warn("TEST RUN — step failed [{}] '{}': {}", action, instruction.getName(), e.getMessage());
             }
-
         }
 
         log.info("TEST RUN — done: {} clicked, {} inserted, {} read, {} failed", clicked, inserted, read, failed);
