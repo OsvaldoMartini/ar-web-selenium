@@ -29,11 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ARPlaywrightDriver {
 
-    private final ExecutorService playwrightThread = Executors.newSingleThreadExecutor(r -> {
-        Thread thread = new Thread(r, "ar-playwright-driver");
-        thread.setDaemon(true);
-        return thread;
-    });
+    private ExecutorService playwrightThread = newPlaywrightThread();
 
     private Playwright playwright;
     private Browser browser;
@@ -199,7 +195,15 @@ public class ARPlaywrightDriver {
             closeInternal();
             return null;
         });
-        playwrightThread.shutdownNow();
+    }
+
+    public void shutdown() {
+        ExecutorService executor = ensurePlaywrightThread();
+        run(() -> {
+            closeInternal();
+            return null;
+        });
+        executor.shutdownNow();
     }
 
     /**
@@ -315,8 +319,23 @@ public class ARPlaywrightDriver {
         }
     }
 
+    private static ExecutorService newPlaywrightThread() {
+        return Executors.newSingleThreadExecutor(r -> {
+            Thread thread = new Thread(r, "ar-playwright-driver");
+            thread.setDaemon(true);
+            return thread;
+        });
+    }
+
+    private synchronized ExecutorService ensurePlaywrightThread() {
+        if (playwrightThread == null || playwrightThread.isShutdown() || playwrightThread.isTerminated()) {
+            playwrightThread = newPlaywrightThread();
+        }
+        return playwrightThread;
+    }
+
     private <T> T call(Callable<T> callable) {
-        Future<T> future = playwrightThread.submit(callable);
+        Future<T> future = ensurePlaywrightThread().submit(callable);
         try {
             return future.get();
         } catch (Exception error) {
