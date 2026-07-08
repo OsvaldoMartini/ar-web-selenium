@@ -389,7 +389,8 @@ public class PlaywrightActionExecutor {
                 || kind.contains("upload")) {
             return true;
         }
-        if (List.of("radio", "checkbox", "button", "submit", "reset", "file", "hidden").contains(type)) {
+        if (List.of("radio", "checkbox", "button", "submit", "reset", "file", "hidden")
+                .contains(type)) {
             return true;
         }
         return List.of("radio", "checkbox", "button", "switch", "option", "menuitem", "tab", "treeitem")
