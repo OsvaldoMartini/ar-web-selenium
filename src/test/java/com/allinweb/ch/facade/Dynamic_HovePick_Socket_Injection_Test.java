@@ -9,8 +9,8 @@ import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 
 /**
- * End-to-end injection test for the hoverPick plugin using PerformCloneLoad's
- * relative-path constants. Loads the script, launches Edge via ARWebDriver,
+ * End-to-end injection test for the legacy hoverPick plugin using its
+ * relative script path. Loads the script, launches Edge via ARWebDriver,
  * navigates to a live page, and injects via executeScript with the 9 IIFE args.
  *
  * The hoverPick script (script-hover-pick-in-use.js / hoverPick.min.js) ends with:
@@ -48,7 +48,7 @@ public class Dynamic_HovePick_Socket_Injection_Test {
      *   - HOVER_RELATIVE_PATH_NOT_MIN → readable, easier to debug (lives under pageScanner/build)
      *   - HOVER_PICK_RELATIVE_PATH_MIN → minified production bundle (lives under hoverPick/build)
      */
-    private static final String SCRIPT_PATH = PerformCloneLoad.HOVER_PICK_RELATIVE_PATH_MIN;
+    private static final String SCRIPT_PATH = "hoverPick/build/hoverPick.min.js";
 
     public static void main(String[] args) throws Exception {
 

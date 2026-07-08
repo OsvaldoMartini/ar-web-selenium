@@ -70,39 +70,28 @@ public class PlaywrightActionExecutor {
         String triggerCss =
                 firstReferenceValue(instruction, "select.trigger.css", "trigger-selector", "AttrData:trigger-selector");
 
-        if (!nativeSelectXPath.isBlank() && !value.isBlank()) {
-            try {
-                page.locator("xpath=" + nativeSelectXPath)
-                        .selectOption(value, new Locator.SelectOptionOptions().setTimeout(ACTION_TIMEOUT_MS));
-                return true;
-            } catch (Exception nativeSelect) {
-                log.debug("Playwright native selectOption failed: {}", nativeSelect.getMessage());
-            }
-        }
-
         String optionText = !text.isBlank() ? text : value;
         if (clickVisibleOption(page, optionText)) {
             return true;
         }
 
-        if (!triggerCss.isBlank()) {
+        if (openSelectTrigger(page, instruction, triggerCss, nativeSelectXPath)
+                && clickVisibleOption(page, optionText)) {
+            return true;
+        }
+
+        if (!nativeSelectXPath.isBlank() && !value.isBlank()) {
             try {
-                page.locator(triggerCss).first().click(new Locator.ClickOptions().setTimeout(ACTION_TIMEOUT_MS));
-            } catch (Exception triggerClick) {
-                log.debug("Playwright select trigger click failed: {}", triggerClick.getMessage());
-            }
-        } else {
-            Locator trigger = locate(page, instruction);
-            if (trigger != null && trigger.count() > 0) {
-                try {
-                    trigger.first().click(new Locator.ClickOptions().setTimeout(ACTION_TIMEOUT_MS));
-                } catch (Exception triggerClick) {
-                    log.debug("Playwright fallback trigger click failed: {}", triggerClick.getMessage());
-                }
+                page.locator("xpath=" + nativeSelectXPath)
+                        .selectOption(value, new Locator.SelectOptionOptions().setTimeout(ACTION_TIMEOUT_MS));
+                page.locator("xpath=" + nativeSelectXPath).dispatchEvent("change");
+                return true;
+            } catch (Exception nativeSelect) {
+                log.debug("Playwright native selectOption fallback failed: {}", nativeSelect.getMessage());
             }
         }
 
-        return clickVisibleOption(page, optionText);
+        return false;
     }
 
     private boolean clickVisibleOption(Page page, String optionText) {
@@ -115,6 +104,7 @@ public class PlaywrightActionExecutor {
             "[role=\"option\"]:has-text(" + textSelector + ")",
             "[role=\"menuitem\"]:has-text(" + textSelector + ")",
             "[cmdk-item]:has-text(" + textSelector + ")",
+            "[data-radix-select-item]:has-text(" + textSelector + ")",
             "text=" + textSelector
         };
 
@@ -122,14 +112,64 @@ public class PlaywrightActionExecutor {
             try {
                 Locator option = page.locator(selector);
                 if (option.count() > 0) {
-                    option.last().click(new Locator.ClickOptions().setTimeout(ACTION_TIMEOUT_MS));
-                    return true;
+                    if (clickLocator(option.last())) {
+                        return true;
+                    }
                 }
             } catch (Exception optionClick) {
                 log.debug("Playwright option click failed for {}: {}", selector, optionClick.getMessage());
             }
         }
         return false;
+    }
+
+    private boolean openSelectTrigger(
+            Page page, InstructionLoad instruction, String triggerCss, String nativeSelectXPath) {
+        if (!triggerCss.isBlank() && clickFirst(page.locator(triggerCss))) {
+            return true;
+        }
+
+        if (!nativeSelectXPath.isBlank()) {
+            String siblingTriggerXPath =
+                    nativeSelectXPath + "/preceding-sibling::*[@role='combobox' or self::button][1]";
+            if (clickFirst(page.locator("xpath=" + siblingTriggerXPath))) {
+                return true;
+            }
+        }
+
+        Locator trigger = locate(page, instruction);
+        return trigger != null && trigger.count() > 0 && clickLocator(trigger.first());
+    }
+
+    private boolean clickFirst(Locator locator) {
+        try {
+            return locator != null && locator.count() > 0 && clickLocator(locator.first());
+        } catch (Exception error) {
+            log.debug("Playwright clickFirst failed: {}", error.getMessage());
+            return false;
+        }
+    }
+
+    private boolean clickLocator(Locator locator) {
+        try {
+            locator.click(new Locator.ClickOptions().setTimeout(ACTION_TIMEOUT_MS));
+            return true;
+        } catch (Exception normal) {
+            log.debug("Playwright normal locator click failed: {}", normal.getMessage());
+        }
+        try {
+            locator.click(new Locator.ClickOptions().setForce(true).setTimeout(ACTION_TIMEOUT_MS));
+            return true;
+        } catch (Exception forced) {
+            log.debug("Playwright force locator click failed: {}", forced.getMessage());
+        }
+        try {
+            locator.dispatchEvent("click");
+            return true;
+        } catch (Exception dispatch) {
+            log.debug("Playwright dispatch locator click failed: {}", dispatch.getMessage());
+            return false;
+        }
     }
 
     public boolean fill(Page page, InstructionLoad instruction, FieldData data) {
@@ -235,10 +275,13 @@ public class PlaywrightActionExecutor {
     }
 
     private static boolean isSelectOptionInstruction(InstructionLoad instruction) {
-        return !firstReferenceValue(instruction, "select.option.value", "option-value", "AttrData:option-value").isBlank()
-                || !firstReferenceValue(instruction, "select.option.text", "option-text", "AttrData:option-text").isBlank()
-                || "select-option".equalsIgnoreCase(firstReferenceValue(
-                        instruction, "control.kind", "AttrData:control.kind", "attributeType"));
+        return !firstReferenceValue(instruction, "select.option.value", "option-value", "AttrData:option-value")
+                        .isBlank()
+                || !firstReferenceValue(instruction, "select.option.text", "option-text", "AttrData:option-text")
+                        .isBlank()
+                || "select-option"
+                        .equalsIgnoreCase(firstReferenceValue(
+                                instruction, "control.kind", "AttrData:control.kind", "attributeType"));
     }
 
     private static String firstReferenceValue(InstructionLoad instruction, String... referenceTypes) {
