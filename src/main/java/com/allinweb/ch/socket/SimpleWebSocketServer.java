@@ -1,6 +1,7 @@
 package com.allinweb.ch.socket;
 
 import com.allinweb.ch.component.pane.ARScannedElementPane;
+import com.allinweb.ch.component.pane.ARViewBotJobPane;
 import com.allinweb.ch.component.scene.ARExcelFileScene;
 import com.allinweb.ch.component.scene.ARSaveComponentScene;
 import com.allinweb.ch.facade.*;
@@ -985,6 +986,13 @@ public class SimpleWebSocketServer {
                     ARScannedElementPane.getInstance()
                             .handleSupportRequestElementsResponse(
                                     elementsSupportAction, elementsSupportMessage, elementsJson);
+                    alreadySentMgsSocket = true;
+                    break;
+                case "PRE_SCAN_PAGE":
+                case "PRE_SCAN_REFRESH_PAGE":
+                case "PRE_SCAN_CLEAR_GRID":
+                case "PRE_SCAN_OCR_CONFIG":
+                    ARViewBotJobPane.getInstance().handlePreScanCommand(type, jsonEntry);
                     alreadySentMgsSocket = true;
                     break;
                 case "CLOSE_BROWSER":

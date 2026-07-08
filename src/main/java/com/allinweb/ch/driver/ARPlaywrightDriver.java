@@ -58,6 +58,10 @@ public class ARPlaywrightDriver {
     }
 
     public void openOrNavigate(String browserType, String url, String optionsConfig) {
+        openOrNavigate(browserType, url, optionsConfig, false);
+    }
+
+    public void openOrNavigate(String browserType, String url, String optionsConfig, boolean headless) {
         run(() -> {
             if (page != null && !page.isClosed()) {
                 navigateDomReady(page, url);
@@ -66,7 +70,7 @@ public class ARPlaywrightDriver {
 
             closeInternal();
             playwright = Playwright.create();
-            browser = launchBrowser(browserType, optionsConfig);
+            browser = launchBrowser(browserType, optionsConfig, headless);
             context = browser.newContext(
                     new Browser.NewContextOptions().setBypassCSP(true).setViewportSize(null));
             page = context.newPage();
@@ -227,13 +231,17 @@ public class ARPlaywrightDriver {
     }
 
     private Browser launchBrowser(String browserType, String optionsConfig) {
+        return launchBrowser(browserType, optionsConfig, false);
+    }
+
+    private Browser launchBrowser(String browserType, String optionsConfig, boolean headless) {
         // --start-maximized opens the browser window full-size; combined with a null context viewport
         // (see open()) the page renders at the full window dimensions.
         List<String> launchArgs = new ArrayList<>();
         launchArgs.add("--start-maximized");
         launchArgs.addAll(parseArguments(optionsConfig));
         BrowserType.LaunchOptions options =
-                new BrowserType.LaunchOptions().setHeadless(false).setArgs(launchArgs);
+                new BrowserType.LaunchOptions().setHeadless(headless).setArgs(launchArgs);
 
         String normalized = Objects.toString(browserType, "").toLowerCase(Locale.ROOT);
         if (ARConstantsEngine.FIREFOX.toLowerCase(Locale.ROOT).equals(normalized)) {

@@ -5,9 +5,11 @@ import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARElementValueScene;
 import com.allinweb.ch.component.scene.ARNewCommandScene;
 import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
+import com.allinweb.ch.component.scene.AROcrConfigScene;
 import com.allinweb.ch.component.scene.ARScannedElementScene;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.control.ARComponentBuilder;
+import com.allinweb.ch.driver.ARPlaywrightDriver;
 import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
@@ -19,6 +21,7 @@ import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import java.awt.*;
 import java.io.File;
 import java.io.FileWriter;
@@ -77,6 +80,7 @@ public class ARViewBotJobPane extends ARPane {
     Button genFlowButton;
     ComboBox<BlockLoadDTO> blockFlowComboBox;
     Button reloadBlocksButton;
+    Button preScanButton;
     Button testRunButton;
     Button testRunStopButton;
     Button saveBotJobButton;
@@ -131,6 +135,10 @@ public class ARViewBotJobPane extends ARPane {
     private WebEngine webEngineComp;
     private WebView webViewApiTool = new WebView();
     private WebEngine webEngineApiTool;
+    private WebView webViewPreScanner = new WebView();
+    private WebEngine webEnginePreScanner;
+    private boolean isPreScannerVisible = false;
+    private ARPlaywrightDriver preScanDriver;
     private boolean isApiToolVisible = false;
     Button apiToolToggleButton;
     private ARScene arScene;
@@ -639,6 +647,20 @@ public class ARViewBotJobPane extends ARPane {
                 selectedBotJob.getId(),
                 selectedBotJob.getName());
 
+        webEnginePreScanner = webViewPreScanner.getEngine();
+        webEnginePreScanner.javaScriptEnabledProperty().set(true);
+
+        sessionId = "preScannerGrid";
+        buildWebView(
+                webEnginePreScanner,
+                "[]",
+                portInitial,
+                sessionId,
+                selectedBotJob.getHomeBankingId(),
+                orgName,
+                selectedBotJob.getId(),
+                selectedBotJob.getName());
+
         previousBotTasks = sessionId;
     }
 
@@ -709,6 +731,16 @@ public class ARViewBotJobPane extends ARPane {
         this.reloadBlocksButton = builder.buildButton(
                 "", ARConstants.SPACE_ZERO, ARConstants.ICON_REFRESH, ARConstants.SPACE_M, new Insets(3, 6, 3, 6));
         this.reloadBlocksButton.setTooltip(new javafx.scene.control.Tooltip("Reload blocks for the dropdown"));
+
+        this.preScanButton = builder.buildButton(
+                "PRE SCAN",
+                ARConstants.SPACE_ZERO,
+                ARConstants.ICON_SEARCH,
+                ARConstants.SPACE_M,
+                new Insets(3, 8, 3, 8));
+        this.preScanButton.setStyle("-fx-background-color: #0B5394; -fx-text-fill: white; -fx-font-weight: bold; "
+                + "-fx-font-size: 12px; -fx-background-radius: 5;");
+        this.preScanButton.setTooltip(new javafx.scene.control.Tooltip("Open the lightweight React scanner dashboard"));
 
         this.testRunStopButton = builder.buildButton(
                 "STOP", ARConstants.SPACE_ZERO, ARConstants.ICON_STOP, ARConstants.SPACE_M, new Insets(3, 8, 3, 8));
@@ -791,6 +823,7 @@ public class ARViewBotJobPane extends ARPane {
             genFlowButton,
             blockFlowComboBox,
             reloadBlocksButton,
+            preScanButton,
             testRunButton,
             testRunStopButton,
             openReportButton,
@@ -881,6 +914,7 @@ public class ARViewBotJobPane extends ARPane {
                 genFlowButton,
                 blockFlowComboBox,
                 reloadBlocksButton,
+                preScanButton,
                 testRunButton,
                 testRunStopButton);
         grpLaunch.setStyle("-fx-background-color: #EAF3DE; -fx-background-radius: 6; -fx-padding: 3 6 3 6;");
@@ -1091,6 +1125,8 @@ public class ARViewBotJobPane extends ARPane {
 
         HBox.setHgrow(webViewTasks, Priority.ALWAYS);
         VBox.setVgrow(webViewTasks, Priority.ALWAYS);
+        HBox.setHgrow(webViewPreScanner, Priority.ALWAYS);
+        VBox.setVgrow(webViewPreScanner, Priority.ALWAYS);
         HBox.setHgrow(this.componentContainer, Priority.NEVER);
 
         // ════════════════════════════════════════════════════════════════════════
@@ -1660,6 +1696,8 @@ public class ARViewBotJobPane extends ARPane {
             }
         });
         componentButton.setOnMouseClicked((e) -> {
+            isPreScannerVisible = false;
+            preScanButton.setText("PRE SCAN");
             if (isComponentBoxVisible) {
                 componentBox.getChildren().clear();
 
@@ -1681,6 +1719,8 @@ public class ARViewBotJobPane extends ARPane {
             }
             isComponentBoxVisible = !isComponentBoxVisible;
         });
+
+        preScanButton.setOnMouseClicked((e) -> togglePreScanDashboard());
 
         // ── API Tool toggle handler  ─────────────────────────────────
         /* apiToolToggleButton.setOnMouseClicked((e) -> {
@@ -1719,6 +1759,190 @@ public class ARViewBotJobPane extends ARPane {
                 isApiToolVisible = true;
             }
         }); */
+    }
+
+    private void togglePreScanDashboard() {
+        if (componentBox == null) {
+            return;
+        }
+
+        componentBox.getChildren().clear();
+        if (isPreScannerVisible) {
+            componentBox.getChildren().add(webViewTasks);
+            HBox.setHgrow(webViewTasks, Priority.ALWAYS);
+            VBox.setVgrow(webViewTasks, Priority.ALWAYS);
+            preScanButton.setText("PRE SCAN");
+            isPreScannerVisible = false;
+            componentBox.requestLayout();
+            return;
+        }
+
+        componentBox.getChildren().add(webViewPreScanner);
+        HBox.setHgrow(webViewPreScanner, Priority.ALWAYS);
+        VBox.setVgrow(webViewPreScanner, Priority.ALWAYS);
+        if (componentContainer != null) {
+            componentContainer.setVisible(false);
+            componentContainer.setManaged(false);
+        }
+        isComponentBoxVisible = false;
+        isPreScannerVisible = true;
+        preScanButton.setText("BOT JOB");
+        componentBox.requestLayout();
+    }
+
+    public void handlePreScanCommand(String type, JsonObject jsonEntry) {
+        if ("PRE_SCAN_CLEAR_GRID".equals(type)) {
+            sendPreScanReset();
+            return;
+        }
+
+        if ("PRE_SCAN_OCR_CONFIG".equals(type)) {
+            Platform.runLater(() -> AROcrConfigScene.getInstance()
+                    .openFor(selectedBotJob.getHomeBankingId(), selectedBotJob.getHomeUrlId()));
+            return;
+        }
+
+        if (!"PRE_SCAN_PAGE".equals(type) && !"PRE_SCAN_REFRESH_PAGE".equals(type)) {
+            return;
+        }
+
+        String searchTerms = jsonEntry != null && jsonEntry.has("searchTerms")
+                ? jsonEntry.get("searchTerms").getAsString()
+                : "";
+        boolean searchHidden = jsonEntry != null
+                && jsonEntry.has("searchHiddenFields")
+                && jsonEntry.get("searchHiddenFields").getAsBoolean();
+
+        Thread worker = new Thread(
+                () -> runPreScan(searchTerms, searchHidden),
+                "pre-scan-" + (selectedBotJob == null ? "unknown" : selectedBotJob.getId()));
+        worker.setDaemon(true);
+        worker.start();
+    }
+
+    private void runPreScan(String searchTerms, boolean searchHidden) {
+        if (selectedBotJob == null) {
+            log.warn("PRE SCAN skipped: no selected bot job");
+            return;
+        }
+
+        String endpointUrl = selectedEndpointUrl();
+        if (Strings.isNullOrEmpty(endpointUrl)) {
+            log.warn("PRE SCAN skipped: no endpoint URL selected");
+            return;
+        }
+
+        sendPreScanReset();
+
+        String browserType = arPropertyManager.getProperty(ARPropertyEnum.BROWSER);
+        String optionsConfig = "";
+        HomeBankingLoadDTO homeBanking = performLists.getHomeBankingById(selectedBotJob.getHomeBankingId());
+        if (homeBanking == null) {
+            homeBanking = selectedBotJob.getHomeBankingLoadDTO();
+        }
+        if (homeBanking != null && homeBanking.getOptionsConfig() != null) {
+            optionsConfig = homeBanking.getOptionsConfig();
+        }
+
+        try {
+            if (preScanDriver == null) {
+                preScanDriver = new ARPlaywrightDriver();
+            }
+            log.info("PRE SCAN - opening isolated visible Playwright at {}", endpointUrl);
+            preScanDriver.openOrNavigate(browserType, endpointUrl, optionsConfig, false);
+            List<ElementDTO> elements = preScanDriver.scanElements(searchTermsArray(searchTerms), searchHidden);
+            sendPreScanElements(elements);
+            log.info("PRE SCAN - sent {} elements to preScannerGrid", elements == null ? 0 : elements.size());
+        } catch (Exception error) {
+            log.error("PRE SCAN failed", error);
+            Platform.runLater(() -> performMessage.errorMessage(
+                    "PRE SCAN - Failed",
+                    "<span style='color: #D32F2F; font-weight: bold;'>"
+                            + String.valueOf(error.getMessage()) + "</span>",
+                    "The lightweight scanner could not complete for the selected URL.",
+                    null,
+                    null,
+                    0));
+        }
+    }
+
+    private String selectedEndpointUrl() {
+        if (homeURLChoiceBox != null && homeURLChoiceBox.getValue() != null) {
+            return homeURLChoiceBox.getValue().getUrl();
+        }
+        if (currentUrlLabel != null && !Strings.isNullOrEmpty(currentUrlLabel.getText())) {
+            return currentUrlLabel.getText();
+        }
+        HomeUrlDTO homeUrl = selectedBotJob == null
+                ? null
+                : performLists.getHomeUrlByBankId(selectedBotJob.getHomeBankingId(), selectedBotJob.getHomeUrlId());
+        if (homeUrl != null && !Strings.isNullOrEmpty(homeUrl.getUrl())) {
+            return homeUrl.getUrl();
+        }
+        return selectedBotJob != null && selectedBotJob.getHomeBankingLoadDTO() != null
+                ? selectedBotJob.getHomeBankingLoadDTO().getUrl()
+                : "";
+    }
+
+    private String[] searchTermsArray(String searchTerms) {
+        if (Strings.isNullOrEmpty(searchTerms)) {
+            return new String[] {"button", "a", "select", "option", "input", "textarea", "role", "aria-haspopup"};
+        }
+        return java.util.Arrays.stream(searchTerms.split(","))
+                .map(String::trim)
+                .filter(term -> !term.isEmpty())
+                .toArray(String[]::new);
+    }
+
+    private void sendPreScanReset() {
+        sendPreScanPayload(List.of());
+    }
+
+    private void sendPreScanElements(List<ElementDTO> elements) {
+        if (elements == null || elements.isEmpty()) {
+            sendPreScanReset();
+            return;
+        }
+        int chunkSize = 25;
+        for (int i = 0; i < elements.size(); i += chunkSize) {
+            sendPreScanPayload(elements.subList(i, Math.min(i + chunkSize, elements.size())));
+        }
+    }
+
+    private void sendPreScanPayload(List<ElementDTO> elements) {
+        SplitDTO payload = new SplitDTO();
+        payload.setHomeBankingId(selectedBotJob.getHomeBankingId());
+        payload.setBotJobId(selectedBotJob.getId());
+        payload.setBotJobName(selectedBotJob.getName());
+        payload.setType("SEARCH_TOOL");
+        payload.setSessionId("preScannerGrid");
+        payload.setOperationId("searchTerms");
+        payload.setElementDetails(elements.toArray(new ElementDTO[0]));
+        payload.setBlocks(preScanBlockOptions());
+        webSocketSessionManager.sendMessageJson(
+                selectedBotJob.getHomeBankingId(), "preScannerGrid", gson.toJson(payload), "searchTerms");
+    }
+
+    private List<java.util.Map<String, Object>> preScanBlockOptions() {
+        if (performLists.getListBlock().isEmpty()) {
+            ErrorMessage errorMessage = performDataBase.loadBlocks(selectedBotJob.getId(), selectedBotJob.getName(), "block");
+            if (errorMessage != null) {
+                log.warn("PRE SCAN - could not load blocks: {}", errorMessage.getErrorMessage());
+            }
+        }
+        return performLists.getListBlock().stream()
+                .filter(block -> block != null && block.getId() != null)
+                .filter(block -> block.getBotJobId() == null || selectedBotJob.getId().equals(block.getBotJobId()))
+                .sorted(java.util.Comparator.comparingInt(
+                        block -> block.getBlockOrderNumber() == null ? Integer.MAX_VALUE : block.getBlockOrderNumber()))
+                .map(block -> {
+                    java.util.Map<String, Object> option = new java.util.LinkedHashMap<>();
+                    option.put("blockId", block.getId());
+                    option.put("blockOrderNumber", block.getBlockOrderNumber());
+                    option.put("blockName", block.getName());
+                    return option;
+                })
+                .toList();
     }
 
     private void reloadEnvs() {
