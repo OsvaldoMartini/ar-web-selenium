@@ -141,6 +141,12 @@ public class PerformDataBase {
             com.allinweb.ch.db.ScannedElementRepository.UpsertResult r =
                     com.allinweb.ch.db.ScannedElementRepository.upsert(
                             conn, homeBankingId, botJobId, homeUrlId, pageUrl, elements);
+            logDB.info(
+                    "{} New Web Elements inserted to scanned_element and {} updated (homeBankingId={}, botJobId={})",
+                    r.inserted(),
+                    r.updated(),
+                    homeBankingId,
+                    botJobId);
             return new int[] {r.inserted(), r.updated()};
         } catch (Exception e) {
             log.warn("upsertScannedElements failed (hb={}, bot={}): {}", homeBankingId, botJobId, e.getMessage());

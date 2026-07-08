@@ -288,7 +288,7 @@ public class TargetElementHelper {
                 targetDefine = new TargetElement();
             }
 
-            targetDefine.setTagName(elemenDTO.getTagName());
+            targetDefine.setTagName(normalizeActionTagName(elemenDTO));
             targetDefine.setNameLabel(elemenDTO.getNameLabel());
             targetDefine.setNameField(elemenDTO.getNameField());
             targetDefine.setDefinedName(elemenDTO.getDefinedName());
@@ -309,7 +309,7 @@ public class TargetElementHelper {
 
             targetDefine.setIFrameXPath(elemenDTO.getIFrameXPath());
 
-            targetDefine.setTagName(elemenDTO.getTagName());
+            targetDefine.setTagName(normalizeActionTagName(elemenDTO));
 
             targetDefine.setShadowHost(elemenDTO.getShadowHost());
             targetDefine.setShadowRoot(elemenDTO.getShadowRoot());
@@ -358,7 +358,8 @@ public class TargetElementHelper {
                 elemenDTO.setTagName(WebElementTagNameEnum.ANCHOR.getValue());
             }
 
-            if (elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.INPUT.getValue())
+            if (isInputElementDTO(elemenDTO)
+                    || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.INPUT.getValue())
                     || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.TEXT_AREA.getValue())) {
                 targetDefine.setTagType(WebElementTagNameEnum.INPUT);
                 targetDefine.setIconType(WebElementIcon.INSERT);
@@ -394,6 +395,17 @@ public class TargetElementHelper {
             }
         }
         return targetDefine;
+    }
+
+    private String normalizeActionTagName(ElementDTO elementDTO) {
+        if (isInputElementDTO(elementDTO)) {
+            return WebElementTagNameEnum.INPUT.getValue();
+        }
+        return elementDTO.getTagName();
+    }
+
+    private boolean isInputElementDTO(ElementDTO elementDTO) {
+        return elementDTO != null && "input".equalsIgnoreCase(elementDTO.getTypeElement());
     }
 
     private boolean isClickableAttributeType(String attributeType) {

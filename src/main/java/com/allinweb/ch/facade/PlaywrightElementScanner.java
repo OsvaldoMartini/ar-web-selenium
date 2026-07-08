@@ -520,7 +520,7 @@ public class PlaywrightElementScanner {
                 continue;
             }
 
-            ElementDTO dto = mapElement(map);
+            ElementDTO dto = normalizeActionGrouping(mapElement(map));
             String key = String.join(
                     "|",
                     firstNotBlank(dto.getXPath(), dto.getCssSelector(), dto.getCoordinates()),
@@ -575,6 +575,20 @@ public class PlaywrightElementScanner {
         return dto;
     }
 
+    private static ElementDTO normalizeActionGrouping(ElementDTO dto) {
+        if (dto == null) {
+            return null;
+        }
+        if (isInputType(dto.getTypeElement())) {
+            String originalTag = Objects.toString(dto.getTagName(), "");
+            if (!"input".equalsIgnoreCase(originalTag)) {
+                dto.setAttributeData(addAttributeIfMissing(dto.getAttributeData(), "original-tag", originalTag));
+            }
+            dto.setTagName("input");
+        }
+        return dto;
+    }
+
     private static AttributeData[] mapAttributes(Object raw) {
         if (!(raw instanceof List<?> attrs)) {
             return new AttributeData[0];
@@ -590,9 +604,27 @@ public class PlaywrightElementScanner {
         return mapped.toArray(new AttributeData[0]);
     }
 
+    private static AttributeData[] addAttributeIfMissing(AttributeData[] attributes, String name, String value) {
+        if (value == null || value.isBlank()) {
+            return attributes == null ? new AttributeData[0] : attributes;
+        }
+
+        AttributeData[] existing = attributes == null ? new AttributeData[0] : attributes;
+        for (AttributeData attribute : existing) {
+            if (attribute != null && name.equalsIgnoreCase(attribute.getName())) {
+                return existing;
+            }
+        }
+
+        AttributeData[] updated = new AttributeData[existing.length + 1];
+        System.arraycopy(existing, 0, updated, 0, existing.length);
+        updated[existing.length] = new AttributeData(name, value);
+        return updated;
+    }
+
     private static String classifyTag(String tagName, String scannedTypeElement, AttributeData[] attributeData) {
         String tag = Objects.toString(tagName, "").toLowerCase(Locale.ROOT);
-        if ("input".equals(tag) || "textarea".equals(tag)) {
+        if (isWritableControl(tag, attributeData)) {
             return "input";
         }
         if (isInputType(scannedTypeElement)) {
@@ -613,6 +645,28 @@ public class PlaywrightElementScanner {
             return "button";
         }
         return tag;
+    }
+
+    private static boolean isWritableControl(String tag, AttributeData[] attributeData) {
+        if ("textarea".equals(tag)) {
+            return true;
+        }
+
+        String kind = Objects.toString(attr(attributeData, "control.kind"), "").toLowerCase(Locale.ROOT);
+        String role = Objects.toString(
+                        firstNotBlank(attr(attributeData, "control.role"), attr(attributeData, "role")), "")
+                .toLowerCase(Locale.ROOT);
+        if ("text-input".equals(kind) || "autocomplete-input".equals(kind) || "textbox".equals(role)) {
+            return true;
+        }
+
+        if (!"input".equals(tag)) {
+            return false;
+        }
+
+        String type = Objects.toString(attr(attributeData, "type"), "").toLowerCase(Locale.ROOT);
+        return !List.of("button", "submit", "reset", "file", "checkbox", "radio", "hidden")
+                .contains(type);
     }
 
     private static boolean isInputType(String typeElement) {

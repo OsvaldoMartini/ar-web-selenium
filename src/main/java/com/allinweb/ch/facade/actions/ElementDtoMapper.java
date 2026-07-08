@@ -577,10 +577,15 @@ public final class ElementDtoMapper {
         String triggerSelector = getAttr(attrs, "trigger-selector");
         String controlKind = getAttr(attrs, "control.kind");
         String controlRole = getAttr(attrs, "control.role");
+        String originalTag = getAttr(attrs, "original-tag");
         String tag = targetRefs.getTagName() != null ? targetRefs.getTagName().toLowerCase() : null;
+        String locatorTag = originalTag != null && !originalTag.isBlank() ? originalTag.toLowerCase() : tag;
 
         if (id == null || id.isBlank()) id = targetRefs.getAttribId();
         if (name == null || name.isBlank()) name = targetRefs.getAttribName();
+
+        addScannerAttributes(savedReferences, attrs);
+        addIfNotBlank(savedReferences, "dom.originalTag", originalTag);
 
         // --- store best locators (ranked) ---
         addIfNotBlank(savedReferences, "locator.best.byId", id); // By.id(...)
@@ -592,25 +597,45 @@ public final class ElementDtoMapper {
             if (tag != null && !tag.isBlank()) {
                 addIfNotBlank(savedReferences, "locator.css.tagId", tag + "#" + id); // input#password
             }
+            if (locatorTag != null && !locatorTag.isBlank() && !locatorTag.equals(tag)) {
+                addIfNotBlank(savedReferences, "locator.css.originalTagId", locatorTag + "#" + id);
+            }
         }
         if (tag != null && name != null && !name.isBlank()) {
             addIfNotBlank(savedReferences, "locator.css.name", tag + "[name='" + name + "']"); // input[name='password']
         }
+        if (locatorTag != null && !locatorTag.isBlank() && !locatorTag.equals(tag) && name != null && !name.isBlank()) {
+            addIfNotBlank(savedReferences, "locator.css.originalTagName", locatorTag + "[name='" + name + "']");
+        }
 
         // XPath
         if (tag == null || tag.isBlank()) tag = "*";
+        if (locatorTag == null || locatorTag.isBlank()) locatorTag = tag;
 
         if (id != null && !id.isBlank()) {
             addIfNotBlank(savedReferences, "locator.xpath.id", "//" + tag + "[@id='" + id + "']");
+            if (!locatorTag.equals(tag)) {
+                addIfNotBlank(savedReferences, "locator.xpath.originalTagId", "//" + locatorTag + "[@id='" + id + "']");
+            }
         }
         if (name != null && !name.isBlank()) {
             addIfNotBlank(savedReferences, "locator.xpath.name", "//" + tag + "[@name='" + name + "']");
+            if (!locatorTag.equals(tag)) {
+                addIfNotBlank(
+                        savedReferences, "locator.xpath.originalTagName", "//" + locatorTag + "[@name='" + name + "']");
+            }
         }
         if (name != null && !name.isBlank() && type != null && !type.isBlank()) {
             addIfNotBlank(
                     savedReferences,
                     "locator.xpath.nameType",
                     "//" + tag + "[@name='" + name + "' and @type='" + type + "']");
+            if (!locatorTag.equals(tag)) {
+                addIfNotBlank(
+                        savedReferences,
+                        "locator.xpath.originalTagNameType",
+                        "//" + locatorTag + "[@name='" + name + "' and @type='" + type + "']");
+            }
         }
 
         // Optional: store the cssSelector you already have (if it’s good)
@@ -626,6 +651,18 @@ public final class ElementDtoMapper {
         addIfNotBlank(savedReferences, "context.iframeXPath", targetRefs.getIFrameXPath());
         addIfNotBlank(savedReferences, "context.shadowHost", targetRefs.getShadowHost());
         addIfNotBlank(savedReferences, "context.shadowRoot", targetRefs.getShadowRoot());
+    }
+
+    private static void addScannerAttributes(Map<String, String> savedReferences, AttributeData[] attrs) {
+        if (attrs == null) {
+            return;
+        }
+        for (AttributeData attr : attrs) {
+            if (attr == null || attr.getName() == null || attr.getName().isBlank()) {
+                continue;
+            }
+            addIfNotBlank(savedReferences, "AttrData:" + attr.getName(), attr.getValue());
+        }
     }
 
     private static String getAttr(AttributeData[] attrs, String attrName) {

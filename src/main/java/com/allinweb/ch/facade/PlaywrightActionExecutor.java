@@ -247,6 +247,9 @@ public class PlaywrightActionExecutor {
             return;
         }
 
+        String originalTag = "";
+        String id = "";
+        String name = "";
         for (ReferenceLoadDTO ref : references) {
             if (ref == null
                     || ref.getReferenceType() == null
@@ -257,6 +260,14 @@ public class PlaywrightActionExecutor {
 
             String type = ref.getReferenceType().toLowerCase(Locale.ROOT);
             String value = ref.getValue();
+            if (type.equals("dom.originaltag") || type.equals("attrdata:original-tag")) {
+                originalTag = value;
+            } else if (type.equals("locator.best.byid") || type.equals("attrdata:id")) {
+                id = value;
+            } else if (type.equals("locator.best.byname") || type.equals("attrdata:name")) {
+                name = value;
+            }
+
             // Order matters: "test-id"/"data-testid" both contain "id", so they must be checked
             // BEFORE the generic id branch, or they'd be mis-built as an #id selector.
             if (type.contains("xpath")) {
@@ -272,6 +283,28 @@ public class PlaywrightActionExecutor {
                 addCss(selectors, "[name=\"" + cssAttribute(value) + "\"]");
             }
         }
+
+        addOriginalTagFallbacks(selectors, originalTag, id, name);
+    }
+
+    private static void addOriginalTagFallbacks(List<String> selectors, String originalTag, String id, String name) {
+        if (originalTag == null || originalTag.isBlank() || !isSafeTagName(originalTag)) {
+            return;
+        }
+
+        String tag = originalTag.toLowerCase(Locale.ROOT);
+        if (id != null && !id.isBlank()) {
+            addCss(selectors, tag + "#" + cssEscape(id.replaceFirst("^#", "")));
+            addXPath(selectors, "//" + tag + "[@id='" + id + "']");
+        }
+        if (name != null && !name.isBlank()) {
+            addCss(selectors, tag + "[name=\"" + cssAttribute(name) + "\"]");
+            addXPath(selectors, "//" + tag + "[@name='" + name + "']");
+        }
+    }
+
+    private static boolean isSafeTagName(String value) {
+        return value.matches("[A-Za-z][A-Za-z0-9_-]*");
     }
 
     private static boolean isSelectOptionInstruction(InstructionLoad instruction) {
