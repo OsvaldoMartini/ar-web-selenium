@@ -58,6 +58,65 @@ public class PlaywrightElementScanner {
                   .replace(/([a-z])([A-Z])/g, '$1 $2'));
               }
 
+              function usefulText(text, el, kind) {
+                const cleaned = cleanText(text);
+                if (!cleaned) return '';
+                const normalized = cleaned.toLowerCase();
+                const generic = [
+                  'checkbox label',
+                  'radio label',
+                  'input label',
+                  'select label',
+                  'textarea label',
+                  'button label',
+                  'label'
+                ];
+                if (generic.includes(normalized)) return '';
+                if ((kind || '').includes('checkbox') && /^checkbox\\s*(label)?\\s*\\d*$/i.test(cleaned)) return '';
+                if ((kind || '').includes('radio') && /^radio\\s*(label)?\\s*\\d*$/i.test(cleaned)) return '';
+                return cleaned;
+              }
+
+              function semanticAttributeText(el) {
+                const attrs = ['data-testid', 'data-test-id', 'test-id', 'data-cy', 'data-qa', 'aria-controls', 'name', 'id'];
+                for (const attrName of attrs) {
+                  const text = semanticToken(el.getAttribute(attrName) || '');
+                  if (isUsefulSemanticToken(text)) return text;
+                }
+
+                if (typeof el.className === 'string') {
+                  const classText = el.className
+                    .split(/\\s+/)
+                    .map(semanticToken)
+                    .filter(isUsefulSemanticToken)
+                    .join(' ');
+                  if (classText) return classText;
+                }
+                return '';
+              }
+
+              function semanticToken(text) {
+                const noiseWords = new Set([
+                  'id', 'chkbox', 'checkbox', 'radio', 'input', 'textarea', 'select',
+                  'handler', 'control', 'field', 'form', 'option', 'label', 'btn', 'button'
+                ]);
+                return humanizeToken(text)
+                  .split(/\\s+/)
+                  .filter(word => !noiseWords.has(word.toLowerCase()))
+                  .join(' ')
+                  .trim();
+              }
+
+              function isUsefulSemanticToken(text) {
+                const normalized = cleanText(text).toLowerCase();
+                if (!normalized || normalized.length < 3) return false;
+                const noise = new Set([
+                  'id', 'chkbox id', 'checkbox', 'radio', 'input', 'textarea', 'select',
+                  'handler', 'control', 'field', 'form', 'option', 'label', 'btn', 'button'
+                ]);
+                return !noise.has(normalized);
+              }
+
               function cssSelector(el) {
                 if (!el) return '';
                 const tag = el.tagName.toLowerCase();
@@ -95,7 +154,7 @@ public class PlaywrightElementScanner {
                   && style.display !== 'none';
               }
 
-              function someText(el, attrs) {
+              function someText(el, attrs, kind) {
                 const by = attrs.find(a => a.name === 'aria-labelledby')?.value;
                 if (by) {
                   const text = by.split(/\\s+/)
@@ -103,24 +162,29 @@ public class PlaywrightElementScanner {
                     .map(cleanText)
                     .filter(Boolean)
                     .join(' ');
-                  if (text) return cleanText(text);
+                  const useful = usefulText(text, el, kind);
+                  if (useful) return useful;
                 }
                 if (el.id) {
                   const label = document.querySelector('label[for="' + CSS.escape(el.id) + '"]');
-                  if (label?.textContent) return cleanText(label.textContent);
+                  const useful = usefulText(label?.textContent, el, kind);
+                  if (useful) return useful;
                 }
                 const wrappedLabel = el.closest('label');
-                if (wrappedLabel?.textContent) return cleanText(wrappedLabel.textContent);
+                const wrappedText = usefulText(wrappedLabel?.textContent, el, kind);
+                if (wrappedText) return wrappedText;
                 const aria = attrs.find(a => a.name === 'aria-label')?.value;
-                if (aria) return cleanText(aria);
+                const ariaText = usefulText(aria, el, kind);
+                if (ariaText) return ariaText;
                 const placeholder = attrs.find(a => a.name === 'placeholder')?.value;
-                if (placeholder) return cleanText(placeholder);
+                const placeholderText = usefulText(placeholder, el, kind);
+                if (placeholderText) return placeholderText;
 
                 let current = el;
                 for (let depth = 0; current && depth < 5; depth++, current = current.parentElement) {
                   const previous = current.previousElementSibling;
                   if (previous?.tagName?.toLowerCase() === 'label') {
-                    const text = cleanText(previous.textContent);
+                    const text = usefulText(previous.textContent, el, kind);
                     if (text) return text;
                   }
 
@@ -134,7 +198,7 @@ public class PlaywrightElementScanner {
                       const closeAbove = labelRect.bottom <= elRect.top + 8 && Math.abs(labelRect.left - elRect.left) < 260;
                       const sameContainer = label.parentElement === container || label.closest('.form-field, [id]') === container;
                       if (closeAbove || sameContainer) {
-                        const text = cleanText(label.textContent);
+                        const text = usefulText(label.textContent, el, kind);
                         if (text) return text;
                       }
                     }
@@ -146,9 +210,11 @@ public class PlaywrightElementScanner {
                 }
 
                 const own = cleanText(el.innerText || el.textContent || '');
-                if (own) return own;
-                const name = humanizeToken(el.getAttribute('name') || el.id || '');
-                return name;
+                const ownText = usefulText(own, el, kind);
+                if (ownText) return ownText;
+                const semantic = semanticAttributeText(el);
+                if (semantic) return semantic;
+                return humanizeToken(el.getAttribute('name') || el.id || '');
               }
 
               function inputType(el) {
@@ -240,7 +306,7 @@ public class PlaywrightElementScanner {
                   definedName: '',
                   clientNamed: '',
                   xPath: override?.xPath || generateXPath(el),
-                  someText: override?.someText || someText(el, attrs),
+                  someText: override?.someText || someText(el, attrs, kind),
                   attribId: el.id || '',
                   attribName: el.getAttribute('name') || '',
                   coordinates: rect.left.toFixed(2) + ',' + rect.top.toFixed(2),
