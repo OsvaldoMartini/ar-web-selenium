@@ -183,7 +183,7 @@ public final class ElementTextResolver {
         }
 
         // S3 — scanner-provided someText (medium weight; defers to label / aria when present)
-        if (e.getSomeText() != null && !e.getSomeText().isBlank()) {
+        if (e.getSomeText() != null && !e.getSomeText().isBlank() && !isGenericControlLabel(e.getSomeText(), e)) {
             out.add(new TextCandidate(e.getSomeText(), 0.40, "scanner.someText"));
         }
 
@@ -203,6 +203,11 @@ public final class ElementTextResolver {
         if (myName != null && !myName.isBlank()) {
             String h = TextSimilarity.humanize(myName);
             if (!h.isBlank()) out.add(new TextCandidate(h, 0.30, "name-humanized"));
+        }
+
+        String semantic = semanticAttributeText(e);
+        if (!semantic.isBlank()) {
+            out.add(new TextCandidate(semantic, 0.35, "semantic-attribute"));
         }
 
         // S7 / S8 — OCR (weights from cfg, default 0.85 / 0.70 / 0.55)
@@ -260,7 +265,7 @@ public final class ElementTextResolver {
 
     private static void addAttrCandidate(List<TextCandidate> out, ElementDTO e, String attrName, double score) {
         String v = getAttribute(e, attrName);
-        if (v != null && !v.isBlank()) {
+        if (v != null && !v.isBlank() && !isGenericControlLabel(v, e)) {
             out.add(new TextCandidate(v, score, attrName));
         }
     }
@@ -281,6 +286,75 @@ public final class ElementTextResolver {
      */
     private static boolean isOcrNoise(String text) {
         return clean(text).length() < 2;
+    }
+
+    private static boolean isGenericControlLabel(String text, ElementDTO e) {
+        String value = clean(text).toLowerCase(Locale.ROOT);
+        if (value.isBlank()) return true;
+        Set<String> generic = Set.of(
+                "checkbox label",
+                "radio label",
+                "input label",
+                "select label",
+                "textarea label",
+                "button label",
+                "label");
+        if (generic.contains(value)) return true;
+
+        String kind = getAttribute(e, "control.kind");
+        if (kind == null && e != null) kind = e.getAttributeType();
+        kind = kind == null ? "" : kind.toLowerCase(Locale.ROOT);
+        return (kind.contains("checkbox") && value.matches("checkbox\\s*(label)?\\s*\\d*"))
+                || (kind.contains("radio") && value.matches("radio\\s*(label)?\\s*\\d*"));
+    }
+
+    private static String semanticAttributeText(ElementDTO e) {
+        List<String> raw = new ArrayList<>();
+        raw.add(getAttribute(e, "data-testid"));
+        raw.add(getAttribute(e, "data-test-id"));
+        raw.add(getAttribute(e, "test-id"));
+        raw.add(getAttribute(e, "data-cy"));
+        raw.add(getAttribute(e, "data-qa"));
+        raw.add(getAttribute(e, "aria-controls"));
+        raw.add(e == null ? null : e.getAttribName());
+        raw.add(e == null ? null : e.getAttribId());
+        raw.add(getAttribute(e, "class"));
+
+        for (String value : raw) {
+            String token = semanticToken(value);
+            if (!token.isBlank()) return token;
+        }
+        return "";
+    }
+
+    private static String semanticToken(String value) {
+        if (value == null || value.isBlank()) return "";
+        Set<String> noise = Set.of(
+                "id",
+                "chkbox",
+                "checkbox",
+                "radio",
+                "input",
+                "textarea",
+                "select",
+                "handler",
+                "control",
+                "field",
+                "form",
+                "option",
+                "label",
+                "btn",
+                "button");
+        StringBuilder out = new StringBuilder();
+        for (String word : TextSimilarity.humanize(value).split("\\s+")) {
+            String cleaned = clean(word);
+            if (cleaned.isBlank() || noise.contains(cleaned.toLowerCase(Locale.ROOT))) {
+                continue;
+            }
+            if (out.length() > 0) out.append(' ');
+            out.append(cleaned);
+        }
+        return clean(out.toString());
     }
 
     private static String clean(String text) {

@@ -3,6 +3,7 @@ package com.allinweb.ch.facade;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.allinweb.ch.model.AttributeData;
 import com.allinweb.ch.model.ElementDTO;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -71,5 +72,27 @@ class ElementTextResolverTest {
 
         assertEquals("Salva", iconBtn.getSomeText());
         assertTrue(iconBtn.getDefinedName().startsWith("salva"));
+    }
+
+    @Test
+    void genericCheckboxLabelFallsBackToSemanticAttribute() {
+        ElementDTO checkbox = new ElementDTO();
+        checkbox.setTagName("input");
+        checkbox.setTypeElement("input");
+        checkbox.setAttribId("chkbox-id");
+        checkbox.setXPath("//*[@id='chkbox-id']");
+        checkbox.setSomeText("checkbox label");
+        checkbox.setAttributeType("checkbox-option");
+        checkbox.setAttributeData(new AttributeData[] {
+            new AttributeData("id", "chkbox-id"),
+            new AttributeData("type", "checkbox"),
+            new AttributeData("class", "category-filter-handler"),
+            new AttributeData("control.kind", "checkbox-option")
+        });
+
+        ElementTextResolver.resolveAll(new ElementDTO[] {checkbox}, null, null);
+
+        assertEquals("category filter", checkbox.getSomeText());
+        assertEquals("category_filter", checkbox.getDefinedName());
     }
 }
