@@ -11,8 +11,10 @@ import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
+import com.microsoft.playwright.TimeoutError;
 import com.microsoft.playwright.options.LoadState;
 import com.microsoft.playwright.options.ViewportSize;
+import com.microsoft.playwright.options.WaitUntilState;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
@@ -54,8 +56,7 @@ public class ARPlaywrightDriver {
                     new Browser.NewContextOptions().setBypassCSP(true).setViewportSize(null));
             page = context.newPage();
             attachDiagnostics(page);
-            page.navigate(url);
-            page.waitForLoadState(LoadState.DOMCONTENTLOADED);
+            navigateDomReady(page, url);
             return null;
         });
     }
@@ -63,8 +64,7 @@ public class ARPlaywrightDriver {
     public void openOrNavigate(String browserType, String url, String optionsConfig) {
         run(() -> {
             if (page != null && !page.isClosed()) {
-                page.navigate(url);
-                page.waitForLoadState(LoadState.DOMCONTENTLOADED);
+                navigateDomReady(page, url);
                 return null;
             }
 
@@ -75,16 +75,14 @@ public class ARPlaywrightDriver {
                     new Browser.NewContextOptions().setBypassCSP(true).setViewportSize(null));
             page = context.newPage();
             attachDiagnostics(page);
-            page.navigate(url);
-            page.waitForLoadState(LoadState.DOMCONTENTLOADED);
+            navigateDomReady(page, url);
             return null;
         });
     }
 
     public void navigate(String url) {
         run(() -> {
-            requirePage().navigate(url);
-            requirePage().waitForLoadState(LoadState.DOMCONTENTLOADED);
+            navigateDomReady(requirePage(), url);
             return null;
         });
     }
@@ -169,6 +167,31 @@ public class ARPlaywrightDriver {
 
     public boolean isOpen() {
         return call(() -> page != null && !page.isClosed());
+    }
+
+    private void navigateDomReady(Page targetPage, String url) {
+        try {
+            targetPage.navigate(
+                    url,
+                    new Page.NavigateOptions()
+                            .setWaitUntil(WaitUntilState.DOMCONTENTLOADED)
+                            .setTimeout(60000));
+            targetPage.waitForLoadState(LoadState.DOMCONTENTLOADED);
+        } catch (TimeoutError timeout) {
+            String current = "";
+            try {
+                current = targetPage.url();
+            } catch (Exception ignored) {
+                // Keep the original navigation timeout as the meaningful error.
+            }
+            if (current != null && !current.isBlank() && !Objects.equals("about:blank", current)) {
+                log.warn(
+                        "Playwright navigation timed out after reaching '{}'; continuing with current DOM for scanner startup",
+                        current);
+                return;
+            }
+            throw timeout;
+        }
     }
 
     public void close() {
