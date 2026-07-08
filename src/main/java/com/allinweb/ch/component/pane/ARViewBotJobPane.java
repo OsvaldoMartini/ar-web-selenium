@@ -1894,8 +1894,8 @@ public class ARViewBotJobPane extends ARPane {
             sendPreScanStatus("failed", String.valueOf(error.getMessage()), 0);
             Platform.runLater(() -> performMessage.errorMessage(
                     "PRE SCAN - Failed",
-                    "<span style='color: #D32F2F; font-weight: bold;'>"
-                            + String.valueOf(error.getMessage()) + "</span>",
+                    "<span style='color: #D32F2F; font-weight: bold;'>" + String.valueOf(error.getMessage())
+                            + "</span>",
                     "The lightweight scanner could not complete for the selected URL.",
                     null,
                     null,
@@ -2004,14 +2004,16 @@ public class ARViewBotJobPane extends ARPane {
 
     private List<java.util.Map<String, Object>> preScanBlockOptions() {
         if (performLists.getListBlock().isEmpty()) {
-            ErrorMessage errorMessage = performDataBase.loadBlocks(selectedBotJob.getId(), selectedBotJob.getName(), "block");
+            ErrorMessage errorMessage =
+                    performDataBase.loadBlocks(selectedBotJob.getId(), selectedBotJob.getName(), "block");
             if (errorMessage != null) {
                 log.warn("PRE SCAN - could not load blocks: {}", errorMessage.getErrorMessage());
             }
         }
         return performLists.getListBlock().stream()
                 .filter(block -> block != null && block.getId() != null)
-                .filter(block -> block.getBotJobId() == null || selectedBotJob.getId().equals(block.getBotJobId()))
+                .filter(block ->
+                        block.getBotJobId() == null || selectedBotJob.getId().equals(block.getBotJobId()))
                 .sorted(java.util.Comparator.comparingInt(
                         block -> block.getBlockOrderNumber() == null ? Integer.MAX_VALUE : block.getBlockOrderNumber()))
                 .map(block -> {
