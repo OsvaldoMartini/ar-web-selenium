@@ -1802,7 +1802,16 @@ public class ARViewBotJobPane extends ARPane {
             return;
         }
 
-        if (!"PRE_SCAN_PAGE".equals(type) && !"PRE_SCAN_REFRESH_PAGE".equals(type)) {
+        if ("PRE_SCAN_REFRESH_PAGE".equals(type)) {
+            Thread worker = new Thread(
+                    this::refreshPreScanPage,
+                    "pre-scan-refresh-" + (selectedBotJob == null ? "unknown" : selectedBotJob.getId()));
+            worker.setDaemon(true);
+            worker.start();
+            return;
+        }
+
+        if (!"PRE_SCAN_PAGE".equals(type)) {
             return;
         }
 
@@ -1820,6 +1829,36 @@ public class ARViewBotJobPane extends ARPane {
         worker.start();
     }
 
+    private void refreshPreScanPage() {
+        if (selectedBotJob == null) {
+            log.warn("PRE SCAN refresh skipped: no selected bot job");
+            return;
+        }
+
+        String endpointUrl = selectedEndpointUrl();
+        if (Strings.isNullOrEmpty(endpointUrl)) {
+            log.warn("PRE SCAN refresh skipped: no endpoint URL selected");
+            sendPreScanStatus("failed", "No endpoint URL selected.", 0);
+            return;
+        }
+
+        String browserType = arPropertyManager.getProperty(ARPropertyEnum.BROWSER);
+        String optionsConfig = preScanOptionsConfig();
+
+        try {
+            if (preScanDriver == null || !preScanDriver.isOpen()) {
+                ensurePreScanBrowserOpen(browserType, endpointUrl, optionsConfig);
+            } else {
+                sendPreScanStatus("running", "Refreshing browser page...", 0);
+                preScanDriver.reload();
+            }
+            sendPreScanStatus("done", "Web page refreshed. Run Page Scanner to update the grid.", 0);
+        } catch (Exception error) {
+            log.error("PRE SCAN refresh failed", error);
+            sendPreScanStatus("failed", String.valueOf(error.getMessage()), 0);
+        }
+    }
+
     private void runPreScan(String searchTerms, boolean searchHidden) {
         if (selectedBotJob == null) {
             log.warn("PRE SCAN skipped: no selected bot job");
@@ -1829,32 +1868,30 @@ public class ARViewBotJobPane extends ARPane {
         String endpointUrl = selectedEndpointUrl();
         if (Strings.isNullOrEmpty(endpointUrl)) {
             log.warn("PRE SCAN skipped: no endpoint URL selected");
+            sendPreScanStatus("failed", "No endpoint URL selected.", 0);
             return;
         }
 
+        sendPreScanStatus("running", "Starting pre-scan for " + endpointUrl, 0);
         sendPreScanReset();
 
         String browserType = arPropertyManager.getProperty(ARPropertyEnum.BROWSER);
-        String optionsConfig = "";
-        HomeBankingLoadDTO homeBanking = performLists.getHomeBankingById(selectedBotJob.getHomeBankingId());
-        if (homeBanking == null) {
-            homeBanking = selectedBotJob.getHomeBankingLoadDTO();
-        }
-        if (homeBanking != null && homeBanking.getOptionsConfig() != null) {
-            optionsConfig = homeBanking.getOptionsConfig();
-        }
+        String optionsConfig = preScanOptionsConfig();
 
         try {
-            if (preScanDriver == null) {
-                preScanDriver = new ARPlaywrightDriver();
-            }
-            log.info("PRE SCAN - opening isolated visible Playwright at {}", endpointUrl);
-            preScanDriver.openOrNavigate(browserType, endpointUrl, optionsConfig, false);
+            ensurePreScanBrowserOpen(browserType, endpointUrl, optionsConfig);
+            sendPreScanStatus("running", "Scanning page elements...", 0);
             List<ElementDTO> elements = preScanDriver.scanElements(searchTermsArray(searchTerms), searchHidden);
             sendPreScanElements(elements);
+            int count = elements == null ? 0 : elements.size();
+            sendPreScanStatus(
+                    count == 0 ? "empty" : "done",
+                    count == 0 ? "No elements found." : "Found " + count + " web element(s).",
+                    count);
             log.info("PRE SCAN - sent {} elements to preScannerGrid", elements == null ? 0 : elements.size());
         } catch (Exception error) {
             log.error("PRE SCAN failed", error);
+            sendPreScanStatus("failed", String.valueOf(error.getMessage()), 0);
             Platform.runLater(() -> performMessage.errorMessage(
                     "PRE SCAN - Failed",
                     "<span style='color: #D32F2F; font-weight: bold;'>"
@@ -1864,6 +1901,48 @@ public class ARViewBotJobPane extends ARPane {
                     null,
                     0));
         }
+    }
+
+    private void ensurePreScanBrowserOpen(String browserType, String endpointUrl, String optionsConfig) {
+        if (preScanDriver == null || !preScanDriver.isOpen()) {
+            preScanDriver = new ARPlaywrightDriver();
+            log.info("PRE SCAN - opening isolated visible Playwright at {}", endpointUrl);
+            sendPreScanStatus("running", "Opening isolated browser...", 0);
+            preScanDriver.openOrNavigate(browserType, endpointUrl, optionsConfig, false);
+            return;
+        }
+
+        String currentUrl = "";
+        try {
+            currentUrl = preScanDriver.currentUrl();
+        } catch (Exception ignored) {
+            // If currentUrl cannot be read, still try to scan the active page.
+        }
+        log.info("PRE SCAN - scanning current isolated browser page {}", currentUrl);
+        sendPreScanStatus("running", "Using current browser page...", 0);
+    }
+
+    private String preScanOptionsConfig() {
+        HomeBankingLoadDTO homeBanking = performLists.getHomeBankingById(selectedBotJob.getHomeBankingId());
+        if (homeBanking == null) {
+            homeBanking = selectedBotJob.getHomeBankingLoadDTO();
+        }
+        return homeBanking != null && homeBanking.getOptionsConfig() != null ? homeBanking.getOptionsConfig() : "";
+    }
+
+    private void sendPreScanStatus(String status, String message, int elementCount) {
+        if (selectedBotJob == null) {
+            return;
+        }
+        java.util.Map<String, Object> payload = new java.util.LinkedHashMap<>();
+        payload.put("status", status);
+        payload.put("message", message == null ? "" : message);
+        payload.put("elementCount", elementCount);
+        payload.put("botJobId", selectedBotJob.getId());
+        payload.put("botJobName", selectedBotJob.getName());
+        payload.put("homeBankingId", selectedBotJob.getHomeBankingId());
+        webSocketSessionManager.sendMessageJson(
+                selectedBotJob.getHomeBankingId(), "preScannerGrid", gson.toJson(payload), "preScanStatus");
     }
 
     private String selectedEndpointUrl() {
@@ -1886,7 +1965,7 @@ public class ARViewBotJobPane extends ARPane {
 
     private String[] searchTermsArray(String searchTerms) {
         if (Strings.isNullOrEmpty(searchTerms)) {
-            return new String[] {"button", "a", "select", "option", "input", "textarea", "role", "aria-haspopup"};
+            return new String[0];
         }
         return java.util.Arrays.stream(searchTerms.split(","))
                 .map(String::trim)

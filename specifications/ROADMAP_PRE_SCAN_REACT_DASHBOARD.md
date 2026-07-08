@@ -6,6 +6,8 @@ Add a `PRE SCAN` flow before `TEST RUN` that scans the selected URL with Playwri
 
 The first version must be read-only until the user clicks `Apply`. Scanning should not automatically create bot job instructions.
 
+Migration rule: keep the existing AR Web Factory / `ARScannedElementPane` implementation intact while the React dashboard migration is in progress. New dashboard behavior must be additive and must preserve existing button visibility/availability rules for each client build. Remove old JavaFX scanner code only after the migrated flow is verified end to end.
+
 ## Current System
 
 - `ARViewBotJobPane` owns the Bot Job Details toolbar and already has `TEST RUN`.
