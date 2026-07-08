@@ -172,12 +172,39 @@ public class PlaywrightActionExecutor {
         }
     }
 
+    private boolean isWritableLocator(Locator locator) {
+        try {
+            Object writable = locator.evaluate(
+                    """
+                    (el) => {
+                      if (!el) return false;
+                      const tag = (el.tagName || '').toLowerCase();
+                      const type = (el.getAttribute('type') || 'text').toLowerCase();
+                      const role = (el.getAttribute('role') || '').toLowerCase();
+                      if (el.isContentEditable || role === 'textbox') return true;
+                      if (tag === 'textarea') return true;
+                      if (tag !== 'input') return false;
+                      return !['button', 'submit', 'reset', 'file', 'checkbox', 'radio', 'hidden', 'image'].includes(type);
+                    }
+                    """);
+            return Boolean.TRUE.equals(writable);
+        } catch (Exception error) {
+            log.debug("Playwright writable probe failed: {}", error.getMessage());
+            return false;
+        }
+    }
+
     public boolean fill(Page page, InstructionLoad instruction, FieldData data) {
         if (page == null || page.isClosed() || instruction == null) {
             return false;
         }
 
-        Locator locator = locate(page, instruction);
+        if (isClickOnlyInstruction(instruction)) {
+            log.info("Playwright fill requested for click-only control '{}'; routing to click", instruction.getName());
+            return click(page, instruction);
+        }
+
+        Locator locator = locateWritable(page, instruction);
         if (locator == null || locator.count() == 0) {
             return fillCoordinates(page, instruction.getCoordinates(), data == null ? "" : data.getValue());
         }
@@ -195,6 +222,29 @@ public class PlaywrightActionExecutor {
             log.debug("Playwright fill failed, trying coordinates: {}", fillError.getMessage());
             return fillCoordinates(page, instruction.getCoordinates(), data == null ? "" : data.getValue());
         }
+    }
+
+    private Locator locateWritable(Page page, InstructionLoad instruction) {
+        List<String> selectors = selectorsFor(instruction);
+        for (String selector : selectors) {
+            try {
+                Locator locator;
+                if (instruction.getIFrameXPath() != null
+                        && !instruction.getIFrameXPath().isBlank()) {
+                    FrameLocator frame = page.frameLocator("xpath=" + instruction.getIFrameXPath());
+                    locator = frame.locator(selector);
+                } else {
+                    locator = page.locator(selector);
+                }
+
+                if (locator.count() > 0 && isWritableLocator(locator.first())) {
+                    return locator;
+                }
+            } catch (Exception error) {
+                log.debug("Playwright writable locator failed for {}: {}", selector, error.getMessage());
+            }
+        }
+        return null;
     }
 
     public String text(Page page, InstructionLoad instruction) {
@@ -317,6 +367,35 @@ public class PlaywrightActionExecutor {
                                 instruction, "control.kind", "AttrData:control.kind", "attributeType"));
     }
 
+    private static boolean isClickOnlyInstruction(InstructionLoad instruction) {
+        String kind = firstReferenceValue(instruction, "control.kind", "AttrData:control.kind", "attributeType")
+                .toLowerCase(Locale.ROOT);
+        String type = firstReferenceValue(instruction, "type", "AttrData:type").toLowerCase(Locale.ROOT);
+        String role = firstReferenceValue(instruction, "control.role", "AttrData:control.role", "role", "AttrData:role")
+                .toLowerCase(Locale.ROOT);
+
+        if (isSelectOptionInstruction(instruction)) {
+            return true;
+        }
+        if (kind.contains("radio")
+                || kind.contains("checkbox")
+                || kind.contains("switch")
+                || kind.contains("button")
+                || kind.contains("option")
+                || kind.contains("menu")
+                || kind.contains("tree")
+                || kind.contains("tab")
+                || kind.contains("calendar")
+                || kind.contains("upload")) {
+            return true;
+        }
+        if (List.of("radio", "checkbox", "button", "submit", "reset", "file", "hidden").contains(type)) {
+            return true;
+        }
+        return List.of("radio", "checkbox", "button", "switch", "option", "menuitem", "tab", "treeitem")
+                .contains(role);
+    }
+
     private static String firstReferenceValue(InstructionLoad instruction, String... referenceTypes) {
         if (referenceTypes == null) {
             return "";
@@ -372,6 +451,24 @@ public class PlaywrightActionExecutor {
             return false;
         }
         page.mouse().click(point[0], point[1]);
+        Object writable = page.evaluate(
+                """
+                () => {
+                  const el = document.activeElement;
+                  if (!el) return false;
+                  const tag = (el.tagName || '').toLowerCase();
+                  const type = (el.getAttribute('type') || 'text').toLowerCase();
+                  const role = (el.getAttribute('role') || '').toLowerCase();
+                  if (el.isContentEditable || role === 'textbox') return true;
+                  if (tag === 'textarea') return true;
+                  if (tag !== 'input') return false;
+                  return !['button', 'submit', 'reset', 'file', 'checkbox', 'radio', 'hidden', 'image'].includes(type);
+                }
+                """);
+        if (!Boolean.TRUE.equals(writable)) {
+            log.warn("Playwright coordinate fill refused: focused element is not writable at {}", coordinates);
+            return false;
+        }
         page.keyboard().press("Control+A");
         page.keyboard().type(value == null ? "" : value);
         return true;
