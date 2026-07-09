@@ -1883,7 +1883,7 @@ public class ARViewBotJobPane extends ARPane {
                 return;
             }
 
-            sendPreScanStatus("running", "Starting pre-scan for " + endpointUrl, 0);
+            sendPreScanStatus("waiting", "Starting pre-scan for " + endpointUrl, 0);
             sendPreScanReset();
 
             String browserType = arPropertyManager.getProperty(ARPropertyEnum.BROWSER);
@@ -1894,10 +1894,10 @@ public class ARViewBotJobPane extends ARPane {
             // before the user clicks Page Scanner. Here the scan can fire right after
             // DOMContentLoaded, so wait until the network is quiet and the DOM stops
             // mutating — otherwise the first scan sees the half-rendered page.
-            sendPreScanStatus("running", "Waiting for the page to settle...", 0);
+            sendPreScanStatus("waiting", "Loading the Page - waiting to settle...", 0);
             long settledMs = preScanDriver.waitForPageSettled(15000);
             log.info("PRE SCAN - page settled after {} ms", settledMs);
-            sendPreScanStatus("running", "Scanning page elements...", 0);
+            sendPreScanStatus("running", "web elements...", 0);
             List<ElementDTO> elements = preScanDriver.scanElements(searchTermsArray(searchTerms), searchHidden);
             elements = keepActionableElements(elements);
             resolvePreScanNames(elements);
@@ -2031,7 +2031,7 @@ public class ARViewBotJobPane extends ARPane {
         if (preScanDriver == null || !preScanDriver.isOpen()) {
             preScanDriver = new ARPlaywrightDriver();
             log.info("PRE SCAN - opening isolated visible Playwright at {}", endpointUrl);
-            sendPreScanStatus("running", "Opening isolated browser...", 0);
+            sendPreScanStatus("waiting", "Loading the Page - Opening isolated browser...", 0);
             preScanDriver.openOrNavigate(browserType, endpointUrl, optionsConfig, false);
             return;
         }
@@ -2043,7 +2043,7 @@ public class ARViewBotJobPane extends ARPane {
             // If currentUrl cannot be read, still try to scan the active page.
         }
         log.info("PRE SCAN - scanning current isolated browser page {}", currentUrl);
-        sendPreScanStatus("running", "Using current browser page...", 0);
+        sendPreScanStatus("waiting", "Loading the Page - Using current browser page...", 0);
     }
 
     private String preScanOptionsConfig() {
