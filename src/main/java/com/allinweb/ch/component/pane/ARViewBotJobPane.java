@@ -139,6 +139,10 @@ public class ARViewBotJobPane extends ARPane {
     private WebEngine webEnginePreScanner;
     private boolean isPreScannerVisible = false;
     private ARPlaywrightDriver preScanDriver;
+    // Guards runPreScan: double-clicking PRE SCAN must not interleave two chunk
+    // streams into the same preScannerGrid session.
+    private final java.util.concurrent.atomic.AtomicBoolean preScanRunning =
+            new java.util.concurrent.atomic.AtomicBoolean(false);
     private boolean isApiToolVisible = false;
     Button apiToolToggleButton;
     private ARScene arScene;
@@ -1865,23 +1869,30 @@ public class ARViewBotJobPane extends ARPane {
             return;
         }
 
-        String endpointUrl = selectedEndpointUrl();
-        if (Strings.isNullOrEmpty(endpointUrl)) {
-            log.warn("PRE SCAN skipped: no endpoint URL selected");
-            sendPreScanStatus("failed", "No endpoint URL selected.", 0);
+        if (!preScanRunning.compareAndSet(false, true)) {
+            log.warn("PRE SCAN skipped: a scan is already in progress");
+            sendPreScanStatus("running", "A pre-scan is already in progress...", 0);
             return;
         }
 
-        sendPreScanStatus("running", "Starting pre-scan for " + endpointUrl, 0);
-        sendPreScanReset();
-
-        String browserType = arPropertyManager.getProperty(ARPropertyEnum.BROWSER);
-        String optionsConfig = preScanOptionsConfig();
-
         try {
+            String endpointUrl = selectedEndpointUrl();
+            if (Strings.isNullOrEmpty(endpointUrl)) {
+                log.warn("PRE SCAN skipped: no endpoint URL selected");
+                sendPreScanStatus("failed", "No endpoint URL selected.", 0);
+                return;
+            }
+
+            sendPreScanStatus("running", "Starting pre-scan for " + endpointUrl, 0);
+            sendPreScanReset();
+
+            String browserType = arPropertyManager.getProperty(ARPropertyEnum.BROWSER);
+            String optionsConfig = preScanOptionsConfig();
+
             ensurePreScanBrowserOpen(browserType, endpointUrl, optionsConfig);
             sendPreScanStatus("running", "Scanning page elements...", 0);
             List<ElementDTO> elements = preScanDriver.scanElements(searchTermsArray(searchTerms), searchHidden);
+            persistPreScanDiagnostics(elements);
             sendPreScanElements(elements);
             int count = elements == null ? 0 : elements.size();
             sendPreScanStatus(
@@ -1900,6 +1911,46 @@ public class ARViewBotJobPane extends ARPane {
                     null,
                     null,
                     0));
+        } finally {
+            preScanRunning.set(false);
+        }
+    }
+
+    /**
+     * Comparison artifact for tracking differences against the original AR Web Factory
+     * Page Scanner: writes the same dumps {@code PerformListElements} produces
+     * ({@code elementDTO-PS.json} / {@code AI-ElementDTO-PS.json}) under the {@code -BJ}
+     * suffix. Note: pre-scan skips the OCR {@code ElementTextResolver}, so
+     * {@code definedName} is empty here by design — comparisons should ignore that field
+     * until resolver parity lands.
+     */
+    private void persistPreScanDiagnostics(List<ElementDTO> elements) {
+        if (elements == null || elements.isEmpty()) {
+            return;
+        }
+        try {
+            String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+            ElementDTO[] asArray = elements.toArray(new ElementDTO[0]);
+
+            List<String> excludeList = List.of("optional", "blockMarked", "editMode");
+            performMessage.outputJsonElementDTO(asArray, excludeList, "elementDTO-PS-BJ", jsonPath);
+
+            List<String> aiExcludeList = List.of(
+                    "optional",
+                    "blockMarked",
+                    "editMode",
+                    "id",
+                    "attributeData",
+                    "typeElement",
+                    "customXPath",
+                    "shadowRoot",
+                    "nestedShadow",
+                    "searchAttributeValue",
+                    "attributeType",
+                    "attributeValue");
+            performMessage.outputJsonElementDTO(asArray, aiExcludeList, "AI-ElementDTO-PS-BJ", jsonPath);
+        } catch (Exception jsonError) {
+            log.warn("PRE SCAN - failed to persist element JSON: {}", jsonError.getMessage());
         }
     }
 

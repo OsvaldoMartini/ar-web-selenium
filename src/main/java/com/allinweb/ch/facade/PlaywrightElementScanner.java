@@ -333,8 +333,20 @@ public class PlaywrightElementScanner {
               const out = [];
               elements.forEach((el, idx) => {
                 const tag = el.tagName.toLowerCase();
-                const base = makeDto(el, idx);
-                if (base) out.push(base);
+                // A <select> is the clickable trigger: emit it under the decided-category
+                // convention (tagName 'button', like the per-option DTOs below) so grids
+                // that group by tag land it in the Button bucket instead of minting a
+                // one-off 'select' group. The raw tag stays traceable in attributeData.
+                const base = tag === 'select'
+                  ? makeDto(el, idx, { tagName: 'button', typeElement: 'button' })
+                  : makeDto(el, idx);
+                if (base) {
+                  if (tag === 'select') {
+                    base.attributeData.push({ name: 'original-tag', value: 'select' });
+                    base.attributeData.push({ name: 'select-xpath', value: generateXPath(el) });
+                  }
+                  out.push(base);
+                }
 
                 if (tag === 'select') {
                   const trigger = nearestCombobox(el);
