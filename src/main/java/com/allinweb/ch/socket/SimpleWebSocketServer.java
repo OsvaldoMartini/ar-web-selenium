@@ -949,8 +949,14 @@ public class SimpleWebSocketServer {
                 case "DOM_REVIEW_RESPONSE":
                     String reviewAction =
                             jsonEntry.has("action") ? jsonEntry.get("action").getAsString() : "cancel";
-                    log.info("DOM_REVIEW_RESPONSE received: action={}", reviewAction);
-                    ARScannedElementPane.getInstance().handleDomReviewResponse(reviewAction);
+                    log.info("DOM_REVIEW_RESPONSE received: action={} session={}", reviewAction, sessionIdToSend);
+                    // The pre-scan dashboard has its own pending HTML (isolated browser);
+                    // route by the responding session so the two flows never cross.
+                    if (sessionIdToSend != null && sessionIdToSend.contains("preScannerGrid")) {
+                        ARViewBotJobPane.getInstance().handlePreScanDomReviewResponse(reviewAction);
+                    } else {
+                        ARScannedElementPane.getInstance().handleDomReviewResponse(reviewAction);
+                    }
                     alreadySentMgsSocket = true;
                     break;
                 case "SUPPORT_REQUEST_RESPONSE":
@@ -962,7 +968,12 @@ public class SimpleWebSocketServer {
                             "SUPPORT_REQUEST_RESPONSE received: action={}, messageLen={}",
                             supportAction,
                             supportMessage.length());
-                    ARScannedElementPane.getInstance().handleSupportRequestResponse(supportAction, supportMessage);
+                    if (sessionIdToSend != null && sessionIdToSend.contains("preScannerGrid")) {
+                        ARViewBotJobPane.getInstance()
+                                .handlePreScanSupportRequestResponse(supportAction, supportMessage);
+                    } else {
+                        ARScannedElementPane.getInstance().handleSupportRequestResponse(supportAction, supportMessage);
+                    }
                     alreadySentMgsSocket = true;
                     break;
                 case "REQUEST_SUPPORT_ELEMENTS":
@@ -992,6 +1003,8 @@ public class SimpleWebSocketServer {
                 case "PRE_SCAN_REFRESH_PAGE":
                 case "PRE_SCAN_CLEAR_GRID":
                 case "PRE_SCAN_OCR_CONFIG":
+                case "PRE_SCAN_SEND_DOM_REVIEW":
+                case "PRE_SCAN_REQUEST_SUPPORT":
                     ARViewBotJobPane.getInstance().handlePreScanCommand(type, jsonEntry);
                     alreadySentMgsSocket = true;
                     break;

@@ -1806,6 +1806,16 @@ public class ARViewBotJobPane extends ARPane {
             return;
         }
 
+        if ("PRE_SCAN_SEND_DOM_REVIEW".equals(type)) {
+            preScanSendDomReview();
+            return;
+        }
+
+        if ("PRE_SCAN_REQUEST_SUPPORT".equals(type)) {
+            preScanRequestSupport();
+            return;
+        }
+
         if ("PRE_SCAN_REFRESH_PAGE".equals(type)) {
             Thread worker = new Thread(
                     this::refreshPreScanPage,
@@ -2044,6 +2054,197 @@ public class ARViewBotJobPane extends ARPane {
         }
         log.info("PRE SCAN - scanning current isolated browser page {}", currentUrl);
         sendPreScanStatus("waiting", "Loading the Page - Using current browser page...", 0);
+    }
+
+    // HTML held between SEND_DOM_REVIEW (capture) and DOM_REVIEW_RESPONSE (user's choice),
+    // mirroring ARScannedElementPane.pendingDomReviewHtml but for the isolated pre-scan browser.
+    private String pendingPreScanDomReviewHtml;
+
+    /** Pre-scan mirror of {@code ARScannedElementPane.sendCurrentDomForReview}. */
+    private void preScanSendDomReview() {
+        if (selectedBotJob == null) {
+            return;
+        }
+        if (preScanDriver == null || !preScanDriver.isOpen()) {
+            sendPreScanStatus("failed", "No pre-scan browser open. Run the Page Scanner first.", 0);
+            return;
+        }
+        try {
+            String rawHtml = preScanDriver.content();
+            if (Strings.isNullOrEmpty(rawHtml)) {
+                log.warn("preScanSendDomReview - empty page source");
+                return;
+            }
+            pendingPreScanDomReviewHtml = rawHtml;
+
+            String currentUrl = "(unknown)";
+            String pageTitle = "";
+            try {
+                currentUrl = preScanDriver.currentUrl();
+                pageTitle = preScanDriver.title();
+            } catch (Exception ignored) {
+                // Keep placeholders; the capture itself is what matters.
+            }
+            String licenseEmail = arPropertyManager.getProperty(ARPropertyEnum.LICENSE_EMAIL);
+            String pcName = com.allinweb.ch.license.SystemDetails.getSystemComputerName();
+            int htmlSizeKb = rawHtml.getBytes(java.nio.charset.StandardCharsets.UTF_8).length / 1024;
+
+            com.google.gson.JsonObject body = new com.google.gson.JsonObject();
+            body.addProperty("url", currentUrl);
+            body.addProperty("title", pageTitle != null ? pageTitle : "");
+            body.addProperty("pcName", pcName);
+            body.addProperty("email", licenseEmail != null ? licenseEmail : "");
+            body.addProperty("htmlSizeKb", htmlSizeKb);
+
+            webSocketSessionManager.sendMessageJson(
+                    selectedBotJob.getHomeBankingId(), "preScannerGrid", body.toString(), "SEND_DOM_REVIEW");
+            log.info("preScanSendDomReview - WS message sent to preScannerGrid, waiting for user response");
+        } catch (Exception ex) {
+            log.error("preScanSendDomReview failed", ex);
+            pendingPreScanDomReviewHtml = null;
+        }
+    }
+
+    /**
+     * Pre-scan mirror of {@code ARScannedElementPane.handleDomReviewResponse}: 'save' writes the
+     * same gzip+base64 {@code .support} envelope locally; 'send' stays hard-stopped like the
+     * legacy path (MultiPlugins uploads are disabled).
+     */
+    public void handlePreScanDomReviewResponse(String action) {
+        String html = pendingPreScanDomReviewHtml;
+        pendingPreScanDomReviewHtml = null;
+
+        if (html == null || "cancel".equals(action)) {
+            log.info("PRE SCAN DOM review cancelled or no pending HTML");
+            return;
+        }
+
+        if ("send".equals(action)) {
+            log.info("PRE SCAN DOM review 'send' - MultiPlugins upload disabled, matching legacy gate");
+            Platform.runLater(() -> {
+                javafx.scene.control.Alert out =
+                        new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR);
+                out.setHeaderText("Could not send DOM capture");
+                out.setContentText("Support upload disabled");
+                out.showAndWait();
+            });
+            return;
+        }
+        if (!"save".equals(action)) {
+            return;
+        }
+
+        Platform.runLater(() -> {
+            try {
+                String email = arPropertyManager.getProperty(ARPropertyEnum.LICENSE_EMAIL);
+                String appVersion = arPropertyManager.getProperty(ARPropertyEnum.VERSION);
+                String url = "(unknown)";
+                String title = "";
+                try {
+                    if (preScanDriver != null && preScanDriver.isOpen()) {
+                        url = preScanDriver.currentUrl();
+                        title = preScanDriver.title();
+                    }
+                } catch (Exception ignored) {
+                }
+
+                byte[] htmlBytes = html.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+                try (java.util.zip.GZIPOutputStream gz = new java.util.zip.GZIPOutputStream(bos)) {
+                    gz.write(htmlBytes);
+                }
+                String htmlB64 = java.util.Base64.getEncoder().encodeToString(bos.toByteArray());
+                java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+                byte[] digest = md.digest(htmlBytes);
+                StringBuilder hexHash = new StringBuilder(digest.length * 2);
+                for (byte b : digest) hexHash.append(String.format("%02x", b));
+
+                com.google.gson.JsonObject support = new com.google.gson.JsonObject();
+                support.addProperty("schemaVersion", "1");
+                support.addProperty("capturedAt", java.time.Instant.now().toString());
+                support.addProperty("pcName", com.allinweb.ch.license.SystemDetails.getSystemComputerName());
+                support.addProperty("email", email != null ? email : "");
+                support.addProperty("appVersion", appVersion != null ? appVersion : "");
+                support.addProperty("failedPlugin", "preScanPageScanner");
+                support.addProperty("failureReason", "User-initiated local capture");
+
+                com.google.gson.JsonObject browser = new com.google.gson.JsonObject();
+                browser.addProperty("url", url);
+                browser.addProperty("title", title != null ? title : "");
+                support.add("browser", browser);
+
+                support.addProperty("html", htmlB64);
+                support.addProperty("htmlSha256", "sha256:" + hexHash);
+
+                String timestamp = java.time.LocalDateTime.now()
+                        .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
+                javafx.stage.FileChooser fc = new javafx.stage.FileChooser();
+                fc.setTitle("Save Support File");
+                fc.setInitialFileName(timestamp + "_page_review.support");
+                fc.getExtensionFilters()
+                        .add(new javafx.stage.FileChooser.ExtensionFilter("Support Files (*.support)", "*.support"));
+                java.io.File chosen = fc.showSaveDialog(null);
+                if (chosen == null) {
+                    log.info("PRE SCAN DOM capture save cancelled by user");
+                    return;
+                }
+
+                java.nio.file.Files.writeString(
+                        chosen.toPath(),
+                        new com.google.gson.GsonBuilder()
+                                .setPrettyPrinting()
+                                .create()
+                                .toJson(support),
+                        java.nio.charset.StandardCharsets.UTF_8);
+
+                log.info("PRE SCAN DOM capture saved to {}", chosen.getAbsolutePath());
+                javafx.scene.control.Alert out =
+                        new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
+                out.setHeaderText("Support file saved");
+                out.setContentText("File: " + chosen.getAbsolutePath()
+                        + "\n\nDrag & drop this file on the Support Portal to create a ticket.");
+                out.showAndWait();
+            } catch (Exception ex) {
+                log.error("handlePreScanDomReviewResponse failed", ex);
+            }
+        });
+    }
+
+    /** Pre-scan mirror of {@code ARScannedElementPane.requestSupport}: sends modal context. */
+    private void preScanRequestSupport() {
+        if (selectedBotJob == null) {
+            return;
+        }
+        try {
+            String licenseEmail = arPropertyManager.getProperty(ARPropertyEnum.LICENSE_EMAIL);
+            String pcName = com.allinweb.ch.license.SystemDetails.getSystemComputerName();
+            String currentUrl = "(no browser)";
+            try {
+                if (preScanDriver != null && preScanDriver.isOpen()) {
+                    currentUrl = preScanDriver.currentUrl();
+                }
+            } catch (Exception ignored) {
+            }
+
+            com.google.gson.JsonObject body = new com.google.gson.JsonObject();
+            body.addProperty("url", currentUrl);
+            body.addProperty("pcName", pcName);
+            body.addProperty("email", licenseEmail != null ? licenseEmail : "");
+
+            webSocketSessionManager.sendMessageJson(
+                    selectedBotJob.getHomeBankingId(), "preScannerGrid", body.toString(), "REQUEST_SUPPORT");
+            log.info("preScanRequestSupport - WS message sent to preScannerGrid");
+        } catch (Exception ex) {
+            log.error("preScanRequestSupport failed", ex);
+        }
+    }
+
+    /** Same hard stop as {@code ARScannedElementPane.handleSupportRequestResponse}. */
+    public void handlePreScanSupportRequestResponse(String action, String message) {
+        log.info(
+                "PRE SCAN support request disabled - no MultiPlugins call performed (action={}, messageLen={})",
+                action,
+                message == null ? 0 : message.length());
     }
 
     private String preScanOptionsConfig() {
