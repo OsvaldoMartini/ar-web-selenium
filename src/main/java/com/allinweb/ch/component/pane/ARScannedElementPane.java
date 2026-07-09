@@ -227,6 +227,10 @@ public class ARScannedElementPane extends ARPane {
             "a",
             "select",
             "option",
+            // Readable outputs: without this the default profile lost every real form
+            // <label> (Tipo di richiesta, Oggetto, Nome, ...) that the pre-ACCETTA
+            // default search (input, textarea, button, a, select, label) always captured.
+            "label",
             "[contenteditable='true']",
             "[role='button']",
             "[role='link']",

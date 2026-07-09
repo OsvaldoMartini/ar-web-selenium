@@ -285,7 +285,16 @@ public final class ElementTextResolver {
      * from overriding the element's genuine DOM text.
      */
     private static boolean isOcrNoise(String text) {
-        return clean(text).length() < 2;
+        // Count only letters/digits: fragments like "i -", "| .", "- m" carry punctuation
+        // that pushed them past the old length check, then outranked the element's real
+        // DOM text (scanner.someText @ 0.40 < OCR OVERLAP @ 0.70) — e.g. the cookie
+        // reject button "Rifiuta tutti" ended up named "i -".
+        String cleaned = clean(text);
+        int meaningful = 0;
+        for (int i = 0; i < cleaned.length(); i++) {
+            if (Character.isLetterOrDigit(cleaned.charAt(i))) meaningful++;
+        }
+        return meaningful < 2;
     }
 
     private static boolean isGenericControlLabel(String text, ElementDTO e) {
